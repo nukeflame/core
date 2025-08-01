@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>@yield('title', config('app.name'))</title>
+    <style>
+        header {
+            position: fixed;
+            top: -6.85rem;
+            right: 0;
+            width: 100%;
+            background: #fff;
+            padding: 10px;
+            text-align: right;
+            height: 80px;
+            z-index: 1000;
+            font-size: 10.5pt;
+            line-height: 14pt;
+            display: block;
+        }
+
+        header.header-default {
+            position: fixed;
+            top: 0;
+            right: 0;
+            width: 100%;
+            background: #fff;
+            padding: 10px;
+            text-align: right;
+            height: 80px;
+            z-index: 1000;
+            font-size: 10.5pt;
+            line-height: 14pt;
+        }
+
+        p {
+            margin: 0;
+        }
+
+        table {
+            /* border-collapse: collapse; */
+        }
+
+        th {
+            background-color: #ECE9E9;
+            border: 1px solid #181212;
+            padding: 8px;
+            text-align: left;
+        }
+
+        .receipt-table {
+            width: 100%;
+            font-size: 10.0pt;
+            font-family: 'Open Sans', sans-serif;
+        }
+
+        .receipt-table td {
+            margin-bottom: 1px;
+            padding-bottom: 1px;
+        }
+
+        .bold {
+            font-weight: bold;
+        }
+
+        .underline {
+            text-decoration: underline;
+        }
+
+        .border-bottom {
+            border-bottom: 1px solid black;
+        }
+
+        .spacing-top {
+            padding-top: 10px;
+        }
+
+        .spacing-large-top {
+            padding-top: 90px;
+        }
+
+        .spacing-large-bottom {
+            padding-bottom: 50px;
+        }
+
+        .spacing-bottom {
+            padding-bottom: 10px;
+        }
+
+        .prepared-by {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+        }
+
+        .uppercase {
+            text-transform: uppercase;
+        }
+
+        @page {
+            padding-bottom: 0px;
+            size: A4;
+            /* margin-top: 20pt; */
+            margin-left: 5%;
+            margin-right: 5%;
+            margin-bottom: 1ch;
+            margin-top: 8.5rem;
+        }
+
+        @media print {
+            header {
+                position: fixed;
+                top: 0;
+                right: 0;
+                width: 100%;
+                background: #fff;
+                padding: 10px;
+                text-align: right;
+                height: 80px;
+                z-index: 1000;
+                font-size: 10.5pt;
+                line-height: 14pt;
+            }
+
+            body {
+                margin-top: 80px;
+                font-size: 10.5pt;
+                line-height: 14pt;
+            }
+
+            .page-break {
+                page-break-before: always;
+            }
+        }
+
+        .header {
+            display: block;
+        }
+
+        .no-header .header {
+            display: none;
+        }
+
+        .company-info {
+            p {
+                font-size: 10.5pt;
+                line-height: 14pt;
+            }
+        }
+
+        #cover-s {
+            padding: 0px;
+            font-size: 10.0pt;
+            font-family: 'Open Sans', sans-serif;
+            width: 100%;
+        }
+
+        .reinsurer-details {
+            width: 100%;
+        }
+
+        #cover-header {
+            width: 100%;
+        }
+
+        #slip-header {
+            width: 100%;
+        }
+
+        #slip-details tr td.s-l,
+        #slip-details tr td.s-r {
+            font-size: 10.0pt;
+        }
+
+        #slip-details tr td.s-l {
+            width: 40% !important;
+
+        }
+
+        #slip-details tr td.s-r {
+            width: 60% !important;
+        }
+
+        #cover-details,
+        .reinsurer-details,
+        #credit-details,
+        table {
+            /* border: 1px solid black; */
+            border-collapse: collapse;
+        }
+
+        #cover-details {
+            padding-left: 5pt;
+            width: 100%;
+            margin-bottom: 5px;
+        }
+
+        #cover-details td {
+            font-size: 8pt;
+            padding: 4px;
+            font-family: 'Open Sans', sans-serif;
+        }
+
+        .reinsurer-details td,
+        #particular-details td,
+        #cover-details td,
+        #credit-details td,
+        #breakdown-details td {
+            text-align: left;
+            font-size: 8pt;
+            font-family: 'Open Sans', sans-serif;
+        }
+
+        #particular-details {
+            width: 100%;
+        }
+
+        #particular-details tr {
+            border-bottom: 1px solid #000;
+        }
+
+        #particular-details td {
+            border-bottom: 1px solid #000;
+            padding: 3pt;
+            padding-left: 9pt;
+            padding-right: 9pt;
+        }
+
+        .p-4 {
+            padding: 4pt;
+            padding-left: 9pt;
+            padding-right: 9pt;
+        }
+
+        .p-3 {
+            padding: 3pt;
+        }
+
+        .p-9-l {
+            padding: 0pt;
+            padding-left: 9pt;
+        }
+
+        .p-9-r {
+            padding: 0pt;
+            padding-right: 9pt;
+        }
+
+        .m-0 {
+            margin: 0;
+        }
+
+        .p-0 {
+            padding: 0;
+        }
+
+        .p-6 {
+            padding: 6pt;
+        }
+
+        .pt-4 {
+            padding-top: 6px;
+        }
+
+        .text-center {
+            text-align: center;
+        }
+
+        .hr-line {
+            border-top: 0.5pt solid #000;
+            padding: 0;
+            margin: 2px;
+        }
+
+        .hr-line-btm {
+            border-bottom: 0.5pt solid #000;
+            padding: 0;
+            margin: 2px;
+        }
+
+        .calibri-10 {
+            font-size: 10.0pt;
+            font-family: 'Open Sans', sans-serif;
+        }
+
+        .courier-9 {
+            font-size: 9.0pt;
+            font-family: 'Open Sans', sans-serif;
+        }
+
+        .courier-10 {
+            font-size: 10.0pt;
+            font-family: 'Open Sans', sans-serif;
+        }
+
+        .courier-7 {
+            font-size: 7pt;
+            font-family: 'Open Sans', sans-serif;
+        }
+
+        .courier-8 {
+            font-size: 8pt;
+            font-family: 'Open Sans', sans-serif;
+        }
+
+        .w-100 {
+            width: 100%;
+        }
+
+        .no-border {
+            border: none;
+        }
+
+        .text-right {
+            text-align: right;
+        }
+
+        .text-left {
+            text-align: left;
+        }
+
+        .p-8 {
+            padding: 8px;
+        }
+
+        .bottom-border {
+            border-bottom: 0.5pt solid #181212;
+        }
+
+        .info-box {
+            display: inline-block;
+            padding: 2px;
+            margin-left: 2px;
+            min-width: 80px;
+            font-size: 8.0pt;
+        }
+
+        .fs-9 {
+            font-size: 9pt !important;
+        }
+
+        .fs-10 {
+            font-size: 10pt !important;
+        }
+
+        .company-info {
+            p {
+                font-size: 10.5pt;
+                line-height: 14pt;
+            }
+        }
+
+        .footer {
+            position: fixed;
+            bottom: -10px;
+            left: 0px;
+            right: 0px;
+            height: 20px;
+            border-top: 1px solid #000;
+            text-align: center;
+            padding-top: 5px;
+            font-size: 7pt;
+            display: block;
+            margin-top: 10px;
+            font-weight: 500;
+            font-style: italic;
+        }
+
+        .page-number::after {
+            content: counter(page);
+        }
+
+        .clearfix::after {
+            content: "";
+            clear: both;
+            display: table;
+        }
+    </style>
+</head>
+
+<body class="pdf_wrapper">
+    @if (!isset($disableAutoHeader))
+        <header class="logo-header">
+            <div class="row">
+                <div class="logo">
+                    <img align="left" src="data:image/png;base64,<?php echo base64_encode(file_get_contents(base_path('public/logo.png'))); ?>" alt=""
+                        style="width: 230px; height: auto;">
+                </div>
+                <div class="company-info">
+                    <p>{{ $company->company_name }}</p>
+                    <p>{{ $company->postal_address }}</p>
+                    <p>Phone: {{ $company->mobilephone }}</p>
+                    <p>Email: {{ $company->email }}</p>
+                </div>
+            </div>
+            <hr style="padding:0px; border-top: .5pt solid #ddd; margin: 10pt 1pt; margin-left: 5.5pt;" />
+        </header>
+    @endif
+    @yield('content')
+    @if (!isset($disableAutoFooter))
+        <div class="footer">
+            <span>&copy; {{ date('Y') }} Acentriagroup. All rights reserved. | Page No: <span
+                    class="page-number"></span></span>
+        </div>
+    @endif
+    @stack('script')
+</body>
+
+</html>

@@ -1,0 +1,1390 @@
+@extends('layouts.app')
+<style type="text/css">
+    .br span {
+        border-radius: 50%;
+        padding: 20px;
+        text-align: center;
+        border: 1px solid;
+        color: #b3d9ff;
+    }
+
+    .q-link {
+        text-decoration: none;
+    }
+
+    .q-link p {
+        color: black;
+    }
+
+    .br span:hover {
+        color: #3399ff;
+    }
+
+    .ct-series-a .ct-bar {
+        stroke-width: 15px;
+        /* Adjust this value to increase or decrease bar width */
+    }
+</style>
+@section('content')
+<br />
+@if ($message = Session::get('success'))
+@endif
+<!--  -->
+<div class="card mt-3 border">
+    <div class="card-header ">
+        <div>
+            <strong>
+                <h5>Pipeline Details</h5>
+            </strong>
+            <form id="pip_year_form" action="{{ route('pipeline.view') }}" method="get">
+                <div class="row">
+                    <div class="col-md-3">
+                        <x-SearchableSelect id="pip_year_select" req="" inputLabel="" name="pipeline">
+                            @foreach ($pipelines as $pip_year)
+                            <option @if ($pip_year->id == $pip) selected @endif value="{{ $pip_year->id }}">
+                                {{ $pip_year->year }}</option>
+                            @endforeach
+                        </x-SearchableSelect>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card-body p-2">
+        <div class="row" style="height:300px;">
+            <div class="col-md-8">
+                <div class="ct-chart-ranking ct-golden-section ct-series-a"></div>
+            </div>
+            <div class="col-md-4">
+
+
+            </div>
+        </div>
+        <div class="row">
+            <hr>
+            <div class="d-flex justify-content-center">
+                <div class="align-items-center text-end mb-2">
+                    <span class="fw-normal small">Proposal</span>
+                    <span class="dot rounded-circle bg-gray-800  me-2">oo</span>
+                </div>
+                <div class="align-items-center text-end mb-2">
+                    <span class="fw-normal small">Negotiation</span>
+                    <span class="dot rounded-circle bg-warning text-warning me-2">oo</span>
+                </div>
+                <div class="align-items-center text-end mb-2">
+                    <span class="fw-normal small">Lead</span>
+                    <span class="dot rounded-circle bg-success text-success me-2">oo</span>
+                </div>
+                <div class="align-items-center text-end mb-2">
+                    <span class="fw-normal small">Won</span>
+                    <span class="dot rounded-circle me-2" style="background-color: #31316A; color: #31316A">oo</span>
+                </div>
+                <div class="align-items-center text-end mb-2">
+                    <span class="fw-normal small">Lost</span>
+                    <span class="dot rounded-circle me-2" style="background-color: #C96480; color:  #C96480;">oo</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="card mt-3">
+    <div class="bs-example">
+        <ul class="nav nav-tabs">
+            <li class="nav-item">
+                <a class="nav-link active" data-bs-toggle="tab" href="#general_details" role="tab">
+                    All
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" data-bs-toggle="tab" href="#q1_details" role="tab">
+                    Quarter One
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" data-bs-toggle="tab" href="#q2_details" role="tab">
+                    Quarter Two
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" data-bs-toggle="tab" href="#q3_details" role="tab">
+                    Quarter Three
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" data-bs-toggle="tab" href="#q4_details" role="tab">
+                    Quarter Four
+                </a>
+            </li>
+            <br>
+        </ul>
+        <div class="tab-content p-3 text-muted">
+            <div class="tab-pane active" id="general_details">
+                <div class="row table-responsive">
+
+                    <table id="all_opps" class="table table-striped" style="width:100%">
+                        <thead>
+                            <th>Name</th>
+                            <th>Division</th>
+                            <th>Currency</th>
+                            <th>Premium</th>
+                            <th>Income</th>
+                            <th>Effective date</th>
+                            <th>Closing date</th>
+                            <th>Status</th>
+                            <th>Action</th>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="tab-pane" id="q1_details">
+                <div class="row table-responsive">
+                    <table id="q1_opps" class="table table-striped" style="width:100%">
+                        <thead>
+                            <th>Name</th>
+                            <th>Division</th>
+                            <th>Currency</th>
+                            <th>Premium</th>
+                            <th>Income</th>
+                            <th>Effective date</th>
+                            <th>Closing date</th>
+                            <th>Status</th>
+                            <th>Action</th>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="tab-pane" id="q2_details">
+                <div class="row table-responsive">
+                    <table id="q2_opps" class="table table-striped" style="width:100%">
+                        <thead>
+                            <th>Name</th>
+                            <th>Division</th>
+                            <th>Currency</th>
+                            <th>Premium</th>
+                            <th>Income</th>
+                            <th>Effective date</th>
+                            <th>Closing date</th>
+                            <th>Status</th>
+                            <th>Action</th>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="tab-pane" id="q3_details">
+                <div class="row table-responsive">
+                    <table id="q3_opps" class="table table-striped" style="width:100%">
+                        <thead class="mt-2">
+                            <th>Name</th>
+                            <th>Division</th>
+                            <th>Currency</th>
+                            <th>Premium</th>
+                            <th>Income</th>
+                            <th>Effective date</th>
+                            <th>Closing date</th>
+                            <th>Status</th>
+                            <th>Action</th>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="tab-pane" id="q4_details">
+                <div class="row table-responsive">
+                    <table id="q4_opps" class="table table-striped" style="width:100%">
+                        <thead>
+                            <th>Name</th>
+                            <th>Division</th>
+                            <th>Currency</th>
+                            <th>Cedant Premium</th>
+                            <th>Reinsurers premium</th>
+                            <th>Effective date</th>
+                            <th>Closing date</th>
+                            <th>Status</th>
+                            <th>Action</th>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<!-- Modal -->
+<div class="modal fade" id="editStatusModal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title text-white"><span id="ed_status_name"></span></h5>
+                <button type="button" class="close" data-bs-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form action="{{ route('update.opp.status') }}" method="POST" enctype="multipart/form-data">
+                    @csrf
+                    <input type="hidden" name="opp_id" id="update_opp">
+                    <input type="hidden" name="pip_id" id="update_pip">
+                    <input type="hidden" name="division" id="update_division">
+
+                    <div class="row">
+                        <div class="col-12">
+                            <x-TextArea name="remarks" id="remarks" req="required" inputLabel="Quote Title">
+                            </x-TextArea>
+                        </div>
+                        <!-- Start of new code -->
+                        <div class="modal-header">
+                            <h5 class="modal-title dc-modal-title" id="staticScheduleDetailsLabel">Schedule Details</h5>
+                            <button aria-label="Close" class="btn-close btn-close-white"
+                                data-bs-dismiss="modal"></button>
+                        </div>
+
+                        <div class="modal-body mb-3 p-3 border rounded shadow-sm">
+
+                            @foreach ($schedule as $key => $sch)
+                            <div class="mb-3 p-3 border rounded shadow-sm">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <h6 class="fs-5 fw-bold ms-2">{{ $sch->name }}</h6>
+                                    <span class="toggle-icon" role="button" aria-expanded="true"
+                                        aria-label="Toggle Content" data-target="#optional1-{{ $key }}">
+                                        <strong><i class='bx bx-plus'></i></strong>
+                                    </span>
+                                </div>
+
+                                <!-- The hidden optional content that will be toggled -->
+                                <div id="optional1-{{ $key }}" class="row"
+                                    style="display: none; margin-top: 10px; border-top: 2px solid #f0f0f0; padding-top: 10px;">
+                                    <div class="row mb-3">
+                                        <div class="col-md-6">
+                                            <label class="form-label fs-14" for="schedule-descr">Details</label>
+                                        </div>
+                                        <div class="col-md-6 text-end">
+                                            <button type="button" id="exit-toggle-fullscreen"
+                                                class="fullscreen-exit-btn" style="display: none;">
+                                                <div
+                                                    style="display: inline-block; line-height: 16px; padding-right: 4px;">
+                                                    <svg width="12px" height="12px" viewBox="0 0 20 20"
+                                                        xmlns="http://www.w3.org/2000/svg">
+                                                        <rect x="0" fill="none" width="20" height="20" />
+                                                        <g>
+                                                            <path
+                                                                d="M3.4 2L2 3.4l2.8 2.8L3 8h5V3L6.2 4.8 3.4 2zm11.8 4.2L18 3.4 16.6 2l-2.8 2.8L12 3v5h5l-1.8-1.8zM4.8 13.8L2 16.6 3.4 18l2.8-2.8L8 17v-5H3l1.8 1.8zM17 12h-5v5l1.8-1.8 2.8 2.8 1.4-1.4-2.8-2.8L17 12z" />
+                                                        </g>
+                                                    </svg>
+                                                </div>
+                                                <div>Exit Full screen</div>
+                                            </button>
+                                            <button type="button" id="toggle-fullscreen"
+                                                class="fullscreen-toggle-btn d-flex">
+                                                <div
+                                                    style="display: inline-block;line-height: 16px;padding-right: 4px;">
+                                                    <svg width="12px" height="12px" viewBox="0 0 20 20"
+                                                        xmlns="http://www.w3.org/2000/svg">
+                                                        <rect x="0" fill="none" width="20" height="20" />
+                                                        <g>
+                                                            <path
+                                                                d="M7 2H2v5l1.8-1.8L6.5 8 8 6.5 5.2 3.8 7 2zm6 0l1.8 1.8L12 6.5 13.5 8l2.7-2.7L18 7V2h-5zm.5 10L12 13.5l2.7 2.7L13 18h5v-5l-1.8 1.8-2.7-2.8zm-7 0l-2.7 2.7L2 13v5h5l-1.8-1.8L8 13.5 6.5 12z" />
+                                                        </g>
+                                                    </svg>
+                                                </div>
+                                                <div>Full screen</div>
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <!-- Schedule Description Section -->
+                                    <div class="card-md">
+                                        <textarea id="schedule-descr-{{ $key }}" class="form-control" rows="4"
+                                            placeholder="Enter description..."></textarea>
+                                    </div>
+
+                                    <input type="hidden" name="details" id="sched-details-{{ $key }}" required />
+                                </div>
+                            </div>
+                            @endforeach
+                        </div>
+                        <!-- End of new code -->
+
+
+                        <div class="col-12" style="display:none" id="stage_div">
+                            <x-SearchableSelect name="stage_cycle" id="stage_cycle" req="required"
+                                inputLabel="Cycle Stage">
+                                <option value="">Select stage</option>
+                                @foreach ($statuses as $status)
+                                <option value="{{ $status->id }}">{{ $status->status_name }}</option>
+                                @endforeach
+                            </x-SearchableSelect>
+                        </div>
+                        {{-- <div id="customers-container">
+                            @foreach ($customers as $cust)
+                            <div class="col-12 customer-row">
+                                <div class="row mt-3">
+                                    <div class="col-5">
+                                        <input type="hidden" name="document_name[]" value="{{$cust->name}}" />
+                                        <x-Input req="" inputLabel="Name" value="{{$cust->name}}" readonly />
+                                    </div>
+
+                                    <div class="col-6 mt-3">
+                                        <div class="input-group">
+                                            <x-Input req="" inputLabel="Email" value="{{$cust->email}}" />
+                                        </div>
+                                    </div>
+
+                                    <div class="col-1" style="margin-top: 30px;">
+                                        <i class="bx bx-eye preview" id="preview${this.id}" style="cursor:pointer;"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            @endforeach
+                        </div> --}}
+
+                        <!-- Search Bar -->
+                        <div class="row">
+                            <div class="col-11">
+
+                                <x-input type="text" id="search-bar" class="form-control" inputLabel="Insurer"
+                                    placeholder="Search for reinsurer..." req="required" />
+                            </div>
+                        </div>
+
+
+                        <div id="search-results" class="mt-2">
+                            <!-- Dynamically populated customer results will appear here -->
+                        </div>
+
+                        <!-- List of Selected Customers -->
+                        <div id="selected-customers-list" class="mt-4">
+
+                        </div>
+                        <div id="file_details" class="col-12"></div>
+                        {{-- end search --}}
+                </form>
+            </div>
+
+
+            <div class="modal-footer">
+                <a href="#" class="btn btn-outline-dark mr-2 btn-sm btn-wave waves-effect waves-light"
+                    id="generate_slip">
+                    <i class="bx bx-analyse me-1 align-middle"></i> Preview
+                </a>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="submit" class="btn btn-success">Submit</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{-- update category type --}}
+<div class="modal fade" id="updateCategoryTypeModal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title text-white"><span id="ed_status_name"></span></h5>
+                <button type="button" class="close" data-bs-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form action="{{ route('update.category_type') }}" method="POST" enctype="multipart/form-data">
+                    @csrf
+                    <input type="text" name="opportunity_id" id="opportunity_id" hidden />
+                    <div class="row">
+                        <div>Category Type</div>
+                        <div class="col-sm-6">
+
+                            <div>
+                                <select class="form-control form-control-sm" name="category_type" id="category_type"
+                                    required>
+                                    <option value="">Select Category</option>
+                                    <option value="1">Quotation</option>
+                                    <option value="2">Facultative Offer</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        <button type="submit" class="btn btn-success">Submit</button>
+                    </div>
+                </form>
+            </div>
+
+
+
+        </div>
+    </div>
+</div>
+
+
+<div class="modal fade" id="v_docs" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document" style="min-width:70%">
+        <div class="modal-content">
+            <div class="modal-header" style="background-color: #cfd7e0 ">
+                <h5 class="modal-title" id="adminClaimModalLabel">Document</span></h5>
+                <button type="button" class="close" data-bs-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="Xcontainer">
+                <div class="modal-body">
+                    <div class="embed-responsive embed-responsive-16by9">
+                        <object id="doc_view" data="base64" height="900" width="100%"
+                            style="border: solid 1px #DDD;"></object>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Generate Slip -->
+<div class="modal effect-scale md-wrapper" id="generateSlipModal" tabindex="-1" aria-labelledby="staticGenerateSlip"
+    aria-hidden="true">
+    <div class="modal-dialog modal-lg" style="width: 80%;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="staticGenerateSlip">Generated Slip</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" style="position: relative;">
+                <iframe id="docIframe" src="" style="width: 100%; height: 80vh; border: none; overflow: auto;"></iframe>
+                <div class="iframe-overlay"></div>
+            </div>
+        </div>
+    </div>
+</div>
+@endsection
+@push('script')
+<script>
+    $(document).ready(function() {
+            var lead = {!! $pip !!};
+           $('#optional1').hide(); // Initially hide the element
+        
+        
+                $('.toggle-icon').click(function() {
+                var targetId = $(this).data('target'); // Get the ID of the target element
+                $(targetId).toggle(); // Toggle visibility of the corresponding content (optional1)
+                
+                var icon = $(this).find('i'); // Find the icon inside the clicked span
+                // Toggle between plus and minus icon
+                if ($(targetId).is(":visible")) {
+                icon.removeClass('bx-plus').addClass('bx-minus');
+                } else {
+                icon.removeClass('bx-minus').addClass('bx-plus');
+                }
+                });
+
+            $('body').on('click', 'table tr .update_status', function() {
+                let opp_id = $(this).attr('data-opp')
+                let div_id = $(this).attr('data-division')
+                let stage_id = $(this).attr('data-stage')
+                let pip = lead
+                let req = "";
+
+
+                $('#update_pip').val(pip)
+                $('#update_division').val(div_id)
+                $('#update_opp').val(opp_id)
+                $('#stage_cycle').val(parseInt(stage_id) + 1).trigger('change');
+                if (stage_id == 3) {
+                    $('#stage_div').show()
+                } else {
+                    $('#stage_div').hide()
+
+                }
+
+                $('#stage_cycle option').each(function() {
+                    var value = parseInt($(this).val());
+                    if (value <= stage_id) {
+                        $(this).prop('disabled', true);
+                    }
+                });
+
+                $('#stage_cycle').select2();
+
+                let prospect_name = $(this).closest('tr').find("td:first").text()
+                $('#ed_status_name').text(prospect_name)
+
+                if (stage_id == 4) {
+                    toastr.warning('Cannot change status of a WON prospect.', {
+                        timeOut: 5000
+                    });
+                }
+                // else if(stage_id == 3){
+                //     $('#stage_cycle').trigger('change');
+                //     $('#editStatusModal').modal('show')
+                // }
+                else {
+
+
+                    $('#stage_cycle').trigger('change');
+                    $('#editStatusModal').modal('show')
+                }
+            })
+            $('body').on('click', 'table tr .update_category', function() {
+                let opp_id = $(this).data('opp')
+                let req = "";
+                $('#opportunity_id').val(opp_id);
+
+                    // $('#stage_cycle').trigger('change');
+                    $('#updateCategoryTypeModal').modal('show')
+                
+            })
+
+            $('#stage_cycle').on('change', function() {
+                let pip = $('#update_pip').val()
+                let opp_id = $('#update_opp').val()
+                let div_id = $('#update_division').val()
+                let stage_id = $('#stage_cycle option:selected').val()
+                let category_type = $("#category_type").val()                            
+                let req = ""
+                
+              
+               
+                if (stage_id != 4) {
+                    $.ajax({
+                        type: "GET",
+                        data: {
+                            'pipeline': pip,
+                            'prospect': opp_id,
+                            'divisions': div_id,
+                            'stage': stage_id,
+                            'category_type':category_type
+                        },
+                        url: "{{ route('get_stage_documents') }}",
+                        success: function(resp) {
+                            if (resp.status == 1) {
+
+                                $('#file_details').empty();
+                                if (Object.keys(resp.docs).length > 0) {
+                                    $('#file_details').append(
+                                        `<div class="col-12 mt-3">
+                                        <small><b  style="color: #E1251B"><i>Please Upload files and  Supporting documents</i></b></small>
+                                        <hr>
+                                    </div>`
+                                    );
+                                }
+                                $.each(resp.docs, function() {
+                                    if (this.mandatory == 'Y' && stage_id != 3) {
+                                        req = 'required'
+                                    }
+                                    $('#file_details').append(
+                                    `<div class="row mt-3">
+                                        <div class="col-5">
+                                            <input type="hidden" name="document_name[]" value="${this.doc_type}" />
+                                            <x-Input req="" inputLabel="Document Title" value="${this.doc_type}" readonly />
+                                        </div>
+                                    
+                                        <div class="col-6 mt-3">
+                                            <div class="input-group">
+                                            <label for="document_file${this.id}">File<font style="color:red;">*</font></label>
+                                            <input type="file" name="document_file[]" id="document_file${this.id}"
+                                                class="form-control document_file checkempty" required />
+                                            <button id="addDoc" class="btn btn-primary" type="button">
+                                                <i class="bx bx-plus"></i>
+                                            </button>
+                                            </div>
+                                        </div>
+                                    
+                                        <div class="col-1" style="margin-top: 30px;">
+                                            <i class="bx bx-eye preview" id="preview${this.id}" style="cursor:pointer;"></i>
+                                        </div>
+                                    </div>`
+                                    );
+                                });
+
+                               if (stage_id == 2 ) {
+                                    $('#file_details').append(
+                                    // `<div class="row mt-3">
+                                    //     <div class="form-group">
+                                    //         <label for="roles" class="pb-2">Locked underwriter(s)</label>
+                                    //         <select type="text" class="select2Multi select2" id="underwriters" name="underwriters[]" multiple="multiple"
+                                    //             placeholder="Select roles">
+                                    //             @foreach ($underwriters as $user)
+                                    //             <option value="{{ $user->company_id }}">{{ $user->company_name }}</option>
+                                    //             @endforeach
+                                    //         </select>
+                                    //         <span class="invalid-feedback"></span>
+                                    //     </div>
+                                    // </div>`
+                                    );
+                                    $('#underwriters').select2();
+                                    }
+                                $('#file_details').append(
+                                    // `
+                                // <div class="row mt-3">
+                                //     <div class="col-12 m-0">
+                                //         <small><b style="color: #E1251B"><i>Other documents</i></b></small>
+                                //         <hr>
+                                //     </div>
+
+                                //     <div class="col-5">
+                                //             <x-Input id="document_name0" name="document_name[]" req=""
+                                //                 inputLabel="Document Title"
+                                //                 placeholder="Enter document title"
+                                //                 oninput='this.value=this.value.toUpperCase();'/>
+                                //     </div>
+
+                                //     <div class="col-6">
+                                //         <label for="document_file">File</label>
+                                //         <div class="input-group">
+                                //             <input type="file" name="document_file[]" id="document_filo0" data-fo="fo" class="form-control document_filo" />
+                                //             <button id="addDoc" class="btn btn-primary" type="button"><i class="fa fa-plus"></i></button>
+                                //         </div>
+                                //     </div>
+                                //     <div class="col-1" style="margin-top: 30px">
+                                //         <i class="fa fa-eye preview" id="previewo0"> </i>
+                                //     </div>
+                                // </div>`
+                                );
+                            }
+                        }
+                    })
+                }
+            })
+
+
+
+            $('#all_opps').DataTable({
+                'dom': 'Bfltip',
+                'buttons': [{
+                        extend: 'pdf',
+                        text: '<i class="fa fa-file-pdf-o"></i> Export PDF',
+                        className: 'btn btn-danger',
+                        titleAttr: 'PDF',
+                        title: 'LIST OF PROSPECTS',
+                        customize: function(doc) {
+                            doc.content[1].table.widths = Array(doc.content[1].table.body[0]
+                                .length + 1).join('*').split('');
+
+                        },
+                        orientation: 'landscape',
+                        exportOptions: {
+                            columns: ':not(:last-child)',
+                        },
+                    },
+                    {
+                        extend: 'print',
+                        text: '<i class="fa fa-print"></i> Print',
+                        className: 'btn btn-danger',
+                        titleAttr: 'Print',
+                        title: 'LIST OF PROSPECTS',
+                        orientation: 'landscape',
+                        exportOptions: {
+                            columns: ':not(:last-child)',
+                        },
+                    },
+                    {
+                        extend: 'csv', // Add Excel button
+                        text: '<i class="fa fa-file-excel-o"></i> Export Excel',
+                        className: 'btn btn-danger',
+                        titleAttr: 'Excel',
+                        title: 'LIST OF PROSPECTS',
+                        exportOptions: {
+                            columns: ':not(:last-child)',
+                        },
+                    },
+                ],
+
+                'processing': true,
+                'serverSide': true,
+                'ajax': {
+                    url: "{{ route('pipeline.activity') }}" + "?pipe_id=" + encodeURIComponent(lead),
+                    type: "get"
+
+                },
+                'columns': [{
+                        data: 'customer_name',
+                        name: 'customer_name'
+                    },
+                    {
+                        data: 'division_name',
+                        name: 'division_name'
+                    },
+                    {
+                        data: 'currency_code',
+                        name: 'currency_code'
+                    },
+                    {
+                        data: 'cedant_premium',
+                        name: 'cedant_premium'
+                    },
+                   {
+                        data: 'reinsurer_premium',
+                        name: 'reinsurer_premium',
+                    },
+                    {
+                        data: 'effective_date',
+                        name: 'effective_date'
+                    },
+                    {
+                        data: 'closing_date',
+                        name: 'closing_date'
+                    },
+                    {
+                        data: 'stage',
+                        name: 'stage'
+                    },
+                    {
+                        data: 'action',
+                        name: 'action'
+                    }
+                ],
+                order: [
+                    [6, 'asc']
+                ] //order the table
+            });
+
+            $('#q1_opps').DataTable({
+                'dom': 'Bfltip',
+                'buttons': [{
+                        extend: 'pdf',
+                        text: '<i class="fa fa-file-pdf-o"></i> Export PDF',
+                        className: 'btn btn-danger',
+                        titleAttr: 'PDF',
+                        title: 'QUARTER ONE PROSPECTS',
+                        customize: function(doc) {
+                            doc.content[1].table.widths = Array(doc.content[1].table.body[0]
+                                .length + 1).join('*').split('');
+
+                        },
+                        orientation: 'landscape',
+                        exportOptions: {
+                            columns: ':not(:last-child)',
+                        },
+                    },
+                    {
+                        extend: 'print',
+                        text: '<i class="fa fa-print"></i> Print',
+                        className: 'btn btn-danger',
+                        titleAttr: 'Print',
+                        title: 'QUARTER ONE PROSPECTS',
+                        orientation: 'landscape',
+                        exportOptions: {
+                            columns: ':not(:last-child)',
+                        },
+                    },
+                    {
+                        extend: 'csv', // Add Excel button
+                        text: '<i class="fa fa-file-excel-o"></i> Export Excel',
+                        className: 'btn btn-danger',
+                        titleAttr: 'Excel',
+                        title: 'QUARTER ONE PROSPECTS',
+                        exportOptions: {
+                            columns: ':not(:last-child)',
+                        },
+                    },
+                ],
+                responsive: true,
+                processing: true,
+                serverSide: true,
+                ajax: {
+                    url: "{{ route('pipeline.activity.q1') }}" + "?pipe_id=" + encodeURIComponent(lead),
+                    type: "get"
+
+                },
+                columns: [{
+                        data: 'name',
+                        name: 'name'
+                    },
+                    {
+                        data: 'divisions',
+                        name: 'divisions'
+                    },
+                    {
+                        data: 'currency_code',
+                        name: 'currency'
+                    },
+                    {
+                        data: 'premium',
+                        name: 'premium'
+                    },
+                    {
+                        data: 'income',
+                        name: 'income'
+                    },
+                    {
+                        data: 'effective_date',
+                        name: 'effective_date'
+                    },
+                    {
+                        data: 'closing_date',
+                        name: 'closing_date'
+                    },
+                    {
+                        data: 'stage',
+                        name: 'stage'
+                    },
+                    {
+                        data: 'action',
+                        name: 'action'
+                    }
+                ]
+            });
+
+            $('#q2_opps').DataTable({
+                'dom': 'Bfltip',
+                'buttons': [{
+                        extend: 'pdf',
+                        text: '<i class="fa fa-file-pdf-o"></i> Export PDF',
+                        className: 'btn btn-danger',
+                        titleAttr: 'PDF',
+                        title: 'QUARTER TWO PROSPECTS',
+                        customize: function(doc) {
+                            doc.content[1].table.widths = Array(doc.content[1].table.body[0]
+                                .length + 1).join('*').split('');
+
+                        },
+                        orientation: 'landscape',
+                        exportOptions: {
+                            columns: ':not(:last-child)',
+                        },
+                    },
+                    {
+                        extend: 'print',
+                        text: '<i class="fa fa-print"></i> Print',
+                        className: 'btn btn-danger',
+                        titleAttr: 'Print',
+                        title: 'QUARTER TWO PROSPECTS',
+                        orientation: 'landscape',
+                        exportOptions: {
+                            columns: ':not(:last-child)',
+                        },
+                    },
+                    {
+                        extend: 'csv', // Add Excel button
+                        text: '<i class="fa fa-file-excel-o"></i> Export Excel',
+                        className: 'btn btn-danger',
+                        titleAttr: 'Excel',
+                        title: 'QUARTER TWO PROSPECTS',
+                        exportOptions: {
+                            columns: ':not(:last-child)',
+                        },
+                    },
+                ],
+                responsive: true,
+                processing: true,
+                serverSide: true,
+                ajax: {
+                    url: "{{ route('pipeline.activity.q2') }}" + "?pipe_id=" + encodeURIComponent(lead),
+                    type: "get"
+
+                },
+                columns: [{
+                        data: 'name',
+                        name: 'name'
+                    },
+                    {
+                        data: 'divisions',
+                        name: 'divisions'
+                    },
+                    {
+                        data: 'currency',
+                        name: 'currency'
+                    },
+                    {
+                        data: 'premium',
+                        name: 'premium'
+                    },
+                    {
+                        data: 'income',
+                        name: 'income'
+                    },
+                    {
+                        data: 'effective_date',
+                        name: 'effective_date'
+                    },
+                    {
+                        data: 'closing_date',
+                        name: 'closing_date'
+                    },
+                    {
+                        data: 'stage',
+                        name: 'stage'
+                    },
+                    {
+                        data: 'action',
+                        name: 'action'
+                    }
+                ]
+            });
+
+            $('#q3_opps').DataTable({
+                'dom': 'Bfltip',
+                'buttons': [{
+                        extend: 'pdf',
+                        text: '<i class="fa fa-file-pdf-o"></i> Export PDF',
+                        className: 'btn btn-danger',
+                        titleAttr: 'PDF',
+                        title: 'QUARTER THREE PROSPECTS',
+                        customize: function(doc) {
+                            doc.content[1].table.widths = Array(doc.content[1].table.body[0]
+                                .length + 1).join('*').split('');
+
+                        },
+                        orientation: 'landscape',
+                        exportOptions: {
+                            columns: ':not(:last-child)',
+                        },
+                    },
+                    {
+                        extend: 'print',
+                        text: '<i class="fa fa-print"></i> Print',
+                        className: 'btn btn-danger',
+                        titleAttr: 'Print',
+                        title: 'QUARTER THREE PROSPECTS',
+                        orientation: 'landscape',
+                        exportOptions: {
+                            columns: ':not(:last-child)',
+                        },
+                    },
+                    {
+                        extend: 'csv', // Add Excel button
+                        text: '<i class="fa fa-file-excel-o"></i> Export Excel',
+                        className: 'btn btn-danger',
+                        titleAttr: 'Excel',
+                        title: 'QUARTER THREE PROSPECTS',
+                        exportOptions: {
+                            columns: ':not(:last-child)',
+                        },
+                    },
+                ],
+                responsive: true,
+                processing: true,
+                serverSide: true,
+                ajax: {
+                    url: "{{ route('pipeline.activity.q3') }}" + "?pipe_id=" + encodeURIComponent(lead),
+                    type: "get"
+
+                },
+                columns: [{
+                        data: 'name',
+                        name: 'name'
+                    },
+                    {
+                        data: 'divisions',
+                        name: 'divisions'
+                    },
+                    {
+                        data: 'currency',
+                        name: 'currency'
+                    },
+                    {
+                        data: 'premium',
+                        name: 'premium'
+                    },
+                    {
+                        data: 'income',
+                        name: 'income'
+                    },
+                    {
+                        data: 'effective_date',
+                        name: 'effective_date'
+                    },
+                    {
+                        data: 'closing_date',
+                        name: 'closing_date'
+                    },
+                    {
+                        data: 'stage',
+                        name: 'stage'
+                    },
+                    {
+                        data: 'action',
+                        name: 'action'
+                    }
+                ]
+            });
+
+            $('#q4_opps').DataTable({
+                'dom': 'Bfltip',
+                'buttons': [{
+                        extend: 'pdf',
+                        text: '<i class="fa fa-file-pdf-o"></i> Export PDF',
+                        className: 'btn btn-danger',
+                        titleAttr: 'PDF',
+                        title: 'QUARTER FOUR PROSPECTS',
+                        customize: function(doc) {
+                            doc.content[1].table.widths = Array(doc.content[1].table.body[0]
+                                .length + 1).join('*').split('');
+
+                        },
+                        orientation: 'landscape',
+                        exportOptions: {
+                            columns: ':not(:last-child)',
+                        },
+                    },
+                    {
+                        extend: 'print',
+                        text: '<i class="fa fa-print"></i> Print',
+                        className: 'btn btn-danger',
+                        titleAttr: 'Print',
+                        title: 'QUARTER FOUR PROSPECTS',
+                        orientation: 'landscape',
+                        exportOptions: {
+                            columns: ':not(:last-child)',
+                        },
+                    },
+                    {
+                        extend: 'csv', // Add Excel button
+                        text: '<i class="fa fa-file-excel-o"></i> Export Excel',
+                        className: 'btn btn-danger',
+                        titleAttr: 'Excel',
+                        title: 'QUARTER FOUR PROSPECTS',
+                        exportOptions: {
+                            columns: ':not(:last-child)',
+                        },
+                    },
+                ],
+                responsive: true,
+                processing: true,
+                serverSide: true,
+                ajax: {
+                    url: "{{ route('pipeline.activity.q4') }}" + "?pipe_id=" + encodeURIComponent(lead),
+                    type: "get"
+
+                },
+                columns: [{
+                        data: 'name',
+                        name: 'name'
+                    },
+                    {
+                        data: 'divisions',
+                        name: 'divisions'
+                    },
+                    {
+                        data: 'currency',
+                        name: 'currency'
+                    },
+                    {
+                        data: 'premium',
+                        name: 'premium'
+                    },
+                    {
+                        data: 'income',
+                        name: 'income'
+                    },
+                    {
+                        data: 'effective_date',
+                        name: 'effective_date'
+                    },
+                    {
+                        data: 'closing_date',
+                        name: 'closing_date'
+                    },
+                    {
+                        data: 'stage',
+                        name: 'stage'
+                    },
+                    {
+                        data: 'action',
+                        name: 'action'
+                    }
+                ]
+            });
+
+            $('body').on('change', '.document_file, .document_filo', function() {
+                let file = $(this)[0].files[0];
+                let id = $(this).attr('id')
+                let id_length = id.length
+                let rowID = id.slice(13, id_length)
+                let f_type = $(this).attr('data-fo')
+
+
+                let formData = new FormData();
+                formData.append('doc', file);
+
+
+                $.ajax({
+                    type: "POST",
+                    data: formData,
+                    url: "{{ route('doc_preview') }}",
+                    contentType: false,
+                    processData: false,
+                    success: function(resp) {
+                        if (f_type == 'fo') {
+                            $("#previewo" + rowID).attr('data-file', resp);
+                        } else {
+                            $("#preview" + rowID).attr('data-file', resp);
+                        }
+
+                    }
+                })
+            })
+
+            $('body').on('click', '.preview', function(e) {
+                $('object').attr('data', '');
+                var doc = $(this).attr('data-file');
+
+                $('#doc_view').html('<iframe src="' + doc + '" width="100%" height="900"></iframe>');
+
+                $('#v_docs').modal('show');
+
+
+
+            });
+
+            var counter = 0;
+            $('body').on('click', '#addDoc', function() {
+                if (counter > 0) {
+                    var document_title = $('#document_title' + counter).val()
+                    var document_file = $('#document_file' + counter).val()
+                } else if (counter == 0) {
+                    var document_title = $('#document_title0').val()
+                    var document_file = $('#document_file0').val()
+                }
+                if (document_title == '' || document_file == '') {
+                    Swal.fire({
+                        icon: 'warning',
+                        text: 'Please fill all details'
+                    });
+                } else {
+                    counter = +1;
+                    $('#file_details').append(
+                        `<div class="row mt-1">
+
+                        <div class="col-5">
+                            <div class="row">
+                                <x-Input id="document_name${counter}" name="document_name[]" req=""
+                                    inputLabel="Document Title" 
+                                    placeholder="Enter document title"
+                                    oninput='this.value=this.value.toUpperCase();'/>
+                                
+                            </div>
+                        </div>
+
+                        <div class="col-6">
+                            <label for="document_file">File</label>
+                            <div class="input-group">
+                                <input type="file" name="document_file[]" id="document_filo${counter}" class="form-control document_filo" data-fo="fo" />
+                                <button class="btn btn-danger remove_file" type="button"><i class="fa fa-minus"></i> </button>
+                            </div>
+                        </div>
+                        <div class="col-1" style="margin-top: 30px">
+                            <i class="fa fa-eye preview" id="previewo${counter}"> </i>
+                        </div>
+                    </div>`
+                    );
+                }
+
+
+                $('input[type=radio]').change(function() {
+                    $('input[type=radio]:checked').not(this).prop('checked', false)
+                })
+            });
+
+            $('#file_details').delegate('.remove_file', 'click', function() {
+                $(this).parent().parent().parent().remove();
+            });
+
+
+            $('#pip_year_select').on('change', function() {
+
+                $("#pip_year_form").submit();
+
+            });
+
+              // schedule schedule
+            ClassicEditor
+                .create(document.querySelector('#schedule-descr'), {
+                    resizing: false,
+                    toolbar: [
+                        'undo', 'redo',
+                        '|',
+                        'heading',
+                        '|',
+                        'bold', 'italic',
+                        '|',
+                        'insertTable',
+                        '|',
+                        'bulletedList', 'numberedList',
+                        '|',
+                        'indent', 'outdent',
+                    ],
+                    // Underline
+                    removePlugins: ['CKEditor5Inspector'],
+                    ui: {
+                        viewportOffset: {
+                            top: 0,
+                        },
+                    },
+
+                })
+                .then(editor => {
+                    window.editor = editor;
+                    $(editor.ui.view.editable.element).closest('.ck-editor').addClass('schedule_editor');
+                    $('#toggle-fullscreen').on('click', function() {
+                        const editorContainer = $(editor.ui.view.element);
+                        if (editorContainer.hasClass('editor-fullscreen')) {
+                            editorContainer.removeClass('editor-fullscreen');
+                            $('#exit-toggle-fullscreen.fullscreen-exit-btn').css('display', 'none')
+                            $('body').css('overflow', 'auto');
+                            $('#schedulesModal .modal-dialog').removeClass('modal-fullscreen');
+                            $('#schedulesModal .modal-dialog .modal-header').removeClass('hidden');
+                        } else {
+                            editorContainer.addClass('editor-fullscreen');
+                            $('#exit-toggle-fullscreen.fullscreen-exit-btn').css({
+                                display: "flex"
+                            })
+                            $('body').css('overflow', 'hidden');
+                            $('#schedulesModal .modal-dialog').addClass('modal-fullscreen');
+                            $('#schedulesModal .modal-dialog .modal-header').addClass('hidden');
+
+                        }
+                    });
+                    $('#exit-toggle-fullscreen').on('click', function() {
+                        const editorContainer = $(editor.ui.view.element);
+                        editorContainer.removeClass('editor-fullscreen');
+                        $(this).css('display', 'none')
+                        $('body').css('overflow', 'auto');
+                        $('#schedulesModal .modal-dialog').removeClass('modal-fullscreen');
+                        $('#schedulesModal .modal-dialog .modal-header').removeClass('hidden');
+                    });
+                })
+                .catch(err => {
+                    console.error(err.stack);
+                });
+                
+                $('#generate_slip').click(function(event) {
+                    let opportunity_id = $("#update_opp").val();
+
+                event.preventDefault();
+                var slipUrl = "{!! route('docs.quotationCoverSlip') !!}" + "?opportunity_id=" + encodeURIComponent(opportunity_id);
+                $('#docIframe').attr('src', slipUrl);
+                $('#generateSlipModal').modal('show');
+                });
+               $('#add-customer').click(function() {
+                // Create a new customer row
+                var newCustomerRow = `
+                <div class="col-12 customer-row">
+                    <div class="row mt-3">
+                        <div class="col-5">
+                            <input type="hidden" name="document_name[]" value="" />
+                            <x-Input req="" inputLabel="Name" value="" />
+                        </div>
+                
+                        <div class="col-6 mt-3">
+                            <div class="input-group">
+                                <x-Input req="" inputLabel="Email" value="" />
+                            </div>
+                        </div>
+                
+                        <div class="col-1" style="margin-top: 30px;">
+                            <i class="bx bx-eye preview" style="cursor:pointer;"></i>
+                        </div>
+                    </div>
+                </div>
+                `;
+                
+                // Append the new row to the container
+                $('#customers-container').append(newCustomerRow);
+                });
+                
+                //SEARCH REINSURES
+
+                // Pre-compacted customers passed from the backend
+                const customers = @json($customers);
+                
+                $('#search-bar').on('input', function() {
+                var searchQuery = $(this).val().toLowerCase();
+                
+                // Filter customers based on search query
+                var filteredCustomers = customers.filter(customer => customer.name.toLowerCase().includes(searchQuery));
+                
+                
+                $('#search-results').empty();
+                
+                if (filteredCustomers.length > 0) {
+                filteredCustomers.forEach(function(customer) {
+                $('#search-results').append(`
+                <div class="customer-result" data-id="${customer.customer_id}">
+                    <span>${customer.name}</span>
+                    <button type="button" class="btn btn-success btn-sm select-customer">+</button>
+                </div>
+                `);
+                });
+                }
+                });
+                
+                // Add selected customer to the list
+                $(document).on('click', '.select-customer', function() {
+               var customerId = $(this).closest('.customer-result').data('id');
+                
+                var customer = customers.find(cust => cust.customer_id === customerId);
+                $('#selected-customers-list').append(`
+                <div class="row mt-3" data-id="${customer.id}">
+                    <div class="col-5">
+                        <input type="hidden" name="name" value="${customer.customer_id}" />
+                        <x-Input req="" inputLabel="Name" value="${customer.name}" disabled />
+                    </div>
+                
+                    <div class="col-6 mt-3">
+                        <div class="input-group">
+                            <x-Input req="" inputLabel="Email" value="${customer.email}" />
+                            <button type="button" class="btn btn-danger btn-sm remove-customer">x</button>
+                        </div>
+                    </div>
+                </div>
+                `);
+                
+                // hide search results after selection
+                $('#search-results').empty();
+                });
+
+                $(document).on('click', '.remove-customer', function() {
+                $(this).closest('.row').remove(); 
+                });
+
+            //End of search Reinsurer
+
+
+
+
+        });
+   
+      if (document.querySelector('.ct-chart-ranking')) {
+            var chart = new Chartist.Bar('.ct-chart-ranking', {
+                labels: ['Quarter One', 'Quarter Two', 'Quarter Three', 'Quarter Four'],
+                series: @json($data)
+            }, {
+                low: 0,
+                showArea: true,
+                height: '300px',
+                plugins: [
+                    Chartist.plugins.tooltip()
+                ],
+                axisX: {
+                    // On the x-axis start means top and end means bottom
+                    position: 'end'
+                },
+                axisY: {
+                    // On the y-axis start means left and end means right
+                    showGrid: false,
+                    showLabel: false,
+                    offset: 0
+                }
+            });
+
+            chart.on('draw', function(data) {
+                if (data.type === 'line' || data.type === 'area') {
+                    data.element.animate({
+                        d: {
+                            begin: 2000 * data.index,
+                            dur: 2000,
+                            from: data.path.clone().scale(1, 0).translate(0, data.chartRect.height())
+                                .stringify(),
+                            to: data.path.clone().stringify(),
+                            easing: Chartist.Svg.Easing.easeOutQuint
+                        }
+                    });
+                }
+            });
+        }
+</script>
+@endpush

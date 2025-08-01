@@ -1,0 +1,3616 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Enums\PermissionsLevel;
+use App\Jobs\SendReinsurerEmailJob;
+use App\Jobs\SendRenewalNoticeJob;
+use Throwable;
+use Carbon\Carbon;
+use App\Models\User;
+use App\Models\Branch;
+use App\Models\Broker;
+use App\Models\Classes;
+use App\Models\Country;
+use App\Models\Currency;
+use App\Models\Customer;
+use App\Models\ReinNote;
+use App\Models\CoverRisk;
+use App\Models\CoverType;
+use App\Models\PayMethod;
+use App\Models\ClassGroup;
+use App\Models\CoverClass;
+use App\Models\CoverDebit;
+use App\Models\ReinsClass;
+use App\Models\TreatyType;
+use App\Models\BinderCover;
+use App\Models\ClauseParam;
+use App\Models\CoverClause;
+use App\Models\CoverRipart;
+use App\Models\BusinessType;
+use App\Models\CoverPremium;
+use App\Models\CurrencyRate;
+use Illuminate\Http\Request;
+use App\Models\CoverPremtype;
+use App\Models\CoverRegister;
+use App\Models\CoverReinProp;
+use App\Models\ReinsDivision;
+use App\Models\SystemSerials;
+use App\Models\CoverReinclass;
+use App\Models\CoverReinLayer;
+use App\Models\CustomerAccDet;
+use App\Models\PremiumPayTerm;
+use App\Models\CoverAttachment;
+use App\Models\EndorsementType;
+use App\Models\ApprovalsTracker;
+use App\Models\TypeOfSumInsured;
+use App\Models\CoverInstallments;
+use App\Models\ReinclassPremtype;
+use App\Models\ApprovalSourceLink;
+use App\Models\Bd\PipelineOpportunity;
+use App\Models\Company;
+use Illuminate\Support\Facades\DB;
+use App\Models\SystemProcessAction;
+use App\Models\EndorsementNarration;
+use App\Models\HandoverApproval;
+use App\Models\PolicyRenewal;
+use App\Models\PolicyRenewalDocument;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Session;
+use Yajra\DataTables\Facades\DataTables;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpFoundation\Response;
+use App\Repositories\CoverRepository;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Exception;
+use Illuminate\Support\Facades\Storage;
+
+class CoverController extends Controller
+{
+    private $_year;
+    private $_month;
+    private $_quarter;
+    private $_endorsement_no;
+    protected $repository;
+
+    public function __construct(CoverRepository $repository)
+    {
+        $this->_year = Carbon::now()->year;
+        $this->_month = Carbon::now()->month;
+        $this->_quarter = Carbon::now()->quarter;
+
+        $this->repository = $repository;
+    }
+
+    public function getCustomers(Request $request)
+    {
+        $customers = DB::table('customers')
+            ->join('customer_types', function ($join) {
+                $join->on('customer_types.type_id', '=', DB::raw("ANY (SELECT json_array_elements_text(customers.customer_type)::int)"));
+            })
+            ->select('customers.customer_id', 'customers.name')
+            ->whereIn('customer_types.code', ['INSCO', 'REINCO'])
+            ->get();
+
+        return response()->json($customers);
+    }
+
+    public function CoverForm(Request $request)
+    {
+        $trans_type = $request->trans_type;
+        $type_of_bus = $request->type_of_bus;
+        $prospect_id = $request->has('prospect_id') ? $request->prospect_id : null;
+
+        logger(['trans_type' => $request->trans_type]);
+
+        if ($trans_type != 'NEW') {
+            $cover_no = $request->cover_no;
+            $endorsement_no = $request->endorsement_no;
+            $old_endt_trans = CoverRegister::where('endorsement_no', $endorsement_no)->first();
+
+            if ($old_endt_trans) {
+                if (!in_array($old_endt_trans?->transaction_type, ['NEW', 'REN']) && $trans_type == 'EDIT') {
+                    return back()->with('error', 'You can only edit New covers or Renewals');
+                }
+
+                $coverreinpropClasses = CoverReinProp::where('cover_no', $cover_no)
+                    ->select('reinclass')
+                    ->where('endorsement_no', $old_endt_trans->endorsement_no)
+                    ->groupBy('reinclass')
+                    ->get();
+                $coverreinprops = CoverReinProp::where('cover_no', $cover_no)
+                    ->where('endorsement_no', $old_endt_trans->endorsement_no)
+                    ->get();
+                $coverReinLayers = CoverReinLayer::where('endorsement_no', $old_endt_trans->endorsement_no)->get();
+                $premtypes = CoverPremtype::with('premiumType')->where('endorsement_no', $old_endt_trans->endorsement_no)->get();
+                $renewal_date = Carbon::parse($old_endt_trans->cover_to)->addDay()->format('Y-m-d');
+            }
+        } else {
+            $old_endt_trans = '';
+            $renewal_date = '';
+            $coverreinprops = '';
+            $premtypes = '';
+            $coverreinpropClasses = '';
+            $coverReinLayers = '';
+        }
+
+        $customer = Customer::where('customer_id', $request->customer_id)->get(['customer_id', 'name', 'postal_address', 'postal_town', 'city', 'email', 'telephone', 'country_iso', 'customer_type'])[0];
+        $insured = DB::table('customers')
+            ->join('customer_types', function ($join) {
+                $join->on('customer_types.type_id', '=', DB::raw("ANY (SELECT json_array_elements_text(customers.customer_type)::int)"));
+            })
+            ->select('customers.customer_id', 'customers.name')
+            ->where('customer_types.code', 'INSURED')
+            ->get();
+
+        $countries = Country::where('country_iso', $customer->country_iso)->get(['country_iso', 'country_name'])[0];
+        // $customerTypes = CustomerTypes::where('type_id', $customer->customer_type)->get(['type_id', 'type_name', 'code'])[0];
+        $customerTypes = [];
+
+        $branches = Branch::where('status', 'A')->get(['branch_code', 'branch_name', 'status']);
+        $brokers = Broker::where('status', 'A')->get(['broker_code', 'broker_name', 'status']);
+        $classes = Classes::where('status', 'A')->get(['class_code', 'class_name', 'status']);
+        $types_of_sum_insured = TypeOfSumInsured::where('status', 'A')->get(['sum_insured_code', 'sum_insured_name', 'status']);
+        $classGroups = ClassGroup::get(['group_code', 'group_name']);
+        $types_of_busCount = BusinessType::where('bus_type_id', $type_of_bus)->count();
+        if ($types_of_busCount > 0) {
+            $types_of_bus = BusinessType::where('bus_type_id', $type_of_bus)->get(['bus_type_id', 'bus_type_name']);
+        } else {
+            $types_of_bus = BusinessType::get(['bus_type_id', 'bus_type_name']);
+        }
+        $paymethods = PayMethod::all();
+        $premium_pay_terms = PremiumPayTerm::all();
+        $currency = Currency::all();
+        $covertypes = CoverType::all();
+        $reinsdivisions = ReinsDivision::where('status', 'A')->get();
+        $reinsclasses = ReinsClass::where('status', 'A')->get();
+        $treatytypes = TreatyType::where('status', 'A')->get();
+        $reinPremTypes = ReinclassPremtype::where('status', 'A')->get();
+        // $coverInstalments = Cover
+        $coverInstallments = CoverInstallments::where(['endorsement_no' => $request->endorsement_no, 'dr_cr' => 'DR'])->get();
+        $selected_pay_method = null;
+        if ($old_endt_trans) {
+            $selected_pay_method = collect($paymethods)->first(
+                fn($item) => $item->pay_method_code == $old_endt_trans->pay_method_code,
+            );
+        }
+
+        $allActiveStaff = User::where('status', 'A')
+            // ->where('is_staff', true)
+            ->select('id', 'name')
+            ->orderBy('name')
+            ->get();
+
+        return view('cover.cover_form', [
+            'type_of_cust' => $customerTypes,
+            'country' => $countries,
+            'customer' => $customer,
+            'branches' => $branches,
+            'brokers' => $brokers,
+            'trans_type' => $trans_type,
+            'types_of_bus' => $types_of_bus,
+            'classGroups' => $classGroups,
+            'class' => $classes,
+            'paymethods' => $paymethods,
+            'premium_pay_terms' => $premium_pay_terms,
+            'currencies' => $currency,
+            'covertypes' => $covertypes,
+            'types_of_sum_insured' => $types_of_sum_insured,
+            'old_endt_trans' => $old_endt_trans,
+            'renewal_date' => $renewal_date,
+            'reinsdivisions' => $reinsdivisions,
+            'reinsclasses' => $reinsclasses,
+            'treatytypes' => $treatytypes,
+            'insured' => $insured,
+            'coverreinpropClasses' => $coverreinpropClasses,
+            'coverreinprops' => $coverreinprops,
+            'premtypes' => $premtypes,
+            'reinPremTypes' => $reinPremTypes,
+            'coverReinLayers' => $coverReinLayers,
+            'coverInstallments' => $coverInstallments,
+            'selected_pay_method' => $selected_pay_method,
+            'prospectId' => $prospect_id,
+            'staff' => $allActiveStaff
+        ]);
+    }
+
+    public function getTreatyPerBusType(Request $request)
+    {
+        $type_of_bus = $request->type_of_bus;
+        $result = TreatyType::where('type_of_bus', $type_of_bus)->where('status', 'A')->get();
+        return response()->json($result);
+    }
+
+    public function CoverRegister(Request $request)
+    {
+        DB::beginTransaction();
+        try {
+            $validator = Validator::make($request->all(), [
+                'covertype' => 'required',
+                'branchcode' => 'required',
+                // 'brokercode' => 'required',
+                'customer_id' => 'required',
+                'classcode' => 'required',
+                'coverfrom' => 'required',
+                'coverto' => 'required',
+                'pay_method' => 'required',
+                'type_of_bus' => 'required',
+                'class_group' => 'required',
+                // 'no_of_installments' => 'required',
+            ]);
+
+            if ($validator) {
+                $result = $this->repository->registerCover($request);
+                DB::commit();
+                $redirectUrl = route('cover.CoverHome', ['endorsement_no' => $result->endorsement_no]);
+                return redirect($redirectUrl)->with('success', 'Cover Register information saved successfully');
+            } else {
+                Session::flash('error', 'some field data is required');
+                return [
+                    'code' => -1,
+                    'msg' => $validator->errors(),
+                ];
+            }
+        } catch (\Exception $e) {
+            DB::rollback();
+            throw $e;
+        }
+    }
+
+    public function processCoverEndorsement(Request $request)
+    {
+        DB::beginTransaction();
+        try {
+            $result = $this->repository->saveCoverEndorsement($request);
+
+            DB::commit();
+            return redirect()->route('cover.CoverHome', ['endorsement_no' => $result['endorsement_no']])->with('success', 'Cover Endorsement information updated successfully');
+        } catch (\Exception $e) {
+            DB::rollback();
+            throw $e;
+        }
+    }
+
+    public function editCoverRegister(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'cover_no' => 'required',
+            'endorsement_no' => 'required',
+            'covertype' => 'required',
+            'branchcode' => 'required',
+            'customer_id' => 'required',
+            'classcode' => 'required',
+            'coverfrom' => 'required',
+            'coverto' => 'required',
+            'pay_method' => 'required',
+            'type_of_bus' => 'required',
+            'class_group' => 'required',
+        ]);
+
+        if (!$validator) {
+            return redirect()->route('cover.editCoverForm', [
+                'cover_no' => $request->cover_no,
+                'endorsement_no' => $request->endorsement_no,
+                'customer_id' => $request->customer_id,
+                'trans_type' => $request->trans_type,
+            ])->with('errors', $validator->errors());
+        }
+
+        DB::beginTransaction();
+        try {
+            $result = $this->repository->editCoverRegister($request);
+            DB::commit();
+            return redirect()->route('cover.CoverHome', ['endorsement_no' => $result->endorsement_no])->with('success', 'Cover Register information updated successfully');
+        } catch (\Exception $e) {
+            DB::rollback();
+            return redirect()->route('cover.CoverHome', ['endorsement_no' => $request->endorsement_no])->with('error', 'Failed to update Cover information');
+        }
+    }
+
+    public function insertCoverReinProp($data)
+    {
+        $CoverRegister = CoverRegister::where('endorsement_no', $this->_endorsement_no)->first();
+        $CoverReinProp = CoverReinProp::where('endorsement_no', $this->_endorsement_no)
+            ->where('reinclass', $data['treaty_class'])
+            ->where('item_description', $data['item_description']);
+
+        if ($CoverReinProp->count() > 0) {
+            $CoverReinProp = $CoverReinProp->first();
+        } else {
+
+            $count = CoverReinProp::where('cover_no', $CoverRegister->cover_no)
+                ->where('endorsement_no', $this->_endorsement_no)
+                ->count();
+            $count = $count + 1;
+
+            $CoverReinProp = new CoverReinProp();
+            $CoverReinProp->cover_no = $CoverRegister->cover_no;
+            $CoverReinProp->endorsement_no = $CoverRegister->endorsement_no;
+            $CoverReinProp->item_no = $count;
+            $CoverReinProp->created_by = Auth::user()->user_name;
+        }
+
+        $CoverReinProp->reinclass = $data['treaty_class'];
+        $CoverReinProp->item_description = $data['item_description'];
+        $CoverReinProp->retention_rate = $data['retention_per'];
+        $CoverReinProp->treaty_rate = $data['treaty_rate'];
+        $CoverReinProp->retention_amount = $data['retention_amount'];
+        $CoverReinProp->no_of_lines = $data['no_of_lines'];
+        $CoverReinProp->treaty_amount = $data['treaty_amount'];
+        $CoverReinProp->treaty_limit = $data['treaty_limit'];
+        $CoverReinProp->port_prem_rate = 0;
+        $CoverReinProp->port_loss_rate = 0;
+        $CoverReinProp->profit_comm_rate = 0;
+        $CoverReinProp->mgnt_exp_rate = 0;
+        $CoverReinProp->deficit_yrs = 0;
+        $CoverReinProp->estimated_income = $data['estimated_income'];
+        $CoverReinProp->cashloss_limit = $data['cashloss_limit'];
+        $CoverReinProp->updated_by = Auth::user()->user_name;
+
+        $CoverReinProp->save();
+    }
+
+    public function CoverDatatable(Request $request)
+    {
+        $customer_id = $request->get('customer_id');
+        if (!$customer_id) {
+            return response()->json(['error' => 'Customer ID is required'], 400);
+        }
+
+        $results = [];
+        try {
+            $query = DB::table('cover_register')
+                ->select('cover_no', 'cover_type', 'class_code', 'cover_to', 'created_at', 'type_of_bus', 'verified')
+                ->where('customer_id', $customer_id)
+                ->whereNull('deleted_at')
+                ->orderBy('cover_no')
+                ->orderBy('created_at', 'desc')
+                ->distinct('cover_no');
+
+            if ((int) auth()->user()->role->permission_level < PermissionsLevel::MODERATOR) {
+                $query->where('created_by', auth()->user()->user_name);
+            }
+
+            $results = collect($query->get())->sortByDesc('created_at')->values();
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Database query failed: ' . $e->getMessage()], 500);
+        }
+
+        return datatables::of($results)
+            ->editColumn('cover_no', function ($fn) {
+                return $fn->cover_no;
+            })
+            ->editColumn('cover_type', function ($fn) {
+                $coverType = CoverType::where('type_id', $fn->cover_type)->first();
+                return $coverType ? $coverType->type_name : 'Unknown Type';
+            })
+            ->editColumn('class_desc', function ($fn) {
+                if (in_array($fn->type_of_bus, ['FPR', 'FNP'])) {
+                    $classDesc = Classes::where('class_code', $fn->class_code)->first();
+                    return $classDesc ? 'FACULTATIVE - ' . $classDesc->class_name : 'Unknown Class';
+                } elseif ($fn->type_of_bus == 'TPR') {
+                    return 'TREATY - PROPORTIONAL';
+                } elseif ($fn->type_of_bus == 'TNP') {
+                    return 'TREATY - NON-PROPORTIONAL';
+                } else {
+                    return ' ';
+                }
+            })
+            ->editColumn('cover_to', function ($fn) {
+                return $fn->cover_to ? formatDate($fn->cover_to) : 'N/A';
+            })
+            ->editColumn('status', function ($fn) {
+                $badge = '';
+                switch ($fn->verified) {
+                    case ('P'):
+                        $badge = '<span class="badge bg-danger-gradient badge-sm-action"> Inactive</span>';
+                        break;
+                    case ('A'):
+                        $badge = '<span class="badge bg-success-gradient badge-sm-action"> Active</span>';
+                        break;
+                    case ('R'):
+                        $badge = '<span class="badge bg-danger-gradient badge-sm-action"> Rejected</span>';
+                        break;
+                    default:
+                        $badge = '<span class="badge bg-danger-gradient badge-sm-action"> Inactive</span>';
+                        break;
+                }
+                return $badge;
+            })
+            ->editColumn('actions', function ($fn) {
+                $viewUrl = '#';
+                return '<a href="' . $viewUrl . '" class="btn btn-sm btn-primary btn-sm-action"  id="view-coverlist-table">View <i class="bx bx-send"></i></a>';
+            })
+            ->rawColumns(['status', 'actions'])
+            ->make(true);
+    }
+
+    public function EndorseDatatable(Request $request)
+    {
+        $customer_id = $request->customer_id;
+        $cover_no = $request->cover_no;
+        $query = CoverRegister::query()->where('customer_id', $customer_id)->where('cover_no', $cover_no);
+
+        return datatables::of($query)
+            ->editColumn('id_no', function ($fn) {
+                return $fn->endorsement_no;
+            })
+            ->editColumn('endorsement_no', function ($fn) {
+                return $fn->endorsement_no;
+            })
+            ->editColumn('transaction_type', function ($fn) {
+                $trans_type = '';
+                switch ($fn->transaction_type) {
+                    case 'REN':
+                        $trans_type = 'RENEWAL';
+                        break;
+                    case 'NEW':
+                        $trans_type = 'NEW';
+                        break;
+                    case 'EXT':
+                        $trans_type = 'ENDORSEMENT';
+                        break;
+                }
+                return $trans_type;
+            })
+            ->editColumn('cover_from', function ($fn) {
+                return formatDate($fn->cover_from);
+            })
+            ->editColumn('cover_to', function ($fn) {
+                return formatDate($fn->cover_to);
+            })
+            ->editColumn('status_verification', function ($fn) {
+                $trans_type = '';
+                switch ($fn->verified) {
+                    case 'A':
+                        $trans_type = '<span class="badge bg-success-gradient">Approved</span>';
+                        break;
+                    case 'P':
+                        $trans_type = '<span class="badge bg-danger-gradient">Pending</span>';
+                        break;
+                    case 'R':
+                        $trans_type = '<span class="badge bg-danger-gradient">Rejected</span>';
+                        break;
+                    default:
+                        $trans_type = '<span class="badge bg-danger-gradient">Pending</span>';
+                        break;
+                }
+
+                return $trans_type;
+            })
+            ->editColumn('actions', function ($fn) {
+                $btn = "";
+                $btn .= "<button class='btn btn-sm btn-primary btn-sm-action view-endorsement-table' data-customer_id='{$fn->customer_id}' data-cover_no='{$fn->cover_no}'  data-endorsement_no='{$fn->endorsement_no}' >View <i class='bx bx-send'></i></button>";
+                $btn .= " <button class='btn btn-danger btn-sm btn-sm-action remove-endorsement-table' data-cover_no='{$fn->cover_no}' data-customer_id='{$fn->customer_id}' data-endorsement_no='{$fn->endorsement_no}' data-endorsement_no='{$fn->endorsement_no}' data-endorsement_no='{$fn->endorsement_no}'><i class='bx bx-trash'></i> Remove</button>";
+                return $btn;
+            })
+            ->rawColumns(['actions', 'id_no', 'status_verification'])
+            ->make(true);
+    }
+
+    function GetSpecificClasses(Request $request)
+    {
+        $class = Classes::where('class_group_code', $request->class_group)->where('status', 'A')->get();
+        echo json_encode($class);
+    }
+
+    function GetBinderCovers(Request $request)
+    {
+        $binders = BinderCover::all();
+        echo json_encode($binders);
+    }
+
+    public function coverHome(Request $request)
+    {
+        $respone_data = $this->repository->processCoverHome($request);
+
+        return view('cover.cover_home', $respone_data);
+    }
+
+    public function get_todays_rate(Request $request)
+    {
+        $selected_currency = $request->get('currency_code');
+        $date = Carbon::today();
+
+        $currency = Currency::where('currency_code', $selected_currency)->get(['currency_code', 'base_currency']);
+        $currency = $currency[0];
+
+        if ($currency->base_currency == 'Y') {
+
+            $result = array('valid' => 2, 'rate' => 1);
+            echo json_encode($result);
+        } else {
+            $count_curr = CurrencyRate::where('currency_code', $selected_currency)
+                ->where('currency_date', $date)
+                ->count();
+
+            if ($count_curr > 0) {
+                $rate = CurrencyRate::where('currency_code', $selected_currency)
+                    ->where('currency_date', $date)
+                    ->get();
+                $result = array('valid' => 1, 'rate' => $rate[0]->currency_rate);
+                echo json_encode($result);
+            } else {
+                $result = array('valid' => 0, 'short_descr' => $currency->currency_code);
+                echo json_encode($result);
+            }
+        }
+    }
+
+    public function yesterdayRate(Request $request)
+    {
+        $jana = Carbon::yesterday()->format('Y-m-d H:i:s');;
+        $query = CurrencyRate::where('currency_date', $jana)->where('currency_code', $request->currency_code);
+        $check = $query->count();
+
+        if ($check == 0) {
+            # Notify user to set currency rate manually
+            return $check;
+        } else {
+            # Fetch rate
+            $rate = $query->first();
+            return $rate;
+        }
+    }
+
+    public function endorse_functions(Request $request)
+    {
+        $cover_no = trim($request->cover_no);
+        // $latest_endorsement = CoverRegister::where('cover_no', $cover_no)->where('cancelled','<>','Y')
+        // ->where('transaction_type')->orderBy('dola', 'desc')->first();
+
+        $latest_endorsement = CoverRegister::where('cover_no', $cover_no)
+            ->where('cancelled', '<>', 'Y')
+            ->whereIn('transaction_type', ['NEW', 'REN'])
+            ->where('verified', 'A')
+            ->orWhere(function ($query) use ($cover_no) {
+                $query->where('cancelled', '<>', 'Y')
+                    ->whereExists(function ($query) use ($cover_no) {
+                        $query->select(DB::raw(1))
+                            ->from('cover_debit')
+                            ->whereColumn('cover_debit.endorsement_no', 'cover_register.endorsement_no')
+                            ->where('cover_debit.cover_no', $cover_no);
+                    });
+            })
+            ->orderBy('created_at', 'desc')
+            ->first();
+
+        $all_endorsements = CoverRegister::where('cover_no', $cover_no)->where('cancelled', '<>', 'Y')->get();
+        if (empty($latest_endorsement)) {
+            $latest_endorsement = CoverRegister::where('cover_no', $cover_no)
+                ->orderBy('dola', 'desc')
+                ->first();
+        }
+        $customer = Customer::where('customer_id', $latest_endorsement->customer_id)->first();
+        $type_of_bus = BusinessType::where('bus_type_id', $latest_endorsement->type_of_bus)->first();
+        $class = Classes::where('class_code', $latest_endorsement->class_code)->first();
+        $treaty_years = CoverRegister::where('cover_no', $cover_no)
+            ->where('verified', 'A')
+            ->where('commited', 'Y')
+            ->distinct('account_year')
+            ->get(['account_year']);
+        $year = $latest_endorsement->cover_from->year;
+        $month = $latest_endorsement->cover_from->month;
+        $coverpremtypes = CoverPremtype::where('endorsement_no', $latest_endorsement->endorsement_no)
+            ->join('reinsclasses', 'cover_premtypes.reinclass', '=', 'reinsclasses.class_code')
+            ->get();
+        $reinLayersCount = CoverReinLayer::where('endorsement_no', $latest_endorsement->endorsement_no)->count();
+        $mdpAmount = CoverReinLayer::where('endorsement_no', $latest_endorsement->endorsement_no)->sum('min_deposit');
+        $endorsments = CoverRegister::where('orig_endorsement_no', $latest_endorsement->orig_endorsement_no)->pluck('endorsement_no');
+        $debitedmdpInst = CoverPremium::wherein('endorsement_no', $endorsments)
+            ->whereNotNull('installment_no')
+            ->pluck('installment_no');
+
+        $mdpInstallments = DB::table('cover_installments')
+            ->select('endorsement_no', 'installment_no', 'installment_date', DB::raw('SUM("installment_amt") as installment_amt'))
+            ->groupBy('endorsement_no', 'installment_no', 'installment_date')
+            ->whereNotIn('installment_no', $debitedmdpInst)
+            ->where('endorsement_no', $latest_endorsement->orig_endorsement_no)
+            ->get();
+        $mdpInsLayerwise = CoverInstallments::where('endorsement_no', $latest_endorsement->orig_endorsement_no)
+            ->whereNotIn('installment_no', $debitedmdpInst)
+            ->where('trans_type', 'MDP')
+            ->where('entry_type', 'MDP')
+            ->where('dr_cr', 'DR')
+            ->get();
+
+        $EndorsementTypes = EndorsementType::where('type_of_bus', $latest_endorsement->type_of_bus)->get();
+
+        $cover_installments = CoverInstallments::where('endorsement_no', $latest_endorsement->orig_endorsement_no)
+            ->where('trans_type', 'FPR')
+            ->where('dr_cr', 'DR')
+            ->first();
+
+        $premium_due_date = Carbon::parse($cover_installments?->installment_date)->format('Y-m-d');
+
+        return view('cover.endorsement_dtl', [
+            'latest_endorsement' => $latest_endorsement,
+            'all_endorsements' => $all_endorsements,
+            'customer' => $customer,
+            'cover_no' => $cover_no,
+            'type_of_bus' => $type_of_bus,
+            'class' => $class,
+            'year' => $year,
+            'month' => $month,
+            'coverpremtypes' => $coverpremtypes,
+            'treaty_years' => $treaty_years,
+            'mdpInstallments' => $mdpInstallments,
+            'mdpInsLayerwise' => $mdpInsLayerwise,
+            'reinLayersCount' => $reinLayersCount,
+            'mdpAmount' => $mdpAmount,
+            'EndorsementTypes' => $EndorsementTypes,
+            'premium_due_date' => $premium_due_date,
+        ]);
+    }
+
+    public function saveReinsurerData(Request $request)
+    {
+        DB::beginTransaction();
+        try {
+            $rules = [
+                'treaty.*.reinsurers.*.reinsurer' => 'required',
+                'treaty.*.reinsurers.*.share' => 'required',
+            ];
+            $messages = [
+                'treaty.*.reinsurers.*.reinsurer.required' => 'Reinsurer field is required.',
+                'treaty.*.reinsurers.*.share.required' => 'Share field is required.',
+            ];
+            $request->validate($rules, $messages);
+
+            $CoverRegister = CoverRegister::where('endorsement_no', $request->endorsement_no)->first();
+            foreach ($request->treaty as $treaty) {
+                foreach ($treaty['reinsurers'] as $reinsurer) {
+                    $tran_no = (int) CoverRipart::withTrashed()->max('tran_no') ?? 0;
+                    $tran_no = $tran_no + 1;
+                    $coverRipart = new CoverRipart();
+                    $coverRipart->cover_no = $CoverRegister->cover_no;
+                    $coverRipart->endorsement_no = $CoverRegister->endorsement_no;
+                    $coverRipart->tran_no = $tran_no;
+                    $coverRipart->period_year = $this->_year;
+                    $coverRipart->period_month = $this->_month;
+                    $coverRipart->partner_no = $reinsurer['reinsurer'];
+                    $coverRipart->share = $reinsurer['share'];
+                    $coverRipart->written_lines = $reinsurer['written_share'];
+                    $coverRipart->comm_rate = $reinsurer['comm_rate'] ?? 0;
+                    $coverRipart->wht_rate = $reinsurer['wht_rate'] ?? 0;
+
+                    if (in_array($CoverRegister->type_of_bus, ['FPR', 'FNP'])) {
+                        $coverRipart->total_sum_insured = $CoverRegister->total_sum_insured ?? 0;
+                        $coverRipart->total_premium = $CoverRegister->rein_premium ?? 0;
+                        $coverRipart->total_commission = $CoverRegister->rein_comm_amount ?? 0;
+                        $coverRipart->sum_insured = (float) str_replace(',', '', $reinsurer['sum_insured']) ?? 0;
+                        $coverRipart->premium = (float) str_replace(',', '', $reinsurer['premium']) ?? 0;
+                        $coverRipart->commission = (float) str_replace(',', '', $reinsurer['comm_amt']) ?? 0;
+                        $coverRipart->fronting_rate = (float) str_replace(',', '', $reinsurer['fronting_rate']) ?? 0;
+                        $coverRipart->wht_amt = 0;
+                        $coverRipart->fronting_amt = 0;
+
+                        $brokerage_comm_rate_amnt = (float) str_replace(',', '', $reinsurer['brokerage_comm_rate_amnt']) ?? 0;
+                        $brokerage_comm_amt = (float) str_replace(',', '', $reinsurer['brokerage_comm_amt']) ?? 0;
+                        if ($coverRipart->fronting_rate > 0) {
+                            $coverRipart->fronting_amt = ($coverRipart->fronting_rate / 100) * ($coverRipart->premium - $coverRipart->commission);
+                        }
+                        if ($coverRipart->wht_rate > 0) {
+                            $coverRipart->wht_amt = ($coverRipart->wht_rate / 100) * ($coverRipart->premium - $coverRipart->commission);
+                        }
+
+                        if ($request->brokerage_comm_type == 'R') {
+                            $coverRipart->brokerage_comm_amt = (float) $brokerage_comm_rate_amnt ?? 0;
+                            $coverRipart->brokerage_comm_rate = (float) ($coverRipart->brokerage_comm_amt / $coverRipart->premium) * 100 ?? 0;
+                        } else {
+                            $coverRipart->brokerage_comm_rate = 0;
+                            $coverRipart->brokerage_comm_amt = $brokerage_comm_amt;
+                        }
+                    } elseif (in_array($CoverRegister->type_of_bus, ['TPR', 'TNP'])) {
+                        $coverRipart->treaty_code = $treaty['treaty'];
+                    }
+
+                    $coverRipart->created_by = Auth::user()->user_name;
+                    $coverRipart->updated_by = Auth::user()->user_name;
+                    $coverRipart->save();
+
+                    // Save installments
+                    $paymethods = PayMethod::all();
+                    $selected_pay_method = collect($paymethods)->first(
+                        fn($item) => $item->pay_method_code == $request->pay_method,
+                    );
+                    $no_of_installments = (int) $request->no_of_installments;
+                    $cover_no = $CoverRegister->cover_no;
+                    $endorsement_no = $CoverRegister->endorsement_no;
+                    $dr_cr_type = 'CR';
+                    $partner_no = $reinsurer['reinsurer'];
+                    $layer_no = 0;
+                    $created_by = Auth::user()->user_name;
+                    $created_at = now();
+                    $updated_at = now();
+                    $comm_rate = (float) str_replace(",", "", $request->treaty[0]['reinsurers'][0]['comm_rate']) ?? 0;
+                    $comm_amt = (float) str_replace(",", "", $request->treaty[0]['reinsurers'][0]['comm_amt']) ?? 0;
+                    $premium = (float) str_replace(",", "", $request->treaty[0]['reinsurers'][0]['premium']) ?? 0;
+                    $reinsurer_fronting_rate = (float) str_replace(",", "", $request->treaty[0]['reinsurers'][0]['fronting_rate']) ?? 0;
+                    $reinsurer_wht_rate = (float) str_replace(",", "", $reinsurer['wht_rate']) ?? 0;
+                    $wht_amt = 0;
+                    $fronting_amt = 0;
+                    $total_deducted = 0;
+                    $total_add = 0;
+                    // Withholding tax
+                    if ($reinsurer_wht_rate > 0) {
+                        $wht_amt = ($reinsurer_wht_rate / 100) * ($premium - $comm_amt);
+                        $total_deducted += $wht_amt;
+                    }
+                    // Fronting fees
+                    if ($reinsurer_fronting_rate > 0) {
+                        $fronting_amt = ($reinsurer_fronting_rate / 100) * ($premium - $comm_amt);
+                        $total_deducted += $fronting_amt;
+                    }
+
+                    $totalDr = $premium - $total_deducted;
+                    // Balance due
+                    $totalCr = (float) (($comm_rate / 100) * $premium);
+                    $installmentAmount = max(0, ceil(($totalDr - $totalCr) + $total_add));
+
+                    $installmentData = [
+                        'cover_no' => $cover_no,
+                        'endorsement_no' => $endorsement_no,
+                        'layer_no' => $layer_no,
+                        'trans_type' => $CoverRegister->type_of_bus,
+                        'entry_type' => $CoverRegister->transaction_type,
+                        'dr_cr' => $dr_cr_type,
+                        'partner_no' => $partner_no,
+                        'created_by' => $created_by,
+                        'created_at' => $created_at,
+                        'updated_by' => $created_by,
+                        'updated_at' => $updated_at,
+                    ];
+
+                    if ($selected_pay_method->short_description === 'I') {
+                        foreach (range(0, $no_of_installments - 1) as $i) {
+                            DB::table('cover_installments')->insert(
+                                [
+                                    ...$installmentData,
+                                    ...[
+                                        'installment_no' => $request->installment_no[$i],
+                                        'installment_date' => Carbon::parse($request->installment_date[$i])->format('Y-m-d'),
+                                        'installment_amt' => (float) str_replace(",", "", $request->installment_amt[$i]),
+                                    ]
+                                ]
+                            );
+                        }
+                    } elseif ($selected_pay_method->short_description === 'A') {
+                        DB::table('cover_installments')->insert(
+                            [
+                                ...$installmentData,
+                                ...[
+                                    'installment_no' => 1,
+                                    'installment_date' => $CoverRegister->cover_from->addDays((int) $CoverRegister->premium_payment_days),
+                                    'installment_amt' => (float) $installmentAmount,
+                                ]
+                            ]
+                        );
+                    }
+
+                    ReinNote::where('endorsement_no', $this->_endorsement_no)
+                        ->where('partner_no', $coverRipart->partner_no)
+                        ->forceDelete();
+
+                    $premItemTypes = [
+                        'PRM' => [
+                            'descr' => 'Gross Premium',
+                            'dr_cr' => 'CR',
+                            'tax_rate' => $coverRipart->share ?? 0,
+                            'total_amount' => $CoverRegister->rein_premium ?? 0,
+                            'amount' => $coverRipart->premium ?? 0,
+                        ],
+                        'BRC' => [
+                            'descr' => 'Brokerage Commission',
+                            'dr_cr' => 'DR',
+                            'amount' => $coverRipart->brokerage_comm_amt ?? 0,
+                            'tax_rate' => $coverRipart->brokerage_comm_rate ?? 0,
+                            'total_amount' => $coverRipart->premium ?? 0,
+                        ],
+                        'COM' => [
+                            'descr' => 'Commission',
+                            'dr_cr' => 'DR',
+                            'tax_rate' => $coverRipart->comm_rate ?? 0,
+                            'amount' => $coverRipart->commission ?? 0,
+                            'total_amount' => $coverRipart->premium ?? 0,
+                        ],
+                        'WHT' => [
+                            'descr' => 'Withholding Tax',
+                            'dr_cr' => 'DR',
+                            'tax_rate' => $coverRipart->wht_rate ?? 0,
+                            'amount' => $coverRipart->wht_amt ?? 0,
+                            'total_amount' => (float) (($coverRipart->premium ?? 0) - ($coverRipart->commission ?? 0)),
+                        ],
+                        'FRF' => [
+                            'descr' => 'Fronting Fees',
+                            'dr_cr' => 'DR',
+                            'tax_rate' => $coverRipart->fronting_rate ?? 0,
+                            'amount' => $coverRipart->fronting_amt ?? 0,
+                            'total_amount' => (float) (($coverRipart->premium ?? 0) - ($coverRipart->commission ?? 0)),
+                        ],
+                    ];
+
+                    foreach ($premItemTypes as $key => $premItemType) {
+                        $tran_no = DB::transaction(function () use ($CoverRegister) {
+                            $max_tran_no = DB::table('rein_notes')
+                                ->whereNull('deleted_at')
+                                ->where('endorsement_no', $CoverRegister->endorsement_no)
+                                ->max('tran_no');
+                            return ($max_tran_no ?? 0) + 1;
+                        });
+
+                        $ln_no = DB::transaction(function () use ($CoverRegister, $key) {
+                            $count = DB::table('rein_notes')
+                                ->whereNull('deleted_at')
+                                ->where('endorsement_no', $CoverRegister->endorsement_no)
+                                ->where('transaction_type', $CoverRegister->transaction_type)
+                                ->where('entry_type_descr', $key)
+                                ->count();
+                            return $count + 1;
+                        });
+
+                        $share = (float) $coverRipart->share ?? 0;
+                        $username = Auth::user()->user_name;
+                        $net_amnt = $premItemType['amount'] ?? 0;
+
+                        $data = [
+                            'cover_no'          => $CoverRegister->cover_no,
+                            'endorsement_no'    => $CoverRegister->endorsement_no,
+                            'partner_no'        => $coverRipart->partner_no,
+                            'transaction_type'  => $CoverRegister->transaction_type,
+                            'account_year'      => $this->_year,
+                            'account_month'     => $this->_month,
+                            'share'             => $share,
+                            'created_by'        => $username,
+                            'updated_by'        => $username,
+                            'tran_no'           => $tran_no,
+                            'ln_no'             => $ln_no,
+                            'entry_type_descr'  => $key,
+                            'item_title'        => $premItemType['descr'],
+                            'dr_cr'             => $premItemType['dr_cr'],
+                            'rate'              => $premItemType['tax_rate'] ?? 0,
+                            'total_gross'       => $premItemType['total_amount'] ?? 0,
+                            'gross'             => $premItemType['amount'] ?? 0,
+                            'net_amt'           => $net_amnt,
+                        ];
+
+                        ReinNote::create($data);
+                    }
+                }
+            }
+
+            DB::commit();
+            return response()->json([
+                'status' => Response::HTTP_CREATED,
+                'message' => "Reinsurer's Share Successfully saved"
+            ]);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'status' => Response::HTTP_UNPROCESSABLE_ENTITY,
+                'errors' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            DB::rollback();
+            return response()->json([
+                'status' => $e->getCode(),
+                'message' => 'Failed to save'
+            ]);
+        }
+    }
+
+    public function editReinsurerData(Request $request)
+    {
+        try {
+            return $this->repository->editReinsurer($request);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'status' => Response::HTTP_UNPROCESSABLE_ENTITY,
+                'errors' => $e->errors()
+            ], 422);
+        } catch (Exception $e) {
+            return response()->json([
+                'status' => $e->getCode(),
+                'message' => 'Failed to save'
+            ]);
+        }
+    }
+
+    public function deleteReinsurerData(Request $request)
+    {
+        try {
+            $request->validate([
+                'tran_no' => 'required',
+                'endorsement_no' => 'required',
+                'reinsurer' => 'required',
+            ]);
+
+            $reinsurer = CoverRipart::where('tran_no', $request->tran_no)
+                ->where('endorsement_no', $request->endorsement_no)
+                ->where('partner_no', $request->reinsurer);
+
+            if ($reinsurer->first()) {
+                $reinsurer->delete();
+            }
+
+            $cover = CoverInstallments::where('endorsement_no', $request->endorsement_no)
+                ->where('partner_no', $request->reinsurer)
+                ->where('trans_type', 'FPR');
+            if ($cover->get()) {
+                $cover->delete();
+            }
+
+            return response()->json([
+                'status' => Response::HTTP_CREATED,
+                'message' => 'Reinsurer removed successfully'
+            ]);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'status' => Response::HTTP_UNPROCESSABLE_ENTITY,
+                'errors' => $e->errors()
+            ], 422);
+        } catch (Exception $e) {
+            return response()->json([
+                'status' => $e->getCode(),
+                'message' => 'Failed to Remove Reinsurer'
+            ]);
+        }
+    }
+
+    public function schedules_datatable(Request $request)
+    {
+        $endorsement_no = $request->get('endorsement_no');
+        $query = CoverRisk::query()->with('schedule_header')->where('endorsement_no', $endorsement_no);
+        $actionable = static::coverDebitedCommited($endorsement_no);
+
+        return datatables::of($query)
+            ->addColumn('details', function ($data) {
+                // $truncated = Str::limit($data->details, 170);
+                return '---';
+            })
+            ->addColumn('action', function ($data) use ($actionable) {
+                $result = json_decode($data);
+                $btn = "";
+                if ($actionable) {
+                    $btn .= "<button class='btn btn-outline-dark btn-sm btn-sm-action edit-schedule me-2' data-title='{$result->title}' data-sum_insured='{$result->sum_insured}' data-header='{$result?->schedule_header?->name}' data-details='{$result?->details}' data-schedule_id='{$result?->schedule_header?->id}' data-id='{$data?->id}' data-bs-toggle='modal' data-bs-target='#schedulesModal'>Edit <i class='bx bx-edit'></i></button>";
+                    $btn .= "<button class='btn btn-outline-danger btn-sm btn-sm-action remove-schedule' data-name='{$data?->schedule_header?->name}' data-id='{$data->id}'>Remove <i class='bx bx-trash'></i></button>";
+                }
+                return $btn;
+            })
+            ->rawColumns(['details', 'action'])
+            ->make(true);
+    }
+
+    public function installments_datatable(Request $request)
+    {
+        $endorsement_no = $request->get('endorsement_no');
+        $query = CoverInstallments::where(['endorsement_no' => $endorsement_no, 'dr_cr' => 'DR'])->orderBy('installment_no', 'ASC');
+        $actionable = static::coverDebitedCommited($endorsement_no);
+        return datatables::of($query)
+            ->addColumn('action', function ($data) use ($actionable) {
+                $btn = "";
+                if ($actionable) {
+                    // $btn .= "<button class='btn btn-outline-primary btn-sm edit-installment' data-data='{$data}' data-id='{$data->id}'
+                    //         data-bs-toggle='modal' data-bs-target='#installmentModal' >Edit</button>";
+                    // $btn .= " <button class='btn btn-outline-danger btn-sm remove-installment' data-data='{$data}' data-id='{$data->id}'>Remove</button>";
+                }
+                return $btn;
+            })
+            ->rawColumns(['details', 'action'])
+            ->make(true);
+    }
+
+    public function classes_datatable(Request $request)
+    {
+        $endorsement_no = $request->get('endorsement_no');
+        $CoverRegister = CoverRegister::where('endorsement_no', $endorsement_no)->first();
+        // $query = CoverClass::query()->with('insurance_class','ri_class')->where('endorsement_no',$endorsement_no);
+        $query = CoverClass::join('classes', 'cover_classes.class', '=', 'classes.class_code')
+            ->join('reinsclasses', 'cover_classes.reinclass', '=', 'reinsclasses.class_code')
+            ->select('cover_classes.id as id', 'cover_classes.class as class', 'classes.class_name as class_name', 'reinsclasses.class_name as reinclass_name')
+            ->where('cover_classes.endorsement_no', $endorsement_no);
+        // ->get();
+
+        $actionable = static::coverDebitedCommited($endorsement_no);
+
+        return datatables::of($query)
+            ->addColumn('action', function ($data) use ($actionable, $CoverRegister) {
+                $btn = "";
+                if ($actionable) {
+                    if ($CoverRegister->transaction_type == 'EXT' || $CoverRegister->transaction_type == 'RFN' || $CoverRegister->transaction_type == 'CNC' || $CoverRegister->transaction_type == 'NEW' || $CoverRegister->transaction_type == 'REN') {
+                        //  $btn .= "<button class='btn btn-outline-primary btn-sm' data-id='{$data->id}'>Edit</button>";
+                        $btn .= " <button class='btn btn-outline-danger btn-sm' data-id='{$data->id}'>Remove</button>";
+                    } else {
+                        $btn .= " ";
+                    }
+                }
+                return $btn;
+            })
+            ->make(true);
+    }
+
+    public function reinsurers_datatable(Request $request)
+    {
+        $endorsement_no = $request->get('endorsement_no');
+        $query = CoverRipart::query()->where('endorsement_no', $endorsement_no);
+        $cover = CoverRegister::where('endorsement_no', $endorsement_no)->first();
+        $actionable = static::coverDebitedCommited($endorsement_no);
+
+        return datatables::of($query)
+            ->addColumn('partner_name', function ($data) {
+                $part = Customer::where('customer_id', $data->partner_no)->first();
+                return $part->name;
+            })
+            ->addColumn('action', function ($data) use ($actionable, $endorsement_no, $cover) {
+                $btn = "";
+                $partner_emails = [];
+                $partner_emails[] = $data?->partner?->email;
+                if ($actionable) {
+                    $distributedShare = 0;
+                    switch ($cover->type_of_bus) {
+                        case 'FPR':
+                            $distributedShare = CoverRipart::where('endorsement_no', $endorsement_no)->sum('share');
+                            break;
+                        case 'TPR':
+                        case 'TNP':
+                            $distributedShare = CoverRipart::where('endorsement_no', $endorsement_no)
+                                ->where('treaty_code', $data->treaty_code)
+                                ->sum('share');
+                            break;
+                    }
+                    $reinsurer = Customer::where('customer_id', $data->partner_no)->first();
+                    if (($cover->transaction_type == 'NEW' || $cover->transaction_type == 'REN' || $cover->transaction_type == 'EXT' || $cover->transaction_type == 'CNC' || $cover->transaction_type == 'RFN')) {
+                        $btn .= "<button class='btn btn-outline-dark btn-wave waves-effect waves-light edit-reinsurer datatable-action-btn' data-distributed-share='{$distributedShare}' data-reinsurer='{$reinsurer}' data-data='{$data}' data-bs-toggle='modal' data-bs-target='#edit-reinsurer-modal'>Edit</button>";
+                        $btn .= "<button class='btn btn-outline-danger btn-wave waves-effect waves-light remove-reinsurer datatable-action-btn mx-2' data-reinsurer='{$reinsurer}' data-data='{$data}'>Remove</button>";
+                    } else {
+                        $btn .= "";
+                    }
+                } else {
+                    $creditNoteUrl = route('docs.reincreditnotes', ['endorsement_no' => $endorsement_no, 'partner_no' => $data->partner_no]);
+                    $coverSlipUrl = route('docs.coverslip', ['endorsement_no' => $endorsement_no, 'partner_no' => $data->partner_no]);
+                    $client_emails = json_encode($partner_emails);
+                    $client_name = $data?->partner?->name;
+
+                    $endorsementNo = $endorsement_no;
+                    $coverNo = $cover?->cover_no;
+                    $tmp_attachments = json_encode(['attachments' => []]);
+
+                    if (($cover->type_of_bus == 'TPR' || $cover->type_of_bus == 'TNP') && ($cover->transaction_type == 'NEW' || $cover->transaction_type == 'REN')) {
+                        $btn .= "";
+                    } else {
+                        $btn .= "<a href='{$creditNoteUrl}' data-endorsementno='{$endorsementNo}' data-partnerno='{$data->partner_no}' target='_blank' rel='noopener noreferrer' class='print-out-link pr-3 rein_credit_note_btn'><i class='bx bx-file me-1 align-middle'></i>Credit Note</a>";
+                        $btn .= "<a href='{$coverSlipUrl}' target='_blank' rel='noopener noreferrer' class='print-out-link pr-3 rein_cover_slip_btn'>
+                                    <i class='bx bx-file'></i> Cover Slip</a>";
+                        $btn .= "<a href='#' target='_blank' class='print-out-link send-reinsurer-email' data-client_emails='{$client_emails}' data-cover_no='{$coverNo}' data-endorsement_no='{$endorsementNo}' data-client_name='{$client_name}' data-client_docs='{$tmp_attachments}'>
+                                    <i class='bx bx-mail-send' style='font-size: 15px; vertical-align: -2px;'></i> Send E-Mail</a>";
+                    }
+                }
+                return $btn;
+            })
+            ->rawColumns(['action'])
+            ->make(true);
+    }
+
+    public function attachments_datatable(Request $request)
+    {
+        $endorsement_no = $request->get('endorsement_no');
+        $query = CoverAttachment::query()->where('endorsement_no', $endorsement_no);
+        $actionable = static::coverDebitedCommited($endorsement_no);
+
+        return datatables::of($query)
+            ->addColumn('action', function ($data) use ($actionable) {
+                $btn = "";
+                if ($actionable) {
+                    $btn .= " <button class='btn btn-outline-dark btn-sm view-attachment' data-id='{$data->id}' data-mime='{$data->mime_type}' data-base64='{$data->file_base64}'
+                        data-bs-target='#attachment-document-modal' data-bs-toggle='modal'>View <i class='bx bx-send'></i></button>";
+                    $btn .= " <button class='btn btn-outline-dark btn-sm edit-attachment' data-title='{$data->title}' data-id='{$data->id}'
+                        data-bs-toggle='modal' data-bs-target='#attachments-modal'>Edit</button>";
+                    $btn .= " <button class='btn btn-outline-danger btn-sm remove-attachment' data-title='{$data->title}' data-id='{$data->id}'>Remove</button>";
+                }
+                return $btn;
+            })
+            ->make(true);
+    }
+
+    public function clauses_datatable(Request $request)
+    {
+        $endorsement_no = $request->get('endorsement_no');
+        $query = CoverClause::query()->where('endorsement_no', $endorsement_no);
+        $actionable = static::coverDebitedCommited($endorsement_no);
+
+        return datatables::of($query)
+            ->addColumn('clause_wording', function ($data) {
+                // $truncated = Str::limit($data->clause_wording, 300);
+                return '---';
+            })
+            ->addColumn('action', function ($data) use ($actionable) {
+                $btn = "";
+                if ($actionable) {
+                    $btn .= " <button class='btn btn-outline-danger btn-sm remove-clause' data-title='{$data->clause_title}' data-id='{$data->clause_id}'>Remove</button>";
+                }
+                return $btn;
+            })
+            ->rawColumns(['clause_wording', 'action'])
+            ->make(true);
+    }
+
+    public function approvals_datatable(Request $request)
+    {
+        $results = [];
+        // try {
+        //     $endorsement_no = $request->get('endorsement_no');
+        //     $approvalAction = SystemProcessAction::where('nice_name', 'verify_cover')->first();
+        //     $aprovalIds = ApprovalSourceLink::where('process_id', $approvalAction->process_id)
+        //         ->where('process_action', $approvalAction->id)
+        //         ->where('source_table', 'cover_register')
+        //         ->where('source_column_name', 'endorsement_no')
+        //         ->where('source_column_data', $endorsement_no)
+        //         ->pluck('approval_id');
+
+        //     $results = ApprovalsTracker::query()->whereIn('id', $aprovalIds);
+        //     $actionable = static::coverDebitedCommited($endorsement_no);
+
+        // } catch (\Exception $e) {
+        //     $results = [];
+        // }
+
+        return Datatables::of([])
+            ->editColumn('approver', function ($data) {
+                $approver = User::where('id', $data->approver)->first('name');
+                return $approver->name;
+            })
+            ->addColumn('status', function ($data) {
+                $btn = "";
+                switch ($data->status) {
+                    case 'P':
+                        $btn .= " <span class='badge bg-danger-gradient'>Pending</span>";
+                        break;
+                    case 'A':
+                        $btn .= " <span class='badge bg-success-gradient'>Approved</span>";
+                        break;
+                    case 'R':
+                        $btn .= " <span class=badge bg-danger-gradient'>Rejected</span>";
+                        break;
+                }
+
+                return $btn;
+            })
+            ->addColumn('action', function ($data) {
+                $btn = "";
+                if ($actionable) {
+                    switch ($data->status) {
+                        case 'P':
+                            $btn .= " <button class='btn btn-outline-dark btn-wave waves-effect waves-light edit-reinsurer datatable-action-btn' data-id='{$data->id}' id='re-escalate'>Re-escalate</button>";
+                            break;
+                        case 'A':
+                            $btn .= " <span class='badge badge-success' disabled>Closed</span>";
+                            break;
+                        case 'R':
+                            $btn .= " <button class='btn btn-outline-primary btn-sm' data-id='{$data->id}' id='re-send'>Re-send</button>";
+                            break;
+                    }
+                }
+                return $btn;
+            })
+            ->rawColumns(['action', 'status'])
+            ->make(true);
+    }
+
+    public function debits_datatable(Request $request)
+    {
+        $endorsement_no = $request->get('endorsement_no');
+        $query = CoverDebit::query()->where('endorsement_no', $endorsement_no);
+        $cover = CoverRegister::query()->where('endorsement_no', $endorsement_no)->with('customer')->first();
+        $actionable = static::coverDebitedCommited($endorsement_no);
+
+        return datatables::of($query)
+            ->addColumn('cedant', function ($data) use ($cover) {
+                $customer_name = $cover?->customer?->name;
+                return $customer_name;
+            })
+            ->editColumn('dr_no', function ($data) {
+                return $data->document . '/' . $data->dr_no . '/' . $data->period_year;
+            })
+            ->addColumn('sum_insured', function () use ($cover) {
+                return $cover?->total_sum_insured;
+            })
+            ->addColumn('share', function () use ($cover) {
+                return $cover?->share_offered ? number_format($cover?->share_offered, 2) : 0;
+            })
+            ->addColumn('premium', function () use ($cover) {
+                return $cover?->cedant_premium;
+            })
+            ->addColumn('gross', function () use ($cover) {
+                return $cover?->cedant_premium;
+            })
+            ->addColumn('action', function ($data) use ($actionable, $endorsement_no, $cover) {
+                $btn = "";
+                $partner_emails = [];
+                $partner_emails[] = $cover?->customer?->email;
+                $user = auth()->user()->name;
+                // $role = User::where('id', auth()->user()->id)->load('role');
+                if ($actionable) {
+                    $distributedShare = 0;
+                    switch ($cover->type_of_bus) {
+                        case 'FPR':
+                            $distributedShare = CoverRipart::where('endorsement_no', $endorsement_no)->sum('share');
+                            break;
+                        case 'TPR':
+                        case 'TNP':
+                            $distributedShare = CoverRipart::where('endorsement_no', $endorsement_no)
+                                ->where('treaty_code', $data->treaty_code)
+                                ->sum('share');
+                            break;
+                    }
+                    $reinsurer = Customer::where('customer_id', $data->partner_no)->first();
+                    if (($cover->transaction_type == 'NEW' || $cover->transaction_type == 'REN' || $cover->transaction_type == 'EXT' || $cover->transaction_type == 'CNC' || $cover->transaction_type == 'RFN')) {
+                        $btn .= "<button class='btn btn-outline-dark btn-wave waves-effect waves-light edit-reinsurer datatable-action-btn' data-distributed-share='{$distributedShare}' data-reinsurer='{$reinsurer}' data-data='{$data}' data-bs-toggle='modal' data-bs-target='#edit-reinsurer-modal'>Edit</button>";
+                        $btn .= "<button class='btn btn-outline-danger btn-wave waves-effect waves-light remove-reinsurer datatable-action-btn mx-2' data-reinsurer='{$reinsurer}' data-data='{$data}'>Remove</button>";
+                    } else {
+                        $btn .= "";
+                    }
+                } else {
+                    $dbtNoteUrl = route('docs.coverdebitnote', ['endorsement_no' => $endorsement_no]);
+                    $coverNoteUrl = route('docs.coverslip', ['endorsement_no' => $endorsement_no, 'covernote' => 'true']);
+                    $client_emails = json_encode($partner_emails);
+                    $client_name = $cover?->customer?->name;
+                    $endorsementNo = $endorsement_no;
+                    $coverNo = $cover?->cover_no;
+                    $tmp_attachments = json_encode(['attachments' => []]);
+
+                    if (($cover->type_of_bus == 'TPR' || $cover->type_of_bus == 'TNP') && ($cover->transaction_type == 'NEW' || $cover->transaction_type == 'REN')) {
+                        $btn .= "";
+                    } else {
+                        $btn .= "<a href='{$dbtNoteUrl}' target='_blank' rel='noopener noreferrer' class='print-out-link pr-3'><i class='bx bx-file me-1 align-middle'></i>Debit Note</a>";
+                        $btn .= "<a href='{$coverNoteUrl}' target='_blank' rel='noopener noreferrer' class='print-out-link pr-3'>
+                                    <i class='bx bx-file'></i> Cover Note</a>";
+                        $btn .= "<a href='#' target='_blank' class='print-out-link send-cedant-email' data-user='{$user}' data-client_emails='{$client_emails}' data-cover_no='{$coverNo}' data-endorsement_no='{$endorsementNo}' data-client_name='{$client_name}' data-client_docs='{$tmp_attachments}'>
+                                    <i class='bx bx-mail-send' style='font-size: 15px; vertical-align: -2px;'></i> Send E-Mail</a>";
+                    }
+                }
+                return $btn;
+            })
+            ->rawColumns(['action'])
+            ->make(true);
+    }
+
+    public function policy_renewal_datatable(Request $request)
+    {
+
+        $renewals = PolicyRenewal::where('policy_number', $request->cover_no)->with('documents');
+        $attachments = [];
+        $reinsurers_emails = [];
+        $cover = CoverRegister::with('customer')
+            ->where('cover_no', $request->cover_no)
+            ->latest()
+            ->first();
+
+        $reinsurers = CoverRipart::where('endorsement_no', $cover->endorsement_no)->with('partner')->get();
+        if (count($reinsurers) > 0) {
+            foreach ($reinsurers as $reinsurer) {
+                $reinsurers_emails[] = ['value' => $reinsurer?->partner?->email, 'text' => $reinsurer?->partner?->email];
+            }
+        }
+
+        return datatables::of($renewals)
+            ->addColumn('name', function ($data) {
+                return $data->doc_name;
+            })
+            ->addColumn('renewal_type', function ($data) {
+                return $data->notice_status;
+            })
+            ->addColumn('expires', function ($data) {
+                return Carbon::parse($data->renewal_date)->format('Y-m-d');
+            })
+            ->addColumn('renewal_notice', function ($data) {
+                return Carbon::parse($data->last_notice_sent)->format('Y-m-d');
+            })
+            ->addColumn('actions', function ($data) use ($attachments, $reinsurers_emails) {
+                $btn = "";
+                $downloadDocUrl = route('docs.download.renewal_notice', ['policy_number' => $data->policy_number]);
+                $viewDocUrl = route('docs.view.renewal_notice', ['policy_number' => $data->policy_number]);
+                $cedant_email = ['text' => $data->client_email, 'value' => $data->client_email];
+                $policy_emails = array_merge(['cedant' => [$cedant_email]], ['reinsurer' => $reinsurers_emails]);
+                $tmp_emails = json_encode($policy_emails);
+
+                if (count($data->documents) > 0) {
+                    foreach ($data->documents as $document) {
+                        $pdfSizeMb = number_format($document->doc_size / 1048576, 2);
+                        $attachments[] = [
+                            'name' => $document->doc_name,
+                            'size' => (float) $pdfSizeMb,
+                            'url' => $document->doc_path
+                        ];
+                    }
+                }
+                $tmp_attachments = json_encode(['attachments' => $attachments]);
+
+                $btn .= " <select class='btn-outline-dark notice-action datatable-action-btn' data-id='{$data->id}' id='selected_renewal_action'><option value='cedant' selected>Cedant</option><option value='reinsurer'>Reinsurer</option></select>";
+                $btn .= " <button class='btn btn-outline-dark btn-wave waves-effect waves-light renewal-send_mail_doc datatable-action-btn' data-id='{$data->id}' data-client_name='{$data->client_name}' data-client_docs={$tmp_attachments} data-policy_no={$data->policy_number} data-client_emails={$tmp_emails} id='send_renewalmail_doc' data-bs-target='#view-renewaldocument-modal' data-bs-toggle='modal'><i class='bx bx-mail-send me-1'></i>Send E-Mail</button>";
+                $btn .= " <a href='{$viewDocUrl}' data-policy_no={$data->policy_number} target='_blank' rel='noreferrer' class='btn btn-outline-dark btn-wave waves-effect waves-light renewal-view_doc datatable-action-btn' data-id='{$data->id}' id='view_doc'><i class='bx bx-file me-1'></i>View</a>";
+                $btn .= " <a href='{$downloadDocUrl}' data-policy_no={$data->policy_number} class='btn btn-outline-dark btn-wave waves-effect waves-light renewal-doc_download datatable-action-btn' data-id='{$data->id}' id='doc_download'><i class='bx bx-download me-1'></i>Download</a>";
+                $btn .= " <button class='btn btn-outline-danger btn-wave waves-effect waves-light remove-renewal_doc datatable-action-btn' data-title='{$data->doc_name}' data-id='{$data->id}'><i class='bx bx-trash'></i></button>";
+                return $btn;
+            })
+            ->rawColumns(['expires', 'renewal_notice', 'actions'])
+            ->make(true);
+    }
+
+    public function generateDebit(Request $request)
+    {
+
+        DB::beginTransaction();
+        try {
+            $request->validate([
+                'cover_no' => 'required',
+                'endorsement_no' => 'required',
+                'installment' => 'required',
+                'amount' => 'required',
+            ]);
+
+            $CoverRegister = CoverRegister::where('endorsement_no', $request->endorsement_no)
+                ->first();
+
+            $id = (int) CoverDebit::withTrashed()->max('id') + 1;
+
+            $net_amt = (float) str_replace(',', '', $request->amount) ?? 0;
+            if ($net_amt > 0) {
+                $doc_type = 'DRN';
+                $dr_cr = 'D';
+            } else {
+                $doc_type = 'CRN';
+                $dr_cr = 'C';
+            }
+            $dr_cr_no = SystemSerials::nextSerial($doc_type);
+
+            $debit = new CoverDebit();
+            $debit->id = $id;
+            $debit->dr_no = $dr_cr_no;
+            $debit->document = $doc_type;
+            $debit->cover_no = $request->cover_no;
+            $debit->endorsement_no = $request->endorsement_no;
+            $debit->period_year = $this->_year;
+            $debit->period_month = $this->_month;
+            $debit->installment = $request->installment;
+            $debit->gross = (float) str_replace(',', '', $request->amount) ?? 0;
+            $debit->net_amt = $net_amt;
+            $debit->created_by = Auth::user()->user_name;
+            $debit->updated_by = Auth::user()->user_name;
+            $debit->gl_updated = 'N';
+            $debit->gl_updated_errors = '';
+            $debit->premium_payment_due_date = $CoverRegister->cover_from->addDays((int) $CoverRegister->premium_payment_days);
+            $debit->save();
+
+            $serial_no = str_pad($debit->dr_no, 6, '0', STR_PAD_LEFT);
+            $custaccount = new CustomerAccDet();
+            $custaccount->branch = $CoverRegister->branch_code;
+            $custaccount->customer_id = $CoverRegister->customer_id;
+            $custaccount->source_code = 'U/W';
+            $custaccount->doc_type = $doc_type;
+            $custaccount->entry_type_descr = $CoverRegister->transaction_type;
+            $custaccount->reference = $serial_no . $this->_year;
+            $custaccount->account_year = $this->_year;
+            $custaccount->account_month = $this->_month;
+            $custaccount->line_no = 1;
+            $custaccount->cheque_no = ' ';
+            $custaccount->cheque_date = null;
+            $custaccount->cover_no = $CoverRegister->cover_no;
+            $custaccount->endorsement_no = $CoverRegister->endorsement_no;
+            $custaccount->insured = $CoverRegister->insured_name;
+            $custaccount->class = $CoverRegister->class_code;
+            $custaccount->currency_code = $CoverRegister->currency_code;
+            $custaccount->currency_rate = $CoverRegister->currency_rate;
+            $custaccount->created_by = Auth::user()->user_name;
+            $custaccount->created_date = Carbon::now();
+            $custaccount->created_time = Carbon::now();
+            $custaccount->updated_by = Auth::user()->user_name;
+            $custaccount->updated_datetime = Carbon::now();
+            $custaccount->dr_cr = $dr_cr;
+            $custaccount->foreign_basic_amount = $debit->gross;
+            $custaccount->local_basic_amount = $debit->gross * $CoverRegister->currency_rate;
+            $custaccount->foreign_taxes_amount = 0;
+            $custaccount->local_taxes_amount = 0;
+            $custaccount->foreign_nett_amount = $debit->net_amt;
+            $custaccount->local_nett_amount = $debit->net_amt * $CoverRegister->currency_rate;
+            $custaccount->allocated_amount = 0;
+            $custaccount->unallocated_amount = $debit->gross * $CoverRegister->currency_rate;
+
+            $custaccount->save();
+
+            DB::commit();
+            return response()->json([
+                'status' => Response::HTTP_CREATED,
+                'message' => 'Data saved successfully'
+            ]);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'status' => Response::HTTP_UNPROCESSABLE_ENTITY,
+                'errors' => $e->errors()
+            ], 422);
+        } catch (Throwable $e) {
+            DB::rollback();
+            return response()->json([
+                'status' => $e->getCode(),
+                'message' => $e->getMessage()
+            ]);
+        }
+    }
+
+    public function saveAttachment(Request $request)
+    {
+        DB::beginTransaction();
+        try {
+            $request->validate([
+                'endorsement_no' => 'required',
+                'title' => 'required',
+                'file' => 'required|mimes:pdf,doc,docx,jpeg,png',
+            ]);
+
+            $file = $request->file('file');
+            $fileName = date('dmYhis') . '_' . $file->getClientOriginalName();
+            $file->storeAs('cover_attachments', $fileName, 'public');
+            $mimeType = $file->getClientMimeType();
+            // Read the file contents and encode it to base64
+            $base64Encoded = base64_encode(File::get($file->path()));
+
+            $id = (int) CoverAttachment::withTrashed()->max('id') + 1;
+            $CoverRegister = CoverRegister::where('endorsement_no', $request->endorsement_no)->first();
+
+            CoverAttachment::create([
+                'id' => $id,
+                'cover_no' => $CoverRegister->cover_no,
+                'endorsement_no' => $CoverRegister->endorsement_no,
+                'title' => $request->title,
+                'description' => $request->title,
+                'file' => $fileName,
+                'file_base64' => $base64Encoded,
+                'mime_type' => $mimeType,
+                'created_by' => Auth::user()->user_name,
+                'updated_by' => Auth::user()->user_name,
+            ]);
+            DB::commit();
+            return response()->json([
+                'status' => Response::HTTP_CREATED,
+                'message' => 'Data saved successfully'
+            ]);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'status' => Response::HTTP_UNPROCESSABLE_ENTITY,
+                'errors' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'status' => $e->getCode(),
+                'message' => $e->getMessage()
+            ]);
+        }
+    }
+
+    public function amendAttachment(Request $request)
+    {
+        DB::beginTransaction();
+        try {
+            $request->validate([
+                'endorsement_no' => 'required',
+                'id' => 'required',
+                'title' => 'required',
+                // 'description' => 'required',
+                'file' => 'required|mimes:pdf,doc,docx,jpeg,png',
+            ]);
+
+            $file = $request->file('file');
+            $fileName = date('dmYhis') . '_' . $file->getClientOriginalName();
+            $mimeType = $file->getClientMimeType();
+            $file->storeAs('cover_attachments', $fileName, 'public');
+
+            // Read the file contents and encode it to base64
+            $base64Encoded = base64_encode(File::get($file->path()));
+
+            $attachment = CoverAttachment::where('id', $request->id)->first();
+
+            $attachment->title = $request->title;
+            $attachment->description = $request->title;
+            $attachment->file = $fileName;
+            $attachment->file_base64 = $base64Encoded;
+            $attachment->mime_type = $mimeType;
+            $attachment->updated_by = Auth::user()->user_name;
+            $attachment->save();
+
+            DB::commit();
+
+            return response()->json([
+                'status' => Response::HTTP_CREATED,
+                'message' => 'Data saved successfully'
+            ]);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'status' => Response::HTTP_UNPROCESSABLE_ENTITY,
+                'errors' => $e->errors()
+            ], 422);
+        } catch (Throwable $e) {
+            DB::rollBack();
+            // dd($e);
+            return response()->json([
+                'status' => $e->getCode(),
+                'message' => $e->getMessage()
+            ]);
+        }
+    }
+
+    public function deleteAttachment(Request $request)
+    {
+        DB::beginTransaction();
+        try {
+
+            $request->validate([
+                'endorsement_no' => 'required',
+                'id' => 'required',
+            ]);
+
+            $attachment = CoverAttachment::where('id', $request->id)->first();
+            $attachment->delete();
+
+            DB::commit();
+            return response()->json([
+                'status' => Response::HTTP_CREATED,
+                'message' => 'Item deleted successfully'
+            ]);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'status' => Response::HTTP_UNPROCESSABLE_ENTITY,
+                'errors' => $e->errors()
+            ], 422);
+        } catch (Throwable $e) {
+            DB::rollBack();
+            return response()->json([
+                'status' => $e->getCode(),
+                'message' => $e->getMessage()
+            ]);
+        }
+    }
+
+    public function saveClauses(Request $request)
+    {
+        DB::beginTransaction();
+        try {
+            $request->validate([
+                'cover_no' => 'required',
+                'endorsement_no' => 'required',
+                'clauses' => 'required',
+            ]);
+
+            // CoverClause::where('endorsement_no', $request->endorsement_no)->delete();
+            foreach ($request->clauses as $value) {
+                $clause = ClauseParam::where('clause_id', $value)->first();
+                CoverClause::create([
+                    'cover_no' => $request->cover_no,
+                    'endorsement_no' => $request->endorsement_no,
+                    'clause_id' => $clause->clause_id,
+                    'clause_title' => $clause->clause_title,
+                    'clause_wording' => $clause->clause_wording,
+                    'created_by' => Auth::user()->user_name,
+                    'updated_by' => Auth::user()->user_name,
+                ]);
+            }
+
+            DB::commit();
+            return response()->json([
+                'status' => Response::HTTP_CREATED,
+                'message' => 'Data saved successfully'
+            ]);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'status' => Response::HTTP_UNPROCESSABLE_ENTITY,
+                'errors' => $e->errors()
+            ], 422);
+        } catch (Throwable $e) {
+            DB::rollBack();
+            return response()->json([
+                'status' => $e->getCode(),
+                'message' => $e->getMessage()
+            ]);
+        }
+    }
+
+    public function amendClauses(Request $request)
+    {
+        DB::beginTransaction();
+        try {
+            $request->validate([
+                'cover_no' => 'required',
+                'endorsement_no' => 'required',
+                'clauses' => 'required',
+            ]);
+
+            $del_exist_clauses = CoverClause::where('endorsement_no', $request->endorsement_no)->delete();
+            // foreach ($clauses as $key => $value) {
+            foreach ([] as $key => $value) {
+                $clause = ClauseParam::where('clause_id', $value);
+                CoverClause::create([
+                    'cover_no' => $request->cover_no,
+                    'endorsement_no' => $request->endorsement_no,
+                    'clause_id' => $clause->clause_id,
+                    'clause_title' => $clause->clause_title,
+                    'clause_wording' => $clause->clause_wording,
+                    'created_by' => Auth::user()->user_name,
+                    'updated_by' => Auth::user()->user_name,
+                ]);
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'status' => Response::HTTP_CREATED,
+                'message' => 'Data saved successfully'
+            ]);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'status' => Response::HTTP_UNPROCESSABLE_ENTITY,
+                'errors' => $e->errors()
+            ], 422);
+        } catch (Throwable $e) {
+            DB::rollBack();
+            return response()->json([
+                'status' => $e->getCode(),
+                'message' => $e->getMessage()
+            ]);
+        }
+    }
+
+    public function deleteClause(Request $request)
+    {
+        DB::beginTransaction();
+        try {
+
+            $request->validate([
+                'cover_no' => 'required',
+                'endorsement_no' => 'required',
+                'clause_id' => 'required',
+            ]);
+
+            $del_clause = CoverClause::where('endorsement_no', $request->endorsement_no)->where('clause_id', $request->clause_id)->delete();
+
+
+            DB::commit();
+            return response()->json([
+                'status' => Response::HTTP_CREATED,
+                'message' => 'clause deleted successfully'
+            ]);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'status' => Response::HTTP_UNPROCESSABLE_ENTITY,
+                'errors' => $e->errors()
+            ], 422);
+        } catch (Throwable $e) {
+            DB::rollBack();
+            dd($e);
+            return response()->json([
+                'status' => $e->getCode(),
+                'message' => $e->getMessage()
+            ]);
+        }
+    }
+
+    public function saveInsuranceClasses(Request $request)
+    {
+        DB::beginTransaction();
+        try {
+            $validated = $request->validate([
+                'reinclass' => 'required',
+                'class' => 'required',
+                'cover_no' => 'required',
+                'endorsement_no' => 'required',
+            ]);
+
+            foreach ($validated['class'] as $class) {
+                $id = (int) CoverClass::withTrashed()->max('id') + 1;
+
+                CoverClass::create([
+                    'id' => $id,
+                    'reinclass' => $request->reinclass,
+                    'cover_no' => $validated['cover_no'],
+                    'endorsement_no' => $validated['endorsement_no'],
+                    'class' => $class,
+                    'created_by' => Auth::user()->user_name,
+                    'updated_by' => Auth::user()->user_name,
+                ]);
+            }
+            DB::commit();
+
+            return response()->json([
+                'status' => Response::HTTP_CREATED,
+                'message' => 'Data saved successfully'
+            ]);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'status' => Response::HTTP_UNPROCESSABLE_ENTITY,
+                'errors' => $e->errors()
+            ], 422);
+        } catch (Throwable $e) {
+            DB::rollBack();
+            dd($e);
+            return response()->json([
+                'status' => $e->getCode(),
+                'message' => $e->getMessage()
+            ]);
+        }
+    }
+
+    public function getReinpremType(Request $request)
+    {
+        $reinsclass = $request->reinclass;
+        $selectedCodes = $request->selectedCodes ?? [];
+        // dd($request->all());
+        $result = ReinclassPremtype::where('reinclass', $reinsclass)
+            ->whereNotIn('premtype_code', $selectedCodes)
+            ->get();
+        return response()->json($result);
+    }
+
+    public function commitCover(Request $request)
+    {
+
+        try {
+            $CoverRegister = CoverRegister::where('endorsement_no', $request->endorsement_no)
+                ->update([
+                    'commited' => 'Y',
+                    'commited_by' => Auth::user()->user_name,
+                    'updated_by' => Auth::user()->user_name
+                ]);
+
+            return response()->json([
+                'status' => Response::HTTP_CREATED,
+                'message' => 'Data saved successfully'
+            ]);
+        } catch (\Throwable $th) {
+            return response()->json([
+                'status' => Response::HTTP_UNPROCESSABLE_ENTITY,
+                'message' => 'Failed to save'
+            ]);
+        }
+    }
+
+    public static function coverDebitedCommited($endorsement): bool
+    {
+        $cover = CoverRegister::select('endorsement_no', 'cover_no', 'commited', 'verified')
+            ->where('endorsement_no', $endorsement)
+            ->first();
+
+        $debitted = CoverDebit::where('endorsement_no', $endorsement)
+            ->count();
+
+        $actionable = true;
+        // if TNP| TPR inital cover commited
+        if ($cover->commited == 'Y' || $debitted > 0) {
+            $actionable = false;
+        }
+
+        return $actionable;
+    }
+
+    public function StoreQuaterlyFigures(Request $request)
+    {
+        DB::beginTransaction();
+        try {
+            $trans_type = 'QTR';
+            $type_of_bus = $request->type_of_bus;
+            $prev_endorsement_no = $request->endorsement_no;
+
+            $endorsement = $this->repository->generateEndorseNo($type_of_bus, $trans_type);
+            $new_endorsement_no = $endorsement->endorsement_no;
+            $this->_endorsement_no = $new_endorsement_no;
+            $cover_serial_no = $endorsement->serial_no;
+
+            $prevCover = CoverRegister::where('endorsement_no', $prev_endorsement_no)->first();
+            $base_cover = CoverRegister::where('cover_no', $prevCover->cover_no)
+                ->where('transaction_type', ['NEW', 'REN'])
+                ->orderBy('dola', 'DESC')
+                ->first();
+
+            if ($request->quarter == 1) {
+                $quarter_name = 'FIRST QUARTER';
+            } elseif ($request->quarter == 2) {
+                $quarter_name = 'SECOND QUARTER';
+            } elseif ($request->quarter == 3) {
+                $quarter_name = 'THIRD QUARTER';
+            } elseif ($request->quarter == 4) {
+                $quarter_name = 'FOURTH QUARTER';
+            } else {
+                $quarter_name = '';
+            }
+
+            $prem_tax_rate = $prevCover->prem_tax_rate;
+            $ri_tax_rate = $prevCover->ri_tax_rate;
+
+            $cover = $prevCover->replicate();
+            $cover->cover_serial_no = $cover_serial_no;
+            $cover->endorsement_no = $new_endorsement_no;
+            $cover->orig_endorsement_no = $base_cover->endorsement_no;
+            $cover->transaction_type = $trans_type;
+            $cover->cover_title = 'TREATY PROPORTIONAL ACCOUNT ' . trim($quarter_name) . '-' . $request->cover_year;
+            $cover->verified = null;
+            $cover->status = 'A';
+            $cover->commited = null;
+            $cover->account_year = $this->_year;
+            $cover->account_month = $this->_month;
+            $cover->dola = Carbon::now();
+            $cover->created_by = Auth::user()->user_name;
+            $cover->updated_by = Auth::user()->user_name;
+            $cover->save();
+
+            $reinclass_code = $request->reinclass_code;
+            $premtype_codes = $request->premtype_code;
+            $premtype_name = $request->premtype_name;
+            $treaty = $request->treaty;
+            $comm_rate = $request->comm_rate;
+            $basic_amount = $request->premium_amount;
+            $claim_amt = $request->claim_amount;
+
+            foreach ($premtype_codes as $index => $premtype_code) {
+                if ($basic_amount[$index] != 0) {
+                    //Premiums
+                    $CoverPremium = new CoverPremium();
+                    $CoverPremium->cover_no = $request->cover_no;
+                    $CoverPremium->endorsement_no = $new_endorsement_no;
+                    $CoverPremium->orig_endorsement_no = $prev_endorsement_no;
+                    $CoverPremium->transaction_type = $trans_type;
+                    $CoverPremium->premium_type_code = $premtype_code;
+                    $CoverPremium->premtype_name = $premtype_name[$index];
+                    $CoverPremium->quarter = (float) $request->quarter ? $request->quarter : 0;
+                    $CoverPremium->entry_type_descr = 'PRM';
+                    $CoverPremium->premium_type_order_position = 1;
+                    $CoverPremium->premium_type_description = 'Gross Premium';
+                    $CoverPremium->type_of_bus = $request->type_of_bus;
+                    $CoverPremium->class_code = $reinclass_code[$index];
+                    $CoverPremium->basic_amount = str_replace(',', '', $basic_amount[$index]);
+                    $CoverPremium->apply_rate_flag = 'N';
+                    $CoverPremium->treaty = $treaty[$index];
+                    $CoverPremium->rate = 0;
+                    if ($CoverPremium->transaction_type == 'RFN' || $CoverPremium->transaction_type == 'CNC') {
+                        $CoverPremium->dr_cr = 'CR';
+                    } else {
+                        $CoverPremium->dr_cr = 'DR';
+                    }
+                    $CoverPremium->final_amount = str_replace(',', '', $basic_amount[$index]);
+                    $CoverPremium->created_at = Carbon::now();
+                    $CoverPremium->updated_at = Carbon::now();
+                    $CoverPremium->created_by = Auth::user()->user_name;
+                    $CoverPremium->updated_by = Auth::user()->user_name;
+                    $CoverPremium->save();
+
+                    //Commissions
+                    $rate = (float) $comm_rate[$index] ? $comm_rate[$index] : 0;
+
+                    $CoverPremium = new CoverPremium();
+                    $CoverPremium->cover_no = $request->cover_no;
+                    $CoverPremium->endorsement_no = $new_endorsement_no;
+                    $CoverPremium->orig_endorsement_no = $prev_endorsement_no;
+                    $CoverPremium->transaction_type = $trans_type;
+                    $CoverPremium->premium_type_code = $premtype_code;
+                    $CoverPremium->premtype_name = $premtype_name[$index];
+                    $CoverPremium->quarter = (float) $request->quarter ? $request->quarter : 0;
+                    $CoverPremium->entry_type_descr = 'COM';
+                    $CoverPremium->premium_type_order_position = 2;
+                    $CoverPremium->premium_type_description = 'Commission';
+                    $CoverPremium->type_of_bus = $request->type_of_bus;
+                    $CoverPremium->class_code = $reinclass_code[$index];
+                    $CoverPremium->treaty = $treaty[$index];
+                    $CoverPremium->basic_amount = str_replace(',', '', $basic_amount[$index]);
+                    $CoverPremium->apply_rate_flag = 'Y';
+                    $CoverPremium->rate = $rate;
+                    if ($CoverPremium->transaction_type == 'RFN' || $CoverPremium->transaction_type == 'CNC') {
+                        $CoverPremium->dr_cr = 'DR';
+                    } else {
+                        $CoverPremium->dr_cr = 'CR';
+                    }
+                    $CoverPremium->final_amount = ($rate / 100) * str_replace(',', '', $basic_amount[$index]);
+                    $CoverPremium->created_at = Carbon::now();
+                    $CoverPremium->updated_at = Carbon::now();
+                    $CoverPremium->created_by = Auth::user()->user_name;
+                    $CoverPremium->updated_by = Auth::user()->user_name;
+                    $CoverPremium->save();
+
+                    //Premium Tax
+                    $CoverPremium = new CoverPremium();
+                    $CoverPremium->cover_no = $request->cover_no;
+                    $CoverPremium->endorsement_no = $new_endorsement_no;
+                    $CoverPremium->orig_endorsement_no = $prev_endorsement_no;
+                    $CoverPremium->transaction_type = $trans_type;
+                    $CoverPremium->premium_type_code = $premtype_code;
+                    $CoverPremium->premtype_name = $premtype_name[$index];
+                    $CoverPremium->quarter = (float) $request->quarter ? $request->quarter : 0;
+                    $CoverPremium->entry_type_descr = 'PTX';
+                    $CoverPremium->premium_type_order_position = 3;
+                    $CoverPremium->premium_type_description = 'Premium Tax';
+                    $CoverPremium->type_of_bus = $request->type_of_bus;
+                    $CoverPremium->class_code = $reinclass_code[$index];
+                    $CoverPremium->treaty = $treaty[$index];
+                    $CoverPremium->basic_amount = str_replace(',', '', $basic_amount[$index]);
+                    $CoverPremium->apply_rate_flag = 'Y';
+                    if ($CoverPremium->transaction_type == 'RFN' || $CoverPremium->transaction_type == 'CNC') {
+                        $CoverPremium->dr_cr = 'DR';
+                    } else {
+                        $CoverPremium->dr_cr = 'CR';
+                    }
+                    $CoverPremium->rate = $prem_tax_rate;
+                    $CoverPremium->final_amount = ($prem_tax_rate / 100) * str_replace(',', '', $basic_amount[$index]);
+                    $CoverPremium->created_at = Carbon::now();
+                    $CoverPremium->updated_at = Carbon::now();
+                    $CoverPremium->created_by = Auth::user()->user_name;
+                    $CoverPremium->updated_by = Auth::user()->user_name;
+                    $CoverPremium->save();
+
+                    //Reinsurance Tax
+                    $CoverPremium = new CoverPremium();
+                    $CoverPremium->cover_no = $request->cover_no;
+                    $CoverPremium->endorsement_no = $new_endorsement_no;
+                    $CoverPremium->orig_endorsement_no = $prev_endorsement_no;
+                    $CoverPremium->transaction_type = $trans_type;
+                    $CoverPremium->premium_type_code = $premtype_code;
+                    $CoverPremium->premtype_name = $premtype_name[$index];
+                    $CoverPremium->quarter = (float) $request->quarter ? $request->quarter : 0;
+                    $CoverPremium->entry_type_descr = 'RTX';
+                    $CoverPremium->premium_type_order_position = 4;
+                    $CoverPremium->premium_type_description = 'Reinsurance Tax';
+                    $CoverPremium->type_of_bus = $request->type_of_bus;
+                    $CoverPremium->class_code = $reinclass_code[$index];
+                    $CoverPremium->treaty = $treaty[$index];
+                    $CoverPremium->basic_amount = str_replace(',', '', $basic_amount[$index]);
+                    $CoverPremium->apply_rate_flag = 'Y';
+                    $CoverPremium->rate = $ri_tax_rate;
+                    if ($CoverPremium->transaction_type == 'RFN' || $CoverPremium->transaction_type == 'CNC') {
+                        $CoverPremium->dr_cr = 'DR';
+                    } else {
+                        $CoverPremium->dr_cr = 'CR';
+                    }
+                    $CoverPremium->final_amount = ($ri_tax_rate / 100) * str_replace(',', '', $basic_amount[$index]);
+                    $CoverPremium->created_at = Carbon::now();
+                    $CoverPremium->updated_at = Carbon::now();
+                    $CoverPremium->created_by = Auth::user()->user_name;
+                    $CoverPremium->updated_by = Auth::user()->user_name;
+                    $CoverPremium->save();
+                }
+
+                if ($claim_amt[$index] != 0) {
+                    // claim
+                    $CoverPremium = new CoverPremium();
+                    $CoverPremium->cover_no = $request->cover_no;
+                    $CoverPremium->endorsement_no = $new_endorsement_no;
+                    $CoverPremium->orig_endorsement_no = $prev_endorsement_no;
+                    $CoverPremium->transaction_type = $trans_type;
+                    $CoverPremium->premium_type_code = $premtype_code;
+                    $CoverPremium->premtype_name = $premtype_name[$index];
+                    $CoverPremium->quarter = (float) $request->quarter ? $request->quarter : 0;
+                    $CoverPremium->entry_type_descr = 'CLM';
+                    $CoverPremium->premium_type_order_position = 5;
+                    $CoverPremium->premium_type_description = 'Claims';
+                    $CoverPremium->type_of_bus = $request->type_of_bus;
+                    $CoverPremium->class_code = $reinclass_code[$index];
+                    $CoverPremium->treaty = $treaty[$index];
+                    $CoverPremium->basic_amount = str_replace(',', '', $claim_amt[$index]);
+                    $CoverPremium->apply_rate_flag = 'N';
+                    $CoverPremium->rate = 0;
+                    if ($CoverPremium->transaction_type == 'RFN' || $CoverPremium->transaction_type == 'CNC') {
+                        $CoverPremium->dr_cr = 'DR';
+                    } else {
+                        $CoverPremium->dr_cr = 'CR';
+                    }
+                    $CoverPremium->final_amount = str_replace(',', '', $claim_amt[$index]);
+                    $CoverPremium->created_at = Carbon::now();
+                    $CoverPremium->updated_at = Carbon::now();
+                    $CoverPremium->created_by = Auth::user()->user_name;
+                    $CoverPremium->updated_by = Auth::user()->user_name;
+                    $CoverPremium->save();
+                }
+            }
+
+            // begin replication from previous
+
+            $this->repository->replicateFromPrevious($prev_endorsement_no);
+            // $this->coverPremToReinNote();
+
+            DB::commit();
+
+            $redirectUrl = route('cover.CoverHome', ['endorsement_no' => $new_endorsement_no]);
+            // Redirect back with success message and endorsement data as a request parameter
+            return redirect($redirectUrl)->with('success', 'Quarterly Figures information saved successfully');
+        } catch (ValidationException $e) {
+            return response()->json([
+                'status' => Response::HTTP_UNPROCESSABLE_ENTITY,
+                'errors' => $e->errors()
+            ], 422);
+        } catch (Throwable $e) {
+            DB::rollBack();
+            // dd($e);
+            return response()->json([
+                'status' => $e->getCode(),
+                'message' => $e->getMessage()
+            ]);
+        }
+    }
+
+    public function StoreProfitCommission(Request $request)
+    {
+        DB::beginTransaction();
+        try {
+            $trans_type = 'PC';
+            $type_of_bus = $request->type_of_bus;
+            $prev_endorsement_no = $request->endorsement_no;
+
+            $endorsement = $this->repository->generateEndorseNo($type_of_bus, $trans_type);
+            $new_endorsement_no = $endorsement->endorsement_no;
+            $this->_endorsement_no = $new_endorsement_no;
+            $cover_serial_no = $endorsement->serial_no;
+
+            $prevCover = CoverRegister::where('endorsement_no', $prev_endorsement_no)->first();
+            $prem_tax_rate = $prevCover->prem_tax_rate;
+            $ri_tax_rate = $prevCover->ri_tax_rate;
+            $mgnt_exp_rate = $prevCover->mgnt_exp_rate;
+            $profit_comm_rate = $prevCover->profit_comm_rate ? $prevCover->profit_comm_rate : 0;
+            $profit_comm_ratio = $profit_comm_rate ? ($profit_comm_rate / 100) : 0;
+
+            $cover = $prevCover->replicate();
+            $cover->cover_serial_no = $cover_serial_no;
+            $cover->endorsement_no = $new_endorsement_no;
+            $cover->transaction_type = $trans_type;
+            $cover->cover_title = 'PROFIT COMMISSION STATEMENT';
+            $cover->verified = null;
+            $cover->status = 'A';
+            $cover->commited = null;
+            $cover->account_year = $this->_year;
+            $cover->account_month = $this->_month;
+            $cover->dola = Carbon::now();
+            $cover->created_by = Auth::user()->user_name;
+            $cover->updated_by = Auth::user()->user_name;
+            $cover->save();
+
+            $treaty_year = $request->treaty_year;
+            $quarter = $request->pc_quarter;
+            $reinclass = $request->pc_reinclass;
+            $treaty = $request->pc_treaty;
+            $premiums = $request->pc_premium;
+            $commissions = $request->pc_commission;
+            $premium_taxes = $request->pc_premium_tax;
+            $reinsurance_taxes = $request->pc_reinsurance_tax;
+            $claim_amounts = $request->pc_claim_amount;
+            $port_entry_prem = $request->port_entry_prem;
+            $port_entry_loss = $request->port_entry_loss;
+            $port_withdrawal_prem = $request->port_withdrawal_prem;
+            $port_withdrawal_loss = $request->port_withdrawal_loss;
+            $totalPrem = 0;
+            $totalPremiumTax = 0;
+            $totalCom = 0;
+            $totalReinsuranceTax = 0;
+            $totalClaim = 0;
+            $mgnt_exp_amt = 0;
+            //Premiums
+
+            foreach ($premiums as $index => $premium) {
+                if ($premium != 0) {
+                    $premium = (int) str_replace(',', '', $premium);
+                    $totalPrem = $totalPrem + $premium;
+                }
+            }
+            if ($totalPrem != 0) {
+                $mgnt_exp_amt = ($mgnt_exp_rate / 100) * $totalPrem;
+                CoverPremium::create([
+                    'cover_no' => $request->cover_no,
+                    'endorsement_no' => $new_endorsement_no,
+                    'orig_endorsement_no' => $prev_endorsement_no,
+                    'transaction_type' => $trans_type,
+                    'premium_type_code' => 0,
+                    'premtype_name' => 'Gross Premium',
+                    'quarter' => 0,
+                    'entry_type_descr' => 'PRM',
+                    'premium_type_order_position' => 1,
+                    'premium_type_description' => 'Gross Premium',
+                    'type_of_bus' => $type_of_bus,
+                    'class_code' => 'ALL',
+                    'basic_amount' => str_replace(',', '', $totalPrem),
+                    'apply_rate_flag' => 'Y',
+                    'treaty' => 'SURP',
+                    'rate' => $profit_comm_rate,
+                    'dr_cr' => 'DR',
+                    'final_amount' => (float) str_replace(',', '', $totalPrem) * $profit_comm_ratio,
+                    'created_by' => Auth::user()->user_name,
+                    'updated_by' => Auth::user()->user_name,
+                ]);
+            }
+            //Commissions
+            foreach ($commissions as $index => $commission) {
+                if ($commission != 0) {
+                    $commission = (int) str_replace(',', '', $commission);
+                    $totalCom = $totalCom + $commission;
+                }
+            }
+            if ($totalCom != 0) {
+
+                CoverPremium::create([
+                    'cover_no' => $request->cover_no,
+                    'endorsement_no' => $new_endorsement_no,
+                    'orig_endorsement_no' => $prev_endorsement_no,
+                    'transaction_type' => $trans_type,
+                    'premium_type_code' => 0,
+                    'premtype_name' => 'Commission',
+                    'quarter' => 0,
+                    'entry_type_descr' => 'COM',
+                    'premium_type_order_position' => 2,
+                    'premium_type_description' => 'Commission',
+                    'type_of_bus' => $type_of_bus,
+                    'class_code' => 'ALL',
+                    'basic_amount' => str_replace(',', '', $totalCom),
+                    'apply_rate_flag' => 'Y',
+                    'treaty' => 'SURP',
+                    'rate' => $profit_comm_rate,
+                    'dr_cr' => 'CR',
+                    'final_amount' => (float) str_replace(',', '', $totalCom) * $profit_comm_ratio,
+                    'created_by' => Auth::user()->user_name,
+                    'updated_by' => Auth::user()->user_name,
+                ]);
+            }
+            //Premium_taxes
+            foreach ($premium_taxes as $index => $premium_tax) {
+                if ($premium_tax != 0) {
+                    $premium_tax = (int) str_replace(',', '', $premium_tax);
+                    $totalPremiumTax = $totalPremiumTax + $premium_tax;
+                }
+            }
+            if ($totalPremiumTax != 0) {
+
+                CoverPremium::create([
+                    'cover_no' => $request->cover_no,
+                    'endorsement_no' => $new_endorsement_no,
+                    'orig_endorsement_no' => $prev_endorsement_no,
+                    'transaction_type' => $trans_type,
+                    'premium_type_code' => 0,
+                    'premtype_name' => 'Premium Tax',
+                    'quarter' => 0,
+                    'entry_type_descr' => 'PTX',
+                    'premium_type_order_position' => 3,
+                    'premium_type_description' => 'Premium Tax',
+                    'type_of_bus' => $type_of_bus,
+                    'class_code' => 'ALL',
+                    'basic_amount' => str_replace(',', '', $totalPremiumTax),
+                    'apply_rate_flag' => 'Y',
+                    'treaty' => 'SURP',
+                    'rate' => $profit_comm_rate,
+                    'dr_cr' => 'CR',
+                    'final_amount' => (float) str_replace(',', '', $totalPremiumTax) * $profit_comm_ratio,
+                    'created_by' => Auth::user()->user_name,
+                    'updated_by' => Auth::user()->user_name,
+                ]);
+            }
+            //reinsurance_taxes
+            foreach ($reinsurance_taxes as $index => $reinsurance_tax) {
+                if ($reinsurance_tax != 0) {
+                    $reinsurance_tax = (int) str_replace(',', '', $reinsurance_tax);
+                    $totalReinsuranceTax = $totalReinsuranceTax + $reinsurance_tax;
+                }
+            }
+            if ($totalReinsuranceTax != 0) {
+
+                CoverPremium::create([
+                    'cover_no' => $request->cover_no,
+                    'endorsement_no' => $new_endorsement_no,
+                    'orig_endorsement_no' => $prev_endorsement_no,
+                    'transaction_type' => $trans_type,
+                    'premium_type_code' => 0,
+                    'premtype_name' => 'Reinsurance Tax',
+                    'quarter' => 0,
+                    'entry_type_descr' => 'RTX',
+                    'premium_type_order_position' => 4,
+                    'premium_type_description' => 'Reinsurance Tax',
+                    'type_of_bus' => $type_of_bus,
+                    'class_code' => 'ALL',
+                    'basic_amount' => str_replace(',', '', $totalReinsuranceTax),
+                    'apply_rate_flag' => 'Y',
+                    'treaty' => 'SURP',
+                    'rate' => $profit_comm_rate,
+                    'dr_cr' => 'CR',
+                    'final_amount' => (float) str_replace(',', '', $totalReinsuranceTax) * $profit_comm_ratio,
+                    'created_by' => Auth::user()->user_name,
+                    'updated_by' => Auth::user()->user_name,
+                ]);
+            }
+            //claims
+            foreach ($claim_amounts as $index => $claim) {
+                if ($claim != 0) {
+                    $claim = (int) str_replace(',', '', $claim);
+                    $totalClaim = $totalClaim + $claim;
+                }
+            }
+            if ($totalClaim != 0) {
+
+                CoverPremium::create([
+                    'cover_no' => $request->cover_no,
+                    'endorsement_no' => $new_endorsement_no,
+                    'orig_endorsement_no' => $prev_endorsement_no,
+                    'transaction_type' => $trans_type,
+                    'premium_type_code' => 0,
+                    'premtype_name' => 'Claims',
+                    'quarter' => 0,
+                    'entry_type_descr' => 'CLM',
+                    'premium_type_order_position' => 5,
+                    'premium_type_description' => 'Claims',
+                    'type_of_bus' => $type_of_bus,
+                    'class_code' => 'ALL',
+                    'basic_amount' => str_replace(',', '', $totalClaim),
+                    'apply_rate_flag' => 'Y',
+                    'treaty' => 'SURP',
+                    'rate' => $profit_comm_rate,
+                    'dr_cr' => 'CR',
+                    'final_amount' => (float) str_replace(',', '', $totalClaim) * $profit_comm_ratio,
+                    'created_by' => Auth::user()->user_name,
+                    'updated_by' => Auth::user()->user_name,
+                ]);
+            }
+            //port_entry_prems
+            // foreach ($port_entry_prems as $index => $port_entry_prem) {
+            if ($port_entry_prem != 0) {
+
+                CoverPremium::create([
+                    'cover_no' => $request->cover_no,
+                    'endorsement_no' => $new_endorsement_no,
+                    'orig_endorsement_no' => $prev_endorsement_no,
+                    'transaction_type' => $trans_type,
+                    'premium_type_code' => 0,
+                    'premtype_name' => 'Portfolio Entry Premium',
+                    'quarter' => 0,
+                    'entry_type_descr' => 'PEP',
+                    'premium_type_order_position' => 6,
+                    'premium_type_description' => 'Portfolio Entry Premium',
+                    'type_of_bus' => $type_of_bus,
+                    'class_code' => 'ALL',
+                    'basic_amount' => str_replace(',', '', $port_entry_prem),
+                    'apply_rate_flag' => 'Y',
+                    'treaty' => 'SURP',
+                    'rate' => $profit_comm_rate,
+                    'dr_cr' => 'DR',
+                    'final_amount' => (float) str_replace(',', '', $port_entry_prem) * $profit_comm_ratio,
+                    'created_by' => Auth::user()->user_name,
+                    'updated_by' => Auth::user()->user_name,
+                ]);
+            }
+            // }
+
+            //port_entry_prems
+            // foreach ($port_entry_losses as $index => $port_entry_loss) {
+            if ($port_entry_loss != 0) {
+
+                CoverPremium::create([
+                    'cover_no' => $request->cover_no,
+                    'endorsement_no' => $new_endorsement_no,
+                    'orig_endorsement_no' => $prev_endorsement_no,
+                    'transaction_type' => $trans_type,
+                    'premium_type_code' => 0,
+                    'premtype_name' => 'Portfolio Entry Loss',
+                    'quarter' => 0,
+                    'entry_type_descr' => 'PEL',
+                    'premium_type_order_position' => 7,
+                    'premium_type_description' => 'Portfolio Entry Loss',
+                    'type_of_bus' => $type_of_bus,
+                    'class_code' => 'ALL',
+                    'basic_amount' => str_replace(',', '', $port_entry_loss),
+                    'apply_rate_flag' => 'Y',
+                    'treaty' => 'SURP',
+                    'rate' => $profit_comm_rate,
+                    'dr_cr' => 'DR',
+                    'final_amount' => (float) str_replace(',', '', $port_entry_loss) * $profit_comm_ratio,
+                    'created_by' => Auth::user()->user_name,
+                    'updated_by' => Auth::user()->user_name,
+                ]);
+            }
+            // }
+            //port_withdrawal_prems
+            // foreach ($port_withdrawal_prems as $index => $port_withdrawal_prem) {
+            if ($port_withdrawal_prem != 0) {
+
+                CoverPremium::create([
+                    'cover_no' => $request->cover_no,
+                    'endorsement_no' => $new_endorsement_no,
+                    'orig_endorsement_no' => $prev_endorsement_no,
+                    'transaction_type' => $trans_type,
+                    'premium_type_code' => 0,
+                    'premtype_name' => 'Portfolio Withdrawal Premium',
+                    'quarter' => 0,
+                    'entry_type_descr' => 'PWP',
+                    'premium_type_order_position' => 8,
+                    'premium_type_description' => 'Portfolio Withdrawal Premium',
+                    'type_of_bus' => $type_of_bus,
+                    'class_code' => 'ALL',
+                    'basic_amount' => str_replace(',', '', $port_withdrawal_prem),
+                    'apply_rate_flag' => 'Y',
+                    'treaty' => 'SURP',
+                    'rate' => $profit_comm_rate,
+                    'dr_cr' => 'CR',
+                    'final_amount' => (float) str_replace(',', '', $port_withdrawal_prem) * $profit_comm_ratio,
+                    'created_by' => Auth::user()->user_name,
+                    'updated_by' => Auth::user()->user_name,
+                ]);
+            }
+            // }
+
+            // foreach ($port_withdrawal_losses as $index => $port_withdrawal_loss) {
+            if ($port_withdrawal_loss != 0) {
+
+                CoverPremium::create([
+                    'cover_no' => $request->cover_no,
+                    'endorsement_no' => $new_endorsement_no,
+                    'orig_endorsement_no' => $prev_endorsement_no,
+                    'transaction_type' => $trans_type,
+                    'premium_type_code' => 0,
+                    'premtype_name' => 'Portfolio Withdrawal Loss',
+                    'quarter' => 0,
+                    'entry_type_descr' => 'PWL',
+                    'premium_type_order_position' => 9,
+                    'premium_type_description' => 'Portfolio Withdrawal Loss',
+                    'type_of_bus' => $type_of_bus,
+                    'class_code' => 'ALL',
+                    'basic_amount' => str_replace(',', '', $port_withdrawal_loss),
+                    'apply_rate_flag' => 'Y',
+                    'treaty' => 'SURP',
+                    'rate' => $profit_comm_rate,
+                    'dr_cr' => 'CR',
+                    'final_amount' => (float) str_replace(',', '', $port_withdrawal_loss) * $profit_comm_ratio,
+                    'created_by' => Auth::user()->user_name,
+                    'updated_by' => Auth::user()->user_name,
+                ]);
+            }
+
+            //Management Expenses
+            if ($mgnt_exp_amt != 0) {
+
+                CoverPremium::create([
+                    'cover_no' => $request->cover_no,
+                    'endorsement_no' => $new_endorsement_no,
+                    'orig_endorsement_no' => $prev_endorsement_no,
+                    'transaction_type' => $trans_type,
+                    'premium_type_code' => 0,
+                    'premtype_name' => 'Management Expenses',
+                    'quarter' => 0,
+                    'entry_type_descr' => 'MXP',
+                    'premium_type_order_position' => 10,
+                    'premium_type_description' => 'Management Expenses',
+                    'type_of_bus' => $type_of_bus,
+                    'class_code' => 'ALL',
+                    'basic_amount' => str_replace(',', '', $mgnt_exp_amt),
+                    'apply_rate_flag' => 'Y',
+                    'treaty' => 'SURP',
+                    'rate' => $profit_comm_rate,
+                    'dr_cr' => 'CR',
+                    'final_amount' => (float) str_replace(',', '', $mgnt_exp_amt) * $profit_comm_ratio,
+                    'created_by' => Auth::user()->user_name,
+                    'updated_by' => Auth::user()->user_name,
+                ]);
+            }
+            // }
+
+            $this->repository->replicateFromPrevious($prev_endorsement_no);
+            $this->coverPremToReinNote();
+
+            DB::commit();
+
+            $redirectUrl = route('cover.CoverHome', ['endorsement_no' => $new_endorsement_no]);
+            // Redirect back with success message and endorsement data as a request parameter
+            return redirect($redirectUrl)->with('success', 'Profit Commission information saved successfully');
+        } catch (ValidationException $e) {
+            DB::rollBack();
+            return response()->json([
+                'status' => Response::HTTP_UNPROCESSABLE_ENTITY,
+                'errors' => $e->errors()
+            ], 422);
+        } catch (Throwable $e) {
+            DB::rollBack();
+            return response()->json([
+                'status' => $e->getCode(),
+                'message' => $e->getMessage()
+            ]);
+        }
+    }
+
+    public function getQuaterlyFigures(Request $request)
+    {
+        $cover_no = $request->cover_no;
+        $treaty_year = $request->treaty_year;
+
+        $origEndorsementNos = DB::select("
+                                SELECT a.endorsement_no from cover_register a
+                                WHERE cover_no ='$cover_no'
+                                AND transaction_type IN ('NEW', 'REN')
+                                AND EXTRACT(YEAR FROM cover_from) <= $treaty_year
+                            ");
+
+        // Extract endorsement numbers from the objects
+        $endorsementNosArray = array_map(function ($item) {
+            return $item->endorsement_no;
+        }, $origEndorsementNos);
+
+        $results = DB::table('cover_premiums')
+            ->whereIn('orig_endorsement_no', $endorsementNosArray)
+            ->where('transaction_type', 'QTR')
+            ->whereIn('endorsement_no', function ($query) {
+                $query->select('endorsement_no')
+                    ->from('cover_debit');
+            })
+            ->select(
+                'quarter',
+                'class_code',
+                'treaty',
+                DB::raw('SUM(CASE WHEN entry_type_descr = \'PRM\' THEN final_amount ELSE 0 END) AS Premium'),
+                DB::raw('SUM(CASE WHEN entry_type_descr = \'COM\' THEN final_amount ELSE 0 END) AS Commission'),
+                DB::raw('SUM(CASE WHEN entry_type_descr = \'PTX\' THEN final_amount ELSE 0 END) AS Premium_Tax'),
+                DB::raw('SUM(CASE WHEN entry_type_descr = \'RTX\' THEN final_amount ELSE 0 END) AS Reinsurance_Tax'),
+                DB::raw('SUM(CASE WHEN entry_type_descr = \'CLM\' THEN final_amount ELSE 0 END) AS Claims')
+            )
+            ->groupBy('quarter', 'class_code', 'treaty')
+            ->orderBy('quarter', 'asc')
+            ->orderBy('class_code', 'asc')
+            ->orderBy('treaty', 'asc')
+            ->get();
+
+        return response()->json($results);
+    }
+
+    public function saveMdpInstallments(Request $request)
+    {
+        DB::beginTransaction();
+        try {
+            $rules = [
+                'endorsement_no' => 'required',
+                'installment_no.*' => 'required',
+                'installment_date.*' => 'required',
+                'installment_amt.*' => 'required',
+            ];
+
+            // Define custom error messages
+            $messages = [
+                'installment_no.*.required' => 'Installment Number field is required.',
+                'installment_date.*.required' => 'Installment Date field is required.',
+                'installment_amt.*.required' => 'Installment Amount field is required.',
+            ];
+
+            // Validate the request data
+            $request->validate($rules, $messages);
+
+            $cover = CoverRegister::where('endorsement_no', $request->endorsement_no)->first();
+            $reinLayers = CoverReinLayer::where('endorsement_no', $cover->orig_endorsement_no)->get();
+
+            $totalIns = count($request->installment_no);
+            for ($i = 0; $i < $totalIns; $i++) {
+                foreach ($reinLayers as $layer) {
+                    $insAmt = $layer->min_deposit / $totalIns;
+                    $data = [
+                        'cover_no' => $request->cover_no,
+                        'endorsement_no' => $request->endorsement_no,
+                        'layer_no' => $layer->layer_no,
+                        'trans_type' => 'MDP',
+                        'entry_type' => 'MDP',
+                        'installment_no' => $request->installment_no[$i],
+                        'installment_date' => $request->installment_date[$i],
+                        'installment_amt' => $insAmt,
+                        'created_by' => Auth::user()->user_name,
+                        'updated_by' => Auth::user()->user_name,
+                    ];
+                    CoverInstallments::create(array_merge($data, ['dr_cr' => 'DR']));
+                    CoverInstallments::create(array_merge($data, ['dr_cr' => 'CR']));
+                }
+            }
+
+            DB::commit();
+            return response()->json([
+                'status' => Response::HTTP_CREATED,
+                'message' => 'Data saved successfully'
+            ]);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'status' => Response::HTTP_UNPROCESSABLE_ENTITY,
+                'errors' => $e->errors()
+            ], 422);
+        } catch (Throwable $e) {
+            dd($e);
+            DB::rollback();
+            return response()->json([
+                'status' => $e->getCode(),
+                'message' => 'Failed to save'
+            ]);
+        }
+    }
+
+    public function saveFacInstallments(Request $request)
+    {
+        DB::beginTransaction();
+        try {
+            $rules = [
+                'endorsement_no' => 'required',
+                'installment_no.*' => 'required',
+                'installment_date.*' => 'required',
+                'installment_amt.*' => 'required',
+            ];
+
+            // Define custom error messages
+            $messages = [
+                'installment_no.*.required' => 'Installment Number field is required.',
+                'installment_date.*.required' => 'Installment Date field is required.',
+                'installment_amt.*.required' => 'Installment Amount field is required.',
+            ];
+
+            // Validate the request data
+            $request->validate($rules, $messages);
+            $cover = CoverRegister::where('endorsement_no', $request->endorsement_no)->first();
+            CoverInstallments::where(['endorsement_no' => $request->endorsement_no, 'dr_cr' => 'DR'])->delete();
+
+            $totalIns = count($request->installment_no);
+            for ($i = 0; $i < $totalIns; $i++) {
+
+                // $installment = CoverInstallments::create([
+                //     'cover_no'          => $request->cover_no,
+                //     'endorsement_no'    => $request->endorsement_no,
+                //     'layer_no'          => 0,
+                //     'trans_type'        => $request->trans_type,
+                //     'entry_type'        => $request->entry_type,
+                //     'installment_no'    => $request->installment_no[$i],
+                //     'installment_date'  => $request->installment_date[$i],
+                //     'installment_amt'   => str_replace(",", "", $request->installment_amt[$i]),
+                //     'created_by'        =>  Auth::user()->user_name,
+                //     'updated_by'        => Auth::user()->user_name,
+                // ]);
+            }
+
+            // DB::commit();
+            return response()->json([
+                'status' => Response::HTTP_CREATED,
+                'message' => 'Data saved successfully'
+            ]);
+        } catch (ValidationException $e) {
+            // If validation fails, return a JSON response with errors
+            return response()->json([
+                'status' => Response::HTTP_UNPROCESSABLE_ENTITY,
+                'errors' => $e->errors()
+            ], 422);
+        } catch (Throwable $e) {
+            dd($e);
+            DB::rollback();
+            return response()->json([
+                'status' => $e->getCode(),
+                'message' => 'Failed to save'
+            ]);
+        }
+    }
+
+    public function deleteMdpInstallments(Request $request)
+    {
+        DB::beginTransaction();
+        try {
+            $rules = [
+                'installment_no' => 'required',
+            ];
+
+            $messages = [
+                'installment_no.required' => 'Installment Number field is required.',
+            ];
+
+            $request->validate($rules, $messages);
+
+            for ($i = 0; $i < count($request->installment_no); $i++) {
+                $installment = CoverInstallments::where([
+                    'cover_no' => $request->cover_no,
+                    'endorsement_no' => $request->endorsement_no,
+                    'installment_no' => $request->installment_no
+                ])
+                    ->delete();
+            }
+
+            DB::commit();
+            return response()->json([
+                'status' => Response::HTTP_CREATED,
+                'message' => 'Record Deleted successfully'
+            ]);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'status' => Response::HTTP_UNPROCESSABLE_ENTITY,
+                'errors' => $e->errors()
+            ], 422);
+        } catch (Throwable $e) {
+            DB::rollback();
+            return response()->json([
+                'status' => $e->getCode(),
+                'message' => 'Failed to Delete'
+            ]);
+        }
+    }
+
+    public function mdpInstallmentEndorsement(Request $request)
+    {
+        DB::beginTransaction();
+        try {
+            $rules = [
+                'cover_no' => 'required',
+                'endorsement_no' => 'required',
+                'installment_no' => 'required',
+            ];
+
+            // Define custom error messages
+            $messages = [
+                'installment_no.required' => 'Installment Number field is required.',
+            ];
+
+            // Validate the request data
+            $request->validate($rules, $messages);
+
+            $trans_type = 'MDP';
+            $type_of_bus = $request->type_of_bus;
+            $prev_endorsement_no = $request->endorsement_no;
+
+            $endorsement = $this->repository->generateEndorseNo($type_of_bus, $trans_type);
+            $new_endorsement_no = $endorsement->endorsement_no;
+            $this->_endorsement_no = $new_endorsement_no;
+            $cover_serial_no = $endorsement->serial_no;
+
+            $newCover = CoverRegister::where('cover_no', $request->cover_no)
+                ->where('transaction_type', 'NEW')
+                ->first();
+            $prevCover = CoverRegister::where('endorsement_no', $prev_endorsement_no)->first();
+            $prem_tax_rate = $prevCover->prem_tax_rate;
+            $brokerage_comm_rate = $prevCover->brokerage_comm_rate;
+            $ri_tax_rate = $prevCover->ri_tax_rate;
+            if ($request->installment_no == 1) {
+                $installment_name = 'FIRST INSTALLMENT';
+            } elseif ($request->installment_no == 2) {
+                $installment_name = 'SECOND INSTALLMENT';
+            } elseif ($request->installment_no == 3) {
+                $installment_name = 'THIRD INSTALLMENT';
+            } elseif ($request->installment_no == 4) {
+                $installment_name = 'FOURTH INSTALLMENT';
+            } elseif ($request->installment_no == 5) {
+                $installment_name = 'FIFTH INSTALLMENT';
+            } elseif ($request->installment_no == 6) {
+                $installment_name = 'SIXTH INSTALLMENT';
+            } elseif ($request->installment_no == 7) {
+                $installment_name = 'SEVENTH INSTALLMENT';
+            } elseif ($request->installment_no == 8) {
+                $installment_name = 'EIGHTH INSTALLMENT';
+            } elseif ($request->installment_no == 9) {
+                $installment_name = 'NINETH INSTALLMENT';
+            } elseif ($request->installment_no == 10) {
+                $installment_name = 'TENTH INSTALLMENT';
+            } elseif ($request->installment_no == 11) {
+                $installment_name = 'ELEVENTH INSTALLMENT';
+            } elseif ($request->installment_no == 12) {
+                $installment_name = 'TWELVETH INSTALLMENT';
+            }
+
+            $cover = $prevCover->replicate();
+            $cover->cover_serial_no = $cover_serial_no;
+            $cover->endorsement_no = $new_endorsement_no;
+            $cover->transaction_type = $trans_type;
+            $cover->verified = null;
+            $cover->cover_title = 'TREATY NON PROPORTIONAL ACCOUNT - MDP(' . $installment_name . ')';
+            $cover->status = 'A';
+            $cover->commited = null;
+            $cover->account_year = $this->_year;
+            $cover->account_month = $this->_month;
+            $cover->dola = Carbon::now();
+            $cover->created_by = Auth::user()->user_name;
+            $cover->updated_by = Auth::user()->user_name;
+            $cover->save();
+
+            $mdpInstallments = CoverInstallments::where([
+                'cover_no' => $request->cover_no,
+                'endorsement_no' => $newCover->endorsement_no,
+                'installment_no' => $request->installment_no,
+                'dr_cr' => 'DR'
+            ])
+                ->get();
+
+            $premItemTypes = [
+                'PRM' => [
+                    'descr' => 'Premium',
+                    'tax_rate' => 0,
+                    'dr_cr' => 'DR',
+                ],
+                'RTX' => [
+                    'descr' => 'Reinsurance Tax',
+                    'tax_rate' => $ri_tax_rate,
+                    'dr_cr' => 'CR',
+                ],
+                'PTX' => [
+                    'descr' => 'Premium Tax',
+                    'tax_rate' => $prem_tax_rate,
+                    'dr_cr' => 'CR',
+                ],
+                // 'BCM' => [
+                //     'descr' =>'Brokerage Commission',
+                //     'tax_rate' => $brokerage_comm_rate,
+                //     'dr_cr' => 'CR',
+                // ],
+            ];
+
+
+            foreach ($mdpInstallments as $mdpInstallment) {
+                foreach ($premItemTypes as $key => $premItemType) {
+                    $mdp_amt = $mdpInstallment->installment_amt;
+                    $tax_rate = (float) $premItemType['tax_rate'];
+                    $basic_amt = $mdp_amt;
+                    $amt = 0;
+                    switch ($key) {
+                        case 'PRM':
+                            $amt = $mdp_amt;
+                            break;
+                        default:
+                            $amt = ($tax_rate * $mdp_amt) / 100;
+                            break;
+                    }
+
+                    $position = (int) CoverPremium::where('endorsement_no', $cover->enodrsement_no)
+                        ->where('entry_type_descr', $premItemType['descr'])
+                        ->max('premium_type_order_position') + 1;
+                    CoverPremium::create([
+                        'cover_no' => $cover->cover_no,
+                        'endorsement_no' => $cover->endorsement_no,
+                        'layer_no' => $mdpInstallment->layer_no,
+                        'installment_no' => $mdpInstallment->installment_no,
+                        'orig_endorsement_no' => $cover->orig_endorsement_no,
+                        'transaction_type' => $trans_type,
+                        'premium_type_code' => 'ALL',
+                        'premtype_name' => 'ALL CLASSES',
+                        'dr_cr' => $premItemType['dr_cr'],
+                        'quarter' => $this->_quarter,
+                        'entry_type_descr' => $key,
+                        'premium_type_order_position' => $position,
+                        'premium_type_description' => $premItemType['descr'],
+                        'type_of_bus' => $cover->type_of_bus,
+                        'treaty' => 'ALL',
+                        'class_code' => 'ALL',
+                        'basic_amount' => $basic_amt,
+                        'apply_rate_flag' => $tax_rate != 0 ? 'Y' : 'N',
+                        'rate' => $tax_rate,
+                        'final_amount' => $amt,
+                        'created_by' => Auth::user()->user_name,
+                        'updated_by' => Auth::user()->user_name,
+                    ]);
+                }
+            }
+
+            $this->repository->replicateFromPrevious($prev_endorsement_no);
+            $this->coverPremToReinNote();
+
+            DB::commit();
+
+            return redirect()->route('cover.CoverHome', ['endorsement_no' => $new_endorsement_no])->with('success', 'MDP installemnt information saved successfully');
+        } catch (Throwable $e) {
+            DB::rollback();
+            return redirect()->back()->with('error', 'MDP installemnt information Failed to save');
+        }
+    }
+
+    public function coverPremToReinNote()
+    {
+        $coverPremiums = DB::select("SELECT * FROM cover_premiums where endorsement_no='$this->_endorsement_no'");
+        foreach ($coverPremiums as $coverPrem) {
+            if ($coverPrem->dr_cr == 'DR') {
+                $dr_cr = 'CR';
+            } elseif ($coverPrem->dr_cr == 'CR') {
+                $dr_cr = 'DR';
+            }
+
+            $amtData = [
+                'entry_type_descr' => $coverPrem->entry_type_descr,
+                'total' => $coverPrem->basic_amount,
+                'amount' => $coverPrem->final_amount,
+                'rate' => $coverPrem->rate,
+                'dr_cr' => $dr_cr,
+            ];
+            $this->InsertReinNote($amtData);
+        }
+    }
+
+    public function InsertReinNote($amtData)
+    {
+        $cover = CoverRegister::where('endorsement_no', $this->_endorsement_no)->first();
+        $reinsurers = CoverRipart::where('endorsement_no', $this->_endorsement_no)->get();
+
+        foreach ($reinsurers as $ripart) {
+
+            $total_gross = ($amtData['total'] * $ripart->share) / 100;
+            $gross = ($amtData['amount'] * $ripart->share) / 100;
+            $net_amt = $gross;
+
+            $data = [
+                'cover_no' => $cover->cover_no,
+                'endorsement_no' => $cover->endorsement_no,
+                'partner_no' => $ripart->partner_no,
+                'transaction_type' => $cover->transaction_type,
+                'account_year' => $this->_year,
+                'account_month' => $this->_month,
+                'share' => (float) $ripart->share,
+                'created_by' => Auth::user()->user_name,
+                'updated_by' => Auth::user()->user_name,
+            ];
+
+            if (in_array($amtData['entry_type_descr'], ['PRM', 'MDP'])) {
+                $tran_no = (int) ReinNote::where('endorsement_no', $this->_endorsement_no)->max('tran_no') + 1;
+
+                $ln_no = (int) ReinNote::where('endorsement_no', $this->_endorsement_no)
+                    ->where('transaction_type', $cover->transaction_type)
+                    ->where('entry_type_descr', 'WHT')
+                    ->count() + 1;
+
+                $wht_rate = (float) $ripart->wht_rate;
+                $wht_amt = ($wht_rate * $gross) / 100;
+
+                $data['tran_no'] = $tran_no;
+                $data['ln_no'] = $ln_no;
+                $data['entry_type_descr'] = 'WHT';
+                $data['dr_cr'] = 'DR';
+                $data['rate'] = $wht_rate;
+                $data['total_gross'] = $wht_amt;
+                $data['gross'] = $wht_amt;
+                $data['net_amt'] = $wht_amt;
+
+                ReinNote::create($data);
+            }
+
+            $tran_no = (int) ReinNote::where('endorsement_no', $this->_endorsement_no)->max('tran_no') + 1;
+
+            $ln_no = (int) ReinNote::where('endorsement_no', $this->_endorsement_no)
+                ->where('transaction_type', $cover->transaction_type)
+                ->where('entry_type_descr', $amtData['entry_type_descr'])
+                ->count() + 1;
+
+            $data['tran_no'] = $tran_no;
+            $data['ln_no'] = $ln_no;
+            $data['entry_type_descr'] = $amtData['entry_type_descr'];
+            $data['dr_cr'] = $amtData['dr_cr'];
+            $data['rate'] = $amtData['rate'];
+            $data['total_gross'] = $total_gross;
+            $data['gross'] = $gross;
+            $data['net_amt'] = $net_amt;
+
+
+            ReinNote::create($data);
+        }
+    }
+
+    public function StorePropPortfolio(Request $request)
+    {
+        DB::beginTransaction();
+        try {
+            $trans_type = 'POT';
+            $type_of_bus = $request->type_of_bus;
+            $prev_endorsement_no = $request->orig_endorsement;
+            $portfolio_type = $request->portfolio_type;
+            $port_reinsurer = $request->port_reinsurer;
+            $port_reinsurer_share = $request->port_share;
+            $total_port_amt = str_replace(',', '', $request->port_amt);
+
+            $endorsement = $this->repository->generateEndorseNo($type_of_bus, $trans_type);
+            if ($portfolio_type == 'IN') {
+                $cover_title = 'TREATY PROPORTIONAL ACCOUNT - PORTFOLIO IN';
+                $premium_desc = 'PREMIUM PORTFOLIO ENTRY - IN';
+                $loss_desc = 'LOSS PORTFOLIO ENTRY - IN';
+            } elseif ($portfolio_type == 'OUT') {
+                $cover_title = 'TREATY PROPORTIONAL ACCOUNT - PORTFOLIO OUT';
+                $premium_desc = 'PREMIUM PORTFOLIO ENTRY - OUT';
+                $loss_desc = 'LOSS PORTFOLIO ENTRY - OUT';
+            }
+            $new_endorsement_no = $endorsement->endorsement_no;
+            // dd($new_endorsement_no);
+            $this->_endorsement_no = $new_endorsement_no;
+            $cover_serial_no = $endorsement->serial_no;
+
+            $prevCover = CoverRegister::where('endorsement_no', $prev_endorsement_no)->first();
+            $port_share = $prevCover->share_offered;
+            $port_amt = ($port_share / 100) * $total_port_amt;
+            $port_prm_rate = $request->port_prm_rate;
+            $port_prm_amt = ($port_prm_rate / 100) * $port_amt;
+            $port_loss_rate = $request->port_loss_rate;
+            $port_loss_amt = ($port_loss_rate / 100) * $port_amt;
+            $treaty_year = $request->portfolio_year;
+
+            $prem_tax_rate = $prevCover->prem_tax_rate;
+            $ri_tax_rate = $prevCover->ri_tax_rate;
+            $mgnt_exp_rate = $prevCover->mgnt_exp_rate;
+            $profit_comm_rate = $prevCover->profit_comm_rate ? $prevCover->profit_comm_rate : 0;
+            $profit_comm_ratio = $profit_comm_rate ? ($profit_comm_rate / 100) : 0;
+
+            $cover = $prevCover->replicate();
+            $cover->cover_serial_no = $cover_serial_no;
+            $cover->endorsement_no = $new_endorsement_no;
+            $cover->transaction_type = $trans_type;
+            $cover->cover_title = $cover_title;
+            $cover->verified = null;
+            $cover->status = 'A';
+            $cover->commited = null;
+            $cover->account_year = $this->_year;
+            $cover->account_month = $this->_month;
+            $cover->dola = Carbon::now();
+            $cover->created_by = Auth::user()->user_name;
+            $cover->updated_by = Auth::user()->user_name;
+            $cover->save();
+
+            $totalPrem = 0;
+            $totalPremiumTax = 0;
+            $totalCom = 0;
+            $totalReinsuranceTax = 0;
+            $totalClaim = 0;
+            $mgnt_exp_amt = 0;
+            //Premiums
+            if ($port_prm_amt != 0) {
+                CoverPremium::create([
+                    'cover_no' => $request->cover_no,
+                    'endorsement_no' => $new_endorsement_no,
+                    'orig_endorsement_no' => $prev_endorsement_no,
+                    'transaction_type' => $trans_type,
+                    'premium_type_code' => 0,
+                    'premtype_name' => $premium_desc,
+                    'quarter' => 0,
+                    'entry_type_descr' => 'PRM',
+                    'premium_type_order_position' => 1,
+                    'premium_type_description' => $premium_desc,
+                    'type_of_bus' => $type_of_bus,
+                    'class_code' => 'ALL',
+                    'basic_amount' => str_replace(',', '', $port_amt),
+                    'apply_rate_flag' => 'Y',
+                    'treaty' => 'ALL',
+                    'rate' => $port_prm_rate,
+                    'dr_cr' => 'DR',
+                    'final_amount' => (float) str_replace(',', '', $port_prm_amt),
+                    'created_by' => Auth::user()->user_name,
+                    'updated_by' => Auth::user()->user_name,
+                ]);
+            }
+            //Losses
+            if ($port_loss_amt != 0) {
+                CoverPremium::create([
+                    'cover_no' => $request->cover_no,
+                    'endorsement_no' => $new_endorsement_no,
+                    'orig_endorsement_no' => $prev_endorsement_no,
+                    'transaction_type' => $trans_type,
+                    'premium_type_code' => 0,
+                    'premtype_name' => $loss_desc,
+                    'quarter' => 0,
+                    'entry_type_descr' => 'CLM',
+                    'premium_type_order_position' => 1,
+                    'premium_type_description' => $loss_desc,
+                    'type_of_bus' => $type_of_bus,
+                    'class_code' => 'ALL',
+                    'basic_amount' => str_replace(',', '', $port_amt),
+                    'apply_rate_flag' => 'Y',
+                    'treaty' => 'ALL',
+                    'rate' => $port_loss_rate,
+                    'dr_cr' => 'DR',
+                    'final_amount' => (float) str_replace(',', '', $port_loss_amt),
+                    'created_by' => Auth::user()->user_name,
+                    'updated_by' => Auth::user()->user_name,
+                ]);
+            }
+
+            if ($portfolio_type == 'OUT') {
+                $reinsurers = CoverRipart::where('endorsement_no', $base_cover->endorsement_no)->where('partner_no', $request->port_reinsurer)->get();
+
+                foreach ($reinsurers as $ripart) {
+                    $tran_no = (int) CoverRipart::withTrashed()->max('tran_no') + 1;
+
+                    $data = $ripart->getAttributes();
+                    $data['tran_no'] = $tran_no;
+                    $data['endorsement_no'] = $this->_endorsement_no;
+                    $data['period_year'] = $this->_year;
+                    $data['period_month'] = $this->_month;
+                    $data['total_sum_insured'] = 0;
+                    $data['total_premium'] = $port_prm_amt;
+                    $data['total_commission'] = 0;
+                    $data['sum_insured'] = 0;
+                    $data['premium'] = $port_prm_amt * ($port_reinsurer_share / 100);
+                    $data['comm_rate'] = 0;
+                    $data['commission'] = 0;
+                    $data['wht_rate'] = 0;
+                    $data['wht_amt'] = 0;
+                    $data['written_lines'] = 0;
+                    $data['prem_tax_rate'] = 0;
+                    $data['prem_tax'] = 0;
+                    $data['ri_tax_rate'] = 0;
+                    $data['ri_tax'] = 0;
+                    $data['total_claim_amt'] = $port_loss_amt;
+                    $data['claim_amt'] = $port_loss_amt * ($port_reinsurer_share / 100);
+                    $data['total_mdp_amt'] = 0;
+                    $data['mdp_amt'] = 0;
+                    $data['created_by'] = Auth::user()->user_name;
+                    $data['updated_by'] = Auth::user()->user_name;
+                    $data['created_at'] = Carbon::now();
+                    $data['updated_at'] = Carbon::now();
+
+                    CoverRipart::create($data);
+                }
+            }
+            if ($portfolio_type == 'IN') {
+                $CoverRegister = CoverRegister::where('endorsement_no', $new_endorsement_no)->first();
+                $reinsurer = Customer::where('customer_id', $port_reinsurer)->first();
+                $tran_no = (int) CoverRipart::withTrashed()->max('tran_no') + 1;
+
+                $coverRipart = new CoverRipart();
+
+                // Assign values from the request to the model attributes
+                $coverRipart->cover_no = $CoverRegister->cover_no;
+                $coverRipart->endorsement_no = $CoverRegister->endorsement_no;
+                $coverRipart->tran_no = $tran_no;
+                $coverRipart->period_year = $this->_year;
+                $coverRipart->period_month = $this->_month;
+                $coverRipart->partner_no = $reinsurer->customer_id;
+                $coverRipart->share = $port_reinsurer_share;
+                $coverRipart->written_lines = $port_reinsurer_share;
+                $coverRipart->comm_rate = 0;
+                $coverRipart->wht_rate = 0;
+                $wht_amt = 0;
+                $coverRipart->total_sum_insured = 0;
+                $coverRipart->total_premium = $port_prm_amt;
+                $coverRipart->total_commission = 0;
+                $coverRipart->wht_amt = 0;
+                $coverRipart->sum_insured = 0;
+                $coverRipart->premium = $port_prm_amt * ($port_reinsurer_share / 100);
+                $coverRipart->commission = 0;
+                $coverRipart->treaty_code = 'ALL';
+                $coverRipart->total_claim_amt = $port_loss_amt;
+                $coverRipart->claim_amt = $port_loss_amt * ($port_reinsurer_share / 100);
+                $coverRipart->total_mdp_amt = 0;
+                $coverRipart->mdp_amt = 0;
+                $coverRipart->prem_tax_rate = 0;
+                $coverRipart->prem_tax = 0;
+                $coverRipart->ri_tax_rate = 0;
+                $coverRipart->ri_tax = 0;
+                $coverRipart->created_by = Auth::user()->user_name;
+                $coverRipart->updated_by = Auth::user()->user_name;
+
+                $coverRipart->save();
+            }
+            $this->coverPremToReinNote();
+
+            DB::commit();
+
+            $redirectUrl = route('cover.CoverHome', ['endorsement_no' => $new_endorsement_no]);
+            // Redirect back with success message and endorsement data as a request parameter
+            return redirect($redirectUrl)->with('success', 'Profit Commission information saved successfully');
+        } catch (ValidationException $e) {
+            DB::rollBack();
+            dd($e);
+            return response()->json([
+                'status' => Response::HTTP_UNPROCESSABLE_ENTITY,
+                'errors' => $e->errors()
+            ], 422);
+        } catch (Throwable $e) {
+            DB::rollBack();
+            dd($e);
+            return response()->json([
+                'status' => $e->getCode(),
+                'message' => $e->getMessage()
+            ]);
+        }
+    }
+
+    public function getTreatyCover(Request $request)
+    {
+        $cover_no = $request->cover_no;
+        $treaty_year = $request->treaty_year;
+
+        $origEndorsementNos = DB::select("
+                                    SELECT a.endorsement_no,a.cover_from,a.cover_to from cover_register a
+                                    WHERE cover_no ='$cover_no'
+                                    AND transaction_type IN ('NEW', 'REN')
+                                    AND EXTRACT(YEAR FROM cover_from) <= $treaty_year
+                                ");
+
+        return response()->json($origEndorsementNos);
+    }
+
+    public function getReinsurersOrigEndorsement(Request $request)
+    {
+        $portfolio_type = $request->portfolio_type;
+        $orig_endorsement = $request->orig_endorsement;
+        $reinsurers = [];
+        $count = 0;
+        if ($orig_endorsement != null) {
+            if ($portfolio_type == 'IN') {
+                $cusTypes = ['REINCO'];
+                $cusTypes_str = implode(',', array_map(function ($item) {
+                    return "'" . $item . "'";
+                }, $cusTypes));
+
+                $reinsurers = DB::select("
+                                            SELECT DISTINCT a.customer_id, a.name from customers a
+                                            JOIN customer_types b ON b.type_id = a.customer_type
+                                            where b.code in($cusTypes_str)
+                                        ");
+
+                $count = count($reinsurers);
+            } elseif ($portfolio_type == 'OUT') {
+                $partner_nos = CoverRipart::where('endorsement_no', $orig_endorsement)->pluck('partner_no')->toArray();
+                $partner_nos_str = implode(',', array_map(function ($item) {
+                    return "'" . $item . "'";
+                }, $partner_nos));
+
+                $reinsurers = DB::select("
+                                        SELECT a.customer_id, a.name,b.partner_no,b.share,b.treaty_code from customers a
+                                            JOIN coverripart b ON b.partner_no = a.customer_id
+                                            where a.customer_id in($partner_nos_str) and b.endorsement_no='$orig_endorsement'
+                                        ");
+                $count = count($reinsurers);
+            }
+        }
+
+        return response()->json([
+            'reinsurers' => $reinsurers,
+            'count' => $count,
+        ]);
+    }
+
+    public function preCoverVerification(Request $request)
+    {
+        return $this->repository->preCoverVerification($request);
+    }
+
+    public function policyRenewal(Request $request)
+    {
+        try {
+            $policy = PolicyRenewal::query();
+            $cover = CoverRegister::with('customer')->where('customer_id', $request->customer_id)->where('cover_no', $request->cover_no)->latest()->first();
+
+            $policies = $policy->where('policy_number', $cover->cover_no)->orderBy('created_at', 'asc')
+                ->paginate(10);
+
+            return view('cover.renewal_notice', [
+                'policies' => $policies,
+                'cover_no' => $cover?->cover_no,
+                'customer_id' => $cover?->customer_id
+            ]);
+        } catch (\Exception $th) {
+            return response()->json([
+                'status' => Response::HTTP_INTERNAL_SERVER_ERROR,
+                'message' => 'An internal server error occurred.',
+                'error' => $th->getMessage(),
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    public function generatePolicyRenewal(Request $request)
+    {
+        try {
+            $company = Company::first();
+            $customer = Customer::where('customer_id', $request->customer_id)
+                ->first(['customer_id', 'name', 'postal_address', 'postal_town', 'city', 'email', 'telephone', 'country_iso', 'customer_type']);
+
+            if (!$customer) {
+                return response()->json(['message' => 'Customer not found'], Response::HTTP_NOT_FOUND);
+            }
+            $cover = CoverRegister::with('customer')
+                ->where('customer_id', $customer->customer_id)
+                ->where('cover_no', $request->cover_no)
+                ->latest()
+                ->first();
+
+            if (!$cover) {
+                return response()->json(['message' => 'Cover not found'], Response::HTTP_NOT_FOUND);
+            }
+
+            $reinsurers = CoverRipart::where('endorsement_no', $cover->endorsement_no)->with('partner')->get();
+            $class_name = ($cover->class_code == 'TRT') ? 'TREATY' : Classes::where('class_code', $cover->class_code)->value('class_name');
+
+            $created_at = Carbon::now()->format('d-M-Y');
+            $expiration_date = Carbon::parse($cover->cover_to)->addDay()->format('d/m/Y');
+            $shared_data = [
+                'company' => $company,
+                'class_name' => $class_name,
+                'cover' => $cover,
+                'customer' => $customer,
+                'created_at' => $created_at,
+                'expiration_date' => $expiration_date,
+                'reinsurers' => $reinsurers,
+            ];
+
+            $documents = [
+                [
+                    'view_name' => 'printouts.fac_debit_renewal_notice',
+                    'type' => 'cedant',
+                    'prefix' => 'Cedant_Renewal_Notice'
+                ],
+                [
+                    'view_name' => 'printouts.fac_rein_renewal_notice',
+                    'type' => 'reinsurer',
+                    'prefix' => 'Reinsurer_Renewal_Notice'
+                ]
+            ];
+
+            $yearThreshold = 1;
+            $prevPolicy = PolicyRenewal::where('policy_number', $cover->cover_no)
+                ->whereDate('renewal_date', '<=', Carbon::now()->addYears($yearThreshold))
+                ->whereDate('renewal_date', '>=', Carbon::now())
+                ->first();
+
+            if ($prevPolicy) {
+                // Delete associated documents
+                foreach ($prevPolicy->documents as $document) {
+                    if (File::exists(storage_path('/app/public/renewals/' . $document->doc_name))) {
+                        File::delete(storage_path('/app/public/renewals/' . $document->doc_name));
+                    }
+                    $document->delete();
+                }
+                $prevPolicy->delete();
+            }
+
+            $policyRenewal = PolicyRenewal::updateOrCreate(
+                ['policy_number' => $cover->cover_no],
+                [
+                    'client_name' => $cover->customer->name ?? null,
+                    'doc_name' => "Renewal_Notice_" . time() . ".pdf",
+                    'client_email' => $cover->customer->email ?? null,
+                    'renewal_date' => Carbon::parse($created_at)->addYears(1)->format('d-M-Y'),
+                    'last_notice_sent' => Carbon::parse($created_at)->format('d-M-Y'),
+                    'notice_status' => 'Option to renew'
+                ]
+            );
+
+            foreach ($documents as $document) {
+                $pdf = Pdf::loadView($document['view_name'], $shared_data)
+                    ->setPaper('a4', 'portrait')
+                    ->setWarnings(false);
+
+                $pdf->set_option('isHtml5ParserEnabled', true);
+                $pdf->set_option('isPhpEnabled', true);
+                $pdf->set_option('isRemoteEnabled', true);
+
+                $pdfFilename = $document['prefix'] . '_' . time() . '.pdf';
+                $pdfPath = storage_path('app/public/renewals/' . $pdfFilename);
+
+                Storage::put('public/renewals/' . $pdfFilename, $pdf->output());
+                $pdfSize = filesize($pdfPath);
+
+                // Create document record
+                PolicyRenewalDocument::create([
+                    'policy_renewal_id' => $policyRenewal->id,
+                    'doc_name' => $pdfFilename,
+                    'doc_path' => "/uploads/renewals/" . $pdfFilename,
+                    'doc_size' => $pdfSize,
+                    'doc_type' => $document['type']
+                ]);
+            }
+
+            return response()->json([
+                'message' => 'Renewal policy documents created successfully',
+                'status' => Response::HTTP_CREATED,
+            ], 201);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => Response::HTTP_INTERNAL_SERVER_ERROR,
+                'message' => 'An internal server error occurred.',
+                'error' => $e->getMessage(),
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    public function sendPolicyRenewal(Request $request)
+    {
+        try {
+            $policy = PolicyRenewal::find($request->policyId)->load('documents');
+
+            if ($policy) {
+                $results = [
+                    'policy' => $policy,
+                    'request' => $request->all()
+                ];
+                SendRenewalNoticeJob::dispatch($results);
+            }
+
+            return response()->json([
+                'status' => Response::HTTP_CREATED,
+                'message' => 'Renewal notice has been sent'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Failed to queue renewal notice',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function deleteRenewalNotice(Request $request)
+    {
+        try {
+            $request->validate([
+                'id' => 'required',
+                'cover_no' => 'required',
+            ]);
+
+            $policy = PolicyRenewal::find($request->id);
+            if ($policy) {
+                $policy->delete();
+            }
+
+            return response()->json([
+                'status' => Response::HTTP_CREATED,
+                'message' => 'Renewal notice deleted successfully'
+            ]);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'status' => Response::HTTP_UNPROCESSABLE_ENTITY,
+                'errors' => $e->errors()
+            ], 422);
+        } catch (Exception $e) {
+            return response()->json([
+                'status' => $e->getCode(),
+                'message' => 'Failed to delete renewal notice'
+            ]);
+        }
+    }
+
+    public function deletePolicyCover(Request $request)
+    {
+        try {
+            $request->validate([
+                'endorsement_no' => 'required',
+                'cover_no' => 'required',
+                'customer_id' => 'required',
+            ]);
+
+            $cover = CoverRegister::where([
+                'endorsement_no' => $request->endorsement_no,
+                'cover_no' => $request->cover_no,
+                'customer_id' => $request->customer_id,
+            ]);
+            if ($cover) {
+                EndorsementNarration::where([
+                    'endorsement_no' => $request->endorsement_no,
+                    'cover_no' => $request->cover_no,
+                ])->delete();
+                $this->repository->deleteCoverData($request->cover_no, $request->endorsement_no);
+                $cover->delete();
+            }
+
+            return response()->json([
+                'status' => Response::HTTP_CREATED,
+                'message' => 'Cover deleted successfully'
+            ]);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'status' => Response::HTTP_UNPROCESSABLE_ENTITY,
+                'errors' => $e->errors()
+            ], 422);
+        } catch (Exception $e) {
+            return response()->json([
+                'status' => $e->getCode(),
+                'message' => 'Failed to delete cover'
+            ]);
+        }
+    }
+
+    public function endorseNarrationDatatable(Request $request)
+    {
+        $query = EndorsementNarration::query()->where(['endorsement_no' => $request->endorsement_no, 'cover_no' => $request->cover_no])
+            ->where('endorse_type_slug', $request->endorse_type_slug);
+
+        return Datatables::of($query)
+            ->addColumn('partner_name', function ($data) {
+                return '';
+            })
+            ->addColumn('endorsement_type', function ($data) {
+                return '';
+            })
+            ->addColumn('action', function ($data) {
+                return '';
+            })
+            ->rawColumns(['action'])
+            ->make(true);
+    }
+
+    public function sendReinsurerEmail(Request $request)
+    {
+        try {
+            $coverRepart = CoverRipart::where(['cover_no' => $request->coverNo, 'endorsement_no' => $request->endorsementNo])->first();
+
+            if ($coverRepart) {
+                SendReinsurerEmailJob::dispatch(
+                    $request->endorsementNo,
+                    $coverRepart->partner_no,
+                    $request
+                );
+            }
+
+            return response()->json([
+                'status' => Response::HTTP_CREATED,
+                'message' => 'Email sent notice has been sent to reinsurer'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
+
+    public function integrateCover(Request $request)
+    {
+        $p = PipelineOpportunity::findOrFail($request->id);
+        $covertype = CoverType::where('short_description', 'N')->firstOrFail();
+        $pay_method = PayMethod::where('short_description', 'A')->firstOrFail();
+
+        $requestData = [
+            'customer_id' => $p->customer_id,
+            'trans_type' => 'NEW',
+            'type_of_bus' => $p->type_of_bus,
+            'covertype' => $covertype->type_id,
+            'branchcode' => $p->branchcode,
+            'broker_flag' => $p->broker_flag,
+            'prospect_id' => $p->id,
+            'division' => $p->division,
+            'pay_method' => $pay_method->pay_method_code,
+            'no_of_installments' => $p->no_of_installments,
+            'currency_code' => $p->currency_code,
+            'today_currency' => $p->today_currency,
+            'premium_payment_term' => $p->premium_payment_term,
+            'class_group' => $p->class_group,
+            'classcode' => $p->classcode,
+            'insured_name' => $p->insured_name,
+            'fac_date_offered' => $p->fac_date_offered,
+            'sum_insured_type' => $p->sum_insured_type,
+            'total_sum_insured' => $p->total_sum_insured,
+            'eml_rate' => $p->eml_rate,
+            'eml_amt' => $p->eml_amt,
+            'effective_sum_insured' => $p->effective_sum_insured,
+            'risk_details' => $p->risk_details,
+            'cede_premium' => $p->cede_premium,
+            'rein_premium' => $p->rein_premium,
+            'fac_share_offered' => $p->fac_share_offered,
+            'comm_rate' => $p->comm_rate,
+            'comm_amt' => $p->comm_amt,
+            'reins_comm_type' =>  $p->reins_comm_type,
+            'reins_comm_rate' => $p->reins_comm_rate,
+            'reins_comm_amt' => $p->reins_comm_amt,
+            'brokerage_comm_type' => $p->brokerage_comm_type,
+            'brokerage_comm_amt' => $p->brokerage_comm_amt,
+            'brokerage_comm_rate' => $p->brokerage_comm_rate,
+            'brokerage_comm_rate_amnt' => $p->brokerage_comm_rate_amnt,
+            'vat_charged' => $p->vat_charged,
+            'limit_per_reinclass' => $p->limit_per_reinclass,
+            'layer_no' => $p->layer_no,
+            'nonprop_reinclass' => $p->nonprop_reinclass,
+            'nonprop_reinclass_desc' => $p->nonprop_reinclass_desc,
+            'indemnity_treaty_limit' => $p->indemnity_treaty_limit,
+            'underlying_limit' => $p->underlying_limit,
+            'coverfrom' => $p->effective_date,
+            'coverto' => $p->closing_date,
+            'brokercode' => $p->brokercode,
+        ];
+
+        $validationRequest = new Request($requestData);
+
+        $validator = Validator::make($validationRequest->all(), [
+            'covertype' => 'required',
+            'branchcode' => 'required',
+            'customer_id' => 'required',
+            'classcode' => 'required',
+            'coverfrom' => 'required|date',
+            'coverto' => 'required|date|after:coverfrom',
+            'pay_method' => 'required',
+            'type_of_bus' => 'required',
+            'class_group' => 'required',
+        ]);
+
+        if (!$validator->fails()) {
+            try {
+                DB::beginTransaction();
+
+                $result = $this->repository->registerCover($validationRequest);
+                $handover = HandoverApproval::where('prospect_id', $p->opportunity_id)->first();
+                $handover->update([
+                    'intergrate' => true,
+                ]);
+
+                DB::commit();
+
+                return response()->json(
+                    [
+                        'status' => true,
+                        'message' => 'Cover Register information saved successfully',
+                        'customerId' => $result?->customer_id,
+                        'prospectId' => $handover?->prospect_id
+                    ]
+                );
+            } catch (\Exception $e) {
+                DB::rollBack();
+                return response()->json([
+                    'status' => false,
+                    'message' => 'An error occurred while processing your request',
+                    'error' => $e->getMessage()
+                ], 500);
+            }
+        } else {
+            return response()->json([
+                'status' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+    }
+
+    public function getProspectData($prospectId)
+    {
+        try {
+            $p = PipelineOpportunity::where(['handed_over' => 'Y', 'opportunity_id' => $prospectId])->has('handovers')->with('handovers')->first();
+            if ($p) {
+                $cover = CoverRegister::where('prospect_id', $prospectId)->first();
+
+                if ($prospectId) {
+                    if (!empty($cover)) {
+                        return response()->json([
+                            'status' => false,
+                            'message' => 'Prospect already integrated!'
+                        ]);
+                    }
+                }
+
+                $covertype = CoverType::where('short_description', 'N')->first();
+
+                $data = [
+                    'customer_id' => $p->customer_id,
+                    'trans_type' => 'NEW',
+                    'type_of_bus' => $p->type_of_bus,
+                    'covertype' => $covertype?->type_id,
+                    'branchcode' => $p->branchcode,
+                    'broker_flag' => $p->broker_flag,
+                    'prospect_id' => $p->id,
+                    'division' => $p->division,
+                    'pay_method' => $p->pay_method,
+                    'no_of_installments' => $p->no_of_installments,
+                    'currency_code' => $p->currency_code,
+                    'today_currency' => $p->today_currency,
+                    'premium_payment_term' => $p->premium_payment_term,
+                    'class_group' => $p->class_group,
+                    'classcode' => $p->classcode,
+                    'insured_name' => $p->insured_name,
+                    'fac_date_offered' => $p->fac_date_offered,
+                    'sum_insured_type' => $p->sum_insured_type,
+                    'total_sum_insured' => $p->total_sum_insured,
+                    'eml_rate' => $p->eml_rate,
+                    'eml_amt' => $p->eml_amt,
+                    'apply_eml' => $p->apply_eml,
+                    'effective_sum_insured' => $p->effective_sum_insured,
+                    'risk_details' => $p->risk_details,
+                    'cede_premium' => $p->cede_premium,
+                    'rein_premium' => $p->rein_premium,
+                    'fac_share_offered' => $p->fac_share_offered,
+                    'comm_rate' => $p->comm_rate,
+                    'comm_amt' => $p->comm_amt,
+                    'reins_comm_type' =>  $p->reins_comm_type,
+                    'reins_comm_rate' => $p->reins_comm_rate,
+                    'reins_comm_amt' => $p->reins_comm_amt,
+                    'brokerage_comm_type' => $p->brokerage_comm_type,
+                    'brokerage_comm_amt' => $p->brokerage_comm_amt,
+                    'brokerage_comm_rate' => $p->brokerage_comm_rate,
+                    'brokerage_comm_rate_amnt' => $p->brokerage_comm_rate_amnt,
+                    'vat_charged' => $p->vat_charged,
+                    'limit_per_reinclass' => $p->limit_per_reinclass,
+                    'layer_no' => $p->layer_no,
+                    'nonprop_reinclass' => $p->nonprop_reinclass,
+                    'nonprop_reinclass_desc' => $p->nonprop_reinclass_desc,
+                    'indemnity_treaty_limit' => $p->indemnity_treaty_limit,
+                    'underlying_limit' => $p->underlying_limit,
+                    'coverfrom' => $p->effective_date,
+                    'coverto' => $p->closing_date,
+                    'brokercode' => $p->brokercode,
+                ];
+
+                return response()->json([
+                    'status' => true,
+                    'message' => 'Success',
+                    'data' => $data
+                ]);
+            } else {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'Prospect not found'
+                ]);
+            }
+        } catch (Exception $e) {
+            return response()->json([
+                'status' => false,
+                'message' => 'An error occurred while fetching prospect data',
+            ], 500);
+        }
+    }
+}
