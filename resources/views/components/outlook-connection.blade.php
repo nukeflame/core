@@ -3,8 +3,9 @@
     'showCancelButton' => true,
     'redirectOnCancel' => null,
     'onSuccess' => null,
-    'fetchEmailsOnConnect' => true,
+    'fetchEmailsOnConnect' => false,
     'showToastMessage' => true,
+    'enableLoadingSpinner' => false,
 ])
 
 <div {{ $attributes->merge(['class' => 'outlook-connection-wrapper']) }}>
@@ -144,7 +145,7 @@
                         connect: @json(route('admin.outlook.connect')),
                         status: @json(route('admin.outlook.status')),
                         disconnect: @json(route('admin.outlook.disconnect')),
-                        fetchEmails: @json(route('admin.emails.fetch'))
+                        fetchEmails: @json(route('admin.emails.fetch')),
                     },
                     csrf: @json(csrf_token()),
                     debug: @json(config('app.debug', false)),
@@ -155,6 +156,7 @@
                         onSuccess: @json($onSuccess),
                         fetchEmailsOnConnect: @json($fetchEmailsOnConnect),
                         showToastMessage: @json($showToastMessage),
+                        enableLoadingSpinner: @json($enableLoadingSpinner),
                     }
                 };
 
@@ -164,6 +166,9 @@
                     retryCount: 0,
                     maxRetries: 3
                 };
+
+                console.log('initiated', this.config.options.fetchEmailsOnConnect)
+
 
                 this.init = function() {
                     this.bindEvents();
@@ -321,45 +326,53 @@
                     this.showToast('error', this.getErrorMessage(error));
                 };
 
-                this.fetchEmails = async function(folder = 'inbox', limit = 100) {
-                    if (this.state.isFetching) return;
-
-                    try {
-                        this.state.isFetching = true;
-                        // this.showLoading('Fetching emails...');
-
-                        const response = await this.makeRequest('POST', this.config.endpoints
-                            .fetchEmails, {
-                                folder: folder,
-                                limit: limit
-                            });
-
-                        if (response.success) {
-                            this.hideLoading();
-
-                            if (response.action === 'fetched_and_stored') {
-                                this.showToast('success',
-                                    `Successfully fetched ${response.count} emails!`);
-
-                                setTimeout(() => window.location.reload(), 1500);
-                            } else {
-                                this.showToast('success',
-                                    `Fetched ${response.fetched_count || response.existing_count} emails`
-                                );
-                            }
-
-                            return response;
-                        } else {
-                            throw new Error(response.message || 'Failed to fetch emails');
+                this.fetchEmails = function(folder = 'inbox', limit = 100, forceFetch = false) {
+                    return new Promise(async (resolve, reject) => {
+                        if (this.state.isFetching) {
+                            reject(new Error('Already fetching emails'));
+                            return;
                         }
 
-                    } catch (error) {
-                        this.hideLoading();
-                        this.showToast('error', 'Failed to fetch emails: ' + error.message);
-                        throw error;
-                    } finally {
-                        this.state.isFetching = false;
-                    }
+                        try {
+                            this.state.isFetching = true;
+                            if (this.config.options.showToastMessage) {
+                                this.showLoading('Fetching emails...');
+                            }
+
+                            const response = await this.makeRequest('POST', this.config
+                                .endpoints.fetchEmails, {
+                                    folder: folder,
+                                    limit: limit,
+                                    forceFetch: forceFetch
+                                });
+
+                            if (response.success) {
+                                this.hideLoading();
+                                console.log('response', response)
+                                // if (response.action === 'fetched_and_stored') {
+                                //     toastr.success(
+                                //         `Successfully fetched ${response.fetched_count} emails!`
+                                //     );
+                                //     setTimeout(() => window.location.reload(), 1500);
+                                // } else {
+                                //     toastr.success(
+                                //         `Fetched ${response.fetched_count || response.existing_count} emails`
+                                //     );
+                                // }
+                                resolve(response);
+                            } else {
+                                throw new Error(response.message ||
+                                    'Failed to fetch emails');
+                            }
+                        } catch (error) {
+                            this.hideLoading();
+                            this.showToast('error', 'Failed to fetch emails: ' + error
+                                .message);
+                            reject(error);
+                        } finally {
+                            this.state.isFetching = false;
+                        }
+                    });
                 };
 
                 this.updateUI = function(state, extra = null) {

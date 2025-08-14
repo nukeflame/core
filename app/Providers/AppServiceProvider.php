@@ -41,7 +41,6 @@ class AppServiceProvider extends ServiceProvider
 
         $this->commands([
             FetchOutlookEmails::class,
-            AuthenticateOutlook::class,
         ]);
 
         // observe for changes in this models

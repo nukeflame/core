@@ -36,6 +36,7 @@ use App\Models\Company;
 use App\Models\CoverDebit;
 use Illuminate\Support\Facades\DB;
 use App\Models\SystemProcessAction;
+use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Session;
@@ -370,7 +371,7 @@ class ClaimController extends Controller
                 'ClaimAckDocs' => $ClaimAckDocs,
                 'totalClaimAmount' => $totalClaimAmount,
                 'emailFrom' => $emailFrom,
-                'claimSubject' => $claimSubject,
+                'claimSubject' => Str::title(Str::lower($claimSubject)),
                 'claimDocuments' => $claimDocuments,
                 'cedant' => $customer?->name ?? '',
                 'recipients' => $customer?->contacts ?? collect(),
@@ -770,7 +771,6 @@ class ClaimController extends Controller
         $debit = CoverDebit::query()->where('endorsement_no', $endorsement_no)->first();
 
         $ClaimRegister = ClaimNtfRegister::where(['cover_no' => $cover_no, 'endorsement_no' => $endorsement_no])->first();
-        // logger(['$ClaimRegister' => $ClaimRegister]);
 
         return datatables::of($query)
             ->addColumn('id', function ($data) {
@@ -804,13 +804,13 @@ class ClaimController extends Controller
             ->addColumn('action', function () use ($claim_debit, $ClaimRegister) {
                 $btn = "";
                 if ($claim_debit) {
-                    $url = route('docs.claimcreditnote', [
+                    $creditNoteUrl = route('docs.claimcreditnote', [
                         'endorsement_no' => $claim_debit->endorsement_no,
                         'claim_no' => $claim_debit->claim_no,
                         'id' => $claim_debit->id,
                     ]);
 
-                    $btn .= '<a href="' . $url . '" target="_blank" rel="noopener noreferrer" class="link me-2">
+                    $btn .= '<a href="' . $creditNoteUrl . '" target="_blank" rel="noopener noreferrer" class="link me-2">
                             <i class="bx bx-file"></i> Credit Note
                         </a>';
 
@@ -824,9 +824,9 @@ class ClaimController extends Controller
                     </a>';
                 }
 
-                $btn .= '<a href="#" class="send_debit_letter link me-2">
-                              <i class="bx bx-mail-send"></i> Send E-Mail
-                        </a>';
+                $btn .= "<a href='#' class='send_debit_letter link me-2' data-claim_no='{$claim_debit->claim_no}' data-ack_letter_url='{$ackUrl}' data-credit_note_url='{$creditNoteUrl}'>
+                              <i class='bx bx-mail-send'></i> Send E-Mail
+                        </a>";
 
                 return $btn;
             })
@@ -1278,61 +1278,10 @@ class ClaimController extends Controller
 
     private function getCedantDefaultMessage($claim, $customer): string
     {
-        return "Dear {$customer->name},\n\n" .
+        return "Dear {recipient_name},\n\n" .
             "Greetings,\n\n" .
             "We confirm receipt of the subject claim notification and have proceeded to notify the securities for their review and settlement.\n\n" .
             "Best regards,\n" .
-            // "Reinsurance Department\n" .
             config('app.name');
-    }
-
-
-
-    public function sendReinDocumentEmail(Request $request)
-    {
-        try {
-            DB::beginTransaction();
-            $claim = ClaimRegister::where('claim_no', $request->claim_no)->first();
-            // $claim->update([
-            //     'notificaction_status' => 'notification_sent',
-            //     // 'notification_sent_at' => now(),
-            //     // 'notification_sent_by' => auth()->id()
-            // ]);
-
-            $message = $this->formatMessageForHtml($request->message);
-            $request->merge(['message' => $message]);
-
-            // Dispatch email job
-            SendClaimReinNotificationJob::dispatch(
-                $claim,
-                $request->all()
-            );
-
-            DB::commit();
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Claim notification has been queued for sending',
-            ]);
-        } catch (\Exception $e) {
-            logger($e);
-            DB::rollBack();
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to send claim notification. Please try again.'
-            ], Response::HTTP_INTERNAL_SERVER_ERROR);
-        }
-    }
-
-    private function formatMessageForHtml($message)
-    {
-        $html = nl2br(htmlspecialchars($message, ENT_QUOTES, 'UTF-8'));
-        $html = str_replace("\n\n", "</p><p>", $html);
-        $html = "<p>" . $html . "</p>";
-        $html = preg_replace('/<p>\s*<\/p>/', '', $html);
-        $html = preg_replace('/<p>(\d+\..*?)<\/p>/', '<li>$1</li>', $html);
-        $html = preg_replace('/(<li>.*<\/li>)/s', '<ol>$1</ol>', $html);
-
-        return $html;
     }
 }

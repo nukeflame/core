@@ -130,7 +130,6 @@ class Cover_GL_Integration extends Command
                             'quantity' => 1,
                             'status' => 'A',
                             'dr_cr' =>  $coverdebit->document === 'DRN' ? 'D' : 'C'
-
                         ];
 
                         $otherIncome = 0;

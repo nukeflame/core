@@ -69,7 +69,6 @@ class Handler extends ExceptionHandler
         });
 
         $this->renderable(function (Exception $e, $request) {
-            logger($e);
 
             if ($e instanceof AuthenticationException) {
                 return $request->expectsJson()

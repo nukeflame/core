@@ -4488,7 +4488,6 @@
                 ]
             });
 
-            //debits schedule
             const debitsTable = $('#debits-table').DataTable({
                 order: [
                     [0, 'desc']
@@ -4564,33 +4563,26 @@
                 drawCallback: function(settings) {
                     $('#debits-table tfoot').empty();
                     const api = this.api();
-                    // Define columns to sum (numeric columns only)
-                    // Column indices: share(4), sum_insured(5), premium(6), gross(7), net_amt(8)
                     const columnsToSum = [4, 5, 6, 7, 8];
 
-                    // Create the footer row HTML
                     let footerRow = '<tr>';
                     footerRow +=
                         '<td colspan="4" style="text-align:right !important; font-weight:bold; color: #000; padding: 6px 8px; font-size: 13px;">Totals:</td>';
 
-                    // Calculate the sum for each column and add to footer
                     const columns = api.columns().nodes().length;
                     for (let i = 4; i < columns - 1; i++) {
                         if (columnsToSum.includes(i)) {
-                            // Sum this column
                             const sum = api
                                 .column(i, {
                                     search: 'applied'
                                 })
                                 .data()
                                 .reduce(function(a, b) {
-                                    // Convert string with commas to float
                                     const aFloat = parseFloat(a.toString().replace(/,/g, '')) || 0;
                                     const bFloat = parseFloat(b.toString().replace(/,/g, '')) || 0;
                                     return aFloat + bFloat;
                                 }, 0);
 
-                            // Format the sum with commas
                             const formattedSum = $.fn.dataTable.render.number(',', '.', 2, '').display(
                                 sum);
 
@@ -4598,22 +4590,18 @@
                                 '<td style="font-weight:bold; padding: 6px 8px; color: #000;">' +
                                 formattedSum + '</td>';
                         } else {
-                            // Empty cell for non-summed columns
                             footerRow += '<td></td>';
                         }
                     }
 
-                    // Add empty cell for action column
                     footerRow += '<td></td>';
                     footerRow += '</tr>';
 
-                    // Add the footer row
                     if (!$('#debits-table tfoot').length) {
                         $('#debits-table').append('<tfoot></tfoot>');
                     }
                     $('#debits-table tfoot').html(footerRow);
 
-                    // Style the footer
                     $('#debits-table tfoot tr').css({
                         'background-color': '#f5f5f5',
                         'border-top': '2px solid #ddd'
@@ -4621,7 +4609,6 @@
                 }
             });
 
-            // endorsement narration
             $('#endorse-narration-table').DataTable({
                 order: [
                     [0, 'desc']
@@ -4662,7 +4649,6 @@
                 ]
             });
 
-            // redirect
             $('#to-cover').click(function(e) {
                 $('#coverForm').submit();
             });

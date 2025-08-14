@@ -134,8 +134,11 @@ Route::group(
 
 Route::group(['prefix' => 'emails', 'middleware' => ['auth', 'check.first.login']], function () {
     Route::post('/fetch', [EmailController::class, 'fetchEmails'])->name('admin.emails.fetch');
-    // Route::get('/emails/compose', [EmailController::class, 'compose'])->name('emails.compose');
-    // Route::post('/emails/send', [EmailController::class, 'send'])->name('emails.send');
+    Route::post('/claims/send-reinsurer-email', [EmailController::class, 'sendClaimReinsurerEmail'])->name('emails.send_claim_reinsurer_email');
+});
+
+
+// Route::group(['prefix' => 'emails', 'middleware' => ['auth', 'check.first.login']], function () {
     // Route::get('/emails/{id}', [EmailController::class, 'show'])->name('emails.show');
     // Route::post('/emails/{id}/reply', [EmailController::class, 'reply'])->name('emails.reply');
     // Route::post('/emails/{id}/star', [EmailController::class, 'star'])->name('emails.star');
@@ -151,4 +154,4 @@ Route::group(['prefix' => 'emails', 'middleware' => ['auth', 'check.first.login'
     // Route::post('/webhook/microsoft', [EmailController::class, 'microsoftWebhook']);
     // Route::post('/setup-subscription', [EmailController::class, 'setupSubscription']);
     // Route::post('/renew-subscription', [EmailController::class, 'renewSubscription']);
-});
+// });

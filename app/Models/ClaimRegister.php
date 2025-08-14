@@ -15,4 +15,10 @@ class ClaimRegister extends Model
     public $primaryKey   = ['claim_no'];
     public $incrementing = false;
     protected $guarded = [];
+
+    protected $fillable = [
+        'notification_status',
+        'notification_sent_at',
+        'notification_sent_by'
+    ];
 }

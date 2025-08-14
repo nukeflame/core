@@ -21,17 +21,14 @@ class CheckForFirstLogin
     {
         $user = User::find(Auth::id());
 
-        // Skip check if user is not authenticated
         if (!$user) {
             return $next($request);
         }
 
-        // Skip check if already on password reset routes
         if ($request->routeIs('password.first-login.*')) {
             return $next($request);
         }
 
-        // If the user requires a password reset, redirect to the first login password for
         if ($user->requires_password_reset) {
             $controller = new FirstLoginPasswordController();
             $token = $controller->generateFirstLoginToken($user);

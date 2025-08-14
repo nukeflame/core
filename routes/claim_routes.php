@@ -8,8 +8,8 @@ Route::group(['prefix' => 'claim', 'middleware' => ['auth', 'check.first.login']
 
     //claim routes
     Route::any('/claim-form', [ClaimController::class, 'ClaimForm'])->name('claim.form');
-   // Temporary route for testing purposes
-        
+    // Temporary route for testing purposes
+
     Route::post('/claim-register', [ClaimController::class, 'ClaimRegister'])->name('claim.register');
     Route::get('/claim-datatable', [ClaimController::class, 'ClaimDatatable'])->name('claim.datatable');
     Route::get('/get-loss-endorsements', [ClaimController::class, 'GetLossEndorsements'])->name('claim.get_loss_endorsements');
@@ -76,6 +76,5 @@ Route::group(['prefix' => 'claim', 'middleware' => ['auth', 'check.first.login']
         Route::post('/convertNotificationToClaim', [ClaimNotificationController::class, 'convertNotificationToClaim'])->name('convertNotificationToClaim');
 
         Route::post('/sendDocumentEmail', [ClaimNotificationController::class, 'sendDocumentEmail'])->name('sendDocumentEmail');
-        Route::post('/sendReinDocumentEmail', [ClaimController::class, 'sendReinDocumentEmail'])->name('sendReinDocumentEmail');
     });
 });

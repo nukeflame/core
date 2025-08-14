@@ -6,9 +6,9 @@ use App\Helpers\PkceHelper;
 use Illuminate\Support\Facades\Http;
 use Carbon\Carbon;
 use Exception;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Redis;
-use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
 
 class OutlookService
@@ -18,27 +18,25 @@ class OutlookService
     private ?array $token = null;
     private array $config;
     private int $timeout;
+    protected $auth = null;
 
     private array $requiredScopes = [
-        // 'https://graph.microsoft.com/Mail.Read',
-        // 'https://graph.microsoft.com/Mail.Send',
-        // 'https://graph.microsoft.com/User.Read',
-        // 'https://graph.microsoft.com/User.ReadBasic.All',
-        // 'https://graph.microsoft.com/ProfilePhoto.Read.All',
-        // 'https://graph.microsoft.com/Calendars.ReadWrite',
-        // 'https://graph.microsoft.com/Contacts.Read',
+        // 'openid offline_access profile User.Read Mail.ReadWrite Files.ReadWrite'
+        // 'openid',
         // 'offline_access',
-        // delegated
-        'https://graph.microsoft.com/Mail.Read',
-        'https://graph.microsoft.com/User.Read',
-        'https://graph.microsoft.com/User.ReadBasic.All',
-        'https://graph.microsoft.com/ProfilePhoto.Read.All',
-        'offline_access',
+        // 'profile',
+        // 'User.Read',
+        // 'Mail.ReadWrite',
+        // 'Mail.Send',
+        // 'Mail.Read',
+        // 'Mail.ReadBasic',
+        // 'Files.ReadWrite',
+        // 'User.ReadBasic.All',
 
         // application
-        // 'https://graph.microsoft.com/Mail.Read',
-        // 'https://graph.microsoft.com/User.Read.All',
-        // 'https://graph.microsoft.com/ProfilePhoto.Read.All'
+        'https://graph.microsoft.com/.default',
+        // delagated
+        // 'openid offline_access profile User.Read Mail.ReadWrite Files.ReadWrite'
     ];
 
     public function __construct(int $timeout = 60)
@@ -51,7 +49,6 @@ class OutlookService
         ];
 
         $this->timeout = $timeout;
-
         $this->validateConfig();
     }
 
@@ -95,10 +92,10 @@ class OutlookService
             $expiresAt = Carbon::createFromTimestamp($tokenRecord->expires_at);
             return !$expiresAt->isPast();
         } catch (Exception $e) {
-            logger()->error('Token validation failed', [
+            logger()->error('Token validation failed: ' . json_encode([
                 'email' => $userEmail,
                 'error' => $e->getMessage()
-            ]);
+            ], JSON_PRETTY_PRINT));
             return false;
         }
     }
@@ -135,7 +132,7 @@ class OutlookService
      */
     private function loadToken(): ?array
     {
-        $user = auth()->user();
+        $user = $this->auth;
         if (!$user) {
             return null;
         }
@@ -208,7 +205,8 @@ class OutlookService
                 'refreshed_at' => now()->toISOString()
             ]);
 
-            $this->saveToken($this->token);
+            $user = null;
+            $this->saveToken($user, $this->token);
             return true;
         } catch (Exception $e) {
             logger()->error('Token refresh error: ' . $e->getMessage());
@@ -219,14 +217,13 @@ class OutlookService
     /**
      * Save token to database
      */
-    public function saveToken(array $tokenData): void
+    public function saveToken($user, array $tokenData): void
     {
-        try {
-            $user = auth()->user();
-            if (!$user) {
-                throw new Exception('No authenticated user found');
-            }
+        if (!$user) {
+            throw new Exception('No authenticated user found');
+        }
 
+        try {
             $expiresAt = isset($tokenData['expires_at']) && is_string($tokenData['expires_at'])
                 ? Carbon::parse($tokenData['expires_at'])->timestamp
                 : $tokenData['expires_in'];
@@ -352,15 +349,9 @@ class OutlookService
             throw new Exception('No valid authentication token available');
         }
 
-        $headers = array_merge([
-            'Authorization' => 'Bearer ' . $token['access_token'],
-            'Content-Type' => 'application/json',
-            'Accept' => 'application/json'
-        ], $options['headers'] ?? []);
-
         $url = str_starts_with($endpoint, 'http') ? $endpoint : $this->graphEndpoint . $endpoint;
 
-        $httpClient = Http::withHeaders($headers)->timeout(30);
+        $httpClient = Http::withToken($token['access_token'])->timeout(30);
 
         $response = match (strtoupper($method)) {
             'GET' => $httpClient->get($url, $options['query'] ?? []),
@@ -371,13 +362,18 @@ class OutlookService
             default => throw new Exception("Unsupported HTTP method: {$method}")
         };
 
+
         if (!$response->successful()) {
             $error = [
                 'status' => $response->status(),
                 'body' => $response->body(),
                 'endpoint' => $endpoint
             ];
-            logger()->error('Microsoft Graph API request failed', $error);
+
+            logger()->error('Microsoft Graph API request failed: ' . json_encode([
+                'error' => $error
+            ], JSON_PRETTY_PRINT));
+
             throw new Exception("API request failed: HTTP {$response->status()}");
         }
 
@@ -395,10 +391,16 @@ class OutlookService
     /**
      * Get user profile for connection verification
      */
-    public function getUserProfile(): array
+    public function getUserProfile($auth): array
     {
         try {
+            $this->auth = $auth;
             $user = $this->getUser();
+
+            if (!$user) {
+                return ['status' => 'failed', 'user' => null];
+            }
+
             return [
                 'status' => 'success',
                 'user' => [
@@ -418,17 +420,20 @@ class OutlookService
     /**
      * Get user's profile photo
      */
-    public function getUserPhoto(string $size = '96x96'): ?string
+    public function getUserPhoto($user, string $size = '96x96'): ?string
     {
         try {
+            $this->auth = $user;
             $token = $this->getValidToken();
+
             if (!$token) {
                 return null;
             }
 
+            $url = "{$this->graphEndpoint}/me/photos/{$size}/\$value";
             $response = Http::withHeaders([
                 'Authorization' => 'Bearer ' . $token['access_token']
-            ])->get("{$this->graphEndpoint}/me/photos/{$size}/\$value");
+            ])->get($url);
 
             if ($response->successful()) {
                 return base64_encode($response->body());
@@ -541,73 +546,6 @@ class OutlookService
             logger()->error('Failed to delete message: ' . $e->getMessage());
             return false;
         }
-    }
-
-    /**
-     * Send email
-     */
-    public function sendEmail(array $emailData): bool
-    {
-        try {
-            $message = [
-                'message' => [
-                    'subject' => $emailData['subject'],
-                    'body' => [
-                        'contentType' => $emailData['bodyType'] ?? 'HTML',
-                        'content' => $emailData['body']
-                    ],
-                    'toRecipients' => $this->formatRecipients($emailData['to'])
-                ]
-            ];
-
-            if (!empty($emailData['cc'])) {
-                $message['message']['ccRecipients'] = $this->formatRecipients($emailData['cc']);
-            }
-
-            if (!empty($emailData['bcc'])) {
-                $message['message']['bccRecipients'] = $this->formatRecipients($emailData['bcc']);
-            }
-
-            if (!empty($emailData['attachments'])) {
-                $message['message']['attachments'] = $this->formatAttachments($emailData['attachments']);
-            }
-
-            $this->makeRequest('POST', '/me/sendMail', ['json' => $message]);
-            return true;
-        } catch (Exception $e) {
-            logger()->error('Failed to send email: ' . $e->getMessage());
-            return false;
-        }
-    }
-
-    /**
-     * Format recipients for email
-     */
-    private function formatRecipients($recipients): array
-    {
-        return array_map(function ($email) {
-            return [
-                'emailAddress' => [
-                    'address' => is_array($email) ? $email['address'] : $email,
-                    'name' => is_array($email) ? ($email['name'] ?? $email['address']) : $email
-                ]
-            ];
-        }, (array)$recipients);
-    }
-
-    /**
-     * Format attachments for email
-     */
-    private function formatAttachments(array $attachments): array
-    {
-        return array_map(function ($attachment) {
-            return [
-                '@odata.type' => '#microsoft.graph.fileAttachment',
-                'name' => $attachment['name'],
-                'contentType' => $attachment['contentType'] ?? 'application/octet-stream',
-                'contentBytes' => base64_encode($attachment['content'])
-            ];
-        }, $attachments);
     }
 
     /**
@@ -888,93 +826,277 @@ class OutlookService
     /**
      * Fetch emails from a specific folder
      */
-    public function fetchEmails(array $options = []): array
+    public function fetchEmails($auth, array $options = []): array
     {
         $folder = $options['folder'] ?? 'inbox';
         $limit = min($options['limit'] ?? 50, 999);
-        $since = $options['since'] ?? null;
-        $select = $options['select'] ?? null;
-        $filter = $options['filter'] ?? null;
-        $orderBy = $options['order_by'] ?? 'receivedDateTime desc';
-
-        $url = $this->buildEmailsUrl($folder, $limit, $since, $select, $filter, $orderBy);
+        $this->auth = $auth;
 
         $token = $this->getValidToken();
-
         if (!$token) {
             throw new Exception('No valid authentication token available');
         }
 
-        $response = Http::withHeaders([
-            'Authorization' => 'Bearer ' . $token['access_token'],
-            'Content-Type' => 'application/json',
-        ])->timeout($this->timeout)->get($url);
+        $cacheKey = "outlook_emails_{$auth->email}_{$folder}_{$limit}";
+        $cached = Redis::get($cacheKey);
+        if ($cached && !($options['force_refresh'] ?? false)) {
+            return json_decode($cached, true);
+        }
+
+        $selectFields =  implode(',', $this->getDefaultSelectFields(true));
+
+        $url = $this->buildOptimizedEmailsUrl($folder, $limit, $selectFields, $options);
+
+        $response = Http::withToken($token['access_token'])
+            ->timeout(30)
+            ->get($url);
 
         if (!$response->successful()) {
-            throw new \Exception('Failed to fetch emails: HTTP ' . $response->status());
+            throw new Exception('Failed to fetch emails: HTTP ' . $response->status());
         }
 
         $data = $response->json();
-        $processedEmails = $this->processEmails($data['value'] ?? []);
-        $this->saveEmailsToDatabase($processedEmails, $folder);
-        // tokenData
-        return $processedEmails;
+        $rawEmails = $data['value'] ?? [];
+
+        $processedEmails = $this->processEmailsBulk($rawEmails);
+        $results = $this->saveEmailsToDatabase($processedEmails, $folder) ?? [];
+
+        // Cache for 2 minutes
+        Redis::setex($cacheKey, 120, json_encode($results));
+
+        return $results;
+    }
+
+    /**
+     * Optimized bulk email processing
+     */
+    private function processEmailsBulk(array $rawEmails): array
+    {
+        if (empty($rawEmails)) {
+            return [];
+        }
+
+        $emails = [];
+
+        $emails = array_fill(0, count($rawEmails), null);
+
+        $chunks = array_chunk($rawEmails, 50);
+        $index = 0;
+
+        foreach ($chunks as $chunk) {
+            foreach ($chunk as $rawEmail) {
+                $emails[$index] = $this->processEmails($rawEmail);
+                $index++;
+            }
+
+            if (count($chunks) > 1) {
+                usleep(1000);
+            }
+        }
+
+        return array_filter($emails);
     }
 
 
     /**
-     * Save emails to database (enhanced with attachments)
+     * Fast email processing with minimal allocations
      */
-    private function saveEmailsToDatabase(array $emails, string $folder): void
+    private function processEmails(array $rawEmail): array
     {
-        $userEmail = auth()->user()->email;
-        $saved = 0;
+        $from = $rawEmail['from']['emailAddress'] ?? null;
 
-        foreach ($emails as $email) {
-            try {
-                DB::table('fetched_emails')->updateOrInsert(
-                    [
-                        'message_id' => $email['message_id'],
-                        'user_email' => $userEmail
-                    ],
-                    [
-                        'uid' => $email['id'],
-                        'subject' => $email['subject'],
-                        'from_email' => $email['from'],
-                        'from_name' => $email['from_name'],
-                        'to_recipients' => json_encode($email['to']),
-                        'cc_recipients' => json_encode($email['cc']),
-                        'date_received' => $email['date_received'],
-                        'date_sent' => $email['date_sent'],
-                        'body_text' => strip_tags($email['body_content'] ?? ''),
-                        'body_html' => $email['body_content'],
-                        'body_preview' => $email['body_preview'],
-                        'importance' => $email['importance'],
-                        'is_read' => $email['is_read'],
-                        'has_attachments' => $email['has_attachments'],
-                        'conversation_id' => $email['conversation_id'],
-                        'folder' => $folder,
-                        'created_at' => now(),
-                        'updated_at' => now()
-                    ]
-                );
-
-                if (!empty($email['attachments'])) {
-                    $this->saveAttachmentsToDatabase($email['message_id'], $email['attachments']);
-                }
-
-                // Save profile picture if present
-                if (!empty($email['profile_picture']) && $email['profile_picture']['available']) {
-                    $this->saveProfilePictureToDatabase($email['message_id'], $email['from'], $email['profile_picture']);
-                }
-
-                $saved++;
-            } catch (\Exception $e) {
-                logger()->info('Failed to save email: ' . $email['subject']);
-            }
-        }
+        return [
+            'id' => $rawEmail['id'],
+            'subject' => $rawEmail['subject'] ?? '[No Subject]',
+            'from' => $from['address'] ?? null,
+            'from_name' => $from['name'] ?? null,
+            'to' => $this->extractRecipientsfast($rawEmail['toRecipients'] ?? []),
+            'cc' => $this->extractRecipients($rawEmail['ccRecipients'] ?? []),
+            'date_received' => $rawEmail['receivedDateTime'] ?? null,
+            'date_sent' => $rawEmail['sentDateTime'] ?? null,
+            'body_preview' => $rawEmail['bodyPreview'] ?? '',
+            'body_content' => $this->extractBodyContent($rawEmail['body'] ?? null),
+            'importance' => $rawEmail['importance'] ?? 'normal',
+            'is_read' => $rawEmail['isRead'] ?? false,
+            'has_attachments' => $rawEmail['hasAttachments'] ?? false,
+            'message_id' => $rawEmail['internetMessageId'] ?? null,
+            'conversation_id' => $rawEmail['conversationId'] ?? null,
+        ];
     }
 
+    /**
+     * Fast recipient extraction
+     */
+    private function extractRecipientsfast(array $recipients): array
+    {
+        if (empty($recipients)) {
+            return [];
+        }
+
+        return array_map(fn($r) => [
+            'email' => $r['emailAddress']['address'] ?? null,
+            'name' => $r['emailAddress']['name'] ?? null
+        ], $recipients);
+    }
+
+    /**
+     * Build optimized URL for single folder request
+     */
+    private function buildOptimizedEmailsUrl(string $folder, int $limit, string $select, array $options): string
+    {
+        $folderPath = match ($folder) {
+            'inbox' => 'mailFolders/inbox',
+            'sent' => 'mailFolders/sentitems',
+            'drafts' => 'mailFolders/drafts',
+            'deleted' => 'mailFolders/deleteditems',
+            default => "mailFolders/{$folder}"
+        };
+
+        $params = [
+            '$top' => $limit,
+            '$select' => $select,
+            '$orderby' => 'receivedDateTime desc',
+        ];
+
+        if ($since = $options['since'] ?? null) {
+            $params['$filter'] = "receivedDateTime ge " . Carbon::parse($since)->toISOString();
+        } else {
+            $params['$filter'] = "receivedDateTime ge " . now()->subDays(30)->toISOString();
+        }
+
+        return $this->graphEndpoint . "/me/{$folderPath}/messages?" . http_build_query($params, '', '&', PHP_QUERY_RFC3986);
+    }
+
+    /**
+     * Save emails to database
+     */
+    private function saveEmailsToDatabase(array $emails, string $folder): array
+    {
+        if (empty($emails)) {
+            return [];
+        }
+
+        $userEmail = auth()->user()->email;
+
+        return DB::transaction(function () use ($emails, $folder, $userEmail) {
+            $messageIds = collect($emails)->pluck('message_id')->filter()->toArray();
+            $existing = DB::table('fetched_emails')
+                ->where('user_email', $userEmail)
+                ->where('folder', $folder)
+                ->whereIn('message_id', $messageIds)
+                ->pluck('message_id')
+                ->toArray();
+
+            $toUpdate = [];
+            $toInsert = [];
+
+            foreach ($emails as $email) {
+                if (empty($email['message_id'])) continue;
+
+                $emailData = [
+                    'uid' => $email['id'],
+                    'subject' => $email['subject'],
+                    'from_email' => $email['from'],
+                    'from_name' => $email['from_name'],
+                    'to_recipients' => json_encode($email['to']),
+                    'cc_recipients' => json_encode($email['cc']),
+                    'date_received' => $email['date_received']
+                        ? Carbon::parse($email['date_received'])->setTimezone(config('app.timezone'))->toDateTimeString()
+                        : null,
+                    'date_sent' => $email['date_sent']
+                        ? Carbon::parse($email['date_sent'])->setTimezone(config('app.timezone'))->toDateTimeString()
+                        : null,
+                    'body_preview' => $email['body_preview'],
+                    'body_text' => strip_tags($email['body_content'] ?? ''),
+                    'body_html' => $email['body_content'],
+                    'importance' => $email['importance'],
+                    'is_read' => $email['is_read'],
+                    'has_attachments' => $email['has_attachments'],
+                    'conversation_id' => $email['conversation_id'],
+                    'folder' => $folder,
+                    'updated_at' => now(),
+                ];
+
+
+                if (in_array($email['message_id'], $existing)) {
+                    $toUpdate[] = array_merge($emailData, ['message_id' => $email['message_id']]);
+                } else {
+                    $toInsert[] = array_merge($emailData, [
+                        'message_id' => $email['message_id'],
+                        'user_email' => $userEmail,
+                        'created_at' => now()
+                    ]);
+                }
+            }
+
+            if (!empty($toInsert)) {
+                foreach (array_chunk($toInsert, 100) as $chunk) {
+                    DB::table('fetched_emails')->insert($chunk);
+                }
+            }
+
+            if (!empty($toUpdate)) {
+                foreach ($toUpdate as $update) {
+                    DB::table('fetched_emails')
+                        ->where('message_id', $update['message_id'])
+                        ->where('user_email', $userEmail)
+                        ->update(Arr::except($update, ['message_id']));
+                }
+            }
+
+            DB::table('fetched_emails')
+                ->where('user_email', $userEmail)
+                ->where('folder', $folder)
+                ->whereNotIn('message_id', $messageIds)
+                ->delete();
+
+            return DB::table('fetched_emails')
+                ->where('user_email', $userEmail)
+                ->where('folder', $folder)
+                ->orderBy('date_received', 'desc')
+                ->limit(100)
+                ->get()
+                ->toArray();
+        });
+    }
+
+    /**
+     * Get attachments metadata for a specific email
+     */
+    // private function getEmailAttachments(string $messageId): array
+    // {
+    //     $url = $this->GRAPH_API_BASE . "/me/messages/{$messageId}/attachments";
+
+    //     $response = Http::withHeaders([
+    //         'Authorization' => 'Bearer ' . $this->accessToken,
+    //         'Content-Type' => 'application/json',
+    //     ])->timeout(30)->get($url);
+
+    //     if (!$response->successful()) {
+    //         throw new \Exception('Failed to fetch attachments: HTTP ' . $response->status());
+    //     }
+
+    //     $data = $response->json();
+    //     $attachments = [];
+
+    //     foreach ($data['value'] ?? [] as $attachment) {
+    //         $attachments[] = [
+    //             'id' => $attachment['id'],
+    //             'name' => $attachment['name'] ?? 'unknown',
+    //             'content_type' => $attachment['contentType'] ?? 'application/octet-stream',
+    //             'size' => $attachment['size'] ?? 0,
+    //             'is_inline' => $attachment['isInline'] ?? false,
+    //             'last_modified' => $attachment['lastModifiedDateTime'] ?? null,
+    //             'content_id' => $attachment['contentId'] ?? null,
+    //             'content_location' => $attachment['contentLocation'] ?? null,
+    //             'downloaded' => false,
+    //             'file_path' => null,
+    //             'download_error' => null,
+    //         ];
+    //     }
+
+    //     return $attachments;
+    // }
 
     /**
      * Save attachments to database
@@ -1015,45 +1137,46 @@ class OutlookService
     /**
      * Save profile picture to database
      */
-    private function saveProfilePictureToDatabase(string $messageId, string $senderEmail, array $profilePicture): void
-    {
-        try {
-            $userEmail = auth()->user()->email;
+    // private function saveProfilePictureToDatabase(string $messageId, string $senderEmail, array $profilePicture): void
+    // {
+    //     try {
+    //         $userEmail = auth()->user()->email;
 
-            DB::table('email_profile_pictures')->updateOrInsert(
-                [
-                    'sender_email' => $senderEmail,
-                    'user_email' => $userEmail
-                ],
-                [
-                    'width' => $profilePicture['width'],
-                    'height' => $profilePicture['height'],
-                    'size' => $profilePicture['size'],
-                    'content_type' => $profilePicture['content_type'],
-                    'downloaded' => $profilePicture['downloaded'],
-                    'file_path' => $profilePicture['file_path'],
-                    'error' => $profilePicture['error'],
-                    'last_fetched' => now(),
-                    'created_at' => now(),
-                    'updated_at' => now()
-                ]
-            );
+    //         DB::table('email_profile_pictures')->updateOrInsert(
+    //             [
+    //                 'sender_email' => $senderEmail,
+    //                 'user_email' => $userEmail
+    //             ],
+    //             [
+    //                 'width' => $profilePicture['width'],
+    //                 'height' => $profilePicture['height'],
+    //                 'size' => $profilePicture['size'],
+    //                 'content_type' => $profilePicture['content_type'],
+    //                 'downloaded' => $profilePicture['downloaded'],
+    //                 'file_path' => $profilePicture['file_path'],
+    //                 'error' => $profilePicture['error'],
+    //                 'last_fetched' => now(),
+    //                 'created_at' => now(),
+    //                 'updated_at' => now()
+    //             ]
+    //         );
 
-            // Link profile picture to this email
-            DB::table('email_profile_picture_links')->updateOrInsert(
-                [
-                    'message_id' => $messageId,
-                    'sender_email' => $senderEmail
-                ],
-                [
-                    'created_at' => now(),
-                    'updated_at' => now()
-                ]
-            );
-        } catch (\Exception $e) {
-            logger()->info("Failed to save profile picture for {$senderEmail}: " . $e->getMessage());
-        }
-    }
+    //         if ($messageId) {
+    //             DB::table('email_profile_picture_links')->updateOrInsert(
+    //                 [
+    //                     'message_id' => $messageId,
+    //                     'sender_email' => $senderEmail
+    //                 ],
+    //                 [
+    //                     'created_at' => now(),
+    //                     'updated_at' => now()
+    //                 ]
+    //             );
+    //         }
+    //     } catch (\Exception $e) {
+    //         logger()->info("Failed to save profile picture for {$senderEmail}: " . $e->getMessage());
+    //     }
+    // }
 
 
     /**
@@ -1099,9 +1222,9 @@ class OutlookService
     /**
      * Get default fields to select from Graph API
      */
-    private function getDefaultSelectFields(): array
+    private function getDefaultSelectFields(bool $fetchBody = false): array
     {
-        return [
+        $fields = [
             'id',
             'subject',
             'from',
@@ -1109,47 +1232,22 @@ class OutlookService
             'ccRecipients',
             'receivedDateTime',
             'sentDateTime',
-            'body',
-            'bodyPreview',
             'importance',
             'isRead',
             'hasAttachments',
             'internetMessageId',
-            'conversationId'
+            'conversationId',
+            'attachments',
         ];
-    }
 
-    /**
-     * Process raw email data from Graph API
-     */
-    private function processEmails(array $rawEmails): array
-    {
-        $emails = [];
-
-        foreach ($rawEmails as $rawEmail) {
-            $emails[] = [
-                'id' => $rawEmail['id'],
-                'subject' => $rawEmail['subject'] ?? '[No Subject]',
-                'from' => $this->extractEmailAddress($rawEmail['from'] ?? null),
-                'from_name' => $this->extractDisplayName($rawEmail['from'] ?? null),
-                'to' => $this->extractRecipients($rawEmail['toRecipients'] ?? []),
-                'cc' => $this->extractRecipients($rawEmail['ccRecipients'] ?? []),
-                'date_received' => $rawEmail['receivedDateTime'] ?? null,
-                'date_sent' => $rawEmail['sentDateTime'] ?? null,
-                'body_preview' => $rawEmail['bodyPreview'] ?? '',
-                'body_content' => $this->extractBodyContent($rawEmail['body'] ?? null),
-                'importance' => $rawEmail['importance'] ?? 'normal',
-                'is_read' => $rawEmail['isRead'] ?? false,
-                'has_attachments' => $rawEmail['hasAttachments'] ?? false,
-                'message_id' => $rawEmail['internetMessageId'] ?? null,
-                'conversation_id' => $rawEmail['conversationId'] ?? null,
-                'attachments' => [],
-                'profile_picture' => null,
-            ];
+        if ($fetchBody) {
+            $fields[] = 'body';
+            $fields[] = 'bodyPreview';
         }
 
-        return $emails;
+        return $fields;
     }
+
     /**
      * Extract email address from Graph API email object
      */
@@ -1228,5 +1326,371 @@ class OutlookService
         $bytes /= (1 << (10 * $pow));
 
         return round($bytes, 2) . ' ' . $units[$pow];
+    }
+
+    /**
+     * Send email and return message details including ID
+     */
+    public function sendEmail($auth, array $emailData): array
+    {
+        try {
+            $this->auth = $auth;
+
+            $message = [
+                'message' => [
+                    'subject' => $emailData['subject'],
+                    'body' => [
+                        'contentType' => $emailData['bodyType'] ?? 'HTML',
+                        'content' => $emailData['body']
+                    ],
+                    'toRecipients' => $this->formatRecipients($emailData['to'])
+                ]
+            ];
+
+            if (!empty($emailData['cc'])) {
+                $message['message']['ccRecipients'] = $this->formatRecipients($emailData['cc']);
+            }
+
+            if (!empty($emailData['bcc'])) {
+                $message['message']['bccRecipients'] = $this->formatRecipients($emailData['bcc']);
+            }
+
+            if (!empty($emailData['attachments'])) {
+                $message['message']['attachments'] = $this->formatAttachments($emailData['attachments']);
+            }
+
+            if (!empty($emailData['replyToId'])) {
+                $message['message']['replyTo'] = $this->formatRecipients([$emailData['replyToEmail']]);
+                // Set conversation ID for threading
+                if (!empty($emailData['conversationId'])) {
+                    $message['message']['conversationId'] = $emailData['conversationId'];
+                }
+            }
+
+            if (!empty($emailData['priority'])) {
+                $message['message']['importance'] = $this->mapPriorityToImportance($emailData['priority']);
+            }
+
+            if (!empty($emailData['customHeaders'])) {
+                $message['message']['internetMessageHeaders'] = $emailData['customHeaders'];
+            }
+
+            // Send the email
+            $this->makeRequest('POST', '/me/sendMail', ['json' => $message]);
+
+            return $this->sendEmailWithMessageId($auth, $emailData);
+        } catch (Exception $e) {
+            logger()->error('Failed to send email via Outlook API', [
+                'error' => $e->getMessage(),
+                'subject' => $emailData['subject'] ?? 'N/A',
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return [
+                'success' => false,
+                'error' => $e->getMessage(),
+                'message_id' => null
+            ];
+        }
+    }
+
+    /**
+     * Send email and get message ID by creating draft first
+     */
+    public function sendEmailWithMessageId($auth, array $emailData): array
+    {
+        try {
+            $this->auth = $auth;
+
+            $draftResponse = $this->createDraftMessage($emailData);
+            if (!$draftResponse['success']) {
+                return $draftResponse;
+            }
+
+            $messageId = $draftResponse['message_id'];
+            $sendResponse = $this->sendDraftMessage($messageId);
+
+            if ($sendResponse['success']) {
+                $sentMessage = $this->getMessageDetails($messageId);
+                return [
+                    'success' => true,
+                    'message_id' => $messageId,
+                    'conversation_id' => $sentMessage['conversationId'] ?? null,
+                    'internet_message_id' => $sentMessage['internetMessageId'] ?? null,
+                    'sent_at' => $sentMessage['sentDateTime'] ?? now()->toISOString(),
+                    'message' => 'Email sent successfully'
+                ];
+            }
+
+            return $sendResponse;
+        } catch (Exception $e) {
+            logger()->error('Failed to send email with message ID', [
+                'error' => $e->getMessage(),
+                'subject' => $emailData['subject'] ?? 'N/A'
+            ]);
+
+            return [
+                'success' => false,
+                'error' => $e->getMessage(),
+                'message_id' => null
+            ];
+        }
+    }
+
+    /**
+     * Create a draft message
+     */
+    public function createDraftMessage(array $emailData): array
+    {
+        try {
+            $message = [
+                'subject' => $emailData['subject'],
+                'body' => [
+                    'contentType' => $emailData['bodyType'] ?? 'HTML',
+                    'content' => $emailData['body']
+                ],
+                'toRecipients' => $this->formatRecipients($emailData['to'])
+            ];
+
+            if (!empty($emailData['cc'])) {
+                $message['ccRecipients'] = $this->formatRecipients($emailData['cc']);
+            }
+
+            if (!empty($emailData['bcc'])) {
+                $message['bccRecipients'] = $this->formatRecipients($emailData['bcc']);
+            }
+
+            if (!empty($emailData['attachments'])) {
+                $message['attachments'] = $this->formatAttachments($emailData['attachments']);
+            }
+
+            if (!empty($emailData['priority'])) {
+                $message['importance'] = $this->mapPriorityToImportance($emailData['priority']);
+            }
+
+            // Add custom headers for tracking
+            if (!empty($emailData['customHeaders'])) {
+                $message['internetMessageHeaders'] = $emailData['customHeaders'];
+            }
+
+            $response = $this->makeRequest('POST', '/me/messages', ['json' => $message]);
+
+            return [
+                'success' => true,
+                'message_id' => $response['id'],
+                'conversation_id' => $response['conversationId'] ?? null
+            ];
+        } catch (Exception $e) {
+            logger()->error('Failed to create draft message', [
+                'error' => $e->getMessage(),
+                'subject' => $emailData['subject'] ?? 'N/A'
+            ]);
+
+            return [
+                'success' => false,
+                'error' => $e->getMessage(),
+                'message_id' => null
+            ];
+        }
+    }
+
+    /**
+     * Send a draft message
+     */
+    public function sendDraftMessage(string $messageId): array
+    {
+        try {
+            $this->makeRequest('POST', "/me/messages/{$messageId}/send");
+
+            return [
+                'success' => true,
+                'message' => 'Draft message sent successfully'
+            ];
+        } catch (Exception $e) {
+            logger()->error('Failed to send draft message: ' . json_encode([
+                'message_id' => $messageId,
+                'error' => $e->getMessage()
+            ], JSON_PRETTY_PRINT));
+            return [
+                'success' => false,
+                'error' => $e->getMessage()
+            ];
+        }
+    }
+
+    /**
+     * Get message details by ID
+     */
+    public function getMessageDetails(string $messageId): array
+    {
+        try {
+            $response = $this->makeRequest('GET', "/me/messages/{$messageId}");
+
+            return [
+                'id' => $response['id'],
+                'conversationId' => $response['conversationId'],
+                'internetMessageId' => $response['internetMessageId'],
+                'subject' => $response['subject'],
+                'sentDateTime' => $response['sentDateTime'],
+                'receivedDateTime' => $response['receivedDateTime'],
+                'from' => $response['from'],
+                'toRecipients' => $response['toRecipients'],
+                'ccRecipients' => $response['ccRecipients'] ?? [],
+                'bccRecipients' => $response['bccRecipients'] ?? [],
+                'hasAttachments' => $response['hasAttachments'] ?? false,
+                'importance' => $response['importance'] ?? 'normal',
+                'isRead' => $response['isRead'] ?? false
+            ];
+        } catch (Exception $e) {
+            logger()->error('Failed to get message details: ' . json_encode([
+                'message_id' => $messageId,
+                'error' => $e->getMessage()
+            ], JSON_PRETTY_PRINT));
+            return [];
+        }
+    }
+
+    /**
+     * Send a reply to an existing message
+     */
+    public function sendReply($auth, string $originalMessageId, array $replyData): array
+    {
+        try {
+            $this->auth = $auth;
+            $originalMessage = $this->getMessageDetails($originalMessageId);
+
+            if (empty($originalMessage)) {
+                throw new Exception('Original message not found');
+            }
+
+            $replyMessage = [
+                "message" => [
+                    "body" => [
+                        "contentType" => $replyData['bodyType'] ?? 'html',
+                        "content" => $replyData['body']
+                    ]
+                ]
+            ];
+
+            // if (!empty($replyData['attachments'])) {
+            //     $replyMessage['message']['attachments'] = $this->formatAttachments($replyData['attachments']);
+            // }
+
+            logger()->info('Reply: ' . json_encode([
+                'success' => true,
+                'original_message_id' => $originalMessageId,
+                'conversation_id' => $originalMessage['conversationId'],
+                'message' => $replyData['body']
+            ], JSON_PRETTY_PRINT));
+
+            $this->makeRequest('POST', "/me/messages/{$originalMessageId}/reply", [
+                'json' => $replyMessage
+            ]);
+
+            return [
+                'success' => true,
+                'original_message_id' => $originalMessageId,
+                'conversation_id' => $originalMessage['conversationId'],
+                'message' => 'Reply sent successfully'
+            ];
+        } catch (Exception $e) {
+            logger()->error('Failed to send reply: ' . json_encode([
+                'original_message_id' => $originalMessageId,
+                'error' => $e->getMessage()
+            ], JSON_PRETTY_PRINT));
+
+            return [
+                'success' => false,
+                'error' => $e->getMessage()
+            ];
+        }
+    }
+
+    /**
+     * Get conversation messages
+     */
+    public function getConversationMessages(string $conversationId): array
+    {
+        try {
+            $response = $this->makeRequest('GET', "/me/messages", [
+                'query' => [
+                    '$filter' => "conversationId eq '{$conversationId}'",
+                    '$orderby' => 'receivedDateTime desc',
+                    '$select' => 'id,subject,from,toRecipients,receivedDateTime,sentDateTime,bodyPreview,importance,hasAttachments'
+                ]
+            ]);
+
+            return [
+                'success' => true,
+                'messages' => $response['value'] ?? [],
+                'count' => count($response['value'] ?? [])
+            ];
+        } catch (Exception $e) {
+            logger()->error('Failed to get conversation messages', [
+                'conversation_id' => $conversationId,
+                'error' => $e->getMessage()
+            ]);
+
+            return [
+                'success' => false,
+                'error' => $e->getMessage(),
+                'messages' => []
+            ];
+        }
+    }
+
+    /**
+     * Map priority to Outlook importance
+     */
+    private function mapPriorityToImportance(string $priority): string
+    {
+        return match (strtolower($priority)) {
+            'high' => 'high',
+            'low' => 'low',
+            default => 'normal'
+        };
+    }
+
+    /**
+     * Format recipients for Outlook API
+     */
+    private function formatRecipients(array $recipients): array
+    {
+        return array_map(function ($recipient) {
+            if (is_string($recipient)) {
+                return ['emailAddress' => ['address' => $recipient]];
+            }
+
+            return [
+                'emailAddress' => [
+                    'address' => $recipient['email'] ?? $recipient['address'],
+                    'name' => $recipient['name'] ?? null
+                ]
+            ];
+        }, $recipients);
+    }
+
+    /**
+     * Format attachments for Outlook API
+     */
+    private function formatAttachments(array $attachments): array
+    {
+        return array_map(function ($attachment) {
+            if (isset($attachment['path']) && file_exists($attachment['path'])) {
+                return [
+                    '@odata.type' => '#microsoft.graph.fileAttachment',
+                    'name' => $attachment['name'],
+                    'contentType' => $attachment['mime_type'],
+                    'contentBytes' => base64_encode(file_get_contents($attachment['path']))
+                ];
+            }
+
+            return [
+                '@odata.type' => '#microsoft.graph.fileAttachment',
+                'name' => $attachment['name'],
+                'contentType' => $attachment['mime_type'] ?? 'application/octet-stream',
+                'contentBytes' => $attachment['content'] ?? ''
+            ];
+        }, $attachments);
     }
 }

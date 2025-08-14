@@ -53,11 +53,10 @@ class OutlookOAuthController extends Controller
                 throw new Exception('Failed to exchange authorization code for tokens');
             }
 
-            $this->outlookService->saveToken($tokenData);
+            $user = $request->user();
+            $this->outlookService->saveToken($user, $tokenData);
 
-            $userProfile = $this->outlookService->getUserProfile();
-
-            // Clear the cached user profile
+            $userProfile = $this->outlookService->getUserProfile($user);
             $cacheKey = "outlook_profile_{$userProfile['user']['email']}";
             Cache::forget($cacheKey);
 
@@ -72,11 +71,11 @@ class OutlookOAuthController extends Controller
                 'trace' => $e->getTraceAsString()
             ]);
 
-            return response()->json([
-                'error' => 'Authentication failed',
+            return redirect()->back()->withErrors([
+                'errors' => 'Authentication failed',
                 'message' => 'Failed to process authentication callback',
                 'details' => config('app.debug') ? $e->getMessage() : 'Internal server error'
-            ], 500);
+            ]);
         }
     }
 
@@ -88,11 +87,11 @@ class OutlookOAuthController extends Controller
         $error = $request->get('error');
         $errorDescription = $request->get('error_description');
 
-        logger()->warning('Azure OAuth error', [
+        logger()->warning('Azure OAuth error: ' . json_encode([
             'error' => $error,
             'description' => $errorDescription,
             'request_data' => $request->all()
-        ]);
+        ], JSON_PRETTY_PRINT));
 
         $errorMessages = [
             'access_denied' => 'User denied access to the application',
@@ -106,11 +105,13 @@ class OutlookOAuthController extends Controller
 
         $message = $errorMessages[$error] ?? 'Unknown authentication error';
 
-        return response()->json([
-            'error' => $error,
-            'message' => $message,
-            'description' => $errorDescription
-        ], 400);
+        return redirect()->back()->withErrors(
+            [
+                'errors' => $error,
+                'message' => $message,
+                'description' => $errorDescription
+            ]
+        );
     }
 
     /**
@@ -119,7 +120,7 @@ class OutlookOAuthController extends Controller
     public function connect(Request $request): JsonResponse
     {
         try {
-            $user = Auth::user();
+            $user = $request->user();
 
             if (!$user) {
                 return response()->json([
@@ -202,23 +203,36 @@ class OutlookOAuthController extends Controller
                 }
             }
 
+            $profile = $this->outlookService->getUserProfile($user);
+            // $profilePhoto = $this->outlookService->getUserPhoto($user);
             // Cache user profile for 15 minutes
-            $cacheKey = "outlook_profile_{$user->email}";
-            $userProfile = Cache::remember($cacheKey, 900, function () {
-                return $this->outlookService->getUserProfile();
-            });
+            if ($profile) {
+                $cacheKey = "outlook_profile_{$user->email}";
+                $userProfile = Cache::remember($cacheKey, 900, function () use ($profile) {
+                    return $profile;
+                });
+
+                if ($userProfile) {
+                    return response()->json([
+                        'connected' => true,
+                        'email' => $userProfile['user']['email'] ?? null,
+                        'displayName' => $userProfile['user']['name'] ?? null,
+                        'last_updated' => $connection->updated_at
+                    ]);
+                }
+            }
 
             return response()->json([
                 'connected' => true,
-                'email' => $userProfile['user']['email'] ?? null,
-                'displayName' => $userProfile['user']['name'] ?? null,
+                'email' => null,
+                'displayName' => null,
                 'last_updated' => $connection->updated_at
             ]);
         } catch (Exception $e) {
-            logger()->error('Outlook status check failed', [
-                'user_id' => Auth::id(),
+            logger()->error('Outlook status check failed: ' . json_encode([
+                'user_id' => $user->id,
                 'error' => $e->getMessage()
-            ]);
+            ], JSON_PRETTY_PRINT));
 
             return response()->json([
                 'connected' => false,

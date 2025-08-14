@@ -23,8 +23,6 @@ class ClaimNotificationService
         $this->printOutController = $printOutController;
     }
 
-
-
     /**
      * Send claim notification email
      */

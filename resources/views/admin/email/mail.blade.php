@@ -54,7 +54,7 @@
     </div>
 @endsection
 
-<x-outlook-connection :auto-show="true" :show-cancel-button="true" :fetch-emails-on-connect="true" :show-toast-message="false" />
+<x-outlook-connection :auto-show="true" :show-cancel-button="true" :fetch-emails-on-connect="true" :show-toast-message="false" :enable-loading-spinner="true" />
 
 
 {{-- @include('admin.email.includes._connection_script') --}}

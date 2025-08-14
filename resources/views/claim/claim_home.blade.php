@@ -645,7 +645,7 @@
         </div>
     </div>
 
-    {{-- attachments preview --}}
+    {{-- Attachments preview --}}
     <div class="modal effect-scale md-wrapper" id="attachmentDocumentModal" aria-labelledby="staticBackdropLabel"
         aria-hidden="true">
         <div class="modal-dialog modal-lg">
@@ -719,7 +719,7 @@
                     <input type="hidden" name="endorsement_no" value="{{ $cover->endorsement_no }}">
                     <input type="hidden" name="id" id="id" value="">
                     <div class="modal-header bg-primary text-white">
-                        <h5 class="modal-title  text-white text-center" id="staticBackdropLabel">Claim Status</h5>
+                        <h5 class="modal-title text-white text-center" id="staticBackdropLabel">Claim Status</h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                     <div class="modal-body">
@@ -763,7 +763,8 @@
 
                     <div class="modal-header bg-primary text-white">
                         <h5 class="modal-title text-center" id="staticBackdropLabel">Document Checklist</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        <button type="button" class="btn-close-white" data-bs-dismiss="modal"
+                            aria-label="Close"></button>
                     </div>
 
                     <div class="modal-body">
@@ -870,11 +871,81 @@
         <div class="modal-dialog modal-xl modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="sendReinDocumentEmailLabel">
-                        <i class="bx bx-envelope me-2 fs-15" style="vertical-align: middle"></i>Email Notification - Claim
+                    <h5 class="modal-title text-white text-center" id="sendReinDocumentEmailLabel">
+                        <i class="bx bx-envelope me-2 fs-15" style="vertical-align: middle"></i>Email Notification (To
+                        Reinsurers) - Claim
                         Documentation
                     </h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <button type="button" class="btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-12">
+                            <!-- Navigation Tabs -->
+                            <div class="card-header bg-light border-bottom">
+                                <ul class="nav nav-tabs card-header-tabs" id="emailTabs" role="tablist">
+                                    <li class="nav-item" role="presentation">
+                                        <button class="nav-link active" id="compose-tab" data-bs-toggle="tab"
+                                            data-bs-target="#compose" type="button" role="tab">
+                                            <i class="bx bx-envelope me-2 fs-15"
+                                                style="vertical-align: middle"></i>Compose
+                                        </button>
+                                    </li>
+                                    <li class="nav-item" role="presentation">
+                                        <button class="nav-link" id="replies-tab" data-bs-toggle="tab"
+                                            data-bs-target="#replies" type="button" role="tab">
+                                            <i class="bx bx-reply me-2 fs-15" style="vertical-align: middle"></i>Reply to
+                                            Messages
+                                        </button>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="tab-content" id="emailTabContent">
+                                <div class="tab-pane fade show active" id="compose" role="tabpanel">
+                                    @include('claim.emails.reinsurers.compose-form')
+                                </div>
+
+                                <div class="tab-pane fade" id="replies" role="tabpanel">
+                                    @include('claim.emails.reinsurers.messages-list')
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Modal -->
+    <div class="modal fade" id="loadingModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+        <div class="modal-dialog modal-sm">
+            <div class="modal-content">
+                <div class="modal-body text-center p-4">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <div class="mt-2">Processing...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal effect-scale md-wrapper" id="sendCedDocumentEmail" data-bs-backdrop="static"
+        data-bs-keyboard="false" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title text-white text-center" id="sendCedDocumentEmailLabel">
+                        <i class="bx bx-envelope me-2 fs-15" style="vertical-align: middle"></i>Email Notification (To
+                        Cedant) - Claim
+                        Documentation
+                    </h5>
+                    <button type="button" class="btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
                     <div class="row">
@@ -906,12 +977,12 @@
                             <div class="tab-content" id="emailTabContent">
                                 <!-- Compose Tab -->
                                 <div class="tab-pane fade show active" id="compose" role="tabpanel">
-                                    @include('claim.emails.compose-form')
+                                    @include('claim.emails.cedant.compose-form')
                                 </div>
 
                                 <!-- Replies Tab -->
                                 <div class="tab-pane fade" id="replies" role="tabpanel">
-                                    @include('claim.emails.messages-list')
+                                    @include('claim.emails.cedant.messages-list')
                                 </div>
                             </div>
                         </div>
@@ -921,28 +992,43 @@
         </div>
     </div>
 
-    <!-- Loading Modal -->
-    <div class="modal fade" id="loadingModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
-        <div class="modal-dialog modal-sm">
+    {{-- Conversation Modal --}}
+    <div class="modal effect-scale" id="conversationModal" tabindex="-1" data-bs-backdrop="static"
+        data-bs-keyboard="false">
+        <div class="modal-dialog modal-xl">
             <div class="modal-content">
-                <div class="modal-body text-center p-4">
-                    <div class="spinner-border text-primary" role="status">
-                        <span class="visually-hidden">Loading...</span>
+                <div class="modal-header">
+                    <h5 class="modal-title"
+                        style="width: 97%; overflow: hidden; white-space: nowrap;text-overflow: ellipsis;">
+                        <i class="bx bx-conversation me-2"></i>
+                        <span id="conversationTitle">Conversation Title</span>
+                        <span class="badge bg-primary ms-2" id="conversationMessageCount">0 messages</span>
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
+                    <div class="conversation-thread" id="conversationThread">
                     </div>
-                    <div class="mt-2">Processing...</div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" id="replyToConversationBtn">
+                        <i class="bx bx-reply me-1"></i> Reply to Conversation
+                    </button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                 </div>
             </div>
         </div>
     </div>
 
-    <div class="modal effect-scale md-wrapper" id="sendDocumentEmail" tabindex="-1" aria-hidden="true">
+    {{-- <div class="modal effect-scale md-wrapper" id="sendDocumentEmail" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-xl modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="sendDocumentEmailLabel">
+                    <h5 class="modal-title text-white text-center" id="sendDocumentEmailLabel">
                         <i class="bx bx-envelope me-2"></i>Email Notification - Claim Documentation
                     </h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                        aria-label="Close"></button>
                 </div>
                 <form id="claimNotificationForm" action="{{ route('claim.notification.sendDocumentEmail') }}"
                     method="POST">
@@ -1064,7 +1150,7 @@
                                             <span id="fileCount">{{ count($attachedFiles) }}
                                                 file{{ count($attachedFiles) > 1 ? 's' : '' }} attached</span> •
                                             Total size: <span id="totalSize"></span>
-                                            {{-- {{ formatTotalFileSize($attachedFiles) }} --}}
+                                            {{-- {{ formatTotalFileSize($attachedFiles) }} --
                                         </small>
                                     </div>
                                 @endif
@@ -1083,15 +1169,103 @@
 
             </div>
         </div>
+    </div> --}}
+
+    <!-- Confirmation Modal -->
+    <div class="modal effect-scale md-wrapper" id="confirmationModal" tabindex="-1"
+        aria-labelledby="confirmationModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-primary">
+                    <h5 class="modal-title text-white text-center" id="confirmationModalLabel">
+                        <i class="bx bx-send me-2"></i>Confirm Email Send
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                        aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-3">Please review your email details before sending:</p>
+
+                    <div class="confirmation-details p-3 bg-light rounded">
+                        <div class="row mb-2">
+                            <div class="col-3 fw-bold">To:</div>
+                            <div class="col-9">
+                                <div id="confirmTo"
+                                    style="white-space: pre-wrap; margin: 0; font-family: inherit; overflow-wrap: break-word;">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row mb-2">
+                            <div class="col-3 fw-bold">CC:</div>
+                            <div class="col-9" id="confirmCC"></div>
+                        </div>
+                        <div class="row mb-2">
+                            <div class="col-3 fw-bold">BCC:</div>
+                            <div class="col-9" id="confirmBCC"></div>
+                        </div>
+                        <div class="row mb-2">
+                            <div class="col-3 fw-bold">Subject:</div>
+                            <div class="col-9">
+                                <div id="confirmSubject"></div>
+                            </div>
+                        </div>
+                        <div class="row mb-2">
+                            <div class="col-3 fw-bold">Priority:</div>
+                            <div class="col-9" id="confirmPriority"></div>
+                        </div>
+                        <div class="row mb-2">
+                            <div class="col-3 fw-bold">Category:</div>
+                            <div class="col-9" id="confirmCategory"></div>
+                        </div>
+                        <div class="row">
+                            <div class="col-3 fw-bold">Attachments:</div>
+                            <div class="col-9" id="confirmAttachments"></div>
+                        </div>
+                    </div>
+
+                    <div class="mt-3">
+                        <label class="form-label fw-bold">Message Preview:</label>
+                        <div class="border p-3 bg-light rounded" style="max-height: 200px; overflow-y: auto;">
+                            <pre id="confirmMessage" style="white-space: pre-wrap; margin: 0; font-family: inherit;"></pre>
+                        </div>
+                    </div>
+
+                    <div class="mt-3" id="replyWarning" style="display: none;">
+                        <div class="alert alert-warning">
+                            <i class="bx bx-warning me-2"></i>
+                            <strong>Reply Mode:</strong> This email is a reply to an existing message.
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal" id="cancelEmailConfirmation">
+                        <i class="bx bx-x me-1"></i>Cancel
+                    </button>
+                    <button type="button" class="btn btn-primary" id="confirmSendBtn">
+                        <i class="bx bx-paper-plane me-1"></i>Send Email
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <x-outlook-connection :auto-show="false" :show-cancel-button="true" :fetch-emails-on-connect="false" :show-toast-message="false" />
-
 @endsection
 
 @push('script')
     <script>
         $(document).ready(function() {
+            let lastDebitData = {
+                claimNo: null,
+                ackLetterUrl: null,
+                creditNoteUrl: null
+            };
+            let lastReinData = {
+                tranNo: null,
+                debitUrl: null,
+                claimNoticeUrl: null
+            };
+
             $('#to-customer').click(function(e) {
                 $('#customerForm').submit();
             });
@@ -1267,8 +1441,6 @@
 
                     $('#attachments-save-btn').prop('disabled', true).text('Saving...')
 
-
-                    // Make a fetch request
                     let url = ''
                     let HttpMethod = $('#attachmentsForm [name="_method"]').val()
                     if (HttpMethod == 'POST') {
@@ -1307,7 +1479,6 @@
                             }
                         })
                         .catch(error => {
-                            // Handle error
                             console.error('Error:', error);
                             toastr.error("Failed to save document")
                             $('#attachments-save-btn').prop('disabled', false).text('Submit')
@@ -1315,7 +1486,6 @@
                 }
             })
 
-            // Claim Status schedule
             $("#statusForm").validate({
                 errorClass: "errorClass",
                 rules: {
@@ -1328,7 +1498,6 @@
                 },
                 submitHandler: function(form) {
                     $('#status-save-btn').prop('disabled', true).text('Saving...')
-                    // Make a fetch request
                     let url = ''
                     let HttpMethod = $('#statusForm [name="_method"]').val()
                     if (HttpMethod == 'POST') {
@@ -1369,13 +1538,11 @@
                 }
             })
 
-            // Custom validation method to check if date is required based on checkbox status
             $.validator.addMethod("dateRequiredIfChecked", function(value, element, params) {
                 var checkbox = $(element).closest('tr').find('input[type="checkbox"]');
                 return checkbox.is(':checked') ? value.trim() !== "" : true;
             }, "Please enter the date when the document is received.");
 
-            // attachments schedule
             $("#acknowledgementForm").validate({
                 errorClass: "errorClass",
                 rules: {
@@ -1491,7 +1658,7 @@
                 ]
             });
 
-            $('#reinsurers-table').DataTable({
+            const reinsurersTable = $('#reinsurers-table').DataTable({
                 order: [
                     [0, 'asc']
                 ],
@@ -1663,7 +1830,7 @@
                 }
             })
 
-            $('#debits-table').DataTable({
+            const debitsTable = $('#debits-table').DataTable({
                 order: [
                     [0, 'asc']
                 ],
@@ -1894,183 +2061,232 @@
                 $('#statusForm').submit()
             });
 
-            $('#reinsurers-table').on('click', '.send_rein_email', async function(e) {
+            reinsurersTable.on('click', '.send_rein_email', async function(e) {
                 e.preventDefault();
+                lastReinData.tranNo = $(this).data('tran_no');
+                lastReinData.debitUrl = $(this).data('debit_url');
+                lastReinData.claimNoticeUrl = $(this).data('claim_notice_url');
+
+                const reinsurers = @json($reinsurers) ?? [];
+                await prepareReinEmailModal(
+                    lastReinData.tranNo,
+                    lastReinData.debitUrl,
+                    lastReinData.claimNoticeUrl,
+                    reinsurers
+                );
+            });
+
+            debitsTable.on('click', '.send_debit_letter', async function(e) {
+                e.preventDefault();
+
+                lastDebitData.claimNo = $(this).data('claim_no');
+                lastDebitData.ackLetterUrl = $(this).data('ack_letter_url');
+                lastDebitData.creditNoteUrl = $(this).data('credit_note_url');
+
+                const recipients = @json($recipients) ?? [];
+                const customer = @json($customer) ?? [];
+
+                console.log(lastDebitData)
+
+                await prepareDebitLetterModal(
+                    lastDebitData.claimNo,
+                    lastDebitData.ackLetterUrl,
+                    lastDebitData.creditNoteUrl,
+                    recipients,
+                    customer
+                );
+            });
+
+            async function prepareReinEmailModal(tranNo, debitUrl, claimNoticeUrl, reinsurers) {
                 window.OutlookConnectionManager.showLoading();
                 const emailConnection = await window.OutlookConnectionManager.checkStatus();
-                if (emailConnection.connected) {
+
+                if (!emailConnection.connected) {
                     window.OutlookConnectionManager.hideLoading();
-                    const tranNo = $(this).data('tran_no');
-                    const debitUrl = $(this).data('debit_url');
-                    const claimNoticeUrl = $(this).data('claim_notice_url');
-
-                    if (debitUrl) {
-                        $("#debitNoteLink").attr('href', debitUrl);
-                    } else {
-                        $("#debitNoteLink").removeAttr('href').on('click', function(e) {
-                            e.preventDefault();
-                        });
-                    }
-
-                    if (claimNoticeUrl) {
-                        $("#claimNoticeLink").attr('href', claimNoticeUrl);
-                    } else {
-                        $("a#claimNoticeLink").removeAttr('href').on('click', function(e) {
-                            e.preventDefault();
-                        });
-                    }
-
-                    const reinsurers = @json($reinsurers) ?? [];
-                    const reinsurer = reinsurers.find((x) => Number(x.tran_no) === Number(tranNo));
-                    if (!reinsurer) {
-                        return;
-                    }
-
-                    const contacts = reinsurer?.contacts || [];
-                    const $contactsSelect = $(".claimReinEmailForm #contacts");
-                    const $ccEmailSelect = $(".claimReinEmailForm #ccEmail");
-                    const $bccEmailSelect = $(".claimReinEmailForm #bccEmail");
-
-                    $contactsSelect.empty();
-                    $ccEmailSelect.empty();
-                    $bccEmailSelect.empty();
-
-                    $contactsSelect.append('<option value="" disabled>--Select contacts--</option>');
-                    $ccEmailSelect.append('<option value="" disabled>--Select CC emails--</option>');
-                    $bccEmailSelect.append('<option value="" disabled>--Select BCC emails--</option>');
-
-                    if (contacts && contacts.length > 0) {
-                        const primaryContacts = [];
-                        const regularContacts = [];
-
-                        contacts.forEach(function(contact, index) {
-                            const email = contact.contact_email;
-                            const name = contact.contact_name;
-                            const phone = contact.contact_mobile_no;
-                            const isPrimary = contact.is_primary === true;
-
-                            if (email) {
-                                let optionText = '';
-                                if (name && email) {
-                                    optionText = `${name} (${email})`;
-                                } else if (email) {
-                                    optionText = email;
-                                }
-
-                                if (phone) {
-                                    optionText += ` - ${phone}`;
-                                }
-
-                                if (isPrimary) {
-                                    optionText += ' [Primary]';
-                                }
-
-                                const createOption = () => $('<option></option>')
-                                    .attr('value', email)
-                                    .text(optionText)
-                                    .data('contact-data', contact)
-                                    .data('is-primary', isPrimary);
-
-                                $contactsSelect.append(createOption());
-                                $ccEmailSelect.append(createOption());
-                                $bccEmailSelect.append(createOption());
-
-                                if (isPrimary) {
-                                    primaryContacts.push(email);
-                                } else {
-                                    regularContacts.push(email);
-                                }
-                            }
-                        });
-
-                        if (primaryContacts.length > 0) {
-                            $contactsSelect.val(primaryContacts).trigger('change');
-                        } else if (regularContacts.length === 1) {
-                            $contactsSelect.val(regularContacts[0]).trigger('change');
-                        }
-
-                        [$contactsSelect, $ccEmailSelect, $bccEmailSelect].forEach($select => {
-                            if ($select.hasClass('select2-hidden-accessible')) {
-                                $select.trigger('change.select2');
-                            }
-                        });
-                    }
-
-                    $(".claimReinEmailForm #toEmail").val(reinsurer?.partner?.email)
-                    $("#sendReinDocumentEmail").modal('show');
-                } else {
-                    window.OutlookConnectionManager.hideLoading();
-                    window.OutlookConnectionManager.show()
+                    window.OutlookConnectionManager.show();
+                    return;
                 }
-            });
 
-            $('#debits-table').on('click', '.send_debit_letter', function(e) {
-                e.preventDefault();
-                $("#sendDocumentEmail").modal('show');
-            });
+                window.OutlookConnectionManager.hideLoading();
 
-            $('#reinClaimNotificationForm').validate({
-                rules: {
-                    subject: {
-                        required: true
-                    },
-                    message: {
-                        required: true
+                if (debitUrl) {
+                    $("#debitNoteLink").attr('href', debitUrl);
+                    $("#debitNoteFile").val(debitUrl);
+                } else {
+                    $("#debitNoteLink").removeAttr('href').on('click', e => e.preventDefault());
+                }
+
+                if (claimNoticeUrl) {
+                    $("#claimNoticeLink").attr('href', claimNoticeUrl);
+                    $("#claimNoticeFile").val(claimNoticeUrl);
+                } else {
+                    $("a#claimNoticeLink").removeAttr('href').on('click', e => e.preventDefault());
+                }
+
+                const reinsurer = reinsurers.find(x => Number(x.tran_no) === Number(tranNo));
+                if (!reinsurer) return;
+
+                const contacts = reinsurer?.contacts || [];
+                const $contactsSelect = $(".claimReinEmailForm #contacts");
+                const $ccEmailSelect = $(".claimReinEmailForm #ccEmail");
+                const $bccEmailSelect = $(".claimReinEmailForm #bccEmail");
+
+                $contactsSelect.empty().append('<option value="" disabled>--Select contacts--</option>');
+                $ccEmailSelect.empty().append('<option value="" disabled>--Select CC emails--</option>');
+                $bccEmailSelect.empty().append('<option value="" disabled>--Select BCC emails--</option>');
+
+                let contactsSelected = [];
+                if (contacts.length > 0) {
+                    const primaryContacts = [];
+                    const regularContacts = [];
+
+                    contacts.forEach(contact => {
+                        const email = contact.contact_email;
+                        if (!email) return;
+
+                        let optionText = contact.contact_name ? `${contact.contact_name} (${email})` :
+                            email;
+                        if (contact.contact_mobile_no) optionText += ` - ${contact.contact_mobile_no}`;
+                        if (contact.is_primary) optionText += ' [Primary]';
+
+                        const createOption = () => $('<option></option>')
+                            .attr('value', email)
+                            .text(optionText)
+                            .data('contact-data', contact)
+                            .data('is-primary', contact.is_primary);
+
+                        $contactsSelect.append(createOption());
+                        $ccEmailSelect.append(createOption());
+                        $bccEmailSelect.append(createOption());
+
+                        if (contact.is_primary) primaryContacts.push(email);
+                        else regularContacts.push(email);
+                    });
+
+                    if (primaryContacts.length > 0) {
+                        contactsSelected = primaryContacts;
+                        $contactsSelect.val(primaryContacts).trigger('change');
+                    } else if (regularContacts.length === 1) {
+                        contactsSelected = [regularContacts[0]];
+                        $contactsSelect.val(regularContacts[0]).trigger('change');
                     }
-                },
-                errorPlacement: function(error, element) {
-                    error.addClass("text-danger small mt-1");
-                    error.insertAfter(element.closest('.input-group'));
-                },
-                highlight: function(element) {
-                    $(element).addClass('is-invalid').removeClass('is-valid');
-                },
-                unhighlight: function(element) {
-                    $(element).removeClass('is-invalid').addClass('is-valid');
-                },
-                submitHandler: function(form) {
-                    var formData = new FormData(form);
-                    $.ajax({
-                        url: $(form).attr('action'),
-                        type: $(form).attr('method'),
-                        data: formData,
-                        processData: false,
-                        contentType: false,
-                        beforeSend: function() {
-                            $('#sendReinNotification').prop('disabled', true)
-                                .html(
-                                    '<span class="spinner-border spinner-border-sm me-2"></span>Sending...'
-                                );
-                        },
-                        success: function(response) {
-                            // console.log(response)
-                            // toastr.success(response.message ||
-                            //     'Notification sent successfully');
-                            // $('#sendReinNotification').prop('disabled', false)
-                            //     .html(
-                            //         '<i class="bx bx-paper-plane me-1"></i>Send Email & Complete'
-                            //     );
-                            // $('#claimNotificationForm')[0].reset();
-                            // $('#sendDocumentEmail').modal('hide');
 
-                        },
-                        error: function(xhr) {
-                            toastr.error('An error occurred while submitting the form');
-                            $('#sendReinNotification').prop('disabled', false)
-                                .html(
-                                    '<i class="bx bx-paper-plane me-1"></i>Send Email & Complete'
-                                );
-                        },
-                        complete: function() {
-                            $('#sendReinNotification').prop('disabled', false)
-                                .html(
-                                    '<i class="bx bx-paper-plane me-1"></i>Send Email & Complete'
-                                );
+                    [$contactsSelect, $ccEmailSelect, $bccEmailSelect].forEach($select => {
+                        if ($select.hasClass('select2-hidden-accessible')) {
+                            $select.trigger('change.select2');
                         }
                     });
-                    return false;
                 }
-            });
+
+                const partnerEmail = reinsurer?.partner?.email ?? null;
+                let toEmails = [];
+                if (partnerEmail) toEmails.push(partnerEmail);
+                toEmails = toEmails.concat(contactsSelected);
+
+                $(".claimReinEmailForm #toEmail").val(toEmails);
+                $(".claimReinEmailForm #partnerToEmail").val(partnerEmail);
+                $("#sendReinDocumentEmail").modal('show');
+            }
+
+            async function prepareDebitLetterModal(claimNo, ackLetterUrl, creditNoteUrl, recipients, customer) {
+                window.OutlookConnectionManager.showLoading();
+                const emailConnection = await window.OutlookConnectionManager.checkStatus();
+
+                if (!emailConnection.connected) {
+                    window.OutlookConnectionManager.hideLoading();
+                    window.OutlookConnectionManager.show();
+                    return;
+                }
+
+                window.OutlookConnectionManager.hideLoading();
+
+                if (ackLetterUrl) {
+                    $("#ackLetterLink").attr('href', ackLetterUrl);
+                    $("#ackLetterFile").val(ackLetterUrl);
+                } else {
+                    $("#ackLetterLink").removeAttr('href').on('click', function(e) {
+                        e.preventDefault();
+                    });
+                }
+
+                if (creditNoteUrl) {
+                    $("#creditNoteLink").attr('href', creditNoteUrl);
+                    $("#creditNoteFile").val(creditNoteUrl);
+                } else {
+                    $("#creditNoteLink").removeAttr('href').on('click', function(e) {
+                        e.preventDefault();
+                    });
+                }
+
+                const contacts = recipients ?? [];
+                const cedant = customer ?? [];
+
+                const $contactsSelect = $(".claimCedEmailForm #contacts");
+                const $ccEmailSelect = $(".claimCedEmailForm #ccEmail");
+                const $bccEmailSelect = $(".claimCedEmailForm #bccEmail");
+
+                $contactsSelect.empty().append('<option value="" disabled>--Select contacts--</option>');
+                $ccEmailSelect.empty().append('<option value="" disabled>--Select CC emails--</option>');
+                $bccEmailSelect.empty().append('<option value="" disabled>--Select BCC emails--</option>');
+
+                let contactsSelected = [];
+
+                if (contacts.length > 0) {
+                    const primaryContacts = [];
+                    const regularContacts = [];
+
+                    contacts.forEach(function(contact) {
+                        const email = contact.contact_email;
+                        const name = contact.contact_name;
+                        const phone = contact.contact_mobile_no;
+                        const isPrimary = contact.is_primary === true;
+
+                        if (email) {
+                            let optionText = '';
+                            if (name && email) optionText = `${name} (${email})`;
+                            else optionText = email;
+                            if (phone) optionText += ` - ${phone}`;
+                            if (isPrimary) optionText += ' [Primary]';
+
+                            const createOption = () => $('<option></option>')
+                                .attr('value', email)
+                                .text(optionText)
+                                .data('contact-data', contact)
+                                .data('is-primary', isPrimary);
+
+                            $contactsSelect.append(createOption());
+                            $ccEmailSelect.append(createOption());
+                            $bccEmailSelect.append(createOption());
+
+                            if (isPrimary) primaryContacts.push(email);
+                            else regularContacts.push(email);
+                        }
+                    });
+
+                    if (primaryContacts.length > 0) {
+                        contactsSelected = primaryContacts;
+                        $contactsSelect.val(primaryContacts).trigger('change');
+                    } else if (regularContacts.length === 1) {
+                        contactsSelected = [regularContacts[0]];
+                        $contactsSelect.val(regularContacts[0]).trigger('change');
+                    }
+
+                    [$contactsSelect, $ccEmailSelect, $bccEmailSelect].forEach($select => {
+                        if ($select.hasClass('select2-hidden-accessible')) {
+                            $select.trigger('change.select2');
+                        }
+                    });
+                }
+
+                const cedantEmail = cedant?.email ?? null;
+                let toEmails = [];
+                if (cedantEmail) toEmails.push(cedantEmail);
+                toEmails = toEmails.concat(contactsSelected);
+
+                $(".claimCedEmailForm #toEmail").val(toEmails);
+                $(".claimCedEmailForm #cedantToEmail").val(cedantEmail);
+                $("#sendCedDocumentEmail").modal('show');
+            }
 
             $('#claimNotificationForm').validate({
                 rules: {
@@ -2126,7 +2342,7 @@
                                     '<i class="bx bx-paper-plane me-1"></i>Send Email & Complete'
                                 );
                             $('#claimNotificationForm')[0].reset();
-                            $('#sendDocumentEmail').modal('hide');
+                            // $('#sendDocumentEmail').modal('hide');
                             window.location.reload()
                         },
                         error: function(xhr) {
@@ -2145,6 +2361,29 @@
                     });
                     return false;
                 }
+            });
+
+            $('#conversationModal').on('hidden.bs.modal', async function() {
+                if (!lastReinData.tranNo) return;
+
+                const reinsurers = @json($reinsurers) ?? [];
+                await prepareReinEmailModal(
+                    lastReinData.tranNo,
+                    lastReinData.debitUrl,
+                    lastReinData.claimNoticeUrl,
+                    reinsurers
+                );
+
+                // const recipients = @json($recipients) ?? [];
+                // const customer = @json($customer) ?? [];
+                // await prepareReinEmailModal(
+                //     lastDebitData.claimNo,
+                //     lastDebitData.ackLetterUrl,
+                //     lastDebitData.creditNoteUrl,
+                //     recipients,
+                //     customer
+                // );
+
             });
         });
     </script>
