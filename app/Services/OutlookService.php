@@ -237,6 +237,7 @@ class OutlookService
                     'access_token' => encrypt($tokenData['access_token']),
                     'refresh_token' => encrypt($tokenData['refresh_token']),
                     'expires_at' => $expiresAt,
+                    'user_id' => $user->id,
                     'scope' => $tokenData['scope'],
                     'updated_at' => now(),
                     'created_at' => now()
