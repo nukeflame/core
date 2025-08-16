@@ -228,8 +228,6 @@ class SyncOutlookEmails extends Command
         ]);
     }
 
-    // ===== Authentication & Token Management =====
-
     private function validateAndRefreshToken(object $user): bool
     {
         $this->accessToken = decrypt($user->access_token);
@@ -269,29 +267,51 @@ class SyncOutlookEmails extends Command
             throw new Exception('No refresh token available');
         }
 
-        $this->info('Token expires soon, attempting refresh...');
+        $this->info("Token expires soon, attempting refresh for user {$user->id}...");
 
         try {
-            $response = Http::asForm()->post('https://login.microsoftonline.com/common/oauth2/v2.0/token', [
-                'client_id' => config('services.microsoft.client_id'),
-                'client_secret' => config('services.microsoft.client_secret'),
-                'refresh_token' => $user->refresh_token,
+            $payload = [
+                'client_id' => config('services.azure.client_id'),
+                'client_secret' => config('services.azure.client_secret'),
                 'grant_type' => 'refresh_token',
-                'scope' => 'https://graph.microsoft.com/Mail.Read https://graph.microsoft.com/User.Read'
-            ]);
+                'refresh_token' => $user->refresh_token,
+                'scope' => 'https://graph.microsoft.com/.default offline_access',
+            ];
+
+            // only send redirect_uri if you actually used it during initial auth
+            // if (config('services.azure.redirect_uri')) {
+            //     $payload['redirect_uri'] = config('services.azure.redirect_uri');
+            // }
+
+            $response = Http::asForm()->post(
+                "https://login.microsoftonline.com/" . config('services.azure.tenant_id') . "/oauth2/v2.0/token",
+                $payload
+            );
 
             if (!$response->successful()) {
-                throw new Exception('Token refresh failed: ' . $response->body());
+                logger()->error('Token refresh failed', [
+                    'user_id' => $user->id,
+                    'response' => $response->json(),
+                ]);
+                throw new Exception('Token refresh failed: ' . json_encode($response->json()));
             }
 
-            $this->updateTokenInDatabase($user, $response->json());
-            $this->info('Token refreshed successfully');
+            $data = $response->json();
+            logger()->info('Token refresh success', [
+                'user_id' => $user->id,
+                'expires_in' => $data['expires_in'] ?? null,
+            ]);
+
+            // Update DB (don’t forget refresh_token rotation)
+            // $this->updateTokenInDatabase($user, $data);
+            $this->info("Token refreshed successfully for user {$user->id}");
 
             return true;
         } catch (Exception $e) {
-            throw new Exception('Token refresh failed: ' . $e->getMessage());
+            throw new Exception("Token refresh failed for user {$user->id}: " . $e->getMessage());
         }
     }
+
 
     private function updateTokenInDatabase(object $user, array $tokenData): void
     {
