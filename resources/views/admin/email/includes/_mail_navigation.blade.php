@@ -60,8 +60,7 @@
     <div class="d-flex align-items-top p-3 bg-primary" id="userInfo">
         <div>
             <span class="avatar avatar-md online avatar-rounded">
-                <img src="/assets/images/faces/9.jpg
-            " alt="">
+                <img src="/user-avator.png" alt="">
             </span>
         </div>
         <div class="ms-2">

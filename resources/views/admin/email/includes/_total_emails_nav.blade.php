@@ -43,12 +43,12 @@
                                 <input class="form-check-input" type="checkbox" id="checkboxNoLabel{{ $item->id }}"
                                     value="{{ $item->id }}" aria-label="Select email {{ $item->id }}">
                             </div>
-                            <div class="me-1 lh-1 btn_select_field" data-email-id={{ $item->id }}
+                            {{-- <div class="me-1 lh-1 btn_select_field" data-email-id={{ $item->id }}
                                 data-ref-id={{ $item->uid }}>
                                 <span class="avatar avatar-md offline me-2 avatar-rounded mail-msg-avatar">
                                     <img src="{{ $item->avatar ?? '/assets/images/faces/12.jpg' }}" alt="">
                                 </span>
-                            </div>
+                            </div> --}}
                             <div class="flex-fill btn_select_field" data-email-id={{ $item->id }}
                                 data-ref-id={{ $item->uid }}>
                                 <p class="mb-1 fs-12">

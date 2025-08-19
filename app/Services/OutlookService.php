@@ -21,22 +21,282 @@ class OutlookService
     protected $auth = null;
 
     private array $requiredScopes = [
-        // 'openid offline_access profile User.Read Mail.ReadWrite Files.ReadWrite'
-        // 'openid',
-        // 'offline_access',
-        // 'profile',
-        // 'User.Read',
-        // 'Mail.ReadWrite',
-        // 'Mail.Send',
-        // 'Mail.Read',
-        // 'Mail.ReadBasic',
-        // 'Files.ReadWrite',
-        // 'User.ReadBasic.All',
+        // Core identity and profile
+        'openid',
+        'offline_access',
+        'profile',
+        'email',
 
-        // application
-        'https://graph.microsoft.com/.default',
-        // delagated
-        // 'openid offline_access profile User.Read Mail.ReadWrite Files.ReadWrite'
+        // User permissions
+        'User.Read',
+        // 'User.ReadWrite',
+        'User.ReadBasic.All',
+        // // 'User.Read.All',
+        'User.ReadWrite.All',
+        // 'User.Invite.All',
+        // 'User.Export.All',
+        // 'User.ManageIdentities.All',
+
+        // Mail permissions
+        'Mail.Read',
+        'Mail.ReadWrite',
+        'Mail.Send',
+        'Mail.Send.Shared',
+        'Mail.ReadBasic',
+        // // 'Mail.ReadWrite.Shared',
+        // 'MailboxSettings.Read',
+        // 'MailboxSettings.ReadWrite',
+        // 'IMAP.AccessAsUser.All',
+        // 'POP.AccessAsUser.All',
+        // 'SMTP.Send',
+
+        // // Calendar permissions
+        // // 'Calendars.Read',
+        // // 'Calendars.ReadWrite',
+        // // 'Calendars.Read.Shared',
+        // // 'Calendars.ReadWrite.Shared',
+
+        // // Contacts permissions
+        // // 'Contacts.Read',
+        // // 'Contacts.ReadWrite',
+        // // 'Contacts.Read.Shared',
+        // // 'Contacts.ReadWrite.Shared',
+
+        // // // Files and OneDrive permissions
+        // // 'Files.Read',
+        // // 'Files.ReadWrite',
+        // // 'Files.Read.All',
+        // // 'Files.ReadWrite.All',
+        // // 'Files.Read.Selected',
+        // // 'Files.ReadWrite.Selected',
+        // // 'Sites.Read.All',
+        // // 'Sites.ReadWrite.All',
+        // // 'Sites.Manage.All',
+        // // 'Sites.FullControl.All',
+
+        // // // Tasks and To-Do permissions
+        // // 'Tasks.Read',
+        // // 'Tasks.ReadWrite',
+        // // 'Tasks.Read.Shared',
+        // // 'Tasks.ReadWrite.Shared',
+
+        // // // Notes and OneNote permissions
+        // // 'Notes.Read',
+        // // 'Notes.Create',
+        // // 'Notes.ReadWrite',
+        // // 'Notes.Read.All',
+        // // 'Notes.ReadWrite.All',
+
+        // // // People permissions
+        // // 'People.Read',
+        // // 'People.Read.All',
+
+        // // Directory and organization permissions
+        // 'Directory.Read.All',
+        // 'Directory.ReadWrite.All',
+        // 'Directory.AccessAsUser.All',
+        // // 'Organization.Read.All',
+        // // 'Organization.ReadWrite.All',
+
+        // // Groups permissions
+        // 'Group.Read.All',
+        // 'Group.ReadWrite.All',
+        // 'GroupMember.Read.All',
+        // 'GroupMember.ReadWrite.All',
+
+        // // // Teams and chat permissions
+        // // 'Chat.Read',
+        // // 'Chat.ReadWrite',
+        // // 'ChatMessage.Read',
+        // // 'ChatMessage.Send',
+        // // 'ChatMember.Read',
+        // // 'ChatMember.ReadWrite',
+        // // 'TeamsTab.Read.All',
+        // // 'TeamsTab.ReadWrite.All',
+        // // 'TeamsTab.Create',
+        // 'Channel.ReadBasic.All',
+        // 'ChannelMessage.Read.All',
+        // 'ChannelMessage.Send',
+        // 'ChannelMessage.ReadWrite',
+        // 'ChannelMember.Read.All',
+        // 'ChannelMember.ReadWrite.All',
+        // // 'Team.ReadBasic.All',
+        // // 'TeamMember.Read.All',
+        // // 'TeamSettings.Read.All',
+        // // 'TeamSettings.ReadWrite.All',
+
+        // // SharePoint permissions
+        // 'AllSites.Read',
+        // 'AllSites.Write',
+        // 'AllSites.Manage',
+        // 'AllSites.FullControl',
+
+        // // Application and device permissions
+        // 'Application.Read.All',
+        // 'Application.ReadWrite.All',
+        // 'Device.Read',
+        // 'Device.Command',
+        // 'DeviceManagementConfiguration.Read.All',
+        // 'DeviceManagementConfiguration.ReadWrite.All',
+        // 'DeviceManagementApps.Read.All',
+        // 'DeviceManagementApps.ReadWrite.All',
+        // 'DeviceManagementManagedDevices.Read.All',
+        // 'DeviceManagementManagedDevices.ReadWrite.All',
+        // 'DeviceManagementServiceConfig.Read.All',
+        // 'DeviceManagementServiceConfig.ReadWrite.All',
+
+        // // Security and compliance permissions
+        // 'SecurityEvents.Read.All',
+        // 'SecurityEvents.ReadWrite.All',
+        // 'ThreatIndicators.ReadWrite.OwnedBy',
+        // 'IdentityRiskEvent.Read.All',
+        // 'IdentityRiskyUser.Read.All',
+        // 'IdentityRiskyUser.ReadWrite.All',
+        // 'Policy.Read.All',
+        // 'Policy.ReadWrite.TrustFramework',
+        // 'Policy.ReadWrite.ConditionalAccess',
+        // 'Policy.ReadWrite.ApplicationConfiguration',
+
+        // // Reports and analytics permissions
+        // 'Reports.Read.All',
+        // 'AuditLog.Read.All',
+        // 'Directory.Read.All',
+
+        // // Bookings permissions
+        // 'Bookings.Read.All',
+        // 'Bookings.ReadWrite.All',
+        // 'Bookings.Manage.All',
+        // 'BookingsAppointment.ReadWrite.All',
+
+        // // Education permissions
+        // 'EduAdministration.Read',
+        // 'EduAdministration.ReadWrite',
+        // 'EduAssignments.ReadBasic',
+        // 'EduAssignments.ReadWriteBasic',
+        // 'EduAssignments.Read',
+        // 'EduAssignments.ReadWrite',
+        // 'EduRoster.ReadBasic',
+        // 'EduRoster.Read',
+        // 'EduRoster.ReadWrite',
+
+        // // External connections permissions
+        // 'ExternalConnection.Read.OwnedBy',
+        // 'ExternalConnection.ReadWrite.OwnedBy',
+        // 'ExternalItem.Read.All',
+        // 'ExternalItem.ReadWrite.OwnedBy',
+
+        // // Information protection permissions
+        // 'InformationProtectionPolicy.Read',
+        // 'InformationProtectionContent.Sign.OwnedBy',
+        // 'InformationProtectionContent.Write.OwnedBy',
+
+        // // Print permissions
+        // 'Printer.Read.All',
+        // 'Printer.ReadWrite.All',
+        // 'PrintJob.Read',
+        // 'PrintJob.Read.All',
+        // 'PrintJob.ReadWrite',
+        // 'PrintJob.ReadWrite.All',
+
+        // // Search permissions
+        // 'SearchConfiguration.Read.All',
+        // 'SearchConfiguration.ReadWrite.All',
+
+        // // Workbooks and Excel permissions
+        // 'Files.ReadWrite',
+
+        // // Cloud communications permissions
+        // 'CloudPC.Read.All',
+        // 'CloudPC.ReadWrite.All',
+
+        // // Places permissions
+        // 'Place.Read.All',
+
+        // // Presence permissions
+        // 'Presence.Read',
+        // 'Presence.Read.All',
+        // 'Presence.ReadWrite',
+
+        // // Short notes permissions
+        // 'ShortNotes.Read',
+        // 'ShortNotes.ReadWrite',
+
+        // // Synchronization permissions
+        // 'Synchronization.Read.All',
+        // 'Synchronization.ReadWrite.All',
+
+        // // Terms of use permissions
+        // 'Agreement.Read.All',
+        // 'Agreement.ReadWrite.All',
+        // 'AgreementAcceptance.Read',
+        // 'AgreementAcceptance.Read.All',
+
+        // // Virtual events permissions
+        // 'VirtualEvent.Read',
+        // 'OnlineMeetings.Read',
+        // 'OnlineMeetings.ReadWrite',
+
+        // // Windows updates permissions
+        // 'WindowsUpdates.ReadWrite.All',
+
+        // // Privileged access permissions
+        // 'PrivilegedAccess.Read.AzureAD',
+        // 'PrivilegedAccess.Read.AzureADGroup',
+        // 'PrivilegedAccess.ReadWrite.AzureADGroup',
+        // // 'PrivilegedAccess.Read.AzureResources',
+
+        // // // Role management permissions
+        // 'RoleManagement.Read.Directory',
+        // 'RoleManagement.ReadWrite.Directory',
+        // // 'RoleManagement.Read.CloudPC',
+        // // 'RoleManagement.ReadWrite.CloudPC',
+        // 'RoleManagementPolicy.Read.AzureADGroup',
+        // 'RoleManagementPolicy.ReadWrite.AzureADGroup',
+
+        // // Cross-tenant access permissions
+        // 'CrossTenantInformation.ReadBasic.All',
+        // 'Policy.Read.CrossTenantAccess',
+        // 'Policy.ReadWrite.CrossTenantAccess',
+
+        // // Business scenarios permissions
+        // 'BusinessScenarioConfig.Read.OwnedBy',
+        // 'BusinessScenarioConfig.ReadWrite.OwnedBy',
+        // 'BusinessScenarioData.Read.OwnedBy',
+        // 'BusinessScenarioData.ReadWrite.OwnedBy',
+
+        // // Industry data permissions
+        // 'IndustryData.ReadBasic.All',
+        // 'IndustryData-InboundFlow.Read.All',
+        // 'IndustryData-InboundFlow.ReadWrite.All',
+        // 'IndustryData-Run.Read.All',
+        // 'IndustryData-SourceSystem.Read.All',
+        // 'IndustryData-SourceSystem.ReadWrite.All',
+        // 'IndustryData-TimePeriod.Read.All',
+        // 'IndustryData-TimePeriod.ReadWrite.All',
+
+        // // Lifecycle workflows permissions
+        // 'LifecycleWorkflows.Read.All',
+        // 'LifecycleWorkflows.ReadWrite.All',
+
+        // // Network access permissions
+        // 'NetworkAccess.Read.All',
+        // 'NetworkAccess.ReadWrite.All',
+        // 'NetworkAccessPolicy.Read.All',
+        // 'NetworkAccessPolicy.ReadWrite.All',
+
+        // // Records management permissions
+        // 'RecordsManagement.Read.All',
+        // 'RecordsManagement.ReadWrite.All',
+
+        // // Teams activity permissions
+        // 'TeamsActivity.Read',
+        // 'TeamsActivity.Send',
+
+        // // User authentication methods permissions
+        // 'UserAuthenticationMethod.Read',
+        // 'UserAuthenticationMethod.ReadWrite',
+        // 'UserAuthenticationMethod.Read.All',
+        // 'UserAuthenticationMethod.ReadWrite.All'
     ];
 
     public function __construct(int $timeout = 60)
@@ -58,10 +318,21 @@ class OutlookService
     private function validateConfig(): void
     {
         $required = ['client_id', 'client_secret', 'redirect_uri'];
+
         foreach ($required as $key) {
             if (empty($this->config[$key])) {
-                throw new Exception("Missing required Azure configuration: {$key}");
+                throw new Exception("Missing required Azure configuration: {$key}. Please check your .env file and ensure AZURE_{$key} is set.");
             }
+        }
+
+        // Validate client_id format (should be a GUID)
+        if (!preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i', $this->config['client_id'])) {
+            throw new Exception("Invalid client_id format. Must be a valid GUID.");
+        }
+
+        // Validate redirect_uri format
+        if (!filter_var($this->config['redirect_uri'], FILTER_VALIDATE_URL)) {
+            throw new Exception("Invalid redirect_uri format. Must be a valid URL.");
         }
     }
 
@@ -80,6 +351,10 @@ class OutlookService
     public function isTokenValid(string $userEmail): bool
     {
         try {
+            if (!filter_var($userEmail, FILTER_VALIDATE_EMAIL)) {
+                return false;
+            }
+
             $tokenRecord = DB::table('oauth_tokens')
                 ->where('provider', 'outlook')
                 ->where('email', $userEmail)
@@ -90,12 +365,15 @@ class OutlookService
             }
 
             $expiresAt = Carbon::createFromTimestamp($tokenRecord->expires_at);
-            return !$expiresAt->isPast();
+            $isValid = !$expiresAt->isPast();
+
+            return $isValid;
         } catch (Exception $e) {
             logger()->error('Token validation failed: ' . json_encode([
                 'email' => $userEmail,
                 'error' => $e->getMessage()
             ], JSON_PRETTY_PRINT));
+
             return false;
         }
     }
@@ -205,8 +483,11 @@ class OutlookService
                 'refreshed_at' => now()->toISOString()
             ]);
 
-            $user = null;
-            $this->saveToken($user, $this->token);
+            $user = $this->auth;
+            if ($user) {
+                $this->saveToken($user, $this->token);
+            }
+
             return true;
         } catch (Exception $e) {
             logger()->error('Token refresh error: ' . $e->getMessage());
@@ -258,6 +539,14 @@ class OutlookService
     public function getAccessToken(string $code, string $codeVerifier): array
     {
         try {
+            if (empty($code)) {
+                throw new Exception('Authorization code is required');
+            }
+
+            if (empty($codeVerifier)) {
+                throw new Exception('PKCE code verifier is required');
+            }
+
             $tokenUrl = "{$this->authEndpoint}/{$this->config['tenant_id']}/oauth2/v2.0/token";
 
             $response = Http::asForm()->timeout(30)->post($tokenUrl, [
@@ -310,33 +599,52 @@ class OutlookService
      */
     public function getAuthUrl(): array
     {
-        $state = Str::random(32);
-        $codeVerifier = PkceHelper::generateCodeVerifier();
-        $codeChallenge = PkceHelper::generateCodeChallenge($codeVerifier);
+        try {
 
-        Redis::setex("azure_auth_state_{$state}", 600, json_encode([
-            'code_verifier' => $codeVerifier,
-            'created_at' => now()->toISOString()
-        ]));
+            $state = Str::random(32);
+            $codeVerifier = PkceHelper::generateCodeVerifier();
+            $codeChallenge = PkceHelper::generateCodeChallenge($codeVerifier);
 
-        $authParams = [
-            'client_id' => $this->config['client_id'],
-            'response_type' => 'code',
-            'redirect_uri' => $this->config['redirect_uri'],
-            'scope' => implode(' ', $this->requiredScopes),
-            'state' => $state,
-            'code_challenge' => $codeChallenge,
-            'code_challenge_method' => 'S256',
-            'response_mode' => 'query',
-            'login_hint' => auth()->user()->email,
-        ];
+            Redis::setex("azure_auth_state_{$state}", 600, json_encode([
+                'code_verifier' => $codeVerifier,
+                'created_at' => now()->toISOString()
+            ]));
 
-        $authUrl = "{$this->authEndpoint}/{$this->config['tenant_id']}/oauth2/v2.0/authorize?" . http_build_query($authParams);
+            $authParams = [
+                'client_id' => $this->config['client_id'],
+                'response_type' => 'code',
+                'redirect_uri' => $this->config['redirect_uri'],
+                'scope' => implode(' ', $this->requiredScopes),
+                'state' => $state,
+                'code_challenge' => $codeChallenge,
+                'code_challenge_method' => 'S256',
+                'response_mode' => 'query',
+                'access_type' => 'offline',
+            ];
 
-        return [
-            'state' => $state,
-            'authUrl' => $authUrl,
-        ];
+            $user = auth()->user();
+            if ($user && !empty($user->email)) {
+                $authParams['login_hint'] = $user->email;
+            } else {
+                $authParams['prompt'] = 'select_account';
+            }
+
+            $authUrl = "{$this->authEndpoint}/{$this->config['tenant_id']}/oauth2/v2.0/authorize?" . http_build_query($authParams);
+
+            return [
+                'state' => $state,
+                'authUrl' => $authUrl,
+                'expires_at' => now()->addMinutes(10)->toISOString(),
+                'scopes_requested' => count($this->requiredScopes)
+            ];
+        } catch (Exception $e) {
+            logger()->error('Failed to generate authorization URL', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            throw new Exception('Failed to generate authorization URL: ' . $e->getMessage());
+        }
     }
 
     /**
@@ -344,42 +652,496 @@ class OutlookService
      */
     private function makeRequest(string $method, string $endpoint, array $options = []): array
     {
-        $token = $this->getValidToken();
+        $startTime = microtime(true);
+        $requestId = Str::uuid()->toString();
 
-        if (!$token) {
-            throw new Exception('No valid authentication token available');
+        try {
+            $token = $this->getValidToken();
+            if (!$token) {
+                throw new Exception('No valid authentication token available. Please re-authenticate.');
+            }
+
+            $url = $this->buildRequestUrl($endpoint);
+
+            $method = strtoupper($method);
+            $allowedMethods = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'];
+            if (!in_array($method, $allowedMethods)) {
+                throw new Exception("Unsupported HTTP method: {$method}");
+            }
+
+            // Prepare HTTP client with authentication and options
+            $httpClient = $this->prepareHttpClient($token, $options, $requestId);
+
+            // Execute HTTP request with method-specific handling
+            $response = $this->executeHttpRequest($httpClient, $method, $url, $options);
+
+            // Calculate response time
+            $responseTime = round((microtime(true) - $startTime) * 1000, 2);
+
+            // Handle response and errors
+            $result = $this->handleApiResponse($response, $method, $url, $responseTime, $requestId);
+
+            return $result;
+        } catch (Exception $e) {
+            $responseTime = round((microtime(true) - $startTime) * 1000, 2);
+            $this->logRequestError($method, $endpoint, $e, $responseTime, $requestId);
+            throw $e;
         }
-
-        $url = str_starts_with($endpoint, 'http') ? $endpoint : $this->graphEndpoint . $endpoint;
-
-        $httpClient = Http::withToken($token['access_token'])->timeout(30);
-
-        $response = match (strtoupper($method)) {
-            'GET' => $httpClient->get($url, $options['query'] ?? []),
-            'POST' => $httpClient->post($url, $options['json'] ?? []),
-            'PUT' => $httpClient->put($url, $options['json'] ?? []),
-            'PATCH' => $httpClient->patch($url, $options['json'] ?? []),
-            'DELETE' => $httpClient->delete($url),
-            default => throw new Exception("Unsupported HTTP method: {$method}")
-        };
-
-
-        if (!$response->successful()) {
-            $error = [
-                'status' => $response->status(),
-                'body' => $response->body(),
-                'endpoint' => $endpoint
-            ];
-
-            logger()->error('Microsoft Graph API request failed: ' . json_encode([
-                'error' => $error
-            ], JSON_PRETTY_PRINT));
-
-            throw new Exception("API request failed: HTTP {$response->status()}");
-        }
-
-        return $response->json() ?? [];
     }
+
+    /**
+     * Log request error
+     */
+    private function logRequestError(string $method, string $endpoint, Exception $exception, float $responseTime, string $requestId): void
+    {
+        logger()->error('API request failed', [
+            'request_id' => $requestId,
+            'method' => $method,
+            'endpoint' => $endpoint,
+            'error' => $exception->getMessage(),
+            'response_time_ms' => $responseTime,
+            'user' => $this->auth->email ?? 'unknown',
+            'exception_class' => get_class($exception)
+        ]);
+    }
+
+    /**
+     * Build complete request URL from endpoint
+     *
+     * @param string $endpoint API endpoint
+     * @return string Complete URL
+     */
+    private function buildRequestUrl(string $endpoint): string
+    {
+        if (str_starts_with($endpoint, 'http://') || str_starts_with($endpoint, 'https://')) {
+            return $endpoint;
+        }
+
+        if (!str_starts_with($endpoint, '/')) {
+            $endpoint = '/' . $endpoint;
+        }
+
+        return $this->graphEndpoint . $endpoint;
+    }
+
+    /**
+     * Prepare HTTP client with authentication and configuration
+     *
+     * @param array $token Authentication token data
+     * @param array $options Request options
+     * @param string $requestId Unique request identifier
+     * @return \Illuminate\Http\Client\PendingRequest
+     */
+    private function prepareHttpClient(array $token, array $options, string $requestId): \Illuminate\Http\Client\PendingRequest
+    {
+        $httpClient = Http::withToken($token['access_token'])
+            ->timeout($this->timeout)
+            ->connectTimeout(30)
+            ->retry(3, 1000, function ($exception, $request) use ($requestId) {
+                if ($exception instanceof \Illuminate\Http\Client\ConnectionException) {
+                    logger()->warning('HTTP connection failed, retrying', [
+                        'request_id' => $requestId,
+                        'error' => $exception->getMessage()
+                    ]);
+                    return true;
+                }
+
+                if (isset($exception->response) && $exception->response->status() >= 500) {
+                    logger()->warning('Server error, retrying', [
+                        'request_id' => $requestId,
+                        'status' => $exception->response->status()
+                    ]);
+                    return true;
+                }
+
+                return false;
+            });
+
+        $httpClient = $httpClient->withHeaders([
+            'Content-Type' => 'application/json',
+            'Accept' => 'application/json',
+            'User-Agent' => 'Laravel-OutlookService/2.0',
+            'X-Request-ID' => $requestId,
+            // 'Prefer' => 'return=representation', // Get full objects in responses
+        ]);
+
+        if (isset($options['headers'])) {
+            $httpClient = $httpClient->withHeaders($options['headers']);
+        }
+
+        if (isset($options['multipart'])) {
+            $httpClient = $httpClient->asMultipart();
+        } elseif (isset($options['form'])) {
+            $httpClient = $httpClient->asForm();
+        }
+
+        if (isset($options['content_type'])) {
+            $httpClient = $httpClient->contentType($options['content_type']);
+        }
+
+        return $httpClient;
+    }
+
+    /**
+     * Execute HTTP request with method-specific handling
+     *
+     * @param \Illuminate\Http\Client\PendingRequest $httpClient
+     * @param string $method HTTP method
+     * @param string $url Request URL
+     * @param array $options Request options
+     * @return \Illuminate\Http\Client\Response
+     */
+    private function executeHttpRequest($httpClient, string $method, string $url, array $options): \Illuminate\Http\Client\Response
+    {
+        return match ($method) {
+            'GET' => $httpClient->get($url, $options['query'] ?? []),
+            'POST' => $this->executePostRequest($httpClient, $url, $options),
+            'PUT' => $this->executePutRequest($httpClient, $url, $options),
+            'PATCH' => $this->executePatchRequest($httpClient, $url, $options),
+            'DELETE' => $httpClient->delete($url, $options['query'] ?? []),
+            'HEAD' => $httpClient->head($url, $options['query'] ?? []),
+            'OPTIONS' => $httpClient->send('OPTIONS', $url),
+            default => throw new Exception("HTTP method {$method} not implemented")
+        };
+    }
+
+    /**
+     * Execute POST request with appropriate data handling
+     */
+    private function executePostRequest($httpClient, string $url, array $options): \Illuminate\Http\Client\Response
+    {
+        if (isset($options['json'])) {
+            return $httpClient->post($url, $options['json']);
+        } elseif (isset($options['form'])) {
+            return $httpClient->asForm()->post($url, $options['form']);
+        } elseif (isset($options['multipart'])) {
+            return $httpClient->asMultipart()->post($url, $options['multipart']);
+        } elseif (isset($options['body'])) {
+            return $httpClient->withBody($options['body'], $options['content_type'] ?? 'application/octet-stream')->post($url);
+        } else {
+            return $httpClient->post($url);
+        }
+    }
+
+    /**
+     * Execute PUT request with appropriate data handling
+     */
+    private function executePutRequest($httpClient, string $url, array $options): \Illuminate\Http\Client\Response
+    {
+        if (isset($options['json'])) {
+            return $httpClient->put($url, $options['json']);
+        } elseif (isset($options['body'])) {
+            return $httpClient->withBody($options['body'], $options['content_type'] ?? 'application/octet-stream')->put($url);
+        } else {
+            return $httpClient->put($url);
+        }
+    }
+
+    /**
+     * Execute PATCH request with appropriate data handling
+     */
+    private function executePatchRequest($httpClient, string $url, array $options): \Illuminate\Http\Client\Response
+    {
+        if (isset($options['json'])) {
+            return $httpClient->patch($url, $options['json']);
+        } elseif (isset($options['body'])) {
+            return $httpClient->withBody($options['body'], $options['content_type'] ?? 'application/octet-stream')->patch($url);
+        } else {
+            return $httpClient->patch($url);
+        }
+    }
+
+    /**
+     * Handle API response and convert to array
+     *
+     * @param \Illuminate\Http\Client\Response $response HTTP response
+     * @param string $method HTTP method
+     * @param string $url Request URL
+     * @param float $responseTime Response time in milliseconds
+     * @param string $requestId Unique request identifier
+     * @return array Response data
+     * @throws Exception On API errors
+     */
+    private function handleApiResponse($response, string $method, string $url, float $responseTime, string $requestId): array
+    {
+        $statusCode = $response->status();
+
+        if ($response->successful()) {
+            return $this->parseSuccessfulResponse($response, $method);
+        }
+
+        $this->handleSpecificErrorCodes($response, $method, $url, $responseTime, $requestId);
+
+        $errorBody = $response->body();
+        $errorData = $this->parseErrorResponse($errorBody);
+
+        throw new Exception(
+            "Microsoft Graph API request failed: HTTP {$statusCode} - " .
+                ($errorData['message'] ?? $errorData['error_description'] ?? 'Unknown error')
+        );
+    }
+
+    /**
+     * Parse successful API response
+     *
+     * @param \Illuminate\Http\Client\Response $response
+     * @param string $method HTTP method
+     * @return array Parsed response data
+     */
+    private function parseSuccessfulResponse($response, string $method): array
+    {
+        $contentType = $response->header('Content-Type');
+
+        // Handle different content types
+        if (str_contains($contentType, 'application/json')) {
+            $data = $response->json();
+            return is_array($data) ? $data : [];
+        }
+
+        // Handle binary content (file downloads, images, etc.)
+        if (
+            str_contains($contentType, 'application/octet-stream') ||
+            str_contains($contentType, 'image/') ||
+            str_contains($contentType, 'application/pdf')
+        ) {
+            return [
+                'content' => $response->body(),
+                'content_type' => $contentType,
+                'size' => strlen($response->body())
+            ];
+        }
+
+        // Handle text content
+        if (str_contains($contentType, 'text/')) {
+            return [
+                'content' => $response->body(),
+                'content_type' => $contentType
+            ];
+        }
+
+        // Handle empty responses (like DELETE operations)
+        if ($method === 'DELETE' || $response->status() === 204) {
+            return ['success' => true];
+        }
+
+        // Default: try to parse as JSON, fallback to empty array
+        try {
+            return $response->json() ?? [];
+        } catch (Exception $e) {
+            return [];
+        }
+    }
+
+    /**
+     * Handle specific HTTP error status codes
+     *
+     * @param \Illuminate\Http\Client\Response $response
+     * @param string $method HTTP method
+     * @param string $url Request URL
+     * @param float $responseTime Response time
+     * @param string $requestId Request ID
+     * @throws Exception With specific error messages
+     */
+    private function handleSpecificErrorCodes($response, string $method, string $url, float $responseTime, string $requestId): void
+    {
+        $statusCode = $response->status();
+        $errorBody = $response->body();
+
+        switch ($statusCode) {
+            case 400:
+                $this->handleBadRequestError($response, $requestId);
+                break;
+
+            case 401:
+                $this->handleUnauthorizedError($response, $requestId);
+                break;
+
+            case 403:
+                $this->handleForbiddenError($response, $requestId);
+                break;
+
+            case 404:
+                $this->handleNotFoundError($response, $url, $requestId);
+                break;
+
+            case 409:
+                $this->handleConflictError($response, $requestId);
+                break;
+
+            case 413:
+                throw new Exception("Request payload too large. Please reduce the size of your request.");
+
+            case 429:
+                $this->handleRateLimitError($response, $requestId);
+                break;
+
+            case 500:
+            case 502:
+            case 503:
+            case 504:
+                $this->handleServerError($response, $statusCode, $requestId);
+                break;
+
+            default:
+                logger()->warning('Unexpected HTTP status code', [
+                    'request_id' => $requestId,
+                    'status_code' => $statusCode,
+                    'method' => $method,
+                    'url' => $url,
+                    'response_time_ms' => $responseTime
+                ]);
+        }
+    }
+
+    /**
+     * Handle 400 Bad Request errors
+     */
+    private function handleBadRequestError($response, string $requestId): void
+    {
+        $errorData = $this->parseErrorResponse($response->body());
+
+        logger()->error('Bad Request error', [
+            'request_id' => $requestId,
+            'error_code' => $errorData['code'] ?? 'unknown',
+            'error_message' => $errorData['message'] ?? 'unknown'
+        ]);
+
+        $message = $errorData['message'] ?? 'Bad request. Please check your request parameters.';
+        throw new Exception("Bad Request: {$message}");
+    }
+
+    /**
+     * Handle 401 Unauthorized errors
+     */
+    private function handleUnauthorizedError($response, string $requestId): void
+    {
+        $errorData = $this->parseErrorResponse($response->body());
+
+        logger()->error('Unauthorized error - token may be invalid', [
+            'request_id' => $requestId,
+            'error_code' => $errorData['code'] ?? 'unknown',
+            'user' => $this->auth->email ?? 'unknown'
+        ]);
+
+        // Clear potentially invalid token
+        $this->token = null;
+
+        throw new Exception("Authentication failed. Please re-authenticate with Microsoft.");
+    }
+
+    /**
+     * Handle 403 Forbidden errors
+     */
+    private function handleForbiddenError($response, string $requestId): void
+    {
+        $errorData = $this->parseErrorResponse($response->body());
+
+        logger()->error('Forbidden error - insufficient permissions', [
+            'request_id' => $requestId,
+            'error_code' => $errorData['code'] ?? 'unknown',
+            'user' => $this->auth->email ?? 'unknown'
+        ]);
+
+        $message = $errorData['message'] ?? 'Insufficient permissions for this operation.';
+        throw new Exception("Forbidden: {$message}");
+    }
+
+    /**
+     * Handle 404 Not Found errors
+     */
+    private function handleNotFoundError($response, string $url, string $requestId): void
+    {
+        logger()->warning('Resource not found', [
+            'request_id' => $requestId,
+            'url' => $url,
+            'user' => $this->auth->email ?? 'unknown'
+        ]);
+
+        throw new Exception("Requested resource not found.");
+    }
+
+    /**
+     * Handle 409 Conflict errors
+     */
+    private function handleConflictError($response, string $requestId): void
+    {
+        $errorData = $this->parseErrorResponse($response->body());
+
+        logger()->warning('Conflict error', [
+            'request_id' => $requestId,
+            'error_code' => $errorData['code'] ?? 'unknown'
+        ]);
+
+        $message = $errorData['message'] ?? 'Conflict with current state of the resource.';
+        throw new Exception("Conflict: {$message}");
+    }
+
+    /**
+     * Handle 429 Rate Limit errors
+     */
+    private function handleRateLimitError($response, string $requestId): void
+    {
+        $retryAfter = $response->header('Retry-After') ?? '60';
+
+        logger()->warning('Rate limit exceeded', [
+            'request_id' => $requestId,
+            'retry_after' => $retryAfter,
+            'user' => $this->auth->email ?? 'unknown'
+        ]);
+
+        throw new Exception("Rate limit exceeded. Please wait {$retryAfter} seconds before trying again.");
+    }
+
+    /**
+     * Handle 5xx Server errors
+     */
+    private function handleServerError($response, int $statusCode, string $requestId): void
+    {
+        logger()->error('Microsoft server error', [
+            'request_id' => $requestId,
+            'status_code' => $statusCode,
+            'user' => $this->auth->email ?? 'unknown'
+        ]);
+
+        throw new Exception("Microsoft server error (HTTP {$statusCode}). Please try again later.");
+    }
+
+    /**
+     * Parse error response body
+     *
+     * @param string $errorBody Raw error response
+     * @return array Parsed error data
+     */
+    private function parseErrorResponse(string $errorBody): array
+    {
+        try {
+            $errorData = json_decode($errorBody, true);
+
+            // Handle Microsoft Graph error format
+            if (isset($errorData['error'])) {
+                if (is_array($errorData['error'])) {
+                    return [
+                        'code' => $errorData['error']['code'] ?? 'unknown',
+                        'message' => $errorData['error']['message'] ?? 'Unknown error',
+                        'details' => $errorData['error']['details'] ?? []
+                    ];
+                } else {
+                    return [
+                        'code' => $errorData['error'],
+                        'message' => $errorData['error_description'] ?? 'Unknown error'
+                    ];
+                }
+            }
+
+            return $errorData ?? ['message' => 'Unknown error'];
+        } catch (Exception $e) {
+            return [
+                'message' => 'Failed to parse error response',
+                'raw_body' => $errorBody
+            ];
+        }
+    }
+
 
     /**
      * Get current user information
@@ -1330,59 +2092,28 @@ class OutlookService
     }
 
     /**
-     * Send email and return message details including ID
+     * Send email with comprehensive features and message tracking
+     *
+     * @param mixed $auth Authenticated user object
+     * @param array $emailData Email configuration and content
+     * @return array Result with success status, message_id, and details
      */
     public function sendEmail($auth, array $emailData): array
     {
         try {
             $this->auth = $auth;
 
-            $message = [
-                'message' => [
-                    'subject' => $emailData['subject'],
-                    'body' => [
-                        'contentType' => $emailData['bodyType'] ?? 'HTML',
-                        'content' => $emailData['body']
-                    ],
-                    'toRecipients' => $this->formatRecipients($emailData['to'])
-                ]
-            ];
+            // Validate required fields
+            $this->validateEmailData($emailData);
 
-            if (!empty($emailData['cc'])) {
-                $message['message']['ccRecipients'] = $this->formatRecipients($emailData['cc']);
-            }
-
-            if (!empty($emailData['bcc'])) {
-                $message['message']['bccRecipients'] = $this->formatRecipients($emailData['bcc']);
-            }
-
-            if (!empty($emailData['attachments'])) {
-                $message['message']['attachments'] = $this->formatAttachments($emailData['attachments']);
-            }
-
-            if (!empty($emailData['replyToId'])) {
-                $message['message']['replyTo'] = $this->formatRecipients([$emailData['replyToEmail']]);
-                // Set conversation ID for threading
-                if (!empty($emailData['conversationId'])) {
-                    $message['message']['conversationId'] = $emailData['conversationId'];
-                }
-            }
-
-            if (!empty($emailData['priority'])) {
-                $message['message']['importance'] = $this->mapPriorityToImportance($emailData['priority']);
-            }
-
-            if (!empty($emailData['customHeaders'])) {
-                $message['message']['internetMessageHeaders'] = $emailData['customHeaders'];
-            }
-
-            // Send the email
-            $this->makeRequest('POST', '/me/sendMail', ['json' => $message]);
+            // Sanitize and prepare email data
+            $emailData = $this->sanitizeEmailData($emailData);
 
             return $this->sendEmailWithMessageId($auth, $emailData);
         } catch (Exception $e) {
             logger()->error('Failed to send email via Outlook API', [
                 'error' => $e->getMessage(),
+                'user' => $auth->email ?? 'unknown',
                 'subject' => $emailData['subject'] ?? 'N/A',
                 'trace' => $e->getTraceAsString()
             ]);
@@ -1390,9 +2121,123 @@ class OutlookService
             return [
                 'success' => false,
                 'error' => $e->getMessage(),
-                'message_id' => null
+                'message_id' => null,
+                'error_code' => $this->getErrorCode($e)
             ];
         }
+    }
+
+    /**
+     * Validate email data structure and required fields
+     */
+    private function validateEmailData(array $emailData): void
+    {
+        if (empty($emailData['to'])) {
+            throw new Exception('At least one recipient (to) is required');
+        }
+
+        if (empty($emailData['subject'])) {
+            throw new Exception('Email subject is required');
+        }
+
+        $this->validateRecipients($emailData['to'], 'to');
+
+        if (!empty($emailData['cc'])) {
+            $this->validateRecipients($emailData['cc'], 'cc');
+        }
+
+        if (!empty($emailData['bcc'])) {
+            $this->validateRecipients($emailData['bcc'], 'bcc');
+        }
+
+        // Validate subject length
+        if (strlen($emailData['subject']) > 255) {
+            throw new Exception('Email subject cannot exceed 255 characters');
+        }
+
+        // Validate body size (10MB limit for Microsoft Graph)
+        if (!empty($emailData['body']) && strlen($emailData['body']) > 10485760) {
+            throw new Exception('Email body cannot exceed 10MB');
+        }
+
+        // Validate priority
+        if (isset($emailData['priority']) && !in_array($emailData['priority'], ['low', 'normal', 'high'])) {
+            throw new Exception('Priority must be one of: low, normal, high');
+        }
+
+        // Validate body type
+        if (isset($emailData['bodyType']) && !in_array(strtolower($emailData['bodyType']), ['text', 'html'])) {
+            throw new Exception('Body type must be either text or html');
+        }
+    }
+
+    /**
+     * Validate recipient email addresses
+     */
+    private function validateRecipients(array $recipients, string $type): void
+    {
+        if (empty($recipients)) {
+            return;
+        }
+
+        foreach ($recipients as $index => $recipient) {
+            $email = is_string($recipient) ? $recipient : ($recipient['email'] ?? $recipient['address'] ?? null);
+
+            if (empty($email)) {
+                throw new Exception("Invalid recipient at index {$index} in {$type}: email address is required");
+            }
+
+            if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                throw new Exception("Invalid email address in {$type}: {$email}");
+            }
+        }
+    }
+
+    /**
+     * Sanitize email data for security
+     */
+    private function sanitizeEmailData(array $emailData): array
+    {
+        // Sanitize subject
+        $emailData['subject'] = trim(strip_tags($emailData['subject']));
+
+        // Sanitize HTML body if needed
+        if (($emailData['bodyType'] ?? 'HTML') === 'HTML' && !empty($emailData['body'])) {
+            $emailData['body'] = $this->sanitizeHtmlContent($emailData['body']);
+        }
+
+        return $emailData;
+    }
+
+    /**
+     * Sanitize HTML content (basic security measures)
+     */
+    private function sanitizeHtmlContent(string $html): string
+    {
+        // Remove potentially dangerous tags and scripts
+        $html = preg_replace('/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/mi', '', $html);
+        $html = preg_replace('/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/mi', '', $html);
+        $html = preg_replace('/on\w+="[^"]*"/i', '', $html); // Remove event handlers
+
+        return $html;
+    }
+
+    /**
+     * Get error code from exception
+     */
+    private function getErrorCode(Exception $e): string
+    {
+        $message = $e->getMessage();
+
+        if (str_contains($message, 'HTTP 400')) return 'BAD_REQUEST';
+        if (str_contains($message, 'HTTP 401')) return 'UNAUTHORIZED';
+        if (str_contains($message, 'HTTP 403')) return 'FORBIDDEN';
+        if (str_contains($message, 'HTTP 404')) return 'NOT_FOUND';
+        if (str_contains($message, 'HTTP 429')) return 'RATE_LIMITED';
+        if (str_contains($message, 'Rate limit')) return 'RATE_LIMITED';
+        if (str_contains($message, 'Authentication failed')) return 'AUTH_FAILED';
+
+        return 'UNKNOWN_ERROR';
     }
 
     /**
@@ -1520,12 +2365,56 @@ class OutlookService
     }
 
     /**
-     * Get message details by ID
+     * Get detailed message information by ID
+     *
+     * @param string $messageId Message ID
+     * @param array $options Additional options (select fields, etc.)
+     * @return array Message details
      */
-    public function getMessageDetails(string $messageId): array
+    public function getMessageDetails(string $messageId, array $options = []): array
     {
         try {
-            $response = $this->makeRequest('GET', "/me/messages/{$messageId}");
+            if (empty($messageId)) {
+                throw new Exception('Message ID is required');
+            }
+
+            $query = [];
+
+            if (!empty($options['select'])) {
+                $query['$select'] = $options['select'];
+            } else {
+                $query['$select'] = implode(',', [
+                    'id',
+                    'conversationId',
+                    'internetMessageId',
+                    'subject',
+                    'sentDateTime',
+                    'receivedDateTime',
+                    'from',
+                    'sender',
+                    'toRecipients',
+                    'ccRecipients',
+                    'bccRecipients',
+                    'replyTo',
+                    'hasAttachments',
+                    'importance',
+                    'isRead',
+                    'isDraft',
+                    'parentFolderId',
+                    'categories',
+                    'flag',
+                    'body',
+                    'bodyPreview',
+                    'attachments',
+                    'internetMessageHeaders'
+                ]);
+            }
+
+            if (!empty($options['expand'])) {
+                $query['$expand'] = $options['expand'];
+            }
+
+            $response = $this->makeRequest('GET', "/me/messages/{$messageId}", ['query' => $query]);
 
             return [
                 'id' => $response['id'],
@@ -1535,17 +2424,27 @@ class OutlookService
                 'sentDateTime' => $response['sentDateTime'],
                 'receivedDateTime' => $response['receivedDateTime'],
                 'from' => $response['from'],
-                'toRecipients' => $response['toRecipients'],
+                'sender' => $response['sender'] ?? $response['from'],
+                'toRecipients' => $response['toRecipients'] ?? [],
                 'ccRecipients' => $response['ccRecipients'] ?? [],
                 'bccRecipients' => $response['bccRecipients'] ?? [],
+                'replyTo' => $response['replyTo'] ?? [],
                 'hasAttachments' => $response['hasAttachments'] ?? false,
                 'importance' => $response['importance'] ?? 'normal',
-                'isRead' => $response['isRead'] ?? false
+                'isRead' => $response['isRead'] ?? false,
+                'isDraft' => $response['isDraft'] ?? false,
+                'parentFolderId' => $response['parentFolderId'] ?? null,
+                'categories' => $response['categories'] ?? [],
+                'flag' => $response['flag'] ?? null,
+                'body' => $response['body'] ?? null,
+                'bodyPreview' => $response['bodyPreview'] ?? '',
+                'attachments' => $response['attachments'] ?? []
             ];
         } catch (Exception $e) {
-            logger()->error('Failed to get message details: ' . json_encode([
+            logger()->error(json_encode([
                 'message_id' => $messageId,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
+                'user' => $this->auth->email ?? 'unknown'
             ], JSON_PRETTY_PRINT));
             return [];
         }
@@ -1553,8 +2452,96 @@ class OutlookService
 
     /**
      * Send a reply to an existing message
+     * Enhanced version with additional features
+     *
+     * @param mixed $auth Authenticated user object
+     * @param string $originalMessageId Original message ID to reply to
+     * @param array $replyData Reply content and options
+     * @return array Result with success status and details
      */
     public function sendReply($auth, string $originalMessageId, array $replyData): array
+    {
+        // try {
+        //     $this->auth = $auth;
+        //     $originalMessage = $this->getMessageDetails($originalMessageId);
+
+        //     if (empty($originalMessage)) {
+        //         throw new Exception('Original message not found');
+        //     }
+
+        //     // Validate reply permissions
+        //     $canReply = $this->canReplyToMessage($originalMessageId);
+        //     if (!$canReply['can_reply']) {
+        //         throw new Exception($canReply['reason']);
+        //     }
+
+        //     // Build reply message
+        //     $replyMessage = $this->buildReplyMessage($replyData, $originalMessage, 'reply');
+
+        //     logger()->info('Sending reply', [
+        //         'original_message_id' => $originalMessageId,
+        //         'conversation_id' => $originalMessage['conversationId'],
+        //         'original_subject' => $originalMessage['subject'],
+        //         'user' => $auth->email
+        //     ]);
+
+        //     $startTime = microtime(true);
+
+        //     // Send reply using Microsoft Graph
+        //     $this->makeRequest('POST', "/me/messages/{$originalMessageId}/reply", [
+        //         'json' => $replyMessage
+        //     ]);
+
+        //     $responseTime = round((microtime(true) - $startTime) * 1000, 2);
+
+        //     // Get conversation details for response
+        //     $conversationMessages = $this->getConversationMessages($originalMessage['conversationId']);
+
+        //     logger()->info('Reply sent successfully', [
+        //         'original_message_id' => $originalMessageId,
+        //         'conversation_id' => $originalMessage['conversationId'],
+        //         'response_time_ms' => $responseTime,
+        //         'user' => $auth->email
+        //     ]);
+
+        //     return [
+        //         'success' => true,
+        //         'original_message_id' => $originalMessageId,
+        //         'conversation_id' => $originalMessage['conversationId'],
+        //         'replied_to' => [
+        //             'sender' => $originalMessage['from']['emailAddress']['address'] ?? 'Unknown'
+        //         ],
+        //         'conversation_message_count' => $conversationMessages['count'] ?? 0,
+        //         'response_time_ms' => $responseTime,
+        //         'message' => 'Reply sent successfully'
+        //     ];
+        // } catch (Exception $e) {
+        //     logger()->error('Failed to send reply', [
+        //         'original_message_id' => $originalMessageId,
+        //         'error' => $e->getMessage(),
+        //         'user' => $auth->email ?? 'unknown'
+        //     ]);
+
+        //     return [
+        //         'success' => false,
+        //         'error' => $e->getMessage(),
+        //         'original_message_id' => $originalMessageId,
+        //         'error_code' => $this->getErrorCode($e)
+        //     ];
+        // }
+        return [];
+    }
+
+    /**
+     * Send a reply to all recipients of an existing message
+     * Enhanced version with recipient analysis
+     *
+     * @param mixed $auth Authenticated user object
+     * @param string $originalMessageId Original message ID to reply to
+     * @param array $replyData Reply content and options
+     * @return array Result with success status and recipient details
+     */
+    public function sendReplyAll($auth, string $originalMessageId, array $replyData): array
     {
         try {
             $this->auth = $auth;
@@ -1564,45 +2551,338 @@ class OutlookService
                 throw new Exception('Original message not found');
             }
 
-            $replyMessage = [
-                "message" => [
-                    "body" => [
-                        "contentType" => $replyData['bodyType'] ?? 'html',
-                        "content" => $replyData['body']
-                    ]
-                ]
-            ];
+            $canReply = $this->canReplyToMessage($originalMessageId);
+            if (!$canReply['can_reply']) {
+                throw new Exception($canReply['reason']);
+            }
 
-            // if (!empty($replyData['attachments'])) {
-            //     $replyMessage['message']['attachments'] = $this->formatAttachments($replyData['attachments']);
-            // }
+            $recipientPreview = $this->getReplyRecipientsPreview($originalMessageId, 'replyAll');
 
-            logger()->info('Reply: ' . json_encode([
-                'success' => true,
+            // // Build reply message
+            // $replyMessage = $this->buildReplyMessage($replyData, $originalMessage, 'replyAll');
+
+            // logger()->info('Sending reply all', [
+            //     'original_message_id' => $originalMessageId,
+            //     'conversation_id' => $originalMessage['conversationId'],
+            //     'recipient_count' => $recipientPreview['recipient_count'] ?? 0,
+            //     'original_subject' => $originalMessage['subject'],
+            //     'user' => $auth->email
+            // ]);
+
+            // logger()->info(['recipientPreview' => $recipientPreview]);
+
+            return [];
+
+
+            // $startTime = microtime(true);
+
+            // // Send reply all using Microsoft Graph
+            // $this->makeRequest('POST', "/me/messages/{$originalMessageId}/replyAll", [
+            //     'json' => $replyMessage
+            // ]);
+
+            // $responseTime = round((microtime(true) - $startTime) * 1000, 2);
+
+            // // Get updated conversation details
+            // $conversationMessages = $this->getConversationMessages($originalMessage['conversationId']);
+
+            // logger()->info('Reply all sent successfully', [
+            //     'original_message_id' => $originalMessageId,
+            //     'conversation_id' => $originalMessage['conversationId'],
+            //     'recipient_count' => $recipientPreview['recipient_count'] ?? 0,
+            //     'response_time_ms' => $responseTime,
+            //     'user' => $auth->email
+            // ]);
+
+            // return [
+            //     'success' => true,
+            //     'original_message_id' => $originalMessageId,
+            //     'conversation_id' => $originalMessage['conversationId'],
+            //     'replied_to' => [
+            //         'sender' => $originalMessage['from']['emailAddress']['address'] ?? 'Unknown',
+            //         'to_recipients' => array_map(fn($r) => $r['emailAddress']['address'], $originalMessage['toRecipients'] ?? []),
+            //         'cc_recipients' => array_map(fn($r) => $r['emailAddress']['address'], $originalMessage['ccRecipients'] ?? [])
+            //     ],
+            //     'recipient_count' => $recipientPreview['recipient_count'] ?? 0,
+            //     'conversation_message_count' => $conversationMessages['count'] ?? 0,
+            //     'response_time_ms' => $responseTime,
+            //     'message' => 'Reply all sent successfully'
+            // ];
+        } catch (Exception $e) {
+            logger()->error('Failed to send reply all', [
                 'original_message_id' => $originalMessageId,
-                'conversation_id' => $originalMessage['conversationId'],
-                'message' => $replyData['body']
-            ], JSON_PRETTY_PRINT));
-
-            $this->makeRequest('POST', "/me/messages/{$originalMessageId}/reply", [
-                'json' => $replyMessage
+                'error' => $e->getMessage(),
+                'user' => $auth->email ?? 'unknown'
             ]);
 
             return [
-                'success' => true,
+                'success' => false,
+                'error' => $e->getMessage(),
                 'original_message_id' => $originalMessageId,
-                'conversation_id' => $originalMessage['conversationId'],
-                'message' => 'Reply sent successfully'
+                'error_code' => $this->getErrorCode($e)
+            ];
+        }
+    }
+
+    /**
+     * Send a reply (regular or reply all) based on the type parameter
+     */
+    public function sendEmailReply($auth, string $originalMessageId, array $replyData, string $type = 'reply'): array
+    {
+        if ($type === 'replyAll') {
+            return $this->sendReplyAll($auth, $originalMessageId, $replyData);
+        }
+
+        return $this->sendReply($auth, $originalMessageId, $replyData);
+    }
+
+    /**
+     * Check if user can reply to a message
+     * Enhanced validation with detailed reasons
+     *
+     * @param string $messageId Message ID to check
+     * @return array Can reply status with detailed information
+     */
+    public function canReplyToMessage(string $messageId): array
+    {
+        try {
+            if (empty($messageId)) {
+                return [
+                    'can_reply' => false,
+                    'reason' => 'Message ID is required',
+                    'error_code' => 'INVALID_MESSAGE_ID'
+                ];
+            }
+
+            $message = $this->getMessageDetails($messageId);
+
+            if (empty($message)) {
+                return [
+                    'can_reply' => false,
+                    'reason' => 'Message not found',
+                    'error_code' => 'MESSAGE_NOT_FOUND'
+                ];
+            }
+
+            $folderChecks = $this->checkMessageFolder($message);
+            if (!$folderChecks['can_reply']) {
+                return $folderChecks;
+            }
+
+            $senderChecks = $this->checkMessageSender($message);
+            if (!$senderChecks['can_reply']) {
+                return $senderChecks;
+            }
+
+            $ageChecks = $this->checkMessageAge($message);
+            if (!$ageChecks['can_reply']) {
+                return $ageChecks;
+            }
+
+            return [
+                'can_reply' => true,
+                'message_id' => $messageId,
+                'conversation_id' => $message['conversationId'] ?? null,
+                'subject' => $message['subject'] ?? 'N/A',
+                'sender' => $message['from']['emailAddress']['address'] ?? null,
+                'received_date' => $message['receivedDateTime'] ?? null,
+                'folder' => $message['parentFolderId'] ?? null
             ];
         } catch (Exception $e) {
-            logger()->error('Failed to send reply: ' . json_encode([
-                'original_message_id' => $originalMessageId,
+            logger()->error('Failed to check reply permissions', [
+                'message_id' => $messageId,
+                'error' => $e->getMessage(),
+                'user' => $this->auth->email ?? 'unknown'
+            ]);
+
+            return [
+                'can_reply' => false,
+                'reason' => 'Error checking message: ' . $e->getMessage(),
+                'error_code' => 'CHECK_FAILED'
+            ];
+        }
+    }
+
+    /**
+     * Check message folder for reply permissions
+     * New helper method for folder validation
+     */
+    private function checkMessageFolder(array $message): array
+    {
+        $parentFolderId = strtolower($message['parentFolderId'] ?? '');
+
+        // Check for forbidden folders
+        $forbiddenFolders = ['drafts', 'outbox', 'deleteditems', 'junkemail'];
+
+        foreach ($forbiddenFolders as $folder) {
+            if (str_contains($parentFolderId, $folder)) {
+                return [
+                    'can_reply' => false,
+                    'reason' => "Cannot reply to messages in {$folder} folder",
+                    'error_code' => 'INVALID_FOLDER'
+                ];
+            }
+        }
+
+        return ['can_reply' => true];
+    }
+
+    /**
+     * Check message age for reply permissions
+     * New helper method for age validation
+     */
+    private function checkMessageAge(array $message): array
+    {
+        $receivedDateTime = $message['receivedDateTime'] ?? null;
+
+        if (!$receivedDateTime) {
+            return ['can_reply' => true]; // No date restriction if no date
+        }
+
+        try {
+            $receivedDate = Carbon::parse($receivedDateTime);
+            $daysSinceReceived = $receivedDate->diffInDays(now());
+
+            // Optional: Implement age-based restrictions (e.g., 90 days)
+            $maxReplyAge = config('outlook.max_reply_age_days', 365);
+
+            if ($daysSinceReceived > $maxReplyAge) {
+                return [
+                    'can_reply' => false,
+                    'reason' => "Cannot reply to messages older than {$maxReplyAge} days",
+                    'error_code' => 'MESSAGE_TOO_OLD'
+                ];
+            }
+        } catch (Exception $e) {
+            // If date parsing fails, allow reply
+            logger()->warning('Failed to parse message date for age check', [
+                'received_date' => $receivedDateTime,
                 'error' => $e->getMessage()
-            ], JSON_PRETTY_PRINT));
+            ]);
+        }
+
+        return ['can_reply' => true];
+    }
+
+    /**
+     * Check message sender for reply permissions
+     * New helper method for sender validation
+     */
+    private function checkMessageSender(array $message): array
+    {
+        $sender = $message['from']['emailAddress']['address'] ?? null;
+
+        if (!$sender) {
+            return [
+                'can_reply' => false,
+                'reason' => 'Message has no valid sender',
+                'error_code' => 'NO_SENDER'
+            ];
+        }
+
+        // Check for no-reply addresses
+        $noReplyPatterns = ['noreply', 'no-reply', 'donotreply', 'do-not-reply'];
+        $senderLower = strtolower($sender);
+
+        foreach ($noReplyPatterns as $pattern) {
+            if (str_contains($senderLower, $pattern)) {
+                return [
+                    'can_reply' => false,
+                    'reason' => 'Cannot reply to no-reply address',
+                    'error_code' => 'NO_REPLY_ADDRESS'
+                ];
+            }
+        }
+
+        return ['can_reply' => true];
+    }
+
+    /**
+     * Get reply recipients preview (to show user who will receive the reply)
+     */
+    public function getReplyRecipientsPreview(string $messageId, string $replyType = 'reply'): array
+    {
+        try {
+            $originalMessage = $this->getMessageDetails($messageId);
+
+            if (empty($originalMessage)) {
+                throw new Exception('Original message not found');
+            }
+
+            $sender = $originalMessage['from']['emailAddress'] ?? null;
+            $toRecipients = $originalMessage['toRecipients'] ?? [];
+            $ccRecipients = $originalMessage['ccRecipients'] ?? [];
+            $currentUserEmail = $this->auth->email;
+
+            if ($replyType === 'replyAll') {
+                // For reply all, include sender + all original recipients except current user
+                $allRecipients = array_merge(
+                    [$sender],
+                    $toRecipients,
+                    $ccRecipients
+                );
+
+                // Remove duplicates and current user
+                $uniqueRecipients = [];
+                $seenEmails = [];
+
+                foreach ($allRecipients as $recipient) {
+                    if (!$recipient || !isset($recipient['emailAddress']['address'])) {
+                        continue;
+                    }
+
+                    $email = strtolower($recipient['emailAddress']['address']);
+
+                    // Skip current user and duplicates
+                    if ($email === strtolower($currentUserEmail) || in_array($email, $seenEmails)) {
+                        continue;
+                    }
+
+                    $seenEmails[] = $email;
+                    $uniqueRecipients[] = [
+                        'email' => $recipient['emailAddress']['address'],
+                        'name' => $recipient['emailAddress']['name'] ?? null,
+                        'type' => $recipient === $sender ? 'sender' : 'recipient'
+                    ];
+                }
+
+                return [
+                    'success' => true,
+                    'reply_type' => 'replyAll',
+                    'recipients' => $uniqueRecipients,
+                    'recipient_count' => count($uniqueRecipients),
+                    'original_subject' => $originalMessage['subject'] ?? 'N/A'
+                ];
+            } else {
+                // For regular reply, only include sender
+                if (!$sender || !isset($sender['emailAddress']['address'])) {
+                    throw new Exception('Original sender not found');
+                }
+
+                return [
+                    'success' => true,
+                    'reply_type' => 'reply',
+                    'recipients' => [[
+                        'email' => $sender['emailAddress']['address'],
+                        'name' => $sender['emailAddress']['name'] ?? null,
+                        'type' => 'sender'
+                    ]],
+                    'recipient_count' => 1,
+                    'original_subject' => $originalMessage['subject'] ?? 'N/A'
+                ];
+            }
+        } catch (Exception $e) {
+            logger()->error('Failed to get reply recipients preview', [
+                'message_id' => $messageId,
+                'reply_type' => $replyType,
+                'error' => $e->getMessage()
+            ]);
 
             return [
                 'success' => false,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
+                'recipients' => [],
+                'recipient_count' => 0
             ];
         }
     }

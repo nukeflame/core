@@ -3,71 +3,64 @@
 ])
 
 @section('content')
-    <div class="container-fluid">
-        <div class="main-mail-container p-2 gap-2 d-flex">
-            {{-- Mail Navigation  --}}
-            @include('admin.email.includes._mail_navigation')
+    <div class="main-mail-container p-2 gap-2 d-flex">
+        {{-- Mail Navigation  --}}
+        @include('admin.email.includes._mail_navigation')
 
-            @if (request()->routeIs('admin.email'))
-                @include('admin.email.includes.inbox')
-            @endif
+        @if (request()->routeIs('admin.email'))
+            @include('admin.email.includes.inbox')
+        @endif
 
-            @if (request()->routeIs('admin.folder'))
-                @switch(request()->route('folder'))
-                    @case('inbox')
-                        @include('admin.email.includes.inbox')
-                    @break
+        @if (request()->routeIs('admin.folder'))
+            @switch(request()->route('folder'))
+                @case('inbox')
+                    @include('admin.email.includes.inbox')
+                @break
 
-                    @case('sent')
-                        @include('admin.email.includes.sent')
-                    @break
+                @case('sent')
+                    @include('admin.email.includes.sent')
+                @break
 
-                    @case('drafts')
-                        @include('admin.email.includes.drafts')
-                    @break
+                @case('drafts')
+                    @include('admin.email.includes.drafts')
+                @break
 
-                    @case('spam')
-                        @include('admin.email.includes.spam')
-                    @break
+                @case('spam')
+                    @include('admin.email.includes.spam')
+                @break
 
-                    @case('important')
-                        @include('admin.email.includes.important')
-                    @break
+                @case('important')
+                    @include('admin.email.includes.important')
+                @break
 
-                    @case('trash')
-                        @include('admin.email.includes.trash')
-                    @break
+                @case('trash')
+                    @include('admin.email.includes.trash')
+                @break
 
-                    @case('archive')
-                        @include('admin.email.includes.archive')
-                    @break
+                @case('archive')
+                    @include('admin.email.includes.archive')
+                @break
 
-                    @case('starred')
-                        @include('admin.email.includes.starred')
-                    @break
+                @case('starred')
+                    @include('admin.email.includes.starred')
+                @break
 
-                    @default
-                        @include('admin.email.includes.inbox')
-                @endswitch
-            @endif
-        </div>
+                @default
+                    @include('admin.email.includes.inbox')
+            @endswitch
+        @endif
     </div>
 @endsection
 
 <x-outlook-connection :auto-show="true" :show-cancel-button="true" :fetch-emails-on-connect="true" :show-toast-message="false" :enable-loading-spinner="true" />
-
-
 {{-- @include('admin.email.includes._connection_script') --}}
 
 @push('script')
     <script>
-        // @if (session('success'))
-        //     toastr.success("{{ session('success') }}", {
-        //         progressBar: false,
-        //         timeOut: 5000,
-        //         closeButton: true,
-        //         newestOnTop: true,
-        //     });
-        // @endif
+        $(document).ready(function() {
+            $("#outlookCancelBtn").on("click", function() {
+                window.location.href = '/'
+            })
+        })
     </script>
 @endpush

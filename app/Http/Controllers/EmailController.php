@@ -4,15 +4,18 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\SendClaimReinsurerRequest;
 use App\Jobs\SendClaimReinNotificationJob;
+use App\Jobs\SendOutlookEmailJob;
 use App\Models\ClaimRegister;
 use App\Models\Customer;
 use App\Models\Email;
 use App\Services\ContactNameMappingService;
 use App\Services\EmailService;
 use App\Services\OutlookService;
+use Carbon\Carbon;
 use Exception;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
@@ -23,12 +26,15 @@ class EmailController extends Controller
     protected $emailService;
     private $outlookService;
     private $authUser;
+    protected string $batchId;
 
     public function __construct(EmailService $emailService, OutlookService $outlookService)
     {
         $this->emailService = $emailService;
         $this->outlookService = $outlookService;
         $this->authUser = auth()->user();
+
+        $this->batchId = Str::uuid()->toString();
     }
 
     public function index()
@@ -130,6 +136,7 @@ class EmailController extends Controller
                 $request->cc_email ?? [],
                 $request->bcc_email ?? []
             );
+            // $toEmails = explode(',', $request->to_email) ?? [];
 
             $recipientNames = ContactNameMappingService::getRecipientNames($customer, $allEmails);
 
@@ -170,62 +177,88 @@ class EmailController extends Controller
 
             $recipients = array_unique($recipients);
 
-            $emailRecords = [];
+            // $emailRecords = [];
+            $successCount = 0;
+            $failedCount = 0;
 
-            foreach ($recipients as $recipient) {
-                $recipientName = $recipientNames[$recipient] ?? 'Sir/Madam';
-                $personalizedMessage = $this->formatMessageForHtml($request->message, $recipientName);
-                $rawMessage = $this->formatRawMessageForHtml($request->message);
+            foreach ($recipients as $index => $recipient) {
+                try {
+                    $jobId = $this->batchId . '-' . ($index + 1);
+                    $recipientEmail = explode(',', $recipient) ?? [];
 
-                $emailData = [
-                    'claim' => $claim,
-                    'subject' => $request->subject,
-                    'message' => $personalizedMessage,
-                    'priority' => $request->priority ?? 'normal',
-                    'category' => $request->category ?? 'claim',
-                    'reference' => $request->reference ?? null,
-                    'attachments' => $attachments,
-                    'sender_name' => auth()->user()->name,
-                    'sender_email' => auth()->user()->email,
-                    'recipient_name' => $recipientName,
-                    'reply_to_id' => $request->reply_to_id,
-                    'raw_message' => $rawMessage ?? '',
-                ];
+                    $recipientName = $recipientNames[$recipient] ?? 'Sir/Madam';
+                    $personalizedMessage = $this->formatMessageForHtml($request->message, $recipientName);
+                    $rawMessage = $this->formatRawMessageForHtml($request->message);
 
-                $emailRecord = Email::create([
-                    'claim_id' => $claim->claim_serial_no,
-                    'claim_no' => $claim->claim_no,
-                    'sender_email' => auth()->user()->email,
-                    'sender_name' => auth()->user()->name,
-                    'recipient_email' => $recipient,
-                    'recipient_name' => $recipientName,
-                    'recipients' => json_encode([$recipient]),
-                    'cc_emails' => json_encode($request->cc_email ?? []),
-                    'bcc_emails' => json_encode($request->bcc_email ?? []),
-                    'subject' => $request->subject,
-                    'body' => $personalizedMessage,
-                    'attachments' => json_encode($attachments),
-                    'priority' => $request->priority ?? 'normal',
-                    'category' => $request->category ?? 'claim',
-                    'reference' => $request->reference ?? null,
-                    'status' => 'queued',
-                    'folder' => 'sent',
-                    'reply_to_id' => $request->reply_to_id ?? null,
-                    'created_at' => now(),
-                    'updated_at' => now()
-                ]);
+                    $emailData = [
+                        'claim' => $claim,
+                        'subject' => $request->subject,
+                        'message' => $personalizedMessage,
+                        'priority' => $request->priority ?? 'normal',
+                        'category' => $request->category ?? 'claim',
+                        'reference' => $request->reference ?? null,
+                        'attachments' => $attachments,
+                        'senderName' => $this->authUser->name,
+                        'senderEmail' => $this->authUser->email,
+                        'recipientName' => $recipientName,
+                        'replyToId' => $request->reply_to_id,
+                        'replyMessage' => $rawMessage ?? '',
+                        'to' => $recipientEmail,
+                        'cc' => $request->cc_email ?? [],
+                        'bcc' => $request->bcc_email ?? [],
+                    ];
 
-                $emailRecords[] = $emailRecord;
-                $auth = auth()->user();
+                    // $emailRecord = Email::create([
+                    //     'claim_id' => $claim->claim_serial_no,
+                    //     'claim_no' => $claim->claim_no,
+                    //     'sender_email' => auth()->user()->email,
+                    //     'sender_name' => auth()->user()->name,
+                    //     'recipient_email' => $recipient,
+                    //     'recipient_name' => $recipientName,
+                    //     'recipients' => json_encode([$recipient]),
+                    //     'cc_emails' => json_encode($request->cc_email ?? []),
+                    //     'bcc_emails' => json_encode($request->bcc_email ?? []),
+                    //     'subject' => $request->subject,
+                    //     'body' => $personalizedMessage,
+                    //     'attachments' => json_encode($attachments),
+                    //     'priority' => $request->priority ?? 'normal',
+                    //     'category' => $request->category ?? 'claim',
+                    //     'reference' => $request->reference ?? null,
+                    //     'status' => 'queued',
+                    //     'folder' => 'sent',
+                    //     'reply_to_id' => $request->reply_to_id ?? null,
+                    //     'created_at' => now(),
+                    //     'updated_at' => now()
+                    // ]);
 
-                SendClaimReinNotificationJob::dispatch(
-                    $recipient,
-                    $request->cc_email ?? [],
-                    $request->bcc_email ?? [],
-                    $emailData,
-                    $emailRecord->id,
-                    $auth
-                );
+                    // $emailRecords[] = $emailRecord;
+                    $job = SendOutlookEmailJob::dispatch($emailData, $this->authUser->id, $jobId);
+
+                    if ($request->input('schedule_at')) {
+                        $scheduleAt = Carbon::parse($request->input('schedule_at'));
+                        $job->delay($scheduleAt);
+                    } elseif (!$request->boolean('send_immediately', true)) {
+                        $job->delay(now()->addSeconds($index * 2));
+                    }
+
+
+                    // SendClaimReinNotificationJob::dispatch(
+                    //     $recipient,
+                    //     $request->cc_email ?? [],
+                    //     $request->bcc_email ?? [],
+                    //     $emailData,
+                    //     $emailRecord->id,
+                    //     $auth
+                    // );
+
+                    $successCount++;
+                } catch (\Exception $e) {
+                    $failedCount++;
+                    logger()->error("Failed to dispatch email job for batch {$this->batchId}", [
+                        'index' => $index,
+                        'error' => $e->getMessage()
+                    ]);
+                }
             }
 
             // $claim->notification_status = 'notification_sent';
@@ -683,7 +716,6 @@ class EmailController extends Controller
             ], 500);
         }
     }
-
 
     // /**
     //  * Get email status and tracking information

@@ -40,24 +40,23 @@ class SendClaimReplyJob implements ShouldQueue
     public function handle(OutlookService $outlookService): void
     {
         try {
-            Log::info('Starting claim reply email job', [
-                'original_message_id' => $this->originalMessageId,
-                'claim_no' => $this->emailData['claim']->claim_no,
-                'attempt' => $this->attempts(),
-                'email_record_id' => $this->emailRecordId
-            ]);
-
             // Prepare reply data
             $replyData = [
                 'subject' => $this->emailData['subject'],
                 'body' => $this->buildReplyBody(),
                 'bodyType' => 'HTML',
                 'attachments' => $this->emailData['attachments'] ?? [],
-                'comment' => 'Reply to claim notification'
+                'comment' => 'Reply to claim notification',
+                'priority' => 'normal'
             ];
 
+            $auth = auth()->user;
+
             // Send the reply
-            $result = $outlookService->sendReply($this->originalMessageId, $replyData);
+            // $result = $outlookService->sendReply($this->originalMessageId, $replyData);
+            $result = $outlookService->sendReplyAll($auth, $this->originalMessageId, $replyData);
+
+            logger()->info(['dd' => $auth]);
 
             if ($result['success']) {
                 $this->handleSuccessfulReply($result);

@@ -167,9 +167,6 @@
                     maxRetries: 3
                 };
 
-                console.log('initiated', this.config.options.fetchEmailsOnConnect)
-
-
                 this.init = function() {
                     this.bindEvents();
                     if (this.config.options.autoShow) {
@@ -348,7 +345,7 @@
 
                             if (response.success) {
                                 this.hideLoading();
-                                console.log('response', response)
+                                // console.log('response', response)
                                 // if (response.action === 'fetched_and_stored') {
                                 //     toastr.success(
                                 //         `Successfully fetched ${response.fetched_count} emails!`

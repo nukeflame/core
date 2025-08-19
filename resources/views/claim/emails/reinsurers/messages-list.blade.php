@@ -882,7 +882,7 @@
                                     <p class="conversation-card__preview">${escapeHtml(latestMessage.preview)}</p>
                                     <div class="conversation-card__messages-preview">
                                         ${conversation.messages.slice(0, 3).map((msg, index) => `<div class="message-preview ${!msg.isRead ? 'message-preview--unread' : ''}" title="${escapeHtml(msg.subject)}">
-                                                                                                                                                    <span class="message-preview__from">${escapeHtml(msg.fromName || msg.from)}</span><span class="message-preview__date">${escapeHtml(formatDate(msg.date))}</span></div>`).join('')}
+                                                                                                                                                            <span class="message-preview__from">${escapeHtml(msg.fromName || msg.from)}</span><span class="message-preview__date">${escapeHtml(formatDate(msg.date))}</span></div>`).join('')}
                                         ${conversation.messages.length > 3 ? `<div class="message-preview message-preview--more"><span>+${conversation.messages.length - 3} more messages</span></div>` : ''}
                                     </div>
                                 </div>

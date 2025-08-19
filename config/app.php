@@ -208,7 +208,6 @@ return [
     */
     'admin_emails' => [
         'pknuek@gmail.com',
-        'nyaste@gmail.com',
         'derrickintra@gmail.com'
     ]
 ];

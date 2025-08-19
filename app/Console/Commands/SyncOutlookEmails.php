@@ -270,33 +270,33 @@ class SyncOutlookEmails extends Command
         $this->info("Token expires soon, attempting refresh for user {$user->id}...");
 
         try {
-            $payload = [
-                'client_id' => config('services.azure.client_id'),
-                'client_secret' => config('services.azure.client_secret'),
-                'grant_type' => 'refresh_token',
-                'refresh_token' => $user->refresh_token,
-                'scope' => 'https://graph.microsoft.com/.default offline_access',
-            ];
+            // $payload = [
+            //     'client_id' => config('services.azure.client_id'),
+            //     'client_secret' => config('services.azure.client_secret'),
+            //     'grant_type' => 'refresh_token',
+            //     'refresh_token' => $user->refresh_token,
+            //     'scope' => 'https://graph.microsoft.com/.default offline_access',
+            // ];
 
-            // only send redirect_uri if you actually used it during initial auth
-            // if (config('services.azure.redirect_uri')) {
-            //     $payload['redirect_uri'] = config('services.azure.redirect_uri');
+            // // only send redirect_uri if you actually used it during initial auth
+            // // if (config('services.azure.redirect_uri')) {
+            // //     $payload['redirect_uri'] = config('services.azure.redirect_uri');
+            // // }
+
+            // $response = Http::asForm()->post(
+            //     "https://login.microsoftonline.com/" . config('services.azure.tenant_id') . "/oauth2/v2.0/token",
+            //     $payload
+            // );
+
+            // if (!$response->successful()) {
+            //     logger()->error('Token refresh failed', [
+            //         'user_id' => $user->id,
+            //         'response' => $response->json(),
+            //     ]);
+            //     throw new Exception('Token refresh failed: ' . json_encode($response->json()));
             // }
 
-            $response = Http::asForm()->post(
-                "https://login.microsoftonline.com/" . config('services.azure.tenant_id') . "/oauth2/v2.0/token",
-                $payload
-            );
-
-            if (!$response->successful()) {
-                logger()->error('Token refresh failed', [
-                    'user_id' => $user->id,
-                    'response' => $response->json(),
-                ]);
-                throw new Exception('Token refresh failed: ' . json_encode($response->json()));
-            }
-
-            $data = $response->json();
+            // $data = $response->json();
             logger()->info('Token refresh success', [
                 'user_id' => $user->id,
                 'expires_in' => $data['expires_in'] ?? null,
