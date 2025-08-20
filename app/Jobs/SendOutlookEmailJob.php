@@ -55,19 +55,19 @@ class SendOutlookEmailJob implements ShouldQueue
                 $result = $outlookService->sendEmail($user, $emailPayload);
             }
 
-            logger()->info(['result' => $result]);
-            // if ($result['success']) {
-            //     $this->updateEmailLog('sent', [
-            //         'message_id' => $result['message_id'],
-            //         'conversation_id' => $result['conversation_id'] ?? null,
-            //         'sent_at' => $result['sent_at'] ?? now()->toISOString()
-            //     ]);
+            // logger()->info(['result' => $result]);
+            if ($result['success']) {
+                // $this->updateEmailLog('sent', [
+                //     'message_id' => $result['message_id'],
+                //     'conversation_id' => $result['conversation_id'] ?? null,
+                //     'sent_at' => $result['sent_at'] ?? now()->toISOString()
+                // ]);
 
-            //     // Dispatch follow-up jobs if needed
-            //     $this->dispatchFollowUpJobs($result);
-            // } else {
-            //     throw new Exception($result['error'] ?? 'Unknown error occurred while sending email');
-            // }
+                // Dispatch follow-up jobs if needed
+                // $this->dispatchFollowUpJobs($result);
+            } else {
+                throw new Exception($result['error'] ?? 'Unknown error occurred while sending email');
+            }
         } catch (Exception $e) {
             // $this->updateEmailLog('failed', ['error' => $e->getMessage()]);
 

@@ -10,6 +10,7 @@ use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Str;
+use InvalidArgumentException;
 
 class OutlookService
 {
@@ -29,13 +30,13 @@ class OutlookService
 
         // User permissions
         'User.Read',
-        // 'User.ReadWrite',
+        'User.ReadWrite',
         'User.ReadBasic.All',
-        // // 'User.Read.All',
+        'User.Read.All',
         'User.ReadWrite.All',
-        // 'User.Invite.All',
-        // 'User.Export.All',
-        // 'User.ManageIdentities.All',
+        'User.Invite.All',
+        'User.Export.All',
+        'User.ManageIdentities.All',
 
         // Mail permissions
         'Mail.Read',
@@ -43,12 +44,12 @@ class OutlookService
         'Mail.Send',
         'Mail.Send.Shared',
         'Mail.ReadBasic',
-        // // 'Mail.ReadWrite.Shared',
-        // 'MailboxSettings.Read',
-        // 'MailboxSettings.ReadWrite',
-        // 'IMAP.AccessAsUser.All',
-        // 'POP.AccessAsUser.All',
-        // 'SMTP.Send',
+        'Mail.ReadWrite.Shared',
+        'MailboxSettings.Read',
+        'MailboxSettings.ReadWrite',
+        'IMAP.AccessAsUser.All',
+        'POP.AccessAsUser.All',
+        'SMTP.Send',
 
         // // Calendar permissions
         // // 'Calendars.Read',
@@ -62,17 +63,17 @@ class OutlookService
         // // 'Contacts.Read.Shared',
         // // 'Contacts.ReadWrite.Shared',
 
-        // // // Files and OneDrive permissions
-        // // 'Files.Read',
-        // // 'Files.ReadWrite',
-        // // 'Files.Read.All',
-        // // 'Files.ReadWrite.All',
-        // // 'Files.Read.Selected',
-        // // 'Files.ReadWrite.Selected',
-        // // 'Sites.Read.All',
-        // // 'Sites.ReadWrite.All',
-        // // 'Sites.Manage.All',
-        // // 'Sites.FullControl.All',
+        // Files and OneDrive permissions
+        'Files.Read',
+        'Files.ReadWrite',
+        'Files.Read.All',
+        'Files.ReadWrite.All',
+        'Files.Read.Selected',
+        'Files.ReadWrite.Selected',
+        'Sites.Read.All',
+        'Sites.ReadWrite.All',
+        'Sites.Manage.All',
+        'Sites.FullControl.All',
 
         // // // Tasks and To-Do permissions
         // // 'Tasks.Read',
@@ -87,22 +88,22 @@ class OutlookService
         // // 'Notes.Read.All',
         // // 'Notes.ReadWrite.All',
 
-        // // // People permissions
-        // // 'People.Read',
-        // // 'People.Read.All',
+        // People permissions
+        'People.Read',
+        'People.Read.All',
 
-        // // Directory and organization permissions
-        // 'Directory.Read.All',
-        // 'Directory.ReadWrite.All',
-        // 'Directory.AccessAsUser.All',
-        // // 'Organization.Read.All',
-        // // 'Organization.ReadWrite.All',
+        // Directory and organization permissions
+        'Directory.Read.All',
+        'Directory.ReadWrite.All',
+        'Directory.AccessAsUser.All',
+        'Organization.Read.All',
+        'Organization.ReadWrite.All',
 
-        // // Groups permissions
-        // 'Group.Read.All',
-        // 'Group.ReadWrite.All',
-        // 'GroupMember.Read.All',
-        // 'GroupMember.ReadWrite.All',
+        // Groups permissions
+        'Group.Read.All',
+        'Group.ReadWrite.All',
+        'GroupMember.Read.All',
+        'GroupMember.ReadWrite.All',
 
         // // // Teams and chat permissions
         // // 'Chat.Read',
@@ -131,11 +132,11 @@ class OutlookService
         // 'AllSites.Manage',
         // 'AllSites.FullControl',
 
-        // // Application and device permissions
-        // 'Application.Read.All',
-        // 'Application.ReadWrite.All',
-        // 'Device.Read',
-        // 'Device.Command',
+        // Application and device permissions
+        'Application.Read.All',
+        'Application.ReadWrite.All',
+        'Device.Read',
+        'Device.Command',
         // 'DeviceManagementConfiguration.Read.All',
         // 'DeviceManagementConfiguration.ReadWrite.All',
         // 'DeviceManagementApps.Read.All',
@@ -160,7 +161,7 @@ class OutlookService
         // // Reports and analytics permissions
         // 'Reports.Read.All',
         // 'AuditLog.Read.All',
-        // 'Directory.Read.All',
+        'Directory.Read.All',
 
         // // Bookings permissions
         // 'Bookings.Read.All',
@@ -202,15 +203,15 @@ class OutlookService
         // 'SearchConfiguration.Read.All',
         // 'SearchConfiguration.ReadWrite.All',
 
-        // // Workbooks and Excel permissions
-        // 'Files.ReadWrite',
+        // Workbooks and Excel permissions
+        'Files.ReadWrite',
 
         // // Cloud communications permissions
         // 'CloudPC.Read.All',
         // 'CloudPC.ReadWrite.All',
 
-        // // Places permissions
-        // 'Place.Read.All',
+        // Places permissions
+        'Place.Read.All',
 
         // // Presence permissions
         // 'Presence.Read',
@@ -292,11 +293,11 @@ class OutlookService
         // 'TeamsActivity.Read',
         // 'TeamsActivity.Send',
 
-        // // User authentication methods permissions
-        // 'UserAuthenticationMethod.Read',
-        // 'UserAuthenticationMethod.ReadWrite',
-        // 'UserAuthenticationMethod.Read.All',
-        // 'UserAuthenticationMethod.ReadWrite.All'
+        // User authentication methods permissions
+        'UserAuthenticationMethod.Read',
+        'UserAuthenticationMethod.ReadWrite',
+        'UserAuthenticationMethod.Read.All',
+        'UserAuthenticationMethod.ReadWrite.All'
     ];
 
     public function __construct(int $timeout = 60)
@@ -2228,7 +2229,6 @@ class OutlookService
     private function getErrorCode(Exception $e): string
     {
         $message = $e->getMessage();
-
         if (str_contains($message, 'HTTP 400')) return 'BAD_REQUEST';
         if (str_contains($message, 'HTTP 401')) return 'UNAUTHORIZED';
         if (str_contains($message, 'HTTP 403')) return 'FORBIDDEN';
@@ -2558,56 +2558,29 @@ class OutlookService
 
             $recipientPreview = $this->getReplyRecipientsPreview($originalMessageId, 'replyAll');
 
-            // // Build reply message
-            // $replyMessage = $this->buildReplyMessage($replyData, $originalMessage, 'replyAll');
+            $replyMessage = $this->buildReplyMessage($replyData, $originalMessage, 'replyAll');
 
-            // logger()->info('Sending reply all', [
-            //     'original_message_id' => $originalMessageId,
-            //     'conversation_id' => $originalMessage['conversationId'],
-            //     'recipient_count' => $recipientPreview['recipient_count'] ?? 0,
-            //     'original_subject' => $originalMessage['subject'],
-            //     'user' => $auth->email
-            // ]);
+            $startTime = microtime(true);
 
-            // logger()->info(['recipientPreview' => $recipientPreview]);
+            $this->makeRequest('POST', "/me/messages/{$originalMessageId}/replyAll", [
+                'json' => $replyMessage
+            ]);
 
-            return [];
+            $responseTime = round((microtime(true) - $startTime) * 1000, 2);
 
-
-            // $startTime = microtime(true);
-
-            // // Send reply all using Microsoft Graph
-            // $this->makeRequest('POST', "/me/messages/{$originalMessageId}/replyAll", [
-            //     'json' => $replyMessage
-            // ]);
-
-            // $responseTime = round((microtime(true) - $startTime) * 1000, 2);
-
-            // // Get updated conversation details
-            // $conversationMessages = $this->getConversationMessages($originalMessage['conversationId']);
-
-            // logger()->info('Reply all sent successfully', [
-            //     'original_message_id' => $originalMessageId,
-            //     'conversation_id' => $originalMessage['conversationId'],
-            //     'recipient_count' => $recipientPreview['recipient_count'] ?? 0,
-            //     'response_time_ms' => $responseTime,
-            //     'user' => $auth->email
-            // ]);
-
-            // return [
-            //     'success' => true,
-            //     'original_message_id' => $originalMessageId,
-            //     'conversation_id' => $originalMessage['conversationId'],
-            //     'replied_to' => [
-            //         'sender' => $originalMessage['from']['emailAddress']['address'] ?? 'Unknown',
-            //         'to_recipients' => array_map(fn($r) => $r['emailAddress']['address'], $originalMessage['toRecipients'] ?? []),
-            //         'cc_recipients' => array_map(fn($r) => $r['emailAddress']['address'], $originalMessage['ccRecipients'] ?? [])
-            //     ],
-            //     'recipient_count' => $recipientPreview['recipient_count'] ?? 0,
-            //     'conversation_message_count' => $conversationMessages['count'] ?? 0,
-            //     'response_time_ms' => $responseTime,
-            //     'message' => 'Reply all sent successfully'
-            // ];
+            return [
+                'success' => true,
+                'original_message_id' => $originalMessageId,
+                'conversation_id' => $originalMessage['conversationId'],
+                'replied_to' => [
+                    'sender' => $originalMessage['from']['emailAddress']['address'] ?? 'Unknown',
+                    'to_recipients' => array_map(fn($r) => $r['emailAddress']['address'], $originalMessage['toRecipients'] ?? []),
+                    'cc_recipients' => array_map(fn($r) => $r['emailAddress']['address'], $originalMessage['ccRecipients'] ?? [])
+                ],
+                'recipient_count' => $recipientPreview['recipient_count'] ?? 0,
+                'response_time_ms' => $responseTime,
+                'message' => 'Reply all sent successfully'
+            ];
         } catch (Exception $e) {
             logger()->error('Failed to send reply all', [
                 'original_message_id' => $originalMessageId,
@@ -2795,6 +2768,98 @@ class OutlookService
         }
 
         return ['can_reply' => true];
+    }
+
+    /**
+     * Build reply message structure
+     * New helper method for consistent reply building
+     */
+    private function buildReplyMessage(array $replyData, array $originalMessage, string $replyType): array
+    {
+        $this->validateInputs($replyData, $originalMessage, $replyType);
+
+        $message = $this->buildBaseMessage($replyData);
+        $this->addOptionalComponents($message, $replyData);
+
+        return $message;
+    }
+
+    /**
+     * Build the base message structure with comment object
+     */
+    private function buildBaseMessage(array $replyData): array
+    {
+        return [
+            'comment' => $replyData['body'] ?? ''
+        ];
+    }
+
+    /**
+     * Add optional components to the message
+     */
+    private function addOptionalComponents(array &$message, array $replyData): void
+    {
+        if (!empty($replyData['attachments'])) {
+            $message['attachments'] = $this->formatAttachments($replyData['attachments']);
+        }
+
+        // if (!empty($replyData['customHeaders'])) {
+        //     $message['internetMessageHeaders'] = $this->formatCustomHeaders($replyData['customHeaders']);
+        // }/
+        // if (!empty($replyData['priority'])) {
+        //     $message['importance'] = $this->mapPriorityToImportance($replyData['priority']);
+        // }
+    }
+
+    /**
+     * Validate all inputs
+     */
+    private function validateInputs(array $replyData, array $originalMessage, string $replyType): void
+    {
+        if (empty($replyData)) {
+            throw new InvalidArgumentException('Reply data cannot be empty');
+        }
+
+        if (empty($originalMessage)) {
+            throw new InvalidArgumentException('Original message cannot be empty');
+        }
+
+        if (empty($replyData['body'])) {
+            throw new InvalidArgumentException('Reply content cannot be empty');
+        }
+    }
+
+    /**
+     * Normalize content type to uppercase
+     */
+    private function normalizeContentType(string $contentType): string
+    {
+        $normalized = strtoupper($contentType);
+
+        if (!in_array($normalized, ['HTML', 'TEXT'])) {
+            throw new InvalidArgumentException("Invalid content type: {$contentType}. Must be HTML or TEXT");
+        }
+
+        return $normalized;
+    }
+
+    /**
+     * Format custom headers for API
+     */
+    private function formatCustomHeaders(array $headers): array
+    {
+        $formatted = [];
+
+        foreach ($headers as $header) {
+            if (is_array($header) && isset($header['name']) && isset($header['value'])) {
+                $formatted[] = [
+                    'name' => $header['name'],
+                    'value' => $header['value']
+                ];
+            }
+        }
+
+        return $formatted;
     }
 
     /**

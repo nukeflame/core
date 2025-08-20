@@ -270,40 +270,36 @@ class SyncOutlookEmails extends Command
         $this->info("Token expires soon, attempting refresh for user {$user->id}...");
 
         try {
-            // $payload = [
-            //     'client_id' => config('services.azure.client_id'),
-            //     'client_secret' => config('services.azure.client_secret'),
-            //     'grant_type' => 'refresh_token',
-            //     'refresh_token' => $user->refresh_token,
-            //     'scope' => 'https://graph.microsoft.com/.default offline_access',
-            // ];
+            $refreshToken = decrypt($user->refresh_token);
+            $payload = [
+                'client_id' => config('services.azure.client_id'),
+                'client_secret' => config('services.azure.client_secret'),
+                'grant_type' => 'refresh_token',
+                'refresh_token' => $refreshToken,
+                'scope' => 'offline_access openid profile email'
+            ];
 
-            // // only send redirect_uri if you actually used it during initial auth
-            // // if (config('services.azure.redirect_uri')) {
-            // //     $payload['redirect_uri'] = config('services.azure.redirect_uri');
-            // // }
+            // only send redirect_uri if you actually used it during initial auth
+            if (config('services.azure.redirect_uri')) {
+                $payload['redirect_uri'] = config('services.azure.redirect_uri');
+            }
 
-            // $response = Http::asForm()->post(
-            //     "https://login.microsoftonline.com/" . config('services.azure.tenant_id') . "/oauth2/v2.0/token",
-            //     $payload
-            // );
+            $response = Http::asForm()->post(
+                "https://login.microsoftonline.com/" . config('services.azure.tenant_id') . "/oauth2/v2.0/token",
+                $payload
+            );
 
-            // if (!$response->successful()) {
-            //     logger()->error('Token refresh failed', [
-            //         'user_id' => $user->id,
-            //         'response' => $response->json(),
-            //     ]);
-            //     throw new Exception('Token refresh failed: ' . json_encode($response->json()));
-            // }
+            if (!$response->successful()) {
+                logger()->error('Token refresh failed', [
+                    'user_id' => $user->id,
+                    'response' => $response->json(),
+                ]);
+                throw new Exception('Token refresh failed: ' . json_encode($response->json()));
+            }
 
-            // $data = $response->json();
-            logger()->info('Token refresh success', [
-                'user_id' => $user->id,
-                'expires_in' => $data['expires_in'] ?? null,
-            ]);
+            $data = $response->json();
 
-            // Update DB (don’t forget refresh_token rotation)
-            // $this->updateTokenInDatabase($user, $data);
+            $this->updateTokenInDatabase($user, $data);
             $this->info("Token refreshed successfully for user {$user->id}");
 
             return true;
@@ -316,13 +312,20 @@ class SyncOutlookEmails extends Command
     private function updateTokenInDatabase(object $user, array $tokenData): void
     {
         DB::table('oauth_tokens')
-            ->where('id', $user->id)
-            ->update([
-                'access_token' => $tokenData['access_token'],
-                'refresh_token' => $tokenData['refresh_token'] ?? $user->refresh_token,
-                'expires_at' => now()->addSeconds($tokenData['expires_in']),
-                'updated_at' => now()
-            ]);
+            ->where([
+                'email' => $user->email,
+                'provider' => 'outlook'
+            ])
+            ->update(
+                [
+                    'access_token' => encrypt($tokenData['access_token']),
+                    'refresh_token' => encrypt($tokenData['refresh_token']),
+                    'expires_at' => Carbon::now('UTC')->addSeconds($tokenData['expires_in'])->setTimezone(config('app.timezone'))->timestamp,
+                    'user_id' => $user->id,
+                    'scope' => $tokenData['scope'],
+                    'updated_at' => now(),
+                ]
+            );
 
         $this->accessToken = $tokenData['access_token'];
     }
