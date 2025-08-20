@@ -138,4 +138,10 @@ class User extends Authenticatable
     {
         return $this->requires_password_reset === true && $this->password_changed_at === null;
     }
+
+    public function hasOutlookConnection()
+    {
+        // return !empty($this->outlook_token);
+        return true;
+    }
 }

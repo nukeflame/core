@@ -327,4 +327,11 @@ class OutlookOAuthController extends Controller
             ], 500);
         }
     }
+
+    public function sync()
+    {
+        // $result = $this->outlookService->syncEmails();
+
+        return response()->json(['synced' => []]);
+    }
 }

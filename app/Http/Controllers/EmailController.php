@@ -15,6 +15,7 @@ use Carbon\Carbon;
 use Exception;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -39,63 +40,98 @@ class EmailController extends Controller
 
     public function index(Request $request)
     {
+        $folder = $request->get('folder', 'inbox');
+        $search = $request->get('search');
+
         try {
-            // $emails = $this->emailService->getEmailsPaginated($this->authUser->email, 100, 'inbox');
-
-            // $countAll = $this->emailService->getAllCount();
-            // $countInbox = $this->emailService->getInboxCount();
-            // $countSpam = $this->emailService->getSpamCount();
-            // $countStarred = $this->emailService->getStarredCount();
-
-            $folder = $request->get('folder', 'inbox');
-            // $emails = $this->outlookService->getEmails($folder);
+            // $emails = $this->outlookService->getEmails($folder, 50, $search);
             // $folders = $this->outlookService->getFolders();
             // $contacts = $this->outlookService->getContacts();
+            $user = Auth::user();
 
-            $emails = [];
-            $folders = [];
-            $contacts = [];
+            $emails = collect();
+            $folders = collect();
+            $contacts = collect();
 
-            return view('mail.index', compact('emails', 'folders', 'contacts', 'folder'));
-        } catch (Exception $e) {
-            return redirect()->back()->withErrors(['Failed to load emails. Please try again.']);
+            return view('mail.index', compact('emails', 'folders', 'contacts', 'folder', 'user'));
+        } catch (\Exception $e) {
+            return view('mail.index', [
+                'emails' => collect(),
+                'folders' => collect(),
+                'contacts' => collect(),
+                'folder' => $folder,
+                'user' => Auth::user(),
+                'error' => 'Failed to load emails. Please check your connection.'
+            ]);
         }
+
+        // try {
+        //     // $emails = $this->emailService->getEmailsPaginated($this->authUser->email, 100, 'inbox');
+
+        //     // $countAll = $this->emailService->getAllCount();
+        //     // $countInbox = $this->emailService->getInboxCount();
+        //     // $countSpam = $this->emailService->getSpamCount();
+        //     // $countStarred = $this->emailService->getStarredCount();
+
+        //     $folder = $request->get('folder', 'inbox');
+        //     // $emails = $this->outlookService->getEmails($folder);
+        //     // $folders = $this->outlookService->getFolders();
+        //     // $contacts = $this->outlookService->getContacts();
+
+        //     $emails = [];
+        //     $folders = [];
+        //     $contacts = [];
+
+        //     return view('mail.index', compact('emails', 'folders', 'contacts', 'folder'));
+        // } catch (Exception $e) {
+        //     return redirect()->back()->withErrors(['Failed to load emails. Please try again.']);
+        // }
     }
 
     public function show($id)
     {
         try {
-            if (empty($id)) {
-                return redirect()->back()->withErrors(['Invalid email ID provided']);
+            // $email = $this->outlookService->getEmail($id);
+            $email = collect();
+            if (!$email) {
+                return response()->json(['error' => 'Email not found'], 404);
             }
-
-            $email = $this->emailService->getEmailByMessageId($id);
-            $emails = $this->emailService->getEmailsPaginated($this->authUser->email, 100, 'inbox');
-
-            $countAll = $this->emailService->getAllCount();
-            $countInbox = $this->emailService->getInboxCount();
-            $countSpam = $this->emailService->getSpamCount();
-            $countStarred = $this->emailService->getStarredCount();
-
-            if ($email && $email->count() > 0) {
-                $email = $email->first();
-            } else {
-                $email = null;
-            }
-
-            return view('admin.email.show', compact(
-                'emails',
-                'email',
-                'countAll',
-                'countInbox',
-                'countSpam',
-                'countStarred'
-            ));
-        } catch (ModelNotFoundException $e) {
-            return redirect()->back()->withErrors(['Email not found']);
-        } catch (Exception $e) {
-            return redirect()->back()->withErrors(['Email not found or invalid message ID']);
+            return response()->json($email);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Failed to load email'], 500);
         }
+        // try {
+        //     if (empty($id)) {
+        //         return redirect()->back()->withErrors(['Invalid email ID provided']);
+        //     }
+
+        //     $email = $this->emailService->getEmailByMessageId($id);
+        //     $emails = $this->emailService->getEmailsPaginated($this->authUser->email, 100, 'inbox');
+
+        //     $countAll = $this->emailService->getAllCount();
+        //     $countInbox = $this->emailService->getInboxCount();
+        //     $countSpam = $this->emailService->getSpamCount();
+        //     $countStarred = $this->emailService->getStarredCount();
+
+        //     if ($email && $email->count() > 0) {
+        //         $email = $email->first();
+        //     } else {
+        //         $email = null;
+        //     }
+
+        //     return view('admin.email.show', compact(
+        //         'emails',
+        //         'email',
+        //         'countAll',
+        //         'countInbox',
+        //         'countSpam',
+        //         'countStarred'
+        //     ));
+        // } catch (ModelNotFoundException $e) {
+        //     return redirect()->back()->withErrors(['Email not found']);
+        // } catch (Exception $e) {
+        //     return redirect()->back()->withErrors(['Email not found or invalid message ID']);
+        // }
     }
 
     public function getFolder($folder)
@@ -528,38 +564,58 @@ class EmailController extends Controller
 
     public function reply(Request $request, $id)
     {
-        try {
-            $originalEmail = Email::findOrFail($id);
+        return response()->json([]);
+        // $validated = $request->validate([
+        //     'body' => 'required|string',
+        //     'attachments' => 'nullable|array|max:10',
+        //     'attachments.*' => 'file|max:10240'
+        // ]);
 
-            $validatedData = $request->validate([
-                'body' => 'required|string|max:65535',
-            ], [
-                'body.required' => 'Reply message cannot be empty'
-            ]);
+        // try {
+        //     $result = $this->outlookService->replyToEmail($id, $validated);
 
-            $email = Email::create([
-                'sender_email' => auth()->user()->email,
-                'sender_name' => auth()->user()->name,
-                'recipient_email' => $originalEmail->sender_email,
-                'recipient_name' => $originalEmail->sender_name,
-                'subject' => 'Re: ' . $originalEmail->subject,
-                'body' => $validatedData['body'],
-                'folder' => 'sent',
-                'sent_at' => now(),
-                'parent_email_id' => $originalEmail->id // Track conversation thread
-            ]);
+        //     return response()->json([
+        //         'success' => $result,
+        //         'message' => $result ? 'Reply sent successfully' : 'Failed to send reply'
+        //     ]);
+        // } catch (\Exception $e) {
+        //     return response()->json([
+        //         'success' => false,
+        //         'message' => 'An error occurred while sending the reply'
+        //     ], 500);
+        // }
+        // try {
+        //     $originalEmail = Email::findOrFail($id);
 
-            // TODO: Send actual reply email
-            // Mail::to($originalEmail->sender_email)->send(new SendEmail($email));
+        //     $validatedData = $request->validate([
+        //         'body' => 'required|string|max:65535',
+        //     ], [
+        //         'body.required' => 'Reply message cannot be empty'
+        //     ]);
 
-            return redirect()->route('emails.show', $id)->with('success', 'Reply sent successfully!');
-        } catch (ModelNotFoundException $e) {
-            return redirect()->back()->withErrors(['Original email not found']);
-        } catch (ValidationException $e) {
-            return back()->withErrors($e->errors())->withInput();
-        } catch (Exception $e) {
-            return back()->with('error', 'Failed to send reply: ' . $e->getMessage())->withInput();
-        }
+        //     $email = Email::create([
+        //         'sender_email' => auth()->user()->email,
+        //         'sender_name' => auth()->user()->name,
+        //         'recipient_email' => $originalEmail->sender_email,
+        //         'recipient_name' => $originalEmail->sender_name,
+        //         'subject' => 'Re: ' . $originalEmail->subject,
+        //         'body' => $validatedData['body'],
+        //         'folder' => 'sent',
+        //         'sent_at' => now(),
+        //         'parent_email_id' => $originalEmail->id // Track conversation thread
+        //     ]);
+
+        //     // TODO: Send actual reply email
+        //     // Mail::to($originalEmail->sender_email)->send(new SendEmail($email));
+
+        //     return redirect()->route('emails.show', $id)->with('success', 'Reply sent successfully!');
+        // } catch (ModelNotFoundException $e) {
+        //     return redirect()->back()->withErrors(['Original email not found']);
+        // } catch (ValidationException $e) {
+        //     return back()->withErrors($e->errors())->withInput();
+        // } catch (Exception $e) {
+        //     return back()->with('error', 'Failed to send reply: ' . $e->getMessage())->withInput();
+        // }
     }
 
     public function star($id)
@@ -593,13 +649,11 @@ class EmailController extends Controller
     public function folder($folder)
     {
         try {
-            $emails = Email::where('folder', $folder)
-                ->orderBy('sent_at', 'desc')
-                ->paginate(20);
-
-            return view('emails.index', compact('emails', 'folder'));
-        } catch (Exception $e) {
-            return redirect()->back()->withErrors(['Failed to load folder emails']);
+            // $emails = $this->outlookService->getEmails($folder);
+            $emails = collect();
+            return view('mail.partials.email-list', compact('emails', 'folder'));
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Failed to load folder'], 500);
         }
     }
 
@@ -718,6 +772,39 @@ class EmailController extends Controller
                 ]
             ], 500);
         }
+    }
+
+    public function send(Request $request)
+    {
+        $validated = $request->validate([
+            'to' => 'required|array|min:1',
+            'to.*' => 'email',
+            'cc' => 'nullable|array',
+            'cc.*' => 'email',
+            'bcc' => 'nullable|array',
+            'bcc.*' => 'email',
+            'subject' => 'required|string|max:255',
+            'body' => 'required|string',
+            'priority' => 'nullable|in:low,normal,high',
+            'attachments' => 'nullable|array|max:10',
+            'attachments.*' => 'file|max:10240' // 10MB max per file
+        ]);
+
+        return response()->json([]);
+
+        // try {
+        //     $result = $this->outlookService->sendEmail($validated);
+
+        //     return response()->json([
+        //         'success' => $result,
+        //         'message' => $result ? 'Email sent successfully' : 'Failed to send email'
+        //     ]);
+        // } catch (\Exception $e) {
+        //     return response()->json([
+        //         'success' => false,
+        //         'message' => 'An error occurred while sending the email'
+        //     ], 500);
+        // }
     }
 
     // /**
