@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Http\Controllers\OutlookOAuthController;
 use Laravel\Passport\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
 use Illuminate\Notifications\Notifiable;
@@ -141,7 +142,9 @@ class User extends Authenticatable
 
     public function hasOutlookConnection()
     {
-        // return !empty($this->outlook_token);
-        return true;
+        $response = app(OutlookOAuthController::class)->status();
+        $status = json_decode($response->getContent(), true);
+
+        return $status['connected'] ?? false;
     }
 }

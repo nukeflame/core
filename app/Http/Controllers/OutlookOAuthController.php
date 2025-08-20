@@ -60,8 +60,8 @@ class OutlookOAuthController extends Controller
             $cacheKey = "outlook_profile_{$userProfile['user']['email']}";
             Cache::forget($cacheKey);
 
-            return redirect()->route('admin.email')->with([
-                'success' => 'Microsoft account connected successfully.',
+            return redirect()->route('mail.index', ['outlook_connected' => 'true'])->with([
+                'success' => 'Outlook connected successfully.',
                 'connected' => true,
                 'user' => $userProfile
             ]);
@@ -71,8 +71,8 @@ class OutlookOAuthController extends Controller
                 'trace' => $e->getTraceAsString()
             ]);
 
-            return redirect()->back()->withErrors([
-                'errors' => 'Authentication failed',
+            return redirect()->route('mail.index')->withErrors([
+                'errors' => 'Failed to complete connection',
                 'message' => 'Failed to process authentication callback',
                 'details' => config('app.debug') ? $e->getMessage() : 'Internal server error'
             ]);
@@ -331,7 +331,6 @@ class OutlookOAuthController extends Controller
     public function sync()
     {
         // $result = $this->outlookService->syncEmails();
-
         return response()->json(['synced' => []]);
     }
 }
