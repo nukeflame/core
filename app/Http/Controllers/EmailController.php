@@ -691,9 +691,9 @@ class EmailController extends Controller
         }
     }
 
-    public function settings()
+    public function saveSettings()
     {
-        return view('admin.email.settings');
+        return view('mail.settings');
     }
 
     public function fetchEmails(Request $request)
@@ -806,6 +806,18 @@ class EmailController extends Controller
         //     ], 500);
         // }
     }
+
+    public function checkNew()
+    {
+        try {
+            $newEmailCount = 0;
+            return response()->json(['newEmails' => $newEmailCount]);
+        } catch (\Exception $e) {
+            return response()->json(['newEmails' => 0]);
+        }
+    }
+
+
 
     // /**
     //  * Get email status and tracking information

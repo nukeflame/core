@@ -42,13 +42,35 @@ Route::group(
     function () {
         Route::get('/', [EmailController::class, 'index'])->name('mail.index');
         Route::get('/folder/{folder}', [EmailController::class, 'folder'])->name('mail.folder');
+
         Route::get('/email/{id}', [EmailController::class, 'show'])->name('mail.show');
         Route::post('/send', [EmailController::class, 'send'])->name('mail.send');
         Route::post('/reply/{id}', [EmailController::class, 'reply'])->name('mail.reply');
 
+        Route::post('/star/{id}', [EmailController::class, 'star'])->name('star');
+        // Route::delete('/delete/{id}', [EmailController::class, 'delete'])->name('delete');
+        // Route::post('/archive/{id}', [EmailController::class, 'archive'])->name('archive');
+        // Route::post('/spam/{id}', [EmailController::class, 'spam'])->name('spam');
+        // Route::post('/read/{id}', [EmailController::class, 'markRead'])->name('read');
+        // Route::post('/unread/{id}', [EmailController::class, 'markUnread'])->name('unread');
+
+        Route::get('/check-new', [EmailController::class, 'checkNew'])->name('check-new');
+
+        Route::get('/attachment/{emailId}/{attachmentId}/download', [EmailController::class, 'downloadAttachment'])
+            ->name('attachment.download');
+        Route::get('/email/{emailId}/attachments/download', [EmailController::class, 'downloadAllAttachments'])
+            ->name('attachments.download-all');
+
         Route::post('/outlook/connect', [OutlookOAuthController::class, 'connect'])->name('mail.outlook.connect');
         Route::get('/outlook/callback', [OutlookOAuthController::class, 'callback'])->name('mail.outlook.callback');
         Route::post('/outlook/sync', [OutlookOAuthController::class, 'sync'])->name('mail.outlook.sync');
+        Route::post('/outlook/disconnect', [OutlookOAuthController::class, 'disconnect'])->name('disconnect');
+
+        // Settings routes
+        Route::prefix('settings')->name('settings.')->group(function () {
+            Route::post('/save', [EmailController::class, 'saveSettings'])->name('save');
+        });
+
 
         // Route::get('mail/settings', [EmailController::class, 'settings'])->name('admin.email.settings');
 

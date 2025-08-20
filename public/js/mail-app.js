@@ -172,20 +172,17 @@ class MailApp {
         try {
             this.showLoading("email-content");
 
-            const response = await fetch(
-                this.config.routes.getEmail.replace(":id", emailId)
-            );
-            const email = await response.json();
+            const response = await $.ajax({
+                url: this.config.routes.getEmail.replace(":id", emailId),
+                method: "GET",
+                dataType: "json",
+            });
 
-            if (response.ok) {
-                this.displayEmail(email);
-                this.markAsRead(emailId);
-                this.currentEmail = email;
-            } else {
-                this.showError("Failed to load email");
-            }
+            this.displayEmail(response);
+            this.markAsRead(emailId);
+            this.currentEmail = response;
         } catch (error) {
-            this.showError("Network error occurred");
+            this.showError("Failed to load email");
             console.error("Load email error:", error);
         } finally {
             this.hideLoading("email-content");
@@ -193,12 +190,12 @@ class MailApp {
     }
 
     displayEmail(email) {
-        const emailContent = document.querySelector(".mails-information");
-        if (!emailContent) return;
+        const $emailContent = $(".mails-information");
+        if (!$emailContent.length) return;
 
         // Update header
-        const header = emailContent.querySelector(".mail-info-header");
-        header.innerHTML = `
+        const $header = $emailContent.find(".mail-info-header");
+        $header.html(`
             <div class="me-1">
                 <span class="avatar avatar-md online me-2 avatar-rounded mail-msg-avatar">
                     ${
@@ -243,13 +240,13 @@ class MailApp {
                     <i class="ri-reply-line"></i>
                 </button>
             </div>
-        `;
+        `);
 
         // Update body
-        const body = emailContent.querySelector(".mail-info-body");
+        const $body = $emailContent.find(".mail-info-body");
         const receivedDate = new Date(email.receivedDateTime).toLocaleString();
 
-        body.innerHTML = `
+        $body.html(`
             <div class="d-sm-flex d-block align-items-center justify-content-between mb-4">
                 <div>
                     <p class="fs-20 fw-semibold mb-0">${email.subject}</p>
@@ -270,7 +267,7 @@ class MailApp {
             <div class="mail-reply">
                 <div id="mail-reply-editor"></div>
             </div>
-        `;
+        `);
 
         // Reinitialize reply editor
         this.initializeReplyEditor();
@@ -321,10 +318,10 @@ class MailApp {
     }
 
     async sendEmail() {
-        const form = document.getElementById("compose-email-form");
-        const formData = new FormData(form);
-        const sendBtn = document.getElementById("sendEmailBtn");
-        const spinner = sendBtn.querySelector(".spinner-border");
+        const $form = $("#compose-email-form");
+        const formData = new FormData($form[0]);
+        const $sendBtn = $("#sendEmailBtn");
+        const $spinner = $sendBtn.find(".spinner-border");
 
         // Get content from Quill editor
         if (this.quillCompose) {
@@ -332,25 +329,25 @@ class MailApp {
         }
 
         try {
-            sendBtn.disabled = true;
-            spinner.classList.remove("d-none");
+            $sendBtn.prop("disabled", true);
+            $spinner.removeClass("d-none");
 
-            const response = await fetch(this.config.routes.sendEmail, {
+            const result = await $.ajax({
+                url: this.config.routes.sendEmail,
                 method: "POST",
-                body: formData,
+                data: formData,
+                processData: false,
+                contentType: false,
                 headers: {
                     "X-CSRF-TOKEN": this.config.csrf,
                 },
+                dataType: "json",
             });
-
-            const result = await response.json();
 
             if (result.success) {
                 this.showSuccess("Email sent successfully!");
-                bootstrap.Modal.getInstance(
-                    document.getElementById("mail-compose-modal")
-                ).hide();
-                form.reset();
+                $("#mail-compose-modal").modal("hide");
+                $form[0].reset();
                 if (this.quillCompose) this.quillCompose.setContents([]);
                 this.refreshEmailList();
             } else {
@@ -360,8 +357,8 @@ class MailApp {
             this.showError("Network error occurred");
             console.error("Send email error:", error);
         } finally {
-            sendBtn.disabled = false;
-            spinner.classList.add("d-none");
+            $sendBtn.prop("disabled", false);
+            $spinner.addClass("d-none");
         }
     }
 
@@ -369,15 +366,15 @@ class MailApp {
         try {
             this.showLoading("email-list");
 
-            const response = await fetch(this.config.routes.outlookSync, {
+            const result = await $.ajax({
+                url: this.config.routes.outlookSync,
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
                     "X-CSRF-TOKEN": this.config.csrf,
                 },
+                dataType: "json",
             });
-
-            const result = await response.json();
 
             if (result.synced) {
                 this.showSuccess("Emails synced successfully!");
@@ -393,44 +390,45 @@ class MailApp {
         }
     }
 
-    async toggleStar(emailId, button) {
+    async toggleStar(emailId, $button) {
         try {
-            const isStarred = button.classList.contains("starred");
-            const icon = button.querySelector("i");
+            const isStarred = $button.hasClass("starred");
+            const $icon = $button.find("i");
 
             // Optimistic update
-            button.classList.toggle("starred");
-            icon.className = isStarred
-                ? "ri-star-line fs-14"
-                : "ri-star-fill fs-14";
+            $button.toggleClass("starred");
+            $icon.attr(
+                "class",
+                isStarred ? "ri-star-line fs-14" : "ri-star-fill fs-14"
+            );
 
-            const response = await fetch(`/mail/star/${emailId}`, {
+            await $.ajax({
+                url: `/mail/star/${emailId}`,
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
                     "X-CSRF-TOKEN": this.config.csrf,
                 },
-                body: JSON.stringify({ starred: !isStarred }),
+                data: JSON.stringify({ starred: !isStarred }),
+                dataType: "json",
             });
-
-            if (!response.ok) {
-                // Revert on failure
-                button.classList.toggle("starred");
-                icon.className = isStarred
-                    ? "ri-star-fill fs-14"
-                    : "ri-star-line fs-14";
-                this.showError("Failed to update star status");
-            }
         } catch (error) {
-            this.showError("Network error occurred");
+            // Revert on failure
+            $button.toggleClass("starred");
+            const $icon = $button.find("i");
+            $icon.attr(
+                "class",
+                !isStarred ? "ri-star-line fs-14" : "ri-star-fill fs-14"
+            );
+            this.showError("Failed to update star status");
             console.error("Star toggle error:", error);
         }
     }
 
-    handleEmailSelection(checkbox) {
-        const emailId = checkbox.value;
+    handleEmailSelection($checkbox) {
+        const emailId = $checkbox.val();
 
-        if (checkbox.checked) {
+        if ($checkbox.is(":checked")) {
             this.selectedEmails.add(emailId);
         } else {
             this.selectedEmails.delete(emailId);
@@ -440,53 +438,48 @@ class MailApp {
     }
 
     handleSelectAll(checked) {
-        const checkboxes = document.querySelectorAll(".email-checkbox");
+        const $checkboxes = $(".email-checkbox");
 
-        checkboxes.forEach((checkbox) => {
-            checkbox.checked = checked;
-            this.handleEmailSelection(checkbox);
+        $checkboxes.each((index, checkbox) => {
+            $(checkbox).prop("checked", checked);
+            this.handleEmailSelection($(checkbox));
         });
     }
 
     updateSelectionUI() {
         const count = this.selectedEmails.size;
-        const selectionInfo = document.getElementById("selection-info");
+        const $selectionInfo = $("#selection-info");
 
-        if (selectionInfo) {
+        if ($selectionInfo.length) {
             if (count > 0) {
-                selectionInfo.textContent = `${count} email(s) selected`;
-                selectionInfo.classList.remove("d-none");
+                $selectionInfo.text(`${count} email(s) selected`);
+                $selectionInfo.removeClass("d-none");
             } else {
-                selectionInfo.classList.add("d-none");
+                $selectionInfo.addClass("d-none");
             }
         }
     }
 
     searchEmails(query) {
-        const emailItems = document.querySelectorAll(".email-item");
+        const $emailItems = $(".email-item");
 
-        emailItems.forEach((item) => {
-            const subject = item
-                .querySelector(".email-subject")
-                .textContent.toLowerCase();
-            const sender = item
-                .querySelector(".sender-name")
-                .textContent.toLowerCase();
-            const preview = item
-                .querySelector(".email-preview")
-                .textContent.toLowerCase();
+        $emailItems.each((index, item) => {
+            const $item = $(item);
+            const subject = $item.find(".email-subject").text().toLowerCase();
+            const sender = $item.find(".sender-name").text().toLowerCase();
+            const preview = $item.find(".email-preview").text().toLowerCase();
 
             const matches =
                 subject.includes(query.toLowerCase()) ||
                 sender.includes(query.toLowerCase()) ||
                 preview.includes(query.toLowerCase());
 
-            item.style.display = matches ? "block" : "none";
+            $item.toggle(matches);
         });
     }
 
-    async handleEmailAction(action, element) {
-        const emailId = element.dataset.emailId;
+    async handleEmailAction(action, $element) {
+        const emailId = $element.data("email-id");
 
         switch (action) {
             case "delete":
@@ -517,79 +510,69 @@ class MailApp {
         if (!confirm("Are you sure you want to delete this email?")) return;
 
         try {
-            const response = await fetch(`/mail/delete/${emailId}`, {
+            await $.ajax({
+                url: `/mail/delete/${emailId}`,
                 method: "DELETE",
                 headers: {
                     "X-CSRF-TOKEN": this.config.csrf,
                 },
             });
 
-            if (response.ok) {
-                this.showSuccess("Email deleted successfully");
-                this.removeEmailFromList(emailId);
-            } else {
-                this.showError("Failed to delete email");
-            }
+            this.showSuccess("Email deleted successfully");
+            this.removeEmailFromList(emailId);
         } catch (error) {
-            this.showError("Network error occurred");
+            this.showError("Failed to delete email");
             console.error("Delete error:", error);
         }
     }
 
     async archiveEmail(emailId) {
         try {
-            const response = await fetch(`/mail/archive/${emailId}`, {
+            await $.ajax({
+                url: `/mail/archive/${emailId}`,
                 method: "POST",
                 headers: {
                     "X-CSRF-TOKEN": this.config.csrf,
                 },
             });
 
-            if (response.ok) {
-                this.showSuccess("Email archived successfully");
-                this.removeEmailFromList(emailId);
-            } else {
-                this.showError("Failed to archive email");
-            }
+            this.showSuccess("Email archived successfully");
+            this.removeEmailFromList(emailId);
         } catch (error) {
-            this.showError("Network error occurred");
+            this.showError("Failed to archive email");
             console.error("Archive error:", error);
         }
     }
 
     async markAsSpam(emailId) {
         try {
-            const response = await fetch(`/mail/spam/${emailId}`, {
+            await $.ajax({
+                url: `/mail/spam/${emailId}`,
                 method: "POST",
                 headers: {
                     "X-CSRF-TOKEN": this.config.csrf,
                 },
             });
 
-            if (response.ok) {
-                this.showSuccess("Email marked as spam");
-                this.removeEmailFromList(emailId);
-            } else {
-                this.showError("Failed to mark as spam");
-            }
+            this.showSuccess("Email marked as spam");
+            this.removeEmailFromList(emailId);
         } catch (error) {
-            this.showError("Network error occurred");
+            this.showError("Failed to mark as spam");
             console.error("Spam error:", error);
         }
     }
 
     async markAsRead(emailId) {
         try {
-            const response = await fetch(`/mail/read/${emailId}`, {
+            await $.ajax({
+                url: `/mail/read/${emailId}`,
                 method: "POST",
                 headers: {
                     "X-CSRF-TOKEN": this.config.csrf,
                 },
             });
 
-            if (response.ok) {
-                this.updateEmailReadStatus(emailId, true);
-            }
+            this.updateEmailReadStatus(emailId, true);
         } catch (error) {
             console.error("Mark read error:", error);
         }
@@ -597,29 +580,26 @@ class MailApp {
 
     async markAsUnread(emailId) {
         try {
-            const response = await fetch(`/mail/unread/${emailId}`, {
+            await $.ajax({
+                url: `/mail/unread/${emailId}`,
                 method: "POST",
                 headers: {
                     "X-CSRF-TOKEN": this.config.csrf,
                 },
             });
 
-            if (response.ok) {
-                this.updateEmailReadStatus(emailId, false);
-            }
+            this.updateEmailReadStatus(emailId, false);
         } catch (error) {
             console.error("Mark unread error:", error);
         }
     }
 
     switchFolder(folder) {
-        const currentActive = document.querySelector(".mail-type.active");
-        if (currentActive) currentActive.classList.remove("active");
+        const $currentActive = $(".mail-type.active");
+        $currentActive.removeClass("active");
 
-        const newActive = document
-            .querySelector(`[data-folder="${folder}"]`)
-            .closest(".mail-type");
-        if (newActive) newActive.classList.add("active");
+        const $newActive = $(`[data-folder="${folder}"]`).closest(".mail-type");
+        $newActive.addClass("active");
 
         this.loadFolder(folder);
     }
@@ -628,17 +608,17 @@ class MailApp {
         try {
             this.showLoading("email-list");
 
-            const response = await fetch(`/mail/folder/${folder}`);
-            const html = await response.text();
+            const html = await $.ajax({
+                url: `/mail/folder/${folder}`,
+                method: "GET",
+            });
 
             // Update email list content
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(html, "text/html");
-            const newEmailList = doc.querySelector(".mail-messages");
+            const $tempDiv = $("<div>").html(html);
+            const $newEmailList = $tempDiv.find(".mail-messages");
 
-            if (newEmailList) {
-                document.querySelector(".mail-messages").innerHTML =
-                    newEmailList.innerHTML;
+            if ($newEmailList.length) {
+                $(".mail-messages").html($newEmailList.html());
             }
         } catch (error) {
             this.showError("Failed to load folder");
@@ -649,10 +629,10 @@ class MailApp {
     }
 
     showReplyEditor() {
-        const replySection = document.querySelector(".mail-reply");
-        if (replySection) {
-            replySection.style.display = "block";
-            replySection.scrollIntoView({ behavior: "smooth" });
+        const $replySection = $(".mail-reply");
+        if ($replySection.length) {
+            $replySection.show();
+            $replySection[0].scrollIntoView({ behavior: "smooth" });
 
             if (this.quillReply) {
                 this.quillReply.focus();
@@ -662,16 +642,11 @@ class MailApp {
 
     forwardEmail(emailId) {
         // Open compose modal with email content pre-filled
-        const modal = new bootstrap.Modal(
-            document.getElementById("mail-compose-modal")
-        );
-        modal.show();
+        $("#mail-compose-modal").modal("show");
 
         // Pre-fill subject with "Fwd: "
         if (this.currentEmail) {
-            document.getElementById(
-                "mailSubject"
-            ).value = `Fwd: ${this.currentEmail.subject}`;
+            $("#mailSubject").val(`Fwd: ${this.currentEmail.subject}`);
 
             if (this.quillCompose) {
                 const forwardContent = `
@@ -737,50 +712,40 @@ class MailApp {
 
         const template = templates[templateName];
         if (template) {
-            document.getElementById("mailSubject").value = template.subject;
+            $("#mailSubject").val(template.subject);
             if (this.quillCompose) {
                 this.quillCompose.root.innerHTML = template.content;
             }
 
             // Close template modal
-            bootstrap.Modal.getInstance(
-                document.getElementById("template-modal")
-            ).hide();
+            $("#template-modal").modal("hide");
         }
     }
 
     removeEmailFromList(emailId) {
-        const emailItem = document.querySelector(
-            `[data-email-id="${emailId}"]`
-        );
-        if (emailItem) {
-            emailItem.remove();
-        }
+        $(`[data-email-id="${emailId}"]`).remove();
     }
 
     updateEmailReadStatus(emailId, isRead) {
-        const emailItem = document.querySelector(
-            `[data-email-id="${emailId}"]`
-        );
-        if (emailItem) {
+        const $emailItem = $(`[data-email-id="${emailId}"]`);
+        if ($emailItem.length) {
             if (isRead) {
-                emailItem.classList.remove("unread");
+                $emailItem.removeClass("unread");
             } else {
-                emailItem.classList.add("unread");
+                $emailItem.addClass("unread");
             }
         }
     }
 
     refreshEmailList() {
         const currentFolder =
-            document.querySelector(".mail-type.active [data-folder]")?.dataset
-                .folder || "inbox";
+            $(".mail-type.active [data-folder]").data("folder") || "inbox";
         this.loadFolder(currentFolder);
     }
 
     initializeReplyEditor() {
-        const replyEditor = document.getElementById("mail-reply-editor");
-        if (replyEditor && !this.quillReply) {
+        const $replyEditor = $("#mail-reply-editor");
+        if ($replyEditor.length && !this.quillReply) {
             this.quillReply = new Quill("#mail-reply-editor", {
                 theme: "snow",
                 modules: {
@@ -810,13 +775,13 @@ class MailApp {
 
     async checkForNewEmails() {
         try {
-            const response = await fetch("/mail/check-new", {
+            const result = await $.ajax({
+                url: "/mail/check-new",
                 headers: {
                     "X-CSRF-TOKEN": this.config.csrf,
                 },
+                dataType: "json",
             });
-
-            const result = await response.json();
 
             if (result.newEmails > 0) {
                 this.showNewEmailNotification(result.newEmails);
@@ -845,36 +810,33 @@ class MailApp {
 
     // Utility methods
     showLoading(target) {
-        const element =
-            document.getElementById(target) ||
-            document.querySelector(`.${target}`);
-        if (element) {
-            element.classList.add("loading");
-            const overlay =
-                element.querySelector(".loading-overlay") ||
-                this.createLoadingOverlay();
-            element.appendChild(overlay);
+        const $element = $(`#${target}`).length
+            ? $(`#${target}`)
+            : $(`.${target}`);
+        if ($element.length) {
+            $element.addClass("loading");
+            let $overlay = $element.find(".loading-overlay");
+            if (!$overlay.length) {
+                $overlay = this.createLoadingOverlay();
+                $element.append($overlay);
+            }
         }
     }
 
     hideLoading(target) {
-        const element =
-            document.getElementById(target) ||
-            document.querySelector(`.${target}`);
-        if (element) {
-            element.classList.remove("loading");
-            const overlay = element.querySelector(".loading-overlay");
-            if (overlay) overlay.remove();
+        const $element = $(`#${target}`).length
+            ? $(`#${target}`)
+            : $(`.${target}`);
+        if ($element.length) {
+            $element.removeClass("loading");
+            $element.find(".loading-overlay").remove();
         }
     }
 
     createLoadingOverlay() {
-        const overlay = document.createElement("div");
-        overlay.className =
-            "loading-overlay position-absolute top-0 start-0 w-100 h-100 d-flex justify-content-center align-items-center bg-white bg-opacity-75";
-        overlay.innerHTML =
-            '<div class="spinner-border text-primary" role="status"></div>';
-        return overlay;
+        return $(
+            '<div class="loading-overlay position-absolute top-0 start-0 w-100 h-100 d-flex justify-content-center align-items-center bg-white bg-opacity-75"><div class="spinner-border text-primary" role="status"></div></div>'
+        );
     }
 
     showSuccess(message) {
@@ -890,41 +852,38 @@ class MailApp {
     }
 
     showToast(message, type = "info") {
-        const toastContainer =
-            document.getElementById("toast-container") ||
-            this.createToastContainer();
-        const toast = this.createToast(message, type);
-        toastContainer.appendChild(toast);
+        let $toastContainer = $("#toast-container");
+        if (!$toastContainer.length) {
+            $toastContainer = this.createToastContainer();
+        }
+        const $toast = this.createToast(message, type);
+        $toastContainer.append($toast);
 
-        const bsToast = new bootstrap.Toast(toast);
-        bsToast.show();
-
-        toast.addEventListener("hidden.bs.toast", () => {
-            toast.remove();
+        $toast[0].addEventListener("hidden.bs.toast", () => {
+            $toast.remove();
         });
+
+        const bsToast = new bootstrap.Toast($toast[0]);
+        bsToast.show();
     }
 
     createToastContainer() {
-        const container = document.createElement("div");
-        container.id = "toast-container";
-        container.className = "toast-container position-fixed top-0 end-0 p-3";
-        container.style.zIndex = "9999";
-        document.body.appendChild(container);
-        return container;
+        const $container = $(
+            '<div id="toast-container" class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 9999;"></div>'
+        );
+        $("body").append($container);
+        return $container;
     }
 
     createToast(message, type) {
-        const toast = document.createElement("div");
-        toast.className =
-            "toast align-items-center text-bg-" + type + " border-0";
-        toast.setAttribute("role", "alert");
-        toast.innerHTML = `
-            <div class="d-flex">
-                <div class="toast-body">${message}</div>
-                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+        return $(`
+            <div class="toast align-items-center text-bg-${type} border-0" role="alert">
+                <div class="d-flex">
+                    <div class="toast-body">${message}</div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                </div>
             </div>
-        `;
-        return toast;
+        `);
     }
 
     formatFileSize(bytes) {
