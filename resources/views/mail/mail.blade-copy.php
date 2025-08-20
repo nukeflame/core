@@ -27,7 +27,6 @@
         margin-left: -20px;
         margin-right: -20px;
     }
-    }
 
     .menu-item {
         padding: 4px 8px;

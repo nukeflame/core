@@ -19,7 +19,7 @@ class SendOutlookEmailJob implements ShouldQueue
     public $timeout = 300; // 5 minutes
     public $tries = 3;
     public $maxExceptions = 2;
-    // public $backoff = [30, 60, 120]; // Retry after 30s, 1m, 2m
+    public $backoff = [30, 60, 120]; // Retry after 30s, 1m, 2m
 
     protected array $emailData;
     protected int $userId;

@@ -49,6 +49,9 @@ Route::middleware(['auth', 'check.first.login'])->group(function () {
     // admin routes
     require_once('admin.php');
 
+    // mail routes
+    require_once('mail.php');
+
     // report routes
     require_once('report.php');
 

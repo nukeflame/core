@@ -32,6 +32,23 @@ return [
                     'icon' => 'bx bx-check-circle',
                     'permission' => 'app.dashboard.approvals'
                 ],
+                [
+                    'title' => 'Mail',
+                    'icon' => 'bx bx-envelope',
+                    'permission' => 'reports.budget_allocation.view',
+                    'submenu' => [
+                        [
+                            'title' => 'Mail App',
+                            'route' => 'mail.index',
+                            'permission' => 'reports.budget_allocation.view'
+                        ],
+                        [
+                            'title' => 'Mail Settings',
+                            'route' => 'mail.index',
+                            'permission' => 'reports.budget_allocation.view'
+                        ],
+                    ]
+                ],
             ]
         ],
         [
@@ -159,29 +176,6 @@ return [
                     'route' => 'admin.staff_notices',
                     'icon' => 'bx bx-pin',
                     'permission' => 'reports.budget_allocation.view',
-                ],
-                // [
-                //     'title' => '',
-                //     'route' => 'admin.email',
-                //     'icon' => 'bx bx-envelope',
-                //     'permission' => 'reports.budget_allocation.view',
-                // ],
-                [
-                    'title' => 'Email',
-                    'icon' => 'bx bx-envelope',
-                    'permission' => 'reports.budget_allocation.view',
-                    'submenu' => [
-                        [
-                            'title' => 'Mail App',
-                            'route' => 'admin.email',
-                            'permission' => 'reports.budget_allocation.view'
-                        ],
-                        [
-                            'title' => 'Mail Settings',
-                            'route' => 'admin.email.settings',
-                            'permission' => 'reports.budget_allocation.view'
-                        ],
-                    ]
                 ],
             ]
         ],

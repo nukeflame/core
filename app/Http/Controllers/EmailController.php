@@ -37,23 +37,26 @@ class EmailController extends Controller
         $this->batchId = Str::uuid()->toString();
     }
 
-    public function index()
+    public function index(Request $request)
     {
         try {
-            $emails = $this->emailService->getEmailsPaginated($this->authUser->email, 100, 'inbox');
+            // $emails = $this->emailService->getEmailsPaginated($this->authUser->email, 100, 'inbox');
 
-            $countAll = $this->emailService->getAllCount();
-            $countInbox = $this->emailService->getInboxCount();
-            $countSpam = $this->emailService->getSpamCount();
-            $countStarred = $this->emailService->getStarredCount();
+            // $countAll = $this->emailService->getAllCount();
+            // $countInbox = $this->emailService->getInboxCount();
+            // $countSpam = $this->emailService->getSpamCount();
+            // $countStarred = $this->emailService->getStarredCount();
 
-            return view('admin.email.mail', compact(
-                'emails',
-                'countAll',
-                'countInbox',
-                'countSpam',
-                'countStarred'
-            ));
+            $folder = $request->get('folder', 'inbox');
+            // $emails = $this->outlookService->getEmails($folder);
+            // $folders = $this->outlookService->getFolders();
+            // $contacts = $this->outlookService->getContacts();
+
+            $emails = [];
+            $folders = [];
+            $contacts = [];
+
+            return view('mail.index', compact('emails', 'folders', 'contacts', 'folder'));
         } catch (Exception $e) {
             return redirect()->back()->withErrors(['Failed to load emails. Please try again.']);
         }

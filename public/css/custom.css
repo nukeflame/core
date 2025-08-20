@@ -222,6 +222,10 @@ input[type="number"]::-webkit-inner-spin-button {
         /* min-height: calc(100vh - 0rem) !important; */
         min-height: calc(100vh - 4rem) !important;
     }
+    .app-content:has(.mail-wrapper) {
+        min-height: 0px !important;
+        margin-block-start: 5px !important;
+    }
 }
 
 /* Select2 Css */
@@ -1218,6 +1222,10 @@ table.dataTable {
 .main-content.app-content .container-fluid {
     margin-bottom: 80px !important;
 }
+.main-content.app-content .container-fluid:has(.mail-wrapper) {
+    margin-bottom: 0px !important;
+}
+
 table.dataTable tbody th.kpi_th,
 table.dataTable thead th.kpi_th,
 table.dataTable tbody td.kpi_td {
