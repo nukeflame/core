@@ -1621,6 +1621,44 @@ tr.received-doc-row > td.received-success .btn_cancel_upload {
     overflow-x: hidden;
     overflow-y: auto;
 }
+.customScrollBar::-webkit-scrollbar,
+body::-webkit-scrollbar {
+    height: 18px;
+    width: 18px;
+}
+.customScrollBar::-webkit-scrollbar-button,
+.customScrollBar::-webkit-scrollbar-corner,
+body::-webkit-scrollbar-button,
+body::-webkit-scrollbar-corner {
+    background: transparent;
+    cursor: pointer;
+}
+.customScrollBar::-webkit-scrollbar-button,
+.customScrollBar::-webkit-scrollbar-corner,
+body::-webkit-scrollbar-button,
+body::-webkit-scrollbar-corner {
+    background: transparent;
+    cursor: pointer;
+}
+.customScrollBar::-webkit-scrollbar-thumb,
+body::-webkit-scrollbar-thumb {
+    background-color: #808080;
+}
+.customScrollBar::-webkit-scrollbar-track,
+body::-webkit-scrollbar-track {
+    background: transparent;
+}
+.customScrollBar::-webkit-scrollbar-thumb,
+.customScrollBar::-webkit-scrollbar-thumb:hover,
+body::-webkit-scrollbar-thumb,
+body::-webkit-scrollbar-thumb:hover {
+    background-clip: content-box;
+    border: 6px solid transparent;
+    border-radius: 9px;
+}
+.mail-wrapper.main-mail-container {
+    font-size: 14px !important;
+}
 .total-mails .mail-messages li:hover {
     background-color: rgb(var(--light-rgb));
     cursor: default;

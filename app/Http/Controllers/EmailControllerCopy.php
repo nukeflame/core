@@ -22,7 +22,7 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 
-class EmailController extends Controller
+class EmailControllerCopy extends Controller
 {
     protected $emailService;
     private $outlookService;

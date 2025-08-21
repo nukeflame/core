@@ -1267,22 +1267,6 @@ class OutlookService
     }
 
     /**
-     * Mark message as read/unread
-     */
-    public function markMessage(string $messageId, bool $isRead = true): bool
-    {
-        try {
-            $this->makeRequest('PATCH', "/me/messages/{$messageId}", [
-                'json' => ['isRead' => $isRead]
-            ]);
-            return true;
-        } catch (Exception $e) {
-            logger()->error('Failed to mark message: ' . $e->getMessage());
-            return false;
-        }
-    }
-
-    /**
      * Move message to folder
      */
     public function moveMessage(string $messageId, string $destinationFolderId): bool
@@ -1585,7 +1569,6 @@ class OutlookService
         $response = $this->makeRequest('GET', $endpoint, ['query' => $query]);
         return $response['value'] ?? [];
     }
-
 
     /**
      * Fetch emails from a specific folder
@@ -3038,5 +3021,112 @@ class OutlookService
                 'contentBytes' => $attachment['content'] ?? ''
             ];
         }, $attachments);
+    }
+
+    /**
+     * Set message categories and flags
+     * NEW method for message organization
+     *
+     * @param string $messageId Message ID
+     * @param array $categories Array of category names
+     * @param array $flagData Flag information
+     * @return bool Success status
+     */
+    public function setMessageCategories(string $messageId, array $categories = [], array $flagData = []): bool
+    {
+        try {
+            if (empty($messageId)) {
+                throw new Exception('Message ID is required');
+            }
+
+            $updateData = [];
+
+            // Set categories
+            if (!empty($categories)) {
+                $updateData['categories'] = array_unique($categories);
+            }
+
+            // Set flag
+            if (!empty($flagData)) {
+                $flag = [
+                    'flagStatus' => $flagData['status'] ?? 'flagged'
+                ];
+
+                if (!empty($flagData['due_date'])) {
+                    $flag['dueDateTime'] = [
+                        'dateTime' => Carbon::parse($flagData['due_date'])->toISOString(),
+                        'timeZone' => $flagData['timezone'] ?? 'UTC'
+                    ];
+                }
+
+                if (!empty($flagData['start_date'])) {
+                    $flag['startDateTime'] = [
+                        'dateTime' => Carbon::parse($flagData['start_date'])->toISOString(),
+                        'timeZone' => $flagData['timezone'] ?? 'UTC'
+                    ];
+                }
+
+                $updateData['flag'] = $flag;
+            }
+
+            if (empty($updateData)) {
+                return true; // Nothing to update
+            }
+
+            $this->makeRequest('PATCH', "/me/messages/{$messageId}", [
+                'json' => $updateData
+            ]);
+
+            logger()->info('Message categories and flags updated', [
+                'message_id' => $messageId,
+                'categories' => $categories,
+                'has_flag' => !empty($flagData),
+                'user' => $this->auth->email ?? 'unknown'
+            ]);
+
+            return true;
+        } catch (Exception $e) {
+            logger()->error('Failed to set message categories', [
+                'message_id' => $messageId,
+                'categories' => $categories,
+                'error' => $e->getMessage(),
+                'user' => $this->auth->email ?? 'unknown'
+            ]);
+
+            return false;
+        }
+    }
+
+    /**
+     * Mark message as read or unread
+     *
+     * @param string $messageId Message ID
+     * @param bool $isRead Read status
+     * @return bool Success status
+     * @return bool $auth
+     */
+    public function markMessage($auth, string $messageId, bool $isRead = true): bool
+    {
+        try {
+            $this->auth = $auth;
+
+            if (empty($messageId)) {
+                throw new Exception('Message ID is required');
+            }
+
+            $this->makeRequest('PATCH', "/me/messages/{$messageId}", [
+                'json' => ['isRead' => $isRead]
+            ]);
+
+            return true;
+        } catch (Exception $e) {
+            logger()->error('Failed to mark message', [
+                'message_id' => $messageId,
+                'is_read' => $isRead,
+                'error' => $e->getMessage(),
+                'user' => $this->auth->email ?? 'unknown'
+            ]);
+            return false;
+        }
     }
 }

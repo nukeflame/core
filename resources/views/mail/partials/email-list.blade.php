@@ -2,7 +2,7 @@
     <!-- Header -->
     <div class="p-3 d-flex align-items-center border-bottom">
         <div class="me-3">
-            <input class="form-check-input" type="checkbox" id="checkAll" value="">
+            <input class="form-check-input mailc-checkbox" type="checkbox" id="checkAll" value="">
         </div>
         <div class="flex-fill">
             <h6 class="fw-semibold mb-0">{{ ucfirst($folder) }} ({{ $emails->count() }})</h6>
@@ -38,7 +38,7 @@
     <!-- Email Messages -->
     <div class="mail-messages" id="mail-messages">
         @if ($emails->count() > 0)
-            <ul class="list-unstyled mb-0 mail-messages-container">
+            <ul class="list-unstyled mb-0 mail-messages-container customScrollBar">
                 @foreach ($emails as $email)
                     @include('mail.components.email-item', ['email' => $email])
                 @endforeach
@@ -48,7 +48,7 @@
                 <div class="mb-3">
                     <i class="ri-mail-line fs-48 text-muted"></i>
                 </div>
-                <h6 class="fw-semibold text-muted">No emails found</h6>
+                <h6 class="text-dark fw-500">No emails found</h6>
                 <p class="text-muted mb-0">
                     @if (!auth()->user()->hasOutlookConnection())
                         Connect your Outlook account to start receiving emails.
@@ -81,3 +81,127 @@
         </div>
     </div>
 </div>
+
+<style>
+    .mailc-checkbox {
+        width: 16px !important;
+        height: 16px !important;
+        margin: 0 !important;
+        border: 1px solid #8a8886 !important;
+        border-radius: 2px !important;
+        background-color: #ffffff !important;
+        cursor: pointer;
+        position: relative;
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        appearance: none;
+    }
+
+    .mailc-checkbox:hover {
+        border-color: #605e5c !important;
+        background-color: #f3f2f1 !important;
+    }
+
+    .mailc-checkbox:checked {
+        background-color: var(--primary-color) !important;
+        border-color: var(--primary-color) !important;
+    }
+
+    .mailc-checkbox:checked::after {
+        content: '✓';
+        position: absolute;
+        top: -1px;
+        left: 2px;
+        color: white;
+        font-size: 12px;
+        font-weight: bold;
+    }
+
+    .mailc-checkbox:focus {
+        outline: 2px solid var(--primary-color);
+        outline-offset: 2px;
+        border-color: var(--primary-color) !important;
+    }
+
+    .mailc-date {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        font-size: 12px !important;
+        color: #605e5c !important;
+        white-space: nowrap;
+    }
+
+    .mail-page {
+        padding: 8px 12px !important;
+        border-bottom: 1px solid #edebe9 !important;
+        transition: background-color 0.1s ease;
+        position: relative;
+    }
+
+    .mail-page:hover {
+        background-color: #f3f2f1;
+    }
+
+    .mail-page.unread {
+        background-color: #fff;
+        border-left: 3px solid var(--primary-color);
+    }
+
+    .mail-page.loading .align-items-top {
+        display: none !important;
+    }
+
+    .mail-page.loading .loading-overlay {
+        height: 92px;
+    }
+
+    .email-content {
+        min-height: 44px;
+        padding: 2px 0;
+    }
+
+    .sender-name {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        color: #242424;
+        font-size: 14px;
+    }
+
+    .email-subject {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        color: #242424;
+        font-size: 14px !important;
+    }
+
+    .email-preview {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        color: #616161 !important;
+        font-size: 14px !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+    }
+
+    .loading-dim {
+        opacity: 0.5;
+        pointer-events: none;
+        transition: opacity 0.3s ease;
+    }
+
+    .loading-dim:hover {
+        opacity: 0.5;
+        /* Prevent hover effects during loading */
+    }
+
+    .loading-dim {
+        animation: pulse 1.5s ease-in-out infinite alternate;
+    }
+
+    @keyframes pulse {
+        0% {
+            opacity: 0.3;
+        }
+
+        100% {
+            opacity: 0.7;
+        }
+    }
+</style>

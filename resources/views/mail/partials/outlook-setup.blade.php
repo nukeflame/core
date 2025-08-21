@@ -222,32 +222,32 @@
             }
 
             // Check if user previously skipped setup
-            if (sessionStorage.getItem('outlook_setup_skipped') === 'true') {
-                $('#outlook-setup-modal').hide();
-            }
+            // if (sessionStorage.getItem('outlook_setup_skipped') === 'true') {
+            //     $('#outlook-setup-modal').hide();
+            // }
 
-            var urlParams = new URLSearchParams(window.location.search);
-            if (urlParams.get('outlook_connected') === 'true') {
-                $("#outlook-connection-modal").modal('show');
-                showStep('step-syncing');
+            // var urlParams = new URLSearchParams(window.location.search);
+            // if (urlParams.get('outlook_connected') === 'true') {
+            //     $("#outlook-connection-modal").modal('show');
+            //     showStep('step-syncing');
 
-                $.ajax({
-                        url: '{{ route('mail.outlook.sync') }}',
-                        type: 'POST',
-                        headers: {
-                            'X-CSRF-TOKEN': '{{ csrf_token() }}'
-                        },
-                        dataType: 'json'
-                    })
-                    .done(function(data) {
-                        showStep('step-success');
-                        window.history.replaceState({}, document.title, window.location.pathname);
-                    })
-                    .fail(function(xhr, status, error) {
-                        ("#outlook-connection-modal").modal('hide')
-                        showError('Failed to sync emails');
-                    });
-            }
+            //     $.ajax({
+            //             url: '{{ route('mail.outlook.sync') }}',
+            //             type: 'POST',
+            //             headers: {
+            //                 'X-CSRF-TOKEN': '{{ csrf_token() }}'
+            //             },
+            //             dataType: 'json'
+            //         })
+            //         .done(function(data) {
+            //             showStep('step-success');
+            //             window.history.replaceState({}, document.title, window.location.pathname);
+            //         })
+            //         .fail(function(xhr, status, error) {
+            //             ("#outlook-connection-modal").modal('hide')
+            //             showError('Failed to sync emails');
+            //         });
+            // }
         });
     </script>
 @endpush

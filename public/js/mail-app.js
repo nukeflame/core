@@ -101,10 +101,11 @@ class MailApp {
     bindEvents() {
         // Email item clicks
         this.$document.on("click", ".email-content", (e) => {
-            const $emailItem = $(e.currentTarget).closest(".email-item");
+            const $emailItem = $(e.currentTarget).closest(".mail-page");
             const emailId = $emailItem.data("email-id");
+
             if (emailId) {
-                this.loadEmail(emailId);
+                this.loadEmail(emailId, $emailItem);
             }
         });
 
@@ -168,9 +169,9 @@ class MailApp {
         });
     }
 
-    async loadEmail(emailId) {
+    async loadEmail(emailId, $emailItem) {
         try {
-            this.showLoading("email-content");
+            this.showLoadingForEmail($emailItem);
 
             const response = await $.ajax({
                 url: this.config.routes.getEmail.replace(":id", emailId),
@@ -179,64 +180,52 @@ class MailApp {
             });
 
             this.displayEmail(response);
-            this.markAsRead(emailId);
-            this.currentEmail = response;
+            // this.markAsRead(emailId);
+            // this.currentEmail = response;
         } catch (error) {
             this.showError("Failed to load email");
             console.error("Load email error:", error);
         } finally {
-            this.hideLoading("email-content");
+            this.hideLoadingForEmail($emailItem);
         }
     }
 
     displayEmail(email) {
+        console.log(email);
         const $emailContent = $(".mails-information");
         if (!$emailContent.length) return;
-
+        // <span class="avatar avatar-md online me-2 avatar-rounded mail-msg-avatar">
+        //     $
+        //     {email.avatar
+        //         ? `<img src="${email.from.avatar}" alt="">`
+        //         : `<div class="avatar-initial">${email.from.name
+        //               .charAt(0)
+        //               .toUpperCase()}</div>`}
+        // </span>;
         // Update header
         const $header = $emailContent.find(".mail-info-header");
         $header.html(`
             <div class="me-1">
-                <span class="avatar avatar-md online me-2 avatar-rounded mail-msg-avatar">
-                    ${
-                        email.from.avatar
-                            ? `<img src="${email.from.avatar}" alt="">`
-                            : `<div class="avatar-initial">${email.from.name
-                                  .charAt(0)
-                                  .toUpperCase()}</div>`
-                    }
-                </span>
+
             </div>
             <div class="flex-fill">
-                <h6 class="mb-0 fw-semibold">${email.from.name}</h6>
-                <span class="text-muted fs-12">${
-                    email.from.emailAddress.address
-                }</span>
+                <h6 class="mb-0 fw-semibold">${email.from_name}</h6>
+                <span class="text-muted fs-12">${email.from_email}</span>
             </div>
             <div class="mail-action-icons">
-                <button class="btn btn-icon btn-light" data-action="star" data-email-id="${
-                    email.id
-                }">
+                <button class="btn btn-icon btn-light" data-action="star" data-email-id="${email.id}">
                     <i class="ri-star-line"></i>
                 </button>
-                <button class="btn btn-icon btn-light ms-1" data-action="archive" data-email-id="${
-                    email.id
-                }">
+                <button class="btn btn-icon btn-light ms-1" data-action="archive" data-email-id="${email.id}">
                     <i class="ri-inbox-archive-line"></i>
                 </button>
-                <button class="btn btn-icon btn-light ms-1" data-action="spam" data-email-id="${
-                    email.id
-                }">
+                <button class="btn btn-icon btn-light ms-1" data-action="spam" data-email-id="${email.id}">
                     <i class="ri-spam-2-line"></i>
                 </button>
-                <button class="btn btn-icon btn-light ms-1" data-action="delete" data-email-id="${
-                    email.id
-                }">
+                <button class="btn btn-icon btn-light ms-1" data-action="delete" data-email-id="${email.id}">
                     <i class="ri-delete-bin-line"></i>
                 </button>
-                <button class="btn btn-icon btn-light ms-1" data-action="reply" data-email-id="${
-                    email.id
-                }">
+                <button class="btn btn-icon btn-light ms-1" data-action="reply" data-email-id="${email.id}">
                     <i class="ri-reply-line"></i>
                 </button>
             </div>
@@ -244,7 +233,7 @@ class MailApp {
 
         // Update body
         const $body = $emailContent.find(".mail-info-body");
-        const receivedDate = new Date(email.receivedDateTime).toLocaleString();
+        const receivedDate = new Date(email.date_received).toLocaleString();
 
         $body.html(`
             <div class="d-sm-flex d-block align-items-center justify-content-between mb-4">
@@ -256,7 +245,7 @@ class MailApp {
                 </div>
             </div>
             <div class="main-mail-content mb-4">
-                ${email.body.content}
+                ${email.body_text}
             </div>
             ${this.renderAttachments(email.attachments)}
             <div class="mb-3">
@@ -461,7 +450,7 @@ class MailApp {
     }
 
     searchEmails(query) {
-        const $emailItems = $(".email-item");
+        const $emailItems = $(".mail-page");
 
         $emailItems.each((index, item) => {
             const $item = $(item);
@@ -597,7 +586,7 @@ class MailApp {
     switchFolder(folder) {
         const $currentActive = $(".mail-type.active");
         $currentActive.removeClass("active");
-
+        console.log(folder);
         const $newActive = $(`[data-folder="${folder}"]`).closest(".mail-type");
         $newActive.addClass("active");
 
@@ -808,13 +797,11 @@ class MailApp {
         this.showInfo(`${count} new email${count > 1 ? "s" : ""} received`);
     }
 
-    // Utility methods
     showLoading(target) {
-        const $element = $(`#${target}`).length
-            ? $(`#${target}`)
-            : $(`.${target}`);
+        const $element = target instanceof jQuery ? target : $(target);
         if ($element.length) {
             $element.addClass("loading");
+
             let $overlay = $element.find(".loading-overlay");
             if (!$overlay.length) {
                 $overlay = this.createLoadingOverlay();
@@ -823,10 +810,20 @@ class MailApp {
         }
     }
 
+    showLoadingForEmail($emailItem) {
+        if ($emailItem && $emailItem.length) {
+            $emailItem.addClass("loading-dim");
+        }
+    }
+
+    hideLoadingForEmail($emailItem) {
+        if ($emailItem && $emailItem.length) {
+            $emailItem.removeClass("loading-dim");
+        }
+    }
+
     hideLoading(target) {
-        const $element = $(`#${target}`).length
-            ? $(`#${target}`)
-            : $(`.${target}`);
+        const $element = target instanceof jQuery ? target : $(target);
         if ($element.length) {
             $element.removeClass("loading");
             $element.find(".loading-overlay").remove();
@@ -844,46 +841,41 @@ class MailApp {
     }
 
     showError(message) {
-        this.showToast(message, "danger");
+        this.showToast(message, "error");
     }
 
     showInfo(message) {
         this.showToast(message, "info");
     }
 
-    showToast(message, type = "info") {
-        let $toastContainer = $("#toast-container");
-        if (!$toastContainer.length) {
-            $toastContainer = this.createToastContainer();
+    showToast(message, type = "info", options = {}) {
+        const defaultOptions = {
+            timeOut: 5000, // 5 seconds default
+            extendedTimeOut: 1000,
+            closeButton: true,
+            progressBar: true,
+            preventDuplicates: true,
+            onclick: null,
+            onShown: null,
+            onHidden: null,
+            ...options, // Merge with user options
+        };
+
+        // Configure toastr with options
+        toastr.options = defaultOptions;
+
+        // Map your type parameter to toastr methods
+        switch (type) {
+            case "success":
+                return toastr.success(message);
+            case "error":
+                return toastr.error(message);
+            case "warning":
+                return toastr.warning(message);
+            case "info":
+            default:
+                return toastr.info(message);
         }
-        const $toast = this.createToast(message, type);
-        $toastContainer.append($toast);
-
-        $toast[0].addEventListener("hidden.bs.toast", () => {
-            $toast.remove();
-        });
-
-        const bsToast = new bootstrap.Toast($toast[0]);
-        bsToast.show();
-    }
-
-    createToastContainer() {
-        const $container = $(
-            '<div id="toast-container" class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 9999;"></div>'
-        );
-        $("body").append($container);
-        return $container;
-    }
-
-    createToast(message, type) {
-        return $(`
-            <div class="toast align-items-center text-bg-${type} border-0" role="alert">
-                <div class="d-flex">
-                    <div class="toast-body">${message}</div>
-                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-                </div>
-            </div>
-        `);
     }
 
     formatFileSize(bytes) {

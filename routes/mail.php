@@ -33,32 +33,32 @@ use Illuminate\Support\Facades\Route;
 // );
 
 // Route::group(['prefix' => 'emails', 'middleware' => ['auth', 'check.first.login']], function () {
-//     // Route::post('/fetch', [EmailController::class, 'fetchEmails'])->name('admin.emails.fetch');
-//     // Route::post('/claims/send-reinsurer-email', [EmailController::class, 'sendClaimReinsurerEmail'])->name('emails.send_claim_reinsurer_email');
+//     // Route::post('/fetch', [MailController::class, 'fetchEmails'])->name('admin.emails.fetch');
+//     // Route::post('/claims/send-reinsurer-email', [MailController::class, 'sendClaimReinsurerEmail'])->name('emails.send_claim_reinsurer_email');
 // });
 
 Route::group(
     ['prefix' => 'mail', 'middleware' => ['auth', 'check.first.login']],
     function () {
-        Route::get('/', [EmailController::class, 'index'])->name('mail.index');
-        Route::get('/folder/{folder}', [EmailController::class, 'folder'])->name('mail.folder');
+        Route::get('/', [MailController::class, 'index'])->name('mail.index');
+        Route::get('/folder/{folder}', [MailController::class, 'folder'])->name('mail.folder');
 
-        Route::get('/email/{id}', [EmailController::class, 'show'])->name('mail.show');
-        Route::post('/send', [EmailController::class, 'send'])->name('mail.send');
-        Route::post('/reply/{id}', [EmailController::class, 'reply'])->name('mail.reply');
+        Route::get('/email/{id}', [MailController::class, 'show'])->name('mail.show');
+        Route::post('/send', [MailController::class, 'send'])->name('mail.send');
+        Route::post('/reply/{id}', [MailController::class, 'reply'])->name('mail.reply');
 
-        Route::post('/star/{id}', [EmailController::class, 'star'])->name('star');
-        // Route::delete('/delete/{id}', [EmailController::class, 'delete'])->name('delete');
-        // Route::post('/archive/{id}', [EmailController::class, 'archive'])->name('archive');
-        // Route::post('/spam/{id}', [EmailController::class, 'spam'])->name('spam');
-        // Route::post('/read/{id}', [EmailController::class, 'markRead'])->name('read');
-        // Route::post('/unread/{id}', [EmailController::class, 'markUnread'])->name('unread');
+        Route::post('/star/{id}', [MailController::class, 'star'])->name('star');
+        // Route::delete('/delete/{id}', [MailController::class, 'delete'])->name('delete');
+        // Route::post('/archive/{id}', [MailController::class, 'archive'])->name('archive');
+        // Route::post('/spam/{id}', [MailController::class, 'spam'])->name('spam');
+        // Route::post('/read/{id}', [MailController::class, 'markRead'])->name('read');
+        // Route::post('/unread/{id}', [MailController::class, 'markUnread'])->name('unread');
 
-        Route::get('/check-new', [EmailController::class, 'checkNew'])->name('check-new');
+        Route::get('/check-new', [MailController::class, 'checkNew'])->name('check-new');
 
-        Route::get('/attachment/{emailId}/{attachmentId}/download', [EmailController::class, 'downloadAttachment'])
+        Route::get('/attachment/{emailId}/{attachmentId}/download', [MailController::class, 'downloadAttachment'])
             ->name('attachment.download');
-        Route::get('/email/{emailId}/attachments/download', [EmailController::class, 'downloadAllAttachments'])
+        Route::get('/email/{emailId}/attachments/download', [MailController::class, 'downloadAllAttachments'])
             ->name('attachments.download-all');
 
         Route::post('/outlook/connect', [OutlookOAuthController::class, 'connect'])->name('mail.outlook.connect');
@@ -68,14 +68,14 @@ Route::group(
 
         // Settings routes
         Route::prefix('settings')->name('settings.')->group(function () {
-            Route::post('/save', [EmailController::class, 'saveSettings'])->name('save');
+            Route::post('/save', [MailController::class, 'saveSettings'])->name('save');
         });
 
 
-        // Route::get('mail/settings', [EmailController::class, 'settings'])->name('admin.email.settings');
+        // Route::get('mail/settings', [MailController::class, 'settings'])->name('admin.email.settings');
 
-        // Route::get('mail/folder/{folder}', [EmailController::class, 'getFolder'])->name('admin.folder');
-        // Route::get('mail/inbox/id/{messageId}', [EmailController::class, 'show'])
+        // Route::get('mail/folder/{folder}', [MailController::class, 'getFolder'])->name('admin.folder');
+        // Route::get('mail/inbox/id/{messageId}', [MailController::class, 'show'])
         //     ->name('mail.inbox.show')
         //     ->where('messageId', '.*');
     }
