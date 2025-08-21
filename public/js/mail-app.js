@@ -191,9 +191,10 @@ class MailApp {
     }
 
     displayEmail(email) {
-        console.log(email);
+        // console.log(email);
         const $emailContent = $(".mails-information");
         if (!$emailContent.length) return;
+
         // <span class="avatar avatar-md online me-2 avatar-rounded mail-msg-avatar">
         //     $
         //     {email.avatar
@@ -202,8 +203,13 @@ class MailApp {
         //               .charAt(0)
         //               .toUpperCase()}</div>`}
         // </span>;
-        // Update header
+
+        const $emptyState = $emailContent.find(
+            ".mail-info-header#email-header"
+        );
+        $emptyState.removeClass("empty-state-header");
         const $header = $emailContent.find(".mail-info-header");
+        $emailContent.removeClass("bg-transparent");
         $header.html(`
             <div class="me-1">
 

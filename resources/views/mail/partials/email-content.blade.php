@@ -1,7 +1,9 @@
-<div class="mails-information border">
-    <div class="mail-info-header d-flex flex-wrap gap-2 align-items-center" id="email-header">
-        <div class="empty-state" id="empty-email-state">
-            <i class="ri-mail-open-line"></i>
+<div class="mails-information border bg-transparent">
+    <div class="mail-info-header d-flex flex-wrap gap-2 align-items-center empty-state-header" id="email-header">
+        <div class="empty-state text-center" id="empty-email-state">
+            <div class="envelope-icon">
+                <i class="bi bi-envelope-open"></i>
+            </div>
             <h6>Select an email to read</h6>
             <p>Choose an email from your inbox to view its contents here.</p>
         </div>

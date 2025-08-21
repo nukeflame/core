@@ -204,4 +204,9 @@
             opacity: 0.7;
         }
     }
+
+    .empty-state-header {
+        justify-content: center;
+        height: calc(100vh - 8.1rem);
+    }
 </style>

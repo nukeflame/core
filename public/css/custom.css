@@ -1689,7 +1689,7 @@ body::-webkit-scrollbar-thumb:hover {
 
 .envelope-icon {
     width: 80px;
-    height: 80px;
+    height: 100%;
     border-radius: 12px;
     display: flex;
     align-items: center;
