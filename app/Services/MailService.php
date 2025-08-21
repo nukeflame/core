@@ -18,7 +18,7 @@ class MailService
 
     public function getMailData(string $folder = 'inbox', ?string $search = null, int $limit = 50): array
     {
-        // logger()->info($this->getContacts());
+        logger()->info($this->getOnlineUsers());
         return [
             'emails' => $this->getEmails($folder, $limit, $search),
             'folders' => $this->getFolders(),
@@ -88,6 +88,29 @@ class MailService
 
         return collect();
     }
+
+    /**
+     * Get users from Outlook service
+     * Maintains compatibility with original method signature
+     */
+    public function getOnlineUsers(): Collection
+    {
+        // return Cache::remember('outlook.users', 1800, function () {
+        //     try {
+        //         // Matches original outlookService->getContacts() call
+        //         return $this->outlookService->getContacts();
+        //     } catch (\Exception $e) {
+        //         return collect();
+        //     }
+        // });
+        // return $this->outlookService->getContacts();
+
+        $this->outlookService->getContacts();
+
+        return collect();
+    }
+
+
 
     public function getEmail(string $id): ?array
     {

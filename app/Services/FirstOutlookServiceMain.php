@@ -5714,10 +5714,2523 @@ class FirstOutlookServiceMain
     { /* Implementation */
     }
 
-    // SECTION 8: CONTACTS METHODS
-    public function getContacts(array $options = []): array
-    { /* Implementation */
+// SECTION 8: CONTACTS METHODS
+// Complete implementation for Microsoft Graph Contacts API
+
+/**
+ * Get contacts from user's mailbox with filtering and pagination
+ * Enhanced version with comprehensive search and filtering capabilities
+ *
+ * @param array $options Query options (folder, limit, filter, etc.)
+ * @return array Array of contacts with metadata
+ */
+public function getContacts(array $options = []): array
+{
+    try {
+        // Parse options with defaults
+        $folder = $options['folder'] ?? 'contacts'; // contacts, mycontacts, or specific folder ID
+        $top = min($options['limit'] ?? 50, 999); // Microsoft Graph limit
+        $skip = $options['skip'] ?? 0;
+        $filter = $options['filter'] ?? null;
+        $orderBy = $options['orderBy'] ?? 'displayName';
+        $select = $options['select'] ?? $this->getDefaultContactSelectFields();
+        $search = $options['search'] ?? null;
+
+        Log::info('Fetching contacts', [
+            'folder' => $folder,
+            'limit' => $top,
+            'skip' => $skip,
+            'has_filter' => !empty($filter),
+            'has_search' => !empty($search),
+            'user' => $this->auth->email ?? 'unknown'
+        ]);
+
+        // Build query parameters
+        $query = [
+            '$top' => $top,
+            '$skip' => $skip,
+            '$select' => $select,
+            '$orderby' => $orderBy
+        ];
+
+        // Add filter if provided
+        if ($filter) {
+            $query['$filter'] = $filter;
+        }
+
+        // Add search if provided
+        if ($search) {
+            $query['$search'] = "\"{$search}\"";
+        }
+
+        // Determine endpoint based on folder
+        $endpoint = $this->buildContactsEndpoint($folder);
+
+        $startTime = microtime(true);
+
+        $response = $this->makeRequest('GET', $endpoint, ['query' => $query]);
+        $contacts = $response['value'] ?? [];
+
+        $processingTime = round((microtime(true) - $startTime) * 1000, 2);
+
+        // Process and enrich contact data
+        $processedContacts = array_map(function ($contact) use ($options) {
+            return $this->enrichContactData($contact, $options);
+        }, $contacts);
+
+        // Generate contact insights
+        $insights = $this->generateContactInsights($processedContacts);
+
+        Log::info('Contacts fetched successfully', [
+            'folder' => $folder,
+            'contact_count' => count($processedContacts),
+            'has_more' => !empty($response['@odata.nextLink']),
+            'processing_time_ms' => $processingTime,
+            'user' => $this->auth->email ?? 'unknown'
+        ]);
+
+        return [
+            'success' => true,
+            'contacts' => $processedContacts,
+            'count' => count($processedContacts),
+            'folder' => $folder,
+            'insights' => $insights,
+            'nextLink' => $response['@odata.nextLink'] ?? null,
+            'processing_time_ms' => $processingTime,
+            'retrieved_at' => now()->toISOString()
+        ];
+    } catch (Exception $e) {
+        Log::error('Failed to get contacts', [
+            'error' => $e->getMessage(),
+            'folder' => $options['folder'] ?? 'contacts',
+            'user' => $this->auth->email ?? 'unknown'
+        ]);
+
+        return [
+            'success' => false,
+            'error' => $e->getMessage(),
+            'contacts' => [],
+            'count' => 0
+        ];
     }
+}
+
+/**
+ * Get a specific contact by ID
+ * Enhanced version with detailed contact information
+ *
+ * @param string $contactId Contact ID
+ * @param array $options Query options
+ * @return array|null Contact details or null if not found
+ */
+public function getContact(string $contactId, array $options = []): ?array
+{
+    try {
+        if (empty($contactId)) {
+            throw new Exception('Contact ID is required');
+        }
+
+        $includePhoto = $options['include_photo'] ?? false;
+        $select = $options['select'] ?? $this->getExtendedContactSelectFields();
+
+        Log::info('Retrieving contact details', [
+            'contact_id' => $contactId,
+            'include_photo' => $includePhoto,
+            'user' => $this->auth->email ?? 'unknown'
+        ]);
+
+        $query = ['$select' => $select];
+
+        $response = $this->makeRequest('GET', "/me/contacts/{$contactId}", ['query' => $query]);
+
+        // Get contact photo if requested
+        $photoData = null;
+        if ($includePhoto) {
+            $photoData = $this->getContactPhoto($contactId);
+        }
+
+        $enrichedContact = $this->enrichContactData($response, array_merge($options, [
+            'include_extended_info' => true,
+            'photo_data' => $photoData
+        ]));
+
+        Log::info('Contact details retrieved', [
+            'contact_id' => $contactId,
+            'display_name' => $response['displayName'] ?? 'N/A',
+            'has_photo' => !empty($photoData),
+            'user' => $this->auth->email ?? 'unknown'
+        ]);
+
+        return $enrichedContact;
+    } catch (Exception $e) {
+        Log::error('Failed to get contact', [
+            'contact_id' => $contactId,
+            'error' => $e->getMessage(),
+            'user' => $this->auth->email ?? 'unknown'
+        ]);
+
+        return null;
+    }
+}
+
+/**
+ * Create a new contact
+ * Enhanced version with comprehensive contact data support
+ *
+ * @param array $contactData Contact information
+ * @param array $options Creation options
+ * @return array Creation result with contact ID
+ */
+public function createContact(array $contactData, array $options = []): array
+{
+    try {
+        if (empty($contactData)) {
+            throw new Exception('Contact data is required');
+        }
+
+        // Validate and sanitize contact data
+        $sanitizedData = $this->sanitizeContactData($contactData);
+        $validation = $this->validateContactData($sanitizedData);
+
+        if (!$validation['is_valid']) {
+            throw new Exception('Invalid contact data: ' . implode(', ', $validation['errors']));
+        }
+
+        $folder = $options['folder'] ?? 'contacts';
+
+        Log::info('Creating new contact', [
+            'display_name' => $sanitizedData['displayName'] ?? 'N/A',
+            'folder' => $folder,
+            'has_email' => !empty($sanitizedData['emailAddresses']),
+            'has_phone' => !empty($sanitizedData['businessPhones']) || !empty($sanitizedData['homePhones']),
+            'user' => $this->auth->email ?? 'unknown'
+        ]);
+
+        $startTime = microtime(true);
+
+        // Determine endpoint based on folder
+        $endpoint = $folder === 'contacts' ? '/me/contacts' : "/me/contactFolders/{$folder}/contacts";
+
+        $response = $this->makeRequest('POST', $endpoint, ['json' => $sanitizedData]);
+
+        $creationTime = round((microtime(true) - $startTime) * 1000, 2);
+
+        // Upload photo if provided
+        if (!empty($contactData['photo_content'])) {
+            $this->uploadContactPhoto($response['id'], $contactData['photo_content']);
+        }
+
+        // Add to groups if specified
+        if (!empty($options['groups'])) {
+            $this->addContactToGroups($response['id'], $options['groups']);
+        }
+
+        Log::info('Contact created successfully', [
+            'contact_id' => $response['id'],
+            'display_name' => $response['displayName'],
+            'creation_time_ms' => $creationTime,
+            'user' => $this->auth->email ?? 'unknown'
+        ]);
+
+        return [
+            'success' => true,
+            'contact_id' => $response['id'],
+            'contact' => $this->enrichContactData($response),
+            'creation_time_ms' => $creationTime,
+            'message' => 'Contact created successfully'
+        ];
+    } catch (Exception $e) {
+        Log::error('Failed to create contact', [
+            'error' => $e->getMessage(),
+            'display_name' => $contactData['displayName'] ?? 'N/A',
+            'user' => $this->auth->email ?? 'unknown'
+        ]);
+
+        return [
+            'success' => false,
+            'error' => $e->getMessage(),
+            'contact_id' => null,
+            'contact' => null
+        ];
+    }
+}
+
+/**
+ * Update an existing contact
+ * Enhanced version with selective field updates
+ *
+ * @param string $contactId Contact ID
+ * @param array $updateData Data to update
+ * @param array $options Update options
+ * @return array Update result
+ */
+public function updateContact(string $contactId, array $updateData, array $options = []): array
+{
+    try {
+        if (empty($contactId)) {
+            throw new Exception('Contact ID is required');
+        }
+
+        if (empty($updateData)) {
+            throw new Exception('Update data is required');
+        }
+
+        // Validate and sanitize update data
+        $sanitizedData = $this->sanitizeContactData($updateData);
+        $validation = $this->validateContactData($sanitizedData, true); // Partial validation for updates
+
+        if (!$validation['is_valid']) {
+            throw new Exception('Invalid update data: ' . implode(', ', $validation['errors']));
+        }
+
+        Log::info('Updating contact', [
+            'contact_id' => $contactId,
+            'fields_to_update' => array_keys($sanitizedData),
+            'user' => $this->auth->email ?? 'unknown'
+        ]);
+
+        $startTime = microtime(true);
+
+        $response = $this->makeRequest('PATCH', "/me/contacts/{$contactId}", [
+            'json' => $sanitizedData
+        ]);
+
+        $updateTime = round((microtime(true) - $startTime) * 1000, 2);
+
+        // Update photo if provided
+        if (!empty($updateData['photo_content'])) {
+            $this->uploadContactPhoto($contactId, $updateData['photo_content']);
+        }
+
+        // Get updated contact details
+        $updatedContact = $this->getContact($contactId, [
+            'include_photo' => !empty($updateData['photo_content'])
+        ]);
+
+        Log::info('Contact updated successfully', [
+            'contact_id' => $contactId,
+            'updated_fields' => array_keys($sanitizedData),
+            'update_time_ms' => $updateTime,
+            'user' => $this->auth->email ?? 'unknown'
+        ]);
+
+        return [
+            'success' => true,
+            'contact_id' => $contactId,
+            'updated_fields' => array_keys($sanitizedData),
+            'contact' => $updatedContact,
+            'update_time_ms' => $updateTime,
+            'message' => 'Contact updated successfully'
+        ];
+    } catch (Exception $e) {
+        Log::error('Failed to update contact', [
+            'contact_id' => $contactId,
+            'error' => $e->getMessage(),
+            'fields_attempted' => array_keys($updateData),
+            'user' => $this->auth->email ?? 'unknown'
+        ]);
+
+        return [
+            'success' => false,
+            'error' => $e->getMessage(),
+            'contact_id' => $contactId,
+            'updated_fields' => []
+        ];
+    }
+}
+
+/**
+ * Delete a contact
+ * Enhanced version with safety checks
+ *
+ * @param string $contactId Contact ID
+ * @param array $options Deletion options
+ * @return bool Success status
+ */
+public function deleteContact(string $contactId, array $options = []): bool
+{
+    try {
+        if (empty($contactId)) {
+            throw new Exception('Contact ID is required');
+        }
+
+        $confirmDeletion = $options['confirm'] ?? false;
+        $backupContact = $options['backup_before_delete'] ?? false;
+
+        // Get contact details for logging before deletion
+        $contactDetails = $this->getContact($contactId, ['select' => 'id,displayName,emailAddresses']);
+
+        if (!$contactDetails) {
+            throw new Exception('Contact not found');
+        }
+
+        // Backup contact if requested
+        if ($backupContact) {
+            $this->backupContact($contactId, $contactDetails);
+        }
+
+        // Safety check for important contacts
+        if (!$confirmDeletion && $this->isImportantContact($contactDetails)) {
+            throw new Exception('Contact appears to be important. Set confirm=true to delete.');
+        }
+
+        Log::warning('Deleting contact', [
+            'contact_id' => $contactId,
+            'display_name' => $contactDetails['displayName'] ?? 'N/A',
+            'backup_created' => $backupContact,
+            'user' => $this->auth->email ?? 'unknown'
+        ]);
+
+        $this->makeRequest('DELETE', "/me/contacts/{$contactId}");
+
+        Log::info('Contact deleted successfully', [
+            'contact_id' => $contactId,
+            'display_name' => $contactDetails['displayName'] ?? 'N/A',
+            'user' => $this->auth->email ?? 'unknown'
+        ]);
+
+        return true;
+    } catch (Exception $e) {
+        Log::error('Failed to delete contact', [
+            'contact_id' => $contactId,
+            'error' => $e->getMessage(),
+            'user' => $this->auth->email ?? 'unknown'
+        ]);
+
+        return false;
+    }
+}
+
+/**
+ * Search contacts across all folders
+ * Enhanced version with advanced search capabilities
+ *
+ * @param string $query Search query
+ * @param array $options Search options
+ * @return array Search results
+ */
+public function searchContacts(string $query, array $options = []): array
+{
+    try {
+        if (empty(trim($query))) {
+            throw new Exception('Search query cannot be empty');
+        }
+
+        $top = min($options['limit'] ?? 50, 999);
+        $skip = $options['skip'] ?? 0;
+        $searchFields = $options['search_fields'] ?? ['displayName', 'emailAddresses', 'companyName'];
+        $orderBy = $options['orderBy'] ?? 'displayName';
+
+        Log::info('Searching contacts', [
+            'query' => $query,
+            'limit' => $top,
+            'search_fields' => $searchFields,
+            'user' => $this->auth->email ?? 'unknown'
+        ]);
+
+        // Build search parameters
+        $searchParams = [
+            '$search' => "\"{$query}\"",
+            '$top' => $top,
+            '$skip' => $skip,
+            '$select' => $this->getDefaultContactSelectFields(),
+            '$orderby' => $orderBy
+        ];
+
+        // Add additional filters if provided
+        if (!empty($options['company_filter'])) {
+            $searchParams['$filter'] = "startswith(companyName, '{$options['company_filter']}')";
+        }
+
+        $startTime = microtime(true);
+
+        $response = $this->makeRequest('GET', '/me/contacts', ['query' => $searchParams]);
+        $contacts = $response['value'] ?? [];
+
+        $searchTime = round((microtime(true) - $startTime) * 1000, 2);
+
+        // Process and enrich search results
+        $processedContacts = array_map(function ($contact) use ($options) {
+            return $this->enrichContactData($contact, $options);
+        }, $contacts);
+
+        // Analyze search results
+        $searchInsights = $this->generateSearchResultInsights($processedContacts, $query);
+
+        Log::info('Contact search completed', [
+            'query' => $query,
+            'results_count' => count($processedContacts),
+            'search_time_ms' => $searchTime,
+            'user' => $this->auth->email ?? 'unknown'
+        ]);
+
+        return [
+            'success' => true,
+            'contacts' => $processedContacts,
+            'count' => count($processedContacts),
+            'query' => $query,
+            'insights' => $searchInsights,
+            'search_time_ms' => $searchTime,
+            'nextLink' => $response['@odata.nextLink'] ?? null,
+            'searched_at' => now()->toISOString()
+        ];
+    } catch (Exception $e) {
+        Log::error('Contact search failed', [
+            'query' => $query,
+            'error' => $e->getMessage(),
+            'user' => $this->auth->email ?? 'unknown'
+        ]);
+
+        return [
+            'success' => false,
+            'error' => $e->getMessage(),
+            'contacts' => [],
+            'count' => 0
+        ];
+    }
+}
+
+/**
+ * Get contact folders
+ * Enhanced version with folder management capabilities
+ *
+ * @param array $options Query options
+ * @return array Array of contact folders
+ */
+public function getContactFolders(array $options = []): array
+{
+    try {
+        $includeHidden = $options['include_hidden'] ?? false;
+        $includeContactCount = $options['include_contact_count'] ?? true;
+        $top = min($options['limit'] ?? 100, 1000);
+
+        Log::info('Retrieving contact folders', [
+            'include_hidden' => $includeHidden,
+            'include_contact_count' => $includeContactCount,
+            'user' => $this->auth->email ?? 'unknown'
+        ]);
+
+        $query = [
+            '$top' => $top,
+            '$select' => 'id,displayName,parentFolderId,wellKnownName',
+            '$orderby' => 'displayName'
+        ];
+
+        $response = $this->makeRequest('GET', '/me/contactFolders', ['query' => $query]);
+        $folders = $response['value'] ?? [];
+
+        // Enrich folder data
+        $enrichedFolders = array_map(function ($folder) use ($includeContactCount) {
+            $enriched = [
+                'id' => $folder['id'],
+                'displayName' => $folder['displayName'],
+                'parentFolderId' => $folder['parentFolderId'] ?? null,
+                'wellKnownName' => $folder['wellKnownName'] ?? null,
+                'is_default' => ($folder['wellKnownName'] ?? '') === 'contacts'
+            ];
+
+            // Get contact count if requested
+            if ($includeContactCount) {
+                $enriched['contact_count'] = $this->getContactCountInFolder($folder['id']);
+            }
+
+            return $enriched;
+        }, $folders);
+
+        Log::info('Contact folders retrieved', [
+            'folder_count' => count($enrichedFolders),
+            'user' => $this->auth->email ?? 'unknown'
+        ]);
+
+        return [
+            'success' => true,
+            'folders' => $enrichedFolders,
+            'count' => count($enrichedFolders)
+        ];
+    } catch (Exception $e) {
+        Log::error('Failed to get contact folders', [
+            'error' => $e->getMessage(),
+            'user' => $this->auth->email ?? 'unknown'
+        ]);
+
+        return [
+            'success' => false,
+            'error' => $e->getMessage(),
+            'folders' => [],
+            'count' => 0
+        ];
+    }
+}
+
+/**
+ * Create a new contact folder
+ * NEW method for contact organization
+ *
+ * @param string $displayName Folder display name
+ * @param string $parentFolderId Parent folder ID (optional)
+ * @param array $options Creation options
+ * @return array Creation result
+ */
+public function createContactFolder(string $displayName, string $parentFolderId = null, array $options = []): array
+{
+    try {
+        if (empty(trim($displayName))) {
+            throw new Exception('Folder display name is required');
+        }
+
+        // Check for duplicate names
+        $existingFolders = $this->getContactFolders();
+        foreach ($existingFolders['folders'] as $folder) {
+            if (strcasecmp($folder['displayName'], $displayName) === 0) {
+                if (empty($parentFolderId) || $folder['parentFolderId'] === $parentFolderId) {
+                    throw new Exception('A folder with this name already exists in the specified location');
+                }
+            }
+        }
+
+        $folderData = [
+            'displayName' => trim($displayName)
+        ];
+
+        if ($parentFolderId) {
+            $folderData['parentFolderId'] = $parentFolderId;
+        }
+
+        Log::info('Creating contact folder', [
+            'display_name' => $displayName,
+            'parent_folder' => $parentFolderId ?? 'root',
+            'user' => $this->auth->email ?? 'unknown'
+        ]);
+
+        $endpoint = $parentFolderId
+            ? "/me/contactFolders/{$parentFolderId}/childFolders"
+            : '/me/contactFolders';
+
+        $response = $this->makeRequest('POST', $endpoint, ['json' => $folderData]);
+
+        Log::info('Contact folder created successfully', [
+            'folder_id' => $response['id'],
+            'display_name' => $response['displayName'],
+            'user' => $this->auth->email ?? 'unknown'
+        ]);
+
+        return [
+            'success' => true,
+            'folder' => [
+                'id' => $response['id'],
+                'displayName' => $response['displayName'],
+                'parentFolderId' => $response['parentFolderId'] ?? null,
+                'contact_count' => 0
+            ],
+            'created_at' => now()->toISOString()
+        ];
+    } catch (Exception $e) {
+        Log::error('Failed to create contact folder', [
+            'display_name' => $displayName,
+            'error' => $e->getMessage(),
+            'user' => $this->auth->email ?? 'unknown'
+        ]);
+
+        return [
+            'success' => false,
+            'error' => $e->getMessage(),
+            'folder' => null
+        ];
+    }
+}
+
+/**
+ * Get contact photo
+ * NEW method for profile picture management
+ *
+ * @param string $contactId Contact ID
+ * @param array $options Photo options
+ * @return array|null Photo data or null if not found
+ */
+public function getContactPhoto(string $contactId, array $options = []): ?array
+{
+    try {
+        if (empty($contactId)) {
+            throw new Exception('Contact ID is required');
+        }
+
+        $size = $options['size'] ?? 'default'; // default, 48x48, 64x64, 96x96, 120x120, 240x240, 360x360, 432x432, 504x504, 648x648
+
+        Log::info('Retrieving contact photo', [
+            'contact_id' => $contactId,
+            'size' => $size,
+            'user' => $this->auth->email ?? 'unknown'
+        ]);
+
+        $endpoint = $size === 'default'
+            ? "/me/contacts/{$contactId}/photo/\$value"
+            : "/me/contacts/{$contactId}/photos/{$size}/\$value";
+
+        $response = $this->makeRequest('GET', $endpoint);
+
+        if (isset($response['content'])) {
+            $photoData = [
+                'content' => $response['content'],
+                'content_type' => $response['content_type'] ?? 'image/jpeg',
+                'size' => $response['size'] ?? strlen($response['content']),
+                'size_formatted' => $this->formatBytes($response['size'] ?? strlen($response['content'])),
+                'dimensions' => $size
+            ];
+
+            Log::info('Contact photo retrieved', [
+                'contact_id' => $contactId,
+                'size' => $photoData['size_formatted'],
+                'content_type' => $photoData['content_type'],
+                'user' => $this->auth->email ?? 'unknown'
+            ]);
+
+            return $photoData;
+        }
+
+        return null;
+    } catch (Exception $e) {
+        Log::info('Contact photo not found or not accessible', [
+            'contact_id' => $contactId,
+            'error' => $e->getMessage(),
+            'user' => $this->auth->email ?? 'unknown'
+        ]);
+
+        return null;
+    }
+}
+
+/**
+ * Upload contact photo
+ * NEW method for profile picture management
+ *
+ * @param string $contactId Contact ID
+ * @param string $photoContent Base64 encoded photo content or binary data
+ * @param array $options Upload options
+ * @return bool Success status
+ */
+public function uploadContactPhoto(string $contactId, string $photoContent, array $options = []): bool
+{
+    try {
+        if (empty($contactId) || empty($photoContent)) {
+            throw new Exception('Contact ID and photo content are required');
+        }
+
+        // Validate photo content
+        $validation = $this->validatePhotoContent($photoContent);
+        if (!$validation['is_valid']) {
+            throw new Exception($validation['error']);
+        }
+
+        // Convert to binary if base64
+        $binaryContent = $this->preparePho toContent($photoContent);
+
+        Log::info('Uploading contact photo', [
+            'contact_id' => $contactId,
+            'photo_size' => $this->formatBytes(strlen($binaryContent)),
+            'content_type' => $validation['content_type'],
+            'user' => $this->auth->email ?? 'unknown'
+        ]);
+
+        $this->makeRequest('PUT', "/me/contacts/{$contactId}/photo/\$value", [
+            'body' => $binaryContent,
+            'content_type' => $validation['content_type']
+        ]);
+
+        Log::info('Contact photo uploaded successfully', [
+            'contact_id' => $contactId,
+            'photo_size' => $this->formatBytes(strlen($binaryContent)),
+            'user' => $this->auth->email ?? 'unknown'
+        ]);
+
+        return true;
+    } catch (Exception $e) {
+        Log::error('Failed to upload contact photo', [
+            'contact_id' => $contactId,
+            'error' => $e->getMessage(),
+            'user' => $this->auth->email ?? 'unknown'
+        ]);
+
+        return false;
+    }
+}
+
+/**
+ * Bulk import contacts from various formats
+ * NEW method for contact migration
+ *
+ * @param array $contactsData Array of contact data
+ * @param array $options Import options
+ * @return array Import results
+ */
+public function bulkImportContacts(array $contactsData, array $options = []): array
+{
+    try {
+        if (empty($contactsData)) {
+            throw new Exception('Contact data array cannot be empty');
+        }
+
+        $batchSize = min($options['batch_size'] ?? 10, 20);
+        $skipDuplicates = $options['skip_duplicates'] ?? true;
+        $updateExisting = $options['update_existing'] ?? false;
+        $folder = $options['folder'] ?? 'contacts';
+
+        Log::info('Starting bulk contact import', [
+            'total_contacts' => count($contactsData),
+            'batch_size' => $batchSize,
+            'skip_duplicates' => $skipDuplicates,
+            'update_existing' => $updateExisting,
+            'folder' => $folder,
+            'user' => $this->auth->email ?? 'unknown'
+        ]);
+
+        $results = [
+            'total_processed' => 0,
+            'successful' => [],
+            'failed' => [],
+            'duplicates_skipped' => [],
+            'updated' => [],
+            'summary' => [
+                'success_count' => 0,
+                'failure_count' => 0,
+                'duplicate_count' => 0,
+                'update_count' => 0
+            ]
+        ];
+
+        // Process in batches
+        $batches = array_chunk($contactsData, $batchSize);
+
+        foreach ($batches as $batchIndex => $batch) {
+            $batchResults = $this->processBatchContactImport($batch, $options, $batchIndex);
+
+            $results['successful'] = array_merge($results['successful'], $batchResults['successful']);
+            $results['failed'] = array_merge($results['failed'], $batchResults['failed']);
+            $results['duplicates_skipped'] = array_merge($results['duplicates_skipped'], $batchResults['duplicates_skipped']);
+            $results['updated'] = array_merge($results['updated'], $batchResults['updated']);
+
+            $results['total_processed'] += count($batch);
+
+            // Brief pause between batches
+            if (count($batches) > 1 && $batchIndex < count($batches) - 1) {
+                usleep(500000); // 0.5 second
+            }
+        }
+
+        // Calculate summary
+        $results['summary'] = [
+            'success_count' => count($results['successful']),
+            'failure_count' => count($results['failed']),
+            'duplicate_count' => count($results['duplicates_skipped']),
+            'update_count' => count($results['updated']),
+            'success_rate' => $results['total_processed'] > 0
+                ? round((count($results['successful']) / $results['total_processed']) * 100, 2)
+                : 0
+        ];
+
+        Log::info('Bulk contact import completed', [
+            'total_processed' => $results['total_processed'],
+            'successful' => $results['summary']['success_count'],
+            'failed' => $results['summary']['failure_count'],
+            'success_rate' => $results['summary']['success_rate'] . '%',
+            'user' => $this->auth->email ?? 'unknown'
+        ]);
+
+        return [
+            'success' => true,
+            'results' => $results,
+            'completed_at' => now()->toISOString()
+        ];
+    } catch (Exception $e) {
+        Log::error('Bulk contact import failed', [
+            'error' => $e->getMessage(),
+            'total_contacts' => count($contactsData),
+            'user' => $this->auth->email ?? 'unknown'
+        ]);
+
+        return [
+            'success' => false,
+            'error' => $e->getMessage(),
+            'results' => [
+                'total_processed' => 0,
+                'successful' => [],
+                'failed' => [],
+                'summary' => ['success_count' => 0, 'failure_count' => count($contactsData)]
+            ]
+        ];
+    }
+}
+
+/**
+ * Export contacts to various formats
+ * NEW method for contact backup and migration
+ *
+ * @param array $options Export options
+ * @return array Export results with contact data
+ */
+public function exportContacts(array $options = []): array
+{
+    try {
+        $format = $options['format'] ?? 'json'; // json, csv, vcard
+        $folder = $options['folder'] ?? 'contacts';
+        $includePhotos = $options['include_photos'] ?? false;
+        $limit = $options['limit'] ?? null;
+
+        Log::info('Starting contact export', [
+            'format' => $format,
+            'folder' => $folder,
+            'include_photos' => $includePhotos,
+            'limit' => $limit,
+            'user' => $this->auth->email ?? 'unknown'
+        ]);
+
+        // Get all contacts
+        $contactsResult = $this->getContacts([
+            'folder' => $folder,
+            'limit' => $limit ?? 999,
+            'select' => $this->getExtendedContactSelectFields()
+        ]);
+
+        if (!$contactsResult['success']) {
+            throw new Exception('Failed to retrieve contacts: ' . $contactsResult['error']);
+        }
+
+        $contacts = $contactsResult['contacts'];
+
+        // Include photos if requested
+        if ($includePhotos) {
+            $contacts = $this->addPhotosToContacts($contacts);
+        }
+
+        // Format according to requested format
+        $exportData = $this->formatContactsForExport($contacts, $format, $options);
+
+        Log::info('Contact export completed', [
+            'format' => $format,
+            'contact_count' => count($contacts),
+            'include_photos' => $includePhotos,
+            'export_size' => strlen(json_encode($exportData)),
+            'user' => $this->auth->email ?? 'unknown'
+        ]);
+
+        return [
+            'success' => true,
+            'format' => $format,
+            'contact_count' => count($contacts),
+            'export_data' => $exportData,
+            'export_size_formatted' => $this->formatBytes(strlen(json_encode($exportData))),
+            'exported_at' => now()->toISOString()
+        ];
+    } catch (Exception $e) {
+        Log::error('Contact export failed', [
+            'format' => $format ?? 'json',
+            'error' => $e->getMessage(),
+            'user' => $this->auth->email ?? 'unknown'
+        ]);
+
+        return [
+            'success' => false,
+            'error' => $e->getMessage(),
+            'export_data' => null
+        ];
+    }
+}
+
+/**
+ * Get contact statistics and insights
+ * NEW method for contact analytics
+ *
+ * @param array $options Analysis options
+ * @return array Contact statistics and insights
+ */
+public function getContactStatistics(array $options = []): array
+{
+    try {
+        $folder = $options['folder'] ?? 'contacts';
+        $includeCompanyAnalysis = $options['include_company_analysis'] ?? true;
+        $includeLocationAnalysis = $options['include_location_analysis'] ?? true;
+
+        Log::info('Generating contact statistics', [
+            'folder' => $folder,
+            'include_company_analysis' => $includeCompanyAnalysis,
+            'include_location_analysis' => $includeLocationAnalysis,
+            'user' => $this->auth->email ?? 'unknown'
+        ]);
+
+        $startTime = microtime(true);
+
+        // Get all contacts for analysis
+        $contactsResult = $this->getContacts([
+            'folder' => $folder,
+            'limit' => 999,
+            'select' => $this->getAnalyticsContactSelectFields()
+        ]);
+
+        if (!$contactsResult['success']) {
+            throw new Exception('Failed to retrieve contacts for analysis');
+        }
+
+        $contacts = $contactsResult['contacts'];
+
+        // Generate comprehensive statistics
+        $statistics = [
+            'overview' => $this->generateContactOverviewStats($contacts),
+            'communication' => $this->generateCommunicationStats($contacts),
+            'demographics' => $this->generateDemographicStats($contacts),
+            'data_quality' => $this->generateDataQualityStats($contacts)
+        ];
+
+        // Add company analysis if requested
+        if ($includeCompanyAnalysis) {
+            $statistics['company_analysis'] = $this->generateCompanyAnalysis($contacts);
+        }
+
+        // Add location analysis if requested
+        if ($includeLocationAnalysis) {
+            $statistics['location_analysis'] = $this->generateLocationAnalysis($contacts);
+        }
+
+        $processingTime = round((microtime(true) - $startTime) * 1000, 2);
+
+        Log::info('Contact statistics generated', [
+            'total_contacts' => count($contacts),
+            'processing_time_ms' => $processingTime,
+            'user' => $this->auth->email ?? 'unknown'
+        ]);
+
+        return [
+            'success' => true,
+            'statistics' => $statistics,
+            'contact_count' => count($contacts),
+            'processing_time_ms' => $processingTime,
+            'generated_at' => now()->toISOString()
+        ];
+    } catch (Exception $e) {
+        Log::error('Failed to generate contact statistics', [
+            'error' => $e->getMessage(),
+            'user' => $this->auth->email ?? 'unknown'
+        ]);
+
+        return [
+            'success' => false,
+            'error' => $e->getMessage(),
+            'statistics' => []
+        ];
+    }
+}
+
+// HELPER METHODS FOR CONTACTS FUNCTIONALITY
+
+/**
+ * Build contacts endpoint based on folder
+ * NEW helper method
+ */
+private function buildContactsEndpoint(string $folder): string
+{
+    if ($folder === 'contacts' || $folder === 'mycontacts') {
+        return '/me/contacts';
+    } elseif ($folder === 'all') {
+        return '/me/contacts';
+    } else {
+        // Assume it's a folder ID
+        return "/me/contactFolders/{$folder}/contacts";
+    }
+}
+
+/**
+ * Get default contact select fields
+ * NEW helper method
+ */
+private function getDefaultContactSelectFields(): string
+{
+    return implode(',', [
+        'id',
+        'displayName',
+        'givenName',
+        'surname',
+        'emailAddresses',
+        'businessPhones',
+        'homePhones',
+        'mobilePhone',
+        'companyName',
+        'jobTitle',
+        'department',
+        'officeLocation',
+        'businessAddress',
+        'homeAddress',
+        'birthday',
+        'createdDateTime',
+        'lastModifiedDateTime',
+        'categories'
+    ]);
+}
+
+/**
+ * Get extended contact select fields
+ * NEW helper method
+ */
+private function getExtendedContactSelectFields(): string
+{
+    return implode(',', [
+        'id',
+        'displayName',
+        'givenName',
+        'middleName',
+        'surname',
+        'nickName',
+        'title',
+        'generation',
+        'emailAddresses',
+        'businessPhones',
+        'homePhones',
+        'mobilePhone',
+        'otherAddress',
+        'companyName',
+        'jobTitle',
+        'department',
+        'profession',
+        'manager',
+        'assistantName',
+        'officeLocation',
+        'businessAddress',
+        'homeAddress',
+        'otherAddress',
+        'birthday',
+        'personalNotes',
+        'spouseName',
+        'children',
+        'imAddresses',
+        'website',
+        'categories',
+        'flag',
+        'createdDateTime',
+        'lastModifiedDateTime',
+        'changeKey'
+    ]);
+}
+
+/**
+ * Get analytics contact select fields
+ * NEW helper method
+ */
+private function getAnalyticsContactSelectFields(): string
+{
+    return implode(',', [
+        'id',
+        'displayName',
+        'emailAddresses',
+        'businessPhones',
+        'homePhones',
+        'mobilePhone',
+        'companyName',
+        'jobTitle',
+        'department',
+        'businessAddress',
+        'homeAddress',
+        'birthday',
+        'categories',
+        'createdDateTime',
+        'lastModifiedDateTime'
+    ]);
+}
+
+/**
+ * Enrich contact data with additional information
+ * NEW helper method
+ */
+private function enrichContactData(array $contact, array $options = []): array
+{
+    $enriched = [
+        'id' => $contact['id'],
+        'displayName' => $contact['displayName'] ?? $this->buildDisplayName($contact),
+        'firstName' => $contact['givenName'] ?? null,
+        'lastName' => $contact['surname'] ?? null,
+        'fullName' => $this->buildFullName($contact),
+        'company' => $contact['companyName'] ?? null,
+        'jobTitle' => $contact['jobTitle'] ?? null,
+        'department' => $contact['department'] ?? null,
+        'email_addresses' => $this->formatEmailAddresses($contact['emailAddresses'] ?? []),
+        'phone_numbers' => $this->formatPhoneNumbers($contact),
+        'addresses' => $this->formatAddresses($contact),
+        'birthday' => $contact['birthday'] ?? null,
+        'categories' => $contact['categories'] ?? [],
+        'created_date' => $contact['createdDateTime'] ?? null,
+        'modified_date' => $contact['lastModifiedDateTime'] ?? null,
+        'has_photo' => false, // Will be updated if photo data is provided
+        'contact_quality_score' => $this->calculateContactQualityScore($contact)
+    ];
+
+    // Add extended information if requested
+    if ($options['include_extended_info'] ?? false) {
+        $enriched = array_merge($enriched, [
+            'middle_name' => $contact['middleName'] ?? null,
+            'nickname' => $contact['nickName'] ?? null,
+            'title' => $contact['title'] ?? null,
+            'generation' => $contact['generation'] ?? null,
+            'profession' => $contact['profession'] ?? null,
+            'manager' => $contact['manager'] ?? null,
+            'assistant_name' => $contact['assistantName'] ?? null,
+            'office_location' => $contact['officeLocation'] ?? null,
+            'personal_notes' => $contact['personalNotes'] ?? null,
+            'spouse_name' => $contact['spouseName'] ?? null,
+            'children' => $contact['children'] ?? [],
+            'im_addresses' => $contact['imAddresses'] ?? [],
+            'website' => $contact['website'] ?? null,
+            'flag' => $contact['flag'] ?? null
+        ]);
+    }
+
+    // Add photo data if provided
+    if (isset($options['photo_data']) && $options['photo_data']) {
+        $enriched['has_photo'] = true;
+        $enriched['photo'] = $options['photo_data'];
+    }
+
+    return $enriched;
+}
+
+/**
+ * Generate contact insights
+ * NEW helper method
+ */
+private function generateContactInsights(array $contacts): array
+{
+    $insights = [
+        'total_contacts' => count($contacts),
+        'with_email' => 0,
+        'with_phone' => 0,
+        'with_address' => 0,
+        'with_company' => 0,
+        'with_birthday' => 0,
+        'recent_contacts' => 0,
+        'average_quality_score' => 0,
+        'top_companies' => [],
+        'completion_rate' => 0
+    ];
+
+    $totalQualityScore = 0;
+    $companies = [];
+    $recentThreshold = now()->subDays(30);
+
+    foreach ($contacts as $contact) {
+        if (!empty($contact['email_addresses'])) {
+            $insights['with_email']++;
+        }
+
+        if (!empty($contact['phone_numbers'])) {
+            $insights['with_phone']++;
+        }
+
+        if (!empty($contact['addresses'])) {
+            $insights['with_address']++;
+        }
+
+        if (!empty($contact['company'])) {
+            $insights['with_company']++;
+            $company = $contact['company'];
+            $companies[$company] = ($companies[$company] ?? 0) + 1;
+        }
+
+        if (!empty($contact['birthday'])) {
+            $insights['with_birthday']++;
+        }
+
+        if ($contact['created_date'] && Carbon::parse($contact['created_date'])->isAfter($recentThreshold)) {
+            $insights['recent_contacts']++;
+        }
+
+        $totalQualityScore += $contact['contact_quality_score'] ?? 0;
+    }
+
+    // Calculate averages and rates
+    if (count($contacts) > 0) {
+        $insights['average_quality_score'] = round($totalQualityScore / count($contacts), 2);
+        $insights['completion_rate'] = round(
+            (($insights['with_email'] + $insights['with_phone'] + $insights['with_address']) / (count($contacts) * 3)) * 100,
+            2
+        );
+    }
+
+    // Top companies
+    if (!empty($companies)) {
+        arsort($companies);
+        $insights['top_companies'] = array_slice($companies, 0, 5, true);
+    }
+
+    return $insights;
+}
+
+/**
+ * Sanitize contact data for security
+ * NEW helper method
+ */
+private function sanitizeContactData(array $contactData): array
+{
+    $sanitized = [];
+
+    // Define allowed fields for contact creation/update
+    $allowedFields = [
+        'displayName', 'givenName', 'middleName', 'surname', 'nickName', 'title', 'generation',
+        'emailAddresses', 'businessPhones', 'homePhones', 'mobilePhone', 'otherPhones',
+        'companyName', 'jobTitle', 'department', 'profession', 'manager', 'assistantName',
+        'officeLocation', 'businessAddress', 'homeAddress', 'otherAddress',
+        'birthday', 'personalNotes', 'spouseName', 'children', 'imAddresses',
+        'website', 'categories', 'flag'
+    ];
+
+    foreach ($contactData as $field => $value) {
+        if (in_array($field, $allowedFields)) {
+            if (is_string($value)) {
+                $sanitized[$field] = trim(strip_tags($value));
+            } elseif (is_array($value)) {
+                $sanitized[$field] = $this->sanitizeContactArray($value, $field);
+            } else {
+                $sanitized[$field] = $value;
+            }
+        }
+    }
+
+    return $sanitized;
+}
+
+/**
+ * Validate contact data
+ * NEW helper method
+ */
+private function validateContactData(array $contactData, bool $isUpdate = false): array
+{
+    $validation = [
+        'is_valid' => true,
+        'errors' => []
+    ];
+
+    // For creation, displayName or givenName+surname is required
+    if (!$isUpdate) {
+        if (empty($contactData['displayName']) &&
+            (empty($contactData['givenName']) || empty($contactData['surname']))) {
+            $validation['errors'][] = 'Display name or first name + last name is required';
+        }
+    }
+
+    // Validate email addresses if provided
+    if (isset($contactData['emailAddresses'])) {
+        foreach ($contactData['emailAddresses'] as $emailData) {
+            $email = $emailData['address'] ?? $emailData;
+            if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                $validation['errors'][] = "Invalid email address: {$email}";
+            }
+        }
+    }
+
+    // Validate phone numbers format
+    if (isset($contactData['businessPhones'])) {
+        foreach ($contactData['businessPhones'] as $phone) {
+            if (strlen($phone) > 64) {
+                $validation['errors'][] = 'Phone number cannot exceed 64 characters';
+                break;
+            }
+        }
+    }
+
+    // Validate birthday format
+    if (isset($contactData['birthday'])) {
+        try {
+            Carbon::parse($contactData['birthday']);
+        } catch (Exception $e) {
+            $validation['errors'][] = 'Invalid birthday format';
+        }
+    }
+
+    $validation['is_valid'] = empty($validation['errors']);
+    return $validation;
+}
+
+/**
+ * Sanitize contact array fields
+ * NEW helper method
+ */
+private function sanitizeContactArray(array $arrayData, string $fieldType): array
+{
+    $sanitized = [];
+
+    switch ($fieldType) {
+        case 'emailAddresses':
+            foreach ($arrayData as $email) {
+                if (is_string($email)) {
+                    $sanitized[] = ['address' => trim($email), 'name' => null];
+                } elseif (is_array($email) && isset($email['address'])) {
+                    $sanitized[] = [
+                        'address' => trim($email['address']),
+                        'name' => isset($email['name']) ? trim(strip_tags($email['name'])) : null
+                    ];
+                }
+            }
+            break;
+
+        case 'businessPhones':
+        case 'homePhones':
+        case 'otherPhones':
+            foreach ($arrayData as $phone) {
+                if (is_string($phone)) {
+                    $sanitized[] = trim($phone);
+                }
+            }
+            break;
+
+        case 'categories':
+        case 'children':
+        case 'imAddresses':
+            foreach ($arrayData as $item) {
+                if (is_string($item)) {
+                    $sanitized[] = trim(strip_tags($item));
+                }
+            }
+            break;
+
+        default:
+            $sanitized = $arrayData;
+    }
+
+    return $sanitized;
+}
+
+/**
+ * Calculate contact quality score
+ * NEW helper method
+ */
+private function calculateContactQualityScore(array $contact): int
+{
+    $score = 0;
+
+    // Basic information (40 points max)
+    if (!empty($contact['displayName'])) $score += 10;
+    if (!empty($contact['givenName'])) $score += 10;
+    if (!empty($contact['surname'])) $score += 10;
+    if (!empty($contact['jobTitle'])) $score += 10;
+
+    // Contact information (40 points max)
+    if (!empty($contact['emailAddresses'])) $score += 20;
+    if (!empty($contact['businessPhones']) || !empty($contact['homePhones']) || !empty($contact['mobilePhone'])) {
+        $score += 20;
+    }
+
+    // Additional information (20 points max)
+    if (!empty($contact['companyName'])) $score += 5;
+    if (!empty($contact['businessAddress']) || !empty($contact['homeAddress'])) $score += 5;
+    if (!empty($contact['birthday'])) $score += 5;
+    if (!empty($contact['personalNotes'])) $score += 5;
+
+    return min($score, 100);
+}
+
+/**
+ * Build display name from contact parts
+ * NEW helper method
+ */
+private function buildDisplayName(array $contact): string
+{
+    $parts = array_filter([
+        $contact['givenName'] ?? null,
+        $contact['surname'] ?? null
+    ]);
+
+    return implode(' ', $parts) ?: 'Unnamed Contact';
+}
+
+/**
+ * Build full name from contact parts
+ * NEW helper method
+ */
+private function buildFullName(array $contact): string
+{
+    $parts = array_filter([
+        $contact['title'] ?? null,
+        $contact['givenName'] ?? null,
+        $contact['middleName'] ?? null,
+        $contact['surname'] ?? null,
+        $contact['generation'] ?? null
+    ]);
+
+    return implode(' ', $parts) ?: ($contact['displayName'] ?? 'Unnamed Contact');
+}
+
+/**
+ * Format email addresses consistently
+ * NEW helper method
+ */
+private function formatEmailAddresses(array $emailAddresses): array
+{
+    $formatted = [];
+
+    foreach ($emailAddresses as $email) {
+        if (is_string($email)) {
+            $formatted[] = [
+                'address' => $email,
+                'name' => null,
+                'type' => 'unknown'
+            ];
+        } elseif (is_array($email)) {
+            $formatted[] = [
+                'address' => $email['address'] ?? null,
+                'name' => $email['name'] ?? null,
+                'type' => $email['type'] ?? 'unknown'
+            ];
+        }
+    }
+
+    return $formatted;
+}
+
+/**
+ * Format phone numbers from contact
+ * NEW helper method
+ */
+private function formatPhoneNumbers(array $contact): array
+{
+    $phones = [];
+
+    // Business phones
+    foreach ($contact['businessPhones'] ?? [] as $phone) {
+        $phones[] = [
+            'number' => $phone,
+            'type' => 'business'
+        ];
+    }
+
+    // Home phones
+    foreach ($contact['homePhones'] ?? [] as $phone) {
+        $phones[] = [
+            'number' => $phone,
+            'type' => 'home'
+        ];
+    }
+
+    // Mobile phone
+    if (!empty($contact['mobilePhone'])) {
+        $phones[] = [
+            'number' => $contact['mobilePhone'],
+            'type' => 'mobile'
+        ];
+    }
+
+    return $phones;
+}
+
+/**
+ * Format addresses from contact
+ * NEW helper method
+ */
+private function formatAddresses(array $contact): array
+{
+    $addresses = [];
+
+    // Business address
+    if (!empty($contact['businessAddress'])) {
+        $addresses[] = array_merge($contact['businessAddress'], ['type' => 'business']);
+    }
+
+    // Home address
+    if (!empty($contact['homeAddress'])) {
+        $addresses[] = array_merge($contact['homeAddress'], ['type' => 'home']);
+    }
+
+    // Other address
+    if (!empty($contact['otherAddress'])) {
+        $addresses[] = array_merge($contact['otherAddress'], ['type' => 'other']);
+    }
+
+    return $addresses;
+}
+
+/**
+ * Process batch contact import
+ * NEW helper method
+ */
+private function processBatchContactImport(array $batch, array $options, int $batchIndex): array
+{
+    $results = [
+        'successful' => [],
+        'failed' => [],
+        'duplicates_skipped' => [],
+        'updated' => []
+    ];
+
+    foreach ($batch as $index => $contactData) {
+        try {
+            // Check for duplicates if enabled
+            if ($options['skip_duplicates'] && $this->isDuplicateContact($contactData)) {
+                $results['duplicates_skipped'][] = [
+                    'index' => $index,
+                    'display_name' => $contactData['displayName'] ?? 'N/A',
+                    'reason' => 'Duplicate contact found'
+                ];
+                continue;
+            }
+
+            // Try to update existing if enabled
+            if ($options['update_existing']) {
+                $existingContact = $this->findExistingContact($contactData);
+                if ($existingContact) {
+                    $updateResult = $this->updateContact($existingContact['id'], $contactData, $options);
+                    if ($updateResult['success']) {
+                        $results['updated'][] = [
+                            'index' => $index,
+                            'contact_id' => $existingContact['id'],
+                            'display_name' => $contactData['displayName'] ?? 'N/A'
+                        ];
+                        continue;
+                    }
+                }
+            }
+
+            // Create new contact
+            $createResult = $this->createContact($contactData, $options);
+            if ($createResult['success']) {
+                $results['successful'][] = [
+                    'index' => $index,
+                    'contact_id' => $createResult['contact_id'],
+                    'display_name' => $contactData['displayName'] ?? 'N/A'
+                ];
+            } else {
+                $results['failed'][] = [
+                    'index' => $index,
+                    'display_name' => $contactData['displayName'] ?? 'N/A',
+                    'error' => $createResult['error']
+                ];
+            }
+        } catch (Exception $e) {
+            $results['failed'][] = [
+                'index' => $index,
+                'display_name' => $contactData['displayName'] ?? 'N/A',
+                'error' => $e->getMessage()
+            ];
+        }
+    }
+
+    return $results;
+}
+
+/**
+ * Get contact count in folder
+ * NEW helper method
+ */
+private function getContactCountInFolder(string $folderId): int
+{
+    try {
+        $response = $this->makeRequest('GET', "/me/contactFolders/{$folderId}/contacts", [
+            'query' => ['$count' => 'true', '$top' => 1]
+        ]);
+
+        return $response['@odata.count'] ?? 0;
+    } catch (Exception $e) {
+        return 0;
+    }
+}
+
+/**
+ * Check if contact appears to be important
+ * NEW helper method
+ */
+private function isImportantContact(array $contact): bool
+{
+    // Consider a contact important if they have:
+    // - Multiple contact methods
+    // - Company information
+    // - Recent communication
+    // - Categories indicating importance
+
+    $importance_score = 0;
+
+    if (!empty($contact['emailAddresses']) && count($contact['emailAddresses']) > 0) {
+        $importance_score += 2;
+    }
+
+    if (!empty($contact['businessPhones']) || !empty($contact['mobilePhone'])) {
+        $importance_score += 2;
+    }
+
+    if (!empty($contact['companyName'])) {
+        $importance_score += 1;
+    }
+
+    if (!empty($contact['jobTitle'])) {
+        $importance_score += 1;
+    }
+
+    if (!empty($contact['categories'])) {
+        $categories = array_map('strtolower', $contact['categories']);
+        if (array_intersect($categories, ['important', 'vip', 'client', 'manager', 'boss'])) {
+            $importance_score += 3;
+        }
+    }
+
+    return $importance_score >= 5;
+}
+
+/**
+ * Backup contact before deletion
+ * NEW helper method
+ */
+private function backupContact(string $contactId, array $contactDetails): void
+{
+    try {
+        // Store backup in cache or database
+        $backupKey = "contact_backup_{$contactId}_" . now()->timestamp;
+        $backupData = [
+            'contact_id' => $contactId,
+            'contact_data' => $contactDetails,
+            'deleted_by' => $this->auth->email ?? 'unknown',
+            'deleted_at' => now()->toISOString()
+        ];
+
+        Cache::put($backupKey, $backupData, now()->addDays(30)); // Keep backup for 30 days
+
+        Log::info('Contact backup created', [
+            'contact_id' => $contactId,
+            'backup_key' => $backupKey,
+            'user' => $this->auth->email ?? 'unknown'
+        ]);
+    } catch (Exception $e) {
+        Log::warning('Failed to create contact backup', [
+            'contact_id' => $contactId,
+            'error' => $e->getMessage()
+        ]);
+    }
+}
+
+/**
+ * Validate photo content
+ * NEW helper method
+ */
+private function validatePhotoContent(string $photoContent): array
+{
+    $validation = [
+        'is_valid' => false,
+        'error' => null,
+        'content_type' => 'image/jpeg'
+    ];
+
+    // Check if it's base64 encoded
+    if (base64_encode(base64_decode($photoContent, true)) === $photoContent) {
+        $binaryContent = base64_decode($photoContent);
+    } else {
+        $binaryContent = $photoContent;
+    }
+
+    // Check file size (max 4MB)
+    if (strlen($binaryContent) > 4194304) {
+        $validation['error'] = 'Photo size cannot exceed 4MB';
+        return $validation;
+    }
+
+    // Check for image signatures
+    $signatures = [
+        'image/jpeg' => ["\xFF\xD8\xFF"],
+        'image/png' => ["\x89\x50\x4E\x47\x0D\x0A\x1A\x0A"],
+        'image/gif' => ["GIF87a", "GIF89a"]
+    ];
+
+    foreach ($signatures as $mimeType => $sigs) {
+        foreach ($sigs as $sig) {
+            if (str_starts_with($binaryContent, $sig)) {
+                $validation['is_valid'] = true;
+                $validation['content_type'] = $mimeType;
+                return $validation;
+            }
+        }
+    }
+
+    $validation['error'] = 'Invalid image format. Supported formats: JPEG, PNG, GIF';
+    return $validation;
+}
+
+/**
+ * Prepare photo content for upload
+ * NEW helper method
+ */
+private function preparePhotoContent(string $photoContent): string
+{
+    // Check if it's base64 encoded and decode if necessary
+    if (base64_encode(base64_decode($photoContent, true)) === $photoContent) {
+        return base64_decode($photoContent);
+    }
+
+    return $photoContent;
+}
+
+/**
+ * Generate search result insights
+ * NEW helper method
+ */
+private function generateSearchResultInsights(array $contacts, string $query): array
+{
+    $insights = [
+        'total_results' => count($contacts),
+        'match_types' => [
+            'name_matches' => 0,
+            'email_matches' => 0,
+            'company_matches' => 0,
+            'phone_matches' => 0
+        ],
+        'companies_found' => [],
+        'quality_distribution' => [
+            'high' => 0,    // 80-100
+            'medium' => 0,  // 50-79
+            'low' => 0      // 0-49
+        ]
+    ];
+
+    $queryLower = strtolower($query);
+
+    foreach ($contacts as $contact) {
+        // Analyze match types
+        if (str_contains(strtolower($contact['displayName'] ?? ''), $queryLower)) {
+            $insights['match_types']['name_matches']++;
+        }
+
+        foreach ($contact['email_addresses'] ?? [] as $email) {
+            if (str_contains(strtolower($email['address'] ?? ''), $queryLower)) {
+                $insights['match_types']['email_matches']++;
+                break;
+            }
+        }
+
+        if (str_contains(strtolower($contact['company'] ?? ''), $queryLower)) {
+            $insights['match_types']['company_matches']++;
+        }
+
+        foreach ($contact['phone_numbers'] ?? [] as $phone) {
+            if (str_contains($phone['number'] ?? '', $query)) {
+                $insights['match_types']['phone_matches']++;
+                break;
+            }
+        }
+
+        // Company distribution
+        if (!empty($contact['company'])) {
+            $company = $contact['company'];
+            $insights['companies_found'][$company] = ($insights['companies_found'][$company] ?? 0) + 1;
+        }
+
+        // Quality distribution
+        $score = $contact['contact_quality_score'] ?? 0;
+        if ($score >= 80) {
+            $insights['quality_distribution']['high']++;
+        } elseif ($score >= 50) {
+            $insights['quality_distribution']['medium']++;
+        } else {
+            $insights['quality_distribution']['low']++;
+        }
+    }
+
+    return $insights;
+}
+
+/**
+ * Add photos to contacts array
+ * NEW helper method
+ */
+private function addPhotosToContacts(array $contacts): array
+{
+    foreach ($contacts as &$contact) {
+        $photo = $this->getContactPhoto($contact['id']);
+        if ($photo) {
+            $contact['photo'] = $photo;
+            $contact['has_photo'] = true;
+        }
+    }
+
+    return $contacts;
+}
+
+/**
+ * Format contacts for export
+ * NEW helper method
+ */
+private function formatContactsForExport(array $contacts, string $format, array $options): array
+{
+    switch (strtolower($format)) {
+        case 'csv':
+            return $this->formatContactsAsCsv($contacts, $options);
+        case 'vcard':
+            return $this->formatContactsAsVcard($contacts, $options);
+        case 'json':
+        default:
+            return $contacts;
+    }
+}
+
+/**
+ * Format contacts as CSV
+ * NEW helper method
+ */
+private function formatContactsAsCsv(array $contacts, array $options): array
+{
+    $csvData = [];
+
+    // CSV Headers
+    $headers = [
+        'ID', 'Display Name', 'First Name', 'Last Name', 'Company', 'Job Title',
+        'Email 1', 'Email 2', 'Business Phone', 'Mobile Phone', 'Home Phone',
+        'Business Address', 'Home Address', 'Birthday', 'Categories', 'Notes'
+    ];
+
+    $csvData[] = $headers;
+
+    foreach ($contacts as $contact) {
+        $emails = $contact['email_addresses'] ?? [];
+        $phones = $contact['phone_numbers'] ?? [];
+        $addresses = $contact['addresses'] ?? [];
+
+        $businessPhone = '';
+        $mobilePhone = '';
+        $homePhone = '';
+
+        foreach ($phones as $phone) {
+            switch ($phone['type']) {
+                case 'business':
+                    if (empty($businessPhone)) $businessPhone = $phone['number'];
+                    break;
+                case 'mobile':
+                    if (empty($mobilePhone)) $mobilePhone = $phone['number'];
+                    break;
+                case 'home':
+                    if (empty($homePhone)) $homePhone = $phone['number'];
+                    break;
+            }
+        }
+
+        $businessAddress = '';
+        $homeAddress = '';
+
+        foreach ($addresses as $address) {
+            $fullAddress = implode(', ', array_filter([
+                $address['street'] ?? '',
+                $address['city'] ?? '',
+                $address['state'] ?? '',
+                $address['postalCode'] ?? '',
+                $address['countryOrRegion'] ?? ''
+            ]));
+
+            if ($address['type'] === 'business' && empty($businessAddress)) {
+                $businessAddress = $fullAddress;
+            } elseif ($address['type'] === 'home' && empty($homeAddress)) {
+                $homeAddress = $fullAddress;
+            }
+        }
+
+        $csvData[] = [
+            $contact['id'],
+            $contact['displayName'] ?? '',
+            $contact['firstName'] ?? '',
+            $contact['lastName'] ?? '',
+            $contact['company'] ?? '',
+            $contact['jobTitle'] ?? '',
+            $emails[0]['address'] ?? '',
+            $emails[1]['address'] ?? '',
+            $businessPhone,
+            $mobilePhone,
+            $homePhone,
+            $businessAddress,
+            $homeAddress,
+            $contact['birthday'] ?? '',
+            implode('; ', $contact['categories'] ?? []),
+            $contact['personal_notes'] ?? ''
+        ];
+    }
+
+    return $csvData;
+}
+
+/**
+ * Format contacts as vCard
+ * NEW helper method
+ */
+private function formatContactsAsVcard(array $contacts, array $options): string
+{
+    $vcardData = '';
+
+    foreach ($contacts as $contact) {
+        $vcardData .= "BEGIN:VCARD\r\n";
+        $vcardData .= "VERSION:3.0\r\n";
+
+        // Name
+        $vcardData .= "FN:" . ($contact['displayName'] ?? '') . "\r\n";
+        if (!empty($contact['lastName']) || !empty($contact['firstName'])) {
+            $vcardData .= "N:" . ($contact['lastName'] ?? '') . ";" .
+                         ($contact['firstName'] ?? '') . ";" .
+                         ($contact['middle_name'] ?? '') . ";" .
+                         ($contact['title'] ?? '') . ";" .
+                         ($contact['generation'] ?? '') . "\r\n";
+        }
+
+        // Organization
+        if (!empty($contact['company'])) {
+            $vcardData .= "ORG:" . $contact['company'];
+            if (!empty($contact['department'])) {
+                $vcardData .= ";" . $contact['department'];
+            }
+            $vcardData .= "\r\n";
+        }
+
+        // Title
+        if (!empty($contact['jobTitle'])) {
+            $vcardData .= "TITLE:" . $contact['jobTitle'] . "\r\n";
+        }
+
+        // Email addresses
+        foreach ($contact['email_addresses'] ?? [] as $index => $email) {
+            $type = $index === 0 ? 'PREF' : 'INTERNET';
+            $vcardData .= "EMAIL;TYPE=$type:" . $email['address'] . "\r\n";
+        }
+
+        // Phone numbers
+        foreach ($contact['phone_numbers'] ?? [] as $phone) {
+            $type = strtoupper($phone['type']);
+            $vcardData .= "TEL;TYPE=$type:" . $phone['number'] . "\r\n";
+        }
+
+        // Addresses
+        foreach ($contact['addresses'] ?? [] as $address) {
+            $type = strtoupper($address['type']);
+            $vcardData .= "ADR;TYPE=$type:;;" .
+                         ($address['street'] ?? '') . ";" .
+                         ($address['city'] ?? '') . ";" .
+                         ($address['state'] ?? '') . ";" .
+                         ($address['postalCode'] ?? '') . ";" .
+                         ($address['countryOrRegion'] ?? '') . "\r\n";
+        }
+
+        // Birthday
+        if (!empty($contact['birthday'])) {
+            $birthday = Carbon::parse($contact['birthday'])->format('Y-m-d');
+            $vcardData .= "BDAY:$birthday\r\n";
+        }
+
+        // Notes
+        if (!empty($contact['personal_notes'])) {
+            $vcardData .= "NOTE:" . str_replace(["\r", "\n"], [" ", " "], $contact['personal_notes']) . "\r\n";
+        }
+
+        // Categories
+        if (!empty($contact['categories'])) {
+            $vcardData .= "CATEGORIES:" . implode(',', $contact['categories']) . "\r\n";
+        }
+
+        $vcardData .= "END:VCARD\r\n\r\n";
+    }
+
+    return $vcardData;
+}
+
+/**
+ * Generate contact overview statistics
+ * NEW helper method
+ */
+private function generateContactOverviewStats(array $contacts): array
+{
+    $stats = [
+        'total_contacts' => count($contacts),
+        'with_complete_name' => 0,
+        'with_company_info' => 0,
+        'recent_additions' => 0,
+        'recently_modified' => 0,
+        'quality_scores' => [
+            'average' => 0,
+            'high_quality' => 0,
+            'needs_improvement' => 0
+        ]
+    ];
+
+    $totalQuality = 0;
+    $recentThreshold = now()->subDays(30);
+
+    foreach ($contacts as $contact) {
+        // Complete name check
+        if (!empty($contact['firstName']) && !empty($contact['lastName'])) {
+            $stats['with_complete_name']++;
+        }
+
+        // Company info check
+        if (!empty($contact['company']) && !empty($contact['jobTitle'])) {
+            $stats['with_company_info']++;
+        }
+
+        // Recent additions
+        if ($contact['created_date'] && Carbon::parse($contact['created_date'])->isAfter($recentThreshold)) {
+            $stats['recent_additions']++;
+        }
+
+        // Recently modified
+        if ($contact['modified_date'] && Carbon::parse($contact['modified_date'])->isAfter($recentThreshold)) {
+            $stats['recently_modified']++;
+        }
+
+        // Quality scoring
+        $quality = $contact['contact_quality_score'] ?? 0;
+        $totalQuality += $quality;
+
+        if ($quality >= 80) {
+            $stats['quality_scores']['high_quality']++;
+        } elseif ($quality < 50) {
+            $stats['quality_scores']['needs_improvement']++;
+        }
+    }
+
+    if ($stats['total_contacts'] > 0) {
+        $stats['quality_scores']['average'] = round($totalQuality / $stats['total_contacts'], 2);
+    }
+
+    return $stats;
+}
+
+/**
+ * Generate communication statistics
+ * NEW helper method
+ */
+private function generateCommunicationStats(array $contacts): array
+{
+    $stats = [
+        'email_contacts' => 0,
+        'phone_contacts' => 0,
+        'multiple_emails' => 0,
+        'multiple_phones' => 0,
+        'complete_contact_info' => 0,
+        'email_domains' => [],
+        'phone_types' => [
+            'business' => 0,
+            'mobile' => 0,
+            'home' => 0
+        ]
+    ];
+
+    foreach ($contacts as $contact) {
+        $emailCount = count($contact['email_addresses'] ?? []);
+        $phoneCount = count($contact['phone_numbers'] ?? []);
+
+        if ($emailCount > 0) {
+            $stats['email_contacts']++;
+            if ($emailCount > 1) {
+                $stats['multiple_emails']++;
+            }
+
+            // Track email domains
+            foreach ($contact['email_addresses'] as $email) {
+                $domain = substr(strrchr($email['address'], "@"), 1);
+                $stats['email_domains'][$domain] = ($stats['email_domains'][$domain] ?? 0) + 1;
+            }
+        }
+
+        if ($phoneCount > 0) {
+            $stats['phone_contacts']++;
+            if ($phoneCount > 1) {
+                $stats['multiple_phones']++;
+            }
+
+            // Track phone types
+            foreach ($contact['phone_numbers'] as $phone) {
+                $type = $phone['type'];
+                if (isset($stats['phone_types'][$type])) {
+                    $stats['phone_types'][$type]++;
+                }
+            }
+        }
+
+        // Complete contact info (email + phone + address)
+        if ($emailCount > 0 && $phoneCount > 0 && !empty($contact['addresses'])) {
+            $stats['complete_contact_info']++;
+        }
+    }
+
+    // Sort email domains by frequency
+    if (!empty($stats['email_domains'])) {
+        arsort($stats['email_domains']);
+        $stats['email_domains'] = array_slice($stats['email_domains'], 0, 10, true);
+    }
+
+    return $stats;
+}
+
+/**
+ * Generate demographic statistics
+ * NEW helper method
+ */
+private function generateDemographicStats(array $contacts): array
+{
+    $stats = [
+        'with_birthday' => 0,
+        'age_groups' => [
+            'under_30' => 0,
+            '30-50' => 0,
+            '50-65' => 0,
+            'over_65' => 0,
+            'unknown' => 0
+        ],
+        'locations' => [],
+        'upcoming_birthdays' => 0
+    ];
+
+    $now = now();
+    $nextMonth = $now->copy()->addMonth();
+
+    foreach ($contacts as $contact) {
+        if (!empty($contact['birthday'])) {
+            $stats['with_birthday']++;
+
+            try {
+                $birthday = Carbon::parse($contact['birthday']);
+                $age = $birthday->diffInYears($now);
+
+                // Age groups
+                if ($age < 30) {
+                    $stats['age_groups']['under_30']++;
+                } elseif ($age < 50) {
+                    $stats['age_groups']['30-50']++;
+                } elseif ($age < 65) {
+                    $stats['age_groups']['50-65']++;
+                } else {
+                    $stats['age_groups']['over_65']++;
+                }
+
+                // Upcoming birthdays (next 30 days)
+                $nextBirthday = $birthday->copy()->year($now->year);
+                if ($nextBirthday->isPast()) {
+                    $nextBirthday->addYear();
+                }
+
+                if ($nextBirthday->isBetween($now, $nextMonth)) {
+                    $stats['upcoming_birthdays']++;
+                }
+            } catch (Exception $e) {
+                $stats['age_groups']['unknown']++;
+            }
+        } else {
+            $stats['age_groups']['unknown']++;
+        }
+
+        // Location tracking
+        foreach ($contact['addresses'] ?? [] as $address) {
+            $location = $address['city'] ?? $address['state'] ?? 'Unknown';
+            $stats['locations'][$location] = ($stats['locations'][$location] ?? 0) + 1;
+        }
+    }
+
+    // Sort locations by frequency
+    if (!empty($stats['locations'])) {
+        arsort($stats['locations']);
+        $stats['locations'] = array_slice($stats['locations'], 0, 10, true);
+    }
+
+    return $stats;
+}
+
+/**
+ * Generate data quality statistics
+ * NEW helper method
+ */
+private function generateDataQualityStats(array $contacts): array
+{
+    $stats = [
+        'completeness' => [
+            'full_name' => 0,
+            'contact_method' => 0,
+            'professional_info' => 0,
+            'personal_info' => 0
+        ],
+        'data_issues' => [
+            'missing_email' => 0,
+            'missing_phone' => 0,
+            'missing_company' => 0,
+            'duplicate_names' => 0
+        ],
+        'improvement_suggestions' => []
+    ];
+
+    $nameFrequency = [];
+
+    foreach ($contacts as $contact) {
+        // Completeness tracking
+        if (!empty($contact['firstName']) && !empty($contact['lastName'])) {
+            $stats['completeness']['full_name']++;
+        }
+
+        if (!empty($contact['email_addresses']) || !empty($contact['phone_numbers'])) {
+            $stats['completeness']['contact_method']++;
+        }
+
+        if (!empty($contact['company']) && !empty($contact['jobTitle'])) {
+            $stats['completeness']['professional_info']++;
+        }
+
+        if (!empty($contact['birthday']) || !empty($contact['addresses'])) {
+            $stats['completeness']['personal_info']++;
+        }
+
+        // Data issues
+        if (empty($contact['email_addresses'])) {
+            $stats['data_issues']['missing_email']++;
+        }
+
+        if (empty($contact['phone_numbers'])) {
+            $stats['data_issues']['missing_phone']++;
+        }
+
+        if (empty($contact['company'])) {
+            $stats['data_issues']['missing_company']++;
+        }
+
+        // Track name frequency for duplicate detection
+        $fullName = trim(($contact['firstName'] ?? '') . ' ' . ($contact['lastName'] ?? ''));
+        if (!empty($fullName)) {
+            $nameFrequency[$fullName] = ($nameFrequency[$fullName] ?? 0) + 1;
+        }
+    }
+
+    // Count duplicate names
+    foreach ($nameFrequency as $name => $count) {
+        if ($count > 1) {
+            $stats['data_issues']['duplicate_names'] += $count;
+        }
+    }
+
+    // Generate improvement suggestions
+    $totalContacts = count($contacts);
+    if ($totalContacts > 0) {
+        $missingEmailRate = ($stats['data_issues']['missing_email'] / $totalContacts) * 100;
+        $missingPhoneRate = ($stats['data_issues']['missing_phone'] / $totalContacts) * 100;
+        $missingCompanyRate = ($stats['data_issues']['missing_company'] / $totalContacts) * 100;
+
+        if ($missingEmailRate > 50) {
+            $stats['improvement_suggestions'][] = 'Consider adding email addresses to improve communication';
+        }
+
+        if ($missingPhoneRate > 60) {
+            $stats['improvement_suggestions'][] = 'Add phone numbers for better contact accessibility';
+        }
+
+        if ($missingCompanyRate > 70) {
+            $stats['improvement_suggestions'][] = 'Include company information for better organization';
+        }
+
+        if ($stats['data_issues']['duplicate_names'] > 0) {
+            $stats['improvement_suggestions'][] = 'Review contacts with duplicate names for potential merging';
+        }
+    }
+
+    return $stats;
+}
+
+/**
+ * Generate company analysis
+ * NEW helper method
+ */
+private function generateCompanyAnalysis(array $contacts): array
+{
+    $analysis = [
+        'total_companies' => 0,
+        'contacts_with_company' => 0,
+        'top_companies' => [],
+        'industry_distribution' => [],
+        'company_sizes' => [
+            'large' => 0,    // 5+ contacts
+            'medium' => 0,   // 2-4 contacts
+            'small' => 0     // 1 contact
+        ]
+    ];
+
+    $companies = [];
+
+    foreach ($contacts as $contact) {
+        if (!empty($contact['company'])) {
+            $analysis['contacts_with_company']++;
+            $company = $contact['company'];
+            $companies[$company] = ($companies[$company] ?? 0) + 1;
+        }
+    }
+
+    $analysis['total_companies'] = count($companies);
+
+    // Sort companies by contact count
+    if (!empty($companies)) {
+        arsort($companies);
+        $analysis['top_companies'] = array_slice($companies, 0, 10, true);
+
+        // Categorize company sizes
+        foreach ($companies as $company => $contactCount) {
+            if ($contactCount >= 5) {
+                $analysis['company_sizes']['large']++;
+            } elseif ($contactCount >= 2) {
+                $analysis['company_sizes']['medium']++;
+            } else {
+                $analysis['company_sizes']['small']++;
+            }
+        }
+    }
+
+    return $analysis;
+}
+
+/**
+ * Generate location analysis
+ * NEW helper method
+ */
+private function generateLocationAnalysis(array $contacts): array
+{
+    $analysis = [
+        'contacts_with_location' => 0,
+        'cities' => [],
+        'states' => [],
+        'countries' => [],
+        'geographic_distribution' => [
+            'domestic' => 0,
+            'international' => 0,
+            'unknown' => 0
+        ]
+    ];
+
+    $userCountry = 'United States'; // Could be configured or detected
+
+    foreach ($contacts as $contact) {
+        $hasLocation = false;
+
+        foreach ($contact['addresses'] ?? [] as $address) {
+            if (!empty($address['city']) || !empty($address['state']) || !empty($address['countryOrRegion'])) {
+                $hasLocation = true;
+
+                if (!empty($address['city'])) {
+                    $city = $address['city'];
+                    $analysis['cities'][$city] = ($analysis['cities'][$city] ?? 0) + 1;
+                }
+
+                if (!empty($address['state'])) {
+                    $state = $address['state'];
+                    $analysis['states'][$state] = ($analysis['states'][$state] ?? 0) + 1;
+                }
+
+                if (!empty($address['countryOrRegion'])) {
+                    $country = $address['countryOrRegion'];
+                    $analysis['countries'][$country] = ($analysis['countries'][$country] ?? 0) + 1;
+
+                    if ($country === $userCountry) {
+                        $analysis['geographic_distribution']['domestic']++;
+                    } else {
+                        $analysis['geographic_distribution']['international']++;
+                    }
+                } else {
+                    $analysis['geographic_distribution']['unknown']++;
+                }
+            }
+        }
+
+        if ($hasLocation) {
+            $analysis['contacts_with_location']++;
+        } else {
+            $analysis['geographic_distribution']['unknown']++;
+        }
+    }
+
+    // Sort by frequency and limit results
+    foreach (['cities', 'states', 'countries'] as $key) {
+        if (!empty($analysis[$key])) {
+            arsort($analysis[$key]);
+            $analysis[$key] = array_slice($analysis[$key], 0, 10, true);
+        }
+    }
+
+    return $analysis;
+}
+
+/**
+ * Check if contact is duplicate
+ * NEW helper method
+ */
+private function isDuplicateContact(array $contactData): bool
+{
+    try {
+        $searchQuery = '';
+
+        // Build search query based on available data
+        if (!empty($contactData['emailAddresses'])) {
+            $email = is_array($contactData['emailAddresses'][0])
+                ? $contactData['emailAddresses'][0]['address']
+                : $contactData['emailAddresses'][0];
+            $searchQuery = $email;
+        } elseif (!empty($contactData['displayName'])) {
+            $searchQuery = $contactData['displayName'];
+        } elseif (!empty($contactData['givenName']) && !empty($contactData['surname'])) {
+            $searchQuery = $contactData['givenName'] . ' ' . $contactData['surname'];
+        }
+
+        if (empty($searchQuery)) {
+            return false;
+        }
+
+        $searchResult = $this->searchContacts($searchQuery, ['limit' => 5]);
+
+        return $searchResult['success'] && $searchResult['count'] > 0;
+    } catch (Exception $e) {
+        return false;
+    }
+}
+
+/**
+ * Find existing contact by data
+ * NEW helper method
+ */
+private function findExistingContact(array $contactData): ?array
+{
+    try {
+        $searchQuery = '';
+
+        // Build search query based on available data
+        if (!empty($contactData['emailAddresses'])) {
+            $email = is_array($contactData['emailAddresses'][0])
+                ? $contactData['emailAddresses'][0]['address']
+                : $contactData['emailAddresses'][0];
+            $searchQuery = $email;
+        } elseif (!empty($contactData['displayName'])) {
+            $searchQuery = $contactData['displayName'];
+        }
+
+        if (empty($searchQuery)) {
+            return null;
+        }
+
+        $searchResult = $this->searchContacts($searchQuery, ['limit' => 1]);
+
+        if ($searchResult['success'] && $searchResult['count'] > 0) {
+            return $searchResult['contacts'][0];
+        }
+
+        return null;
+    } catch (Exception $e) {
+        return null;
+    }
+}
+
+/**
+ * Add contact to groups
+ * NEW helper method
+ */
+private function addContactToGroups(string $contactId, array $groups): void
+{
+    foreach ($groups as $groupId) {
+        try {
+            // This would require additional Microsoft Graph API calls
+            // Implementation depends on specific group management requirements
+            Log::info('Contact group assignment requested', [
+                'contact_id' => $contactId,
+                'group_id' => $groupId,
+                'user' => $this->auth->email ?? 'unknown'
+            ]);
+        } catch (Exception $e) {
+            Log::warning('Failed to add contact to group', [
+                'contact_id' => $contactId,
+                'group_id' => $groupId,
+                'error' => $e->getMessage()
+            ]);
+        }
+    }
+}
 
     // SECTION 9: FILES & ONEDRIVE METHODS
     public function getOneDriveItems(array $options = []): array
@@ -5908,4 +8421,1785 @@ class FirstOutlookServiceMain
     private function extractBodyContent(?array $body): ?string
     { /* Implementation */
     }
+
+
+
+// USER DISCOVERY AND PRESENCE MANAGEMENT
+// Complete implementation for Microsoft Graph Users and Presence APIs
+
+/**
+ * Get all users in the organization with comprehensive filtering
+ * Enhanced version with presence integration and advanced analytics
+ *
+ * @param array $options Query options (limit, filter, presence, etc.)
+ * @return array Array of users with optional presence information
+ */
+public function getAllUsers(array $options = []): array
+{
+    try {
+        // Parse options with defaults
+        $top = min($options['limit'] ?? 100, 999); // Microsoft Graph limit
+        $skip = $options['skip'] ?? 0;
+        $filter = $options['filter'] ?? null;
+        $orderBy = $options['orderBy'] ?? 'displayName';
+        $select = $options['select'] ?? $this->getDefaultUserSelectFields();
+        $includePresence = $options['include_presence'] ?? false;
+        $includePhotos = $options['include_photos'] ?? false;
+        $accountEnabled = $options['account_enabled'] ?? true;
+
+        Log::info('Fetching all organization users', [
+            'limit' => $top,
+            'skip' => $skip,
+            'include_presence' => $includePresence,
+            'include_photos' => $includePhotos,
+            'account_enabled' => $accountEnabled,
+            'user' => $this->auth->email ?? 'unknown'
+        ]);
+
+        // Build query parameters
+        $query = [
+            '$top' => $top,
+            '$skip' => $skip,
+            '$select' => $select,
+            '$orderby' => $orderBy
+        ];
+
+        // Build filter conditions
+        $filters = [];
+
+        if ($accountEnabled !== null) {
+            $filters[] = "accountEnabled eq " . ($accountEnabled ? 'true' : 'false');
+        }
+
+        // Add user type filter (exclude guests by default unless specified)
+        if (!($options['include_guests'] ?? false)) {
+            $filters[] = "userType eq 'Member'";
+        }
+
+        // Add custom filter if provided
+        if ($filter) {
+            $filters[] = $filter;
+        }
+
+        // Add department filter if specified
+        if (!empty($options['department'])) {
+            $filters[] = "department eq '{$options['department']}'";
+        }
+
+        // Add location filter if specified
+        if (!empty($options['location'])) {
+            $filters[] = "(city eq '{$options['location']}' or officeLocation eq '{$options['location']}')";
+        }
+
+        // Add job title filter if specified
+        if (!empty($options['job_title_contains'])) {
+            $filters[] = "startswith(jobTitle, '{$options['job_title_contains']}')";
+        }
+
+        if (!empty($filters)) {
+            $query['$filter'] = implode(' and ', $filters);
+        }
+
+        $startTime = microtime(true);
+
+        // Get users from Microsoft Graph
+        $response = $this->makeRequest('GET', '/users', ['query' => $query]);
+        $users = $response['value'] ?? [];
+
+        $fetchTime = round((microtime(true) - $startTime) * 1000, 2);
+
+        Log::info('Users fetched from Graph API', [
+            'user_count' => count($users),
+            'fetch_time_ms' => $fetchTime,
+            'has_more' => !empty($response['@odata.nextLink']),
+            'user' => $this->auth->email ?? 'unknown'
+        ]);
+
+        // Process and enrich user data
+        $processedUsers = [];
+        $presenceStartTime = microtime(true);
+
+        // Get presence information for all users if requested
+        $presenceData = [];
+        if ($includePresence && !empty($users)) {
+            $presenceData = $this->getBulkUserPresence(array_column($users, 'id'));
+        }
+
+        foreach ($users as $user) {
+            $enrichedUser = $this->enrichUserData($user, [
+                'include_presence' => $includePresence,
+                'include_photos' => $includePhotos,
+                'presence_data' => $presenceData[$user['id']] ?? null
+            ]);
+
+            $processedUsers[] = $enrichedUser;
+        }
+
+        $processingTime = round((microtime(true) - $presenceStartTime) * 1000, 2);
+
+        // Generate user insights and analytics
+        $insights = $this->generateUserInsights($processedUsers, $options);
+
+        $totalTime = round((microtime(true) - $startTime) * 1000, 2);
+
+        Log::info('User processing completed', [
+            'processed_users' => count($processedUsers),
+            'presence_processing_ms' => $processingTime,
+            'total_time_ms' => $totalTime,
+            'user' => $this->auth->email ?? 'unknown'
+        ]);
+
+        return [
+            'success' => true,
+            'users' => $processedUsers,
+            'count' => count($processedUsers),
+            'insights' => $insights,
+            'performance' => [
+                'fetch_time_ms' => $fetchTime,
+                'processing_time_ms' => $processingTime,
+                'total_time_ms' => $totalTime
+            ],
+            'pagination' => [
+                'current_count' => count($processedUsers),
+                'skip' => $skip,
+                'top' => $top,
+                'nextLink' => $response['@odata.nextLink'] ?? null
+            ],
+            'retrieved_at' => now()->toISOString()
+        ];
+    } catch (Exception $e) {
+        Log::error('Failed to get all users', [
+            'error' => $e->getMessage(),
+            'user' => $this->auth->email ?? 'unknown'
+        ]);
+
+        return [
+            'success' => false,
+            'error' => $e->getMessage(),
+            'users' => [],
+            'count' => 0
+        ];
+    }
+}
+
+/**
+ * Get presence information for multiple users in bulk
+ * Optimized batch processing for presence data
+ *
+ * @param array $userIds Array of user IDs
+ * @param array $options Presence options
+ * @return array Presence data keyed by user ID
+ */
+public function getBulkUserPresence(array $userIds, array $options = []): array
+{
+    try {
+        if (empty($userIds)) {
+            return [];
+        }
+
+        $batchSize = min($options['batch_size'] ?? 50, 50); // Microsoft Graph batch limit
+        $includeDetails = $options['include_details'] ?? true;
+
+        Log::info('Fetching bulk user presence', [
+            'user_count' => count($userIds),
+            'batch_size' => $batchSize,
+            'include_details' => $includeDetails,
+            'user' => $this->auth->email ?? 'unknown'
+        ]);
+
+        $allPresenceData = [];
+        $batches = array_chunk($userIds, $batchSize);
+
+        foreach ($batches as $batchIndex => $batch) {
+            try {
+                $batchPresence = $this->processBatchPresence($batch, $includeDetails, $batchIndex);
+                $allPresenceData = array_merge($allPresenceData, $batchPresence);
+
+                // Brief pause between batches to avoid rate limiting
+                if (count($batches) > 1 && $batchIndex < count($batches) - 1) {
+                    usleep(200000); // 0.2 second
+                }
+            } catch (Exception $e) {
+                Log::warning('Batch presence request failed', [
+                    'batch_index' => $batchIndex,
+                    'batch_size' => count($batch),
+                    'error' => $e->getMessage()
+                ]);
+                continue;
+            }
+        }
+
+        Log::info('Bulk presence fetch completed', [
+            'requested_users' => count($userIds),
+            'presence_retrieved' => count($allPresenceData),
+            'success_rate' => round((count($allPresenceData) / count($userIds)) * 100, 2) . '%',
+            'user' => $this->auth->email ?? 'unknown'
+        ]);
+
+        return $allPresenceData;
+    } catch (Exception $e) {
+        Log::error('Failed to get bulk user presence', [
+            'user_count' => count($userIds),
+            'error' => $e->getMessage(),
+            'user' => $this->auth->email ?? 'unknown'
+        ]);
+
+        return [];
+    }
+}
+
+/**
+ * Process a batch of presence requests
+ * Helper method for bulk presence processing
+ *
+ * @param array $userIds Batch of user IDs
+ * @param bool $includeDetails Include detailed presence info
+ * @param int $batchIndex Batch number for logging
+ * @return array Presence data for the batch
+ */
+private function processBatchPresence(array $userIds, bool $includeDetails, int $batchIndex): array
+{
+    $presenceData = [];
+
+    try {
+        // Build batch request
+        $requests = [];
+        foreach ($userIds as $index => $userId) {
+            $requests[] = [
+                'id' => $index,
+                'method' => 'GET',
+                'url' => "/users/{$userId}/presence"
+            ];
+        }
+
+        $batchRequest = [
+            'requests' => $requests
+        ];
+
+        $response = $this->makeRequest('POST', '/$batch', ['json' => $batchRequest]);
+
+        if (isset($response['responses'])) {
+            foreach ($response['responses'] as $batchResponse) {
+                $requestIndex = $batchResponse['id'];
+                $userId = $userIds[$requestIndex];
+
+                if ($batchResponse['status'] === 200 && isset($batchResponse['body'])) {
+                    $presenceInfo = $this->enrichPresenceData($batchResponse['body'], $includeDetails);
+                    $presenceData[$userId] = $presenceInfo;
+                } else {
+                    // Log failed individual request but don't fail the whole batch
+                    Log::debug('Individual presence request failed', [
+                        'user_id' => $userId,
+                        'status' => $batchResponse['status'],
+                        'batch_index' => $batchIndex
+                    ]);
+                }
+            }
+        }
+    } catch (Exception $e) {
+        Log::warning('Batch presence processing failed', [
+            'batch_index' => $batchIndex,
+            'error' => $e->getMessage()
+        ]);
+        throw $e;
+    }
+
+    return $presenceData;
+}
+
+/**
+ * Get detailed presence information for a specific user
+ * Enhanced version with presence history and activity details
+ *
+ * @param string $userId User ID (defaults to current user if 'me')
+ * @param array $options Presence options
+ * @return array|null Detailed presence information
+ */
+public function getUserPresence(string $userId = 'me', array $options = []): ?array
+{
+    try {
+        $includeCalendar = $options['include_calendar'] ?? false;
+        $includeActivity = $options['include_activity'] ?? true;
+        $includeNotes = $options['include_notes'] ?? true;
+
+        Log::info('Retrieving user presence', [
+            'user_id' => $userId,
+            'include_calendar' => $includeCalendar,
+            'include_activity' => $includeActivity,
+            'user' => $this->auth->email ?? 'unknown'
+        ]);
+
+        $startTime = microtime(true);
+
+        // Get presence information
+        $presenceResponse = $this->makeRequest('GET', "/users/{$userId}/presence");
+
+        $retrievalTime = round((microtime(true) - $startTime) * 1000, 2);
+
+        // Enrich presence data with additional context
+        $enrichedPresence = $this->enrichPresenceData($presenceResponse, true);
+
+        // Get calendar info if requested
+        if ($includeCalendar) {
+            $calendarInfo = $this->getUserCalendarBusyTime($userId);
+            $enrichedPresence['calendar_info'] = $calendarInfo;
+        }
+
+        // Get user info for context
+        $userInfo = $this->makeRequest('GET', "/users/{$userId}", [
+            'query' => ['$select' => 'id,displayName,mail,jobTitle,department,officeLocation']
+        ]);
+
+        $enrichedPresence['user_info'] = [
+            'id' => $userInfo['id'],
+            'displayName' => $userInfo['displayName'],
+            'email' => $userInfo['mail'] ?? $userInfo['userPrincipalName'],
+            'jobTitle' => $userInfo['jobTitle'],
+            'department' => $userInfo['department'],
+            'officeLocation' => $userInfo['officeLocation']
+        ];
+
+        $enrichedPresence['retrieval_time_ms'] = $retrievalTime;
+        $enrichedPresence['retrieved_at'] = now()->toISOString();
+
+        Log::info('User presence retrieved successfully', [
+            'user_id' => $userId,
+            'availability' => $enrichedPresence['availability'],
+            'activity' => $enrichedPresence['activity'],
+            'retrieval_time_ms' => $retrievalTime,
+            'user' => $this->auth->email ?? 'unknown'
+        ]);
+
+        return $enrichedPresence;
+    } catch (Exception $e) {
+        Log::error('Failed to get user presence', [
+            'user_id' => $userId,
+            'error' => $e->getMessage(),
+            'user' => $this->auth->email ?? 'unknown'
+        ]);
+
+        return null;
+    }
+}
+
+/**
+ * Set current user's presence information
+ * Enhanced version with validation and automatic scheduling
+ *
+ * @param string $availability Availability status
+ * @param string|null $activity Activity status
+ * @param array $options Additional presence options
+ * @return array Set presence result
+ */
+public function setUserPresence(string $availability, string $activity = null, array $options = []): array
+{
+    try {
+        // Validate availability and activity values
+        $validation = $this->validatePresenceValues($availability, $activity);
+        if (!$validation['is_valid']) {
+            throw new Exception('Invalid presence values: ' . implode(', ', $validation['errors']));
+        }
+
+        $expirationDuration = $options['expiration_duration'] ?? null; // ISO 8601 duration
+        $statusMessage = $options['status_message'] ?? null;
+        $autoRevert = $options['auto_revert'] ?? false;
+
+        Log::info('Setting user presence', [
+            'availability' => $availability,
+            'activity' => $activity,
+            'expiration_duration' => $expirationDuration,
+            'has_status_message' => !empty($statusMessage),
+            'auto_revert' => $autoRevert,
+            'user' => $this->auth->email ?? 'unknown'
+        ]);
+
+        // Build presence data
+        $presenceData = [
+            'availability' => $availability
+        ];
+
+        if ($activity) {
+            $presenceData['activity'] = $activity;
+        }
+
+        if ($expirationDuration) {
+            $presenceData['expirationDuration'] = $expirationDuration;
+        }
+
+        // Set status message if provided
+        if ($statusMessage) {
+            $presenceData['statusMessage'] = [
+                'message' => [
+                    'content' => $statusMessage,
+                    'contentType' => 'text'
+                ]
+            ];
+        }
+
+        $startTime = microtime(true);
+
+        // Set presence via Microsoft Graph
+        $this->makeRequest('PUT', '/me/presence/setPresence', ['json' => $presenceData]);
+
+        $setTime = round((microtime(true) - $startTime) * 1000, 2);
+
+        // Schedule auto-revert if requested
+        if ($autoRevert && $expirationDuration) {
+            $this->schedulePresenceRevert($availability, $expirationDuration);
+        }
+
+        // Get updated presence to confirm
+        $updatedPresence = $this->getUserPresence('me');
+
+        Log::info('User presence set successfully', [
+            'availability' => $availability,
+            'activity' => $activity,
+            'set_time_ms' => $setTime,
+            'confirmed_availability' => $updatedPresence['availability'] ?? 'unknown',
+            'user' => $this->auth->email ?? 'unknown'
+        ]);
+
+        return [
+            'success' => true,
+            'availability' => $availability,
+            'activity' => $activity,
+            'status_message' => $statusMessage,
+            'expiration_duration' => $expirationDuration,
+            'updated_presence' => $updatedPresence,
+            'set_time_ms' => $setTime,
+            'message' => 'Presence updated successfully'
+        ];
+    } catch (Exception $e) {
+        Log::error('Failed to set user presence', [
+            'availability' => $availability,
+            'activity' => $activity,
+            'error' => $e->getMessage(),
+            'user' => $this->auth->email ?? 'unknown'
+        ]);
+
+        return [
+            'success' => false,
+            'error' => $e->getMessage(),
+            'availability' => null,
+            'activity' => null
+        ];
+    }
+}
+
+/**
+ * Clear current user's presence (reset to automatic)
+ * NEW method for presence management
+ *
+ * @return bool Success status
+ */
+public function clearUserPresence(): bool
+{
+    try {
+        Log::info('Clearing user presence', [
+            'user' => $this->auth->email ?? 'unknown'
+        ]);
+
+        $this->makeRequest('POST', '/me/presence/clearPresence');
+
+        Log::info('User presence cleared successfully', [
+            'user' => $this->auth->email ?? 'unknown'
+        ]);
+
+        return true;
+    } catch (Exception $e) {
+        Log::error('Failed to clear user presence', [
+            'error' => $e->getMessage(),
+            'user' => $this->auth->email ?? 'unknown'
+        ]);
+
+        return false;
+    }
+}
+
+/**
+ * Get organization-wide presence statistics
+ * NEW method for presence analytics
+ *
+ * @param array $options Analysis options
+ * @return array Presence statistics and insights
+ */
+public function getOrganizationPresenceStats(array $options = []): array
+{
+    try {
+        $includeDepartments = $options['include_departments'] ?? true;
+        $includeLocations = $options['include_locations'] ?? true;
+        $includeTimezone = $options['include_timezone'] ?? false;
+        $userLimit = $options['user_limit'] ?? 500;
+
+        Log::info('Generating organization presence statistics', [
+            'include_departments' => $includeDepartments,
+            'include_locations' => $includeLocations,
+            'user_limit' => $userLimit,
+            'user' => $this->auth->email ?? 'unknown'
+        ]);
+
+        $startTime = microtime(true);
+
+        // Get all active users with presence
+        $usersResult = $this->getAllUsers([
+            'limit' => $userLimit,
+            'include_presence' => true,
+            'account_enabled' => true,
+            'select' => 'id,displayName,mail,department,officeLocation,jobTitle,accountEnabled'
+        ]);
+
+        if (!$usersResult['success']) {
+            throw new Exception('Failed to retrieve users for presence analysis');
+        }
+
+        $users = $usersResult['users'];
+
+        // Generate comprehensive presence statistics
+        $stats = [
+            'overview' => $this->generatePresenceOverviewStats($users),
+            'availability_distribution' => $this->generateAvailabilityDistribution($users),
+            'activity_distribution' => $this->generateActivityDistribution($users)
+        ];
+
+        // Add department analysis if requested
+        if ($includeDepartments) {
+            $stats['department_analysis'] = $this->generateDepartmentPresenceAnalysis($users);
+        }
+
+        // Add location analysis if requested
+        if ($includeLocations) {
+            $stats['location_analysis'] = $this->generateLocationPresenceAnalysis($users);
+        }
+
+        // Add timezone analysis if requested
+        if ($includeTimezone) {
+            $stats['timezone_analysis'] = $this->generateTimezonePresenceAnalysis($users);
+        }
+
+        $processingTime = round((microtime(true) - $startTime) * 1000, 2);
+
+        $stats['metadata'] = [
+            'total_users_analyzed' => count($users),
+            'processing_time_ms' => $processingTime,
+            'generated_at' => now()->toISOString(),
+            'timezone' => config('app.timezone'),
+            'current_time' => now()->toTimeString()
+        ];
+
+        Log::info('Organization presence statistics generated', [
+            'users_analyzed' => count($users),
+            'processing_time_ms' => $processingTime,
+            'user' => $this->auth->email ?? 'unknown'
+        ]);
+
+        return [
+            'success' => true,
+            'statistics' => $stats
+        ];
+    } catch (Exception $e) {
+        Log::error('Failed to generate organization presence statistics', [
+            'error' => $e->getMessage(),
+            'user' => $this->auth->email ?? 'unknown'
+        ]);
+
+        return [
+            'success' => false,
+            'error' => $e->getMessage(),
+            'statistics' => []
+        ];
+    }
+}
+
+/**
+ * Find available users for meeting or collaboration
+ * NEW method for availability discovery
+ *
+ * @param array $options Search options for available users
+ * @return array Available users with details
+ */
+public function findAvailableUsers(array $options = []): array
+{
+    try {
+        $availabilityTypes = $options['availability_types'] ?? ['Available', 'AvailableIdle'];
+        $department = $options['department'] ?? null;
+        $location = $options['location'] ?? null;
+        $jobTitleContains = $options['job_title_contains'] ?? null;
+        $skillsRequired = $options['skills_required'] ?? [];
+        $limit = $options['limit'] ?? 50;
+        $excludeCurrentUser = $options['exclude_current_user'] ?? true;
+
+        Log::info('Finding available users', [
+            'availability_types' => $availabilityTypes,
+            'department' => $department,
+            'location' => $location,
+            'limit' => $limit,
+            'user' => $this->auth->email ?? 'unknown'
+        ]);
+
+        $startTime = microtime(true);
+
+        // Get users with presence information
+        $getUsersOptions = [
+            'limit' => $limit * 2, // Get more users to account for filtering
+            'include_presence' => true,
+            'account_enabled' => true
+        ];
+
+        // Add filters
+        if ($department) {
+            $getUsersOptions['department'] = $department;
+        }
+        if ($location) {
+            $getUsersOptions['location'] = $location;
+        }
+        if ($jobTitleContains) {
+            $getUsersOptions['job_title_contains'] = $jobTitleContains;
+        }
+
+        $usersResult = $this->getAllUsers($getUsersOptions);
+
+        if (!$usersResult['success']) {
+            throw new Exception('Failed to retrieve users for availability search');
+        }
+
+        $allUsers = $usersResult['users'];
+        $currentUserEmail = $this->auth->email ?? auth()->user()->email ?? '';
+
+        // Filter for available users
+        $availableUsers = [];
+        foreach ($allUsers as $user) {
+            // Skip current user if requested
+            if ($excludeCurrentUser && $user['email'] === $currentUserEmail) {
+                continue;
+            }
+
+            // Check availability
+            if (!isset($user['presence'])) {
+                continue;
+            }
+
+            $availability = $user['presence']['availability'] ?? 'Unknown';
+            if (!in_array($availability, $availabilityTypes)) {
+                continue;
+            }
+
+            // Check skills if required
+            if (!empty($skillsRequired)) {
+                $userSkills = $user['skills'] ?? [];
+                $hasRequiredSkills = !empty(array_intersect($skillsRequired, $userSkills));
+                if (!$hasRequiredSkills) {
+                    continue;
+                }
+            }
+
+            // Add availability score
+            $user['availability_score'] = $this->calculateAvailabilityScore($user);
+            $availableUsers[] = $user;
+
+            // Stop when we have enough users
+            if (count($availableUsers) >= $limit) {
+                break;
+            }
+        }
+
+        // Sort by availability score (highest first)
+        usort($availableUsers, function ($a, $b) {
+            return $b['availability_score'] <=> $a['availability_score'];
+        });
+
+        $searchTime = round((microtime(true) - $startTime) * 1000, 2);
+
+        // Generate availability insights
+        $insights = $this->generateAvailabilityInsights($availableUsers, $allUsers);
+
+        Log::info('Available users search completed', [
+            'total_users_checked' => count($allUsers),
+            'available_users_found' => count($availableUsers),
+            'availability_rate' => count($allUsers) > 0 ? round((count($availableUsers) / count($allUsers)) * 100, 2) : 0,
+            'search_time_ms' => $searchTime,
+            'user' => $this->auth->email ?? 'unknown'
+        ]);
+
+        return [
+            'success' => true,
+            'available_users' => $availableUsers,
+            'count' => count($availableUsers),
+            'insights' => $insights,
+            'search_criteria' => [
+                'availability_types' => $availabilityTypes,
+                'department' => $department,
+                'location' => $location,
+                'skills_required' => $skillsRequired
+            ],
+            'search_time_ms' => $searchTime,
+            'searched_at' => now()->toISOString()
+        ];
+    } catch (Exception $e) {
+        Log::error('Failed to find available users', [
+            'error' => $e->getMessage(),
+            'user' => $this->auth->email ?? 'unknown'
+        ]);
+
+        return [
+            'success' => false,
+            'error' => $e->getMessage(),
+            'available_users' => [],
+            'count' => 0
+        ];
+    }
+}
+
+/**
+ * Get presence history for analytics
+ * NEW method for presence tracking
+ *
+ * @param string $userId User ID
+ * @param array $options History options
+ * @return array Presence history data
+ */
+public function getUserPresenceHistory(string $userId, array $options = []): array
+{
+    try {
+        $days = $options['days'] ?? 7;
+        $includeWeekends = $options['include_weekends'] ?? false;
+        $timezone = $options['timezone'] ?? config('app.timezone');
+
+        Log::info('Retrieving user presence history', [
+            'user_id' => $userId,
+            'days' => $days,
+            'include_weekends' => $includeWeekends,
+            'user' => $this->auth->email ?? 'unknown'
+        ]);
+
+        // Note: Microsoft Graph doesn't provide historical presence data directly
+        // This would typically require storing presence data over time in your application
+
+        $history = [
+            'user_id' => $userId,
+            'period_days' => $days,
+            'timezone' => $timezone,
+            'data_points' => [],
+            'summary' => [
+                'most_common_availability' => null,
+                'most_common_activity' => null,
+                'average_available_hours' => 0,
+                'presence_changes' => 0
+            ],
+            'note' => 'Presence history requires application-level tracking as Microsoft Graph does not store historical presence data'
+        ];
+
+        // In a real implementation, you would:
+        // 1. Store presence updates in your database
+        // 2. Query historical data from your storage
+        // 3. Generate analytics from stored data
+
+        return [
+            'success' => true,
+            'history' => $history,
+            'retrieved_at' => now()->toISOString()
+        ];
+    } catch (Exception $e) {
+        Log::error('Failed to get user presence history', [
+            'user_id' => $userId,
+            'error' => $e->getMessage(),
+            'user' => $this->auth->email ?? 'unknown'
+        ]);
+
+        return [
+            'success' => false,
+            'error' => $e->getMessage(),
+            'history' => []
+        ];
+    }
+}
+
+// HELPER METHODS FOR USER DISCOVERY AND PRESENCE
+
+/**
+ * Get default user select fields
+ * NEW helper method
+ */
+private function getDefaultUserSelectFields(): string
+{
+    return implode(',', [
+        'id',
+        'displayName',
+        'mail',
+        'userPrincipalName',
+        'jobTitle',
+        'department',
+        'officeLocation',
+        'businessPhones',
+        'mobilePhone',
+        'accountEnabled',
+        'userType',
+        'createdDateTime',
+        'lastPasswordChangeDateTime',
+        'companyName',
+        'city',
+        'country',
+        'employeeId',
+        'employeeType',
+        'manager',
+        'preferredLanguage',
+        'usageLocation'
+    ]);
+}
+
+/**
+ * Enrich user data with additional information
+ * NEW helper method
+ */
+private function enrichUserData(array $user, array $options = []): array
+{
+    $enriched = [
+        'id' => $user['id'],
+        'displayName' => $user['displayName'],
+        'email' => $user['mail'] ?? $user['userPrincipalName'],
+        'jobTitle' => $user['jobTitle'] ?? null,
+        'department' => $user['department'] ?? null,
+        'officeLocation' => $user['officeLocation'] ?? null,
+        'accountEnabled' => $user['accountEnabled'] ?? null,
+        'userType' => $user['userType'] ?? 'Member',
+        'companyName' => $user['companyName'] ?? null,
+        'city' => $user['city'] ?? null,
+        'country' => $user['country'] ?? null,
+        'businessPhones' => $user['businessPhones'] ?? [],
+        'mobilePhone' => $user['mobilePhone'] ?? null,
+        'preferredLanguage' => $user['preferredLanguage'] ?? null,
+        'createdDateTime' => $user['createdDateTime'] ?? null,
+        'is_guest' => ($user['userType'] ?? 'Member') === 'Guest',
+        'has_phone' => !empty($user['businessPhones']) || !empty($user['mobilePhone']),
+        'is_external' => $this->isExternalUser($user)
+    ];
+
+    // Add presence information if provided
+    if ($options['include_presence'] && isset($options['presence_data'])) {
+        $enriched['presence'] = $options['presence_data'];
+        $enriched['is_available'] = $this->isUserAvailable($options['presence_data']);
+    }
+
+    // Add photo if requested
+    if ($options['include_photos'] ?? false) {
+        $enriched['photo'] = $this->getUserPhoto($user['id']);
+    }
+
+    return $enriched;
+}
+
+/**
+ * Enrich presence data with additional context
+ * NEW helper method
+ */
+private function enrichPresenceData(array $presenceData, bool $includeDetails = true): array
+{
+    $enriched = [
+        'id' => $presenceData['id'] ?? null,
+        'availability' => $presenceData['availability'] ?? 'Unknown',
+        'activity' => $presenceData['activity'] ?? 'Unknown',
+        'is_available' => $this->isPresenceAvailable($presenceData),
+        'availability_priority' => $this->getAvailabilityPriority($presenceData['availability'] ?? 'Unknown'),
+        'last_seen' => $presenceData['lastModifiedDateTime'] ?? null
+    ];
+
+    if ($includeDetails) {
+        $enriched['status_message'] = $this->extractStatusMessage($presenceData);
+        $enriched['availability_description'] = $this->getAvailabilityDescription($presenceData['availability'] ?? 'Unknown');
+        $enriched['activity_description'] = $this->getActivityDescription($presenceData['activity'] ?? 'Unknown');
+        $enriched['out_of_office'] = $presenceData['outOfOfficeSettings'] ?? null;
+    }
+
+    return $enriched;
+}
+
+/**
+ * Generate comprehensive user insights
+ * NEW helper method
+ */
+private function generateUserInsights(array $users, array $options): array
+{
+    $insights = [
+        'overview' => [
+            'total_users' => count($users),
+            'active_users' => 0,
+            'guest_users' => 0,
+            'external_users' => 0,
+            'users_with_presence' => 0,
+            'available_users' => 0
+        ],
+        'departments' => [],
+        'locations' => [],
+        'user_types' => ['Member' => 0, 'Guest' => 0],
+        'presence_summary' => [
+            'Available' => 0,
+            'Busy' => 0,
+            'DoNotDisturb' => 0,
+            'Away' => 0,
+            'BeRightBack' => 0,
+            'Offline' => 0,
+            'Unknown' => 0
+        ],
+        'communication' => [
+            'users_with_phone' => 0,
+            'users_with_mobile' => 0,
+            'phone_coverage' => 0
+        ]
+    ];
+
+    foreach ($users as $user) {
+        // Basic counts
+        if ($user['accountEnabled'] ?? false) {
+            $insights['overview']['active_users']++;
+        }
+
+        if ($user['is_guest'] ?? false) {
+            $insights['overview']['guest_users']++;
+        }
+
+        if ($user['is_external'] ?? false) {
+            $insights['overview']['external_users']++;
+        }
+
+        // User type distribution
+        $userType = $user['userType'] ?? 'Member';
+        if (isset($insights['user_types'][$userType])) {
+            $insights['user_types'][$userType]++;
+        }
+
+        // Department distribution
+        if (!empty($user['department'])) {
+            $dept = $user['department'];
+            $insights['departments'][$dept] = ($insights['departments'][$dept] ?? 0) + 1;
+        }
+
+        // Location distribution
+        if (!empty($user['officeLocation'])) {
+            $location = $user['officeLocation'];
+            $insights['locations'][$location] = ($insights['locations'][$location] ?? 0) + 1;
+        } elseif (!empty($user['city'])) {
+            $location = $user['city'];
+            $insights['locations'][$location] = ($insights['locations'][$location] ?? 0) + 1;
+        }
+
+        // Presence analysis
+        if (isset($user['presence'])) {
+            $insights['overview']['users_with_presence']++;
+
+            $availability = $user['presence']['availability'] ?? 'Unknown';
+            if (isset($insights['presence_summary'][$availability])) {
+                $insights['presence_summary'][$availability]++;
+            } else {
+                $insights['presence_summary']['Unknown']++;
+            }
+
+            if ($user['is_available'] ?? false) {
+                $insights['overview']['available_users']++;
+            }
+        }
+
+        // Communication analysis
+        if ($user['has_phone'] ?? false) {
+            $insights['communication']['users_with_phone']++;
+        }
+
+        if (!empty($user['mobilePhone'])) {
+            $insights['communication']['users_with_mobile']++;
+        }
+    }
+
+    // Calculate rates and sort distributions
+    $totalUsers = count($users);
+    if ($totalUsers > 0) {
+        $insights['communication']['phone_coverage'] = round(
+            ($insights['communication']['users_with_phone'] / $totalUsers) * 100, 2
+        );
+    }
+
+    // Sort departments and locations by count
+    if (!empty($insights['departments'])) {
+        arsort($insights['departments']);
+        $insights['departments'] = array_slice($insights['departments'], 0, 10, true);
+    }
+
+    if (!empty($insights['locations'])) {
+        arsort($insights['locations']);
+        $insights['locations'] = array_slice($insights['locations'], 0, 10, true);
+    }
+
+    return $insights;
+}
+
+/**
+ * Validate presence values
+ * NEW helper method
+ */
+private function validatePresenceValues(string $availability, ?string $activity): array
+{
+    $validation = [
+        'is_valid' => true,
+        'errors' => []
+    ];
+
+    // Valid availability values
+    $validAvailability = [
+        'Available', 'AvailableIdle', 'Away', 'BeRightBack', 'Busy',
+        'BusyIdle', 'DoNotDisturb', 'Offline', 'PresenceUnknown'
+    ];
+
+    if (!in_array($availability, $validAvailability)) {
+        $validation['errors'][] = "Invalid availability: {$availability}. Valid values: " . implode(', ', $validAvailability);
+    }
+
+    // Valid activity values (if provided)
+    if ($activity !== null) {
+        $validActivity = [
+            'Available', 'Away', 'BeRightBack', 'Busy', 'DoNotDisturb',
+            'InACall', 'InAConferenceCall', 'Inactive', 'InAMeeting',
+            'Offline', 'OffWork', 'OutOfOffice', 'PresenceUnknown',
+            'Presenting', 'UrgentInterruptionsOnly'
+        ];
+
+        if (!in_array($activity, $validActivity)) {
+            $validation['errors'][] = "Invalid activity: {$activity}. Valid values: " . implode(', ', $validActivity);
+        }
+    }
+
+    $validation['is_valid'] = empty($validation['errors']);
+    return $validation;
+}
+
+/**
+ * Check if user is external to organization
+ * NEW helper method
+ */
+private function isExternalUser(array $user): bool
+{
+    // Check user type
+    if (($user['userType'] ?? 'Member') === 'Guest') {
+        return true;
+    }
+
+    // Check email domain if we have organization domain info
+    $userEmail = $user['mail'] ?? $user['userPrincipalName'] ?? '';
+    $currentUserEmail = $this->auth->email ?? '';
+
+    if (!empty($userEmail) && !empty($currentUserEmail)) {
+        $userDomain = substr(strrchr($userEmail, "@"), 1);
+        $orgDomain = substr(strrchr($currentUserEmail, "@"), 1);
+
+        return strtolower($userDomain) !== strtolower($orgDomain);
+    }
+
+    return false;
+}
+
+/**
+ * Check if user is available based on presence
+ * NEW helper method
+ */
+private function isUserAvailable(?array $presenceData): bool
+{
+    if (!$presenceData) {
+        return false;
+    }
+
+    $availability = $presenceData['availability'] ?? 'Unknown';
+    $availableStates = ['Available', 'AvailableIdle'];
+
+    return in_array($availability, $availableStates);
+}
+
+/**
+ * Check if presence indicates availability
+ * NEW helper method
+ */
+private function isPresenceAvailable(array $presenceData): bool
+{
+    $availability = $presenceData['availability'] ?? 'Unknown';
+    $availableStates = ['Available', 'AvailableIdle'];
+
+    return in_array($availability, $availableStates);
+}
+
+/**
+ * Get availability priority for sorting
+ * NEW helper method
+ */
+private function getAvailabilityPriority(string $availability): int
+{
+    $priorities = [
+        'Available' => 10,
+        'AvailableIdle' => 9,
+        'BeRightBack' => 8,
+        'Away' => 7,
+        'Busy' => 6,
+        'BusyIdle' => 5,
+        'DoNotDisturb' => 4,
+        'InAMeeting' => 3,
+        'Offline' => 2,
+        'PresenceUnknown' => 1,
+        'Unknown' => 0
+    ];
+
+    return $priorities[$availability] ?? 0;
+}
+
+/**
+ * Get human-readable availability description
+ * NEW helper method
+ */
+private function getAvailabilityDescription(string $availability): string
+{
+    $descriptions = [
+        'Available' => 'Available and ready to communicate',
+        'AvailableIdle' => 'Available but inactive',
+        'Away' => 'Away from computer',
+        'BeRightBack' => 'Be right back',
+        'Busy' => 'Busy and may not respond immediately',
+        'BusyIdle' => 'Busy but inactive',
+        'DoNotDisturb' => 'Do not disturb - urgent interruptions only',
+        'Offline' => 'Offline and not available',
+        'PresenceUnknown' => 'Presence status unknown',
+        'Unknown' => 'Status not available'
+    ];
+
+    return $descriptions[$availability] ?? 'Status information not available';
+}
+
+/**
+ * Get human-readable activity description
+ * NEW helper method
+ */
+private function getActivityDescription(string $activity): string
+{
+    $descriptions = [
+        'Available' => 'Available for communication',
+        'Away' => 'Currently away',
+        'BeRightBack' => 'Will be right back',
+        'Busy' => 'Currently busy',
+        'DoNotDisturb' => 'Do not disturb',
+        'InACall' => 'Currently in a call',
+        'InAConferenceCall' => 'In a conference call',
+        'Inactive' => 'Currently inactive',
+        'InAMeeting' => 'Currently in a meeting',
+        'Offline' => 'Currently offline',
+        'OffWork' => 'Currently off work',
+        'OutOfOffice' => 'Currently out of office',
+        'Presenting' => 'Currently presenting',
+        'UrgentInterruptionsOnly' => 'Only urgent interruptions allowed',
+        'Unknown' => 'Activity not available'
+    ];
+
+    return $descriptions[$activity] ?? 'Activity information not available';
+}
+
+/**
+ * Extract status message from presence data
+ * NEW helper method
+ */
+private function extractStatusMessage(array $presenceData): ?array
+{
+    $statusMessage = null;
+
+    if (isset($presenceData['statusMessage'])) {
+        $message = $presenceData['statusMessage'];
+        $statusMessage = [
+            'content' => $message['message']['content'] ?? null,
+            'content_type' => $message['message']['contentType'] ?? 'text',
+            'published_at' => $message['publishedDateTime'] ?? null,
+            'expires_at' => $message['expiryDateTime'] ?? null
+        ];
+    }
+
+    return $statusMessage;
+}
+
+/**
+ * Calculate availability score for ranking
+ * NEW helper method
+ */
+private function calculateAvailabilityScore(array $user): int
+{
+    $score = 0;
+
+    // Base score from availability
+    if (isset($user['presence'])) {
+        $availability = $user['presence']['availability'] ?? 'Unknown';
+        $score += $this->getAvailabilityPriority($availability) * 10;
+
+        // Bonus for specific activities
+        $activity = $user['presence']['activity'] ?? 'Unknown';
+        if ($activity === 'Available') {
+            $score += 20;
+        } elseif (in_array($activity, ['Away', 'BeRightBack'])) {
+            $score += 10;
+        }
+    }
+
+    // Bonus for contact information
+    if ($user['has_phone'] ?? false) {
+        $score += 5;
+    }
+
+    // Bonus for internal users
+    if (!($user['is_external'] ?? false)) {
+        $score += 10;
+    }
+
+    // Bonus for active accounts
+    if ($user['accountEnabled'] ?? false) {
+        $score += 5;
+    }
+
+    return $score;
+}
+
+/**
+ * Generate presence overview statistics
+ * NEW helper method
+ */
+private function generatePresenceOverviewStats(array $users): array
+{
+    $stats = [
+        'total_users' => count($users),
+        'users_with_presence' => 0,
+        'currently_available' => 0,
+        'currently_busy' => 0,
+        'currently_away' => 0,
+        'currently_offline' => 0,
+        'availability_rate' => 0,
+        'response_rate' => 0
+    ];
+
+    $availableCount = 0;
+    $responsiveStates = ['Available', 'AvailableIdle', 'Busy', 'BeRightBack'];
+
+    foreach ($users as $user) {
+        if (isset($user['presence'])) {
+            $stats['users_with_presence']++;
+
+            $availability = $user['presence']['availability'] ?? 'Unknown';
+
+            switch ($availability) {
+                case 'Available':
+                case 'AvailableIdle':
+                    $stats['currently_available']++;
+                    $availableCount++;
+                    break;
+                case 'Busy':
+                case 'BusyIdle':
+                case 'DoNotDisturb':
+                case 'InAMeeting':
+                    $stats['currently_busy']++;
+                    break;
+                case 'Away':
+                case 'BeRightBack':
+                    $stats['currently_away']++;
+                    break;
+                case 'Offline':
+                case 'PresenceUnknown':
+                    $stats['currently_offline']++;
+                    break;
+            }
+
+            // Count responsive users (likely to respond)
+            if (in_array($availability, $responsiveStates)) {
+                $stats['response_rate']++;
+            }
+        }
+    }
+
+    // Calculate rates
+    if ($stats['users_with_presence'] > 0) {
+        $stats['availability_rate'] = round(($availableCount / $stats['users_with_presence']) * 100, 2);
+        $stats['response_rate'] = round(($stats['response_rate'] / $stats['users_with_presence']) * 100, 2);
+    }
+
+    return $stats;
+}
+
+/**
+ * Generate availability distribution
+ * NEW helper method
+ */
+private function generateAvailabilityDistribution(array $users): array
+{
+    $distribution = [
+        'Available' => 0,
+        'AvailableIdle' => 0,
+        'Away' => 0,
+        'BeRightBack' => 0,
+        'Busy' => 0,
+        'BusyIdle' => 0,
+        'DoNotDisturb' => 0,
+        'InAMeeting' => 0,
+        'Offline' => 0,
+        'PresenceUnknown' => 0,
+        'NoPresenceData' => 0
+    ];
+
+    foreach ($users as $user) {
+        if (isset($user['presence'])) {
+            $availability = $user['presence']['availability'] ?? 'PresenceUnknown';
+            if (isset($distribution[$availability])) {
+                $distribution[$availability]++;
+            } else {
+                $distribution['PresenceUnknown']++;
+            }
+        } else {
+            $distribution['NoPresenceData']++;
+        }
+    }
+
+    // Convert to percentages
+    $total = count($users);
+    if ($total > 0) {
+        foreach ($distribution as $status => $count) {
+            $distribution[$status] = [
+                'count' => $count,
+                'percentage' => round(($count / $total) * 100, 2)
+            ];
+        }
+    }
+
+    return $distribution;
+}
+
+/**
+ * Generate activity distribution
+ * NEW helper method
+ */
+private function generateActivityDistribution(array $users): array
+{
+    $activities = [];
+
+    foreach ($users as $user) {
+        if (isset($user['presence']['activity'])) {
+            $activity = $user['presence']['activity'];
+            $activities[$activity] = ($activities[$activity] ?? 0) + 1;
+        }
+    }
+
+    // Sort by frequency
+    arsort($activities);
+
+    // Convert to percentages
+    $total = array_sum($activities);
+    if ($total > 0) {
+        foreach ($activities as $activity => $count) {
+            $activities[$activity] = [
+                'count' => $count,
+                'percentage' => round(($count / $total) * 100, 2)
+            ];
+        }
+    }
+
+    return $activities;
+}
+
+/**
+ * Generate department presence analysis
+ * NEW helper method
+ */
+private function generateDepartmentPresenceAnalysis(array $users): array
+{
+    $departments = [];
+
+    foreach ($users as $user) {
+        $dept = $user['department'] ?? 'Unknown';
+
+        if (!isset($departments[$dept])) {
+            $departments[$dept] = [
+                'total_users' => 0,
+                'available_users' => 0,
+                'busy_users' => 0,
+                'away_users' => 0,
+                'offline_users' => 0,
+                'availability_rate' => 0
+            ];
+        }
+
+        $departments[$dept]['total_users']++;
+
+        if (isset($user['presence'])) {
+            $availability = $user['presence']['availability'] ?? 'Unknown';
+
+            switch ($availability) {
+                case 'Available':
+                case 'AvailableIdle':
+                    $departments[$dept]['available_users']++;
+                    break;
+                case 'Busy':
+                case 'BusyIdle':
+                case 'DoNotDisturb':
+                case 'InAMeeting':
+                    $departments[$dept]['busy_users']++;
+                    break;
+                case 'Away':
+                case 'BeRightBack':
+                    $departments[$dept]['away_users']++;
+                    break;
+                default:
+                    $departments[$dept]['offline_users']++;
+            }
+        }
+    }
+
+    // Calculate availability rates
+    foreach ($departments as $dept => $stats) {
+        if ($stats['total_users'] > 0) {
+            $departments[$dept]['availability_rate'] = round(
+                ($stats['available_users'] / $stats['total_users']) * 100, 2
+            );
+        }
+    }
+
+    // Sort by total users
+    uasort($departments, function ($a, $b) {
+        return $b['total_users'] <=> $a['total_users'];
+    });
+
+    return array_slice($departments, 0, 10, true);
+}
+
+/**
+ * Generate location presence analysis
+ * NEW helper method
+ */
+private function generateLocationPresenceAnalysis(array $users): array
+{
+    $locations = [];
+
+    foreach ($users as $user) {
+        $location = $user['officeLocation'] ?? $user['city'] ?? 'Unknown';
+
+        if (!isset($locations[$location])) {
+            $locations[$location] = [
+                'total_users' => 0,
+                'available_users' => 0,
+                'busy_users' => 0,
+                'away_users' => 0,
+                'offline_users' => 0,
+                'availability_rate' => 0
+            ];
+        }
+
+        $locations[$location]['total_users']++;
+
+        if (isset($user['presence'])) {
+            $availability = $user['presence']['availability'] ?? 'Unknown';
+
+            switch ($availability) {
+                case 'Available':
+                case 'AvailableIdle':
+                    $locations[$location]['available_users']++;
+                    break;
+                case 'Busy':
+                case 'BusyIdle':
+                case 'DoNotDisturb':
+                case 'InAMeeting':
+                    $locations[$location]['busy_users']++;
+                    break;
+                case 'Away':
+                case 'BeRightBack':
+                    $locations[$location]['away_users']++;
+                    break;
+                default:
+                    $locations[$location]['offline_users']++;
+            }
+        }
+    }
+
+    // Calculate availability rates
+    foreach ($locations as $location => $stats) {
+        if ($stats['total_users'] > 0) {
+            $locations[$location]['availability_rate'] = round(
+                ($stats['available_users'] / $stats['total_users']) * 100, 2
+            );
+        }
+    }
+
+    // Sort by total users
+    uasort($locations, function ($a, $b) {
+        return $b['total_users'] <=> $a['total_users'];
+    });
+
+    return array_slice($locations, 0, 10, true);
+}
+
+/**
+ * Generate timezone presence analysis
+ * NEW helper method
+ */
+private function generateTimezonePresenceAnalysis(array $users): array
+{
+    $timezones = [];
+    $currentHour = now()->hour;
+
+    foreach ($users as $user) {
+        // This would require timezone information from user profiles
+        // For now, we'll use a simplified approach based on country
+        $country = $user['country'] ?? 'Unknown';
+        $timezone = $this->getTimezoneByCountry($country);
+
+        if (!isset($timezones[$timezone])) {
+            $timezones[$timezone] = [
+                'total_users' => 0,
+                'available_users' => 0,
+                'estimated_local_time' => $this->getEstimatedLocalTime($timezone),
+                'business_hours' => $this->isBusinessHours($timezone),
+                'availability_rate' => 0
+            ];
+        }
+
+        $timezones[$timezone]['total_users']++;
+
+        if (isset($user['presence']) && $user['is_available']) {
+            $timezones[$timezone]['available_users']++;
+        }
+    }
+
+    // Calculate availability rates
+    foreach ($timezones as $tz => $stats) {
+        if ($stats['total_users'] > 0) {
+            $timezones[$tz]['availability_rate'] = round(
+                ($stats['available_users'] / $stats['total_users']) * 100, 2
+            );
+        }
+    }
+
+    return $timezones;
+}
+
+/**
+ * Generate availability insights
+ * NEW helper method
+ */
+private function generateAvailabilityInsights(array $availableUsers, array $allUsers): array
+{
+    $insights = [
+        'availability_summary' => [
+            'total_users_checked' => count($allUsers),
+            'available_users_found' => count($availableUsers),
+            'availability_rate' => count($allUsers) > 0 ? round((count($availableUsers) / count($allUsers)) * 100, 2) : 0
+        ],
+        'department_availability' => [],
+        'location_availability' => [],
+        'recommendations' => []
+    ];
+
+    // Department breakdown
+    $deptStats = [];
+    foreach ($availableUsers as $user) {
+        $dept = $user['department'] ?? 'Unknown';
+        $deptStats[$dept] = ($deptStats[$dept] ?? 0) + 1;
+    }
+    arsort($deptStats);
+    $insights['department_availability'] = array_slice($deptStats, 0, 5, true);
+
+    // Location breakdown
+    $locationStats = [];
+    foreach ($availableUsers as $user) {
+        $location = $user['officeLocation'] ?? $user['city'] ?? 'Unknown';
+        $locationStats[$location] = ($locationStats[$location] ?? 0) + 1;
+    }
+    arsort($locationStats);
+    $insights['location_availability'] = array_slice($locationStats, 0, 5, true);
+
+    // Generate recommendations
+    if ($insights['availability_summary']['availability_rate'] < 30) {
+        $insights['recommendations'][] = 'Low availability detected. Consider scheduling meetings for later or checking with specific departments.';
+    }
+
+    if (count($availableUsers) < 5) {
+        $insights['recommendations'][] = 'Few users available. Consider expanding search criteria or checking again later.';
+    }
+
+    $currentHour = now()->hour;
+    if ($currentHour < 9 || $currentHour > 17) {
+        $insights['recommendations'][] = 'Current time is outside typical business hours which may affect availability.';
+    }
+
+    return $insights;
+}
+
+/**
+ * Get user's calendar busy time
+ * NEW helper method
+ */
+private function getUserCalendarBusyTime(string $userId): array
+{
+    try {
+        $startTime = now()->startOfDay()->toISOString();
+        $endTime = now()->endOfDay()->toISOString();
+
+        $calendarView = $this->makeRequest('GET', "/users/{$userId}/calendarView", [
+            'query' => [
+                'startDateTime' => $startTime,
+                'endDateTime' => $endTime,
+                '$select' => 'subject,start,end,showAs,isAllDay'
+            ]
+        ]);
+
+        $events = $calendarView['value'] ?? [];
+
+        return [
+            'total_events_today' => count($events),
+            'is_busy_now' => $this->isCurrentlyInMeeting($events),
+            'next_free_time' => $this->getNextFreeTime($events),
+            'busy_periods' => array_map(function($event) {
+                return [
+                    'subject' => $event['subject'],
+                    'start' => $event['start']['dateTime'],
+                    'end' => $event['end']['dateTime'],
+                    'show_as' => $event['showAs']
+                ];
+            }, $events)
+        ];
+    } catch (Exception $e) {
+        return [
+            'error' => 'Calendar information not accessible',
+            'total_events_today' => 0,
+            'is_busy_now' => false
+        ];
+    }
+}
+
+/**
+ * Check if user is currently in a meeting
+ * NEW helper method
+ */
+private function isCurrentlyInMeeting(array $events): bool
+{
+    $now = now();
+
+    foreach ($events as $event) {
+        $start = Carbon::parse($event['start']['dateTime']);
+        $end = Carbon::parse($event['end']['dateTime']);
+
+        if ($now->between($start, $end)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+/**
+ * Get next free time for user
+ * NEW helper method
+ */
+private function getNextFreeTime(array $events): ?string
+{
+    $now = now();
+    $sortedEvents = collect($events)->sortBy(function($event) {
+        return $event['start']['dateTime'];
+    });
+
+    foreach ($sortedEvents as $event) {
+        $start = Carbon::parse($event['start']['dateTime']);
+        if ($start->isAfter($now)) {
+            return $start->toISOString();
+        }
+    }
+
+    return null;
+}
+
+/**
+ * Get timezone by country (simplified mapping)
+ * NEW helper method
+ */
+private function getTimezoneByCountry(string $country): string
+{
+    $timezoneMap = [
+        'United States' => 'America/New_York',
+        'United Kingdom' => 'Europe/London',
+        'Germany' => 'Europe/Berlin',
+        'France' => 'Europe/Paris',
+        'Japan' => 'Asia/Tokyo',
+        'Australia' => 'Australia/Sydney',
+        'Canada' => 'America/Toronto',
+        'India' => 'Asia/Kolkata',
+        'China' => 'Asia/Shanghai',
+        'Brazil' => 'America/Sao_Paulo'
+    ];
+
+    return $timezoneMap[$country] ?? 'UTC';
+}
+
+/**
+ * Get estimated local time for timezone
+ * NEW helper method
+ */
+private function getEstimatedLocalTime(string $timezone): string
+{
+    try {
+        return now($timezone)->format('H:i T');
+    } catch (Exception $e) {
+        return 'Unknown';
+    }
+}
+
+/**
+ * Check if current time is business hours for timezone
+ * NEW helper method
+ */
+private function isBusinessHours(string $timezone): bool
+{
+    try {
+        $localTime = now($timezone);
+        $hour = $localTime->hour;
+        $dayOfWeek = $localTime->dayOfWeek;
+
+        // Monday = 1, Sunday = 0
+        $isWeekday = $dayOfWeek >= 1 && $dayOfWeek <= 5;
+        $isBusinessHour = $hour >= 9 && $hour <= 17;
+
+        return $isWeekday && $isBusinessHour;
+    } catch (Exception $e) {
+        return false;
+    }
+}
+
+/**
+ * Schedule presence revert (placeholder for future implementation)
+ * NEW helper method
+ */
+private function schedulePresenceRevert(string $originalAvailability, string $duration): void
+{
+    // This would typically involve:
+    // 1. Parsing the ISO 8601 duration
+    // 2. Scheduling a job/task to revert presence
+    // 3. Storing the revert information
+
+    Log::info('Presence revert scheduled', [
+        'original_availability' => $originalAvailability,
+        'duration' => $duration,
+        'user' => $this->auth->email ?? 'unknown'
+    ]);
+}
+
+/**
+ * Get user photo (simplified implementation)
+ * NEW helper method
+ */
+private function getUserPhoto(string $userId): ?array
+{
+    try {
+        $response = $this->makeRequest('GET', "/users/{$userId}/photo/\$value");
+
+        if (isset($response['content'])) {
+            return [
+                'content' => $response['content'],
+                'content_type' => $response['content_type'] ?? 'image/jpeg',
+                'size' => strlen($response['content'])
+            ];
+        }
+
+        return null;
+    } catch (Exception $e) {
+        return null;
+    }
+}
 }

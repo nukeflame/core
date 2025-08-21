@@ -1415,26 +1415,6 @@ class OutlookService
     }
 
     /**
-     * Get contacts
-     */
-    public function getContacts(array $options = []): array
-    {
-        $top = min($options['limit'] ?? 25, 100);
-        $skip = $options['skip'] ?? 0;
-        $select = $options['select'] ?? 'id,displayName,emailAddresses,mobilePhone,businessPhones';
-
-        $query = [
-            '$top' => $top,
-            '$skip' => $skip,
-            '$select' => $select,
-            '$orderby' => 'displayName'
-        ];
-
-        $response = $this->makeRequest('GET', '/me/contacts', ['query' => $query]);
-        return $response['value'] ?? [];
-    }
-
-    /**
      * Test API connectivity
      */
     public function testConnection(): array
@@ -3128,5 +3108,423 @@ class OutlookService
             ]);
             return false;
         }
+    }
+
+    /**
+     * Get contacts from user's mailbox with filtering and pagination
+     * Enhanced version with comprehensive search and filtering capabilities
+     *
+     * @param array $options Query options (folder, limit, filter, etc.)
+     * @return array Array of contacts with metadata
+     */
+    public function getContacts(array $options = []): array
+    {
+        try {
+            // Parse options with defaults
+            $folder = $options['folder'] ?? 'contacts'; // contacts, mycontacts, or specific folder ID
+            $top = min($options['limit'] ?? 50, 999); // Microsoft Graph limit
+            $skip = $options['skip'] ?? 0;
+            $filter = $options['filter'] ?? null;
+            $orderBy = $options['orderBy'] ?? 'displayName';
+            $select = $options['select'] ?? $this->getDefaultContactSelectFields();
+            $search = $options['search'] ?? null;
+
+            logger()->info('Fetching contacts', [
+                'folder' => $folder,
+                'limit' => $top,
+                'skip' => $skip,
+                'has_filter' => !empty($filter),
+                'has_search' => !empty($search),
+                'user' => $this->auth->email ?? 'unknown'
+            ]);
+
+            // Build query parameters
+            $query = [
+                '$top' => $top,
+                '$skip' => $skip,
+                '$select' => $select,
+                '$orderby' => $orderBy
+            ];
+
+            // Add filter if provided
+            if ($filter) {
+                $query['$filter'] = $filter;
+            }
+
+            // Add search if provided
+            if ($search) {
+                $query['$search'] = "\"{$search}\"";
+            }
+
+            // Determine endpoint based on folder
+            $endpoint = $this->buildContactsEndpoint($folder);
+
+            $startTime = microtime(true);
+
+            $response = $this->makeRequest('GET', $endpoint, ['query' => $query]);
+            $contacts = $response['value'] ?? [];
+
+            $processingTime = round((microtime(true) - $startTime) * 1000, 2);
+
+            // Process and enrich contact data
+            $processedContacts = array_map(function ($contact) use ($options) {
+                return $this->enrichContactData($contact, $options);
+            }, $contacts);
+
+            // Generate contact insights
+            $insights = $this->generateContactInsights($processedContacts);
+
+            logger()->info('Contacts fetched successfully', [
+                'folder' => $folder,
+                'contact_count' => count($processedContacts),
+                'has_more' => !empty($response['@odata.nextLink']),
+                'processing_time_ms' => $processingTime,
+                'user' => $this->auth->email ?? 'unknown'
+            ]);
+
+            return [
+                'success' => true,
+                'contacts' => $processedContacts,
+                'count' => count($processedContacts),
+                'folder' => $folder,
+                'insights' => $insights,
+                'nextLink' => $response['@odata.nextLink'] ?? null,
+                'processing_time_ms' => $processingTime,
+                'retrieved_at' => now()->toISOString()
+            ];
+        } catch (Exception $e) {
+            logger()->error('Failed to get contacts', [
+                'error' => $e->getMessage(),
+                'folder' => $options['folder'] ?? 'contacts',
+                'user' => $this->auth->email ?? 'unknown'
+            ]);
+
+            return [
+                'success' => false,
+                'error' => $e->getMessage(),
+                'contacts' => [],
+                'count' => 0
+            ];
+        }
+    }
+
+    /**
+     * Get default contact select fields
+     * NEW helper method
+     */
+    private function getDefaultContactSelectFields(): string
+    {
+        return implode(',', [
+            'id',
+            'displayName',
+            'givenName',
+            'surname',
+            'emailAddresses',
+            'businessPhones',
+            'homePhones',
+            'mobilePhone',
+            'companyName',
+            'jobTitle',
+            'department',
+            'officeLocation',
+            'businessAddress',
+            'homeAddress',
+            'birthday',
+            'createdDateTime',
+            'lastModifiedDateTime',
+            'categories'
+        ]);
+    }
+
+    /**
+     * Build contacts endpoint based on folder
+     * NEW helper method
+     */
+    private function buildContactsEndpoint(string $folder): string
+    {
+        if ($folder === 'contacts' || $folder === 'mycontacts') {
+            return '/me/contacts';
+        } elseif ($folder === 'all') {
+            return '/me/contacts';
+        } else {
+            // Assume it's a folder ID
+            return "/me/contactFolders/{$folder}/contacts";
+        }
+    }
+
+    /**
+     * Enrich contact data with additional information
+     */
+    private function enrichContactData(array $contact, array $options = []): array
+    {
+        $enriched = [
+            'id' => $contact['id'],
+            'displayName' => $contact['displayName'] ?? $this->buildDisplayName($contact),
+            'firstName' => $contact['givenName'] ?? null,
+            'lastName' => $contact['surname'] ?? null,
+            'fullName' => $this->buildFullName($contact),
+            'company' => $contact['companyName'] ?? null,
+            'jobTitle' => $contact['jobTitle'] ?? null,
+            'department' => $contact['department'] ?? null,
+            'email_addresses' => $this->formatEmailAddresses($contact['emailAddresses'] ?? []),
+            'phone_numbers' => $this->formatPhoneNumbers($contact),
+            'addresses' => $this->formatAddresses($contact),
+            'birthday' => $contact['birthday'] ?? null,
+            'categories' => $contact['categories'] ?? [],
+            'created_date' => $contact['createdDateTime'] ?? null,
+            'modified_date' => $contact['lastModifiedDateTime'] ?? null,
+            'has_photo' => false, // Will be updated if photo data is provided
+            'contact_quality_score' => $this->calculateContactQualityScore($contact)
+        ];
+
+        // Add extended information if requested
+        if ($options['include_extended_info'] ?? false) {
+            $enriched = array_merge($enriched, [
+                'middle_name' => $contact['middleName'] ?? null,
+                'nickname' => $contact['nickName'] ?? null,
+                'title' => $contact['title'] ?? null,
+                'generation' => $contact['generation'] ?? null,
+                'profession' => $contact['profession'] ?? null,
+                'manager' => $contact['manager'] ?? null,
+                'assistant_name' => $contact['assistantName'] ?? null,
+                'office_location' => $contact['officeLocation'] ?? null,
+                'personal_notes' => $contact['personalNotes'] ?? null,
+                'spouse_name' => $contact['spouseName'] ?? null,
+                'children' => $contact['children'] ?? [],
+                'im_addresses' => $contact['imAddresses'] ?? [],
+                'website' => $contact['website'] ?? null,
+                'flag' => $contact['flag'] ?? null
+            ]);
+        }
+
+        // Add photo data if provided
+        if (isset($options['photo_data']) && $options['photo_data']) {
+            $enriched['has_photo'] = true;
+            $enriched['photo'] = $options['photo_data'];
+        }
+
+        return $enriched;
+    }
+
+    /**
+     * Generate contact insights
+     * NEW helper method
+     */
+    private function generateContactInsights(array $contacts): array
+    {
+        $insights = [
+            'total_contacts' => count($contacts),
+            'with_email' => 0,
+            'with_phone' => 0,
+            'with_address' => 0,
+            'with_company' => 0,
+            'with_birthday' => 0,
+            'recent_contacts' => 0,
+            'average_quality_score' => 0,
+            'top_companies' => [],
+            'completion_rate' => 0
+        ];
+
+        $totalQualityScore = 0;
+        $companies = [];
+        $recentThreshold = now()->subDays(30);
+
+        foreach ($contacts as $contact) {
+            if (!empty($contact['email_addresses'])) {
+                $insights['with_email']++;
+            }
+
+            if (!empty($contact['phone_numbers'])) {
+                $insights['with_phone']++;
+            }
+
+            if (!empty($contact['addresses'])) {
+                $insights['with_address']++;
+            }
+
+            if (!empty($contact['company'])) {
+                $insights['with_company']++;
+                $company = $contact['company'];
+                $companies[$company] = ($companies[$company] ?? 0) + 1;
+            }
+
+            if (!empty($contact['birthday'])) {
+                $insights['with_birthday']++;
+            }
+
+            if ($contact['created_date'] && Carbon::parse($contact['created_date'])->isAfter($recentThreshold)) {
+                $insights['recent_contacts']++;
+            }
+
+            $totalQualityScore += $contact['contact_quality_score'] ?? 0;
+        }
+
+        // Calculate averages and rates
+        if (count($contacts) > 0) {
+            $insights['average_quality_score'] = round($totalQualityScore / count($contacts), 2);
+            $insights['completion_rate'] = round(
+                (($insights['with_email'] + $insights['with_phone'] + $insights['with_address']) / (count($contacts) * 3)) * 100,
+                2
+            );
+        }
+
+        // Top companies
+        if (!empty($companies)) {
+            arsort($companies);
+            $insights['top_companies'] = array_slice($companies, 0, 5, true);
+        }
+
+        return $insights;
+    }
+
+
+    /**
+     * Build display name from contact parts
+     * NEW helper method
+     */
+    private function buildDisplayName(array $contact): string
+    {
+        $parts = array_filter([
+            $contact['givenName'] ?? null,
+            $contact['surname'] ?? null
+        ]);
+
+        return implode(' ', $parts) ?: 'Unnamed Contact';
+    }
+
+    /**
+     * Build full name from contact parts
+     * NEW helper method
+     */
+    private function buildFullName(array $contact): string
+    {
+        $parts = array_filter([
+            $contact['title'] ?? null,
+            $contact['givenName'] ?? null,
+            $contact['middleName'] ?? null,
+            $contact['surname'] ?? null,
+            $contact['generation'] ?? null
+        ]);
+
+        return implode(' ', $parts) ?: ($contact['displayName'] ?? 'Unnamed Contact');
+    }
+
+    /**
+     * Format email addresses consistently
+     * NEW helper method
+     */
+    private function formatEmailAddresses(array $emailAddresses): array
+    {
+        $formatted = [];
+
+        foreach ($emailAddresses as $email) {
+            if (is_string($email)) {
+                $formatted[] = [
+                    'address' => $email,
+                    'name' => null,
+                    'type' => 'unknown'
+                ];
+            } elseif (is_array($email)) {
+                $formatted[] = [
+                    'address' => $email['address'] ?? null,
+                    'name' => $email['name'] ?? null,
+                    'type' => $email['type'] ?? 'unknown'
+                ];
+            }
+        }
+
+        return $formatted;
+    }
+
+
+    /**
+     * Format phone numbers from contact
+     * NEW helper method
+     */
+    private function formatPhoneNumbers(array $contact): array
+    {
+        $phones = [];
+
+        // Business phones
+        foreach ($contact['businessPhones'] ?? [] as $phone) {
+            $phones[] = [
+                'number' => $phone,
+                'type' => 'business'
+            ];
+        }
+
+        // Home phones
+        foreach ($contact['homePhones'] ?? [] as $phone) {
+            $phones[] = [
+                'number' => $phone,
+                'type' => 'home'
+            ];
+        }
+
+        // Mobile phone
+        if (!empty($contact['mobilePhone'])) {
+            $phones[] = [
+                'number' => $contact['mobilePhone'],
+                'type' => 'mobile'
+            ];
+        }
+
+        return $phones;
+    }
+
+    /**
+     * Format addresses from contact
+     * NEW helper method
+     */
+    private function formatAddresses(array $contact): array
+    {
+        $addresses = [];
+
+        // Business address
+        if (!empty($contact['businessAddress'])) {
+            $addresses[] = array_merge($contact['businessAddress'], ['type' => 'business']);
+        }
+
+        // Home address
+        if (!empty($contact['homeAddress'])) {
+            $addresses[] = array_merge($contact['homeAddress'], ['type' => 'home']);
+        }
+
+        // Other address
+        if (!empty($contact['otherAddress'])) {
+            $addresses[] = array_merge($contact['otherAddress'], ['type' => 'other']);
+        }
+
+        return $addresses;
+    }
+
+
+    /**
+     * Calculate contact quality score
+     * NEW helper method
+     */
+    private function calculateContactQualityScore(array $contact): int
+    {
+        $score = 0;
+
+        // Basic information (40 points max)
+        if (!empty($contact['displayName'])) $score += 10;
+        if (!empty($contact['givenName'])) $score += 10;
+        if (!empty($contact['surname'])) $score += 10;
+        if (!empty($contact['jobTitle'])) $score += 10;
+
+        // Contact information (40 points max)
+        if (!empty($contact['emailAddresses'])) $score += 20;
+        if (!empty($contact['businessPhones']) || !empty($contact['homePhones']) || !empty($contact['mobilePhone'])) {
+            $score += 20;
+        }
+
+        // Additional information (20 points max)
+        if (!empty($contact['companyName'])) $score += 5;
+        if (!empty($contact['businessAddress']) || !empty($contact['homeAddress'])) $score += 5;
+        if (!empty($contact['birthday'])) $score += 5;
+        if (!empty($contact['personalNotes'])) $score += 5;
+
+        return min($score, 100);
     }
 }

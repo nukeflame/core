@@ -634,7 +634,10 @@ class MailApp {
     switchFolder(folder) {
         const $currentActive = $(".mail-type.active");
         $currentActive.removeClass("active");
-        console.log(folder);
+
+        window.emailData = null;
+        $(".mails-information").empty();
+
         const $newActive = $(`[data-folder="${folder}"]`).closest(".mail-type");
         $newActive.addClass("active");
 
