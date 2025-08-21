@@ -3527,4 +3527,647 @@ class OutlookService
 
         return min($score, 100);
     }
+
+    /**
+     * Get all users in the organization with comprehensive filtering
+     * Enhanced version with presence integration and advanced analytics
+     *
+     * @param array $options Query options (limit, filter, presence, etc.)
+     * @return array Array of users with optional presence information
+     */
+    public function getAllUsers(array $options = []): array
+    {
+        try {
+            // Parse options with defaults
+            $top = min($options['limit'] ?? 100, 999); // Microsoft Graph limit
+            $skip = $options['skip'] ?? 0;
+            $filter = $options['filter'] ?? null;
+            $orderBy = $options['orderBy'] ?? 'displayName';
+            $select = $options['select'] ?? $this->getDefaultUserSelectFields();
+            $includePresence = $options['include_presence'] ?? false;
+            $includePhotos = $options['include_photos'] ?? false;
+            $accountEnabled = $options['account_enabled'] ?? true;
+
+            logger()->info('Fetching all organization users', [
+                'limit' => $top,
+                'skip' => $skip,
+                'include_presence' => $includePresence,
+                'include_photos' => $includePhotos,
+                'account_enabled' => $accountEnabled,
+                'user' => $this->auth->email ?? 'unknown'
+            ]);
+
+            // Build query parameters
+            $query = [
+                '$top' => $top,
+                '$skip' => $skip,
+                '$select' => $select,
+                '$orderby' => $orderBy
+            ];
+
+            // Build filter conditions
+            $filters = [];
+
+            if ($accountEnabled !== null) {
+                $filters[] = "accountEnabled eq " . ($accountEnabled ? 'true' : 'false');
+            }
+
+            // Add user type filter (exclude guests by default unless specified)
+            if (!($options['include_guests'] ?? false)) {
+                $filters[] = "userType eq 'Member'";
+            }
+
+            // Add custom filter if provided
+            if ($filter) {
+                $filters[] = $filter;
+            }
+
+            // Add department filter if specified
+            if (!empty($options['department'])) {
+                $filters[] = "department eq '{$options['department']}'";
+            }
+
+            // Add location filter if specified
+            if (!empty($options['location'])) {
+                $filters[] = "(city eq '{$options['location']}' or officeLocation eq '{$options['location']}')";
+            }
+
+            // Add job title filter if specified
+            if (!empty($options['job_title_contains'])) {
+                $filters[] = "startswith(jobTitle, '{$options['job_title_contains']}')";
+            }
+
+            if (!empty($filters)) {
+                $query['$filter'] = implode(' and ', $filters);
+            }
+
+            $startTime = microtime(true);
+
+            // Get users from Microsoft Graph
+            $response = $this->makeRequest('GET', '/users', ['query' => $query]);
+            $users = $response['value'] ?? [];
+
+            $fetchTime = round((microtime(true) - $startTime) * 1000, 2);
+
+            logger()->info('Users fetched from Graph API', [
+                'user_count' => count($users),
+                'fetch_time_ms' => $fetchTime,
+                'has_more' => !empty($response['@odata.nextLink']),
+                'user' => $this->auth->email ?? 'unknown'
+            ]);
+
+            // Process and enrich user data
+            $processedUsers = [];
+            $presenceStartTime = microtime(true);
+
+            // Get presence information for all users if requested
+            $presenceData = [];
+            if ($includePresence && !empty($users)) {
+                $presenceData = $this->getBulkUserPresence(array_column($users, 'id'));
+            }
+
+            foreach ($users as $user) {
+                $enrichedUser = $this->enrichUserData($user, [
+                    'include_presence' => $includePresence,
+                    'include_photos' => $includePhotos,
+                    'presence_data' => $presenceData[$user['id']] ?? null
+                ]);
+
+                $processedUsers[] = $enrichedUser;
+            }
+
+            $processingTime = round((microtime(true) - $presenceStartTime) * 1000, 2);
+
+            // Generate user insights and analytics
+            $insights = $this->generateUserInsights($processedUsers, $options);
+
+            $totalTime = round((microtime(true) - $startTime) * 1000, 2);
+
+            logger()->info('User processing completed', [
+                'processed_users' => count($processedUsers),
+                'presence_processing_ms' => $processingTime,
+                'total_time_ms' => $totalTime,
+                'user' => $this->auth->email ?? 'unknown'
+            ]);
+
+            return [
+                'success' => true,
+                'users' => $processedUsers,
+                'count' => count($processedUsers),
+                'insights' => $insights,
+                'performance' => [
+                    'fetch_time_ms' => $fetchTime,
+                    'processing_time_ms' => $processingTime,
+                    'total_time_ms' => $totalTime
+                ],
+                'pagination' => [
+                    'current_count' => count($processedUsers),
+                    'skip' => $skip,
+                    'top' => $top,
+                    'nextLink' => $response['@odata.nextLink'] ?? null
+                ],
+                'retrieved_at' => now()->toISOString()
+            ];
+        } catch (Exception $e) {
+            logger()->error('Failed to get all users', [
+                'error' => $e->getMessage(),
+                'user' => $this->auth->email ?? 'unknown'
+            ]);
+
+            return [
+                'success' => false,
+                'error' => $e->getMessage(),
+                'users' => [],
+                'count' => 0
+            ];
+        }
+    }
+
+    /**
+     * Get default user select fields
+     * NEW helper method
+     */
+    private function getDefaultUserSelectFields(): string
+    {
+        return implode(',', [
+            'id',
+            'displayName',
+            'mail',
+            'userPrincipalName',
+            'jobTitle',
+            'department',
+            'officeLocation',
+            'businessPhones',
+            'mobilePhone',
+            'accountEnabled',
+            'userType',
+            'createdDateTime',
+            'lastPasswordChangeDateTime',
+            'companyName',
+            'city',
+            'country',
+            'employeeId',
+            'employeeType',
+            'manager',
+            'preferredLanguage',
+            'usageLocation'
+        ]);
+    }
+
+    /**
+     * Generate comprehensive user insights
+     * NEW helper method
+     */
+    private function generateUserInsights(array $users, array $options): array
+    {
+        $insights = [
+            'overview' => [
+                'total_users' => count($users),
+                'active_users' => 0,
+                'guest_users' => 0,
+                'external_users' => 0,
+                'users_with_presence' => 0,
+                'available_users' => 0
+            ],
+            'departments' => [],
+            'locations' => [],
+            'user_types' => ['Member' => 0, 'Guest' => 0],
+            'presence_summary' => [
+                'Available' => 0,
+                'Busy' => 0,
+                'DoNotDisturb' => 0,
+                'Away' => 0,
+                'BeRightBack' => 0,
+                'Offline' => 0,
+                'Unknown' => 0
+            ],
+            'communication' => [
+                'users_with_phone' => 0,
+                'users_with_mobile' => 0,
+                'phone_coverage' => 0
+            ]
+        ];
+
+        foreach ($users as $user) {
+            // Basic counts
+            if ($user['accountEnabled'] ?? false) {
+                $insights['overview']['active_users']++;
+            }
+
+            if ($user['is_guest'] ?? false) {
+                $insights['overview']['guest_users']++;
+            }
+
+            if ($user['is_external'] ?? false) {
+                $insights['overview']['external_users']++;
+            }
+
+            // User type distribution
+            $userType = $user['userType'] ?? 'Member';
+            if (isset($insights['user_types'][$userType])) {
+                $insights['user_types'][$userType]++;
+            }
+
+            // Department distribution
+            if (!empty($user['department'])) {
+                $dept = $user['department'];
+                $insights['departments'][$dept] = ($insights['departments'][$dept] ?? 0) + 1;
+            }
+
+            // Location distribution
+            if (!empty($user['officeLocation'])) {
+                $location = $user['officeLocation'];
+                $insights['locations'][$location] = ($insights['locations'][$location] ?? 0) + 1;
+            } elseif (!empty($user['city'])) {
+                $location = $user['city'];
+                $insights['locations'][$location] = ($insights['locations'][$location] ?? 0) + 1;
+            }
+
+            // Presence analysis
+            if (isset($user['presence'])) {
+                $insights['overview']['users_with_presence']++;
+
+                $availability = $user['presence']['availability'] ?? 'Unknown';
+                if (isset($insights['presence_summary'][$availability])) {
+                    $insights['presence_summary'][$availability]++;
+                } else {
+                    $insights['presence_summary']['Unknown']++;
+                }
+
+                if ($user['is_available'] ?? false) {
+                    $insights['overview']['available_users']++;
+                }
+            }
+
+            // Communication analysis
+            if ($user['has_phone'] ?? false) {
+                $insights['communication']['users_with_phone']++;
+            }
+
+            if (!empty($user['mobilePhone'])) {
+                $insights['communication']['users_with_mobile']++;
+            }
+        }
+
+        // Calculate rates and sort distributions
+        $totalUsers = count($users);
+        if ($totalUsers > 0) {
+            $insights['communication']['phone_coverage'] = round(
+                ($insights['communication']['users_with_phone'] / $totalUsers) * 100,
+                2
+            );
+        }
+
+        // Sort departments and locations by count
+        if (!empty($insights['departments'])) {
+            arsort($insights['departments']);
+            $insights['departments'] = array_slice($insights['departments'], 0, 10, true);
+        }
+
+        if (!empty($insights['locations'])) {
+            arsort($insights['locations']);
+            $insights['locations'] = array_slice($insights['locations'], 0, 10, true);
+        }
+
+        return $insights;
+    }
+
+    /**
+     * Get presence information for multiple users in bulk
+     * Optimized batch processing for presence data
+     *
+     * @param array $userIds Array of user IDs
+     * @param array $options Presence options
+     * @return array Presence data keyed by user ID
+     */
+    public function getBulkUserPresence(array $userIds, array $options = []): array
+    {
+        try {
+            if (empty($userIds)) {
+                return [];
+            }
+
+            $batchSize = min($options['batch_size'] ?? 50, 50); // Microsoft Graph batch limit
+            $includeDetails = $options['include_details'] ?? true;
+
+            logger()->info('Fetching bulk user presence', [
+                'user_count' => count($userIds),
+                'batch_size' => $batchSize,
+                'include_details' => $includeDetails,
+                'user' => $this->auth->email ?? 'unknown'
+            ]);
+
+            $allPresenceData = [];
+            $batches = array_chunk($userIds, $batchSize);
+
+            foreach ($batches as $batchIndex => $batch) {
+                try {
+                    $batchPresence = $this->processBatchPresence($batch, $includeDetails, $batchIndex);
+                    $allPresenceData = array_merge($allPresenceData, $batchPresence);
+
+                    // Brief pause between batches to avoid rate limiting
+                    if (count($batches) > 1 && $batchIndex < count($batches) - 1) {
+                        usleep(200000); // 0.2 second
+                    }
+                } catch (Exception $e) {
+                    logger()->warning('Batch presence request failed', [
+                        'batch_index' => $batchIndex,
+                        'batch_size' => count($batch),
+                        'error' => $e->getMessage()
+                    ]);
+                    continue;
+                }
+            }
+
+            logger()->info('Bulk presence fetch completed', [
+                'requested_users' => count($userIds),
+                'presence_retrieved' => count($allPresenceData),
+                'success_rate' => round((count($allPresenceData) / count($userIds)) * 100, 2) . '%',
+                'user' => $this->auth->email ?? 'unknown'
+            ]);
+
+            return $allPresenceData;
+        } catch (Exception $e) {
+            logger()->error('Failed to get bulk user presence', [
+                'user_count' => count($userIds),
+                'error' => $e->getMessage(),
+                'user' => $this->auth->email ?? 'unknown'
+            ]);
+
+            return [];
+        }
+    }
+
+    /**
+     * Process a batch of presence requests
+     * Helper method for bulk presence processing
+     *
+     * @param array $userIds Batch of user IDs
+     * @param bool $includeDetails Include detailed presence info
+     * @param int $batchIndex Batch number for logging
+     * @return array Presence data for the batch
+     */
+    private function processBatchPresence(array $userIds, bool $includeDetails, int $batchIndex): array
+    {
+        $presenceData = [];
+
+        try {
+            // Build batch request
+            $requests = [];
+            foreach ($userIds as $index => $userId) {
+                $requests[] = [
+                    'id' => $index,
+                    'method' => 'GET',
+                    'url' => "/users/{$userId}/presence"
+                ];
+            }
+
+            $batchRequest = [
+                'requests' => $requests
+            ];
+
+            $response = $this->makeRequest('POST', '/$batch', ['json' => $batchRequest]);
+
+            if (isset($response['responses'])) {
+                foreach ($response['responses'] as $batchResponse) {
+                    $requestIndex = $batchResponse['id'];
+                    $userId = $userIds[$requestIndex];
+
+                    if ($batchResponse['status'] === 200 && isset($batchResponse['body'])) {
+                        $presenceInfo = $this->enrichPresenceData($batchResponse['body'], $includeDetails);
+                        $presenceData[$userId] = $presenceInfo;
+                    } else {
+                        // Log failed individual request but don't fail the whole batch
+                        logger()->debug('Individual presence request failed', [
+                            'user_id' => $userId,
+                            'status' => $batchResponse['status'],
+                            'batch_index' => $batchIndex
+                        ]);
+                    }
+                }
+            }
+        } catch (Exception $e) {
+            logger()->warning('Batch presence processing failed', [
+                'batch_index' => $batchIndex,
+                'error' => $e->getMessage()
+            ]);
+            throw $e;
+        }
+
+        return $presenceData;
+    }
+
+    /**
+     * Enrich presence data with additional context
+     * NEW helper method
+     */
+    private function enrichPresenceData(array $presenceData, bool $includeDetails = true): array
+    {
+        $enriched = [
+            'id' => $presenceData['id'] ?? null,
+            'availability' => $presenceData['availability'] ?? 'Unknown',
+            'activity' => $presenceData['activity'] ?? 'Unknown',
+            'is_available' => $this->isPresenceAvailable($presenceData),
+            'availability_priority' => $this->getAvailabilityPriority($presenceData['availability'] ?? 'Unknown'),
+            'last_seen' => $presenceData['lastModifiedDateTime'] ?? null
+        ];
+
+        if ($includeDetails) {
+            $enriched['status_message'] = $this->extractStatusMessage($presenceData);
+            $enriched['availability_description'] = $this->getAvailabilityDescription($presenceData['availability'] ?? 'Unknown');
+            $enriched['activity_description'] = $this->getActivityDescription($presenceData['activity'] ?? 'Unknown');
+            $enriched['out_of_office'] = $presenceData['outOfOfficeSettings'] ?? null;
+        }
+
+        return $enriched;
+    }
+
+
+    /**
+     * Check if presence indicates availability
+     * NEW helper method
+     */
+    private function isPresenceAvailable(array $presenceData): bool
+    {
+        $availability = $presenceData['availability'] ?? 'Unknown';
+        $availableStates = ['Available', 'AvailableIdle'];
+
+        return in_array($availability, $availableStates);
+    }
+
+    /**
+     * Get availability priority for sorting
+     * NEW helper method
+     */
+    private function getAvailabilityPriority(string $availability): int
+    {
+        $priorities = [
+            'Available' => 10,
+            'AvailableIdle' => 9,
+            'BeRightBack' => 8,
+            'Away' => 7,
+            'Busy' => 6,
+            'BusyIdle' => 5,
+            'DoNotDisturb' => 4,
+            'InAMeeting' => 3,
+            'Offline' => 2,
+            'PresenceUnknown' => 1,
+            'Unknown' => 0
+        ];
+
+        return $priorities[$availability] ?? 0;
+    }
+
+    /**
+     * Extract status message from presence data
+     * NEW helper method
+     */
+    private function extractStatusMessage(array $presenceData): ?array
+    {
+        $statusMessage = null;
+
+        if (isset($presenceData['statusMessage'])) {
+            $message = $presenceData['statusMessage'];
+            $statusMessage = [
+                'content' => $message['message']['content'] ?? null,
+                'content_type' => $message['message']['contentType'] ?? 'text',
+                'published_at' => $message['publishedDateTime'] ?? null,
+                'expires_at' => $message['expiryDateTime'] ?? null
+            ];
+        }
+
+        return $statusMessage;
+    }
+
+    /**
+     * Get human-readable availability description
+     * NEW helper method
+     */
+    private function getAvailabilityDescription(string $availability): string
+    {
+        $descriptions = [
+            'Available' => 'Available and ready to communicate',
+            'AvailableIdle' => 'Available but inactive',
+            'Away' => 'Away from computer',
+            'BeRightBack' => 'Be right back',
+            'Busy' => 'Busy and may not respond immediately',
+            'BusyIdle' => 'Busy but inactive',
+            'DoNotDisturb' => 'Do not disturb - urgent interruptions only',
+            'Offline' => 'Offline and not available',
+            'PresenceUnknown' => 'Presence status unknown',
+            'Unknown' => 'Status not available'
+        ];
+
+        return $descriptions[$availability] ?? 'Status information not available';
+    }
+
+    /**
+     * Get human-readable activity description
+     * NEW helper method
+     */
+    private function getActivityDescription(string $activity): string
+    {
+        $descriptions = [
+            'Available' => 'Available for communication',
+            'Away' => 'Currently away',
+            'BeRightBack' => 'Will be right back',
+            'Busy' => 'Currently busy',
+            'DoNotDisturb' => 'Do not disturb',
+            'InACall' => 'Currently in a call',
+            'InAConferenceCall' => 'In a conference call',
+            'Inactive' => 'Currently inactive',
+            'InAMeeting' => 'Currently in a meeting',
+            'Offline' => 'Currently offline',
+            'OffWork' => 'Currently off work',
+            'OutOfOffice' => 'Currently out of office',
+            'Presenting' => 'Currently presenting',
+            'UrgentInterruptionsOnly' => 'Only urgent interruptions allowed',
+            'Unknown' => 'Activity not available'
+        ];
+
+        return $descriptions[$activity] ?? 'Activity information not available';
+    }
+
+    /**
+     * Enrich user data with additional information
+     * NEW helper method
+     */
+    private function enrichUserData(array $user, array $options = []): array
+    {
+        $enriched = [
+            'id' => $user['id'],
+            'displayName' => $user['displayName'],
+            'email' => $user['mail'] ?? $user['userPrincipalName'],
+            'jobTitle' => $user['jobTitle'] ?? null,
+            'department' => $user['department'] ?? null,
+            'officeLocation' => $user['officeLocation'] ?? null,
+            'accountEnabled' => $user['accountEnabled'] ?? null,
+            'userType' => $user['userType'] ?? 'Member',
+            'companyName' => $user['companyName'] ?? null,
+            'city' => $user['city'] ?? null,
+            'country' => $user['country'] ?? null,
+            'businessPhones' => $user['businessPhones'] ?? [],
+            'mobilePhone' => $user['mobilePhone'] ?? null,
+            'preferredLanguage' => $user['preferredLanguage'] ?? null,
+            'createdDateTime' => $user['createdDateTime'] ?? null,
+            'is_guest' => ($user['userType'] ?? 'Member') === 'Guest',
+            'has_phone' => !empty($user['businessPhones']) || !empty($user['mobilePhone']),
+            'is_external' => $this->isExternalUser($user)
+        ];
+
+        // Add presence information if provided
+        if ($options['include_presence'] && isset($options['presence_data'])) {
+            $enriched['presence'] = $options['presence_data'];
+            $enriched['is_available'] = $this->isUserAvailable($options['presence_data']);
+        }
+
+        // Add photo if requested
+        if ($options['include_photos'] ?? false) {
+            $enriched['photo'] = $this->getUserPhoto($user['id']);
+        }
+
+        return $enriched;
+    }
+
+    /**
+     * Check if user is external to organization
+     * NEW helper method
+     */
+    private function isExternalUser(array $user): bool
+    {
+        // Check user type
+        if (($user['userType'] ?? 'Member') === 'Guest') {
+            return true;
+        }
+
+        // Check email domain if we have organization domain info
+        $userEmail = $user['mail'] ?? $user['userPrincipalName'] ?? '';
+        $currentUserEmail = $this->auth->email ?? '';
+
+        if (!empty($userEmail) && !empty($currentUserEmail)) {
+            $userDomain = substr(strrchr($userEmail, "@"), 1);
+            $orgDomain = substr(strrchr($currentUserEmail, "@"), 1);
+
+            return strtolower($userDomain) !== strtolower($orgDomain);
+        }
+
+        return false;
+    }
+
+
+    /**
+     * Check if user is available based on presence
+     * NEW helper method
+     */
+    private function isUserAvailable(?array $presenceData): bool
+    {
+        if (!$presenceData) {
+            return false;
+        }
+
+        $availability = $presenceData['availability'] ?? 'Unknown';
+        $availableStates = ['Available', 'AvailableIdle'];
+
+        return in_array($availability, $availableStates);
+    }
 }

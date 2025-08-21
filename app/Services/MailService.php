@@ -110,8 +110,6 @@ class MailService
         return collect();
     }
 
-
-
     public function getEmail(string $id): ?array
     {
         return $this->storageService->getStoredEmail($id);
