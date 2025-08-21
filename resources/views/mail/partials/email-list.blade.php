@@ -5,7 +5,7 @@
             <input class="form-check-input mailc-checkbox" type="checkbox" id="checkAll" value="">
         </div>
         <div class="flex-fill">
-            <h6 class="fw-semibold mb-0">{{ ucfirst($folder) }} ({{ $emails->count() }})</h6>
+            <h6 class="fw-semibold mb-0" style="line-height: 0px;">{{ ucfirst($folder) }} ({{ $emails->count() }})</h6>
         </div>
         <button class="btn btn-icon btn-light me-1 d-lg-none d-block total-mails-close">
             <i class="ri-close-line"></i>
@@ -207,6 +207,6 @@
 
     .empty-state-header {
         justify-content: center;
-        height: calc(100vh - 8.1rem);
+        /* height: calc(100vh - 8.1rem); */
     }
 </style>

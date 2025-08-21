@@ -55,6 +55,9 @@ Route::group(
         // Route::post('/unread/{id}', [MailController::class, 'markUnread'])->name('unread');
 
         Route::get('/check-new', [MailController::class, 'checkNew'])->name('check-new');
+        Route::get('/inbox/id/{messageId}', [MailController::class, 'showInbox'])
+            ->name('mail.inbox.show')
+            ->where('messageId', '.*');
 
         Route::get('/attachment/{emailId}/{attachmentId}/download', [MailController::class, 'downloadAttachment'])
             ->name('attachment.download');
@@ -75,8 +78,6 @@ Route::group(
         // Route::get('mail/settings', [MailController::class, 'settings'])->name('admin.email.settings');
 
         // Route::get('mail/folder/{folder}', [MailController::class, 'getFolder'])->name('admin.folder');
-        // Route::get('mail/inbox/id/{messageId}', [MailController::class, 'show'])
-        //     ->name('mail.inbox.show')
-        //     ->where('messageId', '.*');
+
     }
 );

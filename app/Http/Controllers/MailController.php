@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Services\OutlookService;
 use App\Services\MailService;
+use Exception;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\View\View;
@@ -73,6 +75,35 @@ class MailController extends Controller
             logger()->error('Email show failed', ['id' => $id, 'error' => $e->getMessage()]);
 
             return response()->json(['error' => 'Failed to load email'], 500);
+        }
+    }
+
+    public function showInbox($id)
+    {
+        try {
+            if (empty($id)) {
+                return redirect()->back()->withErrors(['Invalid email ID provided']);
+            }
+            $email = $this->mailService->getEmailByMessageId($id, auth()->user()->email);
+
+            $request = new Request();
+            $requestData = $this->validateIndexRequest($request);
+
+            $data = $this->mailService->getMailData(
+                $requestData['folder'],
+                $requestData['search'],
+                $requestData['limit']
+            );
+
+            return view('mail.index', array_merge($data, [
+                'folder' => $requestData['folder'],
+                'email' => $email,
+                'user' => Auth::user()
+            ]));
+        } catch (ModelNotFoundException $e) {
+            return redirect()->back()->withErrors(['Email not found']);
+        } catch (Exception $e) {
+            return redirect()->back()->withErrors(['Email not found or invalid message ID']);
         }
     }
 

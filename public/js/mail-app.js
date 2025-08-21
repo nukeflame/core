@@ -16,6 +16,7 @@ class MailApp {
         this.bindEvents();
         // this.initializeSelects();
         this.setupNotifications();
+        this.checkAndLoadInitialEmail();
     }
 
     initializeEditors() {
@@ -96,6 +97,32 @@ class MailApp {
             minimumResultsForSearch: Infinity,
             width: "100%",
         });
+    }
+
+    checkAndLoadInitialEmail() {
+        if (typeof window.emailData !== "undefined" && window.emailData) {
+            if (window.emailData.length > 0) {
+                const data = window.emailData[0];
+                this.displayEmail(data);
+                this.markAsRead(data.id);
+                this.currentEmail = data;
+
+                const emailId = data.uid;
+                const url = `/mail/inbox/id/${emailId}`;
+                window.history.replaceState(null, "", url);
+
+                this.highlightEmailInList(emailId);
+            }
+        }
+    }
+
+    highlightEmailInList(emailId) {
+        $(".mail-page").removeClass("active");
+
+        const $emailItem = $(`.mail-page[data-email-id="${emailId}"]`);
+        if ($emailItem.length) {
+            $emailItem.addClass("active");
+        }
     }
 
     bindEvents() {
@@ -180,8 +207,9 @@ class MailApp {
             });
 
             this.displayEmail(response);
-            // this.markAsRead(emailId);
-            // this.currentEmail = response;
+            this.markAsRead(emailId);
+            this.currentEmail = response;
+            this.highlightEmailInList(emailId);
         } catch (error) {
             this.showError("Failed to load email");
             console.error("Load email error:", error);
@@ -191,18 +219,11 @@ class MailApp {
     }
 
     displayEmail(email) {
-        // console.log(email);
         const $emailContent = $(".mails-information");
         if (!$emailContent.length) return;
 
-        // <span class="avatar avatar-md online me-2 avatar-rounded mail-msg-avatar">
-        //     $
-        //     {email.avatar
-        //         ? `<img src="${email.from.avatar}" alt="">`
-        //         : `<div class="avatar-initial">${email.from.name
-        //               .charAt(0)
-        //               .toUpperCase()}</div>`}
-        // </span>;
+        const url = `/mail/inbox/id/${email.uid}`;
+        window.history.replaceState(null, "", url);
 
         const $emptyState = $emailContent.find(
             ".mail-info-header#email-header"
@@ -211,75 +232,114 @@ class MailApp {
         const $header = $emailContent.find(".mail-info-header");
         $emailContent.removeClass("bg-transparent");
         $header.html(`
-            <div class="me-1">
-
-            </div>
-            <div class="flex-fill">
-                <h6 class="mb-0 fw-semibold">${email.from_name}</h6>
-                <span class="text-muted fs-12">${email.from_email}</span>
-            </div>
-            <div class="mail-action-icons">
-                <button class="btn btn-icon btn-light" data-action="star" data-email-id="${email.id}">
-                    <i class="ri-star-line"></i>
-                </button>
-                <button class="btn btn-icon btn-light ms-1" data-action="archive" data-email-id="${email.id}">
-                    <i class="ri-inbox-archive-line"></i>
-                </button>
-                <button class="btn btn-icon btn-light ms-1" data-action="spam" data-email-id="${email.id}">
-                    <i class="ri-spam-2-line"></i>
-                </button>
-                <button class="btn btn-icon btn-light ms-1" data-action="delete" data-email-id="${email.id}">
-                    <i class="ri-delete-bin-line"></i>
-                </button>
-                <button class="btn btn-icon btn-light ms-1" data-action="reply" data-email-id="${email.id}">
-                    <i class="ri-reply-line"></i>
-                </button>
-            </div>
-        `);
+        <div class="me-1">
+           <span class="avatar avatar-md offline me-2 avatar-rounded mail-msg-avatar">
+                <img src="/assets/images/faces/default.png" alt="">
+            </span>
+        </div>
+        <div class="flex-fill">
+            <h6 class="mb-0 fw-semibold">${email.from_name}</h6>
+            <span class="text-muted fs-12">${email.from_email}</span>
+        </div>
+        <div class="mail-action-icons">
+            <button class="btn btn-icon btn-light" data-action="star" data-email-id="${email.id}">
+                <i class="ri-star-line"></i>
+            </button>
+            <button class="btn btn-icon btn-light ms-1" data-action="archive" data-email-id="${email.id}">
+                <i class="ri-inbox-archive-line"></i>
+            </button>
+            <button class="btn btn-icon btn-light ms-1" data-action="spam" data-email-id="${email.id}">
+                <i class="ri-spam-2-line"></i>
+            </button>
+            <button class="btn btn-icon btn-light ms-1" data-action="delete" data-email-id="${email.id}">
+                <i class="ri-delete-bin-line"></i>
+            </button>
+            <button class="btn btn-icon btn-light ms-1" data-action="reply" data-email-id="${email.id}">
+                <i class="ri-reply-line"></i>
+            </button>
+        </div>
+    `);
 
         // Update body
         const $body = $emailContent.find(".mail-info-body");
         const receivedDate = new Date(email.date_received).toLocaleString();
 
+        // Create a blob URL for the iframe content to handle HTML emails safely
+        const emailContent = email.body_html || "";
+        const blob = new Blob([emailContent], { type: "text/html" });
+        const blobUrl = URL.createObjectURL(blob);
+        // this.contentWindow.document.body.scrollHeight + "px";
         $body.html(`
-            <div class="d-sm-flex d-block align-items-center justify-content-between mb-4">
-                <div>
-                    <p class="fs-20 fw-semibold mb-0">${email.subject}</p>
-                </div>
-                <div class="float-end">
-                    <span class="me-2 fs-12 text-muted">${receivedDate}</span>
-                </div>
+        <div class="d-sm-flex d-block align-items-center justify-content-between mb-3">
+            <div>
+                <p class="fs-20 fw-semibold mb-0">${email.subject}</p>
             </div>
-            <div class="main-mail-content mb-4">
-                ${email.body_text}
+            <div class="float-end">
+                <span class="me-2 fs-12 text-muted">${receivedDate}</span>
             </div>
-            ${this.renderAttachments(email.attachments)}
-            <div class="mb-3">
-                <span class="fs-14 fw-semibold">
-                    <i class="ri-reply-all-line me-1 align-middle d-inline-block"></i>Reply:
-                </span>
+        </div>
+        <div class="main-mail-content mb-3">
+            <iframe
+                src="${blobUrl}"
+                style="width: 100%; min-height: 0px; border: none;"
+                frameborder="0"
+                sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
+                onload="
+                const contentHeight = this.contentWindow.document.body.scrollHeight;
+                const screenHeight = window.innerHeight;
+                let finalHeight = Math.max(300, Math.min(contentHeight, screenHeight - 300));
+                this.style.height =  '488px';">
+            </iframe>
+        </div>
+        ${this.renderAttachments(email.attachments)}
+        <div class="mb-1">
+            <div class="fs-14 mb-2 fw-semibold">
+                <i class="ri-reply-all-line me-1 align-middle d-inline-block"></i>Reply:
             </div>
-            <div class="mail-reply">
-                <div id="mail-reply-editor"></div>
-            </div>
-        `);
+            <div class="composer-actions">
+                <div class="send-btn-group">
+                            <button class="send-btn" onclick="sendEmail()">
+                                <i class="bx bx-send pr-2"></i>
+                                Send
+                            </button>
+                        </div>
+                    </div>
+        </div>
+        <div class="mail-reply">
+            <div id="mail-reply-editor"></div>
+        </div>
+    `);
+
+        //    <span class="fs-14 fw-semibold">
+        //        <i class="ri-reply-all-line me-1 align-middle d-inline-block"></i>
+        //        Reply:
+        //    </span>;
+
+        // Clean up the blob URL after a delay to prevent memory leaks
+        setTimeout(() => {
+            URL.revokeObjectURL(blobUrl);
+        }, 1000);
 
         // Reinitialize reply editor
+        this.quillReply = null;
         this.initializeReplyEditor();
     }
 
     renderAttachments(attachments) {
-        if (!attachments || attachments.length === 0) return "";
+        // if (!attachments || attachments.length === 0) return "";
 
-        const totalSize = attachments.reduce((sum, att) => sum + att.size, 0);
-        const formattedSize = this.formatFileSize(totalSize);
+        // const totalSize = attachments.reduce((sum, att) => sum + att.size, 0);
+        // const formattedSize = this.formatFileSize(totalSize);
 
+        //  ${attachments
+        //                 .map((att) => this.renderAttachment(att))
+        //                 .join("")}
         return `
-            <div class="mail-attachments mb-4">
+            <div class="mail-attachments mb-2">
                 <div class="d-flex justify-content-between align-items-center">
                     <div class="mb-0">
                         <span class="fs-14 fw-semibold">
-                            <i class="ri-attachment-2 me-1 align-middle"></i>Attachments (${formattedSize}):
+                            <i class="ri-attachment-2 me-1 align-middle"></i>Attachments 120mb:
                         </span>
                     </div>
                     <div>
@@ -287,9 +347,15 @@ class MailApp {
                     </div>
                 </div>
                 <div class="mt-2 d-flex flex-wrap">
-                    ${attachments
-                        .map((att) => this.renderAttachment(att))
-                        .join("")}
+                    <a href="#" class="mail-attachment border me-2 mb-2">
+                <div class="attachment-icon">
+                    <i class="bx bx-file fs-24"></i>
+                </div>
+                <div class="lh-1">
+                    <p class="mb-1 attachment-name text-truncate">file.pdf</p>
+                    <p class="mb-0 fs-11 text-muted">12mb</p>
+                </div>
+            </a>
                 </div>
             </div>
         `;
@@ -558,35 +624,11 @@ class MailApp {
     }
 
     async markAsRead(emailId) {
-        try {
-            await $.ajax({
-                url: `/mail/read/${emailId}`,
-                method: "POST",
-                headers: {
-                    "X-CSRF-TOKEN": this.config.csrf,
-                },
-            });
-
-            this.updateEmailReadStatus(emailId, true);
-        } catch (error) {
-            console.error("Mark read error:", error);
-        }
+        this.updateEmailReadStatus(emailId, true);
     }
 
     async markAsUnread(emailId) {
-        try {
-            await $.ajax({
-                url: `/mail/unread/${emailId}`,
-                method: "POST",
-                headers: {
-                    "X-CSRF-TOKEN": this.config.csrf,
-                },
-            });
-
-            this.updateEmailReadStatus(emailId, false);
-        } catch (error) {
-            console.error("Mark unread error:", error);
-        }
+        this.updateEmailReadStatus(emailId, false);
     }
 
     switchFolder(folder) {

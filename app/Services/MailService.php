@@ -195,4 +195,12 @@ class MailService
             (object) ['id' => 'spam', 'displayName' => 'Junk Email'],
         ]);
     }
+
+    /**
+     * Get single email by message_id
+     */
+    public function getEmailByMessageId(string $messageId, string $user_email)
+    {
+        return DB::table('fetched_emails')->where('user_email', $user_email)->where('uid', $messageId)->get();
+    }
 }

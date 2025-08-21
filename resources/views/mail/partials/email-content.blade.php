@@ -8,7 +8,7 @@
             <p>Choose an email from your inbox to view its contents here.</p>
         </div>
     </div>
-    <div class="mail-info-body p-4 d-none" id="mail-info-body">
+    <div class="mail-info-body p-4" id="mail-info-body">
         <!-- Email content will be loaded here dynamically -->
     </div>
     <div class="mail-info-footer d-flex flex-wrap gap-2 align-items-center justify-content-between d-none"

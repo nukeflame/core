@@ -22,7 +22,14 @@
 
 @push('script')
     <script src="{{ asset('js/mail-app.js') }}"></script>
+
     <script>
+        @if (isset($email) && !empty($email))
+            window.emailData = @json($email);
+        @else
+            window.emailData = null;
+        @endif
+
         const mailApp = new MailApp({
             routes: {
                 getEmail: '{{ route('mail.show', ':id') }}',
