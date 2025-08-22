@@ -81,6 +81,7 @@
     <link rel="stylesheet" type="text/css" href="{{ asset('assets/css/buttons.dataTables.min.css') }}">
 
     <link href="{{ asset('assets/libs/quill/quill.min.css') }}" rel="stylesheet" />
+    {{-- <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/default.min.css" /> --}}
 
     @yield('styles')
 
@@ -495,6 +496,10 @@
     <!-- Laravel Echo Js  -->
     <script src="{{ asset('js/echo.iife.min.js') }}"></script>
 
+    {{-- <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+    <script>
+        hljs.highlightAll();
+    </script> --}}
     <script src="{{ asset('assets/libs/quill/quill.min.js') }}"></script>
 
     <script>

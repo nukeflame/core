@@ -1,4 +1,4 @@
-class MailApp {
+class MailApp2 {
     constructor(config) {
         this.config = config;
         this.currentEmail = null;
@@ -20,6 +20,26 @@ class MailApp {
     }
 
     initializeEditors() {
+        // Initialize Quill editor for compose
+        const $composeEditor = $("#mail-compose-editor");
+        if ($composeEditor.length) {
+            this.quillCompose = new Quill("#mail-compose-editor", {
+                theme: "snow",
+                modules: {
+                    toolbar: [
+                        [{ header: [1, 2, false] }],
+                        ["bold", "italic", "underline", "strike"],
+                        [{ color: [] }, { background: [] }],
+                        [{ list: "ordered" }, { list: "bullet" }],
+                        [{ align: [] }],
+                        ["link", "image"],
+                        ["clean"],
+                    ],
+                },
+                placeholder: "Write your message here...",
+            });
+        }
+
         // Initialize Quill editor for reply
         const $replyEditor = $("#mail-reply-editor");
         if ($replyEditor.length) {
@@ -364,43 +384,43 @@ class MailApp {
         const $sendBtn = $("#sendEmailBtn");
         const $spinner = $sendBtn.find(".spinner-border");
 
-        // // Get content from Quill editor
-        // if (this.quillCompose) {
-        //     formData.set("body", this.quillCompose.root.innerHTML);
-        // }
+        // Get content from Quill editor
+        if (this.quillCompose) {
+            formData.set("body", this.quillCompose.root.innerHTML);
+        }
 
-        // try {
-        //     $sendBtn.prop("disabled", true);
-        //     $spinner.removeClass("d-none");
+        try {
+            $sendBtn.prop("disabled", true);
+            $spinner.removeClass("d-none");
 
-        //     const result = await $.ajax({
-        //         url: this.config.routes.sendEmail,
-        //         method: "POST",
-        //         data: formData,
-        //         processData: false,
-        //         contentType: false,
-        //         headers: {
-        //             "X-CSRF-TOKEN": this.config.csrf,
-        //         },
-        //         dataType: "json",
-        //     });
+            const result = await $.ajax({
+                url: this.config.routes.sendEmail,
+                method: "POST",
+                data: formData,
+                processData: false,
+                contentType: false,
+                headers: {
+                    "X-CSRF-TOKEN": this.config.csrf,
+                },
+                dataType: "json",
+            });
 
-        //     if (result.success) {
-        //         this.showSuccess("Email sent successfully!");
-        //         $("#mail-compose-modal").modal("hide");
-        //         $form[0].reset();
-        //         if (this.quillCompose) this.quillCompose.setContents([]);
-        //         this.refreshEmailList();
-        //     } else {
-        //         this.showError(result.message || "Failed to send email");
-        //     }
-        // } catch (error) {
-        //     this.showError("Network error occurred");
-        //     console.error("Send email error:", error);
-        // } finally {
-        //     $sendBtn.prop("disabled", false);
-        //     $spinner.addClass("d-none");
-        // }
+            if (result.success) {
+                this.showSuccess("Email sent successfully!");
+                $("#mail-compose-modal").modal("hide");
+                $form[0].reset();
+                if (this.quillCompose) this.quillCompose.setContents([]);
+                this.refreshEmailList();
+            } else {
+                this.showError(result.message || "Failed to send email");
+            }
+        } catch (error) {
+            this.showError("Network error occurred");
+            console.error("Send email error:", error);
+        } finally {
+            $sendBtn.prop("disabled", false);
+            $spinner.addClass("d-none");
+        }
     }
 
     async syncEmails() {

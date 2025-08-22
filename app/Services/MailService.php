@@ -18,11 +18,12 @@ class MailService
 
     public function getMailData(string $folder = 'inbox', ?string $search = null, int $limit = 50): array
     {
-        logger()->info($this->getOnlineUsers());
+        // logger()->info(json_encode($this->getOnlineUsers(), JSON_PRETTY_PRINT));
         return [
             'emails' => $this->getEmails($folder, $limit, $search),
             'folders' => $this->getFolders(),
-            'contacts' => $this->getContacts()
+            'contacts' => $this->getContacts(),
+            'onlineUsers' => $this->getOnlineUsers()
         ];
     }
 
@@ -98,14 +99,32 @@ class MailService
         return Cache::remember('outlook.users', 1800, function () {
             try {
                 $this->auth = auth()->user();
-                $userPresence = $this->outlookService->getAllUsers($this->auth, [
+                $response = $this->outlookService->getAllUsers($this->auth, [
                     'limit' => 500,
                     'include_presence' => true,
                     'include_photos' => false,
                     // 'department' => 'Reinsurance Brokers',
                     'account_enabled' => true
                 ]);
-                return collect($userPresence);
+
+                $availableUsers = collect($response['users'])
+                    ->filter(function ($user) {
+                        return isset($user['presence']['is_available']) && $user['presence']['is_available'] === true;
+                    })
+                    ->values()
+                    ->map(fn($user) => [
+                        'id' => $user['id'],
+                        'name' => $user['displayName'] ?? null,
+                        'email' => $user['mail'] ?? null,
+                        'jobTitle' => $user['jobTitle'] ?? null,
+                        'department' => $user['department'] ?? null,
+                        'officeLocation' => $user['officeLocation'] ?? null,
+                        'isOnline' => true,
+                        'status' => 'Available'
+                    ])
+                    ->toArray();
+
+                return collect($availableUsers);
             } catch (\Exception $e) {
                 return collect();
             }

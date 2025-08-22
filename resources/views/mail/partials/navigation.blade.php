@@ -22,7 +22,8 @@
 
     <!-- Navigation Menu -->
     <div>
-        <ul class="list-unstyled mail-main-nav" id="mail-main-nav">
+        <ul class="list-unstyled mail-main-nav customScrollBar" id="mail-main-nav"
+            style="overflow-y: auto;height: 964px;">
             <li class="px-0 pt-0">
                 <span class="fs-11 text-muted op-7 fw-semibold">MAILS</span>
             </li>
@@ -94,7 +95,6 @@
                 </a>
             </li>
 
-            <!-- Labels -->
             <li class="px-0">
                 <span class="fs-11 text-muted op-7 fw-semibold">LABELS</span>
             </li>
@@ -121,32 +121,36 @@
                 </li>
             @endforeach
 
-            <!-- Online Users -->
             <li class="px-0">
                 <span class="fs-11 text-muted op-7 fw-semibold">ONLINE USERS</span>
             </li>
-            @if (isset($contacts) && $contacts->count() > 0)
-                @foreach ($contacts->take(2) as $contact)
-                    <li>
-                        <a href="#" class="contact-item" data-contact-id="{{ $contact->id }}">
-                            <div class="d-flex align-items-top lh-1">
-                                <div class="me-2">
-                                    <span
-                                        class="avatar avatar-sm {{ $contact->is_online ? 'online' : 'offline' }} avatar-rounded">
-                                        <img src="{{ $contact->avatar ?? asset('assets/images/faces/default.jpg') }}"
-                                            alt="">
-                                    </span>
-                                </div>
-                                <div>
-                                    <p class="text-default fw-semibold mb-1">{{ $contact->name }}</p>
-                                    <p class="fs-12 text-muted mb-0">
-                                        {{ Str::limit($contact->status ?? 'Available', 25) }}</p>
-                                </div>
-                            </div>
-                        </a>
-                    </li>
-                @endforeach
-            @endif
+
+            <li class="mail-online-users">
+                <ul class="mail-online-list customScrollBar">
+                    @if (isset($onlineUsers) && $onlineUsers->count() > 0)
+                        @foreach ($onlineUsers->take(30) as $onlineUser)
+                            <li>
+                                <a href="#" class="contact-item" data-contact-id="{{ $onlineUser['id'] }}">
+                                    <div class="d-flex align-items-top lh-1">
+                                        <div class="me-2">
+                                            <span
+                                                class="avatar avatar-sm {{ $onlineUser['isOnline'] ? 'online' : 'offline' }} avatar-rounded">
+                                                <img src="{{ $onlineUser->avatar ?? asset('assets/images/faces/default.png') }}"
+                                                    alt="">
+                                            </span>
+                                        </div>
+                                        <div>
+                                            <p class="text-default fw-medium mb-1">{{ $onlineUser['name'] }}</p>
+                                            <p class="fs-12 text-muted mb-0">
+                                                {{ Str::limit($contact->status ?? 'Available', 25) }}</p>
+                                        </div>
+                                    </div>
+                                </a>
+                            </li>
+                        @endforeach
+                    @endif
+                </ul>
+            </li>
         </ul>
     </div>
 </div>
