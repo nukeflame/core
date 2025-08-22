@@ -93,21 +93,23 @@ class MailService
      * Get users from Outlook service
      * Maintains compatibility with original method signature
      */
-    public function getOnlineUsers(): Collection
+    public function getOnlineUsers()
     {
-        // return Cache::remember('outlook.users', 1800, function () {
-        //     try {
-        //         // Matches original outlookService->getContacts() call
-        //         return $this->outlookService->getContacts();
-        //     } catch (\Exception $e) {
-        //         return collect();
-        //     }
-        // });
-        // return $this->outlookService->getContacts();
-
-        $this->outlookService->getContacts();
-
-        return collect();
+        return Cache::remember('outlook.users', 1800, function () {
+            try {
+                $this->auth = auth()->user();
+                $userPresence = $this->outlookService->getAllUsers($this->auth, [
+                    'limit' => 500,
+                    'include_presence' => true,
+                    'include_photos' => false,
+                    // 'department' => 'Reinsurance Brokers',
+                    'account_enabled' => true
+                ]);
+                return collect($userPresence);
+            } catch (\Exception $e) {
+                return collect();
+            }
+        });
     }
 
     public function getEmail(string $id): ?array

@@ -3535,66 +3535,51 @@ class OutlookService
      * @param array $options Query options (limit, filter, presence, etc.)
      * @return array Array of users with optional presence information
      */
-    public function getAllUsers(array $options = []): array
+    public function getAllUsers($auth, array $options = []): array
     {
         try {
-            // Parse options with defaults
-            $top = min($options['limit'] ?? 100, 999); // Microsoft Graph limit
-            $skip = $options['skip'] ?? 0;
-            $filter = $options['filter'] ?? null;
-            $orderBy = $options['orderBy'] ?? 'displayName';
-            $select = $options['select'] ?? $this->getDefaultUserSelectFields();
+            $this->auth = $auth;
+
+            $top            = min($options['limit'] ?? 100, 999);
+            // $orderBy        = $options['orderBy'] ?? 'displayName';
+            $select         = $options['select'] ?? $this->getDefaultUserSelectFields();
+            $filter         = $options['filter'] ?? null;
+            $accountEnabled = $options['account_enabled'] ?? null;
             $includePresence = $options['include_presence'] ?? false;
-            $includePhotos = $options['include_photos'] ?? false;
-            $accountEnabled = $options['account_enabled'] ?? true;
+            $includePhotos   = $options['include_photos'] ?? false;
 
-            logger()->info('Fetching all organization users', [
-                'limit' => $top,
-                'skip' => $skip,
-                'include_presence' => $includePresence,
-                'include_photos' => $includePhotos,
-                'account_enabled' => $accountEnabled,
-                'user' => $this->auth->email ?? 'unknown'
-            ]);
-
-            // Build query parameters
             $query = [
-                '$top' => $top,
-                '$skip' => $skip,
-                '$select' => $select,
-                '$orderby' => $orderBy
+                '$top'     => $top,
+                '$select' => is_array($select) ? implode(',', $select) : $select,
             ];
 
-            // Build filter conditions
             $filters = [];
 
             if ($accountEnabled !== null) {
                 $filters[] = "accountEnabled eq " . ($accountEnabled ? 'true' : 'false');
             }
 
-            // Add user type filter (exclude guests by default unless specified)
             if (!($options['include_guests'] ?? false)) {
                 $filters[] = "userType eq 'Member'";
             }
 
-            // Add custom filter if provided
             if ($filter) {
                 $filters[] = $filter;
             }
 
-            // Add department filter if specified
             if (!empty($options['department'])) {
-                $filters[] = "department eq '{$options['department']}'";
+                $department = addslashes($options['department']);
+                $filters[] = "department eq '{$department}'";
             }
 
-            // Add location filter if specified
             if (!empty($options['location'])) {
-                $filters[] = "(city eq '{$options['location']}' or officeLocation eq '{$options['location']}')";
+                $location = addslashes($options['location']);
+                $filters[] = "(city eq '{$location}' or officeLocation eq '{$location}')";
             }
 
-            // Add job title filter if specified
             if (!empty($options['job_title_contains'])) {
-                $filters[] = "startswith(jobTitle, '{$options['job_title_contains']}')";
+                $jobTitle = addslashes($options['job_title_contains']);
+                $filters[] = "startswith(jobTitle, '{$jobTitle}')";
             }
 
             if (!empty($filters)) {
@@ -3603,25 +3588,14 @@ class OutlookService
 
             $startTime = microtime(true);
 
-            // Get users from Microsoft Graph
             $response = $this->makeRequest('GET', '/users', ['query' => $query]);
             $users = $response['value'] ?? [];
 
             $fetchTime = round((microtime(true) - $startTime) * 1000, 2);
 
-            logger()->info('Users fetched from Graph API', [
-                'user_count' => count($users),
-                'fetch_time_ms' => $fetchTime,
-                'has_more' => !empty($response['@odata.nextLink']),
-                'user' => $this->auth->email ?? 'unknown'
-            ]);
-
-            // Process and enrich user data
             $processedUsers = [];
-            $presenceStartTime = microtime(true);
-
-            // Get presence information for all users if requested
             $presenceData = [];
+
             if ($includePresence && !empty($users)) {
                 $presenceData = $this->getBulkUserPresence(array_column($users, 'id'));
             }
@@ -3629,56 +3603,40 @@ class OutlookService
             foreach ($users as $user) {
                 $enrichedUser = $this->enrichUserData($user, [
                     'include_presence' => $includePresence,
-                    'include_photos' => $includePhotos,
-                    'presence_data' => $presenceData[$user['id']] ?? null
+                    'include_photos'   => $includePhotos,
+                    'presence_data'    => $presenceData[$user['id']] ?? null,
                 ]);
-
                 $processedUsers[] = $enrichedUser;
             }
 
-            $processingTime = round((microtime(true) - $presenceStartTime) * 1000, 2);
-
-            // Generate user insights and analytics
-            $insights = $this->generateUserInsights($processedUsers, $options);
-
             $totalTime = round((microtime(true) - $startTime) * 1000, 2);
 
-            logger()->info('User processing completed', [
-                'processed_users' => count($processedUsers),
-                'presence_processing_ms' => $processingTime,
-                'total_time_ms' => $totalTime,
-                'user' => $this->auth->email ?? 'unknown'
-            ]);
-
             return [
-                'success' => true,
-                'users' => $processedUsers,
-                'count' => count($processedUsers),
-                'insights' => $insights,
+                'success'     => true,
+                'users'       => $processedUsers,
+                'count'       => count($processedUsers),
                 'performance' => [
                     'fetch_time_ms' => $fetchTime,
-                    'processing_time_ms' => $processingTime,
-                    'total_time_ms' => $totalTime
+                    'total_time_ms' => $totalTime,
                 ],
-                'pagination' => [
+                'pagination'  => [
                     'current_count' => count($processedUsers),
-                    'skip' => $skip,
-                    'top' => $top,
-                    'nextLink' => $response['@odata.nextLink'] ?? null
+                    'top'           => $top,
+                    'nextLink'      => $response['@odata.nextLink'] ?? null,
                 ],
-                'retrieved_at' => now()->toISOString()
+                'retrieved_at' => now()->toISOString(),
             ];
         } catch (Exception $e) {
             logger()->error('Failed to get all users', [
                 'error' => $e->getMessage(),
-                'user' => $this->auth->email ?? 'unknown'
+                'user'  => $this->auth->email ?? 'unknown',
             ]);
 
             return [
                 'success' => false,
-                'error' => $e->getMessage(),
-                'users' => [],
-                'count' => 0
+                'error'   => $e->getMessage(),
+                'users'   => [],
+                'count'   => 0,
             ];
         }
     }
@@ -3847,15 +3805,8 @@ class OutlookService
                 return [];
             }
 
-            $batchSize = min($options['batch_size'] ?? 50, 50); // Microsoft Graph batch limit
+            $batchSize = min($options['batch_size'] ?? 20, 20);
             $includeDetails = $options['include_details'] ?? true;
-
-            logger()->info('Fetching bulk user presence', [
-                'user_count' => count($userIds),
-                'batch_size' => $batchSize,
-                'include_details' => $includeDetails,
-                'user' => $this->auth->email ?? 'unknown'
-            ]);
 
             $allPresenceData = [];
             $batches = array_chunk($userIds, $batchSize);
@@ -3878,13 +3829,6 @@ class OutlookService
                     continue;
                 }
             }
-
-            logger()->info('Bulk presence fetch completed', [
-                'requested_users' => count($userIds),
-                'presence_retrieved' => count($allPresenceData),
-                'success_rate' => round((count($allPresenceData) / count($userIds)) * 100, 2) . '%',
-                'user' => $this->auth->email ?? 'unknown'
-            ]);
 
             return $allPresenceData;
         } catch (Exception $e) {
@@ -3912,7 +3856,6 @@ class OutlookService
         $presenceData = [];
 
         try {
-            // Build batch request
             $requests = [];
             foreach ($userIds as $index => $userId) {
                 $requests[] = [
