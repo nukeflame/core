@@ -109,23 +109,25 @@ class MailController extends Controller
 
     public function send(Request $request): JsonResponse
     {
-        $validated = $this->validateSendRequest($request);
+        // $validated = $this->validateSendRequest($request);
 
-        try {
-            $result = $this->mailService->sendEmail($validated);
+        // try {
+        //     $result = $this->mailService->sendEmail($validated);
 
-            return response()->json([
-                'success' => $result,
-                'message' => $result ? 'Email sent successfully' : 'Failed to send email'
-            ]);
-        } catch (\Exception $e) {
-            logger()->error('Email send failed', ['error' => $e->getMessage(), 'user' => Auth::id()]);
+        //     return response()->json([
+        //         'success' => $result,
+        //         'message' => $result ? 'Email sent successfully' : 'Failed to send email'
+        //     ]);
+        // } catch (\Exception $e) {
+        //     logger()->error('Email send failed', ['error' => $e->getMessage(), 'user' => Auth::id()]);
 
-            return response()->json([
-                'success' => false,
-                'message' => 'An error occurred while sending the email'
-            ], 500);
-        }
+        //     return response()->json([
+        //         'success' => false,
+        //         'message' => 'An error occurred while sending the email'
+        //     ], 500);
+        // }
+
+        return response()->json([]);
     }
 
     public function reply(Request $request, string $id): JsonResponse

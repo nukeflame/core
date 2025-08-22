@@ -258,6 +258,9 @@
         $(document).ready(function() {
             let quillCompose = null;
             const $composeEditor = $("#mail-compose-editor");
+            const routes = {
+                sendEmail: "{{ route('mail.send') }}",
+            };
 
             if ($composeEditor.length) {
                 quillCompose = new Quill("#mail-compose-editor", {
@@ -416,7 +419,7 @@
                 templateModal.hide();
             });
 
-            $('#compose-email-form').on('submit', function(e) {
+            $('#compose-email-form').on('submit', async function(e) {
                 e.preventDefault();
                 let isValid = true;
                 const $toField = $('#toMail');
@@ -437,7 +440,7 @@
                 }
 
                 if (isValid) {
-                    const $form = $(this);
+                    const $form = $('#compose-email-form');
                     const formData = new FormData($form[0]);
                     const $sendBtn = $("#sendEmailBtn");
                     const $spinner = $sendBtn.find(".spinner-border");
@@ -446,58 +449,56 @@
                         formData.set("body", quillCompose.root.innerHTML);
                     }
 
+                    console.log('[DEBUG] FormData contents:');
+                    for (let [key, value] of formData.entries()) {
+                        if (key === 'body') {
+                            console.log(`[DEBUG] ${key}:`, value.substring(0, 100) + '...');
+                        } else {
+                            console.log(`[DEBUG] ${key}:`, value);
+                        }
+                    }
+
                     try {
                         $sendBtn.prop("disabled", true);
                         $spinner.removeClass("d-none");
 
-                        // const result = await $.ajax({
-                        //     url: this.config.routes.sendEmail,
-                        //     method: "POST",
-                        //     data: formData,
-                        //     processData: false,
-                        //     contentType: false,
-                        //     headers: {
-                        //         "X-CSRF-TOKEN": this.config.csrf,
-                        //     },
-                        //     dataType: "json",
-                        // });
+                        if (typeof routes === 'undefined') {
+                            throw new Error('Routes object not defined');
+                        }
 
+                        const result = await $.ajax({
+                            url: routes.sendEmail,
+                            method: "POST",
+                            data: formData,
+                            processData: false,
+                            contentType: false,
+                            headers: {
+                                'X-Requested-With': 'XMLHttpRequest'
+                            }
+                        });
+
+                        console.log('[DEBUG] AJAX success response:', result);
+                        // Uncomment when ready to handle success
                         // if (result.success) {
-                        //     this.showSuccess("Email sent successfully!");
+                        //     console.log('[DEBUG] Email sent successfully');
                         //     $("#mail-compose-modal").modal("hide");
                         //     $form[0].reset();
-                        //     if (this.quillCompose) this.quillCompose.setContents([]);
-                        //     this.refreshEmailList();
+                        //     if (quillCompose) quillCompose.setContents([]);
+                        //     updateCounts();
                         // } else {
-                        //     this.showError(result.message || "Failed to send email");
+                        //     console.log('[DEBUG] Server reported failure:', result.message);
                         // }
                     } catch (error) {
-                        this.showError("Network error occurred");
+                        showError("Network error occurred");
                         console.error("Send email error:", error);
                     } finally {
-                        $sendBtn.prop("disabled", false);
-                        $spinner.addClass("d-none");
+                        // $sendBtn.prop("disabled", false);
+                        // $spinner.addClass("d-none");
+                        // updateCounts();
+                        // if (quillCompose) {
+                        //     // quillCompose.setContents([]);
+                        // }
                     }
-                    console.log(dd)
-
-                    // setTimeout(() => {
-                    //     alert('Email sent successfully!');
-                    //     const modal = bootstrap.Modal.getInstance($('#mail-compose-modal')[0]);
-                    //     modal.hide();
-
-                    //     $('#compose-email-form')[0].reset();
-
-                    //     // FIXED: Reset Quill content
-                    //     if (quillCompose) {
-                    //         quillCompose.setContents([]);
-                    //     }
-                    //     updateCounts();
-
-                    //     $sendBtns.each(function() {
-                    //         $(this).prop('disabled', false)
-                    //             .find('.spinner-border').addClass('d-none');
-                    //     });
-                    // }, 2000);
                 }
             });
 
@@ -510,10 +511,37 @@
                 alert('Draft saved successfully!');
             });
 
-            showError(message) {
-                this.showToast(message, "error");
+            function showError(message) {
+                showToast(message, "error");
             }
 
+            function showToast(message, type = "info", options = {}) {
+                const defaultOptions = {
+                    timeOut: 5000,
+                    extendedTimeOut: 1000,
+                    closeButton: true,
+                    progressBar: true,
+                    preventDuplicates: true,
+                    onclick: null,
+                    onShown: null,
+                    onHidden: null,
+                    ...options,
+                };
+
+                toastr.options = defaultOptions;
+
+                switch (type) {
+                    case "success":
+                        return toastr.success(message);
+                    case "error":
+                        return toastr.error(message);
+                    case "warning":
+                        return toastr.warning(message);
+                    case "info":
+                    default:
+                        return toastr.info(message);
+                }
+            }
 
             updateCounts();
         });
