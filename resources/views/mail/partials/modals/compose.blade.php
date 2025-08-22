@@ -451,11 +451,6 @@
                         formData.set("body", quillCompose.root.innerHTML);
                     }
 
-                    // // Debug FormData contents
-                    // for (let pair of formData.entries()) {
-                    //     console.log(`[DEBUG] FormData: ${pair[0]} =`, pair[1]);
-                    // }
-
                     try {
                         $sendBtn.prop("disabled", true);
                         $spinner.removeClass("d-none");
@@ -471,21 +466,18 @@
                             }
                         });
 
-                        console.log('[DEBUG] AJAX success response:', result);
-                        // Uncomment when ready to handle success
-                        // if (result.success) {
-                        //     console.log('[DEBUG] Email sent successfully');
-                        //     $("#mail-compose-modal").modal("hide");
-                        //     $form[0].reset();
-                        //     if (quillCompose) quillCompose.setContents([]);
-                        //     updateCounts();
-                        // } else {
-                        //     console.log('[DEBUG] Server reported failure:', result.message);
-                        // }
+                        if (result.success) {
+                            $("#mail-compose-modal").modal("hide");
+                            $form[0].reset();
+                            if (quillCompose) quillCompose.setContents([]);
+                            updateCounts();
+                            showSuccess(result.message);
+                        } else {
+                            showError(result.message);
+                        }
                     } catch (error) {
                         showError("Network error occurred");
                         console.error("Send email error:", error);
-
                     } finally {
                         $sendBtn.prop("disabled", false);
                         $spinner.addClass("d-none");
@@ -509,6 +501,11 @@
             function showError(message) {
                 showToast(message, "error");
             }
+
+            function showSuccess(message) {
+                showToast(message, "success");
+            }
+
 
             function showToast(message, type = "info", options = {}) {
                 const defaultOptions = {
