@@ -2,19 +2,26 @@
 
 namespace App\Services;
 
+use App\Jobs\SendEmailJob;
 use App\Models\User;
+use Illuminate\Support\Str;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
 
 class MailService
 {
     private $auth;
+    protected string $batchId;
 
     public function __construct(
         private OutlookService $outlookService,
         private EmailStorageService $storageService,
-    ) {}
+    ) {
+        $this->auth = Auth::user() ?? null;
+        $this->batchId = Str::uuid()->toString();
+    }
 
     public function getMailData(string $folder = 'inbox', ?string $search = null, int $limit = 50): array
     {
@@ -138,10 +145,126 @@ class MailService
 
     public function sendEmail(array $data): bool
     {
-        return false;
+        if (!$this->auth) {
+            return false;
+        }
 
-        // return $this->outlookService->sendEmail($data);
+        if (empty($data['to']) || empty($data['subject']) || empty($data['body'])) {
+            return false;
+        }
+
+        try {
+            $allEmails = array_merge(
+                $data['to'] ?? [],
+                $data['cc'] ?? [],
+                $data['bcc'] ?? []
+            );
+
+            $recipientNames = ContactNameMappingService::getRecipientNames(null, $allEmails);
+            $attachments = [];
+
+            // if ($request->hasFile('attachments')) {
+            //     foreach ($request->file('attachments') as $index => $file) {
+            //         try {
+            //             $filename = time() . '_' . $index . '_' . $file->getClientOriginalName();
+            //             $path = $file->storeAs('claim_attachments/' . $claim->claim_no, $filename, 'public');
+
+            //             $attachments[] = [
+            //                 'name' => $file->getClientOriginalName(),
+            //                 'path' => storage_path('app/public/' . $path),
+            //                 'size' => $file->getSize(),
+            //                 'mime_type' => $file->getMimeType()
+            //             ];
+            //         } catch (Exception $e) {
+            //             logger()->error('Failed to process attachment', [
+            //                 'index' => $index,
+            //                 'filename' => $file->getClientOriginalName(),
+            //                 'error' => $e->getMessage()
+            //             ]);
+            //             throw new Exception("Failed to process attachment: " . $file->getClientOriginalName() . ". Error: " . $e->getMessage());
+            //         }
+            //     }
+            // }
+
+            $recipients = array_unique($data['to']);
+
+            if (empty($recipients)) {
+                return false;
+            }
+
+            $successCount = 0;
+            $failedCount = 0;
+
+            foreach ($recipients as $index => $recipient) {
+                try {
+                    $jobId = $this->batchId . '-' . ($index + 1);
+
+                    $recipientEmail = is_array($recipient) ? $recipient : [$recipient];
+
+                    $recipientName = $recipientNames[$recipient] ?? 'Sir/Madam';
+
+                    $personalizedMessage = $this->formatMessageForHtml($data['body'], $recipientName);
+
+                    $emailData = [
+                        'subject' => $data['subject'],
+                        'message' => $personalizedMessage,
+                        'priority' => $data['priority'] ?? 'normal',
+                        'attachments' => $attachments,
+                        'senderName' => $this->auth->name,
+                        'senderEmail' => $this->auth->email,
+                        'recipientName' => $recipientName,
+                        'to' => $recipientEmail,
+                        'cc' => $data['cc'] ?? [],
+                        'bcc' => $data['bcc'] ?? [],
+                        'replyToId' => $data['reply_to_id'] ?? null,
+                    ];
+
+                    SendEmailJob::dispatch($emailData, $this->auth->id, $jobId)
+                        ->delay(now()->addSeconds($index * 2));
+
+                    $successCount++;
+                } catch (\Exception $e) {
+                    $failedCount++;
+                    logger()->error("Failed to dispatch email job", [
+                        'index' => $index,
+                        'recipient' => $recipient,
+                        'error' => $e->getMessage(),
+                        'trace' => $e->getTraceAsString()
+                    ]);
+                }
+            }
+
+            return $successCount > 0;
+        } catch (\Exception $e) {
+            logger()->error('Email send failed with exception', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return false;
+        }
     }
+
+    private function formatMessageForHtml($message, $recipientName = 'Sir/Madam')
+    {
+        if (empty($message)) {
+            return '';
+        }
+
+        $personalizedMessage = str_replace('{recipient_name}', $recipientName, $message);
+
+        if (preg_match('/<[^>]+>/', $personalizedMessage)) {
+            return $personalizedMessage;
+        }
+
+        $html = htmlspecialchars($personalizedMessage, ENT_QUOTES, 'UTF-8');
+        $html = nl2br($html);
+        $html = '<p>' . str_replace("\n\n", '</p><p>', $html) . '</p>';
+
+        $html = preg_replace('/<p>\s*<\/p>/', '', $html);
+
+        return $html;
+    }
+
 
     public function replyToEmail(string $id, array $data): bool
     {

@@ -3,6 +3,7 @@
     <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content">
             <form id="compose-email-form" enctype="multipart/form-data">
+                @csrf
                 <div class="modal-header">
                     <h6 class="modal-title" id="mail-compose-label"><i class="bx bx-envelope pr-2"></i> Compose Mail
                     </h6>
@@ -48,6 +49,7 @@
                             <select class="form-inputs evolution-field-input select2" name="to[]" id="toMail"
                                 multiple required>
                                 <option value="pknuek@gmail.com">Ken Peters (pknuek@gmail.com)</option>
+                                <option value="nueklabs@gmail.com">John Doe (nueklabs@gmail.com)</option>
                             </select>
                             <div class="evolution-field-controls">
                                 <button type="button" class="evolution-toggle-btn" id="toggleCcBcc">Cc/Bcc</button>
@@ -445,26 +447,18 @@
                     const $sendBtn = $("#sendEmailBtn");
                     const $spinner = $sendBtn.find(".spinner-border");
 
-                    if (this.quillCompose) {
+                    if (quillCompose) {
                         formData.set("body", quillCompose.root.innerHTML);
                     }
 
-                    console.log('[DEBUG] FormData contents:');
-                    for (let [key, value] of formData.entries()) {
-                        if (key === 'body') {
-                            console.log(`[DEBUG] ${key}:`, value.substring(0, 100) + '...');
-                        } else {
-                            console.log(`[DEBUG] ${key}:`, value);
-                        }
-                    }
+                    // // Debug FormData contents
+                    // for (let pair of formData.entries()) {
+                    //     console.log(`[DEBUG] FormData: ${pair[0]} =`, pair[1]);
+                    // }
 
                     try {
                         $sendBtn.prop("disabled", true);
                         $spinner.removeClass("d-none");
-
-                        if (typeof routes === 'undefined') {
-                            throw new Error('Routes object not defined');
-                        }
 
                         const result = await $.ajax({
                             url: routes.sendEmail,
@@ -491,13 +485,14 @@
                     } catch (error) {
                         showError("Network error occurred");
                         console.error("Send email error:", error);
+
                     } finally {
-                        // $sendBtn.prop("disabled", false);
-                        // $spinner.addClass("d-none");
-                        // updateCounts();
-                        // if (quillCompose) {
-                        //     // quillCompose.setContents([]);
-                        // }
+                        $sendBtn.prop("disabled", false);
+                        $spinner.addClass("d-none");
+                        updateCounts();
+                        if (quillCompose) {
+                            quillCompose.setContents([]);
+                        }
                     }
                 }
             });

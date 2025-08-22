@@ -109,25 +109,23 @@ class MailController extends Controller
 
     public function send(Request $request): JsonResponse
     {
-        // $validated = $this->validateSendRequest($request);
+        $validated = $this->validateSendRequest($request);
 
-        // try {
-        //     $result = $this->mailService->sendEmail($validated);
+        try {
+            $result = $this->mailService->sendEmail($validated);
 
-        //     return response()->json([
-        //         'success' => $result,
-        //         'message' => $result ? 'Email sent successfully' : 'Failed to send email'
-        //     ]);
-        // } catch (\Exception $e) {
-        //     logger()->error('Email send failed', ['error' => $e->getMessage(), 'user' => Auth::id()]);
+            return response()->json([
+                'success' => $result,
+                'message' => $result ? 'Email sent successfully' : 'Failed to send email'
+            ]);
+        } catch (\Exception $e) {
+            logger()->error('Email send failed', ['error' => $e->getMessage(), 'user' => Auth::id()]);
 
-        //     return response()->json([
-        //         'success' => false,
-        //         'message' => 'An error occurred while sending the email'
-        //     ], 500);
-        // }
-
-        return response()->json([]);
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while sending the email'
+            ], 500);
+        }
     }
 
     public function reply(Request $request, string $id): JsonResponse
@@ -258,6 +256,7 @@ class MailController extends Controller
     private function validateSendRequest(Request $request): array
     {
         return $request->validate([
+            'from' => 'nullable|string|max:255',
             'to' => 'required|array|min:1',
             'to.*' => 'email',
             'cc' => 'nullable|array',
@@ -268,7 +267,8 @@ class MailController extends Controller
             'body' => 'required|string',
             'priority' => 'nullable|in:low,normal,high',
             'attachments' => 'nullable|array|max:10',
-            'attachments.*' => 'file|max:10240'
+            'attachments.*' => 'file|max:10240',
+            'reply_to_id' => 'nullable|string',
         ]);
     }
 

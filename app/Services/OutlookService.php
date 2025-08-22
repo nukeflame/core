@@ -2066,11 +2066,8 @@ class OutlookService
     {
         try {
             $this->auth = $auth;
-
-            // Validate required fields
             $this->validateEmailData($emailData);
 
-            // Sanitize and prepare email data
             $emailData = $this->sanitizeEmailData($emailData);
 
             return $this->sendEmailWithMessageId($auth, $emailData);
@@ -2114,22 +2111,18 @@ class OutlookService
             $this->validateRecipients($emailData['bcc'], 'bcc');
         }
 
-        // Validate subject length
         if (strlen($emailData['subject']) > 255) {
             throw new Exception('Email subject cannot exceed 255 characters');
         }
 
-        // Validate body size (10MB limit for Microsoft Graph)
         if (!empty($emailData['body']) && strlen($emailData['body']) > 10485760) {
             throw new Exception('Email body cannot exceed 10MB');
         }
 
-        // Validate priority
         if (isset($emailData['priority']) && !in_array($emailData['priority'], ['low', 'normal', 'high'])) {
             throw new Exception('Priority must be one of: low, normal, high');
         }
 
-        // Validate body type
         if (isset($emailData['bodyType']) && !in_array(strtolower($emailData['bodyType']), ['text', 'html'])) {
             throw new Exception('Body type must be either text or html');
         }
@@ -2162,10 +2155,8 @@ class OutlookService
      */
     private function sanitizeEmailData(array $emailData): array
     {
-        // Sanitize subject
         $emailData['subject'] = trim(strip_tags($emailData['subject']));
 
-        // Sanitize HTML body if needed
         if (($emailData['bodyType'] ?? 'HTML') === 'HTML' && !empty($emailData['body'])) {
             $emailData['body'] = $this->sanitizeHtmlContent($emailData['body']);
         }
@@ -2220,18 +2211,13 @@ class OutlookService
             $sendResponse = $this->sendDraftMessage($messageId);
 
             if ($sendResponse['success']) {
-                $sentMessage = $this->getMessageDetails($messageId);
                 return [
                     'success' => true,
                     'message_id' => $messageId,
-                    'conversation_id' => $sentMessage['conversationId'] ?? null,
-                    'internet_message_id' => $sentMessage['internetMessageId'] ?? null,
-                    'sent_at' => $sentMessage['sentDateTime'] ?? now()->toISOString(),
                     'message' => 'Email sent successfully'
                 ];
             }
-
-            return $sendResponse;
+            return ['success' => false];
         } catch (Exception $e) {
             logger()->error('Failed to send email with message ID', [
                 'error' => $e->getMessage(),
@@ -2277,7 +2263,6 @@ class OutlookService
                 $message['importance'] = $this->mapPriorityToImportance($emailData['priority']);
             }
 
-            // Add custom headers for tracking
             if (!empty($emailData['customHeaders'])) {
                 $message['internetMessageHeaders'] = $emailData['customHeaders'];
             }
