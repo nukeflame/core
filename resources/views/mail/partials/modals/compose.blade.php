@@ -23,15 +23,15 @@
                     <button type="button" class="evolution-btn" id="toggleAttachments">
                         <i class="ri-attachment-2"></i> Attach
                     </button>
-                    <button type="button" class="evolution-btn" id="insertSignature">
+                    <button type="button" class="evolution-btn" id="insertSignature" disabled>
                         <i class="ri-quill-pen-line"></i> Signature
                     </button>
                     <div class="evolution-separator"></div>
-                    <button type="button" class="evolution-btn" id="checkSpelling">
+                    <button type="button" class="evolution-btn" id="checkSpelling" disabled>
                         <i class="ri-translate-2"></i> Spelling
                     </button>
-                    <button type="button" class="evolution-btn" data-bs-toggle="modal"
-                        data-bs-target="#template-modal">
+                    <button type="button" class="evolution-btn" data-bs-toggle="modal" data-bs-target="#template-modal"
+                        disabled>
                         <i class="ri-file-text-line"></i> Templates
                     </button>
                 </div>
@@ -48,13 +48,11 @@
                             <label class="evolution-field-label">To:</label>
                             <select class="form-inputs evolution-field-input select2" name="to[]" id="toMail"
                                 multiple required>
-                                <option value="pknuek@gmail.com">Ken Peters (pknuek@gmail.com)</option>
-                                <option value="nueklabs@gmail.com">John Doe (nueklabs@gmail.com)</option>
                             </select>
                             <div class="evolution-field-controls">
                                 <button type="button" class="evolution-toggle-btn" id="toggleCcBcc">Cc/Bcc</button>
-                                <button type="button" class="evolution-toggle-btn">
-                                    <i class="ri-contacts-book-line"></i>
+                                <button type="button" class="evolution-toggle-btn" id="refreshContacts">
+                                    <i class="ri-refresh-line"></i>
                                 </button>
                             </div>
                             <div class="invalid-feedback">Please select at least one recipient.</div>
@@ -65,14 +63,12 @@
                                 <label class="evolution-field-label">Cc:</label>
                                 <select class="form-inputs evolution-field-input select2" name="cc[]" id="mailCC"
                                     multiple>
-                                    <option value="pknuek@gmail.com">Ken Peters (pknuek@gmail.com)</option>
                                 </select>
                             </div>
                             <div class="evolution-field-row  mb-2">
                                 <label class="evolution-field-label">Bcc:</label>
                                 <select class="form-inputs evolution-field-input select2" name="bcc[]" id="mailBcc"
                                     multiple>
-                                    <option value="pknuek@gmail.com">Ken Peters (pknuek@gmail.com)</option>
                                 </select>
                             </div>
                         </div>
@@ -255,13 +251,83 @@
     </div>
 </div>
 
+<style>
+    .contacts-loading::after {
+        content: '';
+        position: absolute;
+        right: 30px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 16px;
+        height: 16px;
+        border: 2px solid #f3f3f3;
+        border-top: 2px solid #007bff;
+        border-radius: 50%;
+        animation: contactsSpin 1s linear infinite;
+        z-index: 10;
+    }
+
+    @keyframes contactsSpin {
+        0% {
+            transform: translateY(-50%) rotate(0deg);
+        }
+
+        100% {
+            transform: translateY(-50%) rotate(360deg);
+        }
+    }
+
+    .select2-container {
+        position: relative;
+    }
+
+    .select2-results__option .contact-item {
+        display: flex;
+        align-items: center;
+        padding: 5px 0;
+    }
+
+    .select2-results__option .contact-avatar {
+        width: 24px;
+        height: 24px;
+        background: #007bff;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 10px;
+        font-weight: bold;
+        margin-right: 8px;
+    }
+
+    .select2-results__option .contact-info {
+        flex: 1;
+    }
+
+    .select2-results__option .contact-name {
+        font-weight: 500;
+        color: #333;
+    }
+
+    .select2-results__option .contact-email {
+        font-size: 12px;
+        color: #6c757d;
+    }
+</style>
+
 @push('script')
     <script>
         $(document).ready(function() {
             let quillCompose = null;
             const $composeEditor = $("#mail-compose-editor");
+
+            let contactsCache = null;
+            let isLoadingContacts = false;
+
             const routes = {
                 sendEmail: "{{ route('mail.send') }}",
+                getContacts: "{{ route('contacts.get') }}",
             };
 
             if ($composeEditor.length) {
@@ -282,6 +348,105 @@
                     updateCounts();
                 });
             }
+
+            async function loadContacts(forceRefresh = false) {
+                if (contactsCache && !forceRefresh) {
+                    return contactsCache;
+                }
+
+                if (isLoadingContacts) {
+                    return null;
+                }
+
+                isLoadingContacts = true;
+                showContactsLoading(true);
+
+                try {
+                    const response = await $.ajax({
+                        url: routes.getContacts,
+                        method: 'GET',
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'Accept': 'application/json'
+                        }
+                    });
+
+                    if (response.success && response.data) {
+                        contactsCache = response.data;
+                        populateContactsInSelects(contactsCache);
+                        return contactsCache;
+                    } else {
+                        throw new Error(response.message || 'Failed to load contacts');
+                    }
+                } catch (error) {
+                    console.error('Error loading contacts:', error);
+
+                    const fallbackContacts = [];
+
+                    contactsCache = fallbackContacts;
+                    populateContactsInSelects(contactsCache);
+                    return contactsCache;
+                } finally {
+                    isLoadingContacts = false;
+                    showContactsLoading(false);
+                }
+            }
+
+            function showContactsLoading(show) {
+                $('.select2').each(function() {
+                    const $container = $(this).next('.select2-container');
+                    if (show) {
+                        $container.addClass('contacts-loading');
+                    } else {
+                        $container.removeClass('contacts-loading');
+                    }
+                });
+            }
+
+            function populateContactsInSelects(contacts) {
+                $('#toMail, #mailCC, #mailBcc').each(function() {
+                    const $select = $(this);
+                    const currentValues = $select.val() || [];
+
+                    $select.empty();
+
+                    contacts.forEach(contact => {
+                        const optionText = contact.name ? `${contact.name} (${contact.email})` :
+                            contact.email;
+                        const option = new Option(optionText, contact.email, false, currentValues
+                            .includes(contact.email));
+                        $select.append(option);
+                    });
+
+                    $select.trigger('change');
+                });
+            }
+
+            function initializeSelect2() {
+                $('.select2').select2({
+                    placeholder: 'Search and select contacts...',
+                    allowClear: true,
+                    width: '100%',
+                    dropdownParent: $('#mail-compose-modal')
+                });
+            }
+
+            $('#mail-compose-modal').on('shown.bs.modal', function() {
+                if (!contactsCache) {
+                    loadContacts();
+                }
+                initializeSelect2();
+            });
+
+            $('.select2').on('select2:opening', function() {
+                if (!contactsCache && !isLoadingContacts) {
+                    loadContacts();
+                }
+            });
+
+            $('#refreshContacts').on('click', function() {
+                loadContacts(true);
+            });
 
             $('#toggleCcBcc').on('click', function() {
                 $('#cc-bcc-fields').toggleClass('show');
@@ -495,7 +660,8 @@
                     console.log('Draft Text Content:', quillCompose.getText());
                 }
 
-                alert('Draft saved successfully!');
+                showSuccess('Draft saved successfully!');
+                $("#mail-compose-modal").modal("hide");
             });
 
             function showError(message) {
@@ -505,7 +671,6 @@
             function showSuccess(message) {
                 showToast(message, "success");
             }
-
 
             function showToast(message, type = "info", options = {}) {
                 const defaultOptions = {
@@ -536,6 +701,10 @@
             }
 
             updateCounts();
+
+            setTimeout(() => {
+                loadContacts();
+            }, 1000);
         });
     </script>
 @endpush

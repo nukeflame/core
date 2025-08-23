@@ -69,10 +69,11 @@ Route::group(
         Route::post('/outlook/sync', [OutlookOAuthController::class, 'sync'])->name('mail.outlook.sync');
         Route::post('/outlook/disconnect', [OutlookOAuthController::class, 'disconnect'])->name('disconnect');
 
-        // Settings routes
         Route::prefix('settings')->name('settings.')->group(function () {
             Route::post('/save', [MailController::class, 'saveSettings'])->name('save');
         });
+
+        Route::get('/contacts/get', [MailController::class, 'getContacts'])->name('contacts.get');
 
 
         // Route::get('mail/settings', [MailController::class, 'settings'])->name('admin.email.settings');

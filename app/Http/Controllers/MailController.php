@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\User;
 use App\Services\OutlookService;
 use App\Services\MailService;
 use Exception;
@@ -11,6 +12,9 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\View\View;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class MailController extends Controller
 {
@@ -306,5 +310,156 @@ class MailController extends Controller
             'user' => Auth::user(),
             'error' => 'Failed to load emails. Please check your connection.'
         ];
+    }
+
+    /**
+     * Get contacts for email composer - maintains your original structure
+     */
+    public function getContacts(Request $request): JsonResponse
+    {
+        try {
+            $cacheKey = 'email_contacts_' . (auth()->id() ?? 'guest');
+
+            $contacts = $this->loadContacts();
+
+            // Cache::remember($cacheKey, 300, function () {
+            //     return $this->loadContacts();
+            // });
+
+            if ($request->has('search') && !empty($request->search)) {
+                $searchTerm = strtolower($request->search);
+                $contacts = array_filter($contacts, function ($contact) use ($searchTerm) {
+                    return strpos(strtolower($contact['name']), $searchTerm) !== false ||
+                        strpos(strtolower($contact['email']), $searchTerm) !== false;
+                });
+                $contacts = array_values($contacts);
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => $contacts,
+                'message' => 'Contacts loaded successfully'
+            ]);
+        } catch (\Exception $e) {
+            logger()->error('Error loading contacts: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => true,
+                'data' => $this->getFallbackContacts(),
+                'message' => 'Contacts loaded (fallback mode)'
+            ]);
+        }
+    }
+
+    /**
+     * Load contacts from your existing database structure
+     */
+    private function loadContacts(): array
+    {
+        $contacts = [];
+
+        try {
+            $users = User::select('id', 'name', 'email')
+                ->whereNotNull('email')
+                ->where('email', '!=', '')
+                ->orderBy('name')
+                ->get();
+
+            foreach ($users as $user) {
+                $contacts[] = [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'type' => 'user'
+                ];
+            }
+
+            if (Schema::hasTable('contacts')) {
+                $contactRecords = DB::table('contacts')
+                    ->select('id', 'name', 'email')
+                    ->whereNotNull('email')
+                    ->where('email', '!=', '')
+                    ->orderBy('name')
+                    ->get();
+
+                foreach ($contactRecords as $contact) {
+                    $contacts[] = [
+                        'id' => 'contact_' . $contact->id,
+                        'name' => $contact->name,
+                        'email' => $contact->email,
+                        'type' => 'contact'
+                    ];
+                }
+            }
+
+            if (Schema::hasTable('customer_contacts')) {
+                $customerContacts = DB::table('customer_contacts')
+                    ->select('id', 'contact_name', 'contact_email')
+                    ->whereNotNull('contact_email')
+                    ->where('contact_email', '!=', '')
+                    ->orderBy('contact_name')
+                    ->get();
+
+                foreach ($customerContacts as $contact) {
+                    $contacts[] = [
+                        'id' => 'customer_contact_' . $contact->id,
+                        'name' => $contact->contact_name,
+                        'email' => $contact->contact_email,
+                        'type' => 'customer_contacts'
+                    ];
+                }
+            }
+
+            $uniqueContacts = [];
+            $seenEmails = [];
+
+            foreach ($contacts as $contact) {
+                if (!in_array(strtolower($contact['email']), $seenEmails)) {
+                    $seenEmails[] = strtolower($contact['email']);
+                    $uniqueContacts[] = $contact;
+                }
+            }
+
+            return $uniqueContacts;
+        } catch (\Exception $e) {
+            logger()->error('Error in loadContacts: ' . $e->getMessage());
+            return $this->getFallbackContacts();
+        }
+    }
+
+    /**
+     * Fallback contacts - maintains your original data structure
+     */
+    private function  getFallbackContacts(): array
+    {
+        return [
+            [
+                'id' => 4,
+                'name' => 'Support Team',
+                'email' => 'pknuek@gmail.com',
+                'type' => 'fallback'
+            ]
+        ];
+    }
+
+    /**
+     * Clear contacts cache
+     */
+    public function clearContactsCache(): JsonResponse
+    {
+        try {
+            $cacheKey = 'email_contacts_' . (auth()->id() ?? 'guest');
+            Cache::forget($cacheKey);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Contacts cache cleared'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to clear cache'
+            ], 500);
+        }
     }
 }
