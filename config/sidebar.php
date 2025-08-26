@@ -35,17 +35,17 @@ return [
                 [
                     'title' => 'Mail',
                     'icon' => 'bx bx-envelope',
-                    'permission' => 'reports.budget_allocation.view',
+                    'permission' => 'app.dashboard.view',
                     'submenu' => [
                         [
                             'title' => 'Mail App',
                             'route' => 'mail.index',
-                            'permission' => 'reports.budget_allocation.view'
+                            'permission' => 'app.dashboard.view'
                         ],
                         // [
                         //     'title' => 'Mail Settings',
                         //     'route' => 'mail.index',
-                        //     'permission' => 'reports.budget_allocation.view'
+                        //     'permission' => 'app.dashboard.view'
                         // ],
                     ]
                 ],
