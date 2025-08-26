@@ -10,6 +10,7 @@ use App\Models\Role;
 use App\Models\User;
 use App\Services\UserService;
 use Carbon\Carbon;
+use Exception;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -166,11 +167,21 @@ class UserController extends Controller
             ->where('is_active', true)
             ->where('user_name', '!=', 'super_admin')
             ->orderBy('id', 'asc');
-
         $auth = User::where('id', auth()->user()->id)->first();
+
         return DataTables::of($user)
-            ->addColumn('department', function ($fn) {
-                return '-';
+            ->addColumn('username', function ($user) {
+                return $user->user_name ?? null;
+            })
+            ->addColumn('full_name', function ($user) {
+                return $user->name ?? $user->first_name . ' ' . $user->last_name;
+            })
+            ->addColumn('department_name', function ($user) {
+                return 'N/A';
+            })
+            ->addColumn('role_name', function ($user) {
+                $roles = $user->roles->pluck('name')->toArray();
+                return !empty($roles) ? implode(', ', $roles) : 'No Role';
             })
             ->addColumn('status', function ($fn) {
                 if ($fn->status === 'A') {
@@ -182,83 +193,185 @@ class UserController extends Controller
             ->addColumn('last_login', function ($fn) {
                 return $fn->last_login ? Carbon::parse($fn->last_login)->format('d M Y H:i:s') : '-';
             })
-            ->editColumn('role', function ($fn) {
-                $roles = $fn->roles;
-
-                if ($roles && $roles->count() > 0) {
-                    return '<span class="badge bg-dark-transparent">' . $roles->pluck('name')->implode(', ') . '</span>';
-                } else {
-                    return '-';
-                }
-            })
             ->addColumn('is_employee', function ($fn) {
                 return '<span class="badge rounded-pill bg-danger-transparent">No</span>';
             })
-            ->addColumn('action', function ($fn) use ($auth) {
-                $isAdmin = in_array((int) $auth->role->permission_level, [
-                    PermissionsLevel::SUPERADMIN,
-                    PermissionsLevel::ADMIN
-                ]);
+            ->addColumn('action', function ($user) use ($auth) {
+                $isAdmin = false;
+                if ($auth && $auth->role) {
+                    $isAdmin = in_array((int) $auth->role->permission_level, [
+                        PermissionsLevel::SUPERADMIN,
+                        PermissionsLevel::ADMIN
+                    ]);
+                }
 
                 $actionButtons = '';
-                $id = (int) $fn->id;
+                $userId = (int) $user->id;
+                $userEmail = e($user->email);
+
                 $actionButtons .= '<div class="btn-group my-0 user-list-btns me-2">
                     <button type="button" class="btn btn-icon btn-sm btn-light p-0" data-bs-toggle="dropdown" aria-expanded="false">
                         <i class="bi bi-three-dots-vertical"></i>
                     </button>
                     <ul class="dropdown-menu">
-                        <li><a class="dropdown-item" href="javascript:void(0);" onclick="changeStatus(' . $id . ')">Change Status</a></li>
-                        <li><a class="dropdown-item" href="javascript:void(0);" onclick="resetPassword(' . $id . ')">Reset Password</a></li>
-                        <li><a class="dropdown-item user-assign-role" href="javascript:void(0);">Assign Role</a></li>
-                        <li><a class="dropdown-item" href="javascript:void(0);" onclick="changeDepartment(' . $id . ')">Change Department</a></li>
+                        <li><a class="dropdown-item" href="javascript:void(0);" onclick="changeStatus(' . $userId . ')">Change Status</a></li>
+                        <li><a class="dropdown-item" href="javascript:void(0);" onclick="resetPassword(' . $userId . ')">Reset Password</a></li>
+                        <li><a class="dropdown-item user-assign-role" href="javascript:void(0);" data-user-id="' . $userId . '">Assign Role</a></li>
+                        <li><a class="dropdown-item" href="javascript:void(0);" onclick="changeDepartment(' . $userId . ')">Change Department</a></li>
                     </ul>
                 </div>';
 
                 if ($isAdmin) {
-                    $email = e($fn->email);
-                    $actionButtons .= '<button class="btn btn-light btn-sm me-2 edit-user"><i class="bx bx-pencil"></i> Edit</button>';
-                    $actionButtons .= '<button class="btn btn-outline-danger btn-sm me-2 remove-user"><i class="bx bx-trash"></i> Delete</button>';
+                    $actionButtons .= '<button class="btn btn-info btn-sm me-1 edit-user"
+                                      data-user-id="' . $userId . '"
+                                      title="Edit User">
+                                      <i class="bx bx-edit"></i>
+                                   </button>';
+
+                    $actionButtons .= '<button class="btn btn-danger btn-sm remove-user"
+                                      data-email="' . $userEmail . '"
+                                      data-user-id="' . $userId . '"
+                                      title="Delete User">
+                                      <i class="bx bx-trash"></i>
+                                   </button>';
+                } else {
+                    $actionButtons .= '<button class="btn btn-secondary btn-sm me-1"
+                                      title="View User" disabled>
+                                      <i class="bx bx-show"></i>
+                                   </button>';
                 }
 
-
                 return $actionButtons;
+            })
+            ->filterColumn('full_name', function ($query, $keyword) {
+                $query->whereRaw("CONCAT(first_name,' ',last_name) like ?", ["%{$keyword}%"]);
+            })
+            ->filterColumn('role_name', function ($query, $keyword) {
+                $query->whereHas('roles', function ($q) use ($keyword) {
+                    $q->where('name', 'like', "%{$keyword}%");
+                });
             })
             ->rawColumns(['action', 'status', 'last_login', 'is_employee', 'role'])
             ->make(true);
     }
 
+
     public function destroy(Request $request)
     {
         try {
             if (!auth()->check()) {
-                return response()->json(['message' => 'Unauthenticated'], 401);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthenticated'
+                ], 401);
             }
 
-            $currentUser = User::find(auth()->id());
+            $validator = Validator::make($request->all(), [
+                'email' => 'required|email|exists:users,email'
+            ]);
 
-            if (!$currentUser->hasRole(['admin', 'super_admin'])) {
-                //&& !$currentUser->can(['users.manage.view'])
-                return response()->json(['message' => 'Unauthorized access'], 403);
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Invalid input data',
+                    'errors' => $validator->errors()
+                ], 422);
             }
 
-            $user = User::where(['email' => $request->email])->firstOrFail();
+            $currentUser = User::with('roles')->find(auth()->id());
 
-            if ($currentUser->id === $user->id) {
-                return response()->json(['message' => 'Cannot delete your own admin account'], 403);
+            if (!$currentUser) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Current user not found'
+                ], 404);
             }
 
-            if ($user->hasRole('super_admin') && !$currentUser->hasRole('super_admin')) {
-                return response()->json(['message' => 'Cannot delete super admin accounts'], 403);
+            $hasPermission = false;
+
+            if ($currentUser->hasRole(['admin', 'super_admin'])) {
+                $hasPermission = true;
             }
 
-            // $userName = $user->name;
-            $user->delete();
+            if (!$hasPermission) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'You do not have permission to delete users'
+                ], 403);
+            }
 
-            return response()->json(['message' => 'User deleted successfully', 'success' => true], 200);
+            $userToDelete = User::with('roles')->where('email', $request->email)->first();
+
+            if (!$userToDelete) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'User not found'
+                ], 404);
+            }
+
+            if ($currentUser->id === $userToDelete->id) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'You cannot delete your own account'
+                ], 403);
+            }
+
+            $targetUserRoles = $userToDelete->roles->pluck('name')->toArray();
+            $currentUserRoles = $currentUser->roles->pluck('name')->toArray();
+
+            if (in_array('super_admin', $targetUserRoles) && !in_array('super_admin', $currentUserRoles)) {
+                logger()->warning('Non-super-admin tried to delete super admin', [
+                    'current_user' => $currentUser->id,
+                    'target_user' => $userToDelete->id
+                ]);
+
+                return response()->json([
+                    'success' => false,
+                    'message' => 'You cannot delete super admin accounts'
+                ], 403);
+            }
+
+            if ($userToDelete->user_name === 'super_admin') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Cannot delete the primary super admin account'
+                ], 403);
+            }
+
+            DB::beginTransaction();
+
+            try {
+                if ($userToDelete->roles()->exists()) {
+                    $userToDelete->roles()->detach();
+                }
+
+                $deleted = $userToDelete->delete();
+
+                if (!$deleted) {
+                    throw new Exception('Failed to delete user from database');
+                }
+
+                DB::commit();
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'User deleted successfully'
+                ], 200);
+            } catch (\Exception $e) {
+                DB::rollBack();
+                throw $e;
+            }
         } catch (ModelNotFoundException $e) {
-            return response()->json(['message' => 'User not found'], 404);
+            return response()->json([
+                'success' => false,
+                'message' => 'User not found'
+            ], 404);
         } catch (\Exception $e) {
-            return response()->json(['message' => 'Failed to delete user', 'error' => $e->getMessage()], 500);
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to delete user: ' . $e->getMessage(),
+                'error' => config('app.debug') ? $e->getMessage() : 'Internal server error'
+            ], 500);
         }
     }
 }

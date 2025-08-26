@@ -198,12 +198,13 @@ class EmailImageLinker
 
         // &attachmentId={$attachmentId}
 
-        $baseUrl = config('app.url');
-        $route = "/outlook/images/{$messageId}";
-        $safeName = urlencode($filename);
-        $url = "{$baseUrl}{$route}?filename={$safeName}";
+        // $baseUrl = config('app.url');
+        // $route = "/outlook/images/{$messageId}";
+        // $safeName = urlencode($filename);
+        // $url = "{$baseUrl}{$route}?filename={$safeName}";
+        return "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
 
-        return $url;
+        // return $url;
     }
 
     /**

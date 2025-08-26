@@ -687,7 +687,7 @@ class SyncOutlookEmails extends Command
                             $filename = $this->generateUniqueFilename($attachment['name'], $messageId);
                             $filepath = "public/emails/{$this->user->email}/{$filename}";
 
-                            logger($filename);
+                            // logger($filename);
 
                             $directory = dirname($filepath);
                             if (!Storage::disk($storageDisk)->exists($directory)) {
