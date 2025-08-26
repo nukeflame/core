@@ -621,9 +621,9 @@ table.dataTable tfoot td {
     padding: 6px 8px !important;
     max-width: 100px;
     min-width: 100px;
-    /* overflow: hidden;
+    overflow: hidden;
     text-overflow: ellipsis;
-    white-space: nowrap; */
+    white-space: nowrap;
 }
 .bg-total-row .fw-bold,
 .bg-grand-total .fw-bold {

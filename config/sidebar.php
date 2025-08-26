@@ -42,11 +42,11 @@ return [
                             'route' => 'mail.index',
                             'permission' => 'reports.budget_allocation.view'
                         ],
-                        [
-                            'title' => 'Mail Settings',
-                            'route' => 'mail.index',
-                            'permission' => 'reports.budget_allocation.view'
-                        ],
+                        // [
+                        //     'title' => 'Mail Settings',
+                        //     'route' => 'mail.index',
+                        //     'permission' => 'reports.budget_allocation.view'
+                        // ],
                     ]
                 ],
             ]

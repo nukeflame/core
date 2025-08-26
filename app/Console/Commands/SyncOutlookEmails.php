@@ -8,10 +8,13 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 use Exception;
+use Illuminate\Support\Str;
 use Illuminate\Support\Collection;
 
 class SyncOutlookEmails extends Command
 {
+    use EmailImageLinkingTrait;
+
     protected $signature = 'outlook:sync
                            {--user-id= : Specific user ID to sync}
                            {--user-email= : Specific user email to sync}
@@ -26,7 +29,11 @@ class SyncOutlookEmails extends Command
                            {--download-profile-pictures : Download profile picture content (requires --fetch-profile-pictures)}
                            {--profile-picture-size=120x120 : Profile picture size (48x48, 64x64, 96x96, 120x120, 240x240, 360x360, 432x432, 504x504, 648x648)}
                            {--attachment-storage=local : Storage disk for attachments and profile pictures}
-                           {--debug : Enable debug output}';
+                           {--debug : Enable debug output}
+                           {--download-attachments : Download attachment content (requires --fetch-attachments)}
+                           {--attachment-max-size=10485760 : Maximum attachment size to download (bytes, default 10MB)}
+                           {--attachment-types= : Comma-separated list of allowed file extensions (e.g., pdf,docx,xlsx)}
+                           {--max-retries=3 : Maximum retry attempts for failed requests}';
 
     protected $description = 'Synchronize Outlook emails for users with valid OAuth tokens';
 
@@ -34,6 +41,7 @@ class SyncOutlookEmails extends Command
     private const TOKEN_REFRESH_THRESHOLD_MINUTES = 30;
     private const MAX_EMAILS_PER_REQUEST = 999;
     private const HTTP_TIMEOUT_SECONDS = 60;
+    private const REQUIRED_SCOPES = ['Mail.Read', 'User.Read', 'offline_access'];
 
     public string $accessToken = '';
     public object $currentUser;
@@ -43,6 +51,7 @@ class SyncOutlookEmails extends Command
     {
         try {
             $this->displayHeader();
+            $this->validateConfiguration();
             $users = $this->getUsersToSync();
 
             if ($users->isEmpty()) {
@@ -63,6 +72,37 @@ class SyncOutlookEmails extends Command
     private function displayHeader(): void
     {
         $this->info('Starting Outlook email synchronization...');
+
+        if ($this->option('debug')) {
+            $this->info('Debug mode enabled');
+            $this->info('Configuration check:');
+            $this->info('- Azure Client ID: ' . (config('services.azure.client_id') ? 'Set' : 'Missing'));
+            $this->info('- Azure Client Secret: ' . (config('services.azure.client_secret') ? 'Set' : 'Missing'));
+            $this->info('- Azure Tenant ID: ' . (config('services.azure.tenant_id') ? 'Set' : 'Missing'));
+        }
+    }
+
+    private function validateConfiguration(): void
+    {
+        $requiredConfigs = [
+            'services.azure.client_id',
+            'services.azure.client_secret',
+            'services.azure.tenant_id'
+        ];
+
+        foreach ($requiredConfigs as $config) {
+            if (!config($config)) {
+                throw new Exception("Missing required configuration: {$config}");
+            }
+        }
+
+        // Validate storage disk
+        $storageDisk = $this->option('attachment-storage');
+        try {
+            Storage::disk($storageDisk);
+        } catch (\InvalidArgumentException $e) {
+            throw new Exception("Storage disk '{$storageDisk}' is not configured");
+        }
     }
 
     private function handleDryRun(Collection $users): int
@@ -95,7 +135,8 @@ class SyncOutlookEmails extends Command
 
         logger()->error('Outlook sync failed', [
             'error' => $e->getMessage(),
-            'trace' => $e->getTraceAsString()
+            'trace' => $e->getTraceAsString(),
+            'options' => $this->options()
         ]);
 
         return Command::FAILURE;
@@ -114,7 +155,17 @@ class SyncOutlookEmails extends Command
 
         $this->applyUserFilters($query);
 
-        return $query->get();
+        $users = $query->get();
+
+        if ($this->option('debug')) {
+            $this->info("Query found {$users->count()} users with valid tokens");
+            foreach ($users as $user) {
+                $expiresAt = Carbon::createFromTimestamp($user->expires_at);
+                $this->info("- User {$user->user_id} ({$user->email}): expires {$expiresAt->diffForHumans()}");
+            }
+        }
+
+        return $users;
     }
 
     private function validateSyncOptions(): bool
@@ -123,6 +174,13 @@ class SyncOutlookEmails extends Command
             $this->error('Please specify --user-id, --user-email, or --all-users');
             return false;
         }
+
+        $limit = (int) $this->option('limit');
+        if ($limit <= 0 || $limit > self::MAX_EMAILS_PER_REQUEST) {
+            $this->error("Limit must be between 1 and " . self::MAX_EMAILS_PER_REQUEST);
+            return false;
+        }
+
         return true;
     }
 
@@ -137,11 +195,11 @@ class SyncOutlookEmails extends Command
         }
     }
 
-
     private function syncUserEmails(object $user): void
     {
         $this->syncStats['users_processed']++;
         $userInfo = "User {$user->user_id} ({$user->email})";
+        $syncLogId = null;
 
         try {
             $this->info("Syncing emails for {$userInfo}");
@@ -158,22 +216,30 @@ class SyncOutlookEmails extends Command
 
             $this->updateSyncStats($emails, $saveResult);
             $this->completeSyncLog($syncLogId, 'success', count($emails));
-            $this->info("✅ Successfully synced {$userInfo}");
+            $this->info("✅ Successfully synced {$userInfo} - {$saveResult['new']} new, {$saveResult['updated']} updated");
 
             $this->syncStats['users_success']++;
         } catch (Exception $e) {
-            $this->handleUserSyncError($user, $userInfo, $e, $syncLogId ?? null);
+            $this->handleUserSyncError($user, $userInfo, $e, $syncLogId);
         }
     }
 
     private function authenticateUser(object $user): void
     {
+        if ($this->option('debug')) {
+            $this->info("Authenticating user {$user->user_id}");
+        }
+
         if (!$this->validateAndRefreshToken($user)) {
             throw new Exception('Token validation failed');
         }
 
         if (!$this->getUserProfile()) {
             throw new Exception('Could not fetch user profile');
+        }
+
+        if ($this->option('debug')) {
+            $this->info("User authenticated successfully");
         }
     }
 
@@ -214,6 +280,7 @@ class SyncOutlookEmails extends Command
         $this->error("❌ Failed to sync {$userInfo}: {$e->getMessage()}");
 
         if ($this->option('debug')) {
+            $this->error("Full error trace:");
             $this->error($e->getTraceAsString());
         }
 
@@ -224,7 +291,8 @@ class SyncOutlookEmails extends Command
         logger()->error('User email sync failed', [
             'user_id' => $user->user_id,
             'email' => $user->email,
-            'error' => $e->getMessage()
+            'error' => $e->getMessage(),
+            'trace' => $e->getTraceAsString()
         ]);
     }
 
@@ -232,6 +300,10 @@ class SyncOutlookEmails extends Command
     {
         $this->accessToken = decrypt($user->access_token);
         $expiresAt = Carbon::createFromTimestamp($user->expires_at);
+
+        if ($this->option('debug')) {
+            $this->info("Token expires: {$expiresAt->toDateTimeString()} ({$expiresAt->diffForHumans()})");
+        }
 
         if ($this->shouldRefreshToken($expiresAt)) {
             return $this->refreshToken($user);
@@ -242,21 +314,42 @@ class SyncOutlookEmails extends Command
 
     private function shouldRefreshToken(Carbon $expiresAt): bool
     {
-        return $expiresAt->diffInMinutes() < self::TOKEN_REFRESH_THRESHOLD_MINUTES
+        $shouldRefresh = $expiresAt->diffInMinutes() < self::TOKEN_REFRESH_THRESHOLD_MINUTES
             || $this->option('force-refresh')
             || $expiresAt->isPast();
+
+        if ($this->option('debug')) {
+            $this->info("Should refresh token: " . ($shouldRefresh ? 'Yes' : 'No'));
+        }
+
+        return $shouldRefresh;
     }
 
     private function validateToken(): bool
     {
         try {
+            if ($this->option('debug')) {
+                $this->info("Validating access token...");
+                $this->info("Token (first 20 chars): " . substr($this->accessToken, 0, 20) . "...");
+            }
+
             $response = Http::withToken($this->accessToken)
                 ->timeout(30)
                 ->get(self::GRAPH_API_BASE . '/me');
 
+            if ($this->option('debug')) {
+                $this->info("Token validation response: HTTP {$response->status()}");
+                if (!$response->successful()) {
+                    $this->error("Token validation failed with response: " . $response->body());
+                }
+            }
+
             return $response->successful();
         } catch (Exception $e) {
-            $this->warn('Token validation failed');
+            if ($this->option('debug')) {
+                $this->error("Token validation exception: " . $e->getMessage());
+            }
+            $this->warn('Token validation failed: ' . $e->getMessage());
             return false;
         }
     }
@@ -267,7 +360,7 @@ class SyncOutlookEmails extends Command
             throw new Exception('No refresh token available');
         }
 
-        $this->info("Token expires soon, attempting refresh for user {$user->id}...");
+        $this->info("Token expires soon, attempting refresh for user {$user->user_id}...");
 
         try {
             $refreshToken = decrypt($user->refresh_token);
@@ -276,56 +369,78 @@ class SyncOutlookEmails extends Command
                 'client_secret' => config('services.azure.client_secret'),
                 'grant_type' => 'refresh_token',
                 'refresh_token' => $refreshToken,
-                'scope' => 'offline_access openid profile email'
+                'scope' => implode(' ', self::REQUIRED_SCOPES)
             ];
 
-            // only send redirect_uri if you actually used it during initial auth
+            // Only send redirect_uri if it was configured and used during initial auth
             if (config('services.azure.redirect_uri')) {
                 $payload['redirect_uri'] = config('services.azure.redirect_uri');
             }
 
-            $response = Http::asForm()->post(
-                "https://login.microsoftonline.com/" . config('services.azure.tenant_id') . "/oauth2/v2.0/token",
-                $payload
-            );
+            if ($this->option('debug')) {
+                $this->info("Refreshing token with payload (excluding secrets):");
+                $debugPayload = $payload;
+                $debugPayload['client_secret'] = '[REDACTED]';
+                $debugPayload['refresh_token'] = '[REDACTED]';
+                $this->info(json_encode($debugPayload, JSON_PRETTY_PRINT));
+            }
+
+            $response = Http::asForm()
+                ->timeout(30)
+                ->post(
+                    "https://login.microsoftonline.com/" . config('services.azure.tenant_id') . "/oauth2/v2.0/token",
+                    $payload
+                );
+
+            if ($this->option('debug')) {
+                $this->info("Token refresh response: HTTP {$response->status()}");
+            }
 
             if (!$response->successful()) {
+                $errorResponse = $response->json();
+                if ($this->option('debug')) {
+                    $this->error("Token refresh failed with response: " . json_encode($errorResponse, JSON_PRETTY_PRINT));
+                }
+
                 logger()->error('Token refresh failed', [
-                    'user_id' => $user->id,
-                    'response' => $response->json(),
+                    'user_id' => $user->user_id,
+                    'response_status' => $response->status(),
+                    'response_body' => $errorResponse,
                 ]);
-                throw new Exception('Token refresh failed: ' . json_encode($response->json()));
+
+                throw new Exception('Token refresh failed: ' . ($errorResponse['error_description'] ?? 'Unknown error'));
             }
 
             $data = $response->json();
-
             $this->updateTokenInDatabase($user, $data);
-            $this->info("Token refreshed successfully for user {$user->id}");
+            $this->info("Token refreshed successfully for user {$user->user_id}");
 
             return true;
         } catch (Exception $e) {
-            throw new Exception("Token refresh failed for user {$user->id}: " . $e->getMessage());
+            throw new Exception("Token refresh failed for user {$user->user_id}: " . $e->getMessage());
         }
     }
 
-
     private function updateTokenInDatabase(object $user, array $tokenData): void
     {
+        $expiresAt = Carbon::now('UTC')->addSeconds($tokenData['expires_in']);
+
+        if ($this->option('debug')) {
+            $this->info("Updating token in database, new expiry: {$expiresAt->toDateTimeString()}");
+        }
+
         DB::table('oauth_tokens')
             ->where([
                 'email' => $user->email,
                 'provider' => 'outlook'
             ])
-            ->update(
-                [
-                    'access_token' => encrypt($tokenData['access_token']),
-                    'refresh_token' => encrypt($tokenData['refresh_token']),
-                    'expires_at' => Carbon::now('UTC')->addSeconds($tokenData['expires_in'])->setTimezone(config('app.timezone'))->timestamp,
-                    'user_id' => $user->id,
-                    'scope' => $tokenData['scope'],
-                    'updated_at' => now(),
-                ]
-            );
+            ->update([
+                'access_token' => encrypt($tokenData['access_token']),
+                'refresh_token' => encrypt($tokenData['refresh_token'] ?? $user->refresh_token),
+                'expires_at' => $expiresAt->setTimezone(config('app.timezone'))->timestamp,
+                'scope' => $tokenData['scope'] ?? implode(' ', self::REQUIRED_SCOPES),
+                'updated_at' => now(),
+            ]);
 
         $this->accessToken = $tokenData['access_token'];
     }
@@ -335,18 +450,69 @@ class SyncOutlookEmails extends Command
         $url = $this->buildEmailsUrl($sinceDate);
 
         if ($this->option('debug')) {
-            $this->info("API URL: {$url}");
+            $this->info("Fetching emails from API URL: {$url}");
+            $this->info("Access token (first 20 chars): " . substr($this->accessToken, 0, 20) . "...");
         }
 
-        $response = Http::withToken($this->accessToken)
-            ->timeout(self::HTTP_TIMEOUT_SECONDS)
-            ->get($url);
+        return $this->executeWithRetry(function () use ($url) {
+            $response = Http::withToken($this->accessToken)
+                ->timeout(self::HTTP_TIMEOUT_SECONDS)
+                ->get($url);
 
-        if (!$response->successful()) {
-            throw new Exception('Failed to fetch emails: HTTP ' . $response->status() . ' - ' . $response->body());
+            if ($this->option('debug')) {
+                $this->info("API Response Status: HTTP {$response->status()}");
+                $this->info("Response Headers: " . json_encode($response->headers()));
+            }
+
+            if (!$response->successful()) {
+                $errorBody = $response->body();
+                if ($this->option('debug')) {
+                    $this->error("API Error Response: " . $errorBody);
+                }
+                throw new Exception('Failed to fetch emails: HTTP ' . $response->status() . ' - ' . $errorBody);
+            }
+
+            $data = $response->json();
+            $emails = $data['value'] ?? [];
+
+            if ($this->option('debug')) {
+                $this->info("Successfully fetched " . count($emails) . " emails from API");
+                if (!empty($emails)) {
+                    $this->info("First email subject: " . ($emails[0]['subject'] ?? 'No subject'));
+                    $this->info("Last email subject: " . (end($emails)['subject'] ?? 'No subject'));
+                }
+            }
+
+            return $emails;
+        });
+    }
+
+    public function executeWithRetry(callable $callback): mixed
+    {
+        $maxRetries = (int) $this->option('max-retries');
+        $lastException = null;
+
+        for ($attempt = 1; $attempt <= $maxRetries; $attempt++) {
+            try {
+                return $callback();
+            } catch (Exception $e) {
+                $lastException = $e;
+
+                if ($attempt < $maxRetries) {
+                    $delay = min(2 ** ($attempt - 1), 30); // Exponential backoff, max 30 seconds
+                    if ($this->option('debug')) {
+                        $this->warn("Attempt {$attempt} failed: {$e->getMessage()}. Retrying in {$delay} seconds...");
+                    }
+                    sleep($delay);
+                } else {
+                    if ($this->option('debug')) {
+                        $this->error("All {$maxRetries} attempts failed. Last error: {$e->getMessage()}");
+                    }
+                }
+            }
         }
 
-        return $response->json()['value'] ?? [];
+        throw $lastException;
     }
 
     private function buildEmailsUrl(string $sinceDate): string
@@ -357,7 +523,16 @@ class SyncOutlookEmails extends Command
         $folderPath = $this->getFolderPath($folder);
         $params = $this->buildUrlParams($limit, $sinceDate);
 
-        return self::GRAPH_API_BASE . "/me/{$folderPath}/messages?" . http_build_query($params, '', '&', PHP_QUERY_RFC3986);
+        $url = self::GRAPH_API_BASE . "/me/{$folderPath}/messages?" . http_build_query($params, '', '&', PHP_QUERY_RFC3986);
+
+        if ($this->option('debug')) {
+            $this->info("Built URL parameters:");
+            foreach ($params as $key => $value) {
+                $this->info("  {$key}: {$value}");
+            }
+        }
+
+        return $url;
     }
 
     private function getFolderPath(string $folder): string
@@ -380,7 +555,8 @@ class SyncOutlookEmails extends Command
         ];
 
         $filterDate = $sinceDate ?: now()->subDays(30)->toDateTimeString();
-        $params['$filter'] = "receivedDateTime ge " . Carbon::parse($filterDate)->toISOString();
+        // Use proper ISO 8601 format for Graph API
+        $params['$filter'] = "receivedDateTime ge " . Carbon::parse($filterDate)->format('Y-m-d\TH:i:s\Z');
 
         return $params;
     }
@@ -393,6 +569,7 @@ class SyncOutlookEmails extends Command
             'from',
             'toRecipients',
             'ccRecipients',
+            'bccRecipients',
             'receivedDateTime',
             'sentDateTime',
             'body',
@@ -401,58 +578,57 @@ class SyncOutlookEmails extends Command
             'isRead',
             'hasAttachments',
             'internetMessageId',
-            'conversationId'
+            'conversationId',
+            'categories'
         ];
     }
+
 
     private function processEmails(array $rawEmails): array
     {
-        $emails = [];
-
-        foreach ($rawEmails as $rawEmail) {
-            try {
-                $emails[] = $this->transformEmailData($rawEmail);
-            } catch (Exception $e) {
-                if ($this->option('debug')) {
-                    $this->warn('Failed to process email: ' . $e->getMessage());
-                }
-            }
-        }
-
-        return $emails;
+        return $this->processEmailsWithImageLinking($rawEmails);
     }
 
-    private function transformEmailData(array $rawEmail): array
-    {
-        return [
-            'id' => $rawEmail['id'],
-            'subject' => $rawEmail['subject'] ?? '[No Subject]',
-            'from' => $this->extractEmailAddress($rawEmail['from'] ?? null),
-            'from_name' => $this->extractDisplayName($rawEmail['from'] ?? null),
-            'to' => $this->extractRecipients($rawEmail['toRecipients'] ?? []),
-            'cc' => $this->extractRecipients($rawEmail['ccRecipients'] ?? []),
-            'date_received' => $rawEmail['receivedDateTime'] ?? null,
-            'date_sent' => $rawEmail['sentDateTime'] ?? null,
-            'body_preview' => $rawEmail['bodyPreview'] ?? '',
-            'body_content' => $this->extractBodyContent($rawEmail['body'] ?? null),
-            'importance' => $rawEmail['importance'] ?? 'normal',
-            'is_read' => $rawEmail['isRead'] ?? false,
-            'has_attachments' => $rawEmail['hasAttachments'] ?? false,
-            'message_id' => $rawEmail['internetMessageId'] ?? null,
-            'conversation_id' => $rawEmail['conversationId'] ?? null,
-            'attachments' => [],
-            'profile_picture' => null,
-        ];
-    }
+    // private function processEmails(array $rawEmails): array
+    // {
+    //     $emails = [];
+    //     $processedCount = 0;
+    //     $errorCount = 0;
+
+    //     if ($this->option('debug')) {
+    //         $this->info("Processing " . count($rawEmails) . " raw emails...");
+    //     }
+
+    //     foreach ($rawEmails as $index => $rawEmail) {
+    //         try {
+    //             $emails[] = $this->transformEmailData($rawEmail);
+    //             $processedCount++;
+    //         } catch (Exception $e) {
+    //             $errorCount++;
+    //             if ($this->option('debug')) {
+    //                 $this->warn("Failed to process email #{$index}: " . $e->getMessage());
+    //                 $this->warn("Raw email data: " . json_encode($rawEmail, JSON_PRETTY_PRINT));
+    //             }
+    //         }
+    //     }
+
+    //     if ($this->option('debug')) {
+    //         $this->info("Email processing complete: {$processedCount} processed, {$errorCount} errors");
+    //     }
+
+    //     return $emails;
+    // }
 
     private function attachmentService(): object
     {
         return new class($this) {
             private $command;
+            private $user;
 
             public function __construct($command)
             {
                 $this->command = $command;
+                $this->user = $this->command->currentUser;
             }
 
             public function fetchEmailAttachments(array $emails): array
@@ -461,9 +637,11 @@ class SyncOutlookEmails extends Command
                 $emailsWithAttachments = array_filter($emails, fn($email) => $email['has_attachments']);
 
                 if (empty($emailsWithAttachments)) {
+                    $this->command->info('No emails with attachments found.');
                     return $emails;
                 }
 
+                $this->command->info('Found ' . count($emailsWithAttachments) . ' emails with attachments');
                 $bar = $this->command->getOutput()->createProgressBar(count($emailsWithAttachments));
                 $bar->start();
 
@@ -474,8 +652,18 @@ class SyncOutlookEmails extends Command
 
                     try {
                         $attachments = $this->getEmailAttachments($email['id']);
-                        $emails[$index]['attachments'] = $attachments;
+                        // $emails[$index]['attachments'] = $attachments;
+
+                        // if ($this->command->option('download-attachments')) {
+                        $emails[$index]['attachments'] = $this->downloadAttachments($email['id'], $attachments);
+                        // }
+
                         $this->command->syncStats['attachments_downloaded'] += count($attachments);
+
+
+                        if ($this->command->option('debug')) {
+                            $this->command->info("Fetched " . count($attachments) . " attachments for email: " . ($email['subject'] ?? 'No Subject'));
+                        }
                     } catch (Exception $e) {
                         if ($this->command->option('debug')) {
                             $this->command->warn("Failed to fetch attachments for email {$email['id']}: " . $e->getMessage());
@@ -490,29 +678,126 @@ class SyncOutlookEmails extends Command
                 return $emails;
             }
 
-            private function getEmailAttachments(string $messageId): array
+            /**
+             * Download attachments content
+             */
+            private function downloadAttachments(string $messageId, array $attachments): array
             {
-                $url = SyncOutlookEmails::GRAPH_API_BASE . "/me/messages/{$messageId}/attachments";
+                $maxSize = (int) $this->command->option('attachment-max-size');
+                $allowedTypes = $this->command->option('attachment-types') ?
+                    explode(',', strtolower($this->command->option('attachment-types'))) : null;
+                $storageDisk = $this->command->option('attachment-storage');
 
-                $response = Http::withToken($this->command->accessToken)->timeout(30)->get($url);
-                if (!$response->successful()) {
-                    throw new Exception('Failed to fetch attachments: HTTP ' . $response->status());
+                try {
+                    Storage::disk($storageDisk);
+                } catch (\InvalidArgumentException $e) {
+                    $this->command->error("Storage disk '{$storageDisk}' is not configured. Please check your config/filesystems.php");
+                    $this->command->info("Available disks: " . implode(', ', array_keys(config('filesystems.disks'))));
+                    return $attachments;
                 }
 
-                $data = $response->json();
-                $attachments = [];
+                foreach ($attachments as $index => $attachment) {
+                    try {
+                        if ($attachment['size'] > $maxSize) {
+                            $attachments[$index]['download_error'] = "File too large ({$attachment['size']} bytes > {$maxSize} bytes)";
+                            continue;
+                        }
 
-                foreach ($data['value'] ?? [] as $attachment) {
-                    $attachments[] = [
-                        'id' => $attachment['id'],
-                        'name' => $attachment['name'] ?? 'unknown',
-                        'content_type' => $attachment['contentType'] ?? 'application/octet-stream',
-                        'size' => $attachment['size'] ?? 0,
-                        'is_inline' => $attachment['isInline'] ?? false,
-                    ];
+                        if ($allowedTypes) {
+                            $extension = strtolower(pathinfo($attachment['name'], PATHINFO_EXTENSION));
+                            if (!in_array($extension, $allowedTypes)) {
+                                $attachments[$index]['download_error'] = "File type not allowed: {$extension}";
+                                continue;
+                            }
+                        }
+
+                        $content = $this->downloadAttachmentContent($messageId, $attachment['id']);
+
+                        if ($content) {
+                            $filename = $this->generateUniqueFilename($attachment['name'], $messageId);
+                            $filepath = "emails/{$this->user->email}/" . date('Y/m/d') . "/{$filename}";
+
+                            $directory = dirname($filepath);
+                            if (!Storage::disk($storageDisk)->exists($directory)) {
+                                Storage::disk($storageDisk)->makeDirectory($directory);
+                            }
+
+                            Storage::disk($storageDisk)->put($filepath, $content);
+
+                            $attachments[$index]['downloaded'] = true;
+                            $attachments[$index]['file_path'] = $filepath;
+
+                            if ($this->command->option('debug')) {
+                                $this->command->info("Downloaded: {$attachment['name']} -> {$filepath}");
+                            }
+                        }
+                    } catch (\Exception $e) {
+                        $attachments[$index]['download_error'] = $e->getMessage();
+                        if ($this->command->option('debug')) {
+                            $this->command->warn("Failed to download {$attachment['name']}: " . $e->getMessage());
+                        }
+                    }
                 }
 
                 return $attachments;
+            }
+
+            private function downloadAttachmentContent(string $messageId, string $attachmentId): ?string
+            {
+                $url = SyncOutlookEmails::GRAPH_API_BASE . "/me/messages/{$messageId}/attachments/{$attachmentId}/\$value";
+
+                $response = Http::withToken($this->command->accessToken)->timeout(120)->get($url);
+
+                if (!$response->successful()) {
+                    throw new \Exception('Failed to download attachment content: HTTP ' . $response->status());
+                }
+
+                return $response->body();
+            }
+
+            /**
+             * Generate unique filename to avoid conflicts
+             */
+            private function generateUniqueFilename(string $originalName, string $messageId): string
+            {
+                $extension = pathinfo($originalName, PATHINFO_EXTENSION);
+                $basename = pathinfo($originalName, PATHINFO_FILENAME);
+                $timestamp = time();
+                $messagePrefix = substr(md5($messageId), 0, 8);
+
+                return Str::slug($basename) . "_{$messagePrefix}_{$timestamp}" . ($extension ? ".{$extension}" : '');
+            }
+
+            private function getEmailAttachments(string $messageId): array
+            {
+                return $this->command->executeWithRetry(function () use ($messageId) {
+                    $url = SyncOutlookEmails::GRAPH_API_BASE . "/me/messages/{$messageId}/attachments";
+
+                    if ($this->command->option('debug')) {
+                        $this->command->info("Fetching attachments from: {$url}");
+                    }
+
+                    $response = Http::withToken($this->command->accessToken)->timeout(30)->get($url);
+
+                    if (!$response->successful()) {
+                        throw new Exception('Failed to fetch attachments: HTTP ' . $response->status() . ' - ' . $response->body());
+                    }
+
+                    $data = $response->json();
+                    $attachments = [];
+
+                    foreach ($data['value'] ?? [] as $attachment) {
+                        $attachments[] = [
+                            'id' => $attachment['id'] ?? null,
+                            'name' => $attachment['name'] ?? 'unknown',
+                            'content_type' => $attachment['contentType'] ?? 'application/octet-stream',
+                            'size' => $attachment['size'] ?? 0,
+                            'is_inline' => $attachment['isInline'] ?? false,
+                        ];
+                    }
+
+                    return $attachments;
+                });
             }
         };
     }
@@ -551,7 +836,7 @@ class SyncOutlookEmails extends Command
                         $senders[] = $email['from'];
                     }
                 }
-                return $senders;
+                return array_unique($senders);
             }
 
             private function buildProfilePictureCache(array $senderEmails): array
@@ -597,51 +882,59 @@ class SyncOutlookEmails extends Command
             private function getUserProfilePicture(string $userEmail): array
             {
                 $size = $this->command->option('profile-picture-size');
-                $metadata = $this->fetchProfilePictureMetadata($userEmail, $size);
-                if (!$metadata['available']) {
-                    return $metadata;
-                }
 
-                $profilePicture = [
-                    'available' => true,
-                    'width' => $metadata['width'] ?? null,
-                    'height' => $metadata['height'] ?? null,
-                    'size' => null,
-                    'content_type' => 'image/jpeg',
-                    'downloaded' => false,
-                    'file_path' => null,
-                    'error' => null
-                ];
+                return $this->command->executeWithRetry(function () use ($userEmail, $size) {
+                    $metadata = $this->fetchProfilePictureMetadata($userEmail, $size);
+                    if (!$metadata['available']) {
+                        return $metadata;
+                    }
 
-                if ($this->command->option('download-profile-pictures')) {
-                    try {
-                        $profilePicture = $this->downloadProfilePicture($userEmail, $profilePicture);
-                    } catch (Exception $e) {
-                        $profilePicture['error'] = $e->getMessage();
-                        if ($this->command->option('debug')) {
-                            $this->command->warn("Failed to download profile picture for {$userEmail}: " . $e->getMessage());
+                    $profilePicture = [
+                        'available' => true,
+                        'width' => $metadata['width'] ?? null,
+                        'height' => $metadata['height'] ?? null,
+                        'size' => null,
+                        'content_type' => 'image/jpeg',
+                        'downloaded' => false,
+                        'file_path' => null,
+                        'error' => null
+                    ];
+
+                    if ($this->command->option('download-profile-pictures')) {
+                        try {
+                            $profilePicture = $this->downloadProfilePicture($userEmail, $profilePicture);
+                        } catch (Exception $e) {
+                            $profilePicture['error'] = $e->getMessage();
+                            if ($this->command->option('debug')) {
+                                $this->command->warn("Failed to download profile picture for {$userEmail}: " . $e->getMessage());
+                            }
                         }
                     }
-                }
 
-                return $profilePicture;
+                    return $profilePicture;
+                });
             }
 
             private function fetchProfilePictureMetadata(string $userEmail, string $size): array
             {
                 $url = SyncOutlookEmails::GRAPH_API_BASE . "/users/{$userEmail}/photos/{$size}";
 
+                if ($this->command->option('debug')) {
+                    $this->command->info("Fetching profile picture metadata: {$url}");
+                }
+
                 $response = Http::withToken($this->command->accessToken)->timeout(10)->get($url);
+
                 if (!$response->successful()) {
                     if ($response->status() === 404) {
                         return $this->createErrorProfilePicture('No profile picture available');
                     }
 
-                    throw new Exception('Failed to fetch profile picture metadata: HTTP ' . $response->status());
+                    throw new Exception('Failed to fetch profile picture metadata: HTTP ' . $response->status() . ' - ' . $response->body());
                 }
 
                 $data = $response->json();
-                return array_merge($response->json(), ['available' => true]);
+                return array_merge($data, ['available' => true]);
             }
 
             private function downloadProfilePicture(string $userEmail, array $profilePicture): array
@@ -659,7 +952,7 @@ class SyncOutlookEmails extends Command
                 $profilePicture['file_path'] = $filepath;
 
                 if ($this->command->option('debug')) {
-                    $this->command->info("Downloaded profile picture: {$userEmail} -> {$filepath}");
+                    $this->command->info("Downloaded profile picture: {$userEmail} -> {$filepath} (" . $this->formatBytes($profilePicture['size']) . ")");
                 }
 
                 return $profilePicture;
@@ -678,10 +971,14 @@ class SyncOutlookEmails extends Command
             {
                 $url = SyncOutlookEmails::GRAPH_API_BASE . "/users/{$userEmail}/photos/{$size}/\$value";
 
+                if ($this->command->option('debug')) {
+                    $this->command->info("Downloading profile picture content: {$url}");
+                }
+
                 $response = Http::withToken($this->command->accessToken)->timeout(30)->get($url);
 
                 if (!$response->successful()) {
-                    throw new Exception('Failed to download profile picture: HTTP ' . $response->status());
+                    throw new Exception('Failed to download profile picture: HTTP ' . $response->status() . ' - ' . $response->body());
                 }
 
                 return $response->body();
@@ -703,7 +1000,8 @@ class SyncOutlookEmails extends Command
             private function generateProfilePictureFilename(string $userEmail, string $size): string
             {
                 $emailHash = md5(strtolower(trim($userEmail)));
-                return "profile_{$emailHash}_{$size}.jpg";
+                $timestamp = now()->format('Y-m-d_H-i-s');
+                return "profile_{$emailHash}_{$size}_{$timestamp}.jpg";
             }
 
             private function createErrorProfilePicture(string $error): array
@@ -715,45 +1013,117 @@ class SyncOutlookEmails extends Command
                     'file_path' => null
                 ];
             }
+
+            private function formatBytes(int $bytes): string
+            {
+                if ($bytes >= 1024 * 1024) {
+                    return round($bytes / (1024 * 1024), 2) . ' MB';
+                } elseif ($bytes >= 1024) {
+                    return round($bytes / 1024, 2) . ' KB';
+                }
+                return $bytes . ' B';
+            }
         };
     }
 
     private function saveEmailsToDatabase(array $emails): array
     {
-        $this->info('Saving emails to database...');
+        $this->info('Saving emails with image links to database...');
         $newCount = 0;
         $updatedCount = 0;
 
         foreach ($emails as $email) {
             try {
-                $result = $this->saveOrUpdateEmail($email);
+                $result = $this->saveEmailWithImageLinks($email);
                 $result['isNew'] ? $newCount++ : $updatedCount++;
-
-                $this->saveRelatedData($email);
             } catch (Exception $e) {
                 if ($this->option('debug')) {
-                    $this->warn('Failed to save email: ' . $e->getMessage());
+                    $this->warn('Failed to save email with images: ' . $e->getMessage());
                 }
             }
         }
 
-        $this->info("Saved {$newCount} new emails, updated {$updatedCount} existing emails");
         return ['new' => $newCount, 'updated' => $updatedCount];
     }
+    // private function saveEmailsToDatabase(array $emails): array
+    // {
+    //     if (empty($emails)) {
+    //         $this->info('No emails to save to database.');
+    //         return ['new' => 0, 'updated' => 0];
+    //     }
+
+    //     $this->info('Saving ' . count($emails) . ' emails to database...');
+    //     $newCount = 0;
+    //     $updatedCount = 0;
+    //     $errorCount = 0;
+
+    //     $bar = $this->getOutput()->createProgressBar(count($emails));
+    //     $bar->start();
+
+    //     foreach ($emails as $email) {
+    //         try {
+    //             $result = $this->saveOrUpdateEmail($email);
+    //             $result['isNew'] ? $newCount++ : $updatedCount++;
+
+    //             $this->saveRelatedData($email);
+
+    //             if ($this->option('debug')) {
+    //                 $status = $result['isNew'] ? 'NEW' : 'UPDATED';
+    //                 $this->info("[{$status}] Email: " . ($email['subject'] ?? 'No Subject'));
+    //             }
+    //         } catch (Exception $e) {
+    //             $errorCount++;
+    //             if ($this->option('debug')) {
+    //                 $this->warn('Failed to save email: ' . $e->getMessage());
+    //                 $this->warn('Email data: ' . json_encode($email, JSON_PRETTY_PRINT));
+    //             }
+
+    //             logger()->error('Failed to save email to database', [
+    //                 'error' => $e->getMessage(),
+    //                 'email_id' => $email['id'] ?? 'unknown',
+    //                 'user_id' => $this->currentUser->user_id
+    //             ]);
+    //         }
+
+    //         $bar->advance();
+    //     }
+
+    //     $bar->finish();
+    //     $this->line('');
+
+    //     $this->info("Database save complete: {$newCount} new, {$updatedCount} updated, {$errorCount} errors");
+    //     return ['new' => $newCount, 'updated' => $updatedCount];
+    // }
 
     private function saveOrUpdateEmail(array $email): array
     {
+
+        logger()->info('ff');
+        if (!$email['message_id']) {
+            throw new Exception('Email missing message_id, cannot save');
+        }
+
+        if ($this->option('debug')) {
+            $this->info("Saving email: " . ($email['subject'] ?? '[No Subject]'));
+            $this->info("Message ID: " . $email['message_id']);
+        }
+
         $existingEmail = $this->findExistingEmail($email['message_id']);
         $emailData = $this->buildEmailData($email);
 
+        if ($this->option('debug')) {
+            $this->info("Existing email found: " . ($existingEmail ? 'Yes (ID: ' . $existingEmail->id . ')' : 'No'));
+        }
+
         if ($existingEmail) {
             DB::table('fetched_emails')->where('id', $existingEmail->id)->update($emailData);
-            return ['isNew' => false];
+            return ['isNew' => false, 'id' => $existingEmail->id];
         } else {
             $emailData['message_id'] = $email['message_id'];
             $emailData['created_at'] = now();
-            DB::table('fetched_emails')->insert($emailData);
-            return ['isNew' => true];
+
+            $id = DB::table('fetched_emails')->insertGetId($emailData);
+            return ['isNew' => true, 'id' => $id];
         }
     }
 
@@ -772,23 +1142,35 @@ class SyncOutlookEmails extends Command
             'user_id' => $this->currentUser->user_id,
             'user_email' => $this->currentUser->email,
             'uid' => $email['id'],
-            'subject' => $email['subject'],
+            'subject' => substr($email['subject'], 0, 255),
             'from_email' => $email['from'],
-            'from_name' => $email['from_name'],
+            'from_name' => $email['from_name'] ? substr($email['from_name'], 0, 255) : null,
             'to_recipients' => json_encode($email['to']),
             'cc_recipients' => json_encode($email['cc']),
+            'bcc_recipients' => json_encode($email['bcc'] ?? []),
             'date_received' => $email['date_received'],
             'date_sent' => $email['date_sent'],
-            'body_text' => strip_tags($email['body_content'] ?? ''),
+            'body_text' => $this->stripAndTruncateHtml($email['body_content'] ?? ''),
             'body_html' => $email['body_content'],
-            'body_preview' => $email['body_preview'],
+            'body_preview' => substr($email['body_preview'], 0, 500),
             'importance' => $email['importance'],
             'is_read' => $email['is_read'],
             'has_attachments' => $email['has_attachments'],
             'conversation_id' => $email['conversation_id'],
+            'categories' => json_encode($email['categories'] ?? []),
             'folder' => $this->option('folder'),
             'updated_at' => now()
         ];
+    }
+
+    private function stripAndTruncateHtml(?string $html, int $maxLength = 10000): ?string
+    {
+        if (!$html) {
+            return null;
+        }
+
+        $text = strip_tags($html);
+        return substr($text, 0, $maxLength);
     }
 
     private function saveRelatedData(array $email): void
@@ -804,30 +1186,32 @@ class SyncOutlookEmails extends Command
 
     private function saveAttachmentsToDatabase(string $messageId, array $attachments): void
     {
-        foreach ($attachments as $attachment) {
-            try {
-                DB::table('email_attachments')->updateOrInsert(
-                    [
-                        'message_id' => $messageId,
-                        'attachment_id' => $attachment['id'],
-                        'user_id' => $this->currentUser->user_id,
-                        'user_email' => $this->currentUser->email
-                    ],
-                    [
-                        'name' => $attachment['name'],
-                        'content_type' => $attachment['content_type'],
-                        'size' => $attachment['size'],
-                        'is_inline' => $attachment['is_inline'],
-                        'created_at' => now(),
-                        'updated_at' => now()
-                    ]
-                );
-            } catch (Exception $e) {
-                if ($this->option('debug')) {
-                    $this->warn("Failed to save attachment: " . $e->getMessage());
-                }
-            }
-        }
+
+        // logger()->debug(['attachments' => $attachments]);
+        // foreach ($attachments as $attachment) {
+        //     try {
+        //         DB::table('email_attachments')->updateOrInsert(
+        //             [
+        //                 'message_id' => $messageId,
+        //                 'attachment_id' => $attachment['id'],
+        //                 'user_id' => $this->currentUser->user_id,
+        //                 'user_email' => $this->currentUser->email
+        //             ],
+        //             [
+        //                 'name' => substr($attachment['name'], 0, 255),
+        //                 'content_type' => $attachment['content_type'],
+        //                 'size' => $attachment['size'],
+        //                 'is_inline' => $attachment['is_inline'],
+        //                 'created_at' => now(),
+        //                 'updated_at' => now()
+        //             ]
+        //         );
+        //     } catch (Exception $e) {
+        //         if ($this->option('debug')) {
+        //             $this->warn("Failed to save attachment {$attachment['name']}: " . $e->getMessage());
+        //         }
+        //     }
+        // }
     }
 
     private function saveProfilePictureToDatabase(string $messageId, string $senderEmail, array $profilePicture): void
@@ -836,8 +1220,7 @@ class SyncOutlookEmails extends Command
             DB::table('email_profile_pictures')->updateOrInsert(
                 [
                     'sender_email' => $senderEmail,
-                    'user_id' => $this->currentUser->id,
-                    'user_email' => $this->currentUser->email
+                    'user_id' => $this->currentUser->user_id,
                 ],
                 [
                     'width' => $profilePicture['width'],
@@ -847,6 +1230,7 @@ class SyncOutlookEmails extends Command
                     'downloaded' => $profilePicture['downloaded'],
                     'file_path' => $profilePicture['file_path'],
                     'error' => $profilePicture['error'],
+                    'user_email' => $this->currentUser->email,
                     'last_fetched' => now(),
                     'created_at' => now(),
                     'updated_at' => now()
@@ -879,6 +1263,7 @@ class SyncOutlookEmails extends Command
             'folder' => $this->option('folder'),
             'status' => 'running',
             'started_at' => now(),
+            'options' => json_encode($this->options()),
             'created_at' => now(),
             'updated_at' => now()
         ]);
@@ -904,8 +1289,23 @@ class SyncOutlookEmails extends Command
                 ->timeout(10)
                 ->get(self::GRAPH_API_BASE . '/me');
 
-            return $response->successful() ? $response->json() : null;
+            if ($response->successful()) {
+                $profile = $response->json();
+                if ($this->option('debug')) {
+                    $this->info("User profile: " . ($profile['displayName'] ?? 'Unknown') . " (" . ($profile['mail'] ?? $profile['userPrincipalName'] ?? 'No email') . ")");
+                }
+                return $profile;
+            }
+
+            if ($this->option('debug')) {
+                $this->error("Failed to get user profile: HTTP {$response->status()} - " . $response->body());
+            }
+
+            return null;
         } catch (Exception $e) {
+            if ($this->option('debug')) {
+                $this->error("Exception getting user profile: " . $e->getMessage());
+            }
             return null;
         }
     }
@@ -918,11 +1318,21 @@ class SyncOutlookEmails extends Command
             ->max('completed_at');
 
         if ($lastSync) {
-            return Carbon::parse($lastSync)->subHours(1)->toDateTimeString();
+            $sinceDate = Carbon::parse($lastSync)->subHours(1)->toDateTimeString();
+            if ($this->option('debug')) {
+                $this->info("Found previous successful sync at {$lastSync}, syncing since {$sinceDate}");
+            }
+            return $sinceDate;
         }
 
         $daysBack = (int) $this->option('days-back');
-        return now()->subDays($daysBack)->toDateTimeString();
+        $sinceDate = now()->subDays($daysBack)->toDateTimeString();
+
+        if ($this->option('debug')) {
+            $this->info("No previous sync found, syncing emails from {$daysBack} days back: {$sinceDate}");
+        }
+
+        return $sinceDate;
     }
 
     private function initializeSyncStats(): void
@@ -942,8 +1352,10 @@ class SyncOutlookEmails extends Command
 
     private function showDryRunResults(Collection $users): void
     {
+        $this->info("DRY RUN: Would sync {$users->count()} user(s)");
+
         $this->table(
-            ['User ID', 'Email', 'Token Status', 'Last Sync', 'Days Back'],
+            ['User ID', 'Email', 'Token Status', 'Last Sync', 'Days Back', 'Folder'],
             $users->map(function ($user) {
                 $lastSync = $this->getLastSyncTime($user->user_id);
                 return [
@@ -951,10 +1363,20 @@ class SyncOutlookEmails extends Command
                     $user->email ?? 'N/A',
                     $this->getTokenStatus($user),
                     $lastSync ? Carbon::parse($lastSync)->diffForHumans() : 'Never',
-                    $this->option('days-back')
+                    $this->option('days-back'),
+                    $this->option('folder')
                 ];
             })->toArray()
         );
+
+        $this->info("\nOptions that would be used:");
+        $this->info("- Folder: " . $this->option('folder'));
+        $this->info("- Limit per user: " . $this->option('limit'));
+        $this->info("- Fetch attachments: " . ($this->option('fetch-attachments') ? 'Yes' : 'No'));
+        $this->info("- Fetch profile pictures: " . ($this->option('fetch-profile-pictures') ? 'Yes' : 'No'));
+        $this->info("- Download profile pictures: " . ($this->option('download-profile-pictures') ? 'Yes' : 'No'));
+        $this->info("- Storage disk: " . $this->option('attachment-storage'));
+        $this->info("- Max retries: " . $this->option('max-retries'));
     }
 
     private function getTokenStatus(object $user): string
@@ -963,17 +1385,17 @@ class SyncOutlookEmails extends Command
             return '❌ No token';
         }
 
-        $expiresAt = Carbon::parse($user->expires_at);
+        $expiresAt = Carbon::createFromTimestamp($user->expires_at);
 
         if ($expiresAt->isPast()) {
             return '⚠️ Expired';
         }
 
         if ($expiresAt->diffInHours() < 24) {
-            return '⚠️ Expires soon';
+            return '⚠️ Expires soon (' . $expiresAt->diffForHumans() . ')';
         }
 
-        return '✅ Valid';
+        return '✅ Valid (' . $expiresAt->diffForHumans() . ')';
     }
 
     private function getLastSyncTime(int $userId): ?string
@@ -992,13 +1414,13 @@ class SyncOutlookEmails extends Command
             ['Metric', 'Count'],
             [
                 ['Users Processed', $this->syncStats['users_processed']],
-                ['Users Success', $this->syncStats['users_success']],
+                ['Users Success', $this->syncStats['users_success'] . ' / ' . $this->syncStats['users_processed']],
                 ['Users Failed', $this->syncStats['users_failed']],
-                ['Total Emails', $this->syncStats['total_emails']],
-                ['New Emails', $this->syncStats['new_emails']],
+                ['Total Emails Fetched', $this->syncStats['total_emails']],
+                ['New Emails Saved', $this->syncStats['new_emails']],
                 ['Updated Emails', $this->syncStats['updated_emails']],
-                ['Attachments', $this->syncStats['attachments_downloaded']],
-                ['Profile Pictures', $this->syncStats['profile_pictures_downloaded']],
+                ['Attachments Downloaded', $this->syncStats['attachments_downloaded']],
+                ['Profile Pictures Downloaded', $this->syncStats['profile_pictures_downloaded']],
             ]
         );
 
@@ -1008,30 +1430,18 @@ class SyncOutlookEmails extends Command
                 $this->line("  • {$error}");
             }
         }
-    }
 
-    private function extractEmailAddress(?array $emailObject): ?string
-    {
-        return $emailObject['emailAddress']['address'] ?? null;
-    }
+        // Summary
+        if ($this->syncStats['users_success'] > 0) {
+            $this->info("\n✅ Sync completed successfully for {$this->syncStats['users_success']} user(s)");
+        }
 
-    private function extractDisplayName(?array $emailObject): ?string
-    {
-        return $emailObject['emailAddress']['name'] ?? null;
-    }
+        if ($this->syncStats['users_failed'] > 0) {
+            $this->warn("❌ Sync failed for {$this->syncStats['users_failed']} user(s)");
+        }
 
-    private function extractRecipients(array $recipients): array
-    {
-        return array_map(function ($recipient) {
-            return [
-                'email' => $recipient['emailAddress']['address'] ?? null,
-                'name' => $recipient['emailAddress']['name'] ?? null
-            ];
-        }, $recipients);
-    }
-
-    private function extractBodyContent(?array $body): ?string
-    {
-        return $body['content'] ?? null;
+        if ($this->syncStats['new_emails'] > 0 || $this->syncStats['updated_emails'] > 0) {
+            $this->info("📧 Total emails processed: {$this->syncStats['total_emails']} (New: {$this->syncStats['new_emails']}, Updated: {$this->syncStats['updated_emails']})");
+        }
     }
 }

@@ -25,7 +25,6 @@ class MailService
 
     public function getMailData(string $folder = 'inbox', ?string $search = null, int $limit = 50): array
     {
-        // logger()->info(json_encode($this->getOnlineUsers(), JSON_PRETTY_PRINT));
         return [
             'emails' => $this->getEmails($folder, $limit, $search),
             'folders' => $this->getFolders(),
@@ -42,23 +41,26 @@ class MailService
     {
         $cacheKey = "emails.{$folder}.{$limit}." . md5($search ?? '');
 
-        return Cache::remember($cacheKey, 300, function () use ($folder, $limit, $search) {
-            try {
-                $storedEmails = $this->storageService->getStoredEmails($folder, $limit, $search);
+        return $this->storageService->getStoredEmails($folder, $limit, $search);
 
-                // If we have stored emails and no search, return them
-                if ($storedEmails->isNotEmpty() && !$search) {
-                    return $storedEmails;
-                }
 
-                return collect();
-                // Fetch from Outlook service - matches original outlookService->getEmails() call
-                // return $this->outlookService->getEmails($folder, $limit, $search);
-            } catch (\Exception $e) {
-                // Fallback to stored emails
-                return $this->storageService->getStoredEmails($folder, $limit, $search);
-            }
-        });
+        // return Cache::remember($cacheKey, 300, function () use ($folder, $limit, $search) {
+        //     try {
+        //         $storedEmails = $this->storageService->getStoredEmails($folder, $limit, $search);
+
+        //         // If we have stored emails and no search, return them
+        //         if ($storedEmails->isNotEmpty() && !$search) {
+        //             return $storedEmails;
+        //         }
+
+        //         return collect();
+        //         // Fetch from Outlook service - matches original outlookService->getEmails() call
+        //         // return $this->outlookService->getEmails($folder, $limit, $search);
+        //     } catch (\Exception $e) {
+        //         // Fallback to stored emails
+        //         return $this->storageService->getStoredEmails($folder, $limit, $search);
+        //     }
+        // });
     }
 
     /**
@@ -110,7 +112,7 @@ class MailService
                     'limit' => 500,
                     'include_presence' => true,
                     'include_photos' => false,
-                    // 'department' => 'Reinsurance Brokers',
+                    // 'department' => 'Reinsurance',
                     'account_enabled' => true
                 ]);
 
@@ -122,7 +124,7 @@ class MailService
                     ->map(fn($user) => [
                         'id' => $user['id'],
                         'name' => $user['displayName'] ?? null,
-                        'email' => $user['mail'] ?? null,
+                        'email' => $user['email'] ?? null,
                         'jobTitle' => $user['jobTitle'] ?? null,
                         'department' => $user['department'] ?? null,
                         'officeLocation' => $user['officeLocation'] ?? null,

@@ -23,7 +23,7 @@
                     <button type="button" class="evolution-btn" id="toggleAttachments">
                         <i class="ri-attachment-2"></i> Attach
                     </button>
-                    <button type="button" class="evolution-btn" id="insertSignature" disabled>
+                    {{-- <button type="button" class="evolution-btn" id="insertSignature" disabled>
                         <i class="ri-quill-pen-line"></i> Signature
                     </button>
                     <div class="evolution-separator"></div>
@@ -33,7 +33,7 @@
                     <button type="button" class="evolution-btn" data-bs-toggle="modal" data-bs-target="#template-modal"
                         disabled>
                         <i class="ri-file-text-line"></i> Templates
-                    </button>
+                    </button> --}}
                 </div>
 
                 <div class="modal-body">
@@ -91,10 +91,10 @@
 
                     <div class="evolution-content-area">
                         <div id="toolbar-container">
-                            <span class="ql-formats">
+                            {{-- <span class="ql-formats">
                                 <select class="ql-font"></select>
                                 <select class="ql-size"></select>
-                            </span>
+                            </span> --}}
                             <span class="ql-formats">
                                 <button class="ql-bold"></button>
                                 <button class="ql-italic"></button>
@@ -106,14 +106,8 @@
                                 <select class="ql-background"></select>
                             </span>
                             <span class="ql-formats">
-                                <button class="ql-script" value="sub"></button>
-                                <button class="ql-script" value="super"></button>
-                            </span>
-                            <span class="ql-formats">
                                 <button class="ql-header" value="1"></button>
                                 <button class="ql-header" value="2"></button>
-                                <button class="ql-blockquote"></button>
-                                <button class="ql-code-block"></button>
                             </span>
                             <span class="ql-formats">
                                 <button class="ql-list" value="ordered"></button>
@@ -125,7 +119,7 @@
                                 <button class="ql-direction" value="rtl"></button>
                                 <select class="ql-align"></select>
                             </span>
-                            <span class="ql-formats">
+                            {{-- <span class="ql-formats">
                                 <button class="ql-link"></button>
                                 <button class="ql-image"></button>
                                 <button class="ql-video"></button>
@@ -133,7 +127,7 @@
                             </span>
                             <span class="ql-formats">
                                 <button class="ql-clean"></button>
-                            </span>
+                            </span> --}}
                         </div>
                         {{-- <div class="evolution-format-toolbar hidden">
                             <button type="button" class="evolution-format-btn formatText" title="Bold"
@@ -411,7 +405,7 @@
                     $select.empty();
 
                     contacts.forEach(contact => {
-                        const optionText = contact.name ? `${contact.name} (${contact.email})` :
+                        const optionText = contact.name ? `${contact.name} <${contact.email}>` :
                             contact.email;
                         const option = new Option(optionText, contact.email, false, currentValues
                             .includes(contact.email));
@@ -438,7 +432,7 @@
                 initializeSelect2();
             });
 
-            $('.select2').on('select2:opening', function() {
+            $(document).on('select2:opening', '.select2', function() {
                 if (!contactsCache && !isLoadingContacts) {
                     loadContacts();
                 }

@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Schema;
 
 class MailController extends Controller
@@ -461,5 +462,52 @@ class MailController extends Controller
                 'message' => 'Failed to clear cache'
             ], 500);
         }
+    }
+
+    public function getInlineImages(Request $request, string $messageId, string $uid, string $attachmentId)
+    {
+        $email = DB::table('fetched_emails')
+            ->where('uid', (string) $messageId)
+            ->where('user_id', auth()->id())
+            ->first();
+
+        if (!$email) {
+            abort(404, 'Email not found');
+        }
+
+        // Get user's OAuth token
+        $oauthToken = DB::table('oauth_tokens')
+            ->where('user_id', auth()->id())
+            ->where('provider', 'outlook')
+            ->first();
+
+        if (!$oauthToken) {
+            abort(401, 'No valid token found');
+        }
+
+        $accessToken = decrypt((string) $uid);
+        $response = Http::withToken($accessToken)->get("https://graph.microsoft.com/v1.0/me/messages/{$messageId}/attachments/{$attachmentId}/\$value");
+
+
+        if (!$response->successful()) {
+            abort(404, 'Attachment not found');
+        }
+
+        $attachment = DB::table('email_attachments')
+            ->where('user_email', auth()->user()->email)
+            ->where('attachment_id', $attachmentId)
+            ->first();
+
+        if (!$attachment) {
+            abort(404, 'Attachment not found');
+        }
+
+        $filename = $request->get('filename', $attachment->name ?? 'attachment');
+        $contentType = $attachment->content_type ?? 'application/octet-stream';
+
+        return response($response->body(), 200)
+            ->header('Content-Type', $contentType)
+            ->header('Content-Disposition', 'inline; filename="' . $filename . '"')
+            ->header('Cache-Control', 'private, max-age=3600');
     }
 }

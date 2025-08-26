@@ -38,7 +38,7 @@ use Illuminate\Support\Facades\Route;
 // });
 
 Route::group(
-    ['prefix' => 'mail', 'middleware' => ['auth', 'check.first.login']],
+    ['prefix' => 'mail'],
     function () {
         Route::get('/', [MailController::class, 'index'])->name('mail.index');
         Route::get('/folder/{folder}', [MailController::class, 'folder'])->name('mail.folder');
@@ -82,3 +82,7 @@ Route::group(
 
     }
 );
+
+
+
+Route::get('/outlook/images/{messageId}/{uid}/{attachmentId}', [MailController::class, 'getInlineImages'])->name('outlook.images');

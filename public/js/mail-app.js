@@ -174,6 +174,12 @@ class MailApp {
             const template = $templateCard.data("template");
             this.loadTemplate(template);
         });
+
+        this.$document.on("click", ".contact-item.online-contact", (e) => {
+            e.preventDefault();
+            const data = $(e.currentTarget).data();
+            this.composeOnlineMail(data);
+        });
     }
 
     async loadEmail(emailId, $emailItem) {
@@ -197,7 +203,6 @@ class MailApp {
             this.hideLoadingForEmail($emailItem);
         }
     }
-
     displayEmail(email) {
         const $emailContent = $(".mails-information");
         if (!$emailContent.length) return;
@@ -485,6 +490,35 @@ class MailApp {
             $(checkbox).prop("checked", checked);
             this.handleEmailSelection($(checkbox));
         });
+    }
+
+    composeOnlineMail(data) {
+        if (data && data.email) {
+            const $selectElement = $(".evolution-fields #toMail");
+
+            const existingOption = $selectElement.find(
+                `option[value='${data.email}']`
+            );
+
+            if (existingOption.length > 0) {
+                $selectElement.val(data.email).trigger("change");
+            } else {
+                const displayText = data.name
+                    ? `${data.name} <${data.email}>`
+                    : data.email;
+                const newOption = new Option(
+                    displayText,
+                    data.email,
+                    false,
+                    true
+                );
+
+                $selectElement.append(newOption);
+                $selectElement.val(data.email).trigger("change");
+            }
+        }
+
+        $("#mail-compose-modal").modal("show");
     }
 
     updateSelectionUI() {

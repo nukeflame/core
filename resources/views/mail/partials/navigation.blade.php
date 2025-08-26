@@ -81,7 +81,7 @@
             @endforeach
 
             <!-- Settings -->
-            <li class="px-0">
+            {{-- <li class="px-0">
                 <span class="fs-11 text-muted op-7 fw-semibold">SETTINGS</span>
             </li>
             <li>
@@ -93,7 +93,7 @@
                         <span class="flex-fill text-nowrap">Settings</span>
                     </div>
                 </a>
-            </li>
+            </li> --}}
 
             <li class="px-0">
                 <span class="fs-11 text-muted op-7 fw-semibold">LABELS</span>
@@ -126,11 +126,14 @@
             </li>
 
             <li class="mail-online-users">
+                {{-- {{ logger()->debug(json_encode($onlineUsers, JSON_PRETTY_PRINT)) }} --}}
                 <ul class="mail-online-list customScrollBar">
                     @if (isset($onlineUsers) && $onlineUsers->count() > 0)
                         @foreach ($onlineUsers->take(30) as $onlineUser)
                             <li>
-                                <a href="#" class="contact-item" data-contact-id="{{ $onlineUser['id'] }}">
+                                <a href="#" class="contact-item online-contact"
+                                    data-contact-id="{{ $onlineUser['id'] }}" data-email="{{ $onlineUser['email'] }}"
+                                    data-name="{{ $onlineUser['name'] }}">
                                     <div class="d-flex align-items-top lh-1">
                                         <div class="me-2">
                                             <span
