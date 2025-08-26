@@ -85,4 +85,4 @@ Route::group(
 
 
 
-Route::get('/outlook/images/{messageId}/{uid}/{attachmentId}', [MailController::class, 'getInlineImages'])->name('outlook.images');
+Route::get('/outlook/images/{messageId}', [MailController::class, 'getInlineImages'])->name('outlook.images');

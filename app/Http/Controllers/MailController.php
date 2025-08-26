@@ -9,6 +9,7 @@ use Exception;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Collection;
@@ -16,6 +17,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 
 class MailController extends Controller
 {
@@ -464,7 +466,7 @@ class MailController extends Controller
         }
     }
 
-    public function getInlineImages(Request $request, string $messageId, string $uid, string $attachmentId)
+    public function getInlineImages(Request $request, string $messageId)
     {
         $email = DB::table('fetched_emails')
             ->where('uid', (string) $messageId)
@@ -475,39 +477,37 @@ class MailController extends Controller
             abort(404, 'Email not found');
         }
 
-        // Get user's OAuth token
-        $oauthToken = DB::table('oauth_tokens')
-            ->where('user_id', auth()->id())
-            ->where('provider', 'outlook')
-            ->first();
+        $filename = $request->get('filename', 'missing_attachment.png');
 
-        if (!$oauthToken) {
-            abort(401, 'No valid token found');
+        $extension = pathinfo($filename, PATHINFO_EXTENSION);
+        $basename = pathinfo($filename, PATHINFO_FILENAME);
+        $slugged = Str::slug($basename);
+        $underscored = str_replace('-', '_', $slugged);
+
+        $processedFilename = $underscored . ($extension ? ".{$extension}" : '');
+        $filep = "emails/" . auth()->user()->email . "/{$processedFilename}";
+        $filepath = storage_path('app/public/' . $filep);
+
+        if (!$filepath) {
+            logger()->error("File not found");
+            abort(404, 'File not found');
         }
 
-        $accessToken = decrypt((string) $uid);
-        $response = Http::withToken($accessToken)->get("https://graph.microsoft.com/v1.0/me/messages/{$messageId}/attachments/{$attachmentId}/\$value");
+        try {
+            // Get MIME type using native PHP function
+            $finfo = finfo_open(FILEINFO_MIME_TYPE);
+            $mimeType = finfo_file($finfo, $filepath);
+            finfo_close($finfo);
 
+            $contentType = $mimeType ?: 'application/octet-stream';
 
-        if (!$response->successful()) {
-            abort(404, 'Attachment not found');
+            return response()->file($filepath, [
+                'Content-Type' => $contentType,
+                'Content-Disposition' => 'inline; filename="' . basename($filepath) . '"'
+            ]);
+        } catch (\Exception $e) {
+            logger()->error("Error retrieving file: " . $e->getMessage());
+            abort(500, 'Error retrieving file');
         }
-
-        $attachment = DB::table('email_attachments')
-            ->where('user_email', auth()->user()->email)
-            ->where('attachment_id', $attachmentId)
-            ->first();
-
-        if (!$attachment) {
-            abort(404, 'Attachment not found');
-        }
-
-        $filename = $request->get('filename', $attachment->name ?? 'attachment');
-        $contentType = $attachment->content_type ?? 'application/octet-stream';
-
-        return response($response->body(), 200)
-            ->header('Content-Type', $contentType)
-            ->header('Content-Disposition', 'inline; filename="' . $filename . '"')
-            ->header('Cache-Control', 'private, max-age=3600');
     }
 }

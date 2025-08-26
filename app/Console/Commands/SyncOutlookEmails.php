@@ -589,36 +589,6 @@ class SyncOutlookEmails extends Command
         return $this->processEmailsWithImageLinking($rawEmails);
     }
 
-    // private function processEmails(array $rawEmails): array
-    // {
-    //     $emails = [];
-    //     $processedCount = 0;
-    //     $errorCount = 0;
-
-    //     if ($this->option('debug')) {
-    //         $this->info("Processing " . count($rawEmails) . " raw emails...");
-    //     }
-
-    //     foreach ($rawEmails as $index => $rawEmail) {
-    //         try {
-    //             $emails[] = $this->transformEmailData($rawEmail);
-    //             $processedCount++;
-    //         } catch (Exception $e) {
-    //             $errorCount++;
-    //             if ($this->option('debug')) {
-    //                 $this->warn("Failed to process email #{$index}: " . $e->getMessage());
-    //                 $this->warn("Raw email data: " . json_encode($rawEmail, JSON_PRETTY_PRINT));
-    //             }
-    //         }
-    //     }
-
-    //     if ($this->option('debug')) {
-    //         $this->info("Email processing complete: {$processedCount} processed, {$errorCount} errors");
-    //     }
-
-    //     return $emails;
-    // }
-
     private function attachmentService(): object
     {
         return new class($this) {
@@ -715,12 +685,16 @@ class SyncOutlookEmails extends Command
 
                         if ($content) {
                             $filename = $this->generateUniqueFilename($attachment['name'], $messageId);
-                            $filepath = "emails/{$this->user->email}/" . date('Y/m/d') . "/{$filename}";
+                            $filepath = "public/emails/{$this->user->email}/{$filename}";
+
+                            logger($filename);
 
                             $directory = dirname($filepath);
                             if (!Storage::disk($storageDisk)->exists($directory)) {
                                 Storage::disk($storageDisk)->makeDirectory($directory);
                             }
+
+                            $fileExists = Storage::disk($storageDisk)->exists($filepath);
 
                             Storage::disk($storageDisk)->put($filepath, $content);
 
@@ -728,7 +702,11 @@ class SyncOutlookEmails extends Command
                             $attachments[$index]['file_path'] = $filepath;
 
                             if ($this->command->option('debug')) {
-                                $this->command->info("Downloaded: {$attachment['name']} -> {$filepath}");
+                                if ($fileExists) {
+                                    $this->command->info("File already existed, overwritten: {$attachment['name']} -> {$filepath}");
+                                } else {
+                                    $this->command->info("Downloaded: {$attachment['name']} -> {$filepath}");
+                                }
                             }
                         }
                     } catch (\Exception $e) {
@@ -760,12 +738,14 @@ class SyncOutlookEmails extends Command
              */
             private function generateUniqueFilename(string $originalName, string $messageId): string
             {
+
                 $extension = pathinfo($originalName, PATHINFO_EXTENSION);
                 $basename = pathinfo($originalName, PATHINFO_FILENAME);
-                $timestamp = time();
-                $messagePrefix = substr(md5($messageId), 0, 8);
 
-                return Str::slug($basename) . "_{$messagePrefix}_{$timestamp}" . ($extension ? ".{$extension}" : '');
+                $slugged = Str::slug($basename);
+                $underscored = str_replace('-', '_', $slugged);
+
+                return $underscored . ($extension ? ".{$extension}" : '');
             }
 
             private function getEmailAttachments(string $messageId): array
@@ -1045,55 +1025,6 @@ class SyncOutlookEmails extends Command
 
         return ['new' => $newCount, 'updated' => $updatedCount];
     }
-    // private function saveEmailsToDatabase(array $emails): array
-    // {
-    //     if (empty($emails)) {
-    //         $this->info('No emails to save to database.');
-    //         return ['new' => 0, 'updated' => 0];
-    //     }
-
-    //     $this->info('Saving ' . count($emails) . ' emails to database...');
-    //     $newCount = 0;
-    //     $updatedCount = 0;
-    //     $errorCount = 0;
-
-    //     $bar = $this->getOutput()->createProgressBar(count($emails));
-    //     $bar->start();
-
-    //     foreach ($emails as $email) {
-    //         try {
-    //             $result = $this->saveOrUpdateEmail($email);
-    //             $result['isNew'] ? $newCount++ : $updatedCount++;
-
-    //             $this->saveRelatedData($email);
-
-    //             if ($this->option('debug')) {
-    //                 $status = $result['isNew'] ? 'NEW' : 'UPDATED';
-    //                 $this->info("[{$status}] Email: " . ($email['subject'] ?? 'No Subject'));
-    //             }
-    //         } catch (Exception $e) {
-    //             $errorCount++;
-    //             if ($this->option('debug')) {
-    //                 $this->warn('Failed to save email: ' . $e->getMessage());
-    //                 $this->warn('Email data: ' . json_encode($email, JSON_PRETTY_PRINT));
-    //             }
-
-    //             logger()->error('Failed to save email to database', [
-    //                 'error' => $e->getMessage(),
-    //                 'email_id' => $email['id'] ?? 'unknown',
-    //                 'user_id' => $this->currentUser->user_id
-    //             ]);
-    //         }
-
-    //         $bar->advance();
-    //     }
-
-    //     $bar->finish();
-    //     $this->line('');
-
-    //     $this->info("Database save complete: {$newCount} new, {$updatedCount} updated, {$errorCount} errors");
-    //     return ['new' => $newCount, 'updated' => $updatedCount];
-    // }
 
     private function saveOrUpdateEmail(array $email): array
     {

@@ -161,9 +161,7 @@ class EmailImageLinker
                 $this->command->info("Available CIDs: " . implode(', ', array_keys($cidMap)));
             }
 
-
-            // return $fullImgTag;
-            return "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGNoaGgAAAMEAYFL09IQAAAAAElFTkSuQmCC";
+            return "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
         }, $html);
 
         return $processedHtml;
@@ -198,14 +196,12 @@ class EmailImageLinker
             $this->command->info("🔗 Generated URL for: {$filename}");
         }
 
-        // Return placeholder for debugging
-        // return "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
+        // &attachmentId={$attachmentId}
 
         $baseUrl = config('app.url');
-        $route = "/outlook/images/" . urlencode($filename);
-        $url =  "{$baseUrl}{$route}";
-
-        // logger()->debug($url);
+        $route = "/outlook/images/{$messageId}";
+        $safeName = urlencode($filename);
+        $url = "{$baseUrl}{$route}?filename={$safeName}";
 
         return $url;
     }
@@ -273,11 +269,8 @@ trait EmailImageLinkingTrait
                     $this->info("Processing email " . ($index + 1) . "/" . count($rawEmails) . ": " . ($rawEmail['subject'] ?? 'No Subject'));
                 }
 
-                $email = $this->transformEmailData($rawEmail);
-
-                // if ($email['has_attachments']) {
-                $email = $imageLinker->processEmailImages($email);
-                // }
+                $x = $this->transformEmailData($rawEmail);
+                $email = $imageLinker->processEmailImages($x);
 
                 $emails[] = $email;
             } catch (Exception $e) {
