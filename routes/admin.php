@@ -17,6 +17,7 @@ Route::group(['prefix' => 'admin', 'middleware' => ['auth', 'check.first.login']
     // ->middleware('permission:manage-users');
     Route::delete('changePassword', [ProfileController::class, 'destroy'])->name('changePassword');
     Route::post('user/destroy', [UserController::class, 'destroy'])->name('admin.user.destroy');
+    Route::get('users/{id}/edit', [UserController::class, 'edit'])->name('admin.users.edit');
 
     Route::post('register-user', [ProfileController::class, 'store'])->name('store.user');
     Route::get('myprofile-user', [ProfileController::class, 'myProfile'])->name('user.myprofile');

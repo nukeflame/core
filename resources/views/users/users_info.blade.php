@@ -762,14 +762,13 @@
             }
 
             function loadUserData(userId) {
-                console.log('Loading user data for ID:', userId);
                 $.ajax({
                     url: `/admin/users/${userId}/edit`,
                     type: 'GET',
                     dataType: 'json',
                     success: function(data) {
                         console.log('User data loaded:', data);
-                        populateEditForm(data, userId);
+                        // populateEditForm(data, userId);
                     },
                     error: function(xhr) {
                         console.error('Error loading user data:', xhr);
@@ -823,14 +822,9 @@
                 console.log('Loading available roles...');
             }
 
-            /**
-             * Handle role assignment save
-             */
             function handleRoleAssignmentSave() {
                 const userId = $('#userRoleModal').data('user-id');
                 const selectedRoles = $('#role_ids').val();
-
-                console.log('Saving role assignment for user:', userId, 'roles:', selectedRoles);
 
                 if (!selectedRoles || selectedRoles.length === 0) {
                     toastr.error('Please select at least one role');
@@ -862,17 +856,11 @@
                 });
             }
 
-            /**
-             * Handle user removal
-             */
             function handleUserRemoval(email, $button) {
-                console.log('User removal for email:', email);
-
                 if (!email) {
                     toastr.error('Invalid user data');
                     return;
                 }
-
                 showDeleteConfirmation(email, $button);
             }
 
@@ -927,12 +915,76 @@
             function handleDeleteError(xhr) {
                 if (xhr.status === 422 && xhr.responseJSON?.errors) {
                     Object.values(xhr.responseJSON.errors).forEach(error => {
-                        toastr.error(error[0]);
+                        const errorMessage = Array.isArray(error) ? error[0] : error;
+                        toastr.error(errorMessage);
                     });
-                } else {
-                    toastr.error('An error occurred while deleting the user');
-                    console.error('User deletion error:', xhr);
+                    return;
                 }
+
+                if (xhr.status === 403) {
+                    let forbiddenMessage = 'Access denied';
+                    if (xhr.responseJSON?.message) {
+                        forbiddenMessage = xhr.responseJSON.message;
+                    } else if (xhr.responseText) {
+                        try {
+                            const response = JSON.parse(xhr.responseText);
+                            forbiddenMessage = response.message || forbiddenMessage;
+                        } catch (e) {
+                            console.warn('Could not parse 403 response text:', xhr.responseText);
+                        }
+                    }
+
+                    toastr.error(forbiddenMessage);
+                    return;
+                }
+
+                if (xhr.status === 401) {
+                    toastr.error('You are not authenticated. Please log in again.');
+                    setTimeout(() => {
+                        window.location.href = '/login';
+                    }, 2000);
+                    return;
+                }
+
+                if (xhr.status === 404) {
+                    toastr.error('User not found or has already been deleted');
+
+                    if (typeof $userTable !== 'undefined' && $userTable.ajax) {
+                        $userTable.ajax.reload();
+                    }
+                    return;
+                }
+
+                if (xhr.status === 500) {
+                    let serverErrorMessage = 'Server error occurred. Please try again later.';
+                    if (xhr.responseJSON?.message) {
+                        serverErrorMessage = xhr.responseJSON.message;
+                    }
+                    toastr.error(serverErrorMessage);
+                    return;
+                }
+
+                if (xhr.status === 0 || xhr.statusText === 'timeout') {
+                    toastr.error('Request timed out. Please check your connection and try again.');
+                    return;
+                }
+
+                let genericErrorMessage = 'An error occurred while deleting the user';
+
+                if (xhr.responseJSON?.message) {
+                    genericErrorMessage = xhr.responseJSON.message;
+                } else if (xhr.responseText) {
+                    try {
+                        const response = JSON.parse(xhr.responseText);
+                        if (response.message) {
+                            genericErrorMessage = response.message;
+                        }
+                    } catch (e) {
+                        console.warn('Could not parse error response:', xhr.responseText);
+                    }
+                }
+
+                toastr.error(genericErrorMessage);
             }
 
             function setDeleteButtonLoading($button, isLoading) {
@@ -984,8 +1036,6 @@
             }
 
             function handleAjaxError(xhr, context = 'Operation') {
-                console.error(`${context} error:`, xhr);
-
                 if (xhr.status === 422 && xhr.responseJSON?.errors) {
                     const errors = xhr.responseJSON.errors;
                     Object.values(errors).forEach(error => {

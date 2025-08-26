@@ -12,9 +12,11 @@ use App\Services\UserService;
 use Carbon\Carbon;
 use Exception;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Yajra\DataTables\Facades\DataTables;
 
@@ -53,54 +55,167 @@ class UserController extends Controller
     public function store(Request $request)
     {
         DB::beginTransaction();
+
         try {
             $validator = Validator::make($request->all(), [
                 'username' => 'required|alpha_num|min:3|max:20|unique:users,user_name',
-                'email' => 'required|email|unique:users',
+                'email' => 'required|email|unique:users,email',
                 'first_name' => 'required|string|max:50',
                 'last_name' => 'required|string|max:50',
                 'phone_number' => 'nullable|string|max:20',
                 'department_id' => 'required|exists:company_department,department_code',
                 'role_id' => 'required|exists:roles,id',
+                'is_staff' => 'nullable|boolean',
+                'send_welcome_email' => 'nullable|boolean',
+                'require_password_change' => 'nullable|boolean',
             ], [
-                'username.unique' => 'The username is already taken',
-                'department_id.required' => 'The department is required',
-                'role_id.required' => 'The role is required',
-                'username.unique' => 'The username is already taken',
+                'username.required' => 'Username is required',
+                'username.alpha_num' => 'Username must contain only letters and numbers',
+                'username.min' => 'Username must be at least 3 characters',
+                'username.max' => 'Username cannot exceed 20 characters',
+                'username.unique' => 'This username is already taken',
+                'email.required' => 'Email address is required',
+                'email.email' => 'Please enter a valid email address',
+                'email.unique' => 'This email address is already registered',
+                'first_name.required' => 'First name is required',
+                'last_name.required' => 'Last name is required',
+                'department_id.required' => 'Please select a department',
+                'department_id.exists' => 'Selected department does not exist',
+                'role_id.required' => 'Please select a role',
+                'role_id.exists' => 'Selected role does not exist',
             ]);
 
             if ($validator->fails()) {
                 return response()->json([
+                    'success' => false,
                     'errors' => $validator->errors()
                 ], 422);
             }
 
-            $data = [
-                'name' => Str::ucfirst($request->first_name . ' ' . $request->last_name),
+            $userData = [
+                'name' => Str::title($request->first_name . ' ' . $request->last_name),
                 'user_name' => Str::lower($request->username),
                 'email' => Str::lower($request->email),
-                'first_name' => Str::ucfirst($request->first_name),
-                'last_name' => Str::ucfirst($request->last_name),
+                'first_name' => Str::title($request->first_name),
+                'last_name' => Str::title($request->last_name),
                 'phone_number' => $request->phone_number,
                 'department_id' => $request->department_id,
                 'role_id' => $request->role_id,
-                'role_id' => false,
-                'status' => 'A',
+                'is_staff' => $request->boolean('is_staff', true),
+                'status' => true
             ];
 
-            $this->userService->createUser($data, $request->has('send_welcome_email'), $request->has('require_password_change'));
+            $result = $this->userService->createUser(
+                $userData,
+                $request->boolean('send_welcome_email', false),
+                $request->boolean('require_password_change', true)
+            );
+
+            logger()->info(json_encode($result, JSON_PRETTY_PRINT));
+
+            if (!$result['success']) {
+                throw new \Exception($result['message'] ?? 'User creation failed');
+            }
 
             DB::commit();
 
             return response()->json([
                 'success' => true,
-                'message' => 'User created successfully. A temporary password has been generated.'
+                'message' => 'User created successfully. A temporary password has been generated.',
+                'user' => $result['user']
             ], 201);
         } catch (\Exception $e) {
             DB::rollback();
-            logger()->info($e);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to create user: ' . $e->getMessage(),
+                'error' => config('app.debug') ? $e->getMessage() : 'Internal server error'
+            ], 500);
         }
     }
+
+    private function generateSecureTemporaryPassword(): string
+    {
+        $chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%';
+        $password = '';
+        for ($i = 0; $i < 12; $i++) {
+            $password .= $chars[random_int(0, strlen($chars) - 1)];
+        }
+        return $password;
+    }
+
+    // private function sendWelcomeEmail($user, $temporaryPassword): void
+    // {
+    //     try {
+    //         // Implement your email logic here
+    //         // Example using Laravel Mail:
+    //         // Mail::to($user->email)->send(new WelcomeUserMail($user, $temporaryPassword));
+
+    //         logger()->info('Welcome email sent', [
+    //             'user_id' => $user->id,
+    //             'email' => $user->email
+    //         ]);
+    //     } catch (\Exception $e) {
+    //         logger()->error('Failed to send welcome email', [
+    //             'user_id' => $user->id,
+    //             'error' => $e->getMessage()
+    //         ]);
+    //         throw $e; // Re-throw so caller can handle
+    //     }
+    // }
+
+    // public function store(Request $request)
+    // {
+    //     DB::beginTransaction();
+    //     try {
+    //         $validator = Validator::make($request->all(), [
+    //             'username' => 'required|alpha_num|min:3|max:20|unique:users,user_name',
+    //             'email' => 'required|email|unique:users',
+    //             'first_name' => 'required|string|max:50',
+    //             'last_name' => 'required|string|max:50',
+    //             'phone_number' => 'nullable|string|max:20',
+    //             'department_id' => 'required|exists:company_department,department_code',
+    //             'role_id' => 'required|exists:roles,id',
+    //         ], [
+    //             'username.unique' => 'The username is already taken',
+    //             'department_id.required' => 'The department is required',
+    //             'role_id.required' => 'The role is required',
+    //             'username.unique' => 'The username is already taken',
+    //         ]);
+
+    //         if ($validator->fails()) {
+    //             return response()->json([
+    //                 'errors' => $validator->errors()
+    //             ], 422);
+    //         }
+
+    //         $data = [
+    //             'name' => Str::ucfirst($request->first_name . ' ' . $request->last_name),
+    //             'user_name' => Str::lower($request->username),
+    //             'email' => Str::lower($request->email),
+    //             'first_name' => Str::ucfirst($request->first_name),
+    //             'last_name' => Str::ucfirst($request->last_name),
+    //             'phone_number' => $request->phone_number,
+    //             'department_id' => $request->department_id,
+    //             'role_id' => $request->role_id,
+    //             'role_id' => false,
+    //             'status' => 'A',
+    //         ];
+
+    //         $this->userService->createUser($data, $request->has('send_welcome_email'), $request->has('require_password_change'));
+
+    //         DB::commit();
+
+    //         return response()->json([
+    //             'success' => true,
+    //             'message' => 'User created successfully. A temporary password has been generated.'
+    //         ], 201);
+    //     } catch (\Exception $e) {
+    //         DB::rollback();
+    //         logger()->info($e);
+    //     }
+    // }
 
     public function checkUsername(Request $request)
     {
@@ -255,7 +370,6 @@ class UserController extends Controller
             ->make(true);
     }
 
-
     public function destroy(Request $request)
     {
         try {
@@ -372,6 +486,33 @@ class UserController extends Controller
                 'message' => 'Failed to delete user: ' . $e->getMessage(),
                 'error' => config('app.debug') ? $e->getMessage() : 'Internal server error'
             ], 500);
+        }
+    }
+
+    public function edit($id): JsonResponse
+    {
+        try {
+            $user = User::with(['department', 'roles'])->findOrFail($id);
+
+            $userData = [
+                'id' => $user->id,
+                'username' => $user->username,
+                'email' => $user->email,
+                'first_name' => $user->first_name,
+                'last_name' => $user->last_name,
+                'phone_number' => $user->phone_number,
+                'department_id' => $user->department_id,
+                'is_staff' => $user->is_staff,
+                'status' => $user->status,
+                'role_id' => $user->roles->first()?->id
+            ];
+
+            return response()->json($userData);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'User not found'
+            ], 404);
         }
     }
 }

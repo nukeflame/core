@@ -49,4 +49,54 @@ class Department extends Model
     {
         return $this->belongsToMany(Role::class, 'role_departments');
     }
+
+
+    //
+    //  /**
+    //  * Users in this department
+    //  */
+    // public function users()
+    // {
+    //     return $this->hasMany(User::class, 'department_id', 'department_code');
+    // }
+
+    // /**
+    //  * Roles available in this department
+    //  */
+    // public function roles()
+    // {
+    //     return $this->hasMany(Role::class, 'department_code', 'department_code');
+    // }
+
+    // /**
+    //  * Department manager
+    //  */
+    // public function manager()
+    // {
+    //     return $this->belongsTo(User::class, 'manager_id');
+    // }
+
+    // /**
+    //  * Department head
+    //  */
+    // public function departmentHead()
+    // {
+    //     return $this->belongsTo(User::class, 'department_head_id');
+    // }
+
+    // /**
+    //  * Parent department
+    //  */
+    // public function parent()
+    // {
+    //     return $this->belongsTo(CompanyDepartment::class, 'parent_id', 'department_code');
+    // }
+
+    // /**
+    //  * Child departments
+    //  */
+    // public function children()
+    // {
+    //     return $this->hasMany(CompanyDepartment::class, 'parent_id', 'department_code');
+    // }
 }

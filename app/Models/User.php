@@ -9,6 +9,7 @@ use Illuminate\Notifications\Notifiable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Support\Facades\DB;
 
 class User extends Authenticatable
 {
@@ -146,5 +147,30 @@ class User extends Authenticatable
         $status = json_decode($response->getContent(), true);
 
         return $status['connected'] ?? false;
+    }
+
+    public function assigndDepartmentRole($roleId)
+    {
+        $role = Role::where('id', $roleId)->where('is_active', true)->first();
+
+        if (!$role) {
+            throw new \Exception("Role with ID {$roleId} not found or inactive");
+        }
+
+        $existingAssignment = DB::table('role_departments')
+            ->where('role_id', $roleId)
+            ->where('department_id', $this->id)
+            ->first();
+
+        if (!$existingAssignment) {
+            DB::table('role_departments')->insert([
+                'role_id' => $roleId,
+                'department_id' => $this->id,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+
+        return $this;
     }
 }
