@@ -373,6 +373,12 @@ class UserController extends Controller
             DB::beginTransaction();
 
             try {
+                DB::table('user_activity_logs')->where('user_id', $userToDelete->id)->delete();
+
+                if ($userToDelete->notifications()->exists()) {
+                    $userToDelete->notifications()->delete();
+                }
+
                 if ($userToDelete->roles()->exists()) {
                     $userToDelete->roles()->detach();
                 }
