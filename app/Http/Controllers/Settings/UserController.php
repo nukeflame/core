@@ -135,88 +135,6 @@ class UserController extends Controller
         }
     }
 
-    private function generateSecureTemporaryPassword(): string
-    {
-        $chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%';
-        $password = '';
-        for ($i = 0; $i < 12; $i++) {
-            $password .= $chars[random_int(0, strlen($chars) - 1)];
-        }
-        return $password;
-    }
-
-    // private function sendWelcomeEmail($user, $temporaryPassword): void
-    // {
-    //     try {
-    //         // Implement your email logic here
-    //         // Example using Laravel Mail:
-    //         // Mail::to($user->email)->send(new WelcomeUserMail($user, $temporaryPassword));
-
-    //         logger()->info('Welcome email sent', [
-    //             'user_id' => $user->id,
-    //             'email' => $user->email
-    //         ]);
-    //     } catch (\Exception $e) {
-    //         logger()->error('Failed to send welcome email', [
-    //             'user_id' => $user->id,
-    //             'error' => $e->getMessage()
-    //         ]);
-    //         throw $e; // Re-throw so caller can handle
-    //     }
-    // }
-
-    // public function store(Request $request)
-    // {
-    //     DB::beginTransaction();
-    //     try {
-    //         $validator = Validator::make($request->all(), [
-    //             'username' => 'required|alpha_num|min:3|max:20|unique:users,user_name',
-    //             'email' => 'required|email|unique:users',
-    //             'first_name' => 'required|string|max:50',
-    //             'last_name' => 'required|string|max:50',
-    //             'phone_number' => 'nullable|string|max:20',
-    //             'department_id' => 'required|exists:company_department,department_code',
-    //             'role_id' => 'required|exists:roles,id',
-    //         ], [
-    //             'username.unique' => 'The username is already taken',
-    //             'department_id.required' => 'The department is required',
-    //             'role_id.required' => 'The role is required',
-    //             'username.unique' => 'The username is already taken',
-    //         ]);
-
-    //         if ($validator->fails()) {
-    //             return response()->json([
-    //                 'errors' => $validator->errors()
-    //             ], 422);
-    //         }
-
-    //         $data = [
-    //             'name' => Str::ucfirst($request->first_name . ' ' . $request->last_name),
-    //             'user_name' => Str::lower($request->username),
-    //             'email' => Str::lower($request->email),
-    //             'first_name' => Str::ucfirst($request->first_name),
-    //             'last_name' => Str::ucfirst($request->last_name),
-    //             'phone_number' => $request->phone_number,
-    //             'department_id' => $request->department_id,
-    //             'role_id' => $request->role_id,
-    //             'role_id' => false,
-    //             'status' => 'A',
-    //         ];
-
-    //         $this->userService->createUser($data, $request->has('send_welcome_email'), $request->has('require_password_change'));
-
-    //         DB::commit();
-
-    //         return response()->json([
-    //             'success' => true,
-    //             'message' => 'User created successfully. A temporary password has been generated.'
-    //         ], 201);
-    //     } catch (\Exception $e) {
-    //         DB::rollback();
-    //         logger()->info($e);
-    //     }
-    // }
-
     public function checkUsername(Request $request)
     {
         $validator = Validator::make($request->all(), [
@@ -403,16 +321,18 @@ class UserController extends Controller
 
             $hasPermission = false;
 
-            if ($currentUser->hasRole(['admin', 'super_admin'])) {
-                $hasPermission = true;
-            }
+            // logger()->info(['ss' => $currentUser->hasRole(['admin', 'super_admin'])]);
 
-            if (!$hasPermission) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'You do not have permission to delete users'
-                ], 403);
-            }
+            // if ($currentUser->hasRole(['admin', 'super_admin'])) {
+            //     $hasPermission = true;
+            // }
+
+            // if (!$hasPermission) {
+            //     return response()->json([
+            //         'success' => false,
+            //         'message' => 'You do not have permission to delete users'
+            //     ], 403);
+            // }
 
             $userToDelete = User::with('roles')->where('email', $request->email)->first();
 
@@ -445,7 +365,7 @@ class UserController extends Controller
                 ], 403);
             }
 
-            if ($userToDelete->user_name === 'super_admin') {
+            if ($userToDelete->user_name === 'super_admin' || $userToDelete->user_name === 'pknuek') {
                 return response()->json([
                     'success' => false,
                     'message' => 'Cannot delete the primary super admin account'
@@ -459,7 +379,7 @@ class UserController extends Controller
                     $userToDelete->roles()->detach();
                 }
 
-                $deleted = $userToDelete->delete();
+                $deleted = $userToDelete->forceDelete();
 
                 if (!$deleted) {
                     throw new Exception('Failed to delete user from database');

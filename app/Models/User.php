@@ -163,7 +163,7 @@ class User extends Authenticatable
             ->first();
 
         if (!$existingAssignment) {
-            DB::table('role_departments')->insert([
+            DB::table('role_departments')->updateOrInsert([
                 'role_id' => $roleId,
                 'department_id' => $this->id,
                 'created_at' => now(),

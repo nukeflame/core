@@ -621,9 +621,7 @@ class PermissionsSeeder extends Seeder
         $adminRole = Role::where('slug', 'super_admin')->first();
 
         $userAssignments = [
-            'pknuek'       => ['super_admin', 'Ken', 'Peters', '+254700000001'],
-            'nyaste'       => ['super_admin', 'Stephen', 'Munyao', '+254700000001'],
-            'derrickintra' => ['super_admin', 'Derrick', 'Ingalia', '+254700000001'],
+            'pknuek'       => ['super_admin', 'Admin', '--', '+254700000000'],
         ];
 
         $department = Department::firstOrCreate(

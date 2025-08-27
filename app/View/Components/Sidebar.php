@@ -44,6 +44,9 @@ class Sidebar extends Component
     private function filterMenuByPermissions($menuItems)
     {
         $result = [];
+
+        logger(['permissios' => $this->user->permissions]);
+
         foreach ($menuItems as $category) {
             if (
                 isset($category['visibility_check']) &&
