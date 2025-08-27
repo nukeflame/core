@@ -111,8 +111,6 @@ class UserController extends Controller
                 $request->boolean('require_password_change', true)
             );
 
-            logger()->info(json_encode($result, JSON_PRETTY_PRINT));
-
             if (!$result['success']) {
                 throw new \Exception($result['message'] ?? 'User creation failed');
             }
