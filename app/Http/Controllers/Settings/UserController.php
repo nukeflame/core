@@ -373,28 +373,16 @@ class UserController extends Controller
             DB::beginTransaction();
 
             try {
-                DB::table('user_activity_logs')->where('user_id', $userToDelete->id)->delete();
+                $deletionStats = $this->cleanupUserData($userToDelete);
 
-                if ($userToDelete->notifications()->exists()) {
-                    $userToDelete->notifications()->delete();
-                }
+                $this->detachUserRoles($userToDelete);
 
-                if ($userToDelete->roles()->exists()) {
-                    $userToDelete->roles()->detach();
-                }
+                $this->deleteUser($userToDelete);
 
-                $deleted = $userToDelete->forceDelete();
-
-                if (!$deleted) {
-                    throw new Exception('Failed to delete user from database');
-                }
 
                 DB::commit();
 
-                return response()->json([
-                    'success' => true,
-                    'message' => 'User deleted successfully'
-                ], 200);
+                return $this->successResponse('User deleted successfully', $deletionStats);
             } catch (\Exception $e) {
                 DB::rollBack();
                 throw $e;
@@ -411,6 +399,55 @@ class UserController extends Controller
                 'error' => config('app.debug') ? $e->getMessage() : 'Internal server error'
             ], 500);
         }
+    }
+
+    private function cleanupUserData(User $userToDelete): array
+    {
+        $deletionStats = [];
+
+        $deletionStats['activity_logs_deleted'] = DB::table('user_activity_logs')
+            ->where('user_id', $userToDelete->id)
+            ->delete();
+
+        $deletionStats['notifications_deleted'] = DB::table('notifications')
+            ->where('user_id', $userToDelete->id)
+            ->orWhere('created_by', $userToDelete->id)
+            ->delete();
+
+        $deletionStats['notification_reads_deleted'] = DB::table('approval_notification_read')
+            ->where('user_id', $userToDelete->id)
+            ->delete();
+
+        $deletionStats['approval_notifications_deleted'] = DB::table('approval_notification_user')
+            ->where('user_id', $userToDelete->id)
+            ->delete();
+
+        return $deletionStats;
+    }
+
+    private function detachUserRoles(User $userToDelete): void
+    {
+        if ($userToDelete->roles()->exists()) {
+            $userToDelete->roles()->detach();
+        }
+    }
+
+    private function deleteUser(User $userToDelete): void
+    {
+        $deleted = $userToDelete->forceDelete();
+
+        if (!$deleted) {
+            throw new \Exception('Failed to delete user from database');
+        }
+    }
+
+    private function successResponse(string $message, array $data = []): JsonResponse
+    {
+        return response()->json([
+            'success' => true,
+            'message' => $message,
+            'data' => $data
+        ], 200);
     }
 
     public function edit($id): JsonResponse
