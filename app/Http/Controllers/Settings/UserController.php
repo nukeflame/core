@@ -410,8 +410,7 @@ class UserController extends Controller
             ->delete();
 
         $deletionStats['notifications_deleted'] = DB::table('notifications')
-            ->where('user_id', $userToDelete->id)
-            ->orWhere('created_by', $userToDelete->id)
+            ->where('created_by', $userToDelete->id)
             ->delete();
 
         $deletionStats['notification_reads_deleted'] = DB::table('approval_notification_read')
