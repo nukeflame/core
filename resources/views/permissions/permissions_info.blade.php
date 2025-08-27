@@ -35,23 +35,24 @@
                     <div class="card-title">Permission list</div>
                 </div>
                 <div class="card-body">
-                    <table id="permission-table" class="table table-striped">
-                        <thead>
-                            <tr>
-                                <th></th>
-                                <th>Names</th>
-                                <th>Description</th>
-                                <th>Status</th>
-                                <th>Roles</th>
-                                <th>Created At</th>
-                            </tr>
-                        </thead>
-                    </table>
+                    <div class="table-responsive">
+                        <table id="permission-table" class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th></th>
+                                    <th>Names</th>
+                                    <th>Description</th>
+                                    <th>Status</th>
+                                    <th>Roles</th>
+                                    <th>Created At</th>
+                                </tr>
+                            </thead>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
-
 
     <!--Assign Role Modal -->
     <div class="modal effect-super-scaled md-wrapper" id="roleModal" data-bs-backdrop="static" data-bs-keyboard="false"
@@ -100,6 +101,24 @@
             </div>
         </div>
     </div>
+
+    <style>
+        /* Style the filter container button to look like a form element */
+        .btn-filter-container {
+            background: transparent !important;
+            border: none !important;
+            padding: 0 !important;
+            box-shadow: none !important;
+        }
+
+        .btn-filter-container:hover,
+        .btn-filter-container:focus,
+        .btn-filter-container:active {
+            background: transparent !important;
+            border: none !important;
+            box-shadow: none !important;
+        }
+    </style>
 @endsection
 
 @push('script')
@@ -115,13 +134,24 @@
                 serverSide: true,
                 bAutoWidth: false,
                 lengthChange: false,
-                pageLength: 17,
+                pageLength: 25,
+                lengthMenu: [
+                    [10, 25, 50, 100],
+                    [10, 25, 50, 100]
+                ],
                 select: {
                     style: 'multi',
                     selector: 'td:first-child'
                 },
                 ajax: {
-                    url: "{!! route('settings.permissions_datatable') !!}",
+                    url: "{{ route('settings.permissions_datatable') }}",
+                    data: function(d) {
+                        d.status_filter = $('#statusFilter').val();
+                    },
+                    error: (xhr, error, code) => {
+                        console.error('DataTable Error:', error, code);
+                        this.showToast('Error loading permissions data', 'error');
+                    }
                 },
                 columnDefs: [{
                     targets: 0,
@@ -158,7 +188,8 @@
                     },
                     {
                         data: 'status',
-                        searchable: false,
+                        name: 'status',
+                        orderable: false
                     },
                     {
                         data: 'roles_count',
@@ -173,12 +204,53 @@
                 ],
                 dom: 'Bfrtip',
                 buttons: [{
-                    text: '<i class="bx bx-shield-plus me-1" style="vertical-align: -3px; font-size:18px;"></i>Assign Role',
-                    className: 'btn btn-ouline-dark shadow-primary btn-wave waves-effect waves-light add-role-btn hidden',
-                    action: function(e, dt, node, config) {
-                        $('#roleModal').modal('show');
+                        text: '<div class="d-flex gap-2" style="align-items: center;"><select id="statusFilter" class="form-select" style="width: auto; min-width: 120px;"><option value="">All Status</option><option value="A">Supported</option><option value="P">Non-applicable</option></select></div>',
+                        className: 'btn-filter-container',
+                        action: function(e, dt, node, config) {
+                            // No action needed - the select handles its own change event
+                        }
+                    },
+                    {
+                        text: '<div class="d-flex gap-2" style="align-items: center;"><select id="lengthSelect" class="form-select" style="width: auto; min-width: 80px;"><option value="10">10</option><option value="25" selected>25</option><option value="50">50</option><option value="100">100</option></select></div>',
+                        className: 'btn-filter-container',
+                        action: function(e, dt, node, config) {
+                            // No action needed - the select handles its own change event
+                        }
+                    },
+                    {
+                        text: 'Clear Filters',
+                        className: 'btn btn-primary btn-sm',
+                        action: function(e, dt, node, config) {
+                            $('#statusFilter').val('');
+                            $table.draw();
+                        }
+                    },
+                    {
+                        text: '<i class="bx bx-check-square me-1" style="vertical-align: -3px; font-size:18px;"></i>Select All Active',
+                        className: 'btn btn-outline-success shadow-success btn-wave waves-effect waves-light select-all-active-btn',
+                        action: function(e, dt, node, config) {
+                            selectAllActivePermissions();
+                        }
+                    },
+                    {
+                        text: '<i class="bx bx-shield-plus me-1" style="vertical-align: -3px; font-size:18px;"></i>Assign Role',
+                        className: 'btn btn-ouline-dark shadow-primary btn-wave waves-effect waves-light add-role-btn hidden',
+                        action: function(e, dt, node, config) {
+                            $('#roleModal').modal('show');
+                        }
                     }
-                }]
+                ]
+            });
+
+            // Handle status filter change - delegate event since the select is created dynamically
+            $(document).on('change', '#statusFilter', function() {
+                $table.draw();
+            });
+
+            // Handle length change - delegate event since the select is created dynamically
+            $(document).on('change', '#lengthSelect', function() {
+                const selectedLength = $(this).val();
+                $table.page.len(selectedLength).draw();
             });
 
             $('#roleModal').on('shown.bs.modal', function() {
@@ -207,6 +279,79 @@
                 }
 
                 $('.add-role-btn').toggleClass('hidden', selectedRows.length === 0);
+            });
+
+
+            function selectAllActivePermissions() {
+                selectedRows = [];
+                $('.permission-checkbox').prop('checked', false);
+                $('#select-all-permissions').prop('checked', false);
+
+                // // Get all rows and filter active ones
+                $table.rows().every(function() {
+                    const data = this.data();
+                    const rowNode = this.node();
+
+                    if (data.status && data.status.includes('Supported')) {
+                        selectedRows.push(data);
+                        $(rowNode).find('.permission-checkbox').prop('checked', true);
+                    }
+                });
+
+                updateButtonVisibility();
+                updateMasterCheckbox();
+
+                if (selectedRows.length > 0) {
+                    toastr.success(`${selectedRows.length} active permissions selected`);
+                } else {
+                    toastr.info('No active permissions found');
+                }
+            }
+
+            function updateMasterCheckbox() {
+                const totalCheckboxes = $('.permission-checkbox').length;
+                const checkedCheckboxes = $('.permission-checkbox:checked').length;
+
+                if (checkedCheckboxes === 0) {
+                    $('#select-all-permissions').prop('indeterminate', false);
+                    $('#select-all-permissions').prop('checked', false);
+                } else if (checkedCheckboxes === totalCheckboxes) {
+                    $('#select-all-permissions').prop('indeterminate', false);
+                    $('#select-all-permissions').prop('checked', true);
+                } else {
+                    $('#select-all-permissions').prop('indeterminate', true);
+                }
+            }
+
+            function updateButtonVisibility() {
+                $('.add-role-btn').toggleClass('hidden', selectedRows.length === 0);
+            }
+
+            $('#roleModal').on('shown.bs.modal', function() {
+                $('.form-inputs').select2({
+                    dropdownParent: $('#roleModal')
+                });
+            });
+            $('#select-all-permissions').on('change', function() {
+                const isChecked = this.checked;
+                selectedRows = [];
+
+                if (isChecked) {
+                    // Select all visible rows
+                    $table.rows({
+                        page: 'current'
+                    }).every(function() {
+                        const data = this.data();
+                        selectedRows.push(data);
+                    });
+                    $('.permission-checkbox').prop('checked', true);
+                } else {
+                    // Deselect all
+                    $('.permission-checkbox').prop('checked', false);
+                }
+
+                updateButtonVisibility();
+                updateMasterCheckbox();
             });
 
             $('.add-role-btn').on('click', function() {

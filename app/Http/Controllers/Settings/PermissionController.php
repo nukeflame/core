@@ -134,17 +134,25 @@ class PermissionController extends Controller
                 return $data->created_at->format('d M Y H:i');
             })
             ->addColumn('status', function ($data) {
-                return $data->status === 'A' ? "<span class=''>Supported</span>" : "<span class=''>Non-applicable <i class='bx bx-error text-warning'></i></span>";
+                return $data->status === 'A' ?
+                    "<span class='badge bg-success'>Supported</span>" :
+                    "<span class='badge bg-warning'>Non-applicable <i class='bx bx-error text-warning'></i></span>";
             })
             ->addColumn('action', function ($data) {
                 $btn = "";
-                $btn .= "<button class='btn btn-outline-primary btn-sm' data-id='{$data->id}'>Edit</button>";
-                $btn .= " <button class='btn btn-outline-danger btn-sm' data-id='{$data->id}'>Remove</button>";
+                $btn .= "<button class='btn btn-outline-primary btn-sm edit-btn' data-id='{$data->id}'>Edit</button>";
+                $btn .= " <button class='btn btn-outline-danger btn-sm delete-btn' data-id='{$data->id}'>Remove</button>";
 
                 return $btn;
             })
-            ->rawColumns(['action', 'roles', 'created_at', 'status', 'role_count'])
-            ->make('true');
+            ->filter(function ($query) {
+                if (request()->has('status_filter') && request('status_filter') != '') {
+                    $statusFilter = request('status_filter');
+                    $query->where('status', $statusFilter);
+                }
+            })
+            ->rawColumns(['action', 'roles', 'created_at', 'status', 'roles_count'])
+            ->make(true);
     }
 
 
