@@ -208,6 +208,8 @@ class PermissionController extends Controller
             ], 200);
         } catch (\Exception $e) {
             DB::rollBack();
+
+            logger()->info($e);
             return response()->json([
                 'status' => 'error',
                 'message' => 'Failed to assign permissions. Please try again.',
