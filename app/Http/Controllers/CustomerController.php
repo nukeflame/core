@@ -180,7 +180,7 @@ class CustomerController extends Controller
             ->addColumn('process', function ($fn) {
                 $btn = "";
                 $btn .= '<button class="process_customer btn btn-primary btn-sm-action datatable-btn" onclick="processCustomer(`' . $fn->customer_id . '`)">Process <i class="bx bx-send"></i></button>';
-                // $btn .= " <button class='remove_process_customer btn btn-danger  datatable-btn' data-name='{$fn->name}' data-cedant_id='{$fn->customer_id}'><i class='bx bx-trash'></i> Clear all Covers</button>";
+                $btn .= " <button class='remove_process_customer btn btn-danger  datatable-btn' data-name='{$fn->name}' data-cedant_id='{$fn->customer_id}'><i class='bx bx-trash'></i> Clear all Covers</button>";
                 return $btn;
             })
             ->addColumn('customer_type_name', function ($fn) {
@@ -457,14 +457,11 @@ class CustomerController extends Controller
                 'message' => 'Cedant data clearing has been queued'
             ], Response::HTTP_ACCEPTED);
         } catch (ValidationException $e) {
-            logger($e);
-
             return response()->json([
                 'status' => Response::HTTP_UNPROCESSABLE_ENTITY,
                 'errors' => $e->errors()
             ], Response::HTTP_UNPROCESSABLE_ENTITY);
         } catch (\Exception $e) {
-            logger($e);
             return response()->json([
                 'status' => Response::HTTP_INTERNAL_SERVER_ERROR,
                 'message' => 'Failed to queue cedant data clearing'

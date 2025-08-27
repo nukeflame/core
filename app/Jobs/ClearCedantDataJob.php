@@ -61,7 +61,7 @@ class ClearCedantDataJob implements ShouldQueue
                 $this->deleteCoverData($cover->cover_no);
             }
 
-            $covers->delete();
+            $covers->forceDelete();
             // logger()->info("Successfully cleared cedant data for customer ID: {$this->customerId}");
         } catch (\Exception $e) {
             logger()->error("Failed to clear cedant data for customer ID: {$this->customerId}", [
@@ -99,9 +99,9 @@ class ClearCedantDataJob implements ShouldQueue
         ];
 
         foreach ($models as $model) {
-            $model::where('cover_no', $coverNo)->delete();
+            $model::where('cover_no', $coverNo)->forceDelete();
         }
 
-        PolicyRenewal::where('policy_number', $coverNo)->delete();
+        PolicyRenewal::where('policy_number', $coverNo)->forceDelete();
     }
 }

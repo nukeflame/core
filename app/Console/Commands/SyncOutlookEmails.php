@@ -583,7 +583,6 @@ class SyncOutlookEmails extends Command
         ];
     }
 
-
     private function processEmails(array $rawEmails): array
     {
         return $this->processEmailsWithImageLinking($rawEmails);
