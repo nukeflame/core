@@ -409,7 +409,7 @@
                         $('.add-role-btn').addClass('hidden');
                     },
                     error: function(xhr) {
-                        console.log(xhr)
+                        console.log(xhr.responseJSON);
                         toastr.error('Error assigning permissions. Please try again.');
                     }
                 });
