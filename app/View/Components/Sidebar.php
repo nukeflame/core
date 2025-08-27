@@ -45,7 +45,7 @@ class Sidebar extends Component
     {
         $result = [];
 
-        logger(['permissios' => $this->user->permissions]);
+        // logger(['permissios' => $this->user->permissions]);
 
         foreach ($menuItems as $category) {
             if (

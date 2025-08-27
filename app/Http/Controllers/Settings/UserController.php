@@ -122,7 +122,7 @@ class UserController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'User created successfully. A temporary password has been generated.',
-                'user' => $result['user']
+                // 'user' => $result['user']
             ], 201);
         } catch (\Exception $e) {
             DB::rollback();

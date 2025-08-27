@@ -31,30 +31,25 @@ class UserService
 
                 $role = $this->validateAndGetRole($data);
 
-                logger()->info([
-                    'c' => $v
-                ]);
+                $department = $this->validateAndGetDepartment($data);
 
-                // $department = $this->validateAndGetDepartment($data);
+                $user = $this->createUserRecord($data, $temporaryPassword, $role, $requirePasswordReset);
 
-                // $user = $this->createUserRecord($data, $temporaryPassword, $role, $requirePasswordReset);
+                if ($role && $department) {
+                    $this->assignRoleAndPermissions($user, $role, $department);
+                } elseif ($role) {
+                    $this->assignDefaultPermissions($user, $role);
+                }
 
-                // if ($role && $department) {
-                //     $this->assignRoleAndPermissions($user, $role, $department);
-                // } elseif ($role) {
-                //     $this->assignDefaultPermissions($user, $role);
-                // }
+                $this->logUserCreation($user, $role);
 
-                // $this->logUserCreation($user, $role);
+                if ($sendWelcomeEmail) {
+                    $this->dispatchWelcomeEmail($user, $temporaryPassword);
+                }
 
-                // if ($sendWelcomeEmail) {
-                //     $this->dispatchWelcomeEmail($user, $temporaryPassword);
-                // }
+                $userWithRelations = $this->getUserWithRelations($user->id);
 
-                // $userWithRelations = $this->getUserWithRelations($user->id);
-
-                // return $this->buildSuccessResponse($userWithRelations, $temporaryPassword, $role, $department);
-                return [];
+                return $this->buildSuccessResponse($userWithRelations, $temporaryPassword, $role, $department);
             } catch (Exception $e) {
                 logger()->error('UserService createUser failed', [
                     'error' => $e->getMessage(),
@@ -184,10 +179,8 @@ class UserService
 
     protected function manualSyncPermissions(User $user, $permissions): void
     {
-        // Remove existing permissions
         DB::table('user_permissions')->where('user_id', $user->id)->delete();
 
-        // Add new permissions
         $userPermissions = $permissions->map(function ($permission) use ($user) {
             return [
                 'user_id' => $user->id,
@@ -198,11 +191,6 @@ class UserService
         });
 
         DB::table('user_permissions')->insert($userPermissions->toArray());
-
-        Log::info('User permissions manually synced', [
-            'user_id' => $user->id,
-            'permissions_count' => $permissions->count()
-        ]);
     }
 
     protected function assignDefaultPermissions(User $user, ?Role $role = null): void
@@ -276,7 +264,6 @@ class UserService
     {
         return User::with([
             'role',
-            'department',
             'permissions',
             'creator:id,name,email'
         ])->findOrFail($userId);
@@ -290,7 +277,7 @@ class UserService
             'success' => true,
             'message' => 'User created successfully',
             'role_assigned' => $role?->name,
-            'department_assigned' => $department?->department_name ?? $department?->name,
+            'department_assigned' => $department?->department_name,
             'permissions_count' => $user->permissions ? $user->permissions->count() : 0,
         ];
     }
