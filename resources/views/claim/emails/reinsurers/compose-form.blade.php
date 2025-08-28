@@ -183,7 +183,7 @@
                             </a>
                         </div>
 
-                        @if ($claimDocuments && count($claimDocuments) > 0)
+                        {{-- @if (isset($claimDocuments) && count($claimDocuments) > 0)
                             @foreach ($claimDocuments as $doc)
                                 <div class="col-md-4">
                                     <a href="{{ $doc->file_path ?? '#' }}" target="_blank" rel="noopener noreferrer">
@@ -260,17 +260,17 @@
                                     </small>
                                 </div>
                             </div>
-                        @endif
+                        @endif --}}
                     </div>
                 </div>
 
                 <div class="mt-2 compose_attachement">
                     <small class="text-muted">
                         <i class="fas fa-info-circle me-1"></i>
-                        <span id="fileCount">
+                        {{-- <span id="fileCount">
                             {{ 2 + ($claimDocuments && count($claimDocuments) > 0 ? count($claimDocuments) : 0) }}
                             files attached
-                        </span>
+                        </span> --}}
                     </small>
                 </div>
             </div>
@@ -742,7 +742,8 @@
                     const debitNoteFile = $("#debitNoteFile").val();
                     const isReply = $("#replyToId").val();
 
-                    const claimFiles = @json($claimDocuments ?? []);
+                    const claimFiles = []
+
                     const filesToFetch = [];
 
                     if (claimNoticeFile) {

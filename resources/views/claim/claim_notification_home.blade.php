@@ -2464,21 +2464,21 @@
 
                     let columnsToSum = [3];
                     if (businessType === 'FPR' || businessType === 'FNP') {
-                        // Sum insured, premium, commission, brokerage_comm_amt, wht_amt, fronting_amt
+
                         columnsToSum = columnsToSum.concat([4, 5, 6, 7]);
                     } else if (businessType === 'TPR' && !['NEW', 'REN'].includes(transactionType)) {
-                        // Premium, commission, claim_amt, prem_tax, ri_tax
+
                         columnsToSum = columnsToSum.concat([4, 5, 6, 7]);
                     } else if (businessType === 'TNP' && !['NEW', 'REN'].includes(transactionType)) {
-                        // total_mdp_amt, mdp_amt
+
                         columnsToSum = columnsToSum.concat([3, 4]);
                     }
 
-                    // Create the footer row HTML
+
                     let footerRow = '<tr>';
                     footerRow +=
                         '<td colspan="3" style="text-align:right !important; font-weight:bold; color: #000;">Totals:</td>';
-                    // Calculate the sum for each column and add to footer
+
                     const columns = api.columns().nodes().length;
                     for (let i = 3; i < columns - 1; i++) {
                         if (columnsToSum.includes(i)) {

@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Jobs\SendClaimNotificationJob;
 use App\Jobs\SendClaimReinNotificationJob;
-use App\Models\Bd\CustomerContact;
 use Throwable;
 use Carbon\Carbon;
 use App\Models\User;
@@ -36,7 +35,6 @@ use App\Models\Company;
 use App\Models\CoverDebit;
 use Illuminate\Support\Facades\DB;
 use App\Models\SystemProcessAction;
-use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Session;
@@ -267,129 +265,155 @@ class ClaimController extends Controller
 
     public function ClaimDetails(Request $request)
     {
-        try {
-            $claim_no = $request->claim_no;
+        $claim_no = $request->claim_no;
+        $claimRegister = ClaimRegister::where('claim_no', $claim_no)->first();
+        $branch = Branch::where('branch_code', $claimRegister->branch_code)->first();
+        $broker = Broker::where('broker_code', $claimRegister->broker_code)->first();
+        $class = Classes::where('class_code', $claimRegister->class_code)->first();
+        $customer = Customer::where('customer_id', $claimRegister->customer_id)->first();
+        $reinsurers = Customer::all();
+        $cover = CoverType::where('type_id', $claimRegister->cover_type)->first();
+        $coverpart = CoverRipart::where('endorsement_no', $claimRegister->endorsement_no)->get();
+        $busType = BusinessType::where('bus_type_id', $claimRegister->type_of_bus)->first();
+        $endorse = CoverRegister::where('endorsement_no', $claimRegister->endorsement_no)->first();
+        $verifiers = User::permission('app.claims_administration.manage')
+            ->where('user_name', '<>', Auth::user()->user_name)
+            ->get();
 
-            $claimRegister = ClaimRegister::where('claim_no', $claim_no)->first();
-
-            $branch = Branch::where('branch_code', $claimRegister->branch_code)->first();
-            $broker = Broker::where('broker_code', $claimRegister->broker_code)->first();
-            $class = Classes::where('class_code', $claimRegister->class_code)->first();
-            $customer = Customer::where('customer_id', $claimRegister->customer_id)->first();
-            $cover = CoverType::where('type_id', $claimRegister->cover_type)->first();
-
-            $coverpart = CoverRipart::where('endorsement_no', $claimRegister->endorsement_no)
-                ->with([
-                    'partner:customer_id,name,email',
-                    'contacts',
-                    // 'claim_documents'
-                ])
-                ->get();
-
-            $busType = BusinessType::where('bus_type_id', $claimRegister->type_of_bus)->first();
-            $endorse = CoverRegister::where('endorsement_no', $claimRegister->endorsement_no)->first();
-
-            $verifiers = User::permission('app.claims_administration.manage')
-                ->where('user_name', '<>', Auth::user()->user_name)
-                ->get();
-
-            $process = SystemProcess::where('nice_name', 'claim_registration')->first();
-            $verifyprocessAction = SystemProcessAction::where('nice_name', 'verify_claim')->first();
-
-            $CRperilTotal = ClaimPeril::where('claim_no', $claim_no)
-                ->where('dr_cr_note_no', 0)
-                ->where('dr_cr', 'CR')
-                ->sum('final_amount') ?? 0;
-
-            $DRperilTotal = ClaimPeril::where('claim_no', $claim_no)
-                ->where('dr_cr_note_no', 0)
-                ->where('dr_cr', 'DR')
-                ->sum('final_amount') ?? 0;
-
-            $nextDebitAmount = abs($CRperilTotal - $DRperilTotal);
-
-            $claimDocuments = ClaimDocs::where('claim_no', $claim_no)->get();
-            $ClaimAckDocs = ClaimAckDocs::where('claim_no', $claim_no)->get();
-
-            $ack_docs = [];
-            if ($endorse && $endorse->class_group_code) {
-                $ack_docs = ClaimAckParams::where('class_group', $endorse->class_group_code)->get();
-            }
-
-            $clmStatuses = ClaimStatusParam::all();
-            $claimperils = ClaimPeril::where('claim_no', $claim_no)->get();
-            $perilTypes = Peril::where('status', 'A')->get();
-
-            $finalTotalDR = $claimperils->where('dr_cr', 'DR')->sum('final_amount');
-            $finalTotalCR = $claimperils->where('dr_cr', 'CR')->sum('final_amount');
-            $totalClaimAmount = (float) $finalTotalDR - $finalTotalCR;
-
-            $cedantAttachedFiles = collect([
-                (object) [
-                    'id' => 1,
-                    'original_name' => 'acknowledgement_letter.pdf',
-                    'extension' => 'pdf',
-                    'size' => 2048576,
-                    'mime_type' => 'application/pdf',
-                    'created_at' => now()->subDays(2),
-                    'file_path' => 'claims/documents/claim_form_2024.pdf',
-                    'uploaded_by' => 'John Doe'
-                ],
-            ]);
-
-
-            $company = Company::where('company_id', 1)->first();
-            $emailFrom = $company?->email ?? config('mail.from.address', '');
-
-            $claimSubject = collect([
-                'Claim Notification',
-                $claimRegister->insured_name,
-                $claimRegister->cover_from,
-                $claimRegister->class_code,
-                $claimRegister->intimation_no,
-                $customer?->name
-            ])->filter()->implode(' - ');
-
-            $viewData = [
-                'ClaimRegister' => $claimRegister,
-                'branch' => $branch,
-                'broker' => $broker,
-                'class' => $class,
-                'customer' => $customer,
-                'covertype' => $cover,
-                'reinsurers' => $coverpart,
-                'type_of_bus' => $busType,
-                'cover' => $endorse,
-                'verifiers' => $verifiers,
-                'process' => $process,
-                'verifyprocessAction' => $verifyprocessAction,
-                'nextDebitAmount' => $nextDebitAmount,
-                'ack_docs' => $ack_docs,
-                'clmStatuses' => $clmStatuses,
-                'claimperils' => $claimperils,
-                'perilTypes' => $perilTypes,
-                'ClaimAckDocs' => $ClaimAckDocs,
-                'totalClaimAmount' => $totalClaimAmount,
-                'emailFrom' => $emailFrom,
-                'claimSubject' => Str::title(Str::lower($claimSubject)),
-                'claimDocuments' => $claimDocuments,
-                'cedant' => $customer?->name ?? '',
-                'recipients' => $customer?->contacts ?? collect(),
-                'cedantAttachedFiles' => $cedantAttachedFiles,
-                'defaultCedantMessage' => $this->getCedantDefaultMessage($claimRegister, $customer),
-                'defaultMessage' => $this->getDefaultMessage($claimRegister, $customer)
-            ];
-
-            return view('claim.claim_home', $viewData);
-        } catch (\Exception $e) {
-            logger()->error($e);
-            return back()->withErrors(['error' => 'An error occurred while loading claim details.']);
+        $process = SystemProcess::where('nice_name', 'claim_registration')->first();
+        $verifyprocessAction = SystemProcessAction::where('nice_name', 'verify_claim')->first();
+        // $nextDebitAmount = ClaimPeril::where('claim_no',$claim)->where('dr_cr_note_no',0)->sum('final_amount');
+        $CRperilTotal = ClaimPeril::where('claim_no', $claim_no)->where('dr_cr_note_no', 0)->where('dr_cr', 'CR')->sum('final_amount') ?? 0;
+        $DRperilTotal = ClaimPeril::where('claim_no', $claim_no)->where('dr_cr_note_no', 0)->where('dr_cr', 'DR')->sum('final_amount') ?? 0;
+        if ($CRperilTotal > $DRperilTotal) {
+            $nextDebitAmount = $CRperilTotal - $DRperilTotal;
+        } else {
+            $nextDebitAmount = $DRperilTotal - $CRperilTotal;
         }
+        $uploadedDocs = ClaimDocs::where('claim_no', $claim_no)->get();
+        $ClaimAckDocs = ClaimAckDocs::where('claim_no', $claim_no)->get();
+        $ack_docs = ClaimAckParams::where('class_group', $endorse->class_group_code)->get();
+        $clmStatuses = ClaimStatusParam::all();
+        $claimperils = ClaimPeril::where('claim_no', $claim_no)->get();
+        $perilTypes = Peril::where('status', 'A')->get();
+
+        $finalTotalDR = $claimperils->where('dr_cr', 'DR')
+            ->sum('basic_amount');
+
+        $finalTotalCR = $claimperils->where('dr_cr', 'CR')
+            ->sum('basic_amount');
+
+        $totalClaimAmount = (float) $finalTotalDR - $finalTotalCR;
+
+
+        // logger(json_encode($uploadedDocs, JSON_PRETTY_PRINT));
+
+        $files = collect($uploadedDocs)->map(function ($query) {
+            return [
+                'id' => $query->id,
+                'original_name' => $query->title,
+                'extension' => 'pdf',
+                'size' => 2048576,
+                'mime_type' => 'application/pdf',
+                'created_at' => Carbon::now()->subDays(2),
+                'file_path' => $query->file,
+                'uploaded_by' =>  ''
+            ];
+        });
+
+        logger(json_encode($files, JSON_PRETTY_PRINT));
+
+
+        $attachedFiles = collect([
+            (object) [
+                'id' => 1,
+                'original_name' => 'claim_notice_letter.pdf',
+                'extension' => 'pdf',
+                'size' => 2048576,
+                'mime_type' => 'application/pdf',
+                'created_at' => Carbon::now()->subDays(2),
+                'file_path' => 'claims/documents/claim_notice_letter.pdf',
+                'uploaded_by' =>  ''
+            ],
+            (object) [
+                'id' => 2,
+                'original_name' => 'debit_note.pdf',
+                'extension' => 'pdf',
+                'size' => 2048576,
+                'mime_type' => 'application/zip',
+                'created_at' => Carbon::now()->subDays(1),
+                'file_path' => 'claims/documents/debit_note.pdf',
+                'uploaded_by' => ''
+            ],
+        ]);
+
+        $cedantAttachedFiles = collect([
+            (object) [
+                'id' => 1,
+                'original_name' => 'acknowledgement_letter.pdf',
+                'extension' => 'pdf',
+                'size' => 2048576,
+                'mime_type' => 'application/pdf',
+                'created_at' => Carbon::now()->subDays(2),
+                'file_path' => 'claims/documents/claim_form_2024.pdf',
+                'uploaded_by' => 'John Doe'
+            ],
+        ]);
+
+
+        $emailFrom = Company::where('company_id', 1)->first()->email ?? '';
+
+        $cedant = Customer::where('customer_id', $claimRegister->customer_id)->first();
+
+        $reinserEmail = Customer::where('customer_id', $claimRegister->customer_id)->first()->email ?? '';
+        $claimSubject = collect([
+            'Claim Notification',
+            $claimRegister->insured_name ?? '',
+            $claimRegister->cover_from ?? '',
+            $claimRegister->class_code ?? '',
+            $claimRegister->intimation_no ?? '',
+            $customer->name ?? ''
+        ])->filter()->implode(' - ');
+
+
+        return view('claim.claim_home', [
+            'ClaimRegister' => $claimRegister,
+            'branch' => $branch,
+            'broker' => $broker,
+            'class' => $class,
+            'customer' => $customer,
+            'covertype' => $cover,
+            'reinsurers' => $reinsurers,
+            'coverpart' => $coverpart,
+            'type_of_bus' => $busType,
+            'cover' => $endorse,
+            'verifiers' => $verifiers,
+            'process' => $process,
+            'verifyprocessAction' => $verifyprocessAction,
+            'nextDebitAmount' => $nextDebitAmount,
+            'ack_docs' => $ack_docs,
+            'clmStatuses' => $clmStatuses,
+            'claimperils' => $claimperils,
+            'perilTypes' => $perilTypes,
+            'ClaimAckDocs' => $ClaimAckDocs,
+            'totalClaimAmount' => $totalClaimAmount,
+            'emailFrom' => $emailFrom,
+            'reinserEmail' => $reinserEmail,
+            'claimSubject' => $claimSubject,
+            'attachedFiles' => [],
+            'cedant' => $cedant?->name,
+            'recipients' => $cedant?->contacts,
+            'cedantAttachedFiles' => $cedantAttachedFiles,
+            'defaultCedantMessage' => $this->getCedantDefaultMessage($claimRegister, $customer),
+            'defaultMessage' => $this->getDefaultMessage($claimRegister, $customer)
+        ]);
     }
+
 
     private function getDefaultMessage($claim, $customer): string
     {
-        return "Dear {recipient_name},\n\n" .
+        // "Dear {$customer->name},\n\n" .
+        return "Dear ,\n\n" .
             "Greetings,\n\n" .
             "We regret to inform you of a loss which occurred on " . Carbon::parse($claim->date_of_loss)->format('Y-m-d') . " due to {$claim->cause_of_loss}.\n\n" .
             "Kindly find attached copies of claim documents and debit note for your review and settlement.\n\n" .
@@ -544,60 +568,52 @@ class ClaimController extends Controller
         $endorsement_no = $request->get('endorsement_no');
         $cover_no = $request->get('cover_no');
         $claim_no = $request->get('claim_no');
-
-        $query = CoverRipart::query()
-            ->where('endorsement_no', $endorsement_no)
-            ->with(['partner:customer_id,name']);
-
+        $query = CoverRipart::query()->where('endorsement_no', $endorsement_no);
         $debit = ClaimDebit::query()->where('claim_no', $claim_no)->first();
-        $intimation = ClaimNtfRegister::query()
-            ->where(['cover_no' => $cover_no, 'endorsement_no' => $endorsement_no])
-            ->first();
+        $intimation = ClaimNtfRegister::query()->where(['cover_no' => $cover_no, 'endorsement_no' => $endorsement_no])->first();
+        $cover = CoverRegister::where('endorsement_no', $endorsement_no)->first();
 
         return datatables::of($query)
             ->addColumn('partner_name', function ($data) {
-                return $data->partner->name ?? 'N/A';
+                $part = Customer::where('customer_id', $data->partner_no)->first();
+                return $part->name;
             })
-            ->addColumn('credit_no', function ($data) {
-                return 'CRN/' . $data->tran_no . '/' . ($data->period_year ?? '');
-            })
-            ->addColumn('action', function ($data) use ($debit, $claim_no, $intimation) {
+            ->addColumn(
+                'credit_no',
+                function ($data) {
+                    return 'CRN/' . $data->tran_no . '/' . $data->period_year ?? '';
+                }
+            )
+            ->addColumn('action', function ($data) use ($debit, $claim_no, $endorsement_no, $cover, $intimation) {
                 $btn = "";
-                $debit_url = '';
-                $claim_notice_url = '';
+                $partner_emails = [];
+                $partner_emails[] = $data?->partner?->email;
 
                 if ($debit) {
-                    $debit_url = route('docs.fac_clm_reindebit_note', [
-                        'endorsement_no' => $data->endorsement_no,
-                        'claim_no' => $claim_no,
-                        'id' => $debit->id,
-                        'partner_no' => $data->partner_no,
-                    ]);
+                    $debitNote = route('docs.fac_clm_reindebit_note', ['endorsement_no' => $endorsement_no, 'claim_no' => $claim_no, 'id' => $debit->id, 'partner_no' => $data->partner_no]);
+                    $claimNoticeUrl = route('docs.claimntf-docs-notc-letter', ['intimation_no' => $intimation?->intimation_no, 'partner_no' => $data->partner_no]);
 
-                    $btn .= '<a href="' . $debit_url . '" target="_blank" rel="noopener noreferrer" class="link me-2">
-                                <i class="bx bx-file"></i> Debit Note
-                             </a>';
+                    $client_emails = json_encode($partner_emails);
+                    $client_name = $data?->partner?->name;
 
-                    if ($intimation && $intimation->intimation_no) {
-                        $claim_notice_url = route('docs.claimntf-docs-notc-letter', [
-                            'intimation_no' => $intimation->intimation_no,
-                            'partner_no' => $data->partner_no
-                        ]);
+                    $endorsementNo = $endorsement_no;
+                    $coverNo = $cover?->cover_no;
+                    $tmp_attachments = json_encode(['attachments' => []]);
 
-                        $btn .= ' <a class="print-out-link me-2"
-                                    href="' . $claim_notice_url . '"
-                                    target="_blank" rel="noopener noreferrer">
-                                    <i class="bx bx-file"></i> Claim Notice
-                                 </a>';
-                    }
+                    // logger()->info($client_name);
+
+                    $btn .= "<a href='{$debitNote}' data-endorsementno='{$endorsementNo}' data-partnerno='{$data->partner_no}' target='_blank' rel='noopener noreferrer' class='print-out-link pr-3 rein_credit_note_btn'><i class='bx bx-file me-1 align-middle'></i>Debit Note</a>";
+
+                    $btn .= "<a href='{$claimNoticeUrl}' target='_blank' rel='noopener noreferrer' class='print-out-link pr-3 rein_cover_slip_btn'>
+                                    <i class='bx bx-file'></i> Claim Notice</a>";
+
+                    $btn .= "<a href='#' target='_blank' class='print-out-link send_rein_email' data-client_emails='{$client_emails}' data-cover_no='{$coverNo}' data-endorsement_no='{$endorsementNo}' data-client_name='{$client_name}' data-client_docs='{$tmp_attachments}'>
+                                    <i class='bx bx-mail-send' style='font-size: 15px; vertical-align: -2px;'></i> Send E-Mail</a>";
                 }
-
-                $btn .= '<a href="#" class="link me-2 send_rein_email" data-tran_no="' . $data->tran_no . '" data-debit_url="' . $debit_url . '" data-claim_notice_url="' . $claim_notice_url . '" >
-                            <i class="bx bx-mail-send"></i> Send E-Mail
-                         </a>';
 
                 return $btn;
             })
+            ->rawColumns(['action'])
             ->make(true);
     }
 
@@ -771,6 +787,7 @@ class ClaimController extends Controller
         $debit = CoverDebit::query()->where('endorsement_no', $endorsement_no)->first();
 
         $ClaimRegister = ClaimNtfRegister::where(['cover_no' => $cover_no, 'endorsement_no' => $endorsement_no])->first();
+        // logger(['$ClaimRegister' => $ClaimRegister]);
 
         return datatables::of($query)
             ->addColumn('id', function ($data) {
@@ -804,13 +821,13 @@ class ClaimController extends Controller
             ->addColumn('action', function () use ($claim_debit, $ClaimRegister) {
                 $btn = "";
                 if ($claim_debit) {
-                    $creditNoteUrl = route('docs.claimcreditnote', [
+                    $url = route('docs.claimcreditnote', [
                         'endorsement_no' => $claim_debit->endorsement_no,
                         'claim_no' => $claim_debit->claim_no,
                         'id' => $claim_debit->id,
                     ]);
 
-                    $btn .= '<a href="' . $creditNoteUrl . '" target="_blank" rel="noopener noreferrer" class="link me-2">
+                    $btn .= '<a href="' . $url . '" target="_blank" rel="noopener noreferrer" class="link me-2">
                             <i class="bx bx-file"></i> Credit Note
                         </a>';
 
@@ -824,9 +841,9 @@ class ClaimController extends Controller
                     </a>';
                 }
 
-                $btn .= "<a href='#' class='send_debit_letter link me-2' data-claim_no='{$claim_debit->claim_no}' data-ack_letter_url='{$ackUrl}' data-credit_note_url='{$creditNoteUrl}'>
-                              <i class='bx bx-mail-send'></i> Send E-Mail
-                        </a>";
+                $btn .= '<a href="#" class="send_debit_letter link me-2">
+                              <i class="bx bx-mail-send"></i> Send E-Mail
+                        </a>';
 
                 return $btn;
             })
@@ -1278,10 +1295,61 @@ class ClaimController extends Controller
 
     private function getCedantDefaultMessage($claim, $customer): string
     {
-        return "Dear {recipient_name},\n\n" .
+        return "Dear {$customer->name},\n\n" .
             "Greetings,\n\n" .
             "We confirm receipt of the subject claim notification and have proceeded to notify the securities for their review and settlement.\n\n" .
             "Best regards,\n" .
+            // "Reinsurance Department\n" .
             config('app.name');
+    }
+
+
+
+    public function sendReinDocumentEmail(Request $request)
+    {
+        try {
+            DB::beginTransaction();
+            $claim = ClaimRegister::where('claim_no', $request->claim_no)->first();
+            // $claim->update([
+            //     'notificaction_status' => 'notification_sent',
+            //     // 'notification_sent_at' => now(),
+            //     // 'notification_sent_by' => auth()->id()
+            // ]);
+
+            $message = $this->formatMessageForHtml($request->message);
+            $request->merge(['message' => $message]);
+
+            // Dispatch email job
+            SendClaimReinNotificationJob::dispatch(
+                $claim,
+                $request->all()
+            );
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Claim notification has been queued for sending',
+            ]);
+        } catch (\Exception $e) {
+            logger($e);
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to send claim notification. Please try again.'
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    private function formatMessageForHtml($message)
+    {
+        $html = nl2br(htmlspecialchars($message, ENT_QUOTES, 'UTF-8'));
+        $html = str_replace("\n\n", "</p><p>", $html);
+        $html = "<p>" . $html . "</p>";
+        $html = preg_replace('/<p>\s*<\/p>/', '', $html);
+        $html = preg_replace('/<p>(\d+\..*?)<\/p>/', '<li>$1</li>', $html);
+        $html = preg_replace('/(<li>.*<\/li>)/s', '<ol>$1</ol>', $html);
+
+        return $html;
     }
 }

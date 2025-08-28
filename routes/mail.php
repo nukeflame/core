@@ -32,10 +32,10 @@ use Illuminate\Support\Facades\Route;
 //     }
 // );
 
-// Route::group(['prefix' => 'emails', 'middleware' => ['auth', 'check.first.login']], function () {
-//     // Route::post('/fetch', [MailController::class, 'fetchEmails'])->name('admin.emails.fetch');
-//     // Route::post('/claims/send-reinsurer-email', [MailController::class, 'sendClaimReinsurerEmail'])->name('emails.send_claim_reinsurer_email');
-// });
+Route::group(['prefix' => 'emails', 'middleware' => ['auth', 'check.first.login']], function () {
+    Route::post('/fetch', [MailController::class, 'fetchEmails'])->name('admin.emails.fetch');
+    Route::post('/claims/send-reinsurer-email', [MailController::class, 'sendClaimReinsurerEmail'])->name('emails.send_claim_reinsurer_email');
+});
 
 Route::group(
     ['prefix' => 'mail'],

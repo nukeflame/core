@@ -911,7 +911,7 @@
                                 </div>
 
                                 <div class="tab-pane fade" id="replies" role="tabpanel">
-                                    @include('claim.emails.reinsurers.messages-list')
+                                    {{-- @include('claim.emails.reinsurers.messages-list') --}}
                                 </div>
                             </div>
                         </div>
@@ -1249,7 +1249,10 @@
         </div>
     </div>
 
-    <x-outlook-connection :auto-show="false" :show-cancel-button="true" :fetch-emails-on-connect="false" :show-toast-message="false" />
+    @if (!auth()->user()->hasOutlookConnection() && $ClaimRegister->verified === 'A')
+        @include('mail.partials.outlook-setup')
+    @endif
+    {{-- <x-outlook-connection :auto-show="false" :show-cancel-button="true" :fetch-emails-on-connect="false" :show-toast-message="false" /> --}}
 @endsection
 
 @push('script')
@@ -2061,19 +2064,21 @@
                 $('#statusForm').submit()
             });
 
-            reinsurersTable.on('click', '.send_rein_email', async function(e) {
+            reinsurersTable.on('click', '.send_rein_email', function(e) {
                 e.preventDefault();
                 lastReinData.tranNo = $(this).data('tran_no');
                 lastReinData.debitUrl = $(this).data('debit_url');
                 lastReinData.claimNoticeUrl = $(this).data('claim_notice_url');
 
-                const reinsurers = @json($reinsurers) ?? [];
-                await prepareReinEmailModal(
-                    lastReinData.tranNo,
-                    lastReinData.debitUrl,
-                    lastReinData.claimNoticeUrl,
-                    reinsurers
-                );
+                console.log(lastReinData)
+
+                // const reinsurers = @json($reinsurers) ?? [];
+                // await prepareReinEmailModal(
+                //     lastReinData.tranNo,
+                //     lastReinData.debitUrl,
+                //     lastReinData.claimNoticeUrl,
+                //     reinsurers
+                // );
             });
 
             debitsTable.on('click', '.send_debit_letter', async function(e) {
@@ -2086,8 +2091,6 @@
                 const recipients = @json($recipients) ?? [];
                 const customer = @json($customer) ?? [];
 
-                console.log(lastDebitData)
-
                 await prepareDebitLetterModal(
                     lastDebitData.claimNo,
                     lastDebitData.ackLetterUrl,
@@ -2098,16 +2101,19 @@
             });
 
             async function prepareReinEmailModal(tranNo, debitUrl, claimNoticeUrl, reinsurers) {
-                window.OutlookConnectionManager.showLoading();
-                const emailConnection = await window.OutlookConnectionManager.checkStatus();
+                // window.OutlookConnectionManager.showLoading();
+                // const emailConnection = await window.OutlookConnectionManager.checkStatus();
 
-                if (!emailConnection.connected) {
-                    window.OutlookConnectionManager.hideLoading();
-                    window.OutlookConnectionManager.show();
-                    return;
-                }
+                console.log(debitUrl)
 
-                window.OutlookConnectionManager.hideLoading();
+
+                // if (!emailConnection.connected) {
+                //     window.OutlookConnectionManager.hideLoading();
+                //     window.OutlookConnectionManager.show();
+                //     return;
+                // }
+
+                // window.OutlookConnectionManager.hideLoading();
 
                 if (debitUrl) {
                     $("#debitNoteLink").attr('href', debitUrl);
@@ -2189,103 +2195,103 @@
             }
 
             async function prepareDebitLetterModal(claimNo, ackLetterUrl, creditNoteUrl, recipients, customer) {
-                window.OutlookConnectionManager.showLoading();
-                const emailConnection = await window.OutlookConnectionManager.checkStatus();
+                // window.OutlookConnectionManager.showLoading();
+                // const emailConnection = await window.OutlookConnectionManager.checkStatus();
 
-                if (!emailConnection.connected) {
-                    window.OutlookConnectionManager.hideLoading();
-                    window.OutlookConnectionManager.show();
-                    return;
-                }
+                // if (!emailConnection.connected) {
+                //     window.OutlookConnectionManager.hideLoading();
+                //     window.OutlookConnectionManager.show();
+                //     return;
+                // }
 
-                window.OutlookConnectionManager.hideLoading();
+                // window.OutlookConnectionManager.hideLoading();
 
-                if (ackLetterUrl) {
-                    $("#ackLetterLink").attr('href', ackLetterUrl);
-                    $("#ackLetterFile").val(ackLetterUrl);
-                } else {
-                    $("#ackLetterLink").removeAttr('href').on('click', function(e) {
-                        e.preventDefault();
-                    });
-                }
+                // if (ackLetterUrl) {
+                //     $("#ackLetterLink").attr('href', ackLetterUrl);
+                //     $("#ackLetterFile").val(ackLetterUrl);
+                // } else {
+                //     $("#ackLetterLink").removeAttr('href').on('click', function(e) {
+                //         e.preventDefault();
+                //     });
+                // }
 
-                if (creditNoteUrl) {
-                    $("#creditNoteLink").attr('href', creditNoteUrl);
-                    $("#creditNoteFile").val(creditNoteUrl);
-                } else {
-                    $("#creditNoteLink").removeAttr('href').on('click', function(e) {
-                        e.preventDefault();
-                    });
-                }
+                // if (creditNoteUrl) {
+                //     $("#creditNoteLink").attr('href', creditNoteUrl);
+                //     $("#creditNoteFile").val(creditNoteUrl);
+                // } else {
+                //     $("#creditNoteLink").removeAttr('href').on('click', function(e) {
+                //         e.preventDefault();
+                //     });
+                // }
 
-                const contacts = recipients ?? [];
-                const cedant = customer ?? [];
+                // const contacts = recipients ?? [];
+                // const cedant = customer ?? [];
 
-                const $contactsSelect = $(".claimCedEmailForm #contacts");
-                const $ccEmailSelect = $(".claimCedEmailForm #ccEmail");
-                const $bccEmailSelect = $(".claimCedEmailForm #bccEmail");
+                // const $contactsSelect = $(".claimCedEmailForm #contacts");
+                // const $ccEmailSelect = $(".claimCedEmailForm #ccEmail");
+                // const $bccEmailSelect = $(".claimCedEmailForm #bccEmail");
 
-                $contactsSelect.empty().append('<option value="" disabled>--Select contacts--</option>');
-                $ccEmailSelect.empty().append('<option value="" disabled>--Select CC emails--</option>');
-                $bccEmailSelect.empty().append('<option value="" disabled>--Select BCC emails--</option>');
+                // $contactsSelect.empty().append('<option value="" disabled>--Select contacts--</option>');
+                // $ccEmailSelect.empty().append('<option value="" disabled>--Select CC emails--</option>');
+                // $bccEmailSelect.empty().append('<option value="" disabled>--Select BCC emails--</option>');
 
-                let contactsSelected = [];
+                // let contactsSelected = [];
 
-                if (contacts.length > 0) {
-                    const primaryContacts = [];
-                    const regularContacts = [];
+                // if (contacts.length > 0) {
+                //     const primaryContacts = [];
+                //     const regularContacts = [];
 
-                    contacts.forEach(function(contact) {
-                        const email = contact.contact_email;
-                        const name = contact.contact_name;
-                        const phone = contact.contact_mobile_no;
-                        const isPrimary = contact.is_primary === true;
+                //     contacts.forEach(function(contact) {
+                //         const email = contact.contact_email;
+                //         const name = contact.contact_name;
+                //         const phone = contact.contact_mobile_no;
+                //         const isPrimary = contact.is_primary === true;
 
-                        if (email) {
-                            let optionText = '';
-                            if (name && email) optionText = `${name} (${email})`;
-                            else optionText = email;
-                            if (phone) optionText += ` - ${phone}`;
-                            if (isPrimary) optionText += ' [Primary]';
+                //         if (email) {
+                //             let optionText = '';
+                //             if (name && email) optionText = `${name} (${email})`;
+                //             else optionText = email;
+                //             if (phone) optionText += ` - ${phone}`;
+                //             if (isPrimary) optionText += ' [Primary]';
 
-                            const createOption = () => $('<option></option>')
-                                .attr('value', email)
-                                .text(optionText)
-                                .data('contact-data', contact)
-                                .data('is-primary', isPrimary);
+                //             const createOption = () => $('<option></option>')
+                //                 .attr('value', email)
+                //                 .text(optionText)
+                //                 .data('contact-data', contact)
+                //                 .data('is-primary', isPrimary);
 
-                            $contactsSelect.append(createOption());
-                            $ccEmailSelect.append(createOption());
-                            $bccEmailSelect.append(createOption());
+                //             $contactsSelect.append(createOption());
+                //             $ccEmailSelect.append(createOption());
+                //             $bccEmailSelect.append(createOption());
 
-                            if (isPrimary) primaryContacts.push(email);
-                            else regularContacts.push(email);
-                        }
-                    });
+                //             if (isPrimary) primaryContacts.push(email);
+                //             else regularContacts.push(email);
+                //         }
+                //     });
 
-                    if (primaryContacts.length > 0) {
-                        contactsSelected = primaryContacts;
-                        $contactsSelect.val(primaryContacts).trigger('change');
-                    } else if (regularContacts.length === 1) {
-                        contactsSelected = [regularContacts[0]];
-                        $contactsSelect.val(regularContacts[0]).trigger('change');
-                    }
+                //     if (primaryContacts.length > 0) {
+                //         contactsSelected = primaryContacts;
+                //         $contactsSelect.val(primaryContacts).trigger('change');
+                //     } else if (regularContacts.length === 1) {
+                //         contactsSelected = [regularContacts[0]];
+                //         $contactsSelect.val(regularContacts[0]).trigger('change');
+                //     }
 
-                    [$contactsSelect, $ccEmailSelect, $bccEmailSelect].forEach($select => {
-                        if ($select.hasClass('select2-hidden-accessible')) {
-                            $select.trigger('change.select2');
-                        }
-                    });
-                }
+                //     [$contactsSelect, $ccEmailSelect, $bccEmailSelect].forEach($select => {
+                //         if ($select.hasClass('select2-hidden-accessible')) {
+                //             $select.trigger('change.select2');
+                //         }
+                //     });
+                // }
 
-                const cedantEmail = cedant?.email ?? null;
-                let toEmails = [];
-                if (cedantEmail) toEmails.push(cedantEmail);
-                toEmails = toEmails.concat(contactsSelected);
+                // const cedantEmail = cedant?.email ?? null;
+                // let toEmails = [];
+                // if (cedantEmail) toEmails.push(cedantEmail);
+                // toEmails = toEmails.concat(contactsSelected);
 
-                $(".claimCedEmailForm #toEmail").val(toEmails);
-                $(".claimCedEmailForm #cedantToEmail").val(cedantEmail);
-                $("#sendCedDocumentEmail").modal('show');
+                // $(".claimCedEmailForm #toEmail").val(toEmails);
+                // $(".claimCedEmailForm #cedantToEmail").val(cedantEmail);
+                // $("#sendCedDocumentEmail").modal('show');
             }
 
             $('#claimNotificationForm').validate({

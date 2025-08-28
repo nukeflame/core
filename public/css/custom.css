@@ -3,7 +3,7 @@
     --primary-color: #e1251b;
     --secondary-color: #4d4f51;
 
-    --header-bg: #ed1c24;
+    --header-bg: #dc2626;
     --header-border-color: #fff;
     --header-prime-color: #fff;
 
@@ -80,9 +80,19 @@ select {
     display: none !important;
 }
 
+.app-sidebar {
+    background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%) !important;
+    transition: all 0.3s ease;
+    box-shadow: 4px 0 20px rgba(0, 0, 0, 0.15) !important;
+}
+
 .app-sidebar .side-menu__item {
     font-family: "Open sans", sans-serif;
     font-weight: 300 !important;
+}
+
+.lh-20 {
+    line-height: 20px !important;
 }
 
 .form-group {
@@ -120,6 +130,25 @@ select {
     outline: none !important;
 }
 
+[data-menu-styles="dark"]
+    .slide.active
+    > .side-menu__item.active:first-of-type {
+    border-left: 3px solid #dc2626;
+    background: rgba(220, 38, 38, 0.2);
+}
+
+/* [data-menu-styles="dark"]
+    .app-sidebar
+    > ul
+    > .slide.active:has(> ul[class*="child"])
+    > .side-menu__item.active {
+    border-left: 3px solid transparent;
+} */
+
+[data-menu-styles="dark"] .app-sidebar .side-menu__item.active,
+[data-menu-styles="dark"] .app-sidebar .side-menu__item:hover {
+    background: rgba(220, 38, 38, 0.2);
+}
 input[type="number"] {
     -moz-appearance: textfield;
     -webkit-appearance: none;

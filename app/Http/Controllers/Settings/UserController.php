@@ -102,7 +102,7 @@ class UserController extends Controller
                 'department_id' => $request->department_id,
                 'role_id' => $request->role_id,
                 'is_staff' => $request->boolean('is_staff', true),
-                'status' => true
+                'status' => 'A'
             ];
 
             $result = $this->userService->createUser(

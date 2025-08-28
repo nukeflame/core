@@ -26,6 +26,10 @@ class MailController extends Controller
         private MailService $mailService
     ) {}
 
+    function sendClaimReinsurerEmail() {}
+    function fetchEmails() {}
+
+
     public function index(Request $request): View
     {
         $requestData = $this->validateIndexRequest($request);

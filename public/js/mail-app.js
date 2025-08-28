@@ -255,45 +255,44 @@ class MailApp {
         const blobUrl = URL.createObjectURL(blob);
         // this.contentWindow.document.body.scrollHeight + "px";
         $body.html(`
-        <div class="d-sm-flex d-block align-items-center justify-content-between mb-3">
-            <div>
-                <p class="fs-20 fw-semibold mb-0">${email.subject}</p>
+            <div class="d-sm-flex d-block align-items-center justify-content-between mb-3">
+                <div>
+                    <p class="fs-20 fw-semibold mb-0">${email.subject}</p>
+                </div>
+                <div class="float-end">
+                    <span class="me-2 fs-12 text-muted">${receivedDate}</span>
+                </div>
             </div>
-            <div class="float-end">
-                <span class="me-2 fs-12 text-muted">${receivedDate}</span>
+            <div class="main-mail-content mb-3">
+                <iframe
+                    src="${blobUrl}"
+                    style="width: 100%; min-height: 0px; border: none;"
+                    frameborder="0"
+                    sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
+                    onload="
+                    const contentHeight = this.contentWindow.document.body.scrollHeight;
+                    const screenHeight = window.innerHeight;
+                    let finalHeight = Math.max(300, Math.min(contentHeight, screenHeight - 300));
+                    this.style.height =  '950px';">
+                </iframe>
             </div>
-        </div>
-        <div class="main-mail-content mb-3">
-            <iframe
-                src="${blobUrl}"
-                style="width: 100%; min-height: 0px; border: none;"
-                frameborder="0"
-                sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
-                onload="
-                const contentHeight = this.contentWindow.document.body.scrollHeight;
-                const screenHeight = window.innerHeight;
-                let finalHeight = Math.max(300, Math.min(contentHeight, screenHeight - 300));
-                this.style.height =  '488px';">
-            </iframe>
-        </div>
-        ${this.renderAttachments(email.attachments)}
-        <div class="mb-1">
-            <div class="fs-14 mb-2 fw-semibold">
-                <i class="ri-reply-all-line me-1 align-middle d-inline-block"></i>Reply:
-            </div>
-            <div class="composer-actions">
+            ${this.renderAttachments(email.attachments)}
+            <div class="mb-1 hidden">
+                <div class="fs-14 mb-2 fw-semibold">
+                    <i class="ri-reply-all-line me-1 align-middle d-inline-block"></i>Reply:
+                </div>
+                <div class="composer-actions">
                 <div class="send-btn-group">
-                            <button class="send-btn" onclick="sendEmail()">
-                                <i class="bx bx-send pr-2"></i>
-                                Send
-                            </button>
-                        </div>
+                    <button class="send-btn" onclick="sendEmail()"><i class="bx bx-send pr-2"></i>Send</button>
                     </div>
-        </div>
-        <div class="mail-reply">
-            <div id="mail-reply-editor"></div>
-        </div>
-    `);
+                </div>
+            </div>
+            <div class="mail-reply hidden">
+                <div id="mail-reply-editor"></div>
+            </div>
+        `);
+
+        // after main-mail-content mb-3 -- ${this.renderAttachments(email.attachments)}
 
         //    <span class="fs-14 fw-semibold">
         //        <i class="ri-reply-all-line me-1 align-middle d-inline-block"></i>
@@ -320,7 +319,7 @@ class MailApp {
         //                 .map((att) => this.renderAttachment(att))
         //                 .join("")}
         return `
-            <div class="mail-attachments mb-2">
+            <div class="mail-attachments mb-2 hidden">
                 <div class="d-flex justify-content-between align-items-center">
                     <div class="mb-0">
                         <span class="fs-14 fw-semibold">
@@ -803,12 +802,7 @@ class MailApp {
             this.quillReply = new Quill("#mail-reply-editor", {
                 theme: "snow",
                 modules: {
-                    toolbar: [
-                        ["bold", "italic", "underline"],
-                        [{ list: "ordered" }, { list: "bullet" }],
-                        ["link"],
-                        ["clean"],
-                    ],
+                    toolbar: false,
                 },
                 placeholder: "Write your reply here...",
             });

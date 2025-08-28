@@ -103,8 +103,6 @@ class CoverController extends Controller
         $type_of_bus = $request->type_of_bus;
         $prospect_id = $request->has('prospect_id') ? $request->prospect_id : null;
 
-        logger(['trans_type' => $request->trans_type]);
-
         if ($trans_type != 'NEW') {
             $cover_no = $request->cover_no;
             $endorsement_no = $request->endorsement_no;
@@ -1037,6 +1035,7 @@ class CoverController extends Controller
         $cover = CoverRegister::where('endorsement_no', $endorsement_no)->first();
         $actionable = static::coverDebitedCommited($endorsement_no);
 
+
         return datatables::of($query)
             ->addColumn('partner_name', function ($data) {
                 $part = Customer::where('customer_id', $data->partner_no)->first();
@@ -1742,7 +1741,7 @@ class CoverController extends Controller
     {
         $reinsclass = $request->reinclass;
         $selectedCodes = $request->selectedCodes ?? [];
-        // dd($request->all());
+
         $result = ReinclassPremtype::where('reinclass', $reinsclass)
             ->whereNotIn('premtype_code', $selectedCodes)
             ->get();

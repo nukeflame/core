@@ -610,21 +610,18 @@ class ClaimNotificationController extends Controller
                     }
                 } else {
                     $creditNoteUrl = route('docs.reincreditnotes', ['endorsement_no' => $endorsement_no, 'partner_no' => $data->partner_no]);
-                    $coverSlipUrl = route('docs.coverslip', ['endorsement_no' => $endorsement_no, 'partner_no' => $data->partner_no]);
-                    $client_emails = json_encode($partner_emails);
-                    $client_name = $data?->partner?->name;
+                    // $coverSlipUrl = route('docs.coverslip', ['endorsement_no' => $endorsement_no, 'partner_no' => $data->partner_no]);
+                    // $client_emails = json_encode($partner_emails);
+                    // $client_name = $data?->partner?->name;
 
-                    $endorsementNo = $endorsement_no;
-                    $coverNo = $cover?->cover_no;
-                    $tmp_attachments = json_encode(['attachments' => []]);
+                    // $endorsementNo = $endorsement_no;
+                    // $coverNo = $cover?->cover_no;
+                    // $tmp_attachments = json_encode(['attachments' => []]);
 
                     if (($cover->type_of_bus == 'TPR' || $cover->type_of_bus == 'TNP') && ($cover->transaction_type == 'NEW' || $cover->transaction_type == 'REN')) {
                         $btn .= "";
                     } else {
                         $btn .= "<a href='{$creditNoteUrl}' target='_blank' rel='noopener noreferrer' class='print-out-link pr-3'><i class='bx bx-file me-1 align-middle'></i>Credit Note</a>";
-                        // $btn .= "<a href='{$coverSlipUrl}' target='_blank' rel='noopener noreferrer' class='print-out-link pr-3'><i class='bx bx-file me-1 align-middle'></i>Claim Notice</a>";
-                        // $btn .= "<a href='#' target='_blank' class='print-out-link send-reinsurer-email' data-client_emails='{$client_emails}' data-cover_no='{$coverNo}' data-endorsement_no='{$endorsementNo}' data-client_name='{$client_name}' data-client_docs='{$tmp_attachments}'>
-                        //             <i class='bx bx-mail-send' style='font-size: 15px; vertical-align: -2px;'></i> Send E-Mail</a>";
                     }
                 }
                 return $btn;
@@ -1252,7 +1249,7 @@ class ClaimNotificationController extends Controller
         try {
             $intimation = ClaimNtfRegister::where('intimation_no', $request->intimation_no);
             if (!$intimation) {
-                throw new \Exception('Claim notification not found');
+                throw new Exception('Claim notification not found');
             }
             $intimation->update(['status' => 'A']);
             $intimation =  $intimation->first();
@@ -1267,7 +1264,6 @@ class ClaimNotificationController extends Controller
             $currentMonth = str_pad($this->_month, 2, '0', STR_PAD_LEFT);
             $claim_no = 'CLM' . $claimData->branch_code . $claimData->class_code . $claim_serial_no . $currentYear . $currentMonth;
 
-            // Create claim register
             ClaimRegister::create([
                 'claim_serial_no' => $claim_serial_no,
                 'cover_no' => $claimData->cover_no,
@@ -1297,7 +1293,6 @@ class ClaimNotificationController extends Controller
                 'verified' => 'P',
             ]);
 
-            // Process perils
             $perils = ClaimNtfPeril::where('intimation_no', $request->intimation_no)->get();
             foreach ($perils as $peril) {
                 $tran_no = ClaimPeril::count('tran_no') + 1;
@@ -1322,7 +1317,6 @@ class ClaimNotificationController extends Controller
                 ]);
             }
 
-            // Process documents
             $docs = ClaimNtfDocs::where('intimation_no', $request->intimation_no)->get();
             foreach ($docs as $doc) {
                 if ($doc->document_type == 'received_doc' && $doc->file != null) {
@@ -1334,7 +1328,6 @@ class ClaimNotificationController extends Controller
                         'title' => $doc->title,
                         'description' => $doc->description,
                         'file' => $doc->file,
-                        // 'file_base64' => $doc->file_base64,
                         'mime_type' => $doc->mime_type,
                         'created_by' => Auth::user()->user_name,
                         'updated_by' => Auth::user()->user_name
@@ -1342,7 +1335,6 @@ class ClaimNotificationController extends Controller
                 }
             }
 
-            // Process acknowledgement documents
             $ackDocs = ClaimNtfAckDocs::where('intimation_no', $request->intimation_no)->get();
             foreach ($ackDocs as $ackDoc) {
                 if ($doc->document_type == 'received_doc' && $doc->file != null) {
@@ -1363,14 +1355,16 @@ class ClaimNotificationController extends Controller
                 'converted_claim_no' => $claim_no
             ]);
 
+
             DB::commit();
+
             return response()->json([
                 'status' => Response::HTTP_CREATED,
                 'message' => 'Successfully converted Notification to Claim',
                 'claim_no' => $claim_no
             ]);
         } catch (\Exception $e) {
-            DB::rollback();
+            // DB::rollback();
             return response()->json([
                 'status' => Response::HTTP_INTERNAL_SERVER_ERROR,
                 'error' => 'Failed to convert Notification to Claim: ' . $e->getMessage()

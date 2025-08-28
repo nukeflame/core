@@ -52,12 +52,12 @@ return [
             ]
         ],
         [
-            'category' => 'Modules',
+            'category' => 'Business',
             'visibility_check' => ['app.business_development.view', 'app.cover_administration.view', 'app.claims_administration.view'],
             'items' => [
                 [
                     'title' => 'Business Development',
-                    'icon' => 'bx bx-layer',
+                    'icon' => 'bx bx-building',
                     'permission' => 'app.business_development.view',
                     'submenu' => [
                         [
@@ -112,7 +112,7 @@ return [
                 ],
                 [
                     'title' => 'Cover Administration',
-                    'icon' => 'bx bx-file',
+                    'icon' => 'ri-umbrella-line lh-20',
                     'permission' => 'app.cover_administration.view',
                     'submenu' => [
                         [
@@ -144,7 +144,7 @@ return [
                 ],
                 [
                     'title' => 'Claims Administration',
-                    'icon' => 'bx bx-fingerprint',
+                    'icon' => 'ri-file-list-line lh-20',
                     'permission' => 'app.claims_administration.view',
                     'submenu' => [
                         [
@@ -159,30 +159,42 @@ return [
                         ],
                     ]
                 ],
-            ]
-        ],
-        [
-            'category' => 'Set Up',
-            'visibility_check' => ['app.reports.view'],
-            'items' => [
                 [
                     'title' => 'Budget Allocation',
                     'route' => 'admin.budget_allocation',
-                    'icon' => 'bx bx-wallet',
-                    'permission' => 'reports.budget_allocation.view',
-                ],
-                [
-                    'title' => 'Staff Notice',
-                    'route' => 'admin.staff_notices',
-                    'icon' => 'bx bx-pin',
+                    'icon' => 'bx bx-calculator',
                     'permission' => 'reports.budget_allocation.view',
                 ],
             ]
         ],
+        // [
+        //     'category' => 'Set Up',
+        //     'visibility_check' => ['app.reports.view'],
+        //     'items' => [
+        //         [
+        //             'title' => 'Budget Allocation',
+        //             'route' => 'admin.budget_allocation',
+        //             'icon' => 'bx bx-wallet',
+        //             'permission' => 'reports.budget_allocation.view',
+        //         ],
+        //         [
+        //             'title' => 'Staff Notice',
+        //             'route' => 'admin.staff_notices',
+        //             'icon' => 'bx bx-pin',
+        //             'permission' => 'reports.budget_allocation.view',
+        //         ],
+        //     ]
+        // ],
         [
             'category' => 'Settings',
             'visibility_check' => ['app.system_settings.view', 'app.reins_settings.view', 'app.user_management.view', 'app.integrations_api.view'],
             'items' => [
+                [
+                    'title' => 'Staff Notice',
+                    'route' => 'admin.staff_notices',
+                    'icon' => 'bx bx-bell',
+                    'permission' => 'reports.budget_allocation.view',
+                ],
                 [
                     'title' => 'System Settings',
                     'icon' => 'bx bx-cog',
@@ -369,12 +381,6 @@ return [
                     'icon' => 'bx bx-diamond',
                     'permission' => 'app.integrations_api.view'
                 ],
-            ]
-        ],
-        [
-            'category' => 'Reports',
-            'visibility_check' => ['app.reports.view'],
-            'items' => [
                 [
                     'title' => 'Reports',
                     'route' => 'reports.facultative',
@@ -383,7 +389,21 @@ return [
                     'classes' => 'reporting-dashboard'
                 ],
             ]
+
         ],
+        // [
+        //     'category' => 'Reports',
+        //     'visibility_check' => ['app.reports.view'],
+        //     'items' => [
+        //         [
+        //             'title' => 'Reports',
+        //             'route' => 'reports.facultative',
+        //             'icon' => 'bx bxs-file',
+        //             'permission' => 'app.reports.view',
+        //             'classes' => 'reporting-dashboard'
+        //         ],
+        //     ]
+        // ],
         // [
         //     'category' => 'Help',
         //     'visibility_check' => ['app.help.view'],

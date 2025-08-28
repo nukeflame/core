@@ -255,19 +255,76 @@
     <script>
         $(document).ready(function() {
             var approvalTable = $('.approved-table').DataTable({
-                // pageLength: 20,
-                lengthChange: false,
+                pageLength: 25,
+                lengthMenu: [
+                    [25, 50, 100, -1],
+                    [25, 50, 100, "All"]
+                ],
+                lengthChange: true,
+
                 processing: true,
                 serverSide: true,
+
+                responsive: {
+                    details: {
+                        type: 'column',
+                        target: 0
+                    }
+                },
+                scrollX: true,
+                scrollCollapse: true,
+
+                searching: true,
+                searchDelay: 500,
+
+                order: [
+                    [8, 'desc']
+                ],
+
+                // stateSave: true,
+                // stateDuration: 60 * 60 * 24, // 24 hours
+
+                language: {
+                    processing: '<div class="d-flex justify-content-center"><div class="spinner-border text-primary" role="status"><span class="sr-only">Loading...</span></div></div>',
+                    emptyTable: "No approval records found",
+                    info: "Showing _START_ to _END_ of _TOTAL_ approvals",
+                    infoEmpty: "No approvals available",
+                    infoFiltered: "(filtered from _MAX_ total approvals)",
+                    lengthMenu: "Show _MENU_ approvals per page",
+                    search: "Search approvals:",
+                    paginate: {
+                        first: "First",
+                        last: "Last",
+                        next: "Next",
+                        previous: "Previous"
+                    }
+                },
+
                 ajax: {
                     url: "{{ route('approvals.approval-data') }}",
                     data: function(d) {
+                        // Add custom filters
                         d.type = $('.nav-link.active').data('type');
+                        d.status_filter = $('#status-filter').val();
+                        d.priority_filter = $('#priority-filter').val();
+                        d.client_filter = $('#client-filter').val();
+                        d.date_from = $('#date-from').val();
+                        d.date_to = $('#date-to').val();
+                        d._token = $('meta[name="csrf-token"]').attr('content');
+                    },
+                    error: function(xhr, error, code) {
+                        console.error('DataTables AJAX error:', error);
+                        toastr.error('Failed to load approval data. Please refresh the page.');
                     }
+                    // url: "{{ route('approvals.approval-data') }}",
+                    // data: function(d) {
+                    //     d.type = $('.nav-link.active').data('type');
+                    // }
                 },
                 columns: [{
                         data: 'id',
-                        searchable: true,
+                        searchable: false,
+                        orderble: false,
                         className: 'highlight-idx',
                         render: function(data, type, row, meta) {
                             return meta.row + 1;
@@ -543,7 +600,11 @@
                     .then(response => response.json())
                     .then(data => {
                         if (data?.status == 201) {
-                            toastr.success("Approval rejected successful", 'Successful')
+                            if (data.action == 'A') {
+                                toastr.success("Approval approved successful", 'Successful')
+                            } else {
+                                toastr.success("Approval rejected successful", 'Successful')
+                            }
                             approvalTable.ajax.reload();
                             $("#apprv-view").hide();
                         } else if (data?.status == 422) {
