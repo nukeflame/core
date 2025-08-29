@@ -2421,7 +2421,7 @@
 
                 const orig_share = $(`#edreinsurer-orig-share`).val();
                 const currDistributedShare = origDistributedShare - orig_share
-                // Retrieve other relevant values from the modal
+
                 let rem_share = share_offered - currDistributedShare;
                 // let totalSumInsured = removeCommas($(`#reinsurer-modal #reinsurer-total_sum_insured-${counter}`).val()) || 0;
                 let totalSumInsured = '{!! $coverReg->total_sum_insured !!}' || 0;
@@ -2886,7 +2886,7 @@
 
                 $(`#reinsurer-${treatyCounter}-${counter}`).trigger('change:select2');
             }
-            // remove reinsurer
+
             $('#reinsurer-div ').on('click', '.remove-reinsurer', function() {
                 const counter = $(this).data('counter');
                 $(`#reinsurer-div-${counter}`).remove()

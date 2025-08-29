@@ -66,8 +66,67 @@ class ClaimNotificationController extends Controller
 
     public function getCustomers(Request $request)
     {
-        $customers = Customer::where('status', 'A')->get(['customer_id', 'name']);
-        return response()->json($customers);
+        try {
+            $customers = Customer::where('status', 'A')
+                ->get([
+                    'customer_id',
+                    'name',
+                    'postal_address',
+                    'postal_town',
+                    'city',
+                    'email',
+                    'telephone',
+                    'country_iso',
+                    'customer_type'
+                ]);
+
+            $allCovers = CoverRegister::where('cancelled', '<>', 'Y')
+                ->whereIn('type_of_bus', ['FPR', 'FNP', 'TNP'])
+                ->orderBy('dola', 'desc')
+                ->get();
+
+            $coversByCustomer = $allCovers->groupBy('customer_id');
+            $customersWithCovers = $customers->map(function ($customer) use ($coversByCustomer) {
+                $customerCovers = $coversByCustomer->get($customer->customer_id, collect());
+                return [
+                    'customer_id' => $customer->customer_id,
+                    'name' => $customer->name,
+                    'postal_address' => $customer->postal_address,
+                    'postal_town' => $customer->postal_town,
+                    'city' => $customer->city,
+                    'email' => $customer->email,
+                    'telephone' => $customer->telephone,
+                    'country_iso' => $customer->country_iso,
+                    'customer_type' => $customer->customer_type,
+                    'covers' => $customerCovers->map(function ($cover) {
+                        $coverType  =  DB::table('class_groups')->where(['group_code' => $cover->class_group_code, 'status' => 'A'])->first(['group_name']);
+
+                        logger()->info(json_encode($cover, JSON_PRETTY_PRINT));
+
+                        return [
+                            'cover_no' => $cover->cover_no ?? null,
+                            'type_of_bus' => $cover->type_of_bus,
+                            'dola' => $cover->dola,
+                            'endorsement_number' => $cover->endorsement_no ?? null,
+                            'cover_type' => $coverType?->group_name,
+                            'insured_name' => $cover->insured_name
+                        ];
+                    }),
+                    'covers_count' => $customerCovers->count()
+                ];
+            });
+
+
+            return response()->json([
+                'success' => true,
+                'data' => $customersWithCovers
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error fetching customers: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     public function ClaimForm(Request $request)

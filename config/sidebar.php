@@ -148,7 +148,7 @@ return [
                     'permission' => 'app.claims_administration.view',
                     'submenu' => [
                         [
-                            'title' => 'Claim Notifications Enquiry',
+                            'title' => 'Notification',
                             'route' => 'claim.notification.enquiry',
                             'permission' => 'claims.notification.view'
                         ],

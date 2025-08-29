@@ -1,7 +1,6 @@
 @extends('layouts.app')
 
 @section('content')
-    <!-- Page Header -->
     <div class="d-md-flex d-block align-items-center justify-content-between my-4 page-header-breadcrumb">
         <h1 class="page-title fw-semibold fs-18 mb-0">New Claim Notification</h1>
         <div class="ms-md-1 ms-0">
@@ -15,7 +14,6 @@
             </nav>
         </div>
     </div>
-    <!-- Page Header Close -->
 
     <div class="form-group" style="padding:21px">
         <form id="register_claim" action="{{ route('claim.notification.register') }}" method="post">
