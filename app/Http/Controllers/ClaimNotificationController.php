@@ -101,7 +101,7 @@ class ClaimNotificationController extends Controller
                     'covers' => $customerCovers->map(function ($cover) {
                         $coverType  =  DB::table('class_groups')->where(['group_code' => $cover->class_group_code, 'status' => 'A'])->first(['group_name']);
 
-                        logger()->info(json_encode($cover, JSON_PRETTY_PRINT));
+                        // logger()->info(json_encode($cover, JSON_PRETTY_PRINT));
 
                         return [
                             'cover_no' => $cover->cover_no ?? null,
@@ -109,7 +109,17 @@ class ClaimNotificationController extends Controller
                             'dola' => $cover->dola,
                             'endorsement_number' => $cover->endorsement_no ?? null,
                             'cover_type' => $coverType?->group_name,
-                            'insured_name' => $cover->insured_name
+                            'insured_name' => $cover->insured_name,
+                            'cover_from' => "2024-01-01",
+                            'cover_to' => "2024-12-31",
+                            'endorsements' => [
+                                [
+                                    'endorsement_no' => "END001",
+                                    'effective_from' => "2024-01-01",
+                                    'effective_to' => "2024-12-31"
+                                ]
+                            ]
+
                         ];
                     }),
                     'covers_count' => $customerCovers->count()
