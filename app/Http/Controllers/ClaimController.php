@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Jobs\SendClaimNotificationJob;
+// use App\Jobs\SendClaimNotificationJob;
 use App\Jobs\SendClaimReinNotificationJob;
 use Throwable;
 use Carbon\Carbon;
@@ -35,6 +35,7 @@ use App\Models\Company;
 use App\Models\CoverDebit;
 use Illuminate\Support\Facades\DB;
 use App\Models\SystemProcessAction;
+use App\Services\MailService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Session;
@@ -47,13 +48,15 @@ class ClaimController extends Controller
 {
     private $_year;
     private $_month;
-    private $_quarter;
+    protected $mailService;
 
-    public function __construct()
+    public function __construct(MailService $mailService)
     {
         $this->_year = Carbon::now()->year;
         $this->_month = Carbon::now()->month;
-        $this->_quarter = Carbon::now()->quarter;
+        // $this->_quarter = Carbon::now()->quarter;
+
+        $this->mailService = $mailService;
     }
     public function ClaimForm(Request $request)
     {
@@ -380,6 +383,26 @@ class ClaimController extends Controller
             $customer->name ?? ''
         ])->filter()->implode(' - ');
 
+
+        // Filter to only allowed mail folders
+        $folders = ['inbox', 'sent', 'drafts'];
+        $limit = (int) $request->get('limit', 50);
+        $search = $request->get('search');
+        $allEmails = [];
+
+        foreach ($folders as $folder) {
+            try {
+                $results = $this->mailService->getMailData($folder, $search, $limit);
+                $allEmails = [...$allEmails, ...$results['emails']];
+            } catch (\Exception $e) {
+                logger()->error("Mail index failed for folder: {$folder}", [
+                    'error' => $e->getMessage(),
+                    'folder' => $folder
+                ]);
+            }
+        }
+
+        // logger()->info(json_encode($results['emails'], JSON_PRETTY_PRINT));
         return view('claim.claim_home', [
             'ClaimRegister' => $claimRegister,
             'branch' => $branch,
@@ -409,7 +432,8 @@ class ClaimController extends Controller
             'recipients' => $cedant?->contacts,
             'cedantAttachedFiles' => $cedantAttachedFiles,
             'defaultCedantMessage' => $this->getCedantDefaultMessage($claimRegister, $customer),
-            'defaultMessage' => $this->getDefaultMessage($claimRegister, $customer)
+            'defaultMessage' => $this->getDefaultMessage($claimRegister, $customer),
+            'emails' => $allEmails
         ]);
     }
 

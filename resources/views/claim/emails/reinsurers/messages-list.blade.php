@@ -44,7 +44,8 @@
                 </button>
             </div>
         </div>
-        <div class="d-flex justify-content-between align-items-center mt-3">
+
+        <div class="d-flex justify-content-between align-items-center mt-3" id="messageListInfo">
             <small class="text-muted" id="resultsInfo">Loading messages...</small>
             <div class="d-flex gap-2">
                 <small class="text-muted" id="totalInfo">Total: {{ $totalMessages ?? 0 }} messages in system</small>
@@ -67,7 +68,7 @@
     </div>
 
     {{-- Filtered messages count --}}
-    <div class="d-flex align-items-center justify-content-between mb-3">
+    <div class="d-flex align-items-center justify-content-between mb-3" id="filteredMessagesContainer">
         <div class="d-flex align-items-center">
             <i class="bx bx-filter me-2"></i>
             <h3 class="mb-0" id="filteredMessagesCount">Select Message to Reply (<span id="filteredCount">0</span>
@@ -382,7 +383,7 @@
 
             $('#refreshEmailsBtn').on('click', () => refreshData());
             $('#checkConnectionBtn').on('click', checkConnection);
-            $('#connectOutlookBtn').on('click', () => window.OutlookConnectionManager?.show());
+            $('#connectOutlookBtn').on('click', () => redirectToMail());
             $('#fetchMoreBtn').on('click', () => fetchMoreEmails());
             $('#clearFiltersBtn').on('click', clearFilters);
 
@@ -393,14 +394,16 @@
              * Initialize the message list system
              */
             async function initializeMessageList() {
+                const connectionStatus = @json(auth()->user()->hasOutlookConnection());
+
                 try {
-                    if (typeof window.OutlookConnectionManager === 'undefined') {
+                    if (typeof connectionStatus === 'undefined') {
                         setTimeout(initializeMessageList, 500);
                         return;
                     }
 
                     await checkConnection();
-                    await loadMessages();
+                    // await loadMessages();
 
                 } catch (error) {
                     console.error('Initialization failed:', error);
@@ -413,8 +416,8 @@
              */
             async function checkConnection() {
                 try {
-                    const status = await window.OutlookConnectionManager.checkStatus();
-                    isConnected = status.connected;
+                    const status = @json(auth()->user()->hasOutlookConnection());;
+                    isConnected = status;
                     updateConnectionUI(status);
                     return status;
 
@@ -431,18 +434,28 @@
                 }
             }
 
+            function redirectToMail() {
+                window.location.href = '/mail';
+            }
+
             /**
              * Update connection status UI
              */
             function updateConnectionUI(status) {
                 const $alert = $('#connectionAlert');
                 const $checkBtn = $('#checkConnectionBtn');
+                const $filteredMessagesContainer = $('#filteredMessagesContainer');
+                const $loadingSpinner = $('#loadingSpinner');
 
-                if (status.connected) {
+                if (status) {
+                    $loadingSpinner.removeClass('d-none');
+                    $filteredMessagesContainer.removeClass('d-none');
                     $alert.addClass('d-none');
                     $checkBtn.removeClass('btn-outline-danger').addClass('btn-outline-success');
                     $checkBtn.html('<i class="bx bx-wifi me-1"></i> Connected');
                 } else {
+                    $loadingSpinner.addClass('d-none');
+                    $filteredMessagesContainer.addClass('d-none');
                     $alert.removeClass('d-none');
                     $checkBtn.removeClass('btn-outline-success').addClass('btn-outline-danger');
                     $checkBtn.html('<i class="bx bx-wifi-off me-1"></i> Disconnected');
@@ -475,16 +488,16 @@
              */
             async function loadOutlookMessages(forceRefresh = false) {
                 try {
-                    const result = await window.OutlookConnectionManager.fetchEmails(currentFolder, 100,
-                        forceRefresh);
 
-                    if (result.success && result.emails) {
-                        allMessages = result.emails.map(transformOutlookMessage);
-                    } else {
-                        throw new Error(result.message || 'Failed to fetch emails');
+                    const results = @json($emails);
+                    if (results?.length > 0) {
+                        allMessages = results.map(transformOutlookMessage);
                     }
 
                     filteredMessages = [...allMessages];
+
+                    console.log(filteredMessages)
+
                     updateResultsInfo();
                     renderMessages();
                     renderPagination();
@@ -598,21 +611,21 @@
 
             async function refreshData() {
                 try {
-                    $('#refreshEmailsBtn').prop('disabled', true).html(
-                        '<span class="spinner-border spinner-border-sm me-1"></span> Fetching...');
+                    // $('#refreshEmailsBtn').prop('disabled', true).html(
+                    //     '<span class="spinner-border spinner-border-sm me-1"></span> Fetching...');
 
-                    const result = await window.OutlookConnectionManager.fetchEmails(currentFolder, 100, true);
-                    if (result.success) {
-                        if (result.emails.length > 0) {
-                            allMessages = result.emails.map(transformOutlookMessage);
-                        }
-                        toastr.success('Emails refreshed successfully!');
-                    }
+                    // const result = await window.OutlookConnectionManager.fetchEmails(currentFolder, 100, true);
+                    // if (result.success) {
+                    //     if (result.emails.length > 0) {
+                    //         allMessages = result.emails.map(transformOutlookMessage);
+                    //     }
+                    //     toastr.success('Emails refreshed successfully!');
+                    // }
 
-                    filteredMessages = [...allMessages];
-                    updateResultsInfo();
-                    renderMessages();
-                    renderPagination();
+                    // filteredMessages = [...allMessages];
+                    // updateResultsInfo();
+                    // renderMessages();
+                    // renderPagination();
                 } catch (error) {
                     console.error('Refresh failed:', error);
                     toastr.error('Failed to refresh emails: ' + error.message);
@@ -630,27 +643,28 @@
                     $('#fetchMoreBtn').prop('disabled', true).html(
                         '<span class="spinner-border spinner-border-sm me-1"></span> Fetching...');
 
-                    const result = await window.OutlookConnectionManager.fetchEmails(currentFolder, 50);
+                    // const result = @json($emails);
 
-                    if (result.success && result.emails) {
-                        const newMessages = result.emails.map(transformOutlookMessage);
+                    // console.log(result)
+                    // if (result.success && result.emails) {
+                    //     const newMessages = result.emails.map(transformOutlookMessage);
 
-                        const existingIds = new Set(allMessages.map(m => m.id));
-                        const uniqueNewMessages = newMessages.filter(m => !existingIds.has(m.id));
+                    //     const existingIds = new Set(allMessages.map(m => m.id));
+                    //     const uniqueNewMessages = newMessages.filter(m => !existingIds.has(m.id));
 
-                        allMessages = [...allMessages, ...uniqueNewMessages];
-                        filteredMessages = [...allMessages];
+                    //     allMessages = [...allMessages, ...uniqueNewMessages];
+                    //     filteredMessages = [...allMessages];
 
-                        updateResultsInfo();
-                        renderMessages();
-                        renderPagination();
+                    //     updateResultsInfo();
+                    //     renderMessages();
+                    //     renderPagination();
 
-                        if (uniqueNewMessages.length === 0) {
-                            toastr.info(`Fetched ${uniqueNewMessages.length} new messages`)
-                        } else {
-                            toastr.success('No new messages found')
-                        }
-                    }
+                    //     if (uniqueNewMessages.length === 0) {
+                    //         toastr.info(`Fetched ${uniqueNewMessages.length} new messages`)
+                    //     } else {
+                    //         toastr.success('No new messages found')
+                    //     }
+                    // }
 
                 } catch (error) {
                     console.error('Fetch more failed:', error);

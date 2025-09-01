@@ -873,7 +873,7 @@
                 <div class="modal-header">
                     <h5 class="modal-title text-white text-center" id="sendReinDocumentEmailLabel">
                         <i class="bx bx-envelope me-2 fs-15" style="vertical-align: middle"></i>Email Notification (To
-                        Reinsurers) - Claim
+                        Reinsurer) - Claim
                         Documentation
                     </h5>
                     <button type="button" class="btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -1249,10 +1249,6 @@
         </div>
     </div>
 
-    @if (!auth()->user()->hasOutlookConnection() && $ClaimRegister->verified === 'A')
-        @include('mail.partials.outlook-setup')
-    @endif
-    {{-- <x-outlook-connection :auto-show="false" :show-cancel-button="true" :fetch-emails-on-connect="false" :show-toast-message="false" /> --}}
 @endsection
 
 @push('script')
