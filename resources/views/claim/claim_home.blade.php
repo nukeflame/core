@@ -911,7 +911,7 @@
                                 </div>
 
                                 <div class="tab-pane fade" id="replies" role="tabpanel">
-                                    {{-- @include('claim.emails.reinsurers.messages-list') --}}
+                                    @include('claim.emails.reinsurers.messages-list')
                                 </div>
                             </div>
                         </div>
@@ -977,12 +977,12 @@
                             <div class="tab-content" id="emailTabContent">
                                 <!-- Compose Tab -->
                                 <div class="tab-pane fade show active" id="compose" role="tabpanel">
-                                    @include('claim.emails.cedant.compose-form')
+                                    {{-- @include('claim.emails.cedant.compose-form') --}}
                                 </div>
 
                                 <!-- Replies Tab -->
                                 <div class="tab-pane fade" id="replies" role="tabpanel">
-                                    @include('claim.emails.cedant.messages-list')
+                                    {{-- @include('claim.emails.cedant.messages-list') --}}
                                 </div>
                             </div>
                         </div>
@@ -2064,21 +2064,20 @@
                 $('#statusForm').submit()
             });
 
-            reinsurersTable.on('click', '.send_rein_email', function(e) {
+            reinsurersTable.on('click', '.send_rein_email', async function(e) {
                 e.preventDefault();
-                // lastReinData.tranNo = $(this).data('tran_no');
-                // lastReinData.debitUrl = $(this).data('debit_url');
-                // lastReinData.claimNoticeUrl = $(this).data('claim_notice_url');
+                lastReinData.tranNo = $(this).data('tran_no');
+                lastReinData.debitUrl = $(this).data('debit_url');
+                lastReinData.claimNoticeUrl = $(this).data('claim_notice_url');
 
-                console.log($(this).data())
+                const reinsurers = @json($coverpart) ?? [];
 
-                // const reinsurers = @json($reinsurers) ?? [];
-                // await prepareReinEmailModal(
-                //     lastReinData.tranNo,
-                //     lastReinData.debitUrl,
-                //     lastReinData.claimNoticeUrl,
-                //     reinsurers
-                // );
+                await prepareReinEmailModal(
+                    lastReinData.tranNo,
+                    lastReinData.debitUrl,
+                    lastReinData.claimNoticeUrl,
+                    reinsurers
+                );
             });
 
             debitsTable.on('click', '.send_debit_letter', async function(e) {
@@ -2103,16 +2102,11 @@
             async function prepareReinEmailModal(tranNo, debitUrl, claimNoticeUrl, reinsurers) {
                 // window.OutlookConnectionManager.showLoading();
                 // const emailConnection = await window.OutlookConnectionManager.checkStatus();
-
-                console.log(debitUrl)
-
-
                 // if (!emailConnection.connected) {
                 //     window.OutlookConnectionManager.hideLoading();
                 //     window.OutlookConnectionManager.show();
                 //     return;
                 // }
-
                 // window.OutlookConnectionManager.hideLoading();
 
                 if (debitUrl) {
@@ -2126,11 +2120,14 @@
                     $("#claimNoticeLink").attr('href', claimNoticeUrl);
                     $("#claimNoticeFile").val(claimNoticeUrl);
                 } else {
-                    $("a#claimNoticeLink").removeAttr('href').on('click', e => e.preventDefault());
+                    $("#claimNoticeLink").removeAttr('href').on('click', e => e.preventDefault());
                 }
 
                 const reinsurer = reinsurers.find(x => Number(x.tran_no) === Number(tranNo));
-                if (!reinsurer) return;
+                if (!reinsurer) {
+                    toastr.info('No reinsurer found for the selected transaction.');
+                    return;
+                }
 
                 const contacts = reinsurer?.contacts || [];
                 const $contactsSelect = $(".claimReinEmailForm #contacts");

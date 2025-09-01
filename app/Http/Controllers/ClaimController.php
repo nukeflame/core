@@ -279,7 +279,14 @@ class ClaimController extends Controller
         $customer = Customer::where('customer_id', $claimRegister->customer_id)->first();
         $reinsurers = Customer::all();
         $cover = CoverType::where('type_id', $claimRegister->cover_type)->first();
-        $coverpart = CoverRipart::where('endorsement_no', $claimRegister->endorsement_no)->get();
+
+        $coverpart = CoverRipart::where('endorsement_no', $claimRegister->endorsement_no)
+            ->with([
+                'partner:customer_id,name,email',
+                'contacts',
+            ])
+            ->get();
+
         $busType = BusinessType::where('bus_type_id', $claimRegister->type_of_bus)->first();
         $endorse = CoverRegister::where('endorsement_no', $claimRegister->endorsement_no)->first();
         $verifiers = User::permission('app.claims_administration.manage')
@@ -406,11 +413,9 @@ class ClaimController extends Controller
         ]);
     }
 
-
     private function getDefaultMessage($claim, $customer): string
     {
-        // "Dear {$customer->name},\n\n" .
-        return "Dear ,\n\n" .
+        return "Dear {recipient_name},\n\n" .
             "Greetings,\n\n" .
             "We regret to inform you of a loss which occurred on " . Carbon::parse($claim->date_of_loss)->format('Y-m-d') . " due to {$claim->cause_of_loss}.\n\n" .
             "Kindly find attached copies of claim documents and debit note for your review and settlement.\n\n" .
@@ -418,7 +423,6 @@ class ClaimController extends Controller
             "Best regards,\n" .
             config('app.name');
     }
-
 
     public function ClaimsEnquiryDatatable(Request $request)
     {
@@ -564,54 +568,63 @@ class ClaimController extends Controller
         $endorsement_no = $request->get('endorsement_no');
         $cover_no = $request->get('cover_no');
         $claim_no = $request->get('claim_no');
-        $query = CoverRipart::query()->where('endorsement_no', $endorsement_no);
+
+        $query = CoverRipart::query()
+            ->where('endorsement_no', $endorsement_no)
+            ->with(['partner:customer_id,name']);
+
         $debit = ClaimDebit::query()->where('claim_no', $claim_no)->first();
-        $intimation = ClaimNtfRegister::query()->where(['cover_no' => $cover_no, 'endorsement_no' => $endorsement_no])->first();
-        $cover = CoverRegister::where('endorsement_no', $endorsement_no)->first();
+        $intimation = ClaimNtfRegister::query()
+            ->where(['cover_no' => $cover_no, 'endorsement_no' => $endorsement_no])
+            ->first();
 
         return datatables::of($query)
             ->addColumn('partner_name', function ($data) {
-                $part = Customer::where('customer_id', $data->partner_no)->first();
-                return $part->name;
+                return $data->partner->name ?? 'N/A';
             })
-            ->addColumn(
-                'credit_no',
-                function ($data) {
-                    return 'CRN/' . $data->tran_no . '/' . $data->period_year ?? '';
-                }
-            )
-            ->addColumn('action', function ($data) use ($debit, $claim_no, $endorsement_no, $cover, $intimation) {
+            ->addColumn('credit_no', function ($data) {
+                return 'CRN/' . $data->tran_no . '/' . ($data->period_year ?? '');
+            })
+            ->addColumn('action', function ($data) use ($debit, $claim_no, $intimation) {
                 $btn = "";
-                $partner_emails = [];
-                $partner_emails[] = $data?->partner?->email;
+                $debit_url = '';
+                $claim_notice_url = '';
 
                 if ($debit) {
-                    $debitNote = route('docs.fac_clm_reindebit_note', ['endorsement_no' => $endorsement_no, 'claim_no' => $claim_no, 'id' => $debit->id, 'partner_no' => $data->partner_no]);
-                    $claimNoticeUrl = route('docs.claimntf-docs-notc-letter', ['intimation_no' => $intimation?->intimation_no, 'partner_no' => $data->partner_no]);
+                    $debit_url = route('docs.fac_clm_reindebit_note', [
+                        'endorsement_no' => $data->endorsement_no,
+                        'claim_no' => $claim_no,
+                        'id' => $debit->id,
+                        'partner_no' => $data->partner_no,
+                    ]);
 
-                    $client_emails = json_encode($partner_emails);
-                    $client_name = $data?->partner?->name;
+                    $btn .= '<a href="' . $debit_url . '" target="_blank" rel="noopener noreferrer" class="link me-2">
+                                <i class="bx bx-file"></i> Debit Note
+                             </a>';
 
-                    $endorsementNo = $endorsement_no;
-                    $coverNo = $cover?->cover_no;
-                    $tmp_attachments = json_encode(['attachments' => []]);
+                    if ($intimation && $intimation->intimation_no) {
+                        $claim_notice_url = route('docs.claimntf-docs-notc-letter', [
+                            'intimation_no' => $intimation->intimation_no,
+                            'partner_no' => $data->partner_no
+                        ]);
 
-                    // logger()->info($client_name);
-
-                    $btn .= "<a href='{$debitNote}' data-endorsementno='{$endorsementNo}' data-partnerno='{$data->partner_no}' target='_blank' rel='noopener noreferrer' class='print-out-link pr-3 rein_credit_note_btn'><i class='bx bx-file me-1 align-middle'></i>Debit Note</a>";
-
-                    $btn .= "<a href='{$claimNoticeUrl}' target='_blank' rel='noopener noreferrer' class='print-out-link pr-3 rein_cover_slip_btn'>
-                                    <i class='bx bx-file'></i> Claim Notice</a>";
-
-                    $btn .= "<a href='#' target='_blank' class='print-out-link send_rein_email' data-client_emails='{$client_emails}' data-cover_no='{$coverNo}' data-endorsement_no='{$endorsementNo}' data-client_name='{$client_name}' data-client_docs='{$tmp_attachments}'>
-                                    <i class='bx bx-mail-send' style='font-size: 15px; vertical-align: -2px;'></i> Send E-Mail</a>";
+                        $btn .= ' <a class="print-out-link me-2"
+                                    href="' . $claim_notice_url . '"
+                                    target="_blank" rel="noopener noreferrer">
+                                    <i class="bx bx-file"></i> Claim Notice
+                                 </a>';
+                    }
                 }
+
+                $btn .= '<a href="#" class="link me-2 send_rein_email" data-tran_no="' . $data->tran_no . '" data-debit_url="' . $debit_url . '" data-claim_notice_url="' . $claim_notice_url . '" >
+                            <i class="bx bx-mail-send"></i> Send E-Mail
+                         </a>';
 
                 return $btn;
             })
-            ->rawColumns(['action'])
             ->make(true);
     }
+
 
     public function generateDebit(Request $request)
     {

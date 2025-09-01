@@ -2,9 +2,15 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\SendClaimReinsurerRequest;
+use App\Jobs\SendOutlookEmailJob;
+use App\Models\ClaimRegister;
+use App\Models\Customer;
 use App\Models\User;
+use App\Services\ContactNameMappingService;
 use App\Services\OutlookService;
 use App\Services\MailService;
+use Carbon\Carbon;
 use Exception;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
@@ -21,14 +27,21 @@ use Illuminate\Support\Facades\Storage;
 
 class MailController extends Controller
 {
-    public function __construct(
-        private OutlookService $outlookService,
-        private MailService $mailService
-    ) {}
+    protected $mailService;
+    private $outlookService;
+    private $authUser;
+    protected string $batchId;
 
-    function sendClaimReinsurerEmail() {}
+    public function __construct(MailService $mailService, OutlookService $outlookService)
+    {
+        $this->mailService = $mailService;
+        $this->outlookService = $outlookService;
+        $this->authUser = auth()->user();
+
+        $this->batchId = Str::uuid()->toString();
+    }
+
     function fetchEmails() {}
-
 
     public function index(Request $request): View
     {
@@ -513,5 +526,199 @@ class MailController extends Controller
             logger()->error("Error retrieving file: " . $e->getMessage());
             abort(500, 'Error retrieving file');
         }
+    }
+
+    public function sendClaimReinsurerEmail(SendClaimReinsurerRequest $request)
+    {
+        try {
+            DB::beginTransaction();
+
+            $claim = ClaimRegister::where('claim_no', $request->claim_no)->firstOrFail();
+            $customer = $claim->customer ?? Customer::find($request->customer_id);
+            $allEmails = array_merge(
+                [$request->partner_email],
+                $request->contacts ?? [],
+                $request->cc_email ?? [],
+                $request->bcc_email ?? []
+            );
+
+            $recipientNames = ContactNameMappingService::getRecipientNames($customer, $allEmails);
+
+            $attachments = [];
+            if ($request->hasFile('attachments')) {
+                foreach ($request->file('attachments') as $index => $file) {
+                    try {
+                        $filename = time() . '_' . $index . '_' . $file->getClientOriginalName();
+                        $path = $file->storeAs('claim_attachments/' . $claim->claim_no, $filename, 'public');
+
+                        $attachments[] = [
+                            'name' => $file->getClientOriginalName(),
+                            'path' => storage_path('app/public/' . $path),
+                            'size' => $file->getSize(),
+                            'mime_type' => $file->getMimeType()
+                        ];
+                    } catch (Exception $e) {
+                        logger()->error('Failed to process attachment', [
+                            'index' => $index,
+                            'filename' => $file->getClientOriginalName(),
+                            'error' => $e->getMessage()
+                        ]);
+                        throw new Exception("Failed to process attachment: " . $file->getClientOriginalName() . ". Error: " . $e->getMessage());
+                    }
+                }
+            }
+
+            $recipients = [];
+            if (!empty($request->reply_to_id)) {
+                $recipients[] = $request->partner_email;
+            } else {
+                $recipients[] = $request->partner_email;
+
+                if (!empty($request->contacts)) {
+                    $recipients = array_merge($recipients, $request->contacts);
+                }
+            }
+
+            $recipients = array_unique($recipients);
+
+            // $emailRecords = [];
+            $successCount = 0;
+            $failedCount = 0;
+
+            foreach ($recipients as $index => $recipient) {
+                try {
+                    $jobId = $this->batchId . '-' . ($index + 1);
+                    $recipientEmail = explode(',', $recipient) ?? [];
+
+                    $recipientName = $recipientNames[$recipient] ?? 'Sir/Madam';
+                    $personalizedMessage = $this->formatMessageForHtml($request->message, $recipientName);
+                    $rawMessage = $this->formatRawMessageForHtml($request->message);
+
+                    $emailData = [
+                        'claim' => $claim,
+                        'subject' => $request->subject,
+                        'message' => $personalizedMessage,
+                        'priority' => $request->priority ?? 'normal',
+                        'category' => $request->category ?? 'claim',
+                        'reference' => $request->reference ?? null,
+                        'attachments' => $attachments,
+                        'senderName' => $this->authUser->name,
+                        'senderEmail' => $this->authUser->email,
+                        'recipientName' => $recipientName,
+                        'replyToId' => $request->reply_to_id,
+                        'replyMessage' => $rawMessage ?? '',
+                        'to' => $recipientEmail,
+                        'cc' => $request->cc_email ?? [],
+                        'bcc' => $request->bcc_email ?? [],
+                    ];
+
+                    // $emailRecords[] = $emailRecord;
+                    $job = SendOutlookEmailJob::dispatch($emailData, $this->authUser->id, $jobId);
+
+                    if ($request->input('schedule_at')) {
+                        $scheduleAt = Carbon::parse($request->input('schedule_at'));
+                        $job->delay($scheduleAt);
+                    } elseif (!$request->boolean('send_immediately', true)) {
+                        $job->delay(now()->addSeconds($index * 2));
+                    }
+
+                    $successCount++;
+                } catch (\Exception $e) {
+                    $failedCount++;
+                    logger()->error("Failed to dispatch email job for batch {$this->batchId}", [
+                        'index' => $index,
+                        'error' => $e->getMessage()
+                    ]);
+                }
+            }
+
+            // $claim->notification_status = 'notification_sent';
+            // $claim->notification_sent_at = now();
+            // $claim->notification_sent_by = auth()->id();
+            // $claim->update();
+
+            DB::commit();
+
+            $emailType = !empty($request->reply_to_id) ? 'reply' : 'notification';
+            return response()->json([
+                'success' => true,
+                'message' => "Claim {$emailType} emails have been queued for sending to " . count($recipients) . ' recipient(s)',
+            ]);
+        } catch (ModelNotFoundException $e) {
+            DB::rollBack();
+            logger()->error('Claim not found', [
+                'claim_no' => $request->claim_no,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Claim not found: ' . $request->claim_no
+            ], 404);
+        } catch (Exception $e) {
+            DB::rollBack();
+            logger()->error('Failed to send claim notification email', [
+                'claim_no' => $request->claim_no ?? 'N/A',
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to send claim notification: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    private function formatMessageForHtml($message, $recipientName = 'Sir/Madam')
+    {
+        $personalizedMessage = str_replace('{recipient_name}', $recipientName, $message);
+
+        $html = nl2br(htmlspecialchars($personalizedMessage, ENT_QUOTES, 'UTF-8'));
+
+        $html = str_replace("\n\n", "</p><p>", $html);
+        $html = "<p>" . $html . "</p>";
+
+        $html = preg_replace('/<p>\s*<\/p>/', '', $html);
+
+        $html = preg_replace('/<p>(\d+\..*?)<\/p>/', '<li>$1</li>', $html);
+        $html = preg_replace('/(<li>.*<\/li>)/s', '<ol>$1</ol>', $html);
+
+        $html = preg_replace('/<p>[-•*]\s*(.*?)<\/p>/', '<li>$1</li>', $html);
+        $html = preg_replace('/(<li>(?:(?!<ol>).)*<\/li>)/s', '<ul>$1</ul>', $html);
+
+        $html = preg_replace('/<p>\s*<\/p>/', '', $html);
+
+        if (!preg_match('/^<p>\s*(Dear|Hello|Hi|Greetings)/i', $html)) {
+            $greeting = ContactNameMappingService::getAppropriateGreeting($recipientName);
+            $html = "<p>" . $greeting . "</p>" . $html;
+        }
+
+        if (!preg_match('/(Best regards|Sincerely|Kind regards|Yours faithfully)/i', $html)) {
+            $html .= "<p>Best regards,<br>" . auth()->user()->name . "</p>";
+        }
+
+        return $html;
+    }
+
+    private function formatRawMessageForHtml($message)
+    {
+        $html = nl2br(htmlspecialchars($message, ENT_QUOTES, 'UTF-8'));
+
+        $html = str_replace("\n\n", "</p><p>", $html);
+
+        $html = "<p>" . $html . "</p>";
+
+        $html = preg_replace('/<p>\s*<\/p>/', '', $html);
+
+        $html = preg_replace('/<p>(\d+\..*?)<\/p>/', '<li>$1</li>', $html);
+        $html = preg_replace('/(<li>.*<\/li>)/s', '<ol>$1</ol>', $html);
+
+        $html = preg_replace('/<p>[-•*]\s*(.*?)<\/p>/', '<li>$1</li>', $html);
+        $html = preg_replace('/(<li>(?:(?!<ol>).)*<\/li>)/s', '<ul>$1</ul>', $html);
+
+        $html = preg_replace('/<p>\s*<\/p>/', '', $html);
+
+        return $html;
     }
 }

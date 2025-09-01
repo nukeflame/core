@@ -35,7 +35,7 @@
                     <option value="inbox">Inbox</option>
                     <option value="sent">Sent Items</option>
                     <option value="drafts">Drafts</option>
-                    <option value="deleted">Deleted Items</option>
+                    <option value="deleteditems">Deleted Items</option>
                 </select>
             </div>
             <div class="col-md-2">
@@ -65,42 +65,6 @@
             </button>
         </div>
     </div>
-
-    {{-- View Mode Toggle --}}
-    <div class="d-flex align-items-center mb-3">
-        <label class="form-label me-3 mb-0">View Mode:</label>
-        <div class="btn-group" role="group">
-            <input type="radio" class="btn-check" name="viewMode" id="conversationView" value="conversations" checked>
-            <label class="btn btn-outline-primary btn-sm" for="conversationView">
-                <i class="bx bx-message-dots me-1"></i> Conversations
-            </label>
-
-            <input type="radio" class="btn-check" name="viewMode" id="individualView" value="individual">
-            <label class="btn btn-outline-primary btn-sm" for="individualView">
-                <i class="bx bx-list-ul me-1"></i> Individual Messages
-            </label>
-        </div>
-    </div>
-
-    {{-- Conversation Statistics --}}
-    {{-- <div class="conversation-stats">
-        <div class="conversation-stat">
-            <span class="conversation-stat__number" id="totalConversations">0</span>
-            <span class="conversation-stat__label">Conversations</span>
-        </div>
-        <div class="conversation-stat">
-            <span class="conversation-stat__number" id="totalMessages">0</span>
-            <span class="conversation-stat__label">Total Messages</span>
-        </div>
-        <div class="conversation-stat">
-            <span class="conversation-stat__number" id="unreadConversations">0</span>
-            <span class="conversation-stat__label">Unread</span>
-        </div>
-        <div class="conversation-stat">
-            <span class="conversation-stat__number" id="totalParticipants">0</span>
-            <span class="conversation-stat__label">Participants</span>
-        </div>
-    </div> --}}
 
     {{-- Filtered messages count --}}
     <div class="d-flex align-items-center justify-content-between mb-3">
@@ -151,7 +115,7 @@
     }
 
     #messagesContainer {
-        height: 670px;
+        height: 680px;
         overflow-x: hidden;
         overflow-y: auto;
         padding-right: 7px;
@@ -177,10 +141,6 @@
         font-size: 3rem !important;
     }
 
-    .message-iframe {
-        min-height: 690px;
-    }
-
     :root {
         --color-gray-100: #f3f4f6;
         --color-gray-200: #e5e7eb;
@@ -201,7 +161,6 @@
         --spacing-2: 0.5rem;
         --spacing-3: 0.75rem;
         --spacing-4: 1rem;
-        --spacing-5: 1.25rem;
         --spacing-6: 1.5rem;
         --radius-sm: 0.125rem;
         --radius-md: 0.375rem;
@@ -216,7 +175,6 @@
         --transition-colors: color 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out;
     }
 
-    /* Original settlement card styles retained */
     .settlement-card {
         border: 1px solid var(--color-gray-200);
         border-radius: var(--radius-lg);
@@ -261,6 +219,7 @@
         font-size: var(--text-xs) !important;
         font-weight: 500;
         text-transform: uppercase;
+        /* color: var(--color-gray-600); */
     }
 
     .badge--priority-low {
@@ -373,215 +332,12 @@
         font-weight: 600;
     }
 
-    /* NEW CONVERSATION STYLES */
-    .conversation-card {
-        border: 1px solid var(--color-gray-200);
-        border-radius: var(--radius-lg);
-        padding: var(--spacing-4);
-        cursor: pointer;
-        transition: var(--transition-all);
-        background-color: var(--color-white);
-        margin: 0 0 18px;
-        position: relative;
-    }
-
-    .conversation-card:hover {
-        background-color: var(--color-gray-50);
-        box-shadow: var(--shadow-md);
-        transform: translateY(-1px);
-    }
-
-    .conversation-card.conversation-unread {
-        border-left: 4px solid #007bff;
-        background-color: #f8f9ff;
-    }
-
-    .conversation-card__content {
-        display: flex;
-        align-items: flex-start;
-        justify-content: space-between;
-    }
-
-    .conversation-card__main {
-        flex: 1;
-    }
-
-    .conversation-card__sidebar {
-        text-align: right;
-        margin-left: var(--spacing-4);
-        flex-shrink: 0;
-        display: flex;
-        flex-direction: column;
-        align-items: flex-end;
-    }
-
-    .conversation-card__badges {
-        display: flex;
-        align-items: center;
-        gap: var(--spacing-2);
-        margin-bottom: var(--spacing-2);
-        flex-wrap: wrap;
-    }
-
-    .conversation-card__title {
-        font-weight: 600;
-        color: var(--color-gray-900);
-        margin: 8px 0 12px 0;
-        font-size: 1.1rem;
-        line-height: 1.4;
-    }
-
-    .conversation-card__participants {
-        font-size: var(--text-sm);
-        color: var(--color-gray-600);
-        margin-bottom: var(--spacing-2);
-    }
-
-    .conversation-card__participants-list {
-        font-weight: 500;
-        color: var(--color-gray-700);
-    }
-
-    .conversation-card__preview {
-        font-size: var(--text-sm);
-        color: var(--color-gray-500);
-        line-height: var(--leading-relaxed);
-        margin-bottom: var(--spacing-3);
-    }
-
-    .conversation-card__timestamp {
-        font-size: var(--text-xs);
-        color: var(--color-gray-400);
-        margin-bottom: var(--spacing-2);
-        white-space: nowrap;
-    }
-
-    .conversation-card__messages-preview {
-        background-color: var(--color-gray-50);
-        border-radius: var(--radius-md);
-        padding: var(--spacing-2);
-        margin-top: var(--spacing-2);
-    }
-
-    .message-preview {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: var(--spacing-1) var(--spacing-2);
-        border-radius: var(--radius-sm);
-        margin-bottom: var(--spacing-1);
-        transition: var(--transition-colors);
-    }
-
-    .message-preview:last-child {
-        margin-bottom: 0;
-    }
-
-    .message-preview:hover {
-        background-color: var(--color-white);
-    }
-
-    .message-preview--unread {
-        background-color: var(--color-blue-50);
-        font-weight: 600;
-    }
-
-    .message-preview--unread .message-preview__from {
-        color: var(--color-blue-800);
-    }
-
-    .message-preview--more {
-        background-color: var(--color-gray-100);
-        color: var(--color-gray-600);
-        font-style: italic;
-        justify-content: center;
-    }
-
-    .message-preview__from {
-        font-size: var(--text-xs);
-        color: var(--color-gray-600);
-        font-weight: 500;
-        flex: 1;
-        margin-right: var(--spacing-2);
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-
-    .message-preview__date {
-        font-size: var(--text-xs);
-        color: var(--color-gray-400);
-        white-space: nowrap;
-    }
-
-    .conversation-actions {
-        display: flex;
-        gap: var(--spacing-1);
-        margin-top: var(--spacing-2);
-    }
-
-    .expand-button {
-        color: var(--color-blue-600);
-        transition: var(--transition-colors);
-        padding: var(--spacing-1);
-        border-radius: var(--radius-sm);
-        border: none;
-        background: none;
-        cursor: pointer;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1.1rem;
-    }
-
-    .expand-button:hover {
-        color: var(--color-blue-800);
-        background-color: var(--color-blue-50);
-    }
-
-    .conversation-stats {
-        display: flex;
-        gap: var(--spacing-4);
-        padding: var(--spacing-3);
-        background-color: var(--color-gray-50);
-        border-radius: var(--radius-md);
-        margin-bottom: var(--spacing-4);
-    }
-
-    .conversation-stat {
-        text-align: center;
-        flex: 1;
-    }
-
-    .conversation-stat__number {
-        font-size: 1.5rem;
-        font-weight: 600;
-        color: var(--color-blue-600);
-        display: block;
-    }
-
-    .conversation-stat__label {
-        font-size: var(--text-xs);
-        color: var(--color-gray-500);
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-    }
-
-    .btn-check:checked+.btn-outline-primary {
-        background-color: var(--color-blue-600);
-        border-color: var(--color-blue-600);
-        color: white;
-    }
-
     @media (max-width: 640px) {
-
-        .settlement-card__content,
-        .conversation-card__content {
+        .settlement-card__content {
             flex-direction: column;
         }
 
-        .settlement-card__sidebar,
-        .conversation-card__sidebar {
+        .settlement-card__sidebar {
             margin-left: 0;
             margin-top: var(--spacing-3);
             text-align: left;
@@ -590,8 +346,7 @@
             align-items: center;
         }
 
-        .settlement-card__badges,
-        .conversation-card__badges {
+        .settlement-card__badges {
             flex-wrap: wrap;
         }
     }
@@ -604,12 +359,8 @@
             let messagesPerPage = 20;
             let allMessages = [];
             let filteredMessages = [];
-            let groupedConversations = [];
             let isConnected = false;
             let currentFolder = 'inbox';
-            let viewMode = 'conversations';
-            const conversationModal = new bootstrap.Modal(document.getElementById('conversationModal'));
-            let currentConversationId = null;
 
             initializeMessageList();
 
@@ -629,12 +380,6 @@
                 }
             });
 
-            $('input[name="viewMode"]').on('change', function() {
-                viewMode = $(this).val();
-                processAndRenderMessages();
-                updateResultsInfo();
-            });
-
             $('#refreshEmailsBtn').on('click', () => refreshData());
             $('#checkConnectionBtn').on('click', checkConnection);
             $('#connectOutlookBtn').on('click', () => window.OutlookConnectionManager?.show());
@@ -644,6 +389,9 @@
             $('#saveDraftBtn').on('click', saveDraft);
             $('#newEmailBtn, #newEmailInstead').on('click', handleNewEmail);
 
+            /**
+             * Initialize the message list system
+             */
             async function initializeMessageList() {
                 try {
                     if (typeof window.OutlookConnectionManager === 'undefined') {
@@ -660,6 +408,9 @@
                 }
             }
 
+            /**
+             * Check Outlook connection status
+             */
             async function checkConnection() {
                 try {
                     const status = await window.OutlookConnectionManager.checkStatus();
@@ -680,6 +431,9 @@
                 }
             }
 
+            /**
+             * Update connection status UI
+             */
             function updateConnectionUI(status) {
                 const $alert = $('#connectionAlert');
                 const $checkBtn = $('#checkConnectionBtn');
@@ -695,6 +449,9 @@
                 }
             }
 
+            /**
+             * Load messages from Outlook or fallback to mock data
+             */
             async function loadMessages(forceRefresh = false) {
                 $('#loadingSpinner').show();
                 $('#messagesContainer').html($('#loadingSpinner').parent().html());
@@ -713,6 +470,9 @@
                 }
             }
 
+            /**
+             * Load messages from Outlook
+             */
             async function loadOutlookMessages(forceRefresh = false) {
                 try {
                     const result = await window.OutlookConnectionManager.fetchEmails(currentFolder, 100,
@@ -725,8 +485,9 @@
                     }
 
                     filteredMessages = [...allMessages];
-                    processAndRenderMessages();
-                    updateStats();
+                    updateResultsInfo();
+                    renderMessages();
+                    renderPagination();
 
                 } catch (error) {
                     console.error('Outlook fetch failed:', error);
@@ -734,6 +495,9 @@
                 }
             }
 
+            /**
+             * Transform Outlook message to our internal format
+             */
             function transformOutlookMessage(outlookMsg) {
                 const to_recipients = outlookMsg.to_recipients?.length > 0 ? JSON.parse(outlookMsg.to_recipients) :
                     [];
@@ -751,350 +515,16 @@
                     date: formatDate(outlookMsg.date_received),
                     isRead: outlookMsg.is_read || false,
                     thread: outlookMsg.conversation_id ? true : false,
-                    conversationId: outlookMsg.conversation_id || outlookMsg.id,
+                    conversationId: outlookMsg.conversation_id,
                     importance: outlookMsg.importance || 'normal',
                     hasAttachments: outlookMsg.has_attachments || false,
                     bodyHtml: outlookMsg.body_html || '',
                     toList: formattedList ?? '',
+                    conversationId: outlookMsg.conversation_id ?? '',
                     messageId: outlookMsg.uid ?? '',
                 };
 
                 return transformed;
-            }
-
-            function groupMessagesByConversation(messages) {
-                const conversations = {};
-
-                messages.forEach(message => {
-                    const conversationId = message.conversationId;
-
-                    if (!conversations[conversationId]) {
-                        conversations[conversationId] = {
-                            id: conversationId,
-                            messages: [],
-                            latestDate: new Date(0),
-                            unreadCount: 0,
-                            totalCount: 0,
-                            participants: new Set(),
-                            hasAttachments: false,
-                            highestPriority: 'low',
-                            categories: new Set(),
-                            subject: ''
-                        };
-                    }
-
-                    const conversation = conversations[conversationId];
-                    conversation.messages.push(message);
-                    conversation.totalCount++;
-
-                    const messageDate = new Date(message.date);
-                    if (messageDate > conversation.latestDate) {
-                        conversation.latestDate = messageDate;
-                        conversation.subject = message.subject; // Use subject from latest message
-                    }
-
-                    if (!message.isRead) {
-                        conversation.unreadCount++;
-                    }
-
-                    conversation.participants.add(message.from);
-                    if (message.fromName) {
-                        conversation.participants.add(message.fromName);
-                    }
-
-                    if (message.hasAttachments) {
-                        conversation.hasAttachments = true;
-                    }
-
-                    const priorities = ['low', 'normal', 'high', 'urgent'];
-                    const currentPriorityIndex = priorities.indexOf(message.priority);
-                    const conversationPriorityIndex = priorities.indexOf(conversation.highestPriority);
-                    if (currentPriorityIndex > conversationPriorityIndex) {
-                        conversation.highestPriority = message.priority;
-                    }
-
-                    conversation.categories.add(message.category);
-                });
-
-                Object.values(conversations).forEach(conversation => {
-                    conversation.messages.sort((a, b) => new Date(b.date) - new Date(a.date));
-                    conversation.participantsList = Array.from(conversation.participants);
-                    conversation.categoriesList = Array.from(conversation.categories);
-                });
-
-                return Object.values(conversations).sort((a, b) => b.latestDate - a.latestDate);
-            }
-
-            function processAndRenderMessages() {
-                if (viewMode === 'conversations') {
-                    groupedConversations = groupMessagesByConversation(filteredMessages);
-                    renderConversations();
-                } else {
-                    renderIndividualMessages();
-                }
-                updateResultsInfo();
-                renderPagination();
-            }
-
-            function renderConversations() {
-                const startIndex = (currentPage - 1) * messagesPerPage;
-                const currentConversations = groupedConversations.slice(startIndex, startIndex + messagesPerPage);
-
-                $('#loadingSpinner').hide();
-
-                if (currentConversations.length === 0) {
-                    $('#messagesContainer').html(`
-                        <div class="text-center py-5 bg-light rounded">
-                            <i class="bx bx-conversation fa-6x text-muted mb-3"></i>
-                            <p class="text-muted">No conversations found matching your criteria</p>
-                            <button type="button" class="btn btn-primary btn-sm" onclick="clearFilters()">
-                                Clear filters
-                            </button>
-                        </div>
-                    `);
-                    $('#paginationContainer').addClass('d-none');
-                    return;
-                }
-
-                const conversationsHtml = currentConversations.map(conversation => {
-                    const latestMessage = conversation.messages[0];
-                    const participantsText = conversation.participantsList.slice(0, 3).join(', ');
-                    const moreParticipants = conversation.participantsList.length > 3 ?
-                        ` (+${conversation.participantsList.length - 3} more)` : '';
-
-                    return `
-                        <div class="conversation-card ${conversation.unreadCount > 0 ? 'conversation-unread' : ''}"
-                             data-conversation-id="${conversation.id}"
-                             ondblclick="expandConversation('${conversation.id}')">
-                            <div class="conversation-card__content">
-                                <div class="conversation-card__main">
-                                    <div class="conversation-card__badges">
-                                        ${conversation.highestPriority ? `<span class="badge badge--priority-${escapeHtml(conversation.highestPriority)}">${conversation.highestPriority.toUpperCase()}</span>` : ''}
-                                        ${conversation.categoriesList.map(cat => `<span class="badge badge--type-${escapeHtml(cat)}">${cat.toUpperCase()}</span>`).join('')}
-                                        ${conversation.totalCount > 1 ? `<span class="badge badge--thread">${conversation.totalCount} MESSAGES</span>` : ''}
-                                        ${conversation.unreadCount > 0 ? `<span class="badge badge--unread">${conversation.unreadCount} UNREAD</span>` : `<span class="badge badge--read">READ</span>`}
-                                        ${conversation.hasAttachments ? `<span class="badge badge--thread">📎</span>` : ''}
-                                    </div>
-                                    <h3 class="conversation-card__title">${escapeHtml(conversation.subject)}</h3>
-                                    <p class="conversation-card__participants">
-                                        Participants: <span class="conversation-card__participants-list">${escapeHtml(participantsText)}${moreParticipants}</span>
-                                    </p>
-                                    <p class="conversation-card__preview">${escapeHtml(latestMessage.preview)}</p>
-                                    <div class="conversation-card__messages-preview">
-                                        ${conversation.messages.slice(0, 3).map((msg, index) => `<div class="message-preview ${!msg.isRead ? 'message-preview--unread' : ''}" title="${escapeHtml(msg.subject)}">
-                                                                                                                                                            <span class="message-preview__from">${escapeHtml(msg.fromName || msg.from)}</span><span class="message-preview__date">${escapeHtml(formatDate(msg.date))}</span></div>`).join('')}
-                                        ${conversation.messages.length > 3 ? `<div class="message-preview message-preview--more"><span>+${conversation.messages.length - 3} more messages</span></div>` : ''}
-                                    </div>
-                                </div>
-                                <div class="conversation-card__sidebar">
-                                    <p class="conversation-card__timestamp">${escapeHtml(formatDate(conversation.latestDate))}</p>
-                                    <div class="conversation-actions">
-                                        <button class="reply-button" onclick="event.stopPropagation(); replyToConversation('${conversation.id}')" title="Reply to conversation">
-                                            <i class="bx bx-reply"></i>
-                                        </button>
-                                        <button class="expand-button" onclick="event.stopPropagation(); expandConversation('${conversation.id}')" title="Expand conversation">
-                                            <i class="bx bx-expand-alt"></i>
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                }).join('');
-
-                $('#messagesContainer').html(conversationsHtml);
-                $('#paginationContainer').removeClass('d-none');
-            }
-
-            /**
-             * Render individual messages view (updated from original)
-             */
-            function renderIndividualMessages() {
-                const startIndex = (currentPage - 1) * messagesPerPage;
-                const currentMessages = filteredMessages.slice(startIndex, startIndex + messagesPerPage);
-
-                $('#loadingSpinner').hide();
-
-                if (currentMessages.length === 0) {
-                    $('#messagesContainer').html(`
-                        <div class="text-center py-5 bg-light rounded">
-                            <i class="bx bx-envelope fa-6x text-muted mb-3"></i>
-                            <p class="text-muted">No messages found matching your criteria</p>
-                            <button type="button" class="btn btn-primary btn-sm" onclick="clearFilters()">
-                                Clear filters
-                            </button>
-                        </div>
-                    `);
-                    $('#paginationContainer').addClass('d-none');
-                    return;
-                }
-
-                const messagesHtml = currentMessages.map(message => `
-                    <div class="settlement-card ${!message.isRead ? 'message-unread' : ''}" data-message-id="${message.id}" ondblclick="handleReply('${message.id}')">
-                        <div class="settlement-card__content">
-                            <div class="settlement-card__main">
-                                <div class="settlement-card__badges">
-                                    ${message.priority ? `<span class="badge badge--priority-${escapeHtml(message.priority)}">${message.priority.toUpperCase()}</span>` : ''}
-                                    ${message.category ? `<span class="badge badge--type-${escapeHtml(message.category)}">${message.category.toUpperCase()}</span>` : ''}
-                                    ${message.reference ? `<span class="badge badge--id">${escapeHtml(message.reference)}</span>` : ''}
-                                    ${message.thread ? `<span class="badge badge--thread">THREAD</span>` : ''}
-                                    ${!message.isRead ? `<span class="badge badge--unread">UNREAD</span>` : `<span class="badge badge--read">read</span>`}
-                                    ${message.hasAttachments ? `<span class="badge badge--thread">📎</span>` : ''}
-                                </div>
-                                <h3 class="settlement-card__title">${escapeHtml(message.subject)}</h3>
-                                <p class="settlement-card__from">
-                                    From: <span class="settlement-card__from-email">${escapeHtml(message.fromName || message.from)}</span>
-                                    ${message.fromName && message.from !== message.fromName ? `<span class="text-muted">&lt;${escapeHtml(message.from)}&gt;</span>` : ''}
-                                </p>
-                                <p class="settlement-card__description">${escapeHtml(message.preview)}</p>
-                            </div>
-                            <div class="settlement-card__sidebar">
-                                <p class="settlement-card__timestamp">${escapeHtml(message.date)}</p>
-                                <button class="reply-button" onclick="event.stopPropagation(); handleReply('${message.id}')">
-                                    <svg class="reply-button__icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
-                                        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                                        stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                                        <path d="M20 18v-2a4 4 0 0 0-4-4H4"></path>
-                                        <path d="m9 17-5-5 5-5"></path>
-                                    </svg>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                `).join('');
-
-                $('#messagesContainer').html(messagesHtml);
-                $('#paginationContainer').removeClass('d-none');
-            }
-
-            /**
-             * Expand conversation to show all messages
-             */
-            window.expandConversation = function(conversationId) {
-                const conversation = groupedConversations.find(c => c.id === conversationId);
-                if (!conversation) return;
-
-                $('#sendReinDocumentEmail').modal('hide');
-
-                populateConversationModal(conversation);
-                $('#conversationModal').modal('show');
-            };
-
-            function populateConversationModal(conversation) {
-                const $title = $('#conversationTitle');
-                const $messageCount = $('#conversationMessageCount');
-                const $thread = $('#conversationThread');
-
-                $title.text(conversation.subject || 'Conversation');
-                $messageCount.text(`${conversation.totalCount} messages`);
-                currentConversationId = conversation.id;
-
-                $thread.empty();
-
-                const messagesHtml = conversation.messages.map(renderMessageCard).join('');
-                $thread.html(messagesHtml);
-
-                conversation.messages.forEach(loadMessageIntoIframe);
-
-                bindReplyButtons();
-            }
-
-            function renderMessageCard(message) {
-                const iframeId = `message-iframe-${message.id}`;
-
-                return `
-                    <div class="card mb-3 ${!message.isRead ? 'border-primary' : ''}" data-message-id="${message.id}">
-                        <div class="card-header d-flex justify-content-between align-items-start">
-                            <div>
-                                <strong class="message-from-name">${escapeHtml(message.fromName || message.from)}</strong>
-                                ${message.fromName && message.from !== message.fromName
-                                    ? `<small class="text-muted message-from-email">&lt;${escapeHtml(message.from)}&gt;</small>`
-                                    : ''
-                                }
-                                <div class="text-muted small message-subject">${escapeHtml(message.subject)}</div>
-                            </div>
-                            <div class="text-end">
-                                <small class="text-muted message-date">${formatDate(message.date)}</small>
-                                ${!message.isRead ? '<span class="badge bg-primary ms-2">Unread</span>' : ''}
-                                ${message.hasAttachments ? '<i class="bx bx-paperclip ms-2" title="Has attachments"></i>' : ''}
-                            </div>
-                        </div>
-                        <div class="card-body">
-                            <div class="message-content">
-                                <iframe id="${iframeId}" class="message-iframe" style="width:100%;border:none;" scrolling="auto"></iframe>
-                            </div>
-                            <div class="mt-3">
-                                <button class="btn btn-sm btn-outline-primary reply-to-message-btn" data-message-id="${message.id}">
-                                    <i class="bx bx-reply me-1"></i> Reply
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            }
-
-            function loadMessageIntoIframe(message) {
-                const iframe = document.getElementById(`message-iframe-${message.id}`);
-                if (iframe) {
-                    const doc = iframe.contentWindow.document;
-                    doc.open();
-                    doc.write(message.bodyHtml || escapeHtml(message.preview));
-                    doc.close();
-                    iframe.onload = function() {
-                        iframe.style.height = iframe.contentWindow.document.body.scrollHeight + 'px';
-                    };
-                }
-            }
-
-            function bindReplyButtons() {
-                $('.reply-to-message-btn').off('click').on('click', function() {
-                    const messageId = $(this).data('message-id');
-                    handleReply(messageId);
-                });
-            }
-
-            /**
-             * Reply to the latest message in a conversation
-             */
-            window.replyToConversation = function(conversationId) {
-                const conversation = groupedConversations.find(c => c.id === conversationId);
-                if (!conversation) return;
-
-                const latestMessage = conversation.messages[0];
-                handleReply(latestMessage.id);
-            };
-
-            /**
-             * Update statistics for conversations
-             */
-            function updateStats() {
-                if (viewMode === 'conversations') {
-                    const conversations = groupedConversations;
-                    const unreadConversations = conversations.filter(c => c.unreadCount > 0).length;
-                    const allParticipants = new Set();
-
-                    conversations.forEach(c => {
-                        c.participantsList.forEach(p => allParticipants.add(p));
-                    });
-
-                    $('#totalConversations').text(conversations.length);
-                    $('#totalMessages').text(allMessages.length);
-                    $('#unreadConversations').text(unreadConversations);
-                    $('#totalParticipants').text(allParticipants.size);
-                } else {
-                    const unreadMessages = allMessages.filter(m => !m.isRead).length;
-                    const allParticipants = new Set();
-
-                    allMessages.forEach(m => {
-                        allParticipants.add(m.from);
-                        if (m.fromName) allParticipants.add(m.fromName);
-                    });
-
-                    $('#totalConversations').text('-');
-                    $('#totalMessages').text(allMessages.length);
-                    $('#unreadConversations').text(unreadMessages);
-                    $('#totalParticipants').text(allParticipants.size);
-                }
             }
 
             /**
@@ -1171,25 +601,21 @@
                     $('#refreshEmailsBtn').prop('disabled', true).html(
                         '<span class="spinner-border spinner-border-sm me-1"></span> Fetching...');
 
-                    let fetchedMessages = [];
-                    const result = await window.OutlookConnectionManager.fetchEmails(currentFolder, 10, true);
+                    const result = await window.OutlookConnectionManager.fetchEmails(currentFolder, 100, true);
                     if (result.success) {
                         if (result.emails.length > 0) {
-                            fetchedMessages = result.emails.map(transformOutlookMessage);
-                            const existingIds = new Set(allMessages.map(msg => msg.message_id));
-                            const newMessages = fetchedMessages.filter(msg => !existingIds.has(msg.message_id));
-
-                            allMessages = [...newMessages, ...allMessages];
+                            allMessages = result.emails.map(transformOutlookMessage);
                         }
                         toastr.success('Emails refreshed successfully!');
                     }
 
                     filteredMessages = [...allMessages];
-                    processAndRenderMessages();
-                    updateStats();
+                    updateResultsInfo();
+                    renderMessages();
+                    renderPagination();
                 } catch (error) {
                     console.error('Refresh failed:', error);
-                    toastr.error('Failed to refresh emails!');
+                    toastr.error('Failed to refresh emails: ' + error.message);
                 } finally {
                     $('#refreshEmailsBtn').prop('disabled', false).html(
                         '<i class="bx bx-refresh me-1"></i> Refresh');
@@ -1215,8 +641,9 @@
                         allMessages = [...allMessages, ...uniqueNewMessages];
                         filteredMessages = [...allMessages];
 
-                        processAndRenderMessages();
-                        updateStats();
+                        updateResultsInfo();
+                        renderMessages();
+                        renderPagination();
 
                         if (uniqueNewMessages.length === 0) {
                             toastr.info(`Fetched ${uniqueNewMessages.length} new messages`)
@@ -1257,34 +684,88 @@
                 });
 
                 currentPage = 1;
-                processAndRenderMessages();
-                updateStats();
+                updateResultsInfo();
+                renderMessages();
+                renderPagination();
             }
 
             /**
              * Update the results information display
              */
             function updateResultsInfo() {
-                if (viewMode === 'conversations') {
-                    const totalConversations = groupedConversations.length;
-                    const totalMessages = filteredMessages.length;
-                    $('#filteredCount').text(totalConversations);
-                    $('#resultsInfo').text(
-                        `Showing ${totalConversations} conversations with ${totalMessages} messages`);
-                } else {
-                    const totalFiltered = filteredMessages.length;
-                    const totalAll = allMessages.length;
-                    $('#filteredCount').text(totalFiltered);
-                    $('#resultsInfo').text(`Showing ${totalFiltered} of ${totalAll} messages`);
+                const totalFiltered = filteredMessages.length;
+                const totalAll = allMessages.length;
+
+                $('#filteredCount').text(totalFiltered);
+                $('#resultsInfo').text(`Showing ${totalFiltered} of ${totalAll} messages`);
+            }
+
+            /**
+             * Render the current page of messages
+             */
+            function renderMessages() {
+                const startIndex = (currentPage - 1) * messagesPerPage;
+                const currentMessages = filteredMessages.slice(startIndex, startIndex + messagesPerPage);
+
+                $('#loadingSpinner').hide();
+
+                if (currentMessages.length === 0) {
+                    $('#messagesContainer').html(`
+                        <div class="text-center py-5 bg-light rounded">
+                            <i class="bx bx-envelope fa-6x text-muted mb-3"></i>
+                            <p class="text-muted">No messages found matching your criteria</p>
+                            <button type="button" class="btn btn-primary btn-sm" onclick="clearFilters()">
+                                Clear filters
+                            </button>
+                        </div>
+                    `);
+                    $('#paginationContainer').addClass('d-none');
+                    return;
                 }
+
+                const messagesHtml = currentMessages.map(message => `
+                    <div class="settlement-card ${!message.isRead ? 'message-unread' : ''}" data-message-id="${message.id}" ondblclick="handleReply('${message.id}')">
+                        <div class="settlement-card__content">
+                            <div class="settlement-card__main">
+                                <div class="settlement-card__badges">
+                                    ${message.priority ? `<span class="badge badge--priority-${escapeHtml(message.priority)}">${message.priority.toUpperCase()}</span>` : ''}
+                                    ${message.category ? `<span class="badge badge--type-${escapeHtml(message.category)}">${message.category.toUpperCase()}</span>` : ''}
+                                    ${message.reference ? `<span class="badge badge--id">${escapeHtml(message.reference)}</span>` : ''}
+                                    ${message.thread ? `<span class="badge badge--thread">THREAD</span>` : ''}
+                                    ${!message.isRead ? `<span class="badge badge--unread">UNREAD</span>` : `<span class="badge badge--read">READ</span>`}
+                                    ${message.hasAttachments ? `<span class="badge badge--thread">📎</span>` : ''}
+                                </div>
+                                <h3 class="settlement-card__title">${escapeHtml(message.subject)}</h3>
+                                <p class="settlement-card__from">
+                                    From: <span class="settlement-card__from-email">${escapeHtml(message.fromName || message.from)}</span>
+                                    ${message.fromName && message.from !== message.fromName ? `<span class="text-muted">&lt;${escapeHtml(message.from)}&gt;</span>` : ''}
+                                </p>
+                                <p class="settlement-card__description">${escapeHtml(message.preview)}</p>
+                            </div>
+                            <div class="settlement-card__sidebar">
+                                <p class="settlement-card__timestamp">${escapeHtml(message.date)}</p>
+                                <button class="reply-button" onclick="event.stopPropagation(); handleReply('${message.id}')">
+                                    <svg class="reply-button__icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                        stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                        <path d="M20 18v-2a4 4 0 0 0-4-4H4"></path>
+                                        <path d="m9 17-5-5 5-5"></path>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+
+                $('#messagesContainer').html(messagesHtml);
+                $('#paginationContainer').removeClass('d-none');
             }
 
             /**
              * Render pagination controls
              */
             function renderPagination() {
-                const items = viewMode === 'conversations' ? groupedConversations : filteredMessages;
-                const totalPages = Math.ceil(items.length / messagesPerPage);
+                const totalPages = Math.ceil(filteredMessages.length / messagesPerPage);
 
                 if (totalPages <= 1) {
                     $('#paginationContainer').addClass('d-none');
@@ -1368,15 +849,10 @@
              * Change to specific page
              */
             window.changePage = function(page) {
-                const items = viewMode === 'conversations' ? groupedConversations : filteredMessages;
-                const totalPages = Math.ceil(items.length / messagesPerPage);
+                const totalPages = Math.ceil(filteredMessages.length / messagesPerPage);
                 if (page >= 1 && page <= totalPages && page !== currentPage) {
                     currentPage = page;
-                    if (viewMode === 'conversations') {
-                        renderConversations();
-                    } else {
-                        renderIndividualMessages();
-                    }
+                    renderMessages();
                     renderPagination();
                 }
             };
@@ -1390,11 +866,13 @@
                     console.log(allMessages)
                     console.error('Message not found:', messageId);
                     return;
+
                 }
 
                 $('#to').val(message.from);
                 $('#subject').val(message.subject);
                 $('#category').val(message.category);
+                // $('#reference').val(message.reference);
 
                 $('#toggleEmailBodyBtn').css('display', 'block').html(
                     '<i class="bx bx-chevron-up me-1"></i>Hide Original Email');
@@ -1418,6 +896,7 @@
 
                 $('#compose-tab').tab('show');
 
+                // Show success message
                 let subject = message.subject || '';
                 let preview = subject.length > 50 ? subject.substring(0, 50) + '...' : subject;
                 toastr.success(`Replying to: ${preview}`, {
@@ -1433,18 +912,6 @@
                 $('#compose-tab').tab('show');
             }
 
-            $('#resetFormBtn').on('click', async function() {
-                if (!lastReinData.tranNo) return;
-
-                const reinsurers = @json($reinsurers) ?? [];
-                await prepareReinEmailModal(
-                    lastReinData.tranNo,
-                    lastReinData.debitUrl,
-                    lastReinData.claimNoticeUrl,
-                    reinsurers
-                );
-            });
-
             function resetForm() {
                 $('#emailForm')[0].reset();
                 $('#isReply').val('0');
@@ -1454,21 +921,46 @@
                 $('#threadMessage').css('display', 'none');
             }
 
+            /**
+             * Clear all filters
+             */
             function clearFilters() {
                 $('#searchTerm').val('');
                 $('#filterPriority').val('all').trigger('change');
                 $('#filterCategory').val('all').trigger('change');
-                filteredMessages = [...allMessages];
-                processAndRenderMessages();
-                updateStats();
+                filterMessages();
             };
 
+            /**
+             * Save draft
+             */
             function saveDraft() {
                 const $form = $('#emailForm');
                 const formData = new FormData($form[0]);
                 formData.append('save_as_draft', '1');
+
+
+                //{{-- Uncomment and update this when you have the backend route
+                // $.ajax({
+                //     url: '{{ route('emails.draft') }}',
+                //     method: 'POST',
+                //     data: formData,
+                //     processData: false,
+                //     contentType: false,
+                //     success: function(response) {
+                //         console.log('Draft saved:', response);
+                //         showToast('success', 'Draft saved successfully!');
+                //     },
+                //     error: function(xhr, status, error) {
+                //         console.error('Draft save failed:', error);
+                //         showToast('error', 'Failed to save draft. Please try again.');
+                //     }
+                // --}}});
             }
 
+            /**
+             * Debounce function for search input
+             */
             function debounce(func, wait) {
                 let timeout;
                 return function executedFunction(...args) {
@@ -1481,14 +973,15 @@
                 };
             }
 
+            /**
+             * Escape HTML to prevent XSS
+             */
             function escapeHtml(text) {
                 if (!text) return '';
                 const div = document.createElement('div');
                 div.textContent = text;
                 return div.innerHTML;
             }
-
-            window.clearFilters = clearFilters;
         });
     </script>
 @endpush

@@ -1038,7 +1038,9 @@
                 const bccEmails = $('.claimReinEmailForm #bccEmail').val() || [];
 
                 if (toEmails.length === 0 && ccEmails.length === 0 && bccEmails.length === 0) {
-                    toastr.info('Please select at least one recipient');
+                    $("#contacts").after(
+                        '<div class="error-message" style="color: red; font-size: 12px; margin-top: 5px;">Please select at least one recipient</div>'
+                    );
                     return false;
                 }
 
@@ -1046,6 +1048,9 @@
                 const duplicates = findDuplicateEmails(allEmails);
 
                 if (duplicates.length > 0) {
+                    $("#contacts").after(
+                        '<div class="error-message" style="color: red; font-size: 12px; margin-top: 5px;">Duplicate email addresses found: ' +
+                        duplicates.join(', ') + '</div>');
                     resolveDuplicates('contacts', toEmails);
                 }
 
