@@ -1670,7 +1670,7 @@
                 bAutoWidth: false,
                 lengthChange: false,
                 ajax: {
-                    url: "{!! route('claim.reinsurers_datatable') !!}",
+                    url: "{!! route('claim.reinsurersDatatable') !!}",
                     data: function(d) {
                         d.endorsement_no = "{!! $ClaimRegister->endorsement_no !!}",
                             d.claim_no = "{!! $ClaimRegister->claim_no !!}",
@@ -2066,11 +2066,11 @@
 
             reinsurersTable.on('click', '.send_rein_email', function(e) {
                 e.preventDefault();
-                lastReinData.tranNo = $(this).data('tran_no');
-                lastReinData.debitUrl = $(this).data('debit_url');
-                lastReinData.claimNoticeUrl = $(this).data('claim_notice_url');
+                // lastReinData.tranNo = $(this).data('tran_no');
+                // lastReinData.debitUrl = $(this).data('debit_url');
+                // lastReinData.claimNoticeUrl = $(this).data('claim_notice_url');
 
-                console.log(lastReinData)
+                console.log($(this).data())
 
                 // const reinsurers = @json($reinsurers) ?? [];
                 // await prepareReinEmailModal(

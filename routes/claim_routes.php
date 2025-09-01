@@ -12,12 +12,10 @@ Route::group(['prefix' => 'claim', 'middleware' => ['auth', 'check.first.login']
     Route::get('/get-endorsement-info', [ClaimController::class, 'GetEndorsementInfo'])->name('claim.get_endorsement_info');
     // Route::get('/claim-datatable', [ClaimController::class, 'ClaimDatatable'])->name('claim.datatable');
     Route::get('/claim-peril-datatable', [ClaimController::class, 'ClaimPerilDatatable'])->name('claim.peril_datatable');
-    Route::get('/claim-reinsurer-datatable', [ClaimController::class, 'ClaimReinsurerDatatable'])->name('claim.reinsurers_datatable');
+    Route::get('/claim-reinsurer-datatable', [ClaimController::class, 'ClaimReinsurerDatatable'])->name('claim.reinsurersDatatable');
     Route::get('/claims-enquiry-datatable', [ClaimController::class, 'ClaimsEnquiryDatatable'])->name('claims.enquiry.datatable');
-    Route::get('/claims-enquiry', function () {
-        return view('/claim/claims_enquiry');
-    })->name('claim.enquiry');
-    Route::any('/claim_detail', [ClaimController::class, 'ClaimDetails'])->name('claim_detail');
+    Route::get('/claims-enquiry', [ClaimController::class, 'showClaimEnquiry'])->name('claim.enquiry');
+    Route::get('/details/{claim_no}', [ClaimController::class, 'ClaimDetails'])->name('claim.detail');
 
     Route::post('/claim-save-peril', [ClaimController::class, 'savePeril'])->name('claim.saveperil');
     Route::post('/generate-debit', [ClaimController::class, 'generateDebit'])->name('claim.generate-debit');

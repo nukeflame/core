@@ -24,8 +24,6 @@
                     <div class="card-title">Claims list</div>
                 </div>
                 <div class="card-body">
-                    {!! html()->form('POST', route('claim_detail'))->id('form_claim_datatable')->open() !!}
-                    <input type="hidden" name="claim_no" id="clm_claim_no">
                     <table id="claimlist-table" class="table text-nowrap table-hover table-striped" style="width:100%">
                         <thead>
                             <tr>
@@ -40,8 +38,6 @@
                             </tr>
                         </thead>
                     </table>
-                    {{ csrf_field() }}
-                    {{ html()->form()->close() }}
                 </div>
             </div>
         </div>
@@ -106,11 +102,13 @@
 
             $(document).on('click', '.view_claim', function(e) {
                 e.preventDefault();
-                const claim_no = $(this).data('claim_no');
-                if (claim_no != '') {
-                    $("#clm_claim_no").val(claim_no);
-                    $("#form_claim_datatable").submit();
+                const $button = $(this);
+                const detailUrl = $button.data('detail-url');
+
+                if (detailUrl) {
+                    window.location.href = detailUrl;
                 }
+
             });
         });
     </script>

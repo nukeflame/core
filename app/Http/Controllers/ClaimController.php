@@ -266,7 +266,13 @@ class ClaimController extends Controller
     public function ClaimDetails(Request $request)
     {
         $claim_no = $request->claim_no;
+
         $claimRegister = ClaimRegister::where('claim_no', $claim_no)->first();
+
+        if (!$claimRegister) {
+            return redirect()->back()->withErrors(['Claim not found']);
+        }
+
         $branch = Branch::where('branch_code', $claimRegister->branch_code)->first();
         $broker = Broker::where('broker_code', $claimRegister->broker_code)->first();
         $class = Classes::where('class_code', $claimRegister->class_code)->first();
@@ -282,32 +288,29 @@ class ClaimController extends Controller
 
         $process = SystemProcess::where('nice_name', 'claim_registration')->first();
         $verifyprocessAction = SystemProcessAction::where('nice_name', 'verify_claim')->first();
-        // $nextDebitAmount = ClaimPeril::where('claim_no',$claim)->where('dr_cr_note_no',0)->sum('final_amount');
+
+        // Calculate debit amounts
         $CRperilTotal = ClaimPeril::where('claim_no', $claim_no)->where('dr_cr_note_no', 0)->where('dr_cr', 'CR')->sum('final_amount') ?? 0;
         $DRperilTotal = ClaimPeril::where('claim_no', $claim_no)->where('dr_cr_note_no', 0)->where('dr_cr', 'DR')->sum('final_amount') ?? 0;
+
         if ($CRperilTotal > $DRperilTotal) {
             $nextDebitAmount = $CRperilTotal - $DRperilTotal;
         } else {
             $nextDebitAmount = $DRperilTotal - $CRperilTotal;
         }
+
         $uploadedDocs = ClaimDocs::where('claim_no', $claim_no)->get();
         $ClaimAckDocs = ClaimAckDocs::where('claim_no', $claim_no)->get();
-        $ack_docs = ClaimAckParams::where('class_group', $endorse->class_group_code)->get();
+        $ack_docs = ClaimAckParams::where('class_group', $endorse->class_group_code ?? '')->get();
         $clmStatuses = ClaimStatusParam::all();
         $claimperils = ClaimPeril::where('claim_no', $claim_no)->get();
         $perilTypes = Peril::where('status', 'A')->get();
 
-        $finalTotalDR = $claimperils->where('dr_cr', 'DR')
-            ->sum('basic_amount');
-
-        $finalTotalCR = $claimperils->where('dr_cr', 'CR')
-            ->sum('basic_amount');
-
+        $finalTotalDR = $claimperils->where('dr_cr', 'DR')->sum('basic_amount');
+        $finalTotalCR = $claimperils->where('dr_cr', 'CR')->sum('basic_amount');
         $totalClaimAmount = (float) $finalTotalDR - $finalTotalCR;
 
-
-        // logger(json_encode($uploadedDocs, JSON_PRETTY_PRINT));
-
+        // Process uploaded documents
         $files = collect($uploadedDocs)->map(function ($query) {
             return [
                 'id' => $query->id,
@@ -317,12 +320,9 @@ class ClaimController extends Controller
                 'mime_type' => 'application/pdf',
                 'created_at' => Carbon::now()->subDays(2),
                 'file_path' => $query->file,
-                'uploaded_by' =>  ''
+                'uploaded_by' => ''
             ];
         });
-
-        logger(json_encode($files, JSON_PRETTY_PRINT));
-
 
         $attachedFiles = collect([
             (object) [
@@ -333,7 +333,7 @@ class ClaimController extends Controller
                 'mime_type' => 'application/pdf',
                 'created_at' => Carbon::now()->subDays(2),
                 'file_path' => 'claims/documents/claim_notice_letter.pdf',
-                'uploaded_by' =>  ''
+                'uploaded_by' => ''
             ],
             (object) [
                 'id' => 2,
@@ -360,12 +360,10 @@ class ClaimController extends Controller
             ],
         ]);
 
-
         $emailFrom = Company::where('company_id', 1)->first()->email ?? '';
-
         $cedant = Customer::where('customer_id', $claimRegister->customer_id)->first();
+        $reinserEmail = $cedant->email ?? '';
 
-        $reinserEmail = Customer::where('customer_id', $claimRegister->customer_id)->first()->email ?? '';
         $claimSubject = collect([
             'Claim Notification',
             $claimRegister->insured_name ?? '',
@@ -374,7 +372,6 @@ class ClaimController extends Controller
             $claimRegister->intimation_no ?? '',
             $customer->name ?? ''
         ])->filter()->implode(' - ');
-
 
         return view('claim.claim_home', [
             'ClaimRegister' => $claimRegister,
@@ -400,7 +397,7 @@ class ClaimController extends Controller
             'emailFrom' => $emailFrom,
             'reinserEmail' => $reinserEmail,
             'claimSubject' => $claimSubject,
-            'attachedFiles' => [],
+            'attachedFiles' => $files, // Use the actual files instead of empty array
             'cedant' => $cedant?->name,
             'recipients' => $cedant?->contacts,
             'cedantAttachedFiles' => $cedantAttachedFiles,
@@ -483,9 +480,8 @@ class ClaimController extends Controller
                 return $badge;
             })
             ->addColumn('action', function ($data) {
-                $btn = "";
-                $btn .= "<button class='btn btn-sm btn-primary btn-sm-action view_claim' data-claim_no='{$data?->claim_no}'>View <i class='bx bx-send'></i></button>";
-                return $btn;
+                $detailUrl = route('claim.detail', $data->claim_no);
+                return '<button class="btn btn-sm btn-primary view_claim" data-claim_no="' . $data->claim_no . '" data-detail-url="' . $detailUrl . '">View <i class="bx bx-send"></i></button>';
             })
             ->rawColumns(['action', 'status'])
             ->make(true);
@@ -1351,5 +1347,10 @@ class ClaimController extends Controller
         $html = preg_replace('/(<li>.*<\/li>)/s', '<ol>$1</ol>', $html);
 
         return $html;
+    }
+
+    public function showClaimEnquiry()
+    {
+        return view('claim/claims_enquiry');
     }
 }
