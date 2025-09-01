@@ -180,7 +180,7 @@ class ClaimController extends Controller
                 );
                 Session::Flash('success', 'Claim: ' . $claim_no . ' has been registered');
 
-                return redirect()->route('claim_detail', [
+                return redirect()->route('claim.detail', [
                     'claim_no' => $claim_no
                 ]);
             } else {
@@ -402,7 +402,7 @@ class ClaimController extends Controller
             }
         }
 
-        logger()->info(json_encode($results['emails'], JSON_PRETTY_PRINT));
+        // logger()->info(json_encode($results['emails'], JSON_PRETTY_PRINT));
 
 
         return view('claim.claim_home', [
@@ -553,13 +553,13 @@ class ClaimController extends Controller
 
             DB::commit();
             Session::Flash('success', 'Perils has been saved successfully');
-            return redirect()->route('claim_detail', [
+            return redirect()->route('claim.detail', [
                 'claim_no' => $claim_no
             ]);
         } catch (\Exception $e) {
             DB::rollback();
             Session::Flash('success', 'Perils has Failed');
-            return redirect()->route('claim_detail', [
+            return redirect()->route('claim.detail', [
                 'claim_no' => $claim_no
             ]);
         }

@@ -1282,7 +1282,7 @@
                 var intimation_no = $(this).data("intimation_no");
                 var process_type = $(this).data("process_type");
                 const claimDetailUrl = new URL(
-                    "{{ route('claim.notification.claim_detail') }}",
+                    "{{ route('claim.notification.claim.detail') }}",
                     window.location.origin
                 );
 
@@ -1675,7 +1675,7 @@
         $(document).on('click', '.clickable-row', function() {
             const intimationNo = $(this).data('intimation');
             if (intimationNo) {
-                window.location.href = "{{ route('claim.notification.claim_detail') }}?intimation_no=" +
+                window.location.href = "{{ route('claim.notification.claim.detail') }}?intimation_no=" +
                     intimationNo;
             }
         });

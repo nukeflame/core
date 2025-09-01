@@ -154,7 +154,7 @@
         @csrf
         <input type="hidden" name="customer_id" value="{{ $ClaimRegister->customer_id }}">
     </form>
-    <form action="{{ route('claim_detail') }}" method="post" id="claimForm">
+    <form action="{{ route('claim.detail') }}" method="post" id="claimForm">
         @csrf
         <input type="hidden" name="claim_no" id="clm_claim_no">
         <input type="hidden" name="process_type" id="process_type">

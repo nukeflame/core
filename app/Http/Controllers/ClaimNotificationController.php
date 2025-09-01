@@ -353,7 +353,7 @@ class ClaimNotificationController extends Controller
                     'serial_no' => $serialNo,
                     'status' => 'NOTIFICATION'
                 ],
-                'redirect_url' => redirect()->route('claim.notification.claim_detail', ['intimation_no' => $intimationNo])
+                'redirect_url' => redirect()->route('claim.notification.claim.detail', ['intimation_no' => $intimationNo])
             ];
 
             return response()->json($response, 201);
@@ -731,13 +731,13 @@ class ClaimNotificationController extends Controller
 
             DB::commit();
             Session::Flash('success', 'Perils has been saved successfully');
-            return redirect()->route('claim.notification.claim_detail', [
+            return redirect()->route('claim.notification.claim.detail', [
                 'intimation_no' => $intimation_no
             ]);
         } catch (\Exception $e) {
             DB::rollback();
             Session::Flash('success', 'Perils has Failed');
-            return redirect()->route('claim.notification.claim_detail', [
+            return redirect()->route('claim.notification.claim.detail', [
                 'intimation_no' => $intimation_no
             ]);
         }
@@ -781,7 +781,7 @@ class ClaimNotificationController extends Controller
 
             Session::Flash('success', 'Reserve has been updated successfully');
 
-            return redirect()->route('claim.notification.claim_detail', [
+            return redirect()->route('claim.notification.claim.detail', [
                 'intimation_no' => $intimation_no
             ]);
         } catch (\Throwable $th) {
@@ -789,7 +789,7 @@ class ClaimNotificationController extends Controller
             //throw $th;
             Session::Flash('success', 'Perils has Failed');
 
-            return redirect()->route('claim.notification.claim_detail', [
+            return redirect()->route('claim.notification.claim.detail', [
                 'intimation_no' => $intimation_no
             ]);
         }

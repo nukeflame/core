@@ -99,9 +99,9 @@
                         style="display: none">
                         <i class="bx bx-dots-horizontal me-1"></i>Toggle Original Email
                     </button>
-                    <button type="button" id="insertTemplateBtn" class="btn btn-outline-primary btn-sm">
+                    {{-- <button type="button" id="insertTemplateBtn" class="btn btn-outline-primary btn-sm">
                         <i class="bx bx-file-blank me-1"></i>Insert Template
-                    </button>
+                    </button> --}}
                 </div>
 
                 <div class="email-body hidden" id="emailBody">
@@ -836,7 +836,6 @@
                                     $("#sendReinDocumentEmail").modal('hide');
                                 },
                                 error: function(xhr, status, error) {
-                                    console.error('Email send failed:', error);
                                     toastr.error('Failed to send email. Please try again.');
                                 },
                                 complete: function() {
@@ -848,14 +847,12 @@
                             });
                         })
                         .catch(function(error) {
-                            console.error('Error processing attachments:', error);
                             toastr.error('Error processing attachments: ' + error.message);
                             $('#sendReinNotification').prop('disabled', false).html(
                                 '<i class="bx bx-paper-plane me-1"></i>Send Email');
                         });
 
                 } catch (error) {
-                    console.error('Error sending email:', error);
                     toastr.error('Error sending email: ' + error.message);
                     $('#sendReinNotification').prop('disabled', false).html(
                         '<i class="bx bx-paper-plane me-1"></i>Send Email');

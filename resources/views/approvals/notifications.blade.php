@@ -512,7 +512,7 @@
                         break;
 
                     case 'claim':
-                        const claimUrl = "{!! route('claim.notification.claim_detail') !!}";
+                        const claimUrl = "{!! route('claim.notification.claim.detail') !!}";
                         newUrl =
                             `${claimUrl}?intimation_no=${encodeURIComponent(intimation_no)}&process_type=claim`;
                         break;

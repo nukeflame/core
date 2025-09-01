@@ -179,7 +179,7 @@
                         tabindex="0">
                         <div class="card">
                             <div class="card-body py-3 px-2">
-                                {{ html()->form('POST', '/claim/claim_detail')->id('form_claim_datatable')->open() }}
+                                {{ html()->form('POST', '/claim/claim.detail')->id('form_claim_datatable')->open() }}
                                 <input type="text" name="claim_no" id="clm_claim_no" hidden>
                                 <input type="text" name="customer_id" id="customer_id"
                                     value="{{ $customer->customer_id }} " hidden>

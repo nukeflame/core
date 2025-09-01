@@ -46,7 +46,7 @@ Route::group(['prefix' => 'claim', 'middleware' => ['auth', 'check.first.login']
         Route::get('/get-endorsement-info', [ClaimNotificationController::class, 'GetEndorsementInfo'])->name('get_endorsement_info');
         Route::get('/claim-peril-datatable', [ClaimNotificationController::class, 'ClaimPerilDatatable'])->name('peril_datatable');
         Route::get('/claim-reinsurer-datatable', [ClaimNotificationController::class, 'ClaimReinsurerDatatable'])->name('reinsurers_datatable');
-        Route::any('/notification_details', [ClaimNotificationController::class, 'ClaimDetails'])->name('claim_detail');
+        Route::any('/notification_details', [ClaimNotificationController::class, 'ClaimDetails'])->name('claim.detail');
         Route::get('/claim-debit-datatable', [ClaimNotificationController::class, 'ClaimCedantDatatable'])->name('debit_datatable');
 
         Route::post('/claim-save-peril', [ClaimNotificationController::class, 'savePeril'])->name('saveperil');
