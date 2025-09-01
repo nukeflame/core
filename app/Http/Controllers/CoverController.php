@@ -99,121 +99,167 @@ class CoverController extends Controller
 
     public function CoverForm(Request $request)
     {
-        $trans_type = $request->trans_type;
-        $type_of_bus = $request->type_of_bus;
-        $prospect_id = $request->has('prospect_id') ? $request->prospect_id : null;
+        try {
+            $trans_type = $request->trans_type;
+            $type_of_bus = $request->type_of_bus;
+            $prospect_id = $request->has('prospect_id') ? $request->prospect_id : null;
 
-        if ($trans_type != 'NEW') {
-            $cover_no = $request->cover_no;
-            $endorsement_no = $request->endorsement_no;
-            $old_endt_trans = CoverRegister::where('endorsement_no', $endorsement_no)->first();
+            if (!$request->customer_id) {
+                return back()->with('error', 'Customer ID is required');
+            }
 
-            if ($old_endt_trans) {
-                if (!in_array($old_endt_trans?->transaction_type, ['NEW', 'REN']) && $trans_type == 'EDIT') {
-                    return back()->with('error', 'You can only edit New covers or Renewals');
+            if ($trans_type != 'NEW') {
+                $cover_no = $request->cover_no;
+                $endorsement_no = $request->endorsement_no;
+
+                if (!$cover_no || !$endorsement_no) {
+                    return back()->with('error', 'Cover number and endorsement number are required for non-NEW transactions');
                 }
 
-                $coverreinpropClasses = CoverReinProp::where('cover_no', $cover_no)
-                    ->select('reinclass')
-                    ->where('endorsement_no', $old_endt_trans->endorsement_no)
-                    ->groupBy('reinclass')
-                    ->get();
-                $coverreinprops = CoverReinProp::where('cover_no', $cover_no)
-                    ->where('endorsement_no', $old_endt_trans->endorsement_no)
-                    ->get();
-                $coverReinLayers = CoverReinLayer::where('endorsement_no', $old_endt_trans->endorsement_no)->get();
-                $premtypes = CoverPremtype::with('premiumType')->where('endorsement_no', $old_endt_trans->endorsement_no)->get();
-                $renewal_date = Carbon::parse($old_endt_trans->cover_to)->addDay()->format('Y-m-d');
+                $old_endt_trans = CoverRegister::where('endorsement_no', $endorsement_no)->first();
+                // logger()->info('Old endorsement transaction found', ['old_endt_trans' => $old_endt_trans]);
+
+                if ($old_endt_trans) {
+                    if (!in_array($old_endt_trans?->transaction_type, ['NEW', 'REN']) && $trans_type == 'EDIT') {
+                        return back()->with('error', 'You can only edit New covers or Renewals');
+                    }
+
+                    $coverreinpropClasses = CoverReinProp::where('cover_no', $cover_no)
+                        ->select('reinclass')
+                        ->where('endorsement_no', $old_endt_trans->endorsement_no)
+                        ->groupBy('reinclass')
+                        ->get();
+
+                    $coverreinprops = CoverReinProp::where('cover_no', $cover_no)
+                        ->where('endorsement_no', $old_endt_trans->endorsement_no)
+                        ->get();
+
+                    $coverReinLayers = CoverReinLayer::where('endorsement_no', $old_endt_trans->endorsement_no)->get();
+                    $premtypes = CoverPremtype::with('premiumType')->where('endorsement_no', $old_endt_trans->endorsement_no)->get();
+                    $renewal_date = Carbon::parse($old_endt_trans->cover_to)->addDay()->format('Y-m-d');
+                } else {
+                    logger()->warning('No old endorsement transaction found', ['endorsement_no' => $endorsement_no]);
+                    $renewal_date = '';
+                    $coverreinprops = collect();
+                    $premtypes = collect();
+                    $coverreinpropClasses = collect();
+                    $coverReinLayers = collect();
+                }
+            } else {
+                $old_endt_trans = null;
+                $renewal_date = '';
+                $coverreinprops = collect();
+                $premtypes = collect();
+                $coverreinpropClasses = collect();
+                $coverReinLayers = collect();
             }
-        } else {
-            $old_endt_trans = '';
-            $renewal_date = '';
-            $coverreinprops = '';
-            $premtypes = '';
-            $coverreinpropClasses = '';
-            $coverReinLayers = '';
+
+            $customer = Customer::where('customer_id', $request->customer_id)
+                ->select(['customer_id', 'name', 'postal_address', 'postal_town', 'city', 'email', 'telephone', 'country_iso', 'customer_type'])
+                ->first();
+
+            if (!$customer) {
+                logger()->error('Customer not found', ['customer_id' => $request->customer_id]);
+                return back()->with('error', 'Customer not found');
+            }
+
+            $insured = DB::table('customers')
+                ->join('customer_types', function ($join) {
+                    $join->on('customer_types.type_id', '=', DB::raw("ANY (SELECT json_array_elements_text(customers.customer_type)::int)"));
+                })
+                ->select('customers.customer_id', 'customers.name')
+                ->where('customer_types.code', 'INSURED')
+                ->get();
+
+            $countries = Country::where('country_iso', $customer->country_iso)
+                ->select(['country_iso', 'country_name'])
+                ->first();
+
+            if (!$countries) {
+                logger()->warning('Country not found for ISO code', ['country_iso' => $customer->country_iso]);
+                $countries = (object)['country_iso' => $customer->country_iso, 'country_name' => 'Unknown'];
+            }
+
+            $customerTypes = [];
+
+            $branches = Branch::where('status', 'A')->get(['branch_code', 'branch_name', 'status']);
+            $brokers = Broker::where('status', 'A')->get(['broker_code', 'broker_name', 'status']);
+            $classes = Classes::where('status', 'A')->get(['class_code', 'class_name', 'status']);
+            $types_of_sum_insured = TypeOfSumInsured::where('status', 'A')->get(['sum_insured_code', 'sum_insured_name', 'status']);
+            $classGroups = ClassGroup::get(['group_code', 'group_name']);
+
+            $types_of_busCount = BusinessType::where('bus_type_id', $type_of_bus)->count();
+            if ($types_of_busCount > 0) {
+                $types_of_bus = BusinessType::where('bus_type_id', $type_of_bus)->get(['bus_type_id', 'bus_type_name']);
+            } else {
+                $types_of_bus = BusinessType::get(['bus_type_id', 'bus_type_name']);
+            }
+
+            $paymethods = PayMethod::all();
+            $premium_pay_terms = PremiumPayTerm::all();
+            $currency = Currency::all();
+            $covertypes = CoverType::all();
+            $reinsdivisions = ReinsDivision::where('status', 'A')->get();
+            $reinsclasses = ReinsClass::where('status', 'A')->get();
+            $treatytypes = TreatyType::where('status', 'A')->get();
+            $reinPremTypes = ReinclassPremtype::where('status', 'A')->get();
+
+            $endorsement_no = $request->endorsement_no ?? '';
+            $coverInstallments = CoverInstallments::where(['endorsement_no' => $endorsement_no, 'dr_cr' => 'DR'])->get();
+
+            $selected_pay_method = null;
+            if ($old_endt_trans) {
+                $selected_pay_method = collect($paymethods)->first(
+                    fn($item) => $item->pay_method_code == $old_endt_trans->pay_method_code,
+                );
+            }
+
+            $allActiveStaff = User::where('status', 'A')
+                ->select('id', 'name')
+                ->orderBy('name')
+                ->get();
+
+            return view('cover.cover_form', [
+                'type_of_cust' => $customerTypes,
+                'country' => $countries,
+                'customer' => $customer,
+                'branches' => $branches,
+                'brokers' => $brokers,
+                'trans_type' => $trans_type,
+                'types_of_bus' => $types_of_bus,
+                'classGroups' => $classGroups,
+                'class' => $classes,
+                'paymethods' => $paymethods,
+                'premium_pay_terms' => $premium_pay_terms,
+                'currencies' => $currency,
+                'covertypes' => $covertypes,
+                'types_of_sum_insured' => $types_of_sum_insured,
+                'old_endt_trans' => $old_endt_trans,
+                'renewal_date' => $renewal_date,
+                'reinsdivisions' => $reinsdivisions,
+                'reinsclasses' => $reinsclasses,
+                'treatytypes' => $treatytypes,
+                'insured' => $insured,
+                'coverreinpropClasses' => $coverreinpropClasses,
+                'coverreinprops' => $coverreinprops,
+                'premtypes' => $premtypes,
+                'reinPremTypes' => $reinPremTypes,
+                'coverReinLayers' => $coverReinLayers,
+                'coverInstallments' => $coverInstallments,
+                'selected_pay_method' => $selected_pay_method,
+                'prospectId' => $prospect_id,
+                'staff' => $allActiveStaff
+            ]);
+        } catch (\Exception $e) {
+            logger()->error('CoverForm method error', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'request_data' => $request->all()
+            ]);
+
+            return back()->withErros(['An error occurred while loading the cover form']);
         }
-
-        $customer = Customer::where('customer_id', $request->customer_id)->get(['customer_id', 'name', 'postal_address', 'postal_town', 'city', 'email', 'telephone', 'country_iso', 'customer_type'])[0];
-        $insured = DB::table('customers')
-            ->join('customer_types', function ($join) {
-                $join->on('customer_types.type_id', '=', DB::raw("ANY (SELECT json_array_elements_text(customers.customer_type)::int)"));
-            })
-            ->select('customers.customer_id', 'customers.name')
-            ->where('customer_types.code', 'INSURED')
-            ->get();
-
-        $countries = Country::where('country_iso', $customer->country_iso)->get(['country_iso', 'country_name'])[0];
-        // $customerTypes = CustomerTypes::where('type_id', $customer->customer_type)->get(['type_id', 'type_name', 'code'])[0];
-        $customerTypes = [];
-
-        $branches = Branch::where('status', 'A')->get(['branch_code', 'branch_name', 'status']);
-        $brokers = Broker::where('status', 'A')->get(['broker_code', 'broker_name', 'status']);
-        $classes = Classes::where('status', 'A')->get(['class_code', 'class_name', 'status']);
-        $types_of_sum_insured = TypeOfSumInsured::where('status', 'A')->get(['sum_insured_code', 'sum_insured_name', 'status']);
-        $classGroups = ClassGroup::get(['group_code', 'group_name']);
-        $types_of_busCount = BusinessType::where('bus_type_id', $type_of_bus)->count();
-        if ($types_of_busCount > 0) {
-            $types_of_bus = BusinessType::where('bus_type_id', $type_of_bus)->get(['bus_type_id', 'bus_type_name']);
-        } else {
-            $types_of_bus = BusinessType::get(['bus_type_id', 'bus_type_name']);
-        }
-        $paymethods = PayMethod::all();
-        $premium_pay_terms = PremiumPayTerm::all();
-        $currency = Currency::all();
-        $covertypes = CoverType::all();
-        $reinsdivisions = ReinsDivision::where('status', 'A')->get();
-        $reinsclasses = ReinsClass::where('status', 'A')->get();
-        $treatytypes = TreatyType::where('status', 'A')->get();
-        $reinPremTypes = ReinclassPremtype::where('status', 'A')->get();
-        // $coverInstalments = Cover
-        $coverInstallments = CoverInstallments::where(['endorsement_no' => $request->endorsement_no, 'dr_cr' => 'DR'])->get();
-        $selected_pay_method = null;
-        if ($old_endt_trans) {
-            $selected_pay_method = collect($paymethods)->first(
-                fn($item) => $item->pay_method_code == $old_endt_trans->pay_method_code,
-            );
-        }
-
-        $allActiveStaff = User::where('status', 'A')
-            // ->where('is_staff', true)
-            ->select('id', 'name')
-            ->orderBy('name')
-            ->get();
-
-        return view('cover.cover_form', [
-            'type_of_cust' => $customerTypes,
-            'country' => $countries,
-            'customer' => $customer,
-            'branches' => $branches,
-            'brokers' => $brokers,
-            'trans_type' => $trans_type,
-            'types_of_bus' => $types_of_bus,
-            'classGroups' => $classGroups,
-            'class' => $classes,
-            'paymethods' => $paymethods,
-            'premium_pay_terms' => $premium_pay_terms,
-            'currencies' => $currency,
-            'covertypes' => $covertypes,
-            'types_of_sum_insured' => $types_of_sum_insured,
-            'old_endt_trans' => $old_endt_trans,
-            'renewal_date' => $renewal_date,
-            'reinsdivisions' => $reinsdivisions,
-            'reinsclasses' => $reinsclasses,
-            'treatytypes' => $treatytypes,
-            'insured' => $insured,
-            'coverreinpropClasses' => $coverreinpropClasses,
-            'coverreinprops' => $coverreinprops,
-            'premtypes' => $premtypes,
-            'reinPremTypes' => $reinPremTypes,
-            'coverReinLayers' => $coverReinLayers,
-            'coverInstallments' => $coverInstallments,
-            'selected_pay_method' => $selected_pay_method,
-            'prospectId' => $prospect_id,
-            'staff' => $allActiveStaff
-        ]);
     }
-
     public function getTreatyPerBusType(Request $request)
     {
         $type_of_bus = $request->type_of_bus;

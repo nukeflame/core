@@ -9,7 +9,6 @@ use Illuminate\Support\Facades\Route;
 
 
 Route::group(['prefix' => 'customer', 'middleware' => ['auth', 'check.first.login']], function () {
-    // customer routesTreatyPropEnquiry
     Route::get('/customer-info', [CustomerController::class, 'customer_info'])->name('customer.info');
     Route::get('/{customerId}/edit', [CustomerController::class, 'customerEdit'])->name('customer.edit');
     Route::put('/{customerId}/update', [CustomerController::class, 'customerUpdate'])->name('customer.update');
@@ -44,7 +43,6 @@ Route::group(['prefix' => 'customer', 'middleware' => ['auth', 'check.first.logi
 });
 
 Route::group(['prefix' => 'cover', 'middleware' => ['auth', 'check.first.login']], function () {
-    //cover routes
     Route::get('/get-active-customers', [CoverController::class, 'getCustomers'])->name('cover.get-customers');
     Route::any('/cover-form', [CoverController::class, 'CoverForm'])->name('cover.form');
     Route::any('/editCoverRegister', [CoverController::class, 'editCoverRegister'])->name('cover.editCoverRegister');
