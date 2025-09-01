@@ -14,9 +14,7 @@ use App\Models\Classes;
 use App\Models\Customer;
 use App\Models\ClaimDocs;
 use App\Models\CoverType;
-use App\Models\ClaimDebit;
 use App\Models\ClaimPeril;
-use App\Models\ClaimStatus;
 use App\Models\CoverRipart;
 use App\Models\BusinessType;
 use App\Models\ClaimAckDocs;
@@ -26,10 +24,8 @@ use App\Models\ClaimNtfPeril;
 use App\Models\ClaimRegister;
 use App\Models\CoverRegister;
 use App\Models\SystemProcess;
-use App\Models\SystemSerials;
 use App\Models\ClaimAckParams;
 use App\Models\ClaimNtfStatus;
-use App\Models\CustomerAccDet;
 use App\Models\ClaimNtfAckDocs;
 use App\Models\ClaimNtfRegister;
 use App\Models\ClaimStatusParam;
@@ -47,7 +43,6 @@ use Spatie\Permission\Models\Permission;
 use Yajra\DataTables\Facades\DataTables;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
-use PHPUnit\Event\Telemetry\System;
 use RuntimeException;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -67,27 +62,46 @@ class ClaimNotificationController extends Controller
     public function getCustomers(Request $request)
     {
         try {
-            $customers = Customer::where('status', 'A')
-                ->get([
-                    'customer_id',
-                    'name',
-                    'postal_address',
-                    'postal_town',
-                    'city',
-                    'email',
-                    'telephone',
-                    'country_iso',
-                    'customer_type'
-                ]);
-
-            $allCovers = CoverRegister::where('cancelled', '<>', 'Y')
-                ->whereIn('type_of_bus', ['FPR', 'FNP', 'TNP'])
-                ->orderBy('dola', 'desc')
+            $customers = DB::table('customers as c')
+                ->select([
+                    'c.customer_id',
+                    'c.name',
+                    'c.postal_address',
+                    'c.postal_town',
+                    'c.city',
+                    'c.email',
+                    'c.telephone',
+                    'c.country_iso',
+                    'c.customer_type',
+                    'cr.cover_no',
+                    'cr.type_of_bus',
+                    'cr.dola',
+                    'cr.endorsement_no',
+                    'cr.insured_name',
+                    'cr.cover_from',
+                    'cr.cover_to',
+                    'cg.group_name as cover_type'
+                ])
+                ->leftJoin('cover_register as cr', function ($join) {
+                    $join->on('c.customer_id', '=', 'cr.customer_id')
+                        ->where('cr.cancelled', '<>', 'Y')
+                        ->whereIn('cr.type_of_bus', ['FPR', 'FNP', 'TNP']);
+                })
+                ->leftJoin('class_groups as cg', function ($join) {
+                    $join->on('cr.class_group_code', '=', 'cg.group_code')
+                        ->where('cg.status', '=', 'A');
+                })
+                ->where('c.status', 'A')
+                ->orderBy('c.customer_id')
+                ->orderBy('cr.dola', 'desc')
                 ->get();
 
-            $coversByCustomer = $allCovers->groupBy('customer_id');
-            $customersWithCovers = $customers->map(function ($customer) use ($coversByCustomer) {
-                $customerCovers = $coversByCustomer->get($customer->customer_id, collect());
+            $groupedCustomers = $customers->groupBy('customer_id')->map(function ($customerGroup) {
+                $customer = $customerGroup->first();
+                $covers = $customerGroup->filter(function ($item) {
+                    return !is_null($item->cover_no);
+                });
+
                 return [
                     'customer_id' => $customer->customer_id,
                     'name' => $customer->name,
@@ -98,34 +112,24 @@ class ClaimNotificationController extends Controller
                     'telephone' => $customer->telephone,
                     'country_iso' => $customer->country_iso,
                     'customer_type' => $customer->customer_type,
-                    'covers' => $customerCovers->map(function ($cover) {
-                        $coverType  =  DB::table('class_groups')->where(['group_code' => $cover->class_group_code, 'status' => 'A'])->first(['group_name']);
-
-                        // logger()->info(json_encode($cover, JSON_PRETTY_PRINT));
-
+                    'covers' => $covers->map(function ($cover) {
                         return [
-                            'cover_no' => $cover->cover_no ?? null,
+                            'cover_no' => $cover->cover_no,
                             'type_of_bus' => $cover->type_of_bus,
                             'dola' => $cover->dola,
-                            'endorsement_number' => $cover->endorsement_no ?? null,
-                            'cover_type' => $coverType?->group_name,
+                            'endorsement_number' => $cover->endorsement_no,
+                            'cover_type' => $cover->cover_type,
                             'insured_name' => $cover->insured_name,
-                            'cover_from' => "2024-01-01",
-                            'cover_to' => "2024-12-31",
-                            'endorsements' => [
-                                [
-                                    'endorsement_no' => "END001",
-                                    'effective_from' => "2024-01-01",
-                                    'effective_to' => "2024-12-31"
-                                ]
-                            ]
-
+                            'cover_from' => $cover->cover_from,
+                            'cover_to' => $cover->cover_to,
+                            'endorsements' => $this->getEndorsements($cover->cover_no)
                         ];
-                    }),
-                    'covers_count' => $customerCovers->count()
+                    })->values(),
+                    'covers_count' => $covers->count()
                 ];
             });
 
+            $customersWithCovers = $groupedCustomers->values();
 
             return response()->json([
                 'success' => true,
@@ -137,6 +141,54 @@ class ClaimNotificationController extends Controller
                 'message' => 'Error fetching customers: ' . $e->getMessage()
             ], 500);
         }
+    }
+
+    private function getEndorsements($coverNo)
+    {
+        if (!$coverNo) return [];
+
+        $lossDate = now()->format('Y-m-d');
+
+        $covers = DB::table('cover_register as cr')
+            ->select([
+                'cr.cover_no',
+                'cr.endorsement_no',
+                'cr.cover_from',
+                'cr.cover_to',
+                'cr.transaction_type',
+                'cr.insured_name',
+                'cr.dola',
+                'cg.group_name as cover_type'
+            ])
+            ->leftJoin('class_groups as cg', function ($join) {
+                $join->on('cr.class_group_code', '=', 'cg.group_code')
+                    ->where('cg.status', '=', 'A');
+            })
+            ->where('cr.cover_no', $coverNo)
+            ->where('cr.cover_from', '<=', $lossDate)
+            ->where('cr.cover_to', '>=', $lossDate)
+            ->where('cr.cancelled', '<>', 'Y')
+            ->orderBy('cr.dola', 'desc')
+            ->get();
+
+        $results = $covers->map(function ($cover) use ($lossDate) {
+            return [
+                'cover_no' => $cover->cover_no,
+                'endorsement_no' => $cover->endorsement_no,
+                'effective_from' => $cover->cover_from,
+                'effective_to' => $cover->cover_to,
+                'dola' => $cover->dola,
+                'is_active' => true,
+                'insured_name' => $cover->insured_name,
+                'transaction_type' => $cover->transaction_type,
+                'description' => $cover->transaction_type,
+                'lossDate' => $lossDate
+            ];
+        })->unique('cover_no')
+            ->values()
+            ->toArray();
+
+        return $results;
     }
 
     public function ClaimForm(Request $request)
@@ -187,92 +239,165 @@ class ClaimNotificationController extends Controller
     public function ClaimRegister(Request $request)
     {
         try {
-            $serial_no = ClaimNtfRegister::max('serial_no') + 1;
-            $validator =  Validator::make($request->all(), [
-                'cover_no' => 'required',
-                'loss_date' => 'required',
-                'cover_from' => 'required',
-                'cover_to' => 'required',
-                'endorsement_no' => 'required',
+            $validator = Validator::make($request->all(), [
+                'customer_id' => 'required|exists:customers,customer_id',
+                'cover_type' => 'required|string|max:255',
+                'endorsement_number' => 'nullable|string|max:255',
+                'date_of_loss' => 'required|date|before_or_equal:today',
+                'date_reported' => 'required|date|before_or_equal:today|after_or_equal:date_of_loss',
+                'date_notified' => 'required|date|before_or_equal:today',
+                'cedant_claim_no' => 'nullable|string|max:100',
+                'cause_of_loss' => 'required|string|min:10|max:1000',
+                'loss_description' => 'required|string|min:10|max:2000',
+                'cover_from' => 'nullable|date',
+                'cover_to' => 'nullable|date|after_or_equal:cover_from',
+                'insured_name' => 'nullable|string|max:255',
+            ], [
+                'customer_id.required' => 'Please select a customer',
+                'customer_id.exists' => 'Selected customer does not exist',
+                'cover_type.required' => 'Please select a cover policy',
+                'date_of_loss.required' => 'Date of loss is required',
+                'date_of_loss.before_or_equal' => 'Date of loss cannot be in the future',
+                'date_reported.required' => 'Date reported is required',
+                'date_reported.before_or_equal' => 'Date reported cannot be in the future',
+                'date_reported.after_or_equal' => 'Date reported cannot be before date of loss',
+                'date_notified.before_or_equal' => 'Date notified cannot be in the future',
+                'cause_of_loss.required' => 'Cause of loss is required',
+                'cause_of_loss.min' => 'Cause of loss must be at least 10 characters',
+                'loss_description.required' => 'Loss description is required',
+                'loss_description.min' => 'Loss description must be at least 10 characters',
             ]);
 
-            if ($validator) {
-                $endorse = CoverRegister::where('endorsement_no', $request->endorsement_no)->first();
-
-                $type_of_bus = $endorse->type_of_bus;
-                $branchcode = $endorse->branch_code;
-                $classcode = $endorse->class_code;
-                $covertype = $endorse->cover_type;
-                $currency_code = $endorse->currency_code;
-                $currency_rate = $endorse->currency_rate;
-                $brokercode = $endorse->broker_code ?? 0;
-
-                $customer_id = $request->customer_id;
-                $cover_no = $request->cover_no;
-                $loss_date = $request->loss_date;
-                $coverfrom = $request->cover_from;
-                $coverto = $request->cover_to;
-                $insured_name = $request->insured_name;
-
-                $currentYear = Carbon::now()->year;
-                $currentMonth = str_pad($this->_month, 2, '0', STR_PAD_LEFT);
-                $intimation_no = 'INT' . $branchcode . $classcode . $serial_no . $currentYear . $currentMonth;
-                $endorsement_no = $request->endorsement_no;
-                $cedant_claim_no = $request->cedant_claim_no;
-
-                $class = Classes::where('class_code', $classcode)->first();
-                $class_group_code = $class ? $class->class_group_code : 'ALL';
-                $class_code = $classcode ? $classcode : 'ALL';
-                $username = Auth::user()->user_name;
-                $date_notified_insurer = $request->date_notify_insurer;
-                $date_notified_reinsurer = $request->date_notify_reinsurer;
-                $cause_of_loss = $request->cause_of_loss;
-                $loss_narration = $request->loss_desc;
-                $status = 'P';
-
-                ClaimNtfRegister::create([
-                    'serial_no' => $serial_no,
-                    'intimation_no' => $intimation_no,
-                    'cedant_claim_no' => $cedant_claim_no,
-                    'cover_no' => $cover_no,
-                    'customer_id' => $customer_id,
-                    'date_of_loss' => $loss_date,
-                    'type_of_bus' => $type_of_bus,
-                    'branch_code' => $branchcode,
-                    'broker_code' => $brokercode,
-                    'cover_type' => $covertype,
-                    'class_group_code' => $class_group_code,
-                    'class_code' => $class_code,
-                    'endorsement_no' => $endorsement_no,
-                    'insured_name' => $insured_name,
-                    'cover_from' => $coverfrom,
-                    'cover_to' => $coverto,
-                    'created_by' => $username,
-                    'updated_by' => $username,
-                    'currency_code' => $currency_code,
-                    'currency_rate' => $currency_rate,
-                    'date_notified_insurer' => $date_notified_insurer,
-                    'date_notified_reinsurer' => $date_notified_reinsurer,
-                    'cause_of_loss' => $cause_of_loss,
-                    'loss_narration' => $loss_narration,
-                    'status' => $status,
-                ]);
-
-                Session::Flash('success', 'Claim Notification: ' . $intimation_no . ' has been registered');
-
-                return redirect()->route('claim.notification.claim_detail', [
-                    'intimation_no' => $intimation_no
-                ]);
-            } else {
-                Session::flash('error', 'some field data is required');
-                return [
-                    'code' => -1,
-                    'msg' => $validator->errors(),
-                ];
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation failed',
+                    'errors' => $validator->errors()
+                ], 422);
             }
-        } catch (\Throwable $e) {
-            throw $e;
+
+            DB::beginTransaction();
+
+            $coverEndorsement = null;
+            if ($request->endorsement_number) {
+                $coverEndorsement = DB::table('cover_register')
+                    ->where('endorsement_no', $request->endorsement_number)
+                    ->first();
+            }
+
+            $intimationNo = $this->generateIntimationNumber();
+            $maxSerialNo = DB::table('claim_ntf_register')->max('serial_no') ?? 0;
+            $serial_no = $maxSerialNo + 1;
+
+            $claimData = [
+                'intimation_no' => $intimationNo,
+                'customer_id' => $request->customer_id,
+                'cover_no' => $request->cover_type,
+                'endorsement_no' => $request->endorsement_number,
+                'date_of_loss' => $request->date_of_loss,
+                'date_notified_insurer' => $request->date_reported,
+                'date_notified_reinsurer' => $request->date_notified,
+                'cedant_claim_no' => $request->cedant_claim_no,
+                'cause_of_loss' => trim($request->cause_of_loss),
+                'loss_narration' => trim($request->loss_description),
+                'cover_from' => $request->cover_from,
+                'cover_to' => $request->cover_to,
+                'insured_name' => $request->insured_name,
+                'status' => 'p',
+                'serial_no' => $serial_no,
+                'notification_status' => 'PENDING',
+                'created_by' => auth()->user()->user_name,
+                'updated_by' => auth()->user()->user_name,
+                'created_at' => Carbon::now(),
+                'updated_at' => Carbon::now(),
+            ];
+
+            if ($coverEndorsement) {
+                $claimData = array_merge($claimData, [
+                    'type_of_bus' => $coverEndorsement->type_of_bus ?? null,
+                    'branch_code' => $coverEndorsement->branch_code ?? null,
+                    'broker_code' => $coverEndorsement->broker_code ?? null,
+                    'cover_type' => $coverEndorsement->cover_type ?? null,
+                    'class_group_code' => $coverEndorsement->class_group_code ?? null,
+                    'class_code' => $coverEndorsement->class_code ?? null,
+                    'currency_code' => $coverEndorsement->currency_code ?? null,
+                    'currency_rate' => $coverEndorsement->currency_rate ?? null,
+                ]);
+            }
+
+            $serialNo = DB::table('claim_ntf_register')->insertGetId($claimData, 'serial_no');
+
+            if (!$serialNo) {
+                throw new \Exception('Failed to create claim record');
+            }
+
+            $statusLogData = [
+                'claim_ntf_register_id' => $serialNo,
+                'intimation_no' => $intimationNo,
+                'status' => 'NOTIFICATION',
+                'stage' => 'PENDING',
+                'remarks' => 'Initial claim notification created',
+                'created_by' => auth()->id(),
+                'created_at' => Carbon::now(),
+            ];
+
+            DB::table('claim_status_logs')->insert($statusLogData);
+
+            DB::commit();
+
+            $response = [
+                'success' => true,
+                'message' => 'Claim notification submitted successfully!',
+                'data' => [
+                    'intimation_no' => $intimationNo,
+                    'serial_no' => $serialNo,
+                    'status' => 'NOTIFICATION'
+                ],
+                'redirect_url' => redirect()->route('claim.notification.claim_detail', ['intimation_no' => $intimationNo])
+            ];
+
+            return response()->json($response, 201);
+        } catch (\Exception $e) {
+            logger($e);
+            DB::rollback();
+
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while processing your request. Please try again.',
+                'error_code' => 'CLAIM_CREATION_FAILED'
+            ], 500);
         }
+    }
+
+    private function generateIntimationNumber()
+    {
+        $latestClaim = DB::table('claim_ntf_register')
+            ->where('intimation_no', 'like', "INT-{$this->_year}-%")
+            ->orderBy('intimation_no', 'desc')
+            ->first();
+
+        // $intimation_no = 'INT' . $branchcode . $classcode . $serial_no . $currentYear . $currentMonth;
+
+        if ($latestClaim) {
+            $parts = explode('-', $latestClaim->intimation_no);
+            $lastSequence = (int) end($parts);
+            $newSequence = $lastSequence + 1;
+        } else {
+            $newSequence = 1;
+        }
+
+        $intimationNo = sprintf('INT-%d-%06d', $this->_year, $newSequence);
+
+        $exists = DB::table('claim_ntf_register')
+            ->where('intimation_no', $intimationNo)
+            ->exists();
+
+        if ($exists) {
+            $newSequence++;
+            $intimationNo = sprintf('INT-%d-%06d', $this->_year, $newSequence);
+        }
+
+        return $intimationNo;
     }
 
     public function ClaimDatatable(Request $request)
@@ -400,10 +525,6 @@ class ClaimNotificationController extends Controller
             $customer->name ?? ''
         ])->filter()->implode(' - ');
 
-
-
-        // logger(json_encode($cedant->con, JSON_PRETTY_PRINT));
-
         return view('claim.claim_notification_home', [
             'ClaimRegister' => $claimRegister,
             'branch' => $branch,
@@ -438,7 +559,25 @@ class ClaimNotificationController extends Controller
     {
         $query = ClaimNtfRegister::query()->orderBy('created_at', 'desc');
 
+        if ($request->has('type')) {
+            switch ($request->get('type')) {
+                case 'reserved':
+                    $query->where('status', 'R');
+                    break;
+
+                case 'claims':
+                    $query->whereIn('status', ['P', 'A']);
+                    break;
+
+                default:
+                    break;
+            }
+        }
+
         return datatables::of($query)
+            ->editColumn('intimation_no', function ($fn) {
+                return '<input type="checkbox" class="row-checkbox me-2" value="' . e($fn->intimation_no) . '"> ' . $fn->intimation_no;
+            })
             ->editColumn('intimation_no', function ($fn) {
                 return $fn->intimation_no;
             })
@@ -449,8 +588,8 @@ class ClaimNotificationController extends Controller
                 return $fn->endorsement_no;
             })
             ->editColumn('type_of_bus', function ($fn) {
-                $t = BusinessType::where('bus_type_id', $fn->type_of_bus)->first();
-                return $t->bus_type_name;
+                $t = DB::table('business_types')->where('bus_type_id', $fn->type_of_bus)->first();
+                return $t ? $t->bus_type_name : 'Unknown';
             })
             ->editColumn('class_desc', function ($fn) {
                 if ($fn->type_of_bus == 'FPR' || $fn->type_of_bus == 'FNP') {
@@ -461,39 +600,89 @@ class ClaimNotificationController extends Controller
                         $class_desc = 'Unknown Class';
                     }
                 } elseif ($fn->type_of_bus == 'TPR') {
-
-                    $class_desc = 'Treaty -  Proportional';
+                    $class_desc = 'Treaty - Proportional';
                 } elseif ($fn->type_of_bus == 'TNP') {
-
-                    $class_desc = 'Treaty  - Non Proportional';
+                    $class_desc = 'Treaty - Non Proportional';
                 } else {
-                    $class_desc = ' ';
+                    $class_desc = 'Unknown';
                 }
                 return $class_desc;
             })
             ->editColumn('status', function ($fn) {
-                $badge = '';
-                switch ($fn->status) {
-                    case ('P'):
-                        $badge = '<span class="badge bg-danger-gradient badge-sm-action"> Pending</span>';
-                        break;
-                    case ('A'):
-                        $badge = '<span class="badge bg-success-gradient badge-sm-action"> Approved</span>';
-                        break;
-                    case ('R'):
-                        $badge = '<span class="badge bg-danger-gradient badge-sm-action"> Rejected</span>';
-                        break;
-                    default:
-                        $badge = '<span class="badge bg-danger-gradient badge-sm-action"> Pending</span>';
-                        break;
-                }
-                return $badge;
+                $badges = [
+                    'P' => '<span class="badge bg-warning-gradient badge-sm-action">Pending</span>',
+                    'A' => '<span class="badge bg-success-gradient badge-sm-action">Approved</span>',
+                    'R' => '<span class="badge bg-info-gradient badge-sm-action">Reserved</span>',
+                    'C' => '<span class="badge bg-secondary-gradient badge-sm-action">Closed</span>',
+                    'X' => '<span class="badge bg-danger-gradient badge-sm-action">Cancelled</span>',
+                ];
+                return $badges[$fn->status] ?? '<span class="badge bg-dark-gradient badge-sm-action">Unknown</span>';
             })
             ->editColumn('created_at', function ($fn) {
                 return formatDate($fn->created_at);
             })
-            ->addColumn('action', function ($fn) {
-                return '<a href="#" class="btn btn-sm btn-primary btn-sm-action" id="view-notf-claimstatus" data-intimation_no="' . e($fn->intimation_no) . '" data-process_type="' . e($fn->process_type) . '">View <i class="bx bx-send"></i></a>';
+            ->addColumn('action', function ($fn) use ($request) {
+                $actions = '<div class="btn-group" role="group">';
+                $tableType = $request->get('type', 'claims');
+
+                $actions .= '<a href="#" class="btn btn-sm btn-primary" id="view-notf-claimstatus"
+                           data-intimation_no="' . e($fn->intimation_no) . '"
+                           data-process_type="' . e($fn->process_type ?? '') . '"
+                           title="View Details"><span class="pr-2">View</span>
+                           <i class="bx bx-send"></i>
+                        </a>';
+
+                if ($fn->status == 'P') {
+                    $actions .= '<a href="#" class="btn btn-sm btn-info ms-1" id="edit-claim"
+                               data-intimation_no="' . e($fn->intimation_no) . '"
+                               title="Edit Claim">
+                               <i class="bx bx-edit"></i>
+                            </a>';
+                }
+
+                switch ($tableType) {
+                    case 'reserved':
+                        if ($fn->status == 'R') {
+                            $actions .= '<a href="#" class="btn btn-sm btn-success ms-1" id="activate-claim"
+                                       data-intimation_no="' . e($fn->intimation_no) . '"
+                                       title="Activate Claim">
+                                       <i class="bx bx-play"></i>
+                                    </a>';
+                        }
+                        break;
+
+                    case 'claims':
+                    default:
+                        if ($fn->status == 'A' && empty($fn->converted_claim_no)) {
+                            $actions .= '<a href="#" class="btn btn-sm btn-info ms-1" id="convert-to-claim"
+                                       data-intimation_no="' . e($fn->intimation_no) . '"
+                                       title="Convert to Claim">
+                                       <i class="bx bx-transfer"></i>
+                                    </a>';
+                        }
+                        break;
+                }
+
+                if (in_array($fn->status, ['P']) && empty($fn->converted_claim_no)) {
+                    $actions .= '<a href="#" class="btn btn-sm btn-danger ms-1" id="delete-claim"
+                               data-intimation_no="' . e($fn->intimation_no) . '"
+                               data-status="' . e($fn->status) . '"
+                               title="Delete Claim">
+                               <i class="bx bx-trash"></i>
+                            </a>';
+                }
+
+                if (in_array($fn->status, ['A']) && empty($fn->converted_claim_no)) {
+                    $actions .= '<a href="#" class="btn btn-sm btn-outline-danger ms-1" id="cancel-claim"
+                               data-intimation_no="' . e($fn->intimation_no) . '"
+                               title="Cancel Claim">
+                               <i class="bx bx-x"></i>
+                            </a>';
+                }
+
+                $actions .= '</div>';
+
+                return $actions;
             })
             ->rawColumns(['action', 'status'])
             ->make(true);
@@ -1433,7 +1622,7 @@ class ClaimNotificationController extends Controller
                 'claim_no' => $claim_no
             ]);
         } catch (\Exception $e) {
-            // DB::rollback();
+            DB::rollback();
             return response()->json([
                 'status' => Response::HTTP_INTERNAL_SERVER_ERROR,
                 'error' => 'Failed to convert Notification to Claim: ' . $e->getMessage()
@@ -1526,7 +1715,6 @@ class ClaimNotificationController extends Controller
             $message = $this->formatMessageForHtml($request->message);
             $request->merge(['message' => $message]);
 
-            // Dispatch email job
             SendClaimNotificationJob::dispatch(
                 $claim,
                 $request->all()
@@ -1574,5 +1762,406 @@ class ClaimNotificationController extends Controller
         $html = preg_replace('/(<li>.*<\/li>)/s', '<ol>$1</ol>', $html);
 
         return $html;
+    }
+
+    public function deleteClaim(Request $request)
+    {
+        try {
+            $request->validate([
+                'intimation_no' => 'required|string'
+            ]);
+
+            DB::beginTransaction();
+
+            $claim = ClaimNtfRegister::where('intimation_no', $request->intimation_no)->first();
+
+            if (!$claim) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Claim notification not found.'
+                ], 404);
+            }
+
+            if ($claim->status === 'A') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Cannot delete approved claim notifications.'
+                ], 422);
+            }
+
+            if ($claim->status === 'C') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Cannot delete closed claim notifications.'
+                ], 422);
+            }
+
+            if (!empty($claim->converted_claim_no)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Cannot delete claim notifications that have been converted to claims.'
+                ], 422);
+            }
+
+            $this->deleteClaimRelatedData($request->intimation_no);
+
+            $claim->delete();
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Claim notification deleted successfully.'
+            ]);
+        } catch (\Exception $e) {
+            DB::rollback();
+
+            logger('Error deleting claim notification', [
+                'intimation_no' => $request->intimation_no ?? 'unknown',
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while deleting the claim notification.'
+            ], 500);
+        }
+    }
+
+    /**
+     * Delete multiple claim notifications
+     */
+    public function bulkDeleteClaims(Request $request)
+    {
+        try {
+            $request->validate([
+                'intimation_nos' => 'required|array|min:1',
+                'intimation_nos.*' => 'required|string'
+            ]);
+
+            DB::beginTransaction();
+
+            $intimationNumbers = $request->intimation_nos;
+            $deletedCount = 0;
+            $errors = [];
+
+            foreach ($intimationNumbers as $intimationNo) {
+                try {
+                    $claim = ClaimNtfRegister::where('intimation_no', $intimationNo)->first();
+
+                    if (!$claim) {
+                        $errors[] = "Claim {$intimationNo} not found.";
+                        continue;
+                    }
+
+                    if (in_array($claim->status, ['A', 'C'])) {
+                        $errors[] = "Cannot delete claim {$intimationNo} - already processed.";
+                        continue;
+                    }
+
+                    if (!empty($claim->converted_claim_no)) {
+                        $errors[] = "Cannot delete claim {$intimationNo} - already converted.";
+                        continue;
+                    }
+
+                    $this->deleteClaimRelatedData($intimationNo);
+
+                    $claim->delete();
+                    $deletedCount++;
+                } catch (\Exception $e) {
+                    $errors[] = "Error deleting claim {$intimationNo}: " . $e->getMessage();
+                    logger('Bulk delete error for claim', [
+                        'intimation_no' => $intimationNo,
+                        'error' => $e->getMessage()
+                    ]);
+                }
+            }
+
+            DB::commit();
+
+            $response = [
+                'success' => $deletedCount > 0,
+                'deleted_count' => $deletedCount,
+                'total_requested' => count($intimationNumbers)
+            ];
+
+            if (count($errors) > 0) {
+                $response['errors'] = $errors;
+                $response['message'] = "{$deletedCount} claims deleted successfully. " . count($errors) . " claims could not be deleted.";
+            } else {
+                $response['message'] = "All {$deletedCount} claims deleted successfully.";
+            }
+
+            return response()->json($response);
+        } catch (\Exception $e) {
+            DB::rollback();
+
+            logger('Error in bulk delete claims', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred during bulk deletion.'
+            ], 500);
+        }
+    }
+
+    /**
+     * Delete related data for a claim notification
+     */
+    private function deleteClaimRelatedData($intimationNo)
+    {
+        try {
+            ClaimNtfPeril::where('intimation_no', $intimationNo)->delete();
+
+            $documents = ClaimNtfDocs::where('intimation_no', $intimationNo)->get();
+            foreach ($documents as $doc) {
+                if ($doc->file && Storage::disk('public')->exists('claim_ntf_attachments/' . $doc->file)) {
+                    Storage::disk('public')->delete('claim_ntf_attachments/' . $doc->file);
+                }
+            }
+            ClaimNtfDocs::where('intimation_no', $intimationNo)->delete();
+
+            ClaimNtfAckDocs::where('intimation_no', $intimationNo)->delete();
+
+            ClaimNtfStatus::where('intimation_no', $intimationNo)->delete();
+
+            DB::table('claim_status_logs')->where('intimation_no', $intimationNo)->delete();
+        } catch (\Exception $e) {
+            logger('Error deleting related claim data', [
+                'intimation_no' => $intimationNo,
+                'error' => $e->getMessage()
+            ]);
+            throw $e;
+        }
+    }
+
+    /**
+     * Soft delete (mark as cancelled instead of hard delete) - Alternative approach
+     */
+    public function cancelClaim(Request $request)
+    {
+        try {
+            $request->validate([
+                'intimation_no' => 'required|string',
+                'cancellation_reason' => 'nullable|string|max:500'
+            ]);
+
+            DB::beginTransaction();
+
+            $claim = ClaimNtfRegister::where('intimation_no', $request->intimation_no)->first();
+
+            if (!$claim) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Claim notification not found.'
+                ], 404);
+            }
+
+            $claim->update([
+                'status' => 'X', // Cancelled status
+                'cancellation_reason' => $request->cancellation_reason,
+                'cancelled_at' => now(),
+                'cancelled_by' => auth()->user()->user_name,
+                'updated_by' => auth()->user()->user_name
+            ]);
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Claim notification cancelled successfully.'
+            ]);
+        } catch (\Exception $e) {
+            DB::rollback();
+
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while cancelling the claim notification.'
+            ], 500);
+        }
+    }
+
+    public function getDashboardStats()
+    {
+        try {
+            $currentDate = Carbon::now();
+            $weekStart = $currentDate->copy()->startOfWeek();
+            $monthStart = $currentDate->copy()->startOfMonth();
+            $yearStart = $currentDate->copy()->startOfYear();
+
+            $activeClaims = ClaimNtfRegister::whereIn('status', ['P', 'A'])
+                ->where(function ($query) {
+                    $query->whereNull('converted_claim_no')
+                        ->orWhere('converted_claim_no', '');
+                })
+                ->count();
+
+            $activeClaimsThisWeek = ClaimNtfRegister::whereIn('status', ['P', 'A'])
+                ->where(function ($query) {
+                    $query->whereNull('converted_claim_no')
+                        ->orWhere('converted_claim_no', '');
+                })
+                ->where('created_at', '>=', $weekStart)
+                ->count();
+
+            $pendingSettlement = ClaimNtfRegister::where('status', 'A')
+                ->where(function ($query) {
+                    $query->whereNull('converted_claim_no')
+                        ->orWhere('converted_claim_no', '');
+                })
+                ->count();
+
+            $reservedClaims = ClaimNtfRegister::where('status', 'R')->count();
+
+            $estimatedReserve = ClaimNtfRegister::whereNotNull('reserve_amount')
+                ->where('reserve_amount', '>', 0)
+                ->sum('reserve_amount');
+
+            $pendingNotifications = ClaimNtfRegister::where('notification_status', 'PENDING')
+                ->orWhereNull('notification_status')
+                ->count();
+
+            $lastWeekActiveClaims = ClaimNtfRegister::whereIn('status', ['P', 'A'])
+                ->where(function ($query) {
+                    $query->whereNull('converted_claim_no')
+                        ->orWhere('converted_claim_no', '');
+                })
+                ->whereBetween('created_at', [
+                    $weekStart->copy()->subWeek(),
+                    $weekStart->copy()->subDay()
+                ])
+                ->count();
+
+            $activeClaimsTrend = $activeClaimsThisWeek - $lastWeekActiveClaims;
+            $activeClaimsTrendDirection = $activeClaimsTrend >= 0 ? 'up' : 'down';
+            $activeClaimsTrendText = abs($activeClaimsTrend) . ' this week';
+
+            $totalClaimsThisMonth = ClaimNtfRegister::where('created_at', '>=', $monthStart)->count();
+            $totalClaimsThisYear = ClaimNtfRegister::where('created_at', '>=', $yearStart)->count();
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'active_claims' => [
+                        'count' => $activeClaims,
+                        'trend' => $activeClaimsTrend,
+                        'trend_direction' => $activeClaimsTrendDirection,
+                        'trend_text' => $activeClaimsTrendText > 0 ? "+{$activeClaimsTrend} this week" : $activeClaimsTrendText,
+                        'icon' => 'bi-bell',
+                        'color' => 'bg-modern-primary'
+                    ],
+                    'pending_settlement' => [
+                        'count' => $pendingSettlement,
+                        'trend_text' => $pendingSettlement > 0 ? 'Requires attention' : 'All up to date',
+                        'icon' => 'bi-clock',
+                        'color' => 'bg-modern-warning'
+                    ],
+                    'reserved_claims' => [
+                        'count' => $reservedClaims,
+                        'trend_text' => $reservedClaims > 0 ? 'Can proceed to next stage' : 'None reserved',
+                        'icon' => 'bi-check',
+                        'color' => 'bg-modern-success'
+                    ],
+                    'estimated_reserve' => [
+                        'count' => number_format($estimatedReserve, 0),
+                        'raw_amount' => $estimatedReserve,
+                        'trend_text' => $pendingNotifications > 0 ? "{$pendingNotifications} pending notifications" : 'All notified',
+                        'icon' => 'bi-wallet',
+                        'color' => 'bg-modern-secondary'
+                    ],
+                    'additional_stats' => [
+                        'total_this_month' => $totalClaimsThisMonth,
+                        'total_this_year' => $totalClaimsThisYear,
+                        'pending_notifications' => $pendingNotifications
+                    ]
+                ]
+            ]);
+        } catch (\Exception $e) {
+            logger('Dashboard stats error', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to load dashboard statistics',
+                'data' => [
+                    'active_claims' => ['count' => 0, 'trend_text' => 'Data unavailable'],
+                    'pending_settlement' => ['count' => 0, 'trend_text' => 'Data unavailable'],
+                    'reserved_claims' => ['count' => 0, 'trend_text' => 'Data unavailable'],
+                    'estimated_reserve' => ['count' => '0', 'trend_text' => 'Data unavailable']
+                ]
+            ], 500);
+        }
+    }
+
+    /**
+     * Get detailed breakdown for specific card
+     */
+    public function getCardDetails(Request $request)
+    {
+        try {
+            $cardType = $request->get('type');
+
+            switch ($cardType) {
+                case 'active_claims':
+                    $claims = ClaimNtfRegister::whereIn('status', ['P', 'A'])
+                        ->where(function ($query) {
+                            $query->whereNull('converted_claim_no')
+                                ->orWhere('converted_claim_no', '');
+                        })
+                        ->with(['customer'])
+                        ->orderBy('created_at', 'desc')
+                        ->limit(10)
+                        ->get();
+                    break;
+
+                case 'pending_settlement':
+                    $claims = ClaimNtfRegister::where('status', 'A')
+                        ->where(function ($query) {
+                            $query->whereNull('converted_claim_no')
+                                ->orWhere('converted_claim_no', '');
+                        })
+                        ->with(['customer'])
+                        ->orderBy('created_at', 'desc')
+                        ->limit(10)
+                        ->get();
+                    break;
+
+                case 'reserved_claims':
+                    $claims = ClaimNtfRegister::where('status', 'R')
+                        ->with(['customer'])
+                        ->orderBy('created_at', 'desc')
+                        ->limit(10)
+                        ->get();
+                    break;
+
+                default:
+                    return response()->json(['success' => false, 'message' => 'Invalid card type']);
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => $claims->map(function ($claim) {
+                    return [
+                        'intimation_no' => $claim->intimation_no,
+                        'customer_name' => $claim->customer->name ?? 'Unknown',
+                        'cover_no' => $claim->cover_no,
+                        'status' => $claim->status,
+                        'created_at' => $claim->created_at->format('M d, Y'),
+                        'reserve_amount' => $claim->reserve_amount ? number_format($claim->reserve_amount) : null
+                    ];
+                })
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to load card details'
+            ], 500);
+        }
     }
 }

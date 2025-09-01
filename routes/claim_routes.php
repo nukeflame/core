@@ -5,11 +5,7 @@ use App\Http\Controllers\ClaimNotificationController;
 use Illuminate\Support\Facades\Route;
 
 Route::group(['prefix' => 'claim', 'middleware' => ['auth', 'check.first.login']], function () {
-
-    //claim routes
     Route::any('/claim-form', [ClaimController::class, 'ClaimForm'])->name('claim.form');
-    // Temporary route for testing purposes
-
     Route::post('/claim-register', [ClaimController::class, 'ClaimRegister'])->name('claim.register');
     Route::get('/claim-datatable', [ClaimController::class, 'ClaimDatatable'])->name('claim.datatable');
     Route::get('/get-loss-endorsements', [ClaimController::class, 'GetLossEndorsements'])->name('claim.get_loss_endorsements');
@@ -40,7 +36,6 @@ Route::group(['prefix' => 'claim', 'middleware' => ['auth', 'check.first.login']
     Route::post('/saveClaimStatus', [ClaimController::class, 'saveClaimStatus'])->name('claim.saveClaimStatus');
 
     Route::prefix('notification')->name('claim.notification.')->group(function () {
-        //claim routes
         Route::get('/claims-enquiry', function () {
             return view('/claim/claims_notification_enquiry');
         })->name('enquiry');
@@ -76,5 +71,11 @@ Route::group(['prefix' => 'claim', 'middleware' => ['auth', 'check.first.login']
         Route::post('/convertNotificationToClaim', [ClaimNotificationController::class, 'convertNotificationToClaim'])->name('convertNotificationToClaim');
 
         Route::post('/sendDocumentEmail', [ClaimNotificationController::class, 'sendDocumentEmail'])->name('sendDocumentEmail');
+        Route::delete('/delete-claim', [ClaimNotificationController::class, 'deleteClaim'])->name('delete');
+        Route::delete('/bulk-delete-claims', [ClaimNotificationController::class, 'bulkDeleteClaims'])->name('bulk-delete');
+        Route::patch('/cancel-claim', [ClaimNotificationController::class, 'cancelClaim'])->name('cancel');
+
+        Route::get('/dashboard-stats', [ClaimNotificationController::class, 'getDashboardStats'])->name('dashboard-stats');
+        Route::get('/card-details', [ClaimNotificationController::class, 'getCardDetails'])->name('card-details');
     });
 });

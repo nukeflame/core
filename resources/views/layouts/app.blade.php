@@ -890,9 +890,14 @@
             fetchNotifications();
 
             // Init select2
-            $('.form-select').select2();
-            $('.select2').select2();
-            // show after select2 initializes
+            $('.form-select, .select2').each(function() {
+                $(this).select2({
+                    placeholder: $(this).data('placeholder') || $(this).attr('placeholder') ||
+                        'Select an option',
+                    allowClear: false,
+                    width: '100%'
+                });
+            });
             $('body').css('visibility', 'visible');
 
             tinymce.init({
@@ -903,6 +908,12 @@
 
             $('#logout-btn').click(function() {
                 $('#logout-form').submit()
+            });
+
+            $(document).ajaxError(function(event, jqXHR, ajaxSettings, thrownError) {
+                if (jqXHR.status === 419) {
+                    toastr.error('Session expired. Please refresh the page.', 'Authentication Error');
+                }
             });
 
             $(".reporting-dashboard").on("click", (e) => {

@@ -8,10 +8,10 @@ use Illuminate\Database\Eloquent\Model;
 class BusinessType extends Model
 {
     use HasFactory;
-    // protected $connection = 'mysql'; 
-    protected $table='business_types';
-	public $timestamps=false;
-	public $primaryKey='bus_type_id';
-	public $incrementing=false;
+
+    protected $table = 'business_types';
+    public $timestamps = false;
+    public $primaryKey = 'bus_type_id';
+    public $incrementing = false;
     protected $guarded = [];
 }

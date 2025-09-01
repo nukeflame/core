@@ -12,7 +12,7 @@ class ClaimNtfRegister extends Model
 
     protected $table = 'claim_ntf_register';
     public $timestamps = true;
-    public $primaryKey = 'intimation_no';
+    public $primaryKey = 'serial_no';
     public $incrementing = false;
     protected $guarded = [];
 
