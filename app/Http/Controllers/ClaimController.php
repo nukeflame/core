@@ -402,7 +402,9 @@ class ClaimController extends Controller
             }
         }
 
-        // logger()->info(json_encode($results['emails'], JSON_PRETTY_PRINT));
+        logger()->info(json_encode($results['emails'], JSON_PRETTY_PRINT));
+
+
         return view('claim.claim_home', [
             'ClaimRegister' => $claimRegister,
             'branch' => $branch,

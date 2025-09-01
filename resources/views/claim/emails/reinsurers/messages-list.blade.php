@@ -494,13 +494,13 @@
                         allMessages = results.map(transformOutlookMessage);
                     }
 
-                    filteredMessages = [...allMessages];
+                    // filteredMessages = [...allMessages];
 
-                    console.log(filteredMessages)
+                    console.log(allMessages);
 
-                    updateResultsInfo();
-                    renderMessages();
-                    renderPagination();
+                    // updateResultsInfo();
+                    // renderMessages();
+                    // renderPagination();
 
                 } catch (error) {
                     console.error('Outlook fetch failed:', error);

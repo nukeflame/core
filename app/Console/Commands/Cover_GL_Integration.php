@@ -30,7 +30,7 @@ class Cover_GL_Integration extends Command
             $datas = CoverDebit::where('gl_updated', '!=', 'Y')
                 ->orWhereNull('gl_updated')
                 ->get();
-            // $datas = CoverDebit::where('endorsement_no', 'FPRNEW0001292024')
+            // $datas = CoverDebit::where('endorsement_no', 'CNEW0000072025')
             //     ->get();
 
             if ($datas->isNotEmpty()) {
@@ -164,7 +164,7 @@ class Cover_GL_Integration extends Command
                             ->whereRaw("CAST(data::json->>'endorsement_no' AS TEXT) = ?", [$coverdebit->endorsement_no])
                             ->where('status', 'A')
                             ->first();
-                        // Prepare the API request payload
+
                         $requestPayload = [
                             'invoice' => [
                                 'partner_number' => $customer->partner_number,
@@ -203,6 +203,8 @@ class Cover_GL_Integration extends Command
                                 'channel_type_code' => 'INSCO',
                                 'channel_code' => 'INSCO',
                                 'channel_is_customer' => 'N',
+                                "insurer" => $customer->name, //reinsurer
+                                "insured" =>  $coverReg->insured_name,
                             ],
                             'items' => $coverItems,
                             'attachments' => [],
@@ -210,9 +212,9 @@ class Cover_GL_Integration extends Command
 
                         // Send the API request
                         $response = Http::withOptions([
-                            'cert' => [storage_path('certs/acfinance.local-cert.pem'), 'UzMkgwdHseFXvKjB'], // Certificate with password
-                            'ssl_key' => storage_path('certs/acfinance.local-key.pem'), // Private key
-                            // 'verify' => storage_path('certs/client-ca.pem'), // Optional: CA validation
+                            'cert' => [storage_path('certs/acfinance.local-cert.pem'), 'UzMkgwdHseFXvKjB'],
+                            'ssl_key' => storage_path('certs/acfinance.local-key.pem'),
+                            // 'verify' => storage_path('certs/client-ca.pem'),
                         ])->withHeaders([
                             'Reference-ID' => '4fjaZ70kuZTCgTBpCu3aGbCVBNLkja5T',
                         ])->post(env('FINANCE_URL') . '/api/postARInvoice', $requestPayload);
@@ -231,7 +233,7 @@ class Cover_GL_Integration extends Command
                         } else {
                             $errors = $response->json('errors');
 
-                            logger($errors);
+                            // logger($errors);
 
                             if (is_array($errors)) {
                                 $formattedErrors = collect($errors)
@@ -257,7 +259,7 @@ class Cover_GL_Integration extends Command
             }
             $this->info("All debits have been processed");
         } catch (\Exception $e) {
-            logger($e);
+            // logger($e);
             $this->error("Error processing debits: " . $e->getMessage());
         }
     }

@@ -39,7 +39,7 @@ class MailService
      */
     public function getEmails(string $folder = 'inbox', int $limit = 50, ?string $search = null): Collection
     {
-        $cacheKey = "emails.{$folder}.{$limit}." . md5($search ?? '');
+        // $cacheKey = "emails.{$folder}.{$limit}." . md5($search ?? '');
 
         return $this->storageService->getStoredEmails($folder, $limit, $search);
 
