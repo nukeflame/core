@@ -353,7 +353,7 @@ class ClaimNotificationController extends Controller
                     'serial_no' => $serialNo,
                     'status' => 'NOTIFICATION'
                 ],
-                'redirect_url' => redirect()->route('claim.notification.claim.detail', ['intimation_no' => $intimationNo])
+                'redirect_url' => route('claim.notification.claim.detail', ['intimation_no' => $intimationNo])
             ];
 
             return response()->json($response, 201);

@@ -1752,7 +1752,7 @@
 
                         reloadDataTables();
 
-                        console.log(response.redirect_url);
+                        // console.log(response.redirect_url);
 
                         setTimeout(() => {
                             window.location.href = response.redirect_url;
