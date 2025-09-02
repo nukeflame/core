@@ -45,7 +45,7 @@ class CoverReinsurer_GL_Integration extends Command
                     $class = Classes::where('class_code', $coverReg?->class_code)->first();
 
                     if ($coverdebit) {
-                        logger(json_encode($coverdebit, JSON_PRETTY_PRINT));
+                        // logger($coverdebit));
 
                         $participants = CoverRipart::where('endorsement_no', $coverdebit->endorsement_no)
                             ->where('glReinsurer_updated', '!=', 'Y')
@@ -205,7 +205,7 @@ class CoverReinsurer_GL_Integration extends Command
                                     'notes' => $document . ' document',
                                     'terms_conditions' => null,
                                     'created_by' => $coverdebit->created_by,
-                                    'updated_by' => $coverdebit->updated_by,
+                                    'updated_by' => $coverdebit->updated_by ?? 'system',
                                     'created_at' => $coverdebit->created_at,
                                     'updated_at' => $coverdebit->updated_at,
                                     'approved_by' => $approval->updated_by,
