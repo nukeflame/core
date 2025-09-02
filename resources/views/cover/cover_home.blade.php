@@ -2,7 +2,6 @@
 
 @section('content')
     <style>
-        /* Styles for the iframe */
         #docIframe {
             width: 100%;
             height: 80px;
@@ -10,7 +9,6 @@
             overflow: auto;
         }
 
-        /* Overlay to block interactions but still allow scrolling */
         .iframe-overlay {
             position: relative;
             top: 0;
@@ -22,10 +20,17 @@
             pointer-events: all;
         }
 
-        /* Allow interaction with the iframe on hover */
         #docIframe:hover+.iframe-overlay {
             pointer-events: none;
-            /* Allow interaction with iframe when hovered */
+        }
+
+        #emailTabContent {
+            min-height: 50vh;
+        }
+
+        #emailTabContent .tab-pane {
+            padding-top: 1rem;
+            border: none;
         }
     </style>
 
@@ -1909,7 +1914,63 @@
     </div>
 
     <!-- Send Email doc -->
-    <div class="modal effect-scale md-wrapper" id="send-email-modal" tabindex="-1" data-bs-backdrop="static"
+    <div class="modal effect-scale md-wrapper" id="sendReinDocumentEmail" data-bs-backdrop="static"
+        data-bs-keyboard="false" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title text-white text-center" id="sendReinDocumentEmailLabel">
+                        <i class="bx bx-envelope me-2 fs-15" style="vertical-align: middle"></i>Facultative Submission
+                        (To
+                        Reinsurer) - Email Composer
+                    </h5>
+                    <button type="button" class="btn-close-white" data-bs-dismiss="modal"
+                        aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="card-header bg-light border-bottom">
+                                <ul class="nav nav-tabs card-header-tabs" id="emailTabs" role="tablist">
+                                    <li class="nav-item" role="presentation">
+                                        <button class="nav-link active" id="compose-tab" data-bs-toggle="tab"
+                                            data-bs-target="#compose" type="button" role="tab">
+                                            <i class="bx bx-envelope me-2 fs-15"
+                                                style="vertical-align: middle"></i>Compose
+                                        </button>
+                                    </li>
+                                    {{-- <li class="nav-item" role="presentation">
+                                        <button class="nav-link" id="replies-tab" data-bs-toggle="tab"
+                                            data-bs-target="#replies" type="button" role="tab">
+                                            <i class="bx bx-reply me-2 fs-15" style="vertical-align: middle"></i>Reply
+                                            to
+                                            Messages
+                                        </button>
+                                    </li> --}}
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="tab-content" id="emailTabContent">
+                                <div class="tab-pane fade show active" id="compose" role="tabpanel">
+                                    @include('cover.emails.reinsurers.compose-form')
+                                </div>
+
+                                {{-- <div class="tab-pane fade" id="replies" role="tabpanel">
+                                    @include('cover.emails.reinsurers.messages-list')
+                                </div> --}}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {{-- <div class="modal effect-scale md-wrapper" id="send-email-modal" tabindex="-1" data-bs-backdrop="static"
         data-bs-keyboard="false" aria-hidden="true" aria-labelledby="staticReinsuranceLabel" aria-hidden="true">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
@@ -1920,7 +1981,7 @@
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
                         aria-label="Close"></button>
                 </div>
-                <div class="modal-body">
+                <div class="modal-body hiiden">
                     <form id="reinsurerEmailForm" action="{{ route('cover.sendreinsurer.email') }}" method="POST">
                         @csrf
                         <input type="hidden" name="coverNo" id="coverNo" />
@@ -1978,7 +2039,7 @@
                                                         class="bi bi-list-ul"></i></button>
                                                 <button type="button" class="btn btn-light"><i
                                                         class="bi bi-link"></i></button>
-                                            </div> --}}
+                                            </div> --
                                         </div>
                                         <div class="card-body p-0">
                                             <textarea class="form-control form-control-sm resize-none color-blk" id="reinsurer-email" rows="7"
@@ -2023,7 +2084,7 @@
                                             <span class="text-dark fs-14">Choose files</span>
                                             <input type="file" class="d-none" multiple>
                                         </label>
-                                    </div> --}}
+                                    </div> --
                                 </div>
 
                             </div>
@@ -2035,7 +2096,7 @@
                     <div class="d-flex gap-2">
                         {{-- <button type="button" class="btn btn-outline-primary btn-sm btn-wave waves-effect waves-light">
                             <i class="bi bi-eye"></i> Preview
-                        </button> --}}
+                        </button> --
                         <button type="button" class="btn btn-outline-dark btn-sm btn-wave waves-effect waves-light"
                             id="sendButton">
                             <i class="bi bi-send"></i> Send Email
@@ -2044,7 +2105,7 @@
                 </div>
             </div>
         </div>
-    </div>
+    </div> --}}
 
     <!-- Confirmation Modal -->
     <div class="modal effect-scale md-wrapper" id="confirmModal" tabindex="-1" aria-labelledby="confirmModalLabel"
@@ -4733,40 +4794,150 @@
                 content_style: 'body { font-family:Open Sans,Arial,sans-serif; font-size:15px } p,h1 {margin: 0px; padding:0px;}'
             });
 
-            $(document).on('click', '.send-reinsurer-email', function(e) {
+            $(document).on('click', '.send_reinsurer_email', async function(e) {
                 e.preventDefault()
-                const endorsementNo = $(this).data('endorsement_no')
-                const coverNo = $(this).data('cover_no')
 
-                const doc_email = $(this).data('client_emails')
-                const client_name = $(this).data('client_name')
+                lastReinData.tranNo = $(this).data('tran_no');
+                lastReinData.debitUrl = $(this).data('debit_url');
+                lastReinData.claimNoticeUrl = $(this).data('claim_notice_url');
 
-                defaultEmailTemplate =
-                    "<p>Dear {name},</p><br>" +
-                    "<p>Greetings,</p><br>" +
-                    "<p>We are pleased to present the subject facultative placement for your consideration. Please find attached the placement slip and supporting documents outlining the risk details.</p><br>" +
-                    "<p>Kindly review the offer and confirm your maximum line of support.</p><br>" +
-                    "<p>Looking forward to your feedback.</p><br><br>" +
-                    "<p>Best Regards,<br>[Your Name]<br>[Your Position]</p>";
-                if (doc_email) {
-                    $('#emailTo').empty();
-                    $.each(doc_email, function(index, email) {
-                        $('#emailTo').append($('<option>', {
-                            value: email,
-                            text: email
-                        }));
+                const reinsurers = @json($coverpart) ?? [];
+
+                await facReinEmailModal(
+                    lastReinData.tranNo,
+                    lastReinData.debitUrl,
+                    lastReinData.claimNoticeUrl,
+                    reinsurers
+                );
+
+                $("#sendReinDocumentEmail").modal('show')
+
+                // console.log()
+                // const endorsementNo = $(this).data('endorsement_no')
+                // const coverNo = $(this).data('cover_no')
+
+                // const doc_email = $(this).data('client_emails')
+                // const client_name = $(this).data('client_name')
+
+                // defaultEmailTemplate =
+                //     "<p>Dear {name},</p><br>" +
+                //     "<p>Greetings,</p><br>" +
+                //     "<p>We are pleased to present the subject facultative placement for your consideration. Please find attached the placement slip and supporting documents outlining the risk details.</p><br>" +
+                //     "<p>Kindly review the offer and confirm your maximum line of support.</p><br>" +
+                //     "<p>Looking forward to your feedback.</p><br><br>" +
+                //     "<p>Best Regards,<br>[Your Name]<br>[Your Position]</p>";
+                // if (doc_email) {
+                //     $('#emailTo').empty();
+                //     $.each(doc_email, function(index, email) {
+                //         $('#emailTo').append($('<option>', {
+                //             value: email,
+                //             text: email
+                //         }));
+                //     });
+                // }
+                // tinymce.get('reinsurer-email').setContent(defaultEmailTemplate);
+                // $('#emailTo').select2('destroy').find('option').prop('selected', true).end().select2();
+                // $('#emailSubject').val(
+                //     `Facultative Submission - [Risk Reference] - [Brief Risk Description]`);
+                // $('#send-email-modal').modal('show')
+
+                // $('#coverNo').val(coverNo);
+                // $('#endorsementNo').val(endorsementNo);
+                // // loadAttachements(client_docs?.attachments, policy_no, selectedValue)
+            })
+
+            async function facReinEmailModal(tranNo, debitUrl, claimNoticeUrl, reinsurers) {
+                // window.OutlookConnectionManager.showLoading();
+                // const emailConnection = await window.OutlookConnectionManager.checkStatus();
+                // if (!emailConnection.connected) {
+                //     window.OutlookConnectionManager.hideLoading();
+                //     window.OutlookConnectionManager.show();
+                //     return;
+                // }
+                // window.OutlookConnectionManager.hideLoading();
+
+                if (debitUrl) {
+                    $("#debitNoteLink").attr('href', debitUrl);
+                    $("#debitNoteFile").val(debitUrl);
+                } else {
+                    $("#debitNoteLink").removeAttr('href').on('click', e => e.preventDefault());
+                }
+
+                if (claimNoticeUrl) {
+                    $("#claimNoticeLink").attr('href', claimNoticeUrl);
+                    $("#claimNoticeFile").val(claimNoticeUrl);
+                } else {
+                    $("#claimNoticeLink").removeAttr('href').on('click', e => e.preventDefault());
+                }
+
+                const reinsurer = reinsurers.find(x => Number(x.tran_no) === Number(tranNo));
+                if (!reinsurer) {
+                    toastr.info('No reinsurer found for the selected transaction.');
+                    return;
+                }
+
+                const contacts = reinsurer?.contacts || [];
+                const $contactsSelect = $(".claimReinEmailForm #contacts");
+                const $ccEmailSelect = $(".claimReinEmailForm #ccEmail");
+                const $bccEmailSelect = $(".claimReinEmailForm #bccEmail");
+
+                $contactsSelect.empty().append('<option value="" disabled>--Select contacts--</option>');
+                $ccEmailSelect.empty().append('<option value="" disabled>--Select CC emails--</option>');
+                $bccEmailSelect.empty().append('<option value="" disabled>--Select BCC emails--</option>');
+
+                let contactsSelected = [];
+                if (contacts.length > 0) {
+                    const primaryContacts = [];
+                    const regularContacts = [];
+
+                    contacts.forEach(contact => {
+                        const email = contact.contact_email;
+                        if (!email) return;
+
+                        let optionText = contact.contact_name ? `${contact.contact_name} (${email})` :
+                            email;
+                        if (contact.contact_mobile_no) optionText += ` - ${contact.contact_mobile_no}`;
+                        if (contact.is_primary) optionText += ' [Primary]';
+
+                        const createOption = () => $('<option></option>')
+                            .attr('value', email)
+                            .text(optionText)
+                            .data('contact-data', contact)
+                            .data('is-primary', contact.is_primary);
+
+                        $contactsSelect.append(createOption());
+                        $ccEmailSelect.append(createOption());
+                        $bccEmailSelect.append(createOption());
+
+                        if (contact.is_primary) primaryContacts.push(email);
+                        else regularContacts.push(email);
+                    });
+
+                    if (primaryContacts.length > 0) {
+                        contactsSelected = primaryContacts;
+                        $contactsSelect.val(primaryContacts).trigger('change');
+                    } else if (regularContacts.length === 1) {
+                        contactsSelected = [regularContacts[0]];
+                        $contactsSelect.val(regularContacts[0]).trigger('change');
+                    }
+
+                    [$contactsSelect, $ccEmailSelect, $bccEmailSelect].forEach($select => {
+                        if ($select.hasClass('select2-hidden-accessible')) {
+                            $select.trigger('change.select2');
+                        }
                     });
                 }
-                tinymce.get('reinsurer-email').setContent(defaultEmailTemplate);
-                $('#emailTo').select2('destroy').find('option').prop('selected', true).end().select2();
-                $('#emailSubject').val(
-                    `Facultative Submission - [Risk Reference] - [Brief Risk Description]`);
-                $('#send-email-modal').modal('show')
 
-                $('#coverNo').val(coverNo);
-                $('#endorsementNo').val(endorsementNo);
-                // loadAttachements(client_docs?.attachments, policy_no, selectedValue)
-            })
+                const partnerEmail = reinsurer?.partner?.email ?? null;
+                let toEmails = [];
+                if (partnerEmail) toEmails.push(partnerEmail);
+                toEmails = toEmails.concat(contactsSelected);
+
+                $(".claimReinEmailForm #toEmail").val(toEmails);
+                $(".claimReinEmailForm #partnerToEmail").val(partnerEmail);
+                $("#sendReinDocumentEmail").modal('show');
+            }
+
 
             $(document).on('click', '.send-cedant-email', function(e) {
                 e.preventDefault()

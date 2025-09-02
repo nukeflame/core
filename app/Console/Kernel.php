@@ -38,44 +38,44 @@ class Kernel extends ConsoleKernel
         //     });
 
         // Inbox - every minute
-        $schedule->command('outlook:sync --all-users --folder=inbox --fetch-profile-pictures --download-profile-pictures --attachment-storage=local --profile-picture-size=360×360')
-            ->everyMinute()
-            ->withoutOverlapping(2)
-            ->runInBackground()
-            ->onFailure(function () {
-                logger()->error('Outlook inbox sync failed');
-            });
+        // $schedule->command('outlook:sync --all-users --folder=inbox --fetch-profile-pictures --download-profile-pictures --attachment-storage=local --profile-picture-size=360×360')
+        //     ->everyMinute()
+        //     ->withoutOverlapping(2)
+        //     ->runInBackground()
+        //     ->onFailure(function () {
+        //         logger()->error('Outlook inbox sync failed');
+        //     });
 
-        // Sent - offset by 20 seconds
-        $schedule->command('outlook:sync --all-users --folder=sent --fetch-profile-pictures --download-profile-pictures --attachment-storage=local --profile-picture-size=360×360')
-            ->everyMinute()
-            ->skip(function () {
-                return (int)date('s') < 20; // Start at 20 seconds
-            })
-            ->withoutOverlapping(2)
-            ->runInBackground()
-            ->onFailure(function () {
-                logger()->error('Outlook sent sync failed');
-            });
+        // // Sent - offset by 20 seconds
+        // $schedule->command('outlook:sync --all-users --folder=sent --fetch-profile-pictures --download-profile-pictures --attachment-storage=local --profile-picture-size=360×360')
+        //     ->everyMinute()
+        //     ->skip(function () {
+        //         return (int)date('s') < 20; // Start at 20 seconds
+        //     })
+        //     ->withoutOverlapping(2)
+        //     ->runInBackground()
+        //     ->onFailure(function () {
+        //         logger()->error('Outlook sent sync failed');
+        //     });
 
-        // Drafts - offset by 40 seconds
-        $schedule->command('outlook:sync --all-users --folder=drafts --fetch-profile-pictures --download-profile-pictures --attachment-storage=local --profile-picture-size=360×360')
-            ->everyMinute()
-            ->skip(function () {
-                return (int)date('s') < 40; // Start at 40 seconds
-            })
-            ->withoutOverlapping(2)
-            ->runInBackground()
-            ->onFailure(function () {
-                logger()->error('Outlook drafts sync failed');
-            });
+        // // Drafts - offset by 40 seconds
+        // $schedule->command('outlook:sync --all-users --folder=drafts --fetch-profile-pictures --download-profile-pictures --attachment-storage=local --profile-picture-size=360×360')
+        //     ->everyMinute()
+        //     ->skip(function () {
+        //         return (int)date('s') < 40; // Start at 40 seconds
+        //     })
+        //     ->withoutOverlapping(2)
+        //     ->runInBackground()
+        //     ->onFailure(function () {
+        //         logger()->error('Outlook drafts sync failed');
+        //     });
 
-        // Clean up old sync logs (keep last 30 days)
-        $schedule->call(function () {
-            DB::table('email_sync_logs')
-                ->where('created_at', '<', now()->subDays(30))
-                ->delete();
-        })->daily();
+        // // Clean up old sync logs (keep last 30 days)
+        // $schedule->call(function () {
+        //     DB::table('email_sync_logs')
+        //         ->where('created_at', '<', now()->subDays(30))
+        //         ->delete();
+        // })->daily();
 
         // Token refresh check - run every hour
         // $schedule->command('outlook:sync --all-users --force-refresh')

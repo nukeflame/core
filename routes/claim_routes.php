@@ -16,6 +16,7 @@ Route::group(['prefix' => 'claim', 'middleware' => ['auth', 'check.first.login']
     Route::get('/claims-enquiry-datatable', [ClaimController::class, 'ClaimsEnquiryDatatable'])->name('claims.enquiry.datatable');
     Route::get('/claims-enquiry', [ClaimController::class, 'showClaimEnquiry'])->name('claim.enquiry');
     Route::get('/details/{claim_no}', [ClaimController::class, 'ClaimDetails'])->name('claim.detail');
+    Route::post('/details', [ClaimController::class, 'ClaimDetails'])->name('claim.detail');
 
     Route::post('/claim-save-peril', [ClaimController::class, 'savePeril'])->name('claim.saveperil');
     Route::post('/generate-debit', [ClaimController::class, 'generateDebit'])->name('claim.generate-debit');

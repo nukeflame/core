@@ -1127,8 +1127,9 @@ class CoverController extends Controller
                         $btn .= "<a href='{$creditNoteUrl}' data-endorsementno='{$endorsementNo}' data-partnerno='{$data->partner_no}' target='_blank' rel='noopener noreferrer' class='print-out-link pr-3 rein_credit_note_btn'><i class='bx bx-file me-1 align-middle'></i>Credit Note</a>";
                         $btn .= "<a href='{$coverSlipUrl}' target='_blank' rel='noopener noreferrer' class='print-out-link pr-3 rein_cover_slip_btn'>
                                     <i class='bx bx-file'></i> Cover Slip</a>";
-                        $btn .= "<a href='#' target='_blank' class='print-out-link send-reinsurer-email' data-client_emails='{$client_emails}' data-cover_no='{$coverNo}' data-endorsement_no='{$endorsementNo}' data-client_name='{$client_name}' data-client_docs='{$tmp_attachments}'>
-                                    <i class='bx bx-mail-send' style='font-size: 15px; vertical-align: -2px;'></i> Send E-Mail</a>";
+
+                        // $btn .= "<a href='#' target='_blank' class='print-out-link send_reinsurer_email' data-client_emails='{$client_emails}' data-cover_no='{$coverNo}' data-endorsement_no='{$endorsementNo}' data-client_name='{$client_name}' data-client_docs='{$tmp_attachments}'>
+                        //             <i class='bx bx-mail-send' style='font-size: 15px; vertical-align: -2px;'></i> Send E-Mail</a>";
                     }
                 }
                 return $btn;

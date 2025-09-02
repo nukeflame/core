@@ -46,7 +46,7 @@
                     ],
                     ['id' => 'sent', 'icon' => 'ri-send-plane-2-line', 'label' => 'Sent'],
                     ['id' => 'drafts', 'icon' => 'ri-draft-line', 'label' => 'Drafts'],
-                    ['id' => 'spam', 'icon' => 'ri-spam-2-line', 'label' => 'Spam', 'count' => 4, 'badge' => 'danger'],
+                    ['id' => 'spam', 'icon' => 'ri-spam-2-line', 'label' => 'Spam'],
                     ['id' => 'important', 'icon' => 'ri-bookmark-line', 'label' => 'Important'],
                     ['id' => 'trash', 'icon' => 'ri-delete-bin-line', 'label' => 'Trash'],
                     ['id' => 'archive', 'icon' => 'ri-archive-line', 'label' => 'Archive'],
@@ -54,8 +54,6 @@
                         'id' => 'starred',
                         'icon' => 'ri-star-line',
                         'label' => 'Starred',
-                        'count' => 12,
-                        'badge' => 'warning',
                     ],
                 ];
             @endphp

@@ -1184,33 +1184,74 @@ class SyncOutlookEmails extends Command
         }
     }
 
-    // ===== Sync Logging =====
-
     private function startSyncLog(int $userId): int
     {
+        // email_sync_logs
+        DB::table('email_sync_logs')->where('user_id', $userId)->delete();
+
         return DB::table('email_sync_logs')->insertGetId([
             'user_id' => $userId,
             'folder' => $this->option('folder'),
             'status' => 'running',
-            'started_at' => now(),
+            'started_at' => now()->utc(),
             'options' => json_encode($this->options()),
-            'created_at' => now(),
-            'updated_at' => now()
+            'created_at' => now()->utc(),
+            'updated_at' => now()->utc()
         ]);
     }
 
+    // private function startSyncLog(int $userId): int
+    // {
+    //     return DB::table('email_sync_logs')->insertGetId([
+    //         'user_id' => $userId,
+    //         'folder' => $this->option('folder'),
+    //         'status' => 'running',
+    //         'started_at' => now(),
+    //         'options' => json_encode($this->options()),
+    //         'created_at' => now(),
+    //         'updated_at' => now()
+    //     ]);
+    // }
+
     private function completeSyncLog(int $syncLogId, string $status, int $emailCount, ?string $error = null): void
     {
-        DB::table('email_sync_logs')
+        $updateData = [
+            'status' => $status,
+            'emails_processed' => $emailCount,
+            'error_message' => $error,
+            'completed_at' => now()->utc(), // Ensure UTC timezone for consistency
+            'updated_at' => now()->utc()
+        ];
+
+        if ($this->option('debug')) {
+            $this->info("Completing sync log {$syncLogId} with status: {$status}, emails: {$emailCount}");
+            if ($error) {
+                $this->error("Sync error: {$error}");
+            }
+        }
+
+        $updated = DB::table('email_sync_logs')
             ->where('id', $syncLogId)
-            ->update([
-                'status' => $status,
-                'emails_processed' => $emailCount,
-                'error_message' => $error,
-                'completed_at' => now(),
-                'updated_at' => now()
-            ]);
+            ->update($updateData);
+
+        if ($this->option('debug')) {
+            $this->info("Sync log update result: " . ($updated ? 'Success' : 'Failed'));
+        }
     }
+
+    // private function completeSyncLog(int $syncLogId, string $status, int $emailCount, ?string $error = null): void
+    // {
+    //     DB::table('email_sync_logs')
+    //         ->where('id', $syncLogId)
+    //         ->update([
+    //             'status' => $status,
+    //             'emails_processed' => $emailCount,
+    //             'error_message' => $error,
+    //             'completed_at' => now(),
+    //             'updated_at' => now()
+    //         ]);
+    // }
+
 
     private function getUserProfile(): ?array
     {
@@ -1240,30 +1281,65 @@ class SyncOutlookEmails extends Command
         }
     }
 
+
+
     private function getSinceDateForUser(int $userId): string
     {
+        $folder = $this->option('folder');
+
+        // Get the last successful sync for this specific user AND folder combination
         $lastSync = DB::table('email_sync_logs')
             ->where('user_id', $userId)
+            ->where('folder', $folder) // Add folder filter
             ->where('status', 'success')
-            ->max('completed_at');
+            ->orderBy('completed_at', 'desc') // Ensure we get the most recent
+            ->value('completed_at'); // Use value() instead of max() for better performance
 
         if ($lastSync) {
-            $sinceDate = Carbon::parse($lastSync)->subHours(1)->toDateTimeString();
+            // Ensure we're working with Carbon instance and proper timezone
+            $lastSyncCarbon = Carbon::parse($lastSync)->setTimezone(config('app.timezone'));
+            $sinceDate = $lastSyncCarbon->subHours(1)->utc()->toDateTimeString();
+
             if ($this->option('debug')) {
-                $this->info("Found previous successful sync at {$lastSync}, syncing since {$sinceDate}");
+                $this->info("Found previous successful sync for folder '{$folder}' at {$lastSyncCarbon->toDateTimeString()}, syncing since {$sinceDate}");
             }
             return $sinceDate;
         }
 
         $daysBack = (int) $this->option('days-back');
-        $sinceDate = now()->subDays($daysBack)->toDateTimeString();
+        $sinceDate = now()->utc()->subDays($daysBack)->toDateTimeString();
 
         if ($this->option('debug')) {
-            $this->info("No previous sync found, syncing emails from {$daysBack} days back: {$sinceDate}");
+            $this->info("No previous sync found for folder '{$folder}', syncing emails from {$daysBack} days back: {$sinceDate}");
         }
 
         return $sinceDate;
     }
+
+    // private function getSinceDateForUser(int $userId): string
+    // {
+    //     $lastSync = DB::table('email_sync_logs')
+    //         ->where('user_id', $userId)
+    //         ->where('status', 'success')
+    //         ->max('completed_at');
+
+    //     if ($lastSync) {
+    //         $sinceDate = Carbon::parse($lastSync)->subHours(1)->toDateTimeString();
+    //         if ($this->option('debug')) {
+    //             $this->info("Found previous successful sync at {$lastSync}, syncing since {$sinceDate}");
+    //         }
+    //         return $sinceDate;
+    //     }
+
+    //     $daysBack = (int) $this->option('days-back');
+    //     $sinceDate = now()->subDays($daysBack)->toDateTimeString();
+
+    //     if ($this->option('debug')) {
+    //         $this->info("No previous sync found, syncing emails from {$daysBack} days back: {$sinceDate}");
+    //     }
+
+    //     return $sinceDate;
+    // }
 
     private function initializeSyncStats(): void
     {
@@ -1373,5 +1449,24 @@ class SyncOutlookEmails extends Command
         if ($this->syncStats['new_emails'] > 0 || $this->syncStats['updated_emails'] > 0) {
             $this->info("📧 Total emails processed: {$this->syncStats['total_emails']} (New: {$this->syncStats['new_emails']}, Updated: {$this->syncStats['updated_emails']})");
         }
+    }
+
+    private function preventDuplicateRunningSyncs(int $userId): bool
+    {
+        $folder = $this->option('folder');
+
+        $existingRunning = DB::table('email_sync_logs')
+            ->where('user_id', $userId)
+            ->where('folder', $folder)
+            ->where('status', 'running')
+            ->where('started_at', '>', now()->subHours(2)) // Only consider recent running logs
+            ->exists();
+
+        if ($existingRunning) {
+            $this->warn("Sync already running for user {$userId}, folder '{$folder}'. Skipping...");
+            return false;
+        }
+
+        return true;
     }
 }

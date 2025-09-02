@@ -876,9 +876,9 @@ class ClaimController extends Controller
                     </a>';
                 }
 
-                $btn .= '<a href="#" class="send_debit_letter link me-2">
-                              <i class="bx bx-mail-send"></i> Send E-Mail
-                        </a>';
+                // $btn .= '<a href="#" class="send_debit_letter link me-2">
+                //               <i class="bx bx-mail-send"></i> Send E-Mail
+                //         </a>';
 
                 return $btn;
             })
