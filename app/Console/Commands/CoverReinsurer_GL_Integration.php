@@ -45,7 +45,6 @@ class CoverReinsurer_GL_Integration extends Command
                     $class = Classes::where('class_code', $coverReg?->class_code)->first();
 
                     if ($coverdebit) {
-                        // logger($coverdebit));
 
                         $participants = CoverRipart::where('endorsement_no', $coverdebit->endorsement_no)
                             ->where('glReinsurer_updated', '!=', 'Y')
@@ -190,6 +189,8 @@ class CoverReinsurer_GL_Integration extends Command
                                 ->whereRaw("CAST(data::json->>'endorsement_no' AS TEXT) = ?", [$coverdebit->endorsement_no])
                                 ->where('status', 'A')
                                 ->first();
+
+                            logger($approval);
 
                             $document = $coverdebit->document === 'DRN' ? 'CRN' : 'DRN';
                             // Prepare the API request payload
