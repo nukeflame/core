@@ -208,7 +208,7 @@ class CoverReinsurer_GL_Integration extends Command
                                     'updated_by' => $coverdebit->updated_by ?? 'system',
                                     'created_at' => $coverdebit->created_at,
                                     'updated_at' => $coverdebit->updated_at,
-                                    'approved_by' => $approval->updated_by,
+                                    'approved_by' => $approval->updated_by ?? 'system',
                                     'approved_at' => $approval->updated_at,
                                     'type_of_bus' => $coverReg->type_of_bus,
                                     'transaction_type' => $document,
