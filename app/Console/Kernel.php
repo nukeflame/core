@@ -18,9 +18,11 @@ class Kernel extends ConsoleKernel
 
     protected function schedule(Schedule $schedule): void
     {
-        // $schedule->command('inspire')->hourly();
         // $schedule->command('send:emails')->everyMinute();
-        // $schedule->command('cover:glupdate')->everyMinute();
+        $schedule->command('partner:glupdate')->everyMinute();
+        $schedule->command('cover:glupdate')->everyMinute();
+        $schedule->command('coverReinsurer:glupdate')->everyMinute();
+
         // $schedule->command('renewal:send-notices')
         //     ->daily()
         //     ->at('09:00')
