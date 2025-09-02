@@ -1752,9 +1752,11 @@
 
                         reloadDataTables();
 
-                        // setTimeout(() => {
-                        //     window.location.href = response.redirect_url;
-                        // }, 1500);
+                        console.log(response.redirect_url);
+
+                        setTimeout(() => {
+                            window.location.href = response.redirect_url;
+                        }, 1500);
                     } else {
                         toastr.error('Something went wrong', 'Error');
                     }

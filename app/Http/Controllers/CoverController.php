@@ -1311,8 +1311,8 @@ class CoverController extends Controller
                         $btn .= "<a href='{$dbtNoteUrl}' target='_blank' rel='noopener noreferrer' class='print-out-link pr-3'><i class='bx bx-file me-1 align-middle'></i>Debit Note</a>";
                         $btn .= "<a href='{$coverNoteUrl}' target='_blank' rel='noopener noreferrer' class='print-out-link pr-3'>
                                     <i class='bx bx-file'></i> Cover Note</a>";
-                        $btn .= "<a href='#' target='_blank' class='print-out-link send-cedant-email' data-user='{$user}' data-client_emails='{$client_emails}' data-cover_no='{$coverNo}' data-endorsement_no='{$endorsementNo}' data-client_name='{$client_name}' data-client_docs='{$tmp_attachments}'>
-                                    <i class='bx bx-mail-send' style='font-size: 15px; vertical-align: -2px;'></i> Send E-Mail</a>";
+                        // $btn .= "<a href='#' target='_blank' class='print-out-link send-cedant-email' data-user='{$user}' data-client_emails='{$client_emails}' data-cover_no='{$coverNo}' data-endorsement_no='{$endorsementNo}' data-client_name='{$client_name}' data-client_docs='{$tmp_attachments}'>
+                        //             <i class='bx bx-mail-send' style='font-size: 15px; vertical-align: -2px;'></i> Send E-Mail</a>";
                     }
                 }
                 return $btn;

@@ -601,21 +601,23 @@
                     .then(data => {
                         if (data?.status == 201) {
                             if (data.action == 'A') {
-                                toastr.success("Approval approved successful", 'Successful')
+                                toastr.success("Approval has been successfully approved.", "Success");
                             } else {
-                                toastr.success("Approval rejected successful", 'Successful')
+                                toastr.success("Approval has been successfully rejected.", "Success");
                             }
                             approvalTable.ajax.reload();
                             $("#apprv-view").hide();
                         } else if (data?.status == 422) {
-                            showServerSideValidationErrors(data.errors)
+                            showServerSideValidationErrors(data.errors);
                         } else {
-                            toastr.error("Failed to approve details")
+                            toastr.error("Unable to process approval. Please try again.");
                         }
                     })
                     .catch(error => {
-                        toastr.error("An internal error occured")
+                        toastr.error(
+                            "An unexpected error occurred. Please contact support if the issue persists.");
                     });
+
             }
         });
     </script>
