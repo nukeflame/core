@@ -190,8 +190,6 @@ class CoverReinsurer_GL_Integration extends Command
                                 ->where('status', 'A')
                                 ->first();
 
-                            logger($approval);
-
                             $document = $coverdebit->document === 'DRN' ? 'CRN' : 'DRN';
                             // Prepare the API request payload
                             $requestPayload = [
