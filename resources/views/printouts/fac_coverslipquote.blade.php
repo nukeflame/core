@@ -142,9 +142,9 @@
                 <div class="logo">
                     <?php
                     $logoPath = public_path('logo.png');
-                    
+
                     $imgSrc = '';
-                    
+
                     if (file_exists($logoPath) && is_readable($logoPath)) {
                         $imageData = file_get_contents($logoPath);
                         if ($imageData !== false) {
@@ -724,9 +724,9 @@
             <div class="logo">
                 <?php
                 $logoPath = public_path('logo.png');
-                
+
                 $imgSrc = '';
-                
+
                 if (file_exists($logoPath) && is_readable($logoPath)) {
                     $imageData = file_get_contents($logoPath);
                     if ($imageData !== false) {
@@ -1238,9 +1238,9 @@
             <div class="logo">
                 <?php
                 $logoPath = public_path('logo.png');
-                
+
                 $imgSrc = '';
-                
+
                 if (file_exists($logoPath) && is_readable($logoPath)) {
                     $imageData = file_get_contents($logoPath);
                     if ($imageData !== false) {
@@ -1491,17 +1491,6 @@
                             </div>
                         </div>
                     </div>
-
-
-
-                    {{-- <hr style="width: 60%; margin-left: 0; border: none; border-top: 2px solid #000;"> --}}
-
-                    {{-- {{logger($sh)}} --}}
-
-
-
-                    {{-- ****** calculation for reinsurer share ********* --}}
-
 
                     @php
                         $validNames = [

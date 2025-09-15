@@ -116,7 +116,6 @@ class AppointmentController extends Controller
         //     'purpose' => 'nullable|string|max:1000',
         // ]);
 
-        logger($request->all());
         return response()->json(['success' => true]);
         // if ($validator->fails()) {
         //     return response()->json([

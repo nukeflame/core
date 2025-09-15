@@ -124,7 +124,6 @@
             </li>
 
             <li class="mail-online-users">
-                {{-- {{ logger()->debug(json_encode($onlineUsers, JSON_PRETTY_PRINT)) }} --}}
                 <ul class="mail-online-list customScrollBar">
                     @if (isset($onlineUsers) && $onlineUsers->count() > 0)
                         @foreach ($onlineUsers->take(30) as $onlineUser)

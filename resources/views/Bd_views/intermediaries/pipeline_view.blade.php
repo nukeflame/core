@@ -387,7 +387,6 @@
                                                                 data-key="{{ $key }}" rows="4" placeholder="Enter description..."></textarea>
                                                         </div>
                                                     @endif
-                                                    {{-- {{ logger('sched-details-' . $key) }} --}}
                                                     <input type="hidden"
                                                         name="schedule_details[{{ $key }}][id]"
                                                         value="{{ $sch->id }}" {{-- id="sched-details-{{ $key }}"  --}} />
@@ -2280,7 +2279,7 @@
                                             <input type="checkbox" name="cedant_checkbox_docs[]" value="${docType}" class="form-check-input cedant-checkbox second-checkbox"
                                                 ${isChecked ? 'checked' : ''} ${isDisabled ? 'disabled' : ''}/>
                                                      ${cedantfileUrl ? `<a href="${cedantfileUrl}" target="_blank">
-                                                                                                                              <i class="bx bx-show"></i> </a>` : ''}
+                                                                                                                                  <i class="bx bx-show"></i> </a>` : ''}
 
 
                                         </div>`;
@@ -2408,7 +2407,7 @@
                                                      </div>
                                                 <div class="col-2" style="margin-top: 20px;">
                                                         ${existingFile ? `<a href="${fileUrl}" target="_blank">
-                                                                                                                                                                                                                                                                                                                                                        <i class="bx bx-show"></i> </a>` : '<span class="text-muted">No file uploaded</span>'}
+                                                                                                                                                                                                                                                                                                                                                            <i class="bx bx-show"></i> </a>` : '<span class="text-muted">No file uploaded</span>'}
                                                  </div>
                                             </div>
 
@@ -2559,7 +2558,7 @@
                                                      </div>
                                                 <div class="col-2" style="margin-top: 20px;">
                                                         ${existingFile ? `<a href="${fileUrl}" target="_blank">
-                                                                                                                                                                                                                                                                                                                                                                                                <i class="bx bx-show"></i> </a>` : '<span class="text-muted">No file uploaded</span>'}
+                                                                                                                                                                                                                                                                                                                                                                                                    <i class="bx bx-show"></i> </a>` : '<span class="text-muted">No file uploaded</span>'}
                                                  </div>
                                             </div>
 

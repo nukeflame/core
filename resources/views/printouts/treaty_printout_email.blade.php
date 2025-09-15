@@ -136,9 +136,9 @@
             <div class="logo">
                 <?php
                 $logoPath = public_path('logo.png');
-                
+
                 $imgSrc = '';
-                
+
                 if (file_exists($logoPath) && is_readable($logoPath)) {
                     $imageData = file_get_contents($logoPath);
                     if ($imageData !== false) {
@@ -261,7 +261,6 @@
                         }
                     }
                 }
-                logger(  $hasCurrent . ' ' . $hasProposed . ' ' . $hasFinal);
             @endphp
 
             <div style="width: 100%; margin-top: 5px; padding: 0; overflow: visible; page-break-before: auto; margin-bottom: 15px;"

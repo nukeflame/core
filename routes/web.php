@@ -176,7 +176,7 @@ Route::middleware(['auth', 'check.first.login'])->group(function () {
     Route::post('leads_save', [LeadsOnboardingController::class, 'save'])->name('leads.save');
     Route::get('leads_listing', [LeadsOnboardingController::class, 'listing'])->name('leads.listing');
 
-    // //Prospect Repository
+    //Prospect Repository
     Route::post('ProspectRepository', [LeadsOnboardingController::class, 'save'])->name('ProspectRepository');
 
     //customer route

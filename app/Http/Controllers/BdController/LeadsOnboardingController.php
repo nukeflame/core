@@ -50,6 +50,7 @@ use Yajra\Datatables\Datatables;
 use App\Repositories\ProspectRepository;
 
 use Exception;
+
 class LeadsOnboardingController
 {
     protected $repository;
@@ -118,8 +119,6 @@ class LeadsOnboardingController
             ];
         }
 
-        // dd($Contact_details);
-
         $customers = DB::table('customers')
             ->join('customer_types', function ($join) {
                 $join->on('customer_types.type_id', '=', DB::raw("ANY (SELECT json_array_elements_text(customers.customer_type)::int)"));
@@ -186,7 +185,7 @@ class LeadsOnboardingController
 
         ];
         $allVariables = array_merge($commonVariables, $otherVariabales);
-        // Return the view with the necessary data
+
         if (count($request->all()) < 1) {
             return view('Bd_views.intermediaries.leads_onboarding', $allVariables);
         } else {
@@ -194,6 +193,7 @@ class LeadsOnboardingController
             return view('Bd_views.intermediaries.leads_onboarding_update', $allVariables);
         }
     }
+
     public function treaty_index(Request $request)
     {
 
@@ -280,9 +280,9 @@ class LeadsOnboardingController
             )
             ->where('customer_types.code', 'INSURED')
             ->get();
-            $reins_divisions = ReinsDivision::where('status', 'A')->get();
-            
-            
+        $reins_divisions = ReinsDivision::where('status', 'A')->get();
+
+
         // dd($reins_divisions);
 
 
@@ -311,12 +311,12 @@ class LeadsOnboardingController
                 ->where('bd_reinlayers.opportunity_id', $request->prospect)
                 ->select('bd_reinlayers.*', 'reinsclasses.class_name') // Customize as needed
                 ->get();
-                logger($coverReinLayers);
+            logger($coverReinLayers);
 
             $premtypes = BdPremtype::where('opportunity_id', $request->prospect)->get();
             $renewal_date = Carbon::now()->format('Y-m-d');
         }
-      
+
 
         $commonVariables = [
             'insured' => $insured,
@@ -336,7 +336,7 @@ class LeadsOnboardingController
             'customers' => $customers,
             'contacts_det' => $contacts,
             'trans_type' => $trans_type,
-            'reins_divisions'=> $reins_divisions,
+            'reins_divisions' => $reins_divisions,
 
         ];
         $otherVariabales = [
@@ -363,7 +363,7 @@ class LeadsOnboardingController
             'reinPremTypes' => $reinPremTypes,
             'coverReinLayers' => $coverReinLayers,
             'renewal_date' => $renewal_date,
-           
+
 
         ];
         $allVariables = array_merge($commonVariables, $otherVariabales);
@@ -380,9 +380,6 @@ class LeadsOnboardingController
         $customer_id = $request->customer_id;
         $customerdata = Customer::where('customer_id', $customer_id)->get();
         return response()->json(['status' => 'success', 'data' => $customerdata]);
-
-
-
     }
 
     public function save(Request $request)
@@ -433,15 +430,12 @@ class LeadsOnboardingController
             $status = 1;
 
             return array('status' => 200, 'qstring' => Crypt::encrypt('pipeline=' . $pipeline->id . '&prospect=' . $nextCode));
-
         } catch (Exception $e) {
             // dd($e)
             DB::rollback();
 
             return array('status' => 400);
-
         }
-
     }
     public function insertProspectReinProp($data)
     {
@@ -577,7 +571,6 @@ class LeadsOnboardingController
             ->editColumn('divisions', function ($lead) {
                 $div = DB::table('reins_division')->where('division_code', $lead->divisions)->first();
                 return $div ? $div->division_name : 'N/A';
-
             })
             ->addColumn('action', function ($lead) use ($request) {
 
@@ -591,7 +584,6 @@ class LeadsOnboardingController
                 } else {
                     return $btn_submited;
                 }
-
             })
             ->rawColumns(['action'])
             ->make(true);
@@ -649,7 +641,6 @@ class LeadsOnboardingController
             ->editColumn('divisions', function ($lead) {
                 $div = DB::table('reins_division')->where('division_code', $lead->divisions)->first();
                 return $div ? $div->division_name : 'N/A';
-
             })
             ->addColumn('action', function ($lead) use ($request) {
 
@@ -663,7 +654,6 @@ class LeadsOnboardingController
                 } else {
                     return $btn_submited;
                 }
-
             })
             ->rawColumns(['action'])
             ->make(true);
@@ -691,17 +681,14 @@ class LeadsOnboardingController
                 } else {
                     return "New";
                 }
-
             })
             ->editColumn('insurance_class', function ($lead) {
                 $class = DB::table('class_of_insurance')->where('id', $lead->insurance_class)->first()->class_name;
                 return $class;
-
             })
             ->editColumn('division', function ($lead) {
                 $div = DB::table('divisions')->where('id', $lead->divisions)->first();
                 return $div->name;
-
             })
 
             ->addColumn('status', function ($lead) {
@@ -741,9 +728,7 @@ class LeadsOnboardingController
 
                     if (is_null($lead->pipeline_id) && $lead->pq_status != 'W') {
                         return $btn_edit;
-
                     }
-
                 }
                 if ($currentYear = date('Y') === date('Y', strtotime($lead->effective_date))) {
                     if ($lead->pq_status === 'L' && $lead->prequalification === 'Y') {
@@ -772,14 +757,11 @@ class LeadsOnboardingController
 
                     if (is_null($lead->pipeline_id) && $lead->pq_status != 'W') {
                         return $btn_edit;
-
                     }
                 }
-
             })
             ->rawColumns(['action'])
             ->make(true);
-
     }
 
     public function leads_PQ_Process(Request $request)
@@ -818,7 +800,6 @@ class LeadsOnboardingController
                     'mimetype' => $mimeType,
                     'file' => $Filename,
                 ]);
-
             }
             // update client to have finished proposal
             DB::table('pipeline_opportunities')->where('opportunity_id', "=", $request->prospectId)->where('pq_status', "=", 'W')->update([
@@ -846,7 +827,6 @@ class LeadsOnboardingController
 
             return redirect()->route('leads.listing')->with('error', 'Proposal already submited!');
         }
-
     }
 
     public function lead_view(Request $request)
@@ -861,7 +841,6 @@ class LeadsOnboardingController
         $agent = Intermediary::where('global_intermediary_id', $lead->lead_owner)->first();
         $lead_owner = $lead->lead_owner == '001' ? 'Direct Lead' : $agent->full_name;
         return view('Bd_views.intermediaries.lead_view', compact('lead', 'lead_status', 'lead_owner'));
-
     }
 
     public function leads_edit(Request $request)
@@ -923,7 +902,6 @@ class LeadsOnboardingController
             DB::commit();
 
             return ['status' => 200];
-
         } catch (\Throwable $e) {
 
             DB::rollback();
@@ -962,13 +940,11 @@ class LeadsOnboardingController
             DB::commit();
 
             return redirect()->back()->with('success', 'Activity Added Successfully');
-
         } catch (Exception $e) {
             // dd($e);
             DB::rollback();
 
             return redirect()->back()->with('error', 'Failed to create');
-
         }
     }
 
@@ -1060,5 +1036,4 @@ class LeadsOnboardingController
             })
             ->make(true);
     }
-
 }

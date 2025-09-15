@@ -15,7 +15,6 @@
             </nav>
         </div>
     </div>
-    <!-- Page Header Close -->
 
     <div class="row mt-3">
         <div class="col-xl-12">

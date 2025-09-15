@@ -131,6 +131,8 @@ class ClaimNotificationController extends Controller
 
             $customersWithCovers = $groupedCustomers->values();
 
+            logger()->debug(json_encode($customersWithCovers, JSON_PRETTY_PRINT));
+
             return response()->json([
                 'success' => true,
                 'data' => $customersWithCovers

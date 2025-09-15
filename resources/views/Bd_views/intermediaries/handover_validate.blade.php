@@ -248,7 +248,8 @@
 
                                             </x-OnboardingInputDiv>
                                             <div class="col-sm-3 fac_section_div">
-                                                <label class="form-label required">Offered Date<span style="color: red;">*</span></label>
+                                                <label class="form-label required">Offered Date<span
+                                                        style="color: red;">*</span></label>
                                                 <input type="date" class="form-control form-control fac_section"
                                                     id="offered_date" name="offered_date"
                                                     value="{{ $handover_approval ? $handover_approval->inception_date : '' }}"
@@ -296,7 +297,8 @@
 
                                             </div>
                                             <div class="col-sm-3">
-                                                <label class="form-label">Excess Type<span style="color: red;">*</span></label>
+                                                <label class="form-label">Excess Type<span
+                                                        style="color: red;">*</span></label>
 
                                                 <Select class="form-control" name="excess_type" id="excess_type"
                                                     inputLabel="Excess Type" req="required"
@@ -311,7 +313,8 @@
                                                 </Select>
                                             </div>
                                             <div class="col-sm-3">
-                                                <label for="excess*_labe" id="excess_label">Excess(%)</label><span style="color: red;">*</span>
+                                                <label for="excess*_labe" id="excess_label">Excess(%)</label><span
+                                                    style="color: red;">*</span>
                                                 <input class="form-control amount" name="excess" id="excess" required
                                                     value="{{ $handover_approval ? $handover_approval->excess : '' }}" />
                                             </div>
@@ -378,11 +381,11 @@
                                                 <label class="form-label">Risk Details</label>
                                                 <textarea class="form-control  section fac_section resize-none" id="risk_details" name="risk_details">{{ $allVariables['prospProperties']->risk_details ?? 'N/A' }}</textarea>
                                             </div>
-                                          
+
 
                                         </div>
                                         <div class="row row-cols-12 mt-2">
-                                              <div class="col-xl-3 fac_section_div mt-2">
+                                            <div class="col-xl-3 fac_section_div mt-2">
                                                 <label class="form-label">Cedant Premium</label>
                                                 <input type="text" class="form-control  fac_section" id="cede_premium"
                                                     name="cede_premium"
@@ -728,7 +731,6 @@
                                                         <div class="input-group mt-2">
                                                             <input type="file" name="document_file[]"
                                                                 id="document_file{{ $doc->id }}"
-                                                                {{-- {{logger($doc->mandatory)}} --}}
                                                                 @if ($doc->mandatory === 'Y') required @endif
                                                                 class="form-control " />
                                                             <button class="addDocfac btn btn-success"><i
@@ -745,8 +747,8 @@
                                             </div>
 
                                             <!-- <div class="row mt-1 {{ !is_null($doc->division) ? 'd-none  division_doc' : '' }}" @if (!is_null($doc->division)) id=doc{{ $doc->division }} @endif>
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    <div class="col-4 pt-3">
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    </div> -->
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        <div class="col-4 pt-3">
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        </div> -->
                                         @endforeach
 
                                     </div>
@@ -1009,10 +1011,10 @@
                     </div>
                     <div class="col-6">
                         <div class="input-group">
-                        <input type="file" name="document_file[]" id="document_file${fileCounter}" 
+                        <input type="file" name="document_file[]" id="document_file${fileCounter}"
                             class="form-control" />
                         <button class="btn btn-danger remove-file" type="button">
-                            <i class="bx bx-minus"></i> 
+                            <i class="bx bx-minus"></i>
                         </button>
                         </div>
                     </div>
@@ -1306,8 +1308,8 @@
             updateExcessLabel();
 
             $('#excess_type').on('change', updateExcessLabel);
-            
-             $('#effective_date').on('change', function() {
+
+            $('#effective_date').on('change', function() {
                 var effectiveDate = $(this).val();
 
                 if (effectiveDate) {

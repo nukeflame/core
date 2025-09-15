@@ -446,7 +446,7 @@ class ApprovalsController extends Controller
                         })
                         ->get();
 
-                    logger(json_encode($approvals, JSON_PRETTY_PRINT));
+                    // logger(json_encode($approvals, JSON_PRETTY_PRINT));
                     break;
 
                 case 'treaty':

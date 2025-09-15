@@ -823,6 +823,7 @@
                         processResults: function(data, params) {
                             let filteredResults = data.data;
 
+                            console.log(filteredResults)
                             if (params.term) {
                                 const searchTerm = params.term.toLowerCase();
                                 filteredResults = data?.data.filter(function(customer) {
