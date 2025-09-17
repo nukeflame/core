@@ -1,310 +1,199 @@
-{{-- @extends('layouts.admincast') --}}
 @extends('layouts.app')
-{{-- @extends('layouts.intermediaries.base') --}}
-@section('header', 'MENU ITEMS')
+
+@section('styles')
+    @include('Bd_views.intermediaries.partials.styles')
+@endsection
+
 @section('content')
-    <style>
-        /* Table row styles */
-        #client-table tbody tr.highlight-danger {
-            background-color: #ffebee !important;
-        }
-
-        #client-table tbody tr.highlight-warning {
-            background-color: #fff3e0 !important;
-        }
-
-        #client-table tbody tr.highlight-info {
-            background-color: #e3f2fd !important;
-        }
-
-        /* Hover states */
-        #client-table tbody tr.highlight-danger:hover {
-            background-color: #ffcdd2 !important;
-        }
-
-        #client-table tbody tr.highlight-warning:hover {
-            background-color: #ffe0b2 !important;
-        }
-
-        #client-table tbody tr.highlight-info:hover {
-            background-color: #bbdefb !important;
-        }
-
-        /* Legend styles */
-        .legend {
-            display: flex;
-            gap: 20px;
-            margin: 10px 0;
-            padding: 10px;
-            background: #f5f5f5;
-            border-radius: 4px;
-        }
-
-        .legend-item {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .color-box {
-            width: 20px;
-            height: 20px;
-            border-radius: 4px;
-        }
-
-        /* Match legend colors with table colors */
-        .color-box.highlight-danger {
-            background-color: #ffebee;
-            border: 1px solid #ffcdd2;
-        }
-
-        .color-box.highlight-warning {
-            background-color: #fff3e0;
-            border: 1px solid #ffe0b2;
-        }
-
-        .color-box.highlight-info {
-            background-color: #e3f2fd;
-            border: 1px solid #bbdefb;
-        }
-    </style>
-
-
-    <div class="mt-3">
-        @if ($message = Session::get('success'))
-        @endif
-
-        @if ($errors->any())
-            <div class="alert alert-danger">
-                <strong>Whoops!</strong> There were some problems with your input.<br><br>
-                <ul>
-                    @foreach ($errors->all() as $error)
-                        <li>{{ $error }}</li>
-                    @endforeach
-                </ul>
-            </div>
-        @endif
-    </div>
-
-    <div class="m-2">
-
-        <div class="table-responsive justify-content-between">
-            <div class="d-flex justify-content-between">
-                <div class="m-2">
-
-                    <a href="{{ route('leads.onboarding') }}" class="btn btn-outline-success" role="button">
-                        <i class="fa-solid fa-user"></i>
-                        Onboard Prospect
-                    </a>
-
-                </div>
-                <div class="m-2">
-                    <h6></h6>
-                </div>
-            </div>
-        </div>
-        <div class="legend">
-            <div class="legend-item">
-                <span class="color-box highlight-danger"></span>
-                <span>Urgent (≤ 14 days)</span>
-            </div>
-            <div class="legend-item">
-                <span class="color-box highlight-warning"></span>
-                <span>Upcoming (15-30 days)</span>
-            </div>
-            <div class="legend-item">
-                <span class="color-box highlight-info"></span>
-                <span>Planning (31-60 days)</span>
+    <div class="container-fluid mt-3">
+        {{-- Breadcrumb --}}
+        <div class="d-md-flex d-block align-items-center justify-content-between my-4 page-header-breadcrumb">
+            <h1 class="page-title fw-semibold fs-18 mb-0">Facultative Pipeline</h1>
+            <div class="ms-md-1 ms-0">
+                <nav>
+                    <ol class="breadcrumb mb-0">
+                        <li class="breadcrumb-item"><a href="/">Business Development</a></li>
+                        <li class="breadcrumb-item"><a href="/">Pipeline</a></li>
+                        <li class="breadcrumb-item active" aria-current="page">Facultative</li>
+                    </ol>
+                </nav>
             </div>
         </div>
 
+        {{-- KPI Cards --}}
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="kpi-card">
+                    <div class="kpi-value">{{ number_format($kpis['active_opportunities']['value']) }}</div>
+                    <div class="kpi-label">Active Opportunities</div>
+                    @if ($kpis['active_opportunities']['trend'])
+                        <div class="kpi-trend trend-{{ $kpis['active_opportunities']['trend']['direction'] }}">
+                            <i
+                                class="bx bx-arrow-{{ $kpis['active_opportunities']['trend']['direction'] == 'up' ? 'up' : 'down' }}"></i>
+                            {{ $kpis['active_opportunities']['trend']['direction'] == 'up' ? '+' : '-' }}{{ $kpis['active_opportunities']['trend']['percentage'] }}%
+                            this month
+                        </div>
+                    @endif
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="kpi-card">
+                    <div class="kpi-value">${{ number_format($kpis['pipeline_premium']['value'] / 1000000, 1) }}M</div>
+                    <div class="kpi-label">Pipeline Premium</div>
+                    @if ($kpis['pipeline_premium']['trend'])
+                        <div class="kpi-trend trend-{{ $kpis['pipeline_premium']['trend']['direction'] }}">
+                            <i
+                                class="bx bx-arrow-{{ $kpis['pipeline_premium']['trend']['direction'] == 'up' ? 'up' : 'down' }}"></i>
+                            {{ $kpis['pipeline_premium']['trend']['direction'] == 'up' ? '+' : '-' }}{{ $kpis['pipeline_premium']['trend']['percentage'] }}%
+                            QoQ
+                        </div>
+                    @endif
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="kpi-card">
+                    <div class="kpi-value">{{ $kpis['conversion_rate']['value'] }}%</div>
+                    <div class="kpi-label">Conversion Rate</div>
+                    @if ($kpis['conversion_rate']['trend'])
+                        <div class="kpi-trend trend-{{ $kpis['conversion_rate']['trend']['direction'] }}">
+                            <i
+                                class="bx bx-arrow-{{ $kpis['conversion_rate']['trend']['direction'] == 'up' ? 'up' : 'down' }}"></i>
+                            {{ $kpis['conversion_rate']['trend']['direction'] == 'up' ? '+' : '' }}{{ $kpis['conversion_rate']['trend']['percentage'] }}%
+                            improvement
+                        </div>
+                    @endif
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="kpi-card">
+                    <div class="kpi-value">{{ $kpis['critical_deadlines']['value'] }}</div>
+                    <div class="kpi-label">Critical Deadlines</div>
+                    <div class="kpi-trend trend-down">
+                        <i class="bx bx-clock text-warning"></i> Requires attention
+                    </div>
+                </div>
+            </div>
+        </div>
 
-        <div class="card table-responsive">
-            <div class="card-body">
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <button type="button" class="btn btn-primary btn-lg me-3" onclick="onboardProspect()">
+                            <i class="bx bx-user-plus me-1" style="font-size: 20px; vertical-align: -3px;"></i>
+                            Onboard New Prospect
+                        </button>
+                    </div>
+                    <div>
+                        {{-- <button type="button" class="btn btn-outline-info" onclick="showAnalytics()">
+                            <i class="bx bx-chart-bar me-2"></i>Analytics
+                        </button>
+                        <button type="button" class="btn btn-outline-success" onclick="exportData()">
+                            <i class="bx bx-download me-2"></i>Export
+                        </button> --}}
+                    </div>
+                </div>
+            </div>
+        </div>
 
-                <ul class="nav nav-tabs">
-                    <li class="nav-item">
-                        <a class="nav-link active" data-bs-toggle="tab" href="#client_listing" role="tab">
-                            Prospect Listing
-                        </a>
-                    </li>
-                </ul>
+        {{-- Data Table --}}
+        <div class="row mt-3">
+            <div class="col-xl-12">
+                <div class="card custom-card">
+                    <div class="card-header p-0">
+                        <div class="urgency-legend">
+                            <div class="legend-title">
+                                <i class="bx bx-info-circle me-2"></i>Urgency Classification
+                            </div>
+                            <div class="legend-items">
+                                <div class="legend-item">
+                                    <span class="color-indicator" style="background-color: #fef2f2;"></span>
+                                    <span><strong>Critical:</strong> ≤ 7 days to effective date</span>
+                                </div>
+                                <div class="legend-item">
+                                    <span class="color-indicator" style="background-color: #fffbeb;"></span>
+                                    <span><strong>Urgent:</strong> 8-14 days to effective date</span>
+                                </div>
+                                <div class="legend-item">
+                                    <span class="color-indicator" style="background-color: #eff6ff;"></span>
+                                    <span><strong>Upcoming:</strong> 15-30 days to effective date</span>
+                                </div>
+                                <div class="legend-item">
+                                    <span class="color-indicator" style="background-color: #f0fdf4;"></span>
+                                    <span><strong>Normal:</strong> 31+ days to effective date</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="pipeline-table-container">
+                            <div class="table-header">
+                                <div class="row">
+                                    <div class="col-md-8">
+                                        <div class="table-controls">
+                                            <input type="search" class="form-inputs mb-0"
+                                                placeholder="Search opportunities..." id="globalSearch">
 
-                <div class="tab-content p-3 text-muted">
-                    <div class="tab-pane active" id="client_listing">
+                                            <select class="filter-select form-select" id="statusFilter">
+                                                <option value="">All Statuses</option>
+                                                @foreach ($statuses as $key => $status)
+                                                    <option value="{{ $key }}">{{ $status }}</option>
+                                                @endforeach
+                                            </select>
 
-                        <table class="table table-striped table-hover" id="client-table">
-                            <thead class="thead-light">
+                                            <select class="filter-select form-select" id="classFilter">
+                                                <option value="">All Classes</option>
+                                                @foreach ($classes as $key => $class)
+                                                    <option value="{{ $key }}">{{ $class }}</option>
+                                                @endforeach
+                                            </select>
+
+                                            <select class="filter-select form-select" id="priorityFilter">
+                                                <option value="">All Priorities</option>
+                                                @foreach ($priorities as $key => $priority)
+                                                    <option value="{{ $key }}">{{ $priority }}</option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {{-- {{ html()->form('POST', route('cover.store'))->id('newCoverForm')->open() }}
+                        @csrf
+                        <input type="hidden" name="customer_id" id="customerId">
+                        <input type="hidden" name="trans_type" id="transType">
+                        <input type="hidden" name="prospect_id" id="prospectId">
+                        {{ html()->form()->close() }} --}}
+
+                        <table class="table text-nowrap table-striped table-hover" id="opportunities_table">
+                            <thead>
                                 <tr>
-                                    <th>Insured ID</th>
+                                    <th>Opportunity ID</th>
+                                    <th>Priority</th>
                                     <th>Insured Name</th>
-                                    <th>Client Category</th>
-                                    <th>Division</th>
-                                    <th>Class of Insurance</th>
-                                    <th>Expected Closure Date</th>
-                                    <th>Cover Start date</th>
-                                    <th>Cover End date</th>
-                                    <th>Action</th>
-
+                                    <th>Class of Business</th>
+                                    <th>Status</th>
+                                    <th>Gross Premium</th>
+                                    <th>Commission %</th>
+                                    {{-- <th>Expected Premium</th> --}}
+                                    <th>Effective Date</th>
+                                    <th>Expiry Date</th>
+                                    {{-- <th>Quote Deadline</th> --}}
+                                    <th>Account Executive</th>
+                                    {{-- <th>Territory</th> --}}
+                                    <th>Actions</th>
                                 </tr>
                             </thead>
-
                         </table>
                     </div>
-
                 </div>
             </div>
         </div>
-
     </div>
 @endsection
+
 @push('script')
-    <script>
-        window.checkSendToSales = function(prospect) {
-            // Show confirmation alert
-            Swal.fire({
-                title: 'Confirm?',
-                text: 'Do you want to send this client to sales?',
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#3085d6',
-                cancelButtonColor: '#d33',
-                confirmButtonText: 'Yes, send it!',
-                cancelButtonText: 'No, cancel'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    // User confirmed, proceed with the request
-                    $.ajax({
-                        type: 'POST',
-                        data: {
-                            _token: '{{ csrf_token() }}', // Ensure CSRF token is included
-                            'prospect': prospect
-                        },
-                        url: "{!! route('prospect.add.pipeline') !!}",
-                        success: function(response) {
-                            if (response.status == 1) {
-                                Swal.fire(
-                                    'Success!',
-                                    'Client has been sent to sales.',
-                                    'success'
-                                );
-
-                                window.location.href = `/leads_listing`;
-                            }
-                        },
-                        error: function(error) {
-                            Swal.fire(
-                                'Error!',
-                                'An error occurred while sending sales.',
-                                'error'
-                            );
-                        }
-                    });
-                } else {
-                    Swal.fire(
-                        'Cancelled',
-                        'sending to sales was canceled.',
-                        'info'
-                    );
-                }
-            });
-        };
-
-        $(document).ready(function() {
-
-            $("#myInput").on("change", function() {
-                var value = $(this).val().toLowerCase();
-
-                $("#client-table > tbody > tr").filter(function() {
-                    $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1)
-                });
-            });
-
-            const table = $('#client-table').DataTable({
-                responsive: true,
-                processing: true,
-                serverSide: true,
-                 'pageLength': 100,
-                ajax: {
-                    url: "{{ route('leads.get') }}",
-                    type: "get"
-                },
-                columns: [{
-                        data: 'opportunity_id',
-                        name: 'opportunity_id'
-                    },
-                    {
-                        data: 'insured_name',
-                        name: 'insured_name'
-                    },
-                    {
-                        data: 'client_category',
-                        name: 'client_category'
-                    },
-                    {
-                        data: 'divisions',
-                        name: 'divisions'
-                    },
-                    {
-                        data: 'class',
-                        name: 'class'
-                    },
-                    {
-                        data: 'fac_date_offered',
-                        name: 'fac_date_offered'
-                    },
-                    {
-                        data: 'effective_date',
-                        name: 'effective_date'
-                    },
-                    {
-                        data: 'closing_date',
-                        name: 'closing_date'
-                    },
-                    {
-                        data: 'action',
-                        name: 'action'
-                    },
-                ],
-                order: [
-                    [0, 'desc']
-                ],
-                createdRow: function(row, data, dataIndex) {
-                    // Handle date highlighting when each row is created
-                    const today = new Date();
-                    today.setHours(0, 0, 0, 0);
-
-                    const dateStr = data.effective_date;
-                    if (dateStr) {
-                        const [year, month, day] = dateStr.split('-').map(Number);
-                        const effectiveDate = new Date(year, month - 1, day);
-
-                        if (!isNaN(effectiveDate.getTime())) {
-                            const diffTime = effectiveDate - today;
-                            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-                            console.log('Row:', dataIndex, 'Days:', diffDays);
-
-                            if (diffDays > 0) {
-                                if (diffDays <= 14) {
-                                    $(row).addClass('highlight-danger');
-                                } else if (diffDays <= 30) {
-                                    $(row).addClass('highlight-warning');
-                                } else if (diffDays <= 60) {
-                                    $(row).addClass('highlight-info');
-                                }
-                            }
-                        }
-                    }
-                }
-
-            });
-
-
-
-
-
-
-        })
-    </script>
+    @include('Bd_views.intermediaries.partials.scripts')
 @endpush

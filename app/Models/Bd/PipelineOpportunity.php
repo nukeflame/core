@@ -18,6 +18,18 @@ class PipelineOpportunity extends Model
     protected $table = 'pipeline_opportunities';
     protected $guarded = [];
 
+    // protected $dates = [
+    //     'effective_date',
+    //     'expiry_date',
+    //     'quote_deadline'
+    // ];
+
+    // protected $casts = [
+    //     'gross_premium' => 'decimal:2',
+    //     'expected_premium' => 'decimal:2',
+    //     'commission_percentage' => 'decimal:2'
+    // ];
+
     public function customer()
     {
         return $this->belongsTo(Customer::class, 'customer_id', 'customer_id');
@@ -60,6 +72,56 @@ class PipelineOpportunity extends Model
 
     public function getCurrentStageDurationAttribute()
     {
-        return Carbon::now()->diffInSeconds($this->stage_updated_at );
+        return Carbon::now()->diffInSeconds($this->stage_updated_at);
+    }
+
+    public static function getStatusOptions(): array
+    {
+        return [
+            'inquiry' => 'Inquiry',
+            'quoted' => 'Quoted',
+            'negotiation' => 'Under Negotiation',
+            'bound' => 'Bound',
+            'declined' => 'Declined'
+        ];
+    }
+
+    public static function getClassOptions(): array
+    {
+        return [
+            'property' => 'Property',
+            'casualty' => 'Casualty',
+            'marine' => 'Marine',
+            'aviation' => 'Aviation',
+            'energy' => 'Energy'
+        ];
+    }
+
+    public static function getPriorityOptions(): array
+    {
+        return [
+            'critical' => 'Critical',
+            'high' => 'High',
+            'medium' => 'Medium',
+            'low' => 'Low'
+        ];
+    }
+
+    public function getDaysToEffectiveAttribute(): int
+    {
+        if (!$this->effective_date) return 0;
+
+        return Carbon::now()->diffInDays(Carbon::parse($this->effective_date), false);
+    }
+
+    public function getUrgencyLevelAttribute(): string
+    {
+        $days = $this->expected_closure_date; // $this->days_to_effective;
+
+        if ($days <= 7) return 'critical';
+        if ($days <= 14) return 'urgent';
+        if ($days <= 30) return 'upcoming';
+
+        return 'normal';
     }
 }

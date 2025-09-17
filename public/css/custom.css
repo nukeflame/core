@@ -660,8 +660,8 @@ table.dataTable tfoot th,
 table.dataTable tfoot td {
     font-size: 12px !important;
     padding: 6px 8px !important;
-    max-width: 100px;
-    min-width: 100px;
+    /* max-width: 100px;
+    min-width: 100px; */
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;

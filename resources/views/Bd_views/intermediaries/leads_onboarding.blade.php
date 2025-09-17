@@ -776,7 +776,7 @@
                                                         onkeyup="this.value=numberWithCommas(this.value)" required>
                                                 </div>
                                                 <div class="col-sm-3">
-                                                   
+
                                                     <label for="apply_eml">Apply EML</label>
                                                     <div class="cover-card">
                                                         <select name="apply_eml" class="form-inputs section select2"
@@ -797,7 +797,7 @@
                                                 </div>
                                                 <div class="col-sm-3 eml-div">
                                                     <label class="form-label">EML Amount</label>
-                                                     <span id="eml_amt_error"></span>
+                                                    <span id="eml_amt_error"></span>
                                                     <div class="cover-card">
                                                         <input type="text" class="form-inputs fac_section amount"
                                                             aria-label="eml_amt" id="eml_amt" name="eml_amt" required>
@@ -805,7 +805,7 @@
                                                 </div>
                                                 <div class="col-sm-3">
                                                     <label class="form-label">Effective Sum Insured</label>
-                                                     <span id="effective_sum_insured_error"></span>
+                                                    <span id="effective_sum_insured_error"></span>
                                                     <input type="text" class="form-inputs fac_section amount"
                                                         aria-label="effective_sum_insured" id="effective_sum_insured"
                                                         name="effective_sum_insured" value="5" required readonly>
@@ -1357,8 +1357,9 @@
                                                 </div>
                                             </div>
                                         </div>
-                                        <!-- Steve End -->
-                                        <B class="primary-color">Engagement Details</B>
+
+                                        <b class="primary-color">Engagement Details</b>
+
                                         <hr>
                                         <div class="row">
                                             <x-OnboardingInputDiv>
@@ -1544,7 +1545,6 @@
         </div>
     </div>
 
-
     <div class="modal fade" id="v_docs" role="dialog" aria-hidden="true">
         <div class="modal-dialog modal-lg" role="document" style="min-width:70%">
             <div class="modal-content">
@@ -1674,7 +1674,7 @@
                                 <x-Input name="contact_name[]" id="contact_name-${counter}" placeholder="Enter name" inputLabel="Contact Fullname"
                                     req="required" />
                                 <div id="contact_name_results" class="dropdown-menu" style="display: none;"></div>
-                                <div class="error-message" id="full_name_error"></div>  
+                                <div class="error-message" id="full_name_error"></div>
                                 <div class="error-message" id="full_name_error_${counter}"></div>
                                 <div id="full_name_results_${counter}" class="dropdown-menu" style="display: none;"></div>
                             </x-OnboardingInputDiv>
@@ -1697,7 +1697,7 @@
                                     </button>
                                 </div>
                             </div>
-                        
+
                         </div>
                 `);
 
@@ -1769,7 +1769,7 @@
                 //     $('#contact_name').val(data.name);
                 //     $('#email').val(data.email);
                 //     $('#telephone').val(data.telephone);
-                //     $('#phone_number').val(data.phone); 
+                //     $('#phone_number').val(data.phone);
                 //     }
                 //     },
                 //     error: function(xhr, status, error) {
@@ -3092,7 +3092,7 @@
                         }
 
 
-                        //   var resultsContainer = $('#full_name_results_0');  
+                        //   var resultsContainer = $('#full_name_results_0');
                         resultsContainer.html(results).show();
                     },
                     error: function() {
@@ -3108,7 +3108,7 @@
                 var email = selectedContact.data('email');
                 var phone = selectedContact.data('phone');
                 var telephone = selectedContact.data('telephone');
-               
+
                 // Populate fields based on index
                 $('#contact_name-' + index).val(contactName);
                 $('#email-' + index).val(email);
@@ -3168,7 +3168,7 @@
 
 
 
-            // lead_name search 
+            // lead_name search
             $('#lead_name').on('input', function() {
                 var query = $(this).val().trim();
                 if (query.length < 1) {
@@ -3381,10 +3381,10 @@
                         <div class="col-6">
                             <div class="row">
                                 <x-Input id="document_name${counter}" name="document_name[]" req=""
-                                    inputLabel="Document Title" 
+                                    inputLabel="Document Title"
                                     placeholder="Enter document title"
                                     oninput='this.value=this.value.toUpperCase();'/>
-                                
+
                             </div>
                         </div>
 
@@ -3395,7 +3395,7 @@
                                 <button class="btn btn-danger remove_file" type="button"><i class="fa fa-minus"></i> </button>
                             </div>
                         </div>
-                        
+
                         <div class="col-1" style="margin-top: 30px">
                             <i class="fa fa-eye preview" id="preview${counter}"> </i>
                         </div>
@@ -3477,217 +3477,211 @@
 
 
         $("#submits").click(function(e) {
-            e.preventDefault();
+                    e.preventDefault();
 
-            let myform = document.getElementById("leads_form");
-            let formData = new FormData(myform);
-            var form = $("#leads_form");
+                    let myform = document.getElementById("leads_form");
+                    let formData = new FormData(myform);
+                    var form = $("#leads_form");
 
-            form.validate({
-                errorElement: 'span',
-                errorClass: 'text-danger small fst-italic',
-                highlight: function(element, errorClass) {},
-                unhighlight: function(element, errorClass) {}
-            });
+                    form.validate({
+                        errorElement: 'span',
+                        errorClass: 'text-danger small fst-italic',
+                        highlight: function(element, errorClass) {},
+                        unhighlight: function(element, errorClass) {}
+                    });
 
-            if (form.valid() === true) {
-                Swal.fire({
-                    title: "Are you sure?",
-                    text: "Do you want to submit this form?",
-                    icon: "warning",
-                    showCancelButton: true,
-                    confirmButtonColor: "#3085d6",
-                    cancelButtonColor: "#d33",
-                    confirmButtonText: "Yes, submit it!",
-                    cancelButtonText: "Cancel"
-                }).then((result) => {
-                    if (result.isConfirmed) {
-                        $("#submits").attr('disabled', true).text('Saving...');
+                    if (form.valid() === true) {
+                        Swal.fire({
+                            title: "Are you sure?",
+                            text: "Do you want to submit this form?",
+                            icon: "warning",
+                            showCancelButton: true,
+                            confirmButtonColor: "#3085d6",
+                            cancelButtonColor: "#d33",
+                            confirmButtonText: "Yes, submit it!",
+                            cancelButtonText: "Cancel"
+                        }).then((result) => {
+                                if (result.isConfirmed) {
+                                    $("#submits").attr('disabled', true).text('Saving...');
 
-                        $.ajax({
-                            type: 'post',
-                            data: formData,
-                            url: "{{ route('pipeline.create.opportunity') }}",
-                            processData: false,
-                            contentType: false,
-                            success: function(res) {
-                                if (res.status == 1) {
-                                    Swal.fire({
-                                        icon: 'success',
-                                        title: 'Success',
-                                        text: res.message
-                                    }).then(() => {
-                                        window.location.href = `/leads_listing`;
-                                    });
-                                } else {
-                                    $('#submits').attr('disabled', false).text('Submit');
-                                    console.log(res.errors);
-                                    displayValidationErrors(res
-                                        .errors); // Display validation errors
-                                    function displayValidationErrors(errors) {
-                                        $.each(errors, function(field, messages) {
-                                            // Find the error container related to the field (e.g. a span or div with class "error-{field}")
-                                            const errorElement = $(`#${field}_error`);
+                                    $.ajax({
+                                            type: 'post',
+                                            data: formData,
+                                            url: "{{ route('pipeline.create.opportunity') }}",
+                                            processData: false,
+                                            contentType: false,
+                                            success: function(res) {
+                                                if (res.status == 1) {
+                                                    Swal.fire({
+                                                        icon: 'success',
+                                                        title: 'Success',
+                                                        text: res.message
+                                                    }).then(() => {
+                                                        window.location.href = `/leads_listing`;
+                                                    });
+                                                } else {
+                                                    $('#submits').attr('disabled', false).text('Submit');
+                                                    displayValidationErrors(res
+                                                        .errors);
 
-                                            if (errorElement.length) {
-                                                errorElement.html(
-                                                    `<span class="text-danger">${messages[0]}</span>`
-                                                    ); // Bootstrap red
-                                            } else {
-                                                // Fallback if the error element doesn't exist
-                                                console.warn(
-                                                    `Error container for ${field} not found.`
-                                                    );
-                                            }
-                                        });
+                                                    function displayValidationErrors(errors) {
+                                                        $.each(errors, function(field, messages) {
+                                                                const errorElement = $(`#${field}_error`);
+
+                                                                if (errorElement.length) {
+                                                                    errorElement.html(
+                                                                        `<span class="text-danger">${messages[0]}</span>`
+                                                                    }
+                                                                    else {
+                                                                        console.warn(
+                                                                            `Error container for ${field} not found.`
+                                                                        );
+                                                                    }
+                                                                });
+                                                        }
+                                                    }
+                                                },
+                                                error: function(xhr, textStatus, error) {
+                                                    $('#submits').attr('disabled', false).text('Submit');
+                                                    Swal.fire({
+                                                        icon: 'error',
+                                                        text: 'An error occurred. Please try again later.'
+                                                    });
+                                                }
+                                            });
                                     }
-
-
-
-                                }
-
-
-                            },
-                            error: function(xhr, textStatus, error) {
-                                $('#submits').attr('disabled', false).text('Submit');
-                                Swal.fire({
-                                    icon: 'error',
-                                    text: 'An error occurred. Please try again later.'
                                 });
-                            }
-                        });
-                    }
-                });
-            }
-        });
+                        }
+                    });
 
-        // $('#prequalification').on('change', function(){
-        //     let preq = $('#prequalification option:selected').val()
+                // $('#prequalification').on('change', function(){
+                //     let preq = $('#prequalification option:selected').val()
 
-        //     if (preq == 'Y') {
-        //         $('#more_preq').show();
-        //         $('#secondary_details').hide();
-        //     } else {
-        //         $('#more_preq').hide();
-        //         $('#secondary_details').show();
-        //     }
-        // })
+                //     if (preq == 'Y') {
+                //         $('#more_preq').show();
+                //         $('#secondary_details').hide();
+                //     } else {
+                //         $('#more_preq').hide();
+                //         $('#secondary_details').show();
+                //     }
+                // })
 
-        function displayValidationErrors(errors) {
+                function displayValidationErrors(errors) {
 
-            // Clear any existing error messages
-            $('.error-message').remove();
+                    // Clear any existing error messages
+                    $('.error-message').remove();
 
-            // Loop through the validation errors and display them next to the corresponding input fields
-            $.each(errors, function(field, messages) {
-                var inputField = $(`[name="${field}"]`);
-                var errorMessage = '<div class="error-message">' + messages.join('<br>') + '</div>';
-                inputField.after(errorMessage);
-            });
-        }
-
-        $('#cancel').click(function(e) {
-            window.location.href = `/leads_listing`;
-
-        })
-
-        $('#premium').on('keyup', function(e) {
-            let premiums = $(this).val()
-
-            let premium = premiums.replace(/,/g, '');
-
-            let division = $('#division option:selected').val();
-
-            let income_rate = $('#division option:selected').attr('data-rate')
-
-
-            if (division === '') {
-
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Oops!',
-                    text: 'Please select a division.',
-                    confirmButtonText: 'OK'
-                });
-            } else {
-
-
-                if (!isNaN(premium) && premium > 0) {
-                    let income = (income_rate * premium) / 100;
-
-                    let formatValue = income.toString().replace(/\D/g, '');
-                    let formatsValue = formatValue.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-
-                    $("#income").val(formatsValue);
-
-                    $('#income').attr('readonly', true);
-                } else {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Invalid Premium',
-                        text: 'Please enter a valid premium amount.',
-                        confirmButtonText: 'OK'
+                    // Loop through the validation errors and display them next to the corresponding input fields
+                    $.each(errors, function(field, messages) {
+                        var inputField = $(`[name="${field}"]`);
+                        var errorMessage = '<div class="error-message">' + messages.join('<br>') + '</div>';
+                        inputField.after(errorMessage);
                     });
                 }
-            }
 
-        })
+                $('#cancel').click(function(e) {
+                    window.location.href = `/leads_listing`;
 
-        $('#division').on('change', function() {
-            $('#premium').trigger('change');
-            let division = parseInt($('#division option:selected').val());
+                })
 
-            if (division == 6) {
-                $('#narration').attr('req', 'required');
-            } else {
-                $('#narration').attr('req', '');
-            }
+                $('#premium').on('keyup', function(e) {
+                    let premiums = $(this).val()
 
-            $.ajax({
-                type: "GET",
-                data: {
-                    'division': division
-                },
-                url: "{{ route('get_division_classes') }}",
-                success: function(resp) {
-                    if (resp.status == 1) {
-                        $('#insurance_class').empty();
-                        $('#insurance_class').append($("<option />").val('').text('Select class'));
+                    let premium = premiums.replace(/,/g, '');
 
-                        $.each(resp.classes, function() {
-                            $('#insurance_class').append($("<option />").val(this.id).text(this
-                                .class_name));
+                    let division = $('#division option:selected').val();
+
+                    let income_rate = $('#division option:selected').attr('data-rate')
+
+
+                    if (division === '') {
+
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Oops!',
+                            text: 'Please select a division.',
+                            confirmButtonText: 'OK'
                         });
+                    } else {
 
+
+                        if (!isNaN(premium) && premium > 0) {
+                            let income = (income_rate * premium) / 100;
+
+                            let formatValue = income.toString().replace(/\D/g, '');
+                            let formatsValue = formatValue.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+
+                            $("#income").val(formatsValue);
+
+                            $('#income').attr('readonly', true);
+                        } else {
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Invalid Premium',
+                                text: 'Please enter a valid premium amount.',
+                                confirmButtonText: 'OK'
+                            });
+                        }
+                    }
+
+                })
+
+                $('#division').on('change', function() {
+                    $('#premium').trigger('change');
+                    let division = parseInt($('#division option:selected').val());
+
+                    if (division == 6) {
+                        $('#narration').attr('req', 'required');
+                    } else {
+                        $('#narration').attr('req', '');
+                    }
+
+                    $.ajax({
+                        type: "GET",
+                        data: {
+                            'division': division
+                        },
+                        url: "{{ route('get_division_classes') }}",
+                        success: function(resp) {
+                            if (resp.status == 1) {
+                                $('#insurance_class').empty();
+                                $('#insurance_class').append($("<option />").val('').text('Select class'));
+
+                                $.each(resp.classes, function() {
+                                    $('#insurance_class').append($("<option />").val(this.id).text(
+                                        this
+                                        .class_name));
+                                });
+
+                            }
+                        }
+
+                    });
+
+
+                    $(document).on("click", ".remove-btn", function() {
+                        $(this).closest(".contact-form").remove();
+                    });
+
+                });
+
+                function formatNumber(input) {
+                    let value = input.value;
+                    value = value.replace(/[^0-9.]/g, '');
+                    const parts = value.split('.');
+                    if (parts.length > 2) {
+                        value = parts[0] + '.' + parts[1];
+                    }
+
+                    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+
+                    input.value = parts.join('.');
+
+                    if (value !== '' && isNaN(value)) {
+                        input.setCustomValidity('Please enter a valid number');
+                    } else {
+                        input.setCustomValidity('');
                     }
                 }
-
-            });
-
-
-            $(document).on("click", ".remove-btn", function() {
-                $(this).closest(".contact-form").remove();
-            });
-
-        });
-
-        function formatNumber(input) {
-            let value = input.value;
-            value = value.replace(/[^0-9.]/g, '');
-            const parts = value.split('.');
-            if (parts.length > 2) {
-                value = parts[0] + '.' + parts[1];
-            }
-
-            parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-
-            input.value = parts.join('.');
-
-            if (value !== '' && isNaN(value)) {
-                input.setCustomValidity('Please enter a valid number');
-            } else {
-                input.setCustomValidity('');
-            }
-        }
     </script>
 @endpush

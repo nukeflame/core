@@ -1,4 +1,5 @@
 @extends('layouts.app')
+
 @section('content')
     <style>
         {
@@ -616,7 +617,7 @@
                                                         <option selected value="">Choose Insured</option>
                                                         @foreach ($insured as $insured_names)
                                                         <option value="{{ $insured_names->name }}">
-                                                            {{ $insured_names->name }}</option> 
+                                                            {{ $insured_names->name }}</option>
                                                         @endforeach
                                                     </select> --}}
                                                 </div>
@@ -1340,7 +1341,7 @@
 
                                         <x-OnboardingInputDiv id="lead_owner_div">
                                             <x-SearchableSelect name="lead_owner" id="lead_owner" req="required"
-                                                inputLabel="prospect Lead">
+                                                inputLabel="Prospect Lead">
                                                 <option value="">Select prospect Lead
                                                 </option>
                                                 @foreach ($users as $user)
@@ -2907,7 +2908,7 @@
                     $('#eml_rate').show();
                     $('#eml_amt').show();
                     $('.eml-div').show();
-                     $('#total_sum_insured').trigger('keyup');
+                    $('#total_sum_insured').trigger('keyup');
                 } else {
                     const totalSumInsured = parseFloat(removeCommas($('#total_sum_insured').val()))
                     $('#effective_sum_insured').val(numberWithCommas(totalSumInsured));
@@ -3214,10 +3215,10 @@
                         <div class="col-6">
                             <div class="row">
                                 <x-Input id="document_name${counter}" name="document_name[]" req=""
-                                    inputLabel="Document Title" 
+                                    inputLabel="Document Title"
                                     placeholder="Enter document title"
                                     oninput='this.value=this.value.toUpperCase();'/>
-                                
+
                             </div>
                         </div>
 
@@ -3228,7 +3229,7 @@
                                 <button class="btn btn-danger remove_file" type="button"><i class="fa fa-minus"></i> </button>
                             </div>
                         </div>
-                        
+
                         <div class="col-1" style="margin-top: 30px">
                             <i class="fa fa-eye preview" id="preview${counter}"> </i>
                         </div>
@@ -3421,7 +3422,7 @@
                             </button>
                         </div>
                     </div>
-                
+
                 </div>
                 `);
 

@@ -25,6 +25,7 @@ use App\Models\Bd\Leads\Industry;
 use App\Models\Bd\Leads\Leads;
 use App\Models\Bd\Leads\LeadsSource;
 use App\Models\Bd\Leads\LeadStatus;
+use App\Models\Bd\PipelineOpportunity;
 use App\Models\CoverPremtype;
 use App\Models\CoverRegister;
 use App\Models\CoverReinLayer;
@@ -48,17 +49,22 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Yajra\Datatables\Datatables;
 use App\Repositories\ProspectRepository;
-
+use App\Services\PipelineService;
 use Exception;
+use Illuminate\Support\Facades\Auth;
 
 class LeadsOnboardingController
 {
     protected $repository;
+    protected $pipelineService;
 
-    public function __construct(ProspectRepository $repository)
+    public function __construct(ProspectRepository $repository,  PipelineService $pipelineService)
     {
         $this->repository = $repository;
+        $this->pipelineService = $pipelineService;
     }
+
+
     public function index(Request $request)
     {
 
@@ -196,7 +202,6 @@ class LeadsOnboardingController
 
     public function treaty_index(Request $request)
     {
-
         $currentYear = date('Y');
         $endYear = $currentYear + 10;
         $years = range($currentYear, $endYear); // Generate an array of years
@@ -210,7 +215,7 @@ class LeadsOnboardingController
         $clients = Client::select('full_name', 'global_customer_id', 'client_type', 'salutation_code', 'occupation_code')->get();
         $prospProperties = DB::table('pipeline_opportunities')->where('opportunity_id', "=", $request->prospect)->first();
         $users = User::all();
-        // dd($prospProperties);
+
         $currencies = Currency::all();
         $leadsources = DB::table('leadsources')->get();
         $prospect = $request->prospect;
@@ -236,12 +241,12 @@ class LeadsOnboardingController
         $Contact_details = DB::table('pipeline_opportunities')
             ->select('contact_name', 'phone', 'email', 'telephone')
             ->where('opportunity_id', "=", $request->prospect)->first();
-        // Convert JSON fields into arrays
+
         $contactNames = json_decode($Contact_details->contact_name ?? '[]', true);
         $emails = json_decode($Contact_details->email ?? '[]', true);
         $phones = json_decode($Contact_details->phone ?? '[]', true);
         $telephones = json_decode($Contact_details->telephone ?? '[]', true);
-        // Ensure they are always arrays and have the same length
+
         $count = max(count($contactNames), count($emails), count($phones), count($telephones));
 
         $contacts = [];
@@ -254,8 +259,6 @@ class LeadsOnboardingController
             ];
         }
 
-        // dd($Contact_details);
-
         $customers = DB::table('customers')
             ->join('customer_types', function ($join) {
                 $join->on('customer_types.type_id', '=', DB::raw("ANY (SELECT json_array_elements_text(customers.customer_type)::int)"));
@@ -264,28 +267,21 @@ class LeadsOnboardingController
                 DB::raw('CAST(customers.customer_id AS INT) as customer_id'),
                 'customers.name'
             )
-            ->whereIn('customer_types.type_name', ['INSURANCE', 'REINSURANCE']) // Filtering for 'insurance' or 'reinsurance'
+            ->whereIn('customer_types.type_name', ['INSURANCE', 'REINSURANCE'])
             ->distinct('name')
             ->get();
-
-
 
         $insured = DB::table('customers')
             ->join('customer_types', function ($join) {
                 $join->on('customer_types.type_id', '=', DB::raw("ANY (SELECT json_array_elements_text(customers.customer_type)::int)"));
             })
             ->select(
-                DB::raw('CAST(customers.customer_id AS INT) as customer_id'), // Casting customer_id as an integer
+                DB::raw('CAST(customers.customer_id AS INT) as customer_id'),
                 'customers.name'
             )
             ->where('customer_types.code', 'INSURED')
             ->get();
         $reins_divisions = ReinsDivision::where('status', 'A')->get();
-
-
-        // dd($reins_divisions);
-
-
 
         $trans_type = $request->trans_type;
         $type_of_bus = $request->type_of_bus;
@@ -300,8 +296,6 @@ class LeadsOnboardingController
             $endorsement_no = $request->endorsement_no;
             $old_endt_trans = CoverRegister::where('endorsement_no', $endorsement_no)->first();
 
-
-
             $coverreinpropClasses = BdReinclass::where('opportunity_id', $request->prospect)
                 ->get();
             $coverreinprops = BdReinprop::where('opportunity_id', $request->prospect)
@@ -311,12 +305,10 @@ class LeadsOnboardingController
                 ->where('bd_reinlayers.opportunity_id', $request->prospect)
                 ->select('bd_reinlayers.*', 'reinsclasses.class_name') // Customize as needed
                 ->get();
-            logger($coverReinLayers);
 
             $premtypes = BdPremtype::where('opportunity_id', $request->prospect)->get();
             $renewal_date = Carbon::now()->format('Y-m-d');
         }
-
 
         $commonVariables = [
             'insured' => $insured,
@@ -339,6 +331,7 @@ class LeadsOnboardingController
             'reins_divisions' => $reins_divisions,
 
         ];
+
         $otherVariabales = [
             'countries' => $countries,
             'prospProperties' => $prospProperties,
@@ -367,11 +360,10 @@ class LeadsOnboardingController
 
         ];
         $allVariables = array_merge($commonVariables, $otherVariabales);
-        // Return the view with the necessary data
+
         if ($trans_type == 'NEW') {
             return view('Bd_views.Treaty.leads_onboarding', $allVariables);
         } else {
-
             return view('Bd_views.Treaty.leads_onboarding_update', $allVariables);
         }
     }
@@ -480,10 +472,23 @@ class LeadsOnboardingController
 
         $CoverReinProp->save();
     }
+
     public function listing()
     {
-        return view('Bd_views.intermediaries.leads_listing');
+
+        $kpis =  $this->pipelineService->getKPIs();
+        $statuses = PipelineOpportunity::getStatusOptions();
+        $classes =  PipelineOpportunity::getClassOptions();
+        $priorities = PipelineOpportunity::getPriorityOptions();
+
+        return view('Bd_views.intermediaries.leads_listing', compact(
+            'kpis',
+            'statuses',
+            'classes',
+            'priorities'
+        ));
     }
+
     public function treaty_listing()
     {
         return view('Bd_views.Treaty.leads_listing');
@@ -518,74 +523,240 @@ class LeadsOnboardingController
         }
     }
 
+    // public function leads_get(Request $request)
+    // {
+    //     $currentYear = Carbon::now()->format('Y');
+
+    //     $data = DB::table('pipeline_opportunities')
+    //         // ->where('prequalification', '=', 'N')
+    //         // ->where('pip_year', '>=', $currentYear)
+    //         // ->where('stage', '<', '1')
+    //         ->whereIn('type_of_bus', ['FNP', 'FPR'])
+    //         // ->orderBy('created_at', 'desc')
+    //         ->get();
+
+
+
+    //     return Datatables::of($data)
+    //         // ->editColumn('client_type', function ($lead) {
+    //         //     if ($lead->client_type == 'C') {
+    //         //         return "CORPORATE";
+    //         //     } else {
+    //         //         return "INDIVIDUAL";
+    //         //     }
+    //         // })
+    //         ->editColumn('client_category', function ($lead) {
+    //             if ((string) $lead->client_category === 'O') {
+    //                 return 'Organic growth';
+    //             } else {
+    //                 return "New";
+    //             }
+    //         })
+    //         // ->editColumn('insurance_class', function ($lead) {
+    //         //     $class = DB::table('reinsclasses')->where('class_code', $lead->insurance_class)->first();
+    //         //    // dd($class);
+    //         //     return $class;
+
+    //         // })
+    //         ->editColumn('name', function ($lead) {
+    //             $div = DB::table('customers')
+    //                 ->where('customer_id', (int) $lead->customer_id)
+    //                 ->first();
+    //             return $div ? $div->name : 'N/A'; // Return customer name or 'N/A' if not found
+    //         })
+
+    //         ->editColumn('class', function ($lead) {
+    //             $div = DB::table('classes')
+    //                 ->where('class_code', (int) $lead->classcode)
+    //                 ->first();
+    //             return $div ? $div->class_name : 'N/A'; // Return customer name or 'N/A' if not found
+    //         })
+
+    //         ->editColumn('divisions', function ($lead) {
+    //             $div = DB::table('reins_division')->where('division_code', $lead->divisions)->first();
+    //             return $div ? $div->division_name : 'N/A';
+    //         })
+    //         ->addColumn('action', function ($lead) use ($request) {
+
+    //             $url = route('leads.onboarding', ['prospect' => $lead->opportunity_id]);
+    //             $handover = route('lead.handover', ['prospect' => $lead->opportunity_id]);
+    //             $btn_handover = '<a href="' . $handover . '"><button class="btn btn-outline-success"><i class="fa fa-arrow->right"></i>handover</button></a>';
+    //             $btn_edit = '<a href="' . $url . '"><span class="btn btn-info btn-sm rounded-pill"><i class="bx bx-edit"></i>  Edit prospect</span></a>';
+    //             $btn_submited = '<span class="btn btn-dark btn-sm rounded-pill">Submitted To sales</span></a>';
+    //             if (is_null($lead->pipeline_id)) {
+    //                 return $btn_edit;
+    //             } else {
+    //                 return $btn_submited;
+    //             }
+    //         })
+    //         ->rawColumns(['action'])
+    //         ->make(true);
+    // }
+
     public function leads_get(Request $request)
     {
-
         $currentYear = Carbon::now()->format('Y');
 
-        $data = DB::table('pipeline_opportunities')
-            // ->where('prequalification', '=', 'N')
-            // ->where('pip_year', '>=', $currentYear)
-            // ->where('stage', '<', '1')
-            ->whereIn('type_of_bus', ['FNP', 'FPR'])
-            // ->orderBy('created_at', 'desc')
-            ->get();
+        $query = DB::table('pipeline_opportunities')
+            ->whereIn('type_of_bus', ['FNP', 'FPR']);
 
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
 
+        if ($request->filled('class')) {
+            $query->where('classcode', $request->class);
+        }
+
+        if ($request->filled('priority')) {
+            $query->where('priority', $request->priority);
+        }
+
+        $data = $query->get();
 
         return Datatables::of($data)
-            // ->editColumn('client_type', function ($lead) {
-            //     if ($lead->client_type == 'C') {
-            //         return "CORPORATE";
-            //     } else {
-            //         return "INDIVIDUAL";
-            //     }
+            ->addColumn('opportunity_id', function ($lead) {
+                return  '<strong>' . $lead->opportunity_id . '</strong>';
+            })
+
+            ->addColumn('insured_name', function ($lead) {
+                $customer = DB::table('customers')
+                    ->where('customer_id', (int) $lead->customer_id)
+                    ->first();
+
+                $customerName = $customer ? $customer->name : 'N/A';
+
+                return  '<strong>' . $customerName . '</strong>';
+            })
+
+            ->addColumn('class_of_business', function ($lead) {
+                $class = DB::table('classes')
+                    ->where('class_code', (int) $lead->classcode)
+                    ->first();
+                return $class ? $class->class_name : 'N/A';
+            })
+
+            ->addColumn('priority_badge', function ($lead) {
+                $priority = $lead->priority ?? 'Normal';
+                $badgeClass = match (strtolower($priority)) {
+                    'critical' => 'priority-badge priority-critical',
+                    'high' => 'priority-badge priority-high',
+                    'medium' => 'priority-badge priority-medium',
+                    'low', => 'priority-badge priority-low',
+                    'normal' => 'priority-badge priority-medium',
+                    default => 'priority-badge priority-medium'
+                };
+
+                return '<span class="' . $badgeClass . '">' . ucfirst($priority) . '</span>';
+            })
+
+            ->addColumn('status_badge', function ($lead) {
+                $status = $lead->status ?? 'Active';
+                $badgeClass = match (strtolower($status)) {
+                    'active' => 'priority-badge priority-low',
+                    'pending' => 'priority-badge priority-high',
+                    'closed' => 'priority-badge priority-medium',
+                    'cancelled' => 'priority-badge priority-high',
+                    default => 'priority-badge priority-medium'
+                };
+
+                return '<span class="' . $badgeClass . '">' . ucfirst($status) . '</span>';
+            })
+
+            ->addColumn('formatted_premium', function ($lead) {
+                return $lead->cede_premium ?
+                    'KES ' . number_format($lead->cede_premium, 2) :
+                    '-';
+            })
+
+            ->addColumn('commission_percentage', function ($lead) {
+                return $lead->comm_rate ?? null;
+            })
+
+            ->addColumn('formatted_expected_premium', function ($lead) {
+                // return $lead->expected_premium ?
+                //     'KES ' . number_format($lead->expected_premium, 2) :
+                //     '-';
+                return '-';
+            })
+
+            ->addColumn('expiry_date', function ($lead) {
+                return $lead->closing_date ?? '-';
+            })
+
+
+            ->addColumn('account_executive', function ($lead) {
+                $ae = DB::table('users')
+                    ->where('id', $lead->lead_owner ?? 0)
+                    ->first();
+
+                return [
+                    'name' => $ae ? $ae->name : null
+                ];
+            })
+
+            // ->addColumn('territory', function ($lead) {
+            //     // $territory = DB::table('territories')
+            //     //     ->where('territory_id', $lead->territory_id ?? 0)
+            //     //     ->first();
+
+            //     // return [
+            //     //     'name' => $territory ? $territory->name : null
+            //     // ];
+            //     return '-';
             // })
-            ->editColumn('client_category', function ($lead) {
+
+            ->addColumn('urgency_class', function ($lead) {
+                // $deadline = $lead->quote_deadline ?? null;
+                // if (!$deadline) return null;
+
+                // $daysUntilDeadline = Carbon::parse($deadline)->diffInDays(Carbon::now(), false);
+
+                // if ($daysUntilDeadline <= 1) {
+                //     return 'table-danger'; // Very urgent
+                // } elseif ($daysUntilDeadline <= 3) {
+                //     return 'table-warning'; // Urgent
+                // } elseif ($daysUntilDeadline <= 7) {
+                //     return 'table-info'; // Approaching
+                // }
+
+                return null;
+            })
+
+            ->addColumn('client_category', function ($lead) {
                 if ((string) $lead->client_category === 'O') {
                     return 'Organic growth';
                 } else {
                     return "New";
                 }
             })
-            // ->editColumn('insurance_class', function ($lead) {
-            //     $class = DB::table('reinsclasses')->where('class_code', $lead->insurance_class)->first();
-            //    // dd($class);
-            //     return $class;
 
-            // })
-            ->editColumn('name', function ($lead) {
-                $div = DB::table('customers')
-                    ->where('customer_id', (int) $lead->customer_id)
-                    ->first();
-                return $div ? $div->name : 'N/A'; // Return customer name or 'N/A' if not found
-            })
-
-            ->editColumn('class', function ($lead) {
-                $div = DB::table('classes')
-                    ->where('class_code', (int) $lead->classcode)
-                    ->first();
-                return $div ? $div->class_name : 'N/A'; // Return customer name or 'N/A' if not found
-            })
-
-            ->editColumn('divisions', function ($lead) {
+            ->addColumn('divisions', function ($lead) {
                 $div = DB::table('reins_division')->where('division_code', $lead->divisions)->first();
                 return $div ? $div->division_name : 'N/A';
             })
-            ->addColumn('action', function ($lead) use ($request) {
 
+            ->addColumn('action', function ($lead) use ($request) {
                 $url = route('leads.onboarding', ['prospect' => $lead->opportunity_id]);
                 $handover = route('lead.handover', ['prospect' => $lead->opportunity_id]);
-                $btn_handover = '<a href="' . $handover . '"><button class="btn btn-outline-success"><i class="fa fa-arrow->right"></i>handover</button></a>';
-                $btn_edit = '<a href="' . $url . '"><span class="btn btn-info btn-sm rounded-pill"><i class="bx bx-edit"></i>  Edit prospect</span></a>';
-                $btn_submited = '<span class="btn btn-dark btn-sm rounded-pill">Submitted To sales</span></a>';
+                // $btn_handover = '<a href="' . $handover . '" class="btn btn-outline-success btn-sm me-1">
+                //         <i class="fa fa-arrow-right"></i> Handover
+                //         </a>';
+                $btn_edit = '<a href="' . $url . '" class="btn btn-info btn-sm rounded-pill">
+                            <i class="bx bx-edit"></i> Edit prospect
+                        </a>';
+                $btn_submitted = '<span class="btn btn-dark btn-sm rounded-pill">
+                            Submitted To Sales
+                        </span>';
+
                 if (is_null($lead->pipeline_id)) {
                     return $btn_edit;
                 } else {
-                    return $btn_submited;
+                    return $btn_submitted;
                 }
             })
-            ->rawColumns(['action'])
+
+            ->rawColumns(['action', 'priority_badge', 'status_badge', 'opportunity_id', 'insured_name'])
             ->make(true);
     }
 

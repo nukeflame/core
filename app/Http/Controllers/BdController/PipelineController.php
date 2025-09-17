@@ -343,7 +343,7 @@ class PipelineController
             $declined = ReinsurersDeclined::where('opportunity_id', $request->prospect)->pluck('reason', 'customer_id');
 
 
-            // Decode JSONB field to an array 
+            // Decode JSONB field to an array
             foreach ($quoteReinsurers as $reinsurer) {
                 $reinsurer->contacts = json_decode($reinsurer->contacts);
                 $reinsurer->decline_reason = $declined[$reinsurer->reinsurer_id] ?? null;
@@ -983,7 +983,6 @@ class PipelineController
             'nonprop_reinclass_desc' => 'nullable|array',
         ]);
 
-        // If validation fails, return the validation errors
         if ($validator->fails()) {
             return response()->json(['status' => 0, 'message' => 'Validation failed', 'errors' => $validator->errors()]);
         }
@@ -1204,6 +1203,7 @@ class PipelineController
             return ['status' => 0, 'message' => 'An error occurred.'];
         }
     }
+
     public function treaty_pipeline_create_opportunity(Request $request)
     {
 
@@ -1453,11 +1453,11 @@ class PipelineController
                 // Fetch existing bd_reinprops records for matching
                 $existingReinprops = $request->updateState === 'U'
                     ? DB::table('bd_reinprops')
-                        ->where('opportunity_id', $insertedOppId)
-                        ->get()
-                        ->keyBy(function ($item) {
-                            return $item->reinclass . '|' . $item->item_no . '|' . $item->item_description;
-                        })
+                    ->where('opportunity_id', $insertedOppId)
+                    ->get()
+                    ->keyBy(function ($item) {
+                        return $item->reinclass . '|' . $item->item_no . '|' . $item->item_description;
+                    })
                     : collect([]);
 
                 foreach ($treaty_reinclass as $index => $treaty_class) {
@@ -1575,11 +1575,11 @@ class PipelineController
                 // Fetch existing bd_premtypes records
                 $existingPremtypes = $request->updateState === 'U'
                     ? DB::table('bd_premtypes')
-                        ->where('opportunity_id', $insertedOppId)
-                        ->get()
-                        ->keyBy(function ($item) {
-                            return $item->reinclass . '|' . $item->premtype_code;
-                        })
+                    ->where('opportunity_id', $insertedOppId)
+                    ->get()
+                    ->keyBy(function ($item) {
+                        return $item->reinclass . '|' . $item->premtype_code;
+                    })
                     : collect([]);
 
 
@@ -1635,11 +1635,11 @@ class PipelineController
                 // Fetch existing bd_reinlayers records
                 $existingReinlayers = $request->updateState === 'U'
                     ? DB::table('bd_reinlayers')
-                        ->where('opportunity_id', $insertedOppId)
-                        ->get()
-                        ->keyBy(function ($item) {
-                            return $item->layer_no . '|' . $item->item_no;
-                        })
+                    ->where('opportunity_id', $insertedOppId)
+                    ->get()
+                    ->keyBy(function ($item) {
+                        return $item->layer_no . '|' . $item->item_no;
+                    })
                     : collect([]);
 
                 $item_no = 1;
@@ -1743,7 +1743,7 @@ class PipelineController
             jsonb_array_elements_text(phone::jsonb) AS matched_phone,
             jsonb_array_elements_text(telephone::jsonb) AS matched_telephone
         FROM pipeline_opportunities
-        WHERE 
+        WHERE
             jsonb_typeof(contact_name::jsonb) = 'array'
             AND jsonb_typeof(email::jsonb) = 'array'
             AND jsonb_typeof(phone::jsonb) = 'array'
@@ -2133,12 +2133,12 @@ class PipelineController
                                 'description' => $name,
                                 'prospect_status' => 5
                             ])->update([
-                                        'description' => $name,
-                                        'prospect_id' => $prospectId,
-                                        'prospect_status' => 5,
-                                        'mimetype' => $mimeType,
-                                        'file' => $Filename
-                                    ]);
+                                'description' => $name,
+                                'prospect_id' => $prospectId,
+                                'prospect_status' => 5,
+                                'mimetype' => $mimeType,
+                                'file' => $Filename
+                            ]);
                         }
                     }
                 }
@@ -3064,37 +3064,36 @@ class PipelineController
                         ($d->category_type == 1 && $d->stage == 5 && $d->handed_over == '') ||
                         ($d->category_type == 2 && $d->stage == 5 && $d->handed_over == '')
                     ) {
-                        return '<a href="' . route('lead.handover', ['prospect' => $d->opportunity_id, 'approval' => 0]) . '" 
-                        class="text-white update_status btn btn-sm btn-success rounded-pill" 
-                        title="Update status" 
-                        data-stage="' . $d->stage . '" 
-                        data-division="' . $d->divisions . '" 
-                        data-opp="' . $d->opportunity_id . '" 
-                        data-category_type="' . $d->category_type . '" 
-                        data-status="' . $d->status . '" 
-                        data-sum-insured-type="' . $d->sum_insured_type . '"> 
+                        return '<a href="' . route('lead.handover', ['prospect' => $d->opportunity_id, 'approval' => 0]) . '"
+                        class="text-white update_status btn btn-sm btn-success rounded-pill"
+                        title="Update status"
+                        data-stage="' . $d->stage . '"
+                        data-division="' . $d->divisions . '"
+                        data-opp="' . $d->opportunity_id . '"
+                        data-category_type="' . $d->category_type . '"
+                        data-status="' . $d->status . '"
+                        data-sum-insured-type="' . $d->sum_insured_type . '">
                         <i class="bx bx-refresh"></i>Handover</a>';
-
                     } else if (
                         ($d->category_type == 1 && $d->stage == 5 && $d->handed_over == 'Y' && $d->approval_status === '0') ||
                         ($d->category_type == 2 && $d->stage == 5 && $d->handed_over == 'Y' && $d->approval_status === '0')
                     ) {
-                        return '<a href="' . route('lead.handover', ['prospect' => $d->opportunity_id, 'approval' => 0]) . '" 
-                        class="text-white update_status btn btn-sm btn-success rounded-pill" 
-                        title="Update status" 
-                        data-stage="' . $d->stage . '" 
-                        data-division="' . $d->divisions . '" 
-                        data-opp="' . $d->opportunity_id . '" 
-                        data-category_type="' . $d->category_type . '" 
-                        data-status="' . $d->status . '" 
-                        data-sum-insured-type="' . $d->sum_insured_type . '"> 
+                        return '<a href="' . route('lead.handover', ['prospect' => $d->opportunity_id, 'approval' => 0]) . '"
+                        class="text-white update_status btn btn-sm btn-success rounded-pill"
+                        title="Update status"
+                        data-stage="' . $d->stage . '"
+                        data-division="' . $d->divisions . '"
+                        data-opp="' . $d->opportunity_id . '"
+                        data-category_type="' . $d->category_type . '"
+                        data-status="' . $d->status . '"
+                        data-sum-insured-type="' . $d->sum_insured_type . '">
                         <i class="bx bx-refresh"></i>Handover</a>';
                     } else if ($d->category_type == '') {
-                        return '<a href="#" 
-                        class="text-white update_category btn btn-sm btn-dark rounded-pill" 
-                        data-stage="' . $d->stage . '" 
-                        data-division="' . $d->divisions . '" 
-                        data-opp="' . $d->opportunity_id . '"> 
+                        return '<a href="#"
+                        class="text-white update_category btn btn-sm btn-dark rounded-pill"
+                        data-stage="' . $d->stage . '"
+                        data-division="' . $d->divisions . '"
+                        data-opp="' . $d->opportunity_id . '">
                         <i class="bx bx-edit-alt"></i>Update Category</a>';
                     }
                 })
@@ -3620,7 +3619,7 @@ class PipelineController
                 ->addColumn('action', function ($d) {
                     if ($d->category_type == 1 && $d->stage != 5 || $d->category_type == 2 && $d->stage != 5) {
                         // return '<a href="#" class="text-white update_status btn btn-sm btn-success rounded-pill" title="Update status" data-stage="' . $d->stage . '" data-division="' . $d->divisions . '" data-opp="' . $d->opportunity_id . '" data-category_type="' . $d->category_type . '" " data-status="' . $d->status . '" data-sum-insured-type="' . $d->sum_insured_type . '"> <i class="bx bx-refresh"></i>Update status</a>';
-    
+
                         return '<a href="#"
                         class="text-white update_status btn btn-sm btn-success rounded-pill"
                         title="Update status"
@@ -3784,7 +3783,7 @@ class PipelineController
                 ->addColumn('action', function ($d) {
                     if ($d->category_type == 1 && $d->stage != 5 || $d->category_type == 2 && $d->stage != 5) {
                         // return '<a href="#" class="text-white update_status btn btn-sm btn-success rounded-pill" title="Update status" data-stage="' . $d->stage . '" data-division="' . $d->divisions . '" data-opp="' . $d->opportunity_id . '" data-category_type="' . $d->category_type . '" " data-status="' . $d->status . '" data-sum-insured-type="' . $d->sum_insured_type . '"> <i class="bx bx-refresh"></i>Update status</a>';
-    
+
                         return '<a href="#"
                         class="text-white update_status btn btn-sm btn-success rounded-pill"
                         title="Update status"
@@ -3946,7 +3945,7 @@ class PipelineController
                 ->addColumn('action', function ($d) {
                     if ($d->category_type == 1 && $d->stage != 5 || $d->category_type == 2 && $d->stage != 5) {
                         // return '<a href="#" class="text-white update_status btn btn-sm btn-success rounded-pill" title="Update status" data-stage="' . $d->stage . '" data-division="' . $d->divisions . '" data-opp="' . $d->opportunity_id . '" data-category_type="' . $d->category_type . '" " data-status="' . $d->status . '" data-sum-insured-type="' . $d->sum_insured_type . '"> <i class="bx bx-refresh"></i>Update status</a>';
-    
+
                         return '<a href="#"
                         class="text-white update_status btn btn-sm btn-success rounded-pill"
                         title="Update status"
@@ -4109,7 +4108,7 @@ class PipelineController
                 ->addColumn('action', function ($d) {
                     if ($d->category_type == 1 && $d->stage != 5 || $d->category_type == 2 && $d->stage != 5) {
                         // return '<a href="#" class="text-white update_status btn btn-sm btn-success rounded-pill" title="Update status" data-stage="' . $d->stage . '" data-division="' . $d->divisions . '" data-opp="' . $d->opportunity_id . '" data-category_type="' . $d->category_type . '" " data-status="' . $d->status . '" data-sum-insured-type="' . $d->sum_insured_type . '"> <i class="bx bx-refresh"></i>Update status</a>';
-    
+
                         return '<a href="#"
                         class="text-white update_status btn btn-sm btn-success rounded-pill"
                         title="Update status"
@@ -4273,7 +4272,7 @@ class PipelineController
                 ->addColumn('action', function ($d) {
                     if ($d->category_type == 1 && $d->stage != 5 || $d->category_type == 2 && $d->stage != 5) {
                         // return '<a href="#" class="text-white update_status btn btn-sm btn-success rounded-pill" title="Update status" data-stage="' . $d->stage . '" data-division="' . $d->divisions . '" data-opp="' . $d->opportunity_id . '" data-category_type="' . $d->category_type . '" " data-status="' . $d->status . '" data-sum-insured-type="' . $d->sum_insured_type . '"> <i class="bx bx-refresh"></i>Update status</a>';
-    
+
                         return '<a href="#"
                         class="text-white update_status btn btn-sm btn-success rounded-pill"
                         title="Update status"
@@ -4438,7 +4437,7 @@ class PipelineController
                 ->addColumn('action', function ($d) {
                     if ($d->category_type == 1 && $d->stage != 5 || $d->category_type == 2 && $d->stage != 5) {
                         // return '<a href="#" class="text-white update_status btn btn-sm btn-success rounded-pill" title="Update status" data-stage="' . $d->stage . '" data-division="' . $d->divisions . '" data-opp="' . $d->opportunity_id . '" data-category_type="' . $d->category_type . '" " data-status="' . $d->status . '" data-sum-insured-type="' . $d->sum_insured_type . '"> <i class="bx bx-refresh"></i>Update status</a>';
-    
+
                         return '<a href="#"
                         class="text-white update_status btn btn-sm btn-success rounded-pill"
                         title="Update status"
@@ -4603,7 +4602,7 @@ class PipelineController
                 ->addColumn('action', function ($d) {
                     if ($d->category_type == 1 && $d->stage != 5 || $d->category_type == 2 && $d->stage != 5) {
                         // return '<a href="#" class="text-white update_status btn btn-sm btn-success rounded-pill" title="Update status" data-stage="' . $d->stage . '" data-division="' . $d->divisions . '" data-opp="' . $d->opportunity_id . '" data-category_type="' . $d->category_type . '" " data-status="' . $d->status . '" data-sum-insured-type="' . $d->sum_insured_type . '"> <i class="bx bx-refresh"></i>Update status</a>';
-    
+
                         return '<a href="#"
                         class="text-white update_status btn btn-sm btn-success rounded-pill"
                         title="Update status"
@@ -4767,7 +4766,7 @@ class PipelineController
                 ->addColumn('action', function ($d) {
                     if ($d->category_type == 1 && $d->stage != 5 || $d->category_type == 2 && $d->stage != 5) {
                         // return '<a href="#" class="text-white update_status btn btn-sm btn-success rounded-pill" title="Update status" data-stage="' . $d->stage . '" data-division="' . $d->divisions . '" data-opp="' . $d->opportunity_id . '" data-category_type="' . $d->category_type . '" " data-status="' . $d->status . '" data-sum-insured-type="' . $d->sum_insured_type . '"> <i class="bx bx-refresh"></i>Update status</a>';
-    
+
                         return '<a href="#"
                         class="text-white update_status btn btn-sm btn-success rounded-pill"
                         title="Update status"
@@ -4977,18 +4976,18 @@ class PipelineController
             if (($stage_cycle == 5 || $stage_cycle_fac == 5) && $request->bus_type == 'FAC') {
                 DB::table('pipeline_opportunities')
                     ->where('opportunity_id', $leadId)->update([
-                            'won_at' => now(),
-                        ]);
+                        'won_at' => now(),
+                    ]);
             }
             if (($stage_cycle == 6 || $stage_cycle_fac == 6) && $request->bus_type == 'FAC') {
                 DB::table('pipeline_opportunities')
                     ->where('opportunity_id', $leadId)->update([
-                            'pipeline_id' => null,
-                            'year_before_revert' => DB::raw('pip_year'),
-                            'pip_year' => DB::raw('pip_year + 1'),
-                            'reverted_to_pipeline' => 'YES',
-                            'stage' => 6
-                        ]);
+                        'pipeline_id' => null,
+                        'year_before_revert' => DB::raw('pip_year'),
+                        'pip_year' => DB::raw('pip_year + 1'),
+                        'reverted_to_pipeline' => 'YES',
+                        'stage' => 6
+                    ]);
             }
 
             $reinsurerId = [];
@@ -5434,19 +5433,16 @@ class PipelineController
 
                                 ]);
                                 $reinsurerId[] = $id;
-
                             }
                             if ($qt_re_id) {
                                 $quote_reinsurer_Ids[] = $qt_re_id;
                             }
-
                         } catch (\Exception $e) {
                             DB::rollback();
                             return redirect()->back()
                                 ->withInput()
                                 ->withErrors(['error' => 'An unexpected error occurred: ' . $e->getMessage()]);
                         }
-
                     } else {
                     }
                 } else if ($request->stage_cycle == 5) {
@@ -5510,8 +5506,6 @@ class PipelineController
                         }
                     }
                 }
-
-
             }
 
             if (isset($request->stage_cycle_fac) && $request->bus_type == 'TRT') {
@@ -5576,19 +5570,16 @@ class PipelineController
 
                                 ]);
                                 $reinsurerId[] = $id;
-
                             }
                             if ($qt_re_id) {
                                 $quote_reinsurer_Ids[] = $qt_re_id;
                             }
-
                         } catch (\Exception $e) {
                             DB::rollback();
                             return redirect()->back()
                                 ->withInput()
                                 ->withErrors(['error' => 'An unexpected error occurred: ' . $e->getMessage()]);
                         }
-
                     } else {
                     }
                 } else if ($request->stage_cycle_fac == 4) {
@@ -6353,7 +6344,6 @@ class PipelineController
                     'data_exists_flag' => 'Y',
                 ]);
         }
-
     }
 
     public function stageCycleFacNotEqualNine($leadId, $stage_cycle_fac, $pipeline, $division, $request)
@@ -6364,22 +6354,18 @@ class PipelineController
             if ($request->tender_status == 3) {
                 DB::table('pipeline_opportunities')
                     ->where('opportunity_id', $leadId)->update([
-                            'stage' => 3
-                        ]);
+                        'stage' => 3
+                    ]);
             } else {
                 DB::table('pipeline_opportunities')
                     ->where('opportunity_id', $leadId)->update([
-                            'pipeline_id' => null,
-                            'year_before_revert' => DB::raw('pip_year'),
-                            'pip_year' => DB::raw('pip_year + 1'),
-                            'reverted_to_pipeline' => 'YES',
-                            'stage' => 10
-                        ]);
-
-
+                        'pipeline_id' => null,
+                        'year_before_revert' => DB::raw('pip_year'),
+                        'pip_year' => DB::raw('pip_year + 1'),
+                        'reverted_to_pipeline' => 'YES',
+                        'stage' => 10
+                    ]);
             }
-
-
         } else {
             DB::table('pipeline_opportunities')
                 ->where('opportunity_id', $leadId)
@@ -6390,7 +6376,6 @@ class PipelineController
                     'data_exists_flag' => 'Y',
                 ]);
         }
-
     }
     public function stageCycleFacEqualFour($leadId, $stage_cycle_fac, $pipeline, $division)
     {
@@ -7627,7 +7612,7 @@ class PipelineController
 
         DB::beginTransaction();
 
-        // Fetch existing documents 
+        // Fetch existing documents
         $existingDocs = DB::table('prospect_docs')
             ->where('prospect_id', $leadId)
             ->where('prospect_status', $stage_cycle)
@@ -7710,8 +7695,8 @@ class PipelineController
             $status = 301;
             DB::table('pipeline_opportunities')
                 ->where('opportunity_id', $leadId)->update([
-                        'stage' => 4
-                    ]);
+                    'stage' => 4
+                ]);
         }
 
         // Email sending logic
@@ -7851,7 +7836,7 @@ class PipelineController
         $customerId = $request->customer_id;
 
         $customers = DB::select("
-    SELECT 
+    SELECT
         c.*,
         ARRAY_AGG(DISTINCT ct.type_id) AS type_ids,
         (
@@ -7883,13 +7868,11 @@ class PipelineController
         }
 
         return response()->json(['customers' => $customers]);
-
     }
     public function TenderDocAttachement(Request $request)
     {
         $opportunityID = $request->opportunity_id;
         $data = PipelineOpportunity::where('opportunity_id', $opportunityID)->get();
         return view('Bd_views.tenders.doc_attachment', ['opportunities' => $data]);
-
     }
 }
