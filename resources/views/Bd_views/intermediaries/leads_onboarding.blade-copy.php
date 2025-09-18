@@ -11,8 +11,6 @@
             margin-bottom: 3px !important;
             border-radius: 0px !important;
         }
-
-        /***/
     </style>
 @endsection
 

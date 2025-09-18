@@ -628,7 +628,7 @@ table.dataTable > thead .sorting_desc_disabled:before {
     top: -28px !important;
     left: calc(100vw - 155rem) !important;
 }
-/* Loader Styles */
+
 .loading {
     display: inline-block;
     width: 15px;
@@ -639,7 +639,6 @@ table.dataTable > thead .sorting_desc_disabled:before {
     animation: spin 1s linear infinite;
 }
 
-/* Keyframes for spinning effect */
 @keyframes spin {
     0% {
         transform: rotate(0deg);
