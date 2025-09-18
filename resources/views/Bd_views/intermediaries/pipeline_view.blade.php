@@ -1,4 +1,5 @@
 @extends('layouts.app')
+
 <style type="text/css">
     .br span {
         border-radius: 50%;
@@ -29,6 +30,7 @@
         display: none;
     }
 </style>
+
 @section('content')
     <br />
     @if ($message = Session::get('success'))
@@ -37,7 +39,6 @@
     <div class="card mt-3 border">
         <div class="card-header ">
             <div>
-
                 <strong>
                     <h5>Pipeline Details</h5>
                 </strong>
@@ -106,6 +107,7 @@
             </div>
         </div>
     </div>
+
     <div class="card mt-3">
         <div class="bs-example">
             <ul class="nav nav-tabs">
@@ -259,10 +261,9 @@
         </div>
     </div>
 
-    <!-- update Quote -->
     <div id="updateStatusQuote">
         <div class="modal fade" id="editStatusQuoteModal" tabindex="-1" role="dialog" aria-hidden="true">
-            <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
+            <div class="modal-dialog modal-dialog-centered modal-xl" role="document">
                 <div class="modal-content">
                     <div class="modal-header">
                         <h5 class="modal-title text-white"><span id="ed_status_name"></span></h5>
@@ -535,17 +536,11 @@
                             </div>
                         </form>
                     </div>
-
-
-
                 </div>
             </div>
         </div>
     </div>
 
-
-
-    {{-- update Facultative --}}
     <div id="updateStatusFacultative">
         <div class="modal fade" id="editStatusFacultativeModal" tabindex="-1" role="dialog" aria-hidden="true">
             <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
@@ -840,10 +835,6 @@
         </div>
     </div>
 
-
-
-
-    {{-- update category type --}}
     <div class="modal fade" id="updateCategoryTypeModal" tabindex="-1" role="dialog" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered modal-md" role="document">
             <div class="modal-content">
@@ -873,7 +864,6 @@
         </div>
     </div>
 
-    <!-- Generate Slip -->
     <div class="modal effect-scale md-wrapper" id="generateSlipModal" tabindex="-1"
         aria-labelledby="staticGenerateSlip" aria-hidden="true">
         <div class="modal-dialog modal-lg" style="width: 80%;">
@@ -891,10 +881,6 @@
         </div>
     </div>
 
-
-
-
-    <!-- send email Modal -->
     <div class="modal fade" id="sendEmail" tabindex="-1" role="dialog" aria-labelledby="sendemailLabel"
         aria-hidden="true">
         <div class="modal-dialog" role="document">
@@ -919,6 +905,7 @@
             </div>
         </div>
     </div>
+
     <div class="modal fade" id="editEmail" tabindex="-1" aria-labelledby="editEmailLabel" aria-hidden="true">
         <div class="modal-dialog modal-lg">
             <div class="modal-dialog">
@@ -2279,7 +2266,7 @@
                                             <input type="checkbox" name="cedant_checkbox_docs[]" value="${docType}" class="form-check-input cedant-checkbox second-checkbox"
                                                 ${isChecked ? 'checked' : ''} ${isDisabled ? 'disabled' : ''}/>
                                                      ${cedantfileUrl ? `<a href="${cedantfileUrl}" target="_blank">
-                                                                                                                                  <i class="bx bx-show"></i> </a>` : ''}
+                                                                                                                                                      <i class="bx bx-show"></i> </a>` : ''}
 
 
                                         </div>`;
@@ -2407,7 +2394,7 @@
                                                      </div>
                                                 <div class="col-2" style="margin-top: 20px;">
                                                         ${existingFile ? `<a href="${fileUrl}" target="_blank">
-                                                                                                                                                                                                                                                                                                                                                            <i class="bx bx-show"></i> </a>` : '<span class="text-muted">No file uploaded</span>'}
+                                                                                                                                                                                                                                                                                                                                                                                <i class="bx bx-show"></i> </a>` : '<span class="text-muted">No file uploaded</span>'}
                                                  </div>
                                             </div>
 
@@ -2558,7 +2545,7 @@
                                                      </div>
                                                 <div class="col-2" style="margin-top: 20px;">
                                                         ${existingFile ? `<a href="${fileUrl}" target="_blank">
-                                                                                                                                                                                                                                                                                                                                                                                                    <i class="bx bx-show"></i> </a>` : '<span class="text-muted">No file uploaded</span>'}
+                                                                                                                                                                                                                                                                                                                                                                                                                        <i class="bx bx-show"></i> </a>` : '<span class="text-muted">No file uploaded</span>'}
                                                  </div>
                                             </div>
 

@@ -42,6 +42,14 @@
                     }
                 },
                 {
+                    data: 'client_category',
+                    name: 'client_category',
+                    title: 'Client Category',
+                    render: function(data, type, row) {
+                        return data || 'N/A';
+                    }
+                },
+                {
                     data: 'priority_badge',
                     name: 'priority',
                     title: 'Priority',

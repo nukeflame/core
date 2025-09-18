@@ -64,13 +64,11 @@ class LeadsOnboardingController
         $this->pipelineService = $pipelineService;
     }
 
-
     public function index(Request $request)
     {
-
         $currentYear = date('Y');
         $endYear = $currentYear + 10;
-        $years = range($currentYear, $endYear); // Generate an array of years
+        $years = range($currentYear, $endYear);
         $customer_types = CustomerTypes::select('type_id', 'type_name')->get();
         $salutations = Salutation::all();
         $sources = LeadsSource::all();
@@ -81,7 +79,7 @@ class LeadsOnboardingController
         $clients = Client::select('full_name', 'global_customer_id', 'client_type', 'salutation_code', 'occupation_code')->get();
         $prospProperties = DB::table('pipeline_opportunities')->where('opportunity_id', "=", $request->prospect)->first();
         $users = User::all();
-        // dd($prospProperties);
+
         $currencies = Currency::all();
         $leadsources = DB::table('leadsources')->get();
         $prospect = $request->prospect;
@@ -107,7 +105,7 @@ class LeadsOnboardingController
         $Contact_details = DB::table('pipeline_opportunities')
             ->select('contact_name', 'phone', 'email', 'telephone')
             ->where('opportunity_id', "=", $request->prospect)->first();
-        // Convert JSON fields into arrays
+
         $contactNames = json_decode($Contact_details->contact_name ?? '[]', true);
         $emails = json_decode($Contact_details->email ?? '[]', true);
         $phones = json_decode($Contact_details->phone ?? '[]', true);

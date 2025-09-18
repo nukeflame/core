@@ -747,8 +747,8 @@
                                             </div>
 
                                             <!-- <div class="row mt-1 {{ !is_null($doc->division) ? 'd-none  division_doc' : '' }}" @if (!is_null($doc->division)) id=doc{{ $doc->division }} @endif>
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        <div class="col-4 pt-3">
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        </div> -->
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                <div class="col-4 pt-3">
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                </div> -->
                                         @endforeach
 
                                     </div>
@@ -1124,14 +1124,11 @@
                 //     }
                 // });
 
-
-
                 // if (form.valid() != true) {
                 //     alert('Form not valid! Please check your inputs.');
                 //     return false;
                 // }
                 if (form.valid()) {
-
                     Swal.fire({
                         icon: 'warning',
                         title: 'Are you sure your data is correct before saving ?',

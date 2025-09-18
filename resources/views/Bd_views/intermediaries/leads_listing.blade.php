@@ -6,7 +6,6 @@
 
 @section('content')
     <div class="container-fluid mt-3">
-        {{-- Breadcrumb --}}
         <div class="d-md-flex d-block align-items-center justify-content-between my-4 page-header-breadcrumb">
             <h1 class="page-title fw-semibold fs-18 mb-0">Facultative Pipeline</h1>
             <div class="ms-md-1 ms-0">
@@ -20,7 +19,6 @@
             </div>
         </div>
 
-        {{-- KPI Cards --}}
         <div class="row mb-4">
             <div class="col-md-3">
                 <div class="kpi-card">
@@ -96,7 +94,6 @@
             </div>
         </div>
 
-        {{-- Data Table --}}
         <div class="row mt-3">
             <div class="col-xl-12">
                 <div class="card custom-card">
@@ -171,6 +168,7 @@
                             <thead>
                                 <tr>
                                     <th>Opportunity ID</th>
+                                    <th>Client Category</th>
                                     <th>Priority</th>
                                     <th>Insured Name</th>
                                     <th>Class of Business</th>

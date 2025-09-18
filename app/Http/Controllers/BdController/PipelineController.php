@@ -561,41 +561,37 @@ class PipelineController
             $data = [$q4_arr, $q5_arr, $q3_arr, $q1_arr, $q2_arr, $q6_arr];
 
             $customers = DB::select("
-    SELECT c.*,
-        ARRAY_AGG(DISTINCT ct.type_id) AS type_ids,
-        (
-            SELECT jsonb_agg(
-                jsonb_build_object(
-                    'contact_name', cc.contact_name,
-                    'contact_email', cc.contact_email,
-                    'contact_mobile_no', cc.contact_mobile_no,
-                    'contact_position', cc.contact_position,
-                    'main_contact_person', cc.main_contact_person
-                )
-            )::json
-            FROM customer_contacts cc
-            WHERE cc.customer_id = c.customer_id
-        ) AS contact_persons
-    FROM customers c
-    LEFT JOIN customer_types ct
-        ON c.customer_type::jsonb @> to_jsonb(ct.type_id::text)
-    WHERE ct.code IN ('REINCO', 'INSCO', 'REINBROKER')
-      AND EXISTS (
-          SELECT 1
-          FROM customer_contacts cc
-          WHERE cc.customer_id = c.customer_id
-      )
-    GROUP BY c.customer_id
-    ORDER BY c.name;
-");
-
-
+                            SELECT c.*,
+                                ARRAY_AGG(DISTINCT ct.type_id) AS type_ids,
+                                (
+                                    SELECT jsonb_agg(
+                                        jsonb_build_object(
+                                            'contact_name', cc.contact_name,
+                                            'contact_email', cc.contact_email,
+                                            'contact_mobile_no', cc.contact_mobile_no,
+                                            'contact_position', cc.contact_position,
+                                            'main_contact_person', cc.main_contact_person
+                                        )
+                                    )::json
+                                    FROM customer_contacts cc
+                                    WHERE cc.customer_id = c.customer_id
+                                ) AS contact_persons
+                            FROM customers c
+                            LEFT JOIN customer_types ct
+                                ON c.customer_type::jsonb @> to_jsonb(ct.type_id::text)
+                            WHERE ct.code IN ('REINCO', 'INSCO', 'REINBROKER')
+                            AND EXISTS (
+                                SELECT 1
+                                FROM customer_contacts cc
+                                WHERE cc.customer_id = c.customer_id
+                            )
+                            GROUP BY c.customer_id
+                            ORDER BY c.name;
+                        ");
 
             $users = DB::table('users')->where('is_staff', true)->get();
-
             $pipelines = DB::table('pipelines')->orderBy('year', 'ASC')->get();
             $schedule = QuoteScheduleHeader::orderBy('position', 'asc')->get();
-
 
             return view('Bd_views.intermediaries.pipeline_view', compact(
                 'pipelines',
@@ -676,38 +672,33 @@ class PipelineController
             $data = [$q4_arr, $q5_arr, $q3_arr, $q1_arr, $q2_arr, $q6_arr];
 
             $customers = DB::select("
-            SELECT c.*,
-                ARRAY_AGG(DISTINCT ct.type_id) AS type_ids,
-                (
-                    SELECT jsonb_agg(
-                        jsonb_build_object(
-                            'contact_name', cc.contact_name,
-                            'contact_email', cc.contact_email,
-                            'contact_mobile_no', cc.contact_mobile_no,
-                            'contact_position', cc.contact_position,
-                            'main_contact_person', cc.main_contact_person
-                        )
-                    )::json
+                SELECT c.*,
+                    ARRAY_AGG(DISTINCT ct.type_id) AS type_ids,
+                    (
+                        SELECT jsonb_agg(
+                            jsonb_build_object(
+                                'contact_name', cc.contact_name,
+                                'contact_email', cc.contact_email,
+                                'contact_mobile_no', cc.contact_mobile_no,
+                                'contact_position', cc.contact_position,
+                                'main_contact_person', cc.main_contact_person
+                            )
+                        )::json
+                        FROM customer_contacts cc
+                        WHERE cc.customer_id = c.customer_id
+                    ) AS contact_persons
+                FROM customers c
+                LEFT JOIN customer_types ct
+                    ON c.customer_type::jsonb @> to_jsonb(ct.type_id::text)
+                WHERE ct.code IN ('REINCO', 'INSCO', 'REINBROKER')
+                AND EXISTS (
+                    SELECT 1
                     FROM customer_contacts cc
                     WHERE cc.customer_id = c.customer_id
-                ) AS contact_persons
-            FROM customers c
-            LEFT JOIN customer_types ct
-                ON c.customer_type::jsonb @> to_jsonb(ct.type_id::text)
-            WHERE ct.code IN ('REINCO', 'INSCO', 'REINBROKER')
-              AND EXISTS (
-                  SELECT 1
-                  FROM customer_contacts cc
-                  WHERE cc.customer_id = c.customer_id
-              )
-            GROUP BY c.customer_id
-            ORDER BY c.name;
-        ");
-
-
-
-            // start
-
+                )
+                GROUP BY c.customer_id
+                ORDER BY c.name;
+            ");
 
             $types_of_bus = BusinessType::get(['bus_type_id', 'bus_type_name']);
             $branches = Branch::where('status', 'A')->get(['branch_code', 'branch_name', 'status']);
@@ -728,8 +719,6 @@ class PipelineController
             $currencies = Currency::all();
             $prospProperties = DB::table('pipeline_opportunities')->where('opportunity_id', "=", $request->prospect)->first();
 
-            // dd($Contact_details);
-
             $customers = DB::table('customers')
                 ->join('customer_types', function ($join) {
                     $join->on('customer_types.type_id', '=', DB::raw("ANY (SELECT json_array_elements_text(customers.customer_type)::int)"));
@@ -738,18 +727,12 @@ class PipelineController
                     DB::raw('CAST(customers.customer_id AS INT) as customer_id'),
                     'customers.name'
                 )
-                ->whereIn('customer_types.type_name', ['INSURANCE', 'REINSURANCE']) // Filtering for 'insurance' or 'reinsurance'
+                ->whereIn('customer_types.type_name', ['INSURANCE', 'REINSURANCE'])
                 ->distinct('name')
                 ->get();
 
 
             $reins_divisions = ReinsDivision::where('status', 'A')->get();
-
-
-            // dd($reins_divisions);
-
-
-
             $trans_type = 'NEW';
             $type_of_bus = $request->type_of_bus;
             // dd($trans_type);
@@ -781,11 +764,8 @@ class PipelineController
                 $renewal_date = Carbon::now()->format('Y-m-d');
             }
 
-            // end
-
 
             $users = DB::table('users')->where('is_staff', true)->get();
-
             $pipelines = DB::table('pipelines')->orderBy('year', 'ASC')->get();
             $schedule = QuoteScheduleHeader::where('business_type', 'TRT')->orderBy('position', 'asc')->get();
             $schedule = QuoteScheduleHeader::where('business_type', 'TRT')->orderBy('position', 'asc')->get();
