@@ -261,7 +261,6 @@
                     [25, 50, 100, "All"]
                 ],
                 lengthChange: true,
-
                 processing: true,
                 serverSide: true,
 
@@ -273,17 +272,11 @@
                 },
                 scrollX: true,
                 scrollCollapse: true,
-
                 searching: true,
                 searchDelay: 500,
-
                 order: [
                     [8, 'desc']
                 ],
-
-                // stateSave: true,
-                // stateDuration: 60 * 60 * 24, // 24 hours
-
                 language: {
                     processing: '<div class="d-flex justify-content-center"><div class="spinner-border text-primary" role="status"><span class="sr-only">Loading...</span></div></div>',
                     emptyTable: "No approval records found",
@@ -299,7 +292,6 @@
                         previous: "Previous"
                     }
                 },
-
                 ajax: {
                     url: "{{ route('approvals.approval-data') }}",
                     data: function(d) {

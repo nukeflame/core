@@ -113,16 +113,19 @@ Route::middleware(['auth', 'check.first.login'])->group(function () {
     Route::get('pipelines/{pipeline}', [PipelineController::class, 'getpipelineDetails'])->name('getpipelineDetails');
     // Route::get('pipelines_view', [PipelineController::class, 'pipeline_view'])->name('pipeline.view');
     Route::post('pipelines_create_opportunity', [PipelineController::class, 'pipeline_create_opportunity'])->name('pipeline.create.opportunity');
-    Route::get('pipelines_activity', [PipelineController::class, 'pipeline_activity'])->name('pipeline.activity');
+    // Route::get('pipelines_activity', [PipelineController::class, 'pipeline_activity'])->name('pipeline.activity');
     Route::get('pipelines_activity_treaty', [PipelineController::class, 'pipeline_activity_treaty'])->name('pipeline.activity.treaty');
     Route::get('bd_handovers', [PipelineController::class, 'bd_handovers'])->name('pipeline.bd_handovers');
     Route::get('bd_handovers_datatable', [PipelineController::class, 'bd_handovers_datatable'])->name('pipeline.bd_handovers_datatable');
 
     Route::post('update_category_type', [PipelineController::class, 'update_category'])->name('update.category_type'); //update category type
-    Route::get('pipelines_activityq1', [PipelineController::class, 'pipeline_activity_q1'])->name('pipeline.activity.q1');
-    Route::get('pipelines_activityq2', [PipelineController::class, 'pipeline_activity_q2'])->name('pipeline.activity.q2');
-    Route::get('pipelines_activityq3', [PipelineController::class, 'pipeline_activity_q3'])->name('pipeline.activity.q3');
-    Route::get('pipelines_activityq4', [PipelineController::class, 'pipeline_activity_q4'])->name('pipeline.activity.q4');
+    // Route::get('pipelines_activityq1', [PipelineController::class, 'pipeline_activity_q1'])->name('pipeline.activity.q1');
+    // Route::get('pipelines_activityq2', [PipelineController::class, 'pipeline_activity_q2'])->name('pipeline.activity.q2');
+    // Route::get('pipelines_activityq3', [PipelineController::class, 'pipeline_activity_q3'])->name('pipeline.activity.q3');
+    // Route::get('pipelines_activityq4', [PipelineController::class, 'pipeline_activity_q4'])->name('pipeline.activity.q4');
+
+    Route::get('get-pipeline-data', [PipelineController::class, 'getPipelineData'])->name('pipeline.sales.get_pipeline_data');
+    Route::get('get-pipeline-chart-data', [PipelineController::class, 'getPipelineChartData'])->name('pipeline.sales.get_pipeline_chart_data');
 
     Route::get('pipelines_activityq1_treaty', [PipelineController::class, 'pipeline_activity_q1_treaty'])->name('pipeline.activity.q1.treaty');
     Route::get('pipelines_activityq2_treaty', [PipelineController::class, 'pipeline_activity_q2_treaty'])->name('pipeline.activity.q2.treaty');

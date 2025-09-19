@@ -70,18 +70,12 @@ use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\Bd\SalesReportExport;
 use App\Exports\Bd\PipelineReportExport;
 use App\Exports\Bd\ReinsurersDeclinedExport;
-
-
-
+use Illuminate\Support\Str;
 
 class PipelineController
 {
-
-
-
     public function index(Request $request)
     {
-
         $string = $request->qstring;
         $request = decryptRequest($string);
 
@@ -132,16 +126,19 @@ class PipelineController
 
         return view('Bd_views.intermediaries.pipeline_report', compact('pipelines'));
     }
+
     public function sales_report(Request $request)
     {
         $pipelines = Pipeline::orderBy('year', 'asc')->get();
         return view('Bd_views.intermediaries.sales_report', compact('pipelines'));
     }
+
     public function decline_report(Request $request)
     {
         $pipelines = Pipeline::orderBy('year', 'asc')->get();
         return view('Bd_views.intermediaries.decline_report', compact('pipelines'));
     }
+
     public function sales_report_filter(Request $request)
     {
         $category_type = [];
@@ -199,20 +196,16 @@ class PipelineController
 
     public function decline_report_data(Request $request)
     {
-
         try {
             $year = $request->year;
             $isExport = $request->has('export') && $request->export == 'true';
 
             $opportunityIds = DB::table('pipeline_opportunities')
                 ->where('pip_year', $year)
-                ->pluck('opportunity_id'); // Get only the opportunity_id values
+                ->pluck('opportunity_id');
 
             $query = DB::table('reinsurers_declined')
                 ->whereIn('opportunity_id', $opportunityIds);
-
-
-
 
             if ($isExport) {
                 if ($isExport) {
@@ -241,10 +234,8 @@ class PipelineController
             $division = $request->division;
 
             $classes = DB::table('class_of_insurance')->where('division', $division)->get();
-            // dd($division);
             $res = ['status' => 1, 'classes' => $classes];
         } catch (\Throwable $e) {
-            // dd($e);
             $res = ['status' => 0];
         }
         return $res;
@@ -269,7 +260,6 @@ class PipelineController
                 ->where('opportunity_id', $prospect)->first();
 
 
-            // $stage = $stage_id +1;
             $engage = $pros->engage_type;
 
 
@@ -314,9 +304,6 @@ class PipelineController
                     ->select('doc_types.id', 'doc_types.doc_type', 'doc_types.checkbox_doc', 'doc_types.file_name', 'doc_types.id', 'stage_documents.mandatory')
                     ->get();
             }
-
-
-
 
             // Get the latest quote reinsurers with unique reinsurer_id
             $latestRecords = DB::table('quote_reinsurers')
@@ -397,7 +384,6 @@ class PipelineController
     public function getLeadDetails($leadId)
     {
         try {
-            // Fetch the lead details based on the given lead ID
             $lead = Leads::where('code', $leadId)->first();
 
             return response()->json([
@@ -405,17 +391,15 @@ class PipelineController
                 'data' => $lead,
             ]);
         } catch (\Exception $e) {
-            // If the lead with the given ID is not found or any other error occurs
             return response()->json([
                 'status' => 'error',
                 'message' => 'Lead not found or an error occurred.',
-            ], 404); // You can customize the HTTP response status code as needed
+            ], 404);
         }
     }
 
     public function pipelines_get()
     {
-
         $data = Pipeline::all();
 
         return Datatables::of($data)
@@ -444,11 +428,11 @@ class PipelineController
             ->rawColumns(['action'])
             ->make(true);
     }
+
     public function returnImportExcelView()
     {
         return view('Bd_views.intermediaries.excelimport');
     }
-
 
     public function importExcel(Request $request)
     {
@@ -503,115 +487,130 @@ class PipelineController
 
     public function pipeline_view(Request $request)
     {
+        // try {
+        //     if (is_null($request->pipeline)) {
+        //         $currentyear = Carbon::now()->year;
+        //         $pip_id = DB::table('pipelines')->where('year', $currentyear)->first()->id;
+        //     } else {
+        //         $pip_id = $request->pipeline;
+        //     }
+
+        //     $opportunities = Leads::all();
+        //     $statuses = LeadStatus::all();
+        //     $underwriters = DB::table('companies')->get();
+
+        //     $q1_pipe_opps = DB::table('pipeline_opportunities')->where('pipeline_id', $pip_id)->where('fiscal_period', 1)->get();
+        //     $q2_pipe_opps = DB::table('pipeline_opportunities')->where('pipeline_id', $pip_id)->where('fiscal_period', 2)->get();
+        //     $q3_pipe_opps = DB::table('pipeline_opportunities')->where('pipeline_id', $pip_id)->where('fiscal_period', 3)->get();
+        //     $q4_pipe_opps = DB::table('pipeline_opportunities')->where('pipeline_id', $pip_id)->where('fiscal_period', 4)->get();
+        //     $pip = $pip_id;
+
+        //     $q1_won = collect($q1_pipe_opps)->where('stage', 5)->count();
+        //     $q2_won = collect($q2_pipe_opps)->where('stage', 5)->count();
+        //     $q3_won = collect($q3_pipe_opps)->where('stage', 5)->count();
+        //     $q4_won = collect($q4_pipe_opps)->where('stage', 5)->count();
+
+        //     $q1_lost = collect($q1_pipe_opps)->where('stage', 6)->count();
+        //     $q2_lost = collect($q2_pipe_opps)->where('stage', 6)->count();
+        //     $q3_lost = collect($q3_pipe_opps)->where('stage', 6)->count();
+        //     $q4_lost = collect($q4_pipe_opps)->where('stage', 6)->count();
+
+        //     $q1_lead = collect($q1_pipe_opps)->where('stage', 1)->count();
+        //     $q2_lead = collect($q2_pipe_opps)->where('stage', 1)->count();
+        //     $q3_lead = collect($q3_pipe_opps)->where('stage', 1)->count();
+        //     $q4_lead = collect($q4_pipe_opps)->where('stage', 1)->count();
+
+        //     $q1_proposal = collect($q1_pipe_opps)->where('stage', 2)->count();
+        //     $q2_proposal = collect($q2_pipe_opps)->where('stage', 2)->count();
+        //     $q3_proposal = collect($q3_pipe_opps)->where('stage', 2)->count();
+        //     $q4_proposal = collect($q4_pipe_opps)->where('stage', 2)->count();
+
+        //     $q1_negotiation = collect($q1_pipe_opps)->where('stage', 3)->count();
+        //     $q2_negotiation = collect($q2_pipe_opps)->where('stage', 3)->count();
+        //     $q3_negotiation = collect($q3_pipe_opps)->where('stage', 3)->count();
+        //     $q4_negotiation = collect($q4_pipe_opps)->where('stage', 3)->count();
+
+        //     $q1_final_stage = collect($q1_pipe_opps)->where('stage', 4)->count();
+        //     $q2_final_stage = collect($q2_pipe_opps)->where('stage', 4)->count();
+        //     $q3_final_stage = collect($q3_pipe_opps)->where('stage', 4)->count();
+        //     $q4_final_stage = collect($q4_pipe_opps)->where('stage', 4)->count();
+
+        //     $q1_arr = [$q1_won, $q2_won, $q3_won, $q4_won];
+        //     $q2_arr = [$q1_lost, $q2_lost, $q3_lost, $q4_lost];
+        //     $q3_arr = [$q1_lead, $q2_lead, $q3_lead, $q4_lead];
+        //     $q4_arr = [$q1_proposal, $q2_proposal, $q3_proposal, $q4_proposal];
+        //     $q5_arr = [$q1_negotiation, $q2_negotiation, $q3_negotiation, $q4_negotiation];
+        //     $q6_arr = [$q1_final_stage, $q2_final_stage, $q3_final_stage, $q4_final_stage];
+
+        //     $data = [$q4_arr, $q5_arr, $q3_arr, $q1_arr, $q2_arr, $q6_arr];
+
+        //     $customers = DB::select("
+        //                     SELECT c.*,
+        //                         ARRAY_AGG(DISTINCT ct.type_id) AS type_ids,
+        //                         (
+        //                             SELECT jsonb_agg(
+        //                                 jsonb_build_object(
+        //                                     'contact_name', cc.contact_name,
+        //                                     'contact_email', cc.contact_email,
+        //                                     'contact_mobile_no', cc.contact_mobile_no,
+        //                                     'contact_position', cc.contact_position,
+        //                                     'main_contact_person', cc.main_contact_person
+        //                                 )
+        //                             )::json
+        //                             FROM customer_contacts cc
+        //                             WHERE cc.customer_id = c.customer_id
+        //                         ) AS contact_persons
+        //                     FROM customers c
+        //                     LEFT JOIN customer_types ct
+        //                         ON c.customer_type::jsonb @> to_jsonb(ct.type_id::text)
+        //                     WHERE ct.code IN ('REINCO', 'INSCO', 'REINBROKER')
+        //                     AND EXISTS (
+        //                         SELECT 1
+        //                         FROM customer_contacts cc
+        //                         WHERE cc.customer_id = c.customer_id
+        //                     )
+        //                     GROUP BY c.customer_id
+        //                     ORDER BY c.name;
+        //                 ");
+
+        //     $users = DB::table('users')->where('is_staff', true)->get();
+        //     $pipelines = DB::table('pipelines')->orderBy('year', 'ASC')->get();
+        //     $schedule = QuoteScheduleHeader::orderBy('position', 'asc')->get();
+
+        //     return view('Bd_views.intermediaries.pipeline_view', compact(
+        //         'pipelines',
+        //         'statuses',
+        //         'pip',
+        //         'q1_pipe_opps',
+        //         'q2_pipe_opps',
+        //         'q3_pipe_opps',
+        //         'q4_pipe_opps',
+        //         'opportunities',
+        //         'data',
+        //         'underwriters',
+        //         'customers',
+        //         'schedule',
+        //         'users'
+        //     ));
+        // } catch (\Exception $e) {
+        //     return redirect()->back()->with('error', 'An error occurred');
+        // }
+
         try {
-            if (is_null($request->pipeline)) {
-                $currentyear = Carbon::now()->year;
-                $pip_id = DB::table('pipelines')->where('year', $currentyear)->first()->id;
-            } else {
-                $pip_id = $request->pipeline;
-            }
+            $currentyear = Carbon::now()->year;
+            $pipelines = DB::table('pipelines')->where('year', $currentyear);
 
-            $opportunities = Leads::all();
-            $statuses = LeadStatus::all();
-            $underwriters = DB::table('companies')->get();
-
-            $q1_pipe_opps = DB::table('pipeline_opportunities')->where('pipeline_id', $pip_id)->where('fiscal_period', 1)->get();
-            $q2_pipe_opps = DB::table('pipeline_opportunities')->where('pipeline_id', $pip_id)->where('fiscal_period', 2)->get();
-            $q3_pipe_opps = DB::table('pipeline_opportunities')->where('pipeline_id', $pip_id)->where('fiscal_period', 3)->get();
-            $q4_pipe_opps = DB::table('pipeline_opportunities')->where('pipeline_id', $pip_id)->where('fiscal_period', 4)->get();
-            $pip = $pip_id;
-
-            $q1_won = collect($q1_pipe_opps)->where('stage', 5)->count();
-            $q2_won = collect($q2_pipe_opps)->where('stage', 5)->count();
-            $q3_won = collect($q3_pipe_opps)->where('stage', 5)->count();
-            $q4_won = collect($q4_pipe_opps)->where('stage', 5)->count();
-
-            $q1_lost = collect($q1_pipe_opps)->where('stage', 6)->count();
-            $q2_lost = collect($q2_pipe_opps)->where('stage', 6)->count();
-            $q3_lost = collect($q3_pipe_opps)->where('stage', 6)->count();
-            $q4_lost = collect($q4_pipe_opps)->where('stage', 6)->count();
-
-            $q1_lead = collect($q1_pipe_opps)->where('stage', 1)->count();
-            $q2_lead = collect($q2_pipe_opps)->where('stage', 1)->count();
-            $q3_lead = collect($q3_pipe_opps)->where('stage', 1)->count();
-            $q4_lead = collect($q4_pipe_opps)->where('stage', 1)->count();
-
-            $q1_proposal = collect($q1_pipe_opps)->where('stage', 2)->count();
-            $q2_proposal = collect($q2_pipe_opps)->where('stage', 2)->count();
-            $q3_proposal = collect($q3_pipe_opps)->where('stage', 2)->count();
-            $q4_proposal = collect($q4_pipe_opps)->where('stage', 2)->count();
-
-            $q1_negotiation = collect($q1_pipe_opps)->where('stage', 3)->count();
-            $q2_negotiation = collect($q2_pipe_opps)->where('stage', 3)->count();
-            $q3_negotiation = collect($q3_pipe_opps)->where('stage', 3)->count();
-            $q4_negotiation = collect($q4_pipe_opps)->where('stage', 3)->count();
-
-            $q1_final_stage = collect($q1_pipe_opps)->where('stage', 4)->count();
-            $q2_final_stage = collect($q2_pipe_opps)->where('stage', 4)->count();
-            $q3_final_stage = collect($q3_pipe_opps)->where('stage', 4)->count();
-            $q4_final_stage = collect($q4_pipe_opps)->where('stage', 4)->count();
-
-            $q1_arr = [$q1_won, $q2_won, $q3_won, $q4_won];
-            $q2_arr = [$q1_lost, $q2_lost, $q3_lost, $q4_lost];
-            $q3_arr = [$q1_lead, $q2_lead, $q3_lead, $q4_lead];
-            $q4_arr = [$q1_proposal, $q2_proposal, $q3_proposal, $q4_proposal];
-            $q5_arr = [$q1_negotiation, $q2_negotiation, $q3_negotiation, $q4_negotiation];
-            $q6_arr = [$q1_final_stage, $q2_final_stage, $q3_final_stage, $q4_final_stage];
-
-            $data = [$q4_arr, $q5_arr, $q3_arr, $q1_arr, $q2_arr, $q6_arr];
-
-            $customers = DB::select("
-                            SELECT c.*,
-                                ARRAY_AGG(DISTINCT ct.type_id) AS type_ids,
-                                (
-                                    SELECT jsonb_agg(
-                                        jsonb_build_object(
-                                            'contact_name', cc.contact_name,
-                                            'contact_email', cc.contact_email,
-                                            'contact_mobile_no', cc.contact_mobile_no,
-                                            'contact_position', cc.contact_position,
-                                            'main_contact_person', cc.main_contact_person
-                                        )
-                                    )::json
-                                    FROM customer_contacts cc
-                                    WHERE cc.customer_id = c.customer_id
-                                ) AS contact_persons
-                            FROM customers c
-                            LEFT JOIN customer_types ct
-                                ON c.customer_type::jsonb @> to_jsonb(ct.type_id::text)
-                            WHERE ct.code IN ('REINCO', 'INSCO', 'REINBROKER')
-                            AND EXISTS (
-                                SELECT 1
-                                FROM customer_contacts cc
-                                WHERE cc.customer_id = c.customer_id
-                            )
-                            GROUP BY c.customer_id
-                            ORDER BY c.name;
-                        ");
-
-            $users = DB::table('users')->where('is_staff', true)->get();
-            $pipelines = DB::table('pipelines')->orderBy('year', 'ASC')->get();
-            $schedule = QuoteScheduleHeader::orderBy('position', 'asc')->get();
-
-            return view('Bd_views.intermediaries.pipeline_view', compact(
-                'pipelines',
-                'statuses',
-                'pip',
-                'q1_pipe_opps',
-                'q2_pipe_opps',
-                'q3_pipe_opps',
-                'q4_pipe_opps',
-                'opportunities',
-                'data',
-                'underwriters',
-                'customers',
-                'schedule',
-                'users'
-            ));
+            $pip = $request->get('pipeline', $pipelines->first()->id ?? null);
+            $pipelines = $pipelines->get();
         } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'An error occurred');
+            logger($e);
+            $pipelines = [];
+            $pip = null;
         }
+
+        return view('Bd_views.intermediaries.pipeline_view', compact('pipelines', 'pip'));
     }
+
     public function treaty_pipeline_view(Request $request)
     {
         try {
@@ -1186,9 +1185,6 @@ class PipelineController
 
     public function treaty_pipeline_create_opportunity(Request $request)
     {
-
-
-
         $mes = '';
 
         if (is_null($request->prospect)) {
@@ -1409,28 +1405,18 @@ class PipelineController
                     'opportunity_id'
 
                 );
-
-
-
                 // foreach ($request->treaty_reinclass as $reinclass) {
                 //     DB::table('bd_reinclasses')->insert([
                 //         'opportunity_id' => $insertedOppId,
                 //         'reinclass' => $reinclass,
                 //     ]);
                 // }
-
-
-
-
-
-
             }
             if ($request->type_of_bus == 'TPR' && !empty($request->treatytype)) {
                 logger('inside prop');
                 $treaty_reinclass = $request->treaty_reinclass;
                 $user = Auth::user()->user_name;
 
-                // Fetch existing bd_reinprops records for matching
                 $existingReinprops = $request->updateState === 'U'
                     ? DB::table('bd_reinprops')
                     ->where('opportunity_id', $insertedOppId)
@@ -1547,12 +1533,10 @@ class PipelineController
                     }
                 }
 
-                // Handle premium types
                 $treaty_reinclass = $request->treaty_reinclass;
                 $prem_type_reinclass = $request->prem_type_reinclass;
                 $prem_type_code = $request->prem_type_code;
 
-                // Fetch existing bd_premtypes records
                 $existingPremtypes = $request->updateState === 'U'
                     ? DB::table('bd_premtypes')
                     ->where('opportunity_id', $insertedOppId)
@@ -1674,7 +1658,6 @@ class PipelineController
             }
 
             DB::commit();
-
             return ['status' => 1, 'message' => $mes];
         } catch (Exception $e) {
             DB::rollback();
@@ -1682,22 +1665,10 @@ class PipelineController
         }
     }
 
-
     public function insertBdReinClass($reinclass, $request, $insertedOppId)
     {
 
         $prospect = $request->prospect;
-
-        // $CoverRegister = DB::table('bd_reinclasses')->where('opportunity_id', $prospect)->first();
-
-        // $BdReinclass = DB::table('bd_reinclasses')->insert(
-        //     [
-        //         'opportunity_id' => $insertedOppId,
-        //         'reinclass' => $reinclass,
-        //         // 'created_by' => Auth::user()->user_name
-        //     ]
-        // );
-
 
         DB::table('bd_reinclasses')->updateOrInsert(
             [
@@ -1705,8 +1676,6 @@ class PipelineController
                 'reinclass' => $reinclass,
             ],
         );
-
-        Log::info('Processed bd_reinclasses', ['opportunity_id' => $insertedOppId, 'reinclass' => $reinclass]);
     }
 
     public function search_prospect_fullnames(Request $request)
@@ -1714,39 +1683,36 @@ class PipelineController
 
         $searchTerm = $request->input('q');
 
-        $prospProperties = DB::table(DB::raw("
-    (
-        SELECT
-            pipeline_id,
-            jsonb_array_elements_text(contact_name::jsonb) AS matched_name,
-            jsonb_array_elements_text(email::jsonb) AS matched_email,
-            jsonb_array_elements_text(phone::jsonb) AS matched_phone,
-            jsonb_array_elements_text(telephone::jsonb) AS matched_telephone
-        FROM pipeline_opportunities
-        WHERE
-            jsonb_typeof(contact_name::jsonb) = 'array'
-            AND jsonb_typeof(email::jsonb) = 'array'
-            AND jsonb_typeof(phone::jsonb) = 'array'
-            AND jsonb_typeof(telephone::jsonb) = 'array'
-    ) AS subquery
-"))
-            ->selectRaw("
-    DISTINCT ON (matched_name)
-    pipeline_id,
-    matched_name AS contact_name,
-    matched_email AS email,
-    matched_phone AS phone,
-    matched_telephone AS telephone
-")
+        $prospProperties = DB::table(DB::raw("(
+                    SELECT
+                        pipeline_id,
+                        jsonb_array_elements_text(contact_name::jsonb) AS matched_name,
+                        jsonb_array_elements_text(email::jsonb) AS matched_email,
+                        jsonb_array_elements_text(phone::jsonb) AS matched_phone,
+                        jsonb_array_elements_text(telephone::jsonb) AS matched_telephone
+                    FROM pipeline_opportunities
+                    WHERE
+                        jsonb_typeof(contact_name::jsonb) = 'array'
+                        AND jsonb_typeof(email::jsonb) = 'array'
+                        AND jsonb_typeof(phone::jsonb) = 'array'
+                        AND jsonb_typeof(telephone::jsonb) = 'array'
+                ) AS subquery
+            "))->selectRaw("
+                DISTINCT ON (matched_name)
+                pipeline_id,
+                matched_name AS contact_name,
+                matched_email AS email,
+                matched_phone AS phone,
+                matched_telephone AS telephone
+            ")
             ->whereRaw("matched_name ILIKE ?", ["%{$searchTerm}%"])
             ->orderByRaw("matched_name, pipeline_id")
             ->limit(10)
             ->get();
 
-
-        logger($prospProperties);
         return response()->json($prospProperties);
     }
+
     public function search_insured_names(Request $request)
     {
 
@@ -1760,6 +1726,7 @@ class PipelineController
 
         return response()->json($prospProperties);
     }
+
     public function search_lead_names(Request $request)
     {
 
@@ -1772,8 +1739,6 @@ class PipelineController
 
         return response()->json($prospProperties);
     }
-
-
 
     public function confirmUserExists(Request $request)
     {
@@ -1872,8 +1837,6 @@ class PipelineController
             ];
         }
 
-        // dd($Contact_details);
-
         $customers = DB::table('customers')
             ->join('customer_types', function ($join) {
                 $join->on('customer_types.type_id', '=', DB::raw("ANY (SELECT json_array_elements_text(customers.customer_type)::int)"));
@@ -1946,14 +1909,10 @@ class PipelineController
         ];
         $allVariables = array_merge($commonVariables, $otherVariabales);
 
-        // end new code
-
         $prospect = $request->prospect;
-
         $occupations = Occupation::all();
 
         $salutations = Salutation::all();
-
         $genders = Gender::all();
         $divisions = DB::table('divisions')->get();
 
@@ -2520,7 +2479,6 @@ class PipelineController
 
     public function prospects_won_view(Request $request)
     {
-
         $string = $request->qstring;
         $request = decryptRequest($string);
         $prospect = $request->prospect;
@@ -2568,7 +2526,6 @@ class PipelineController
         $contact_persons = DB::table('customer_contacts')->where('customer_id', $cedant)->get(['customer_id', 'contact_name', 'contact_email']);
         return response()->json(['cedantDetails' => $cedantDetails, 'contact_person' => $contact_persons]);
     }
-
 
     public function Report_data(Request $request)
     {
@@ -2871,6 +2828,7 @@ class PipelineController
 
         return response()->json(['quote_schedules' => $quote_schedules]);
     }
+
     public function get_schedules_data(Request $request)
     {
         $classCode = $request->classCode;
@@ -2888,201 +2846,422 @@ class PipelineController
         ]);
     }
 
-
-
-
-
-    public function pipeline_activity(Request $request)
+    public function getPipelineData(Request $request)
     {
         try {
-            $business_types = $request->business_types;
+            $pipelineId = $request->get('pipeline_id');
+            $quarter = Str::lower($request->get('quarter'));
 
-            $activities = DB::table('pipeline_opportunities')
-                ->leftJoin('handover_approvals', 'pipeline_opportunities.opportunity_id', '=', 'handover_approvals.prospect_id')
-                ->where('pipeline_id', $request->pipe_id)
-                ->where('stage', '>=', 1)
-                ->whereIn('type_of_bus', $business_types)
-                ->get();
+            $query = $this->buildOpportunityQuery($pipelineId, $quarter);
 
-            return Datatables::of($activities)
-                ->addColumn('customer_name', function ($d): mixed {
+            $draw = $request->get('draw');
+            $start = $request->get('start', 0);
+            $length = $request->get('length', 10);
+            $searchValue = $request->get('search')['value'] ?? '';
 
-                    if (empty($d->customer_id)) {
-                        return 'N/A';
-                    }
+            if (!empty($searchValue)) {
+                $query->where(function ($q) use ($searchValue) {
+                    $q->where('insured_name', 'LIKE', "%{$searchValue}%")
+                        ->orWhere('division', 'LIKE', "%{$searchValue}%")
+                        ->orWhere('business_class', 'LIKE', "%{$searchValue}%");
+                });
+            }
 
-                    $lead = DB::table('customers')
-                        ->where('customer_id', (int) $d->customer_id)
-                        ->first();
+            $totalRecords = $query->count();
+            $filteredRecords = $totalRecords;
 
-                    return $lead ? $lead->name : 'N/A';
-                })
-                ->editColumn('stage', function ($d) {
-                    if ($d->category_type == 1) {
-                        $query = DB::table('lead_status')
-                            ->where('id', $d->stage)
-                            ->where('category_type', $d->category_type)
-                            ->first();
+            $opportunities = $query->skip($start)->take($length)->get();
 
-                        if (is_null($query)) {
-                            return '';
-                        }
-                        if ($query->category_type == 1) {
-                            if ($d->handed_over == 'Y') {
-                                return $query->status_name . ' (handed ov)';
-                            }
-                            return $query->status_name;
-                        }
-                        if ($query->category_type == 2) {
-                            if ($d->handed_over == 'Y') {
-                                return $query->status_name . ' (handed ov)';
-                            }
-                            return $query->status_name;
-                        }
+            $data = $opportunities->map(function ($opp) {
+                return [
+                    'id' => $opp->id,
+                    'insured_name' => $opp->insured_name,
+                    'division' => $this->getDivision($opp->divisions),
+                    'business_class' => $this->getBusinessClass($opp->classcode),
+                    'currency' => $opp->currency_code,
+                    'sum_insured' => $this->formatNumber($opp->effective_sum_insured),
+                    'premium' => $this->formatNumber($opp->cede_premium),
+                    'effective_date' => $opp->effective_date ? Carbon::parse($opp->effective_date)->format('Y-m-d') : null,
+                    'closing_date' =>  $opp->closing_date ? Carbon::parse($opp->closing_date)->format('Y-m-d') : null,
+                    'status' => $this->formatStatus($opp->status),
+                    'category' => $this->formatCategory($opp->category_type),
+                    'approval_status' => $this->formatApprovalStatus($opp->handed_over),
+                    'action' => $this->getActionButtons($opp->id)
+                ];
+            });
 
-                        // return $query->status_name ;
-                    }
-                    if ($d->category_type == 2) {
-                        $query = DB::table('lead_status')
-                            ->where('id', $d->stage)
-                            ->where('category_type', $d->category_type)
-                            ->first();
+            return response()->json([
+                'draw' => intval($draw),
+                'recordsTotal' => $totalRecords,
+                'recordsFiltered' => $filteredRecords,
+                'data' => $data
+            ]);
+        } catch (\Exception $e) {
+            logger()->debug($e);
+            return response()->json([
+                'error' => 'Failed to load pipeline data',
+                'message' => $e->getMessage()
+            ], 500);
+        }
 
-                        if (is_null($query)) {
-                            return '';
-                        }
-                        if ($query->category_type == 2) {
-                            return $query->status_name;
-                        } else {
-                            return $query->status_name;
-                        }
-                    }
-                })
-                ->addColumn('division_name', function ($d) {
-                    $division = DB::table('reins_division')->where('division_code', $d->divisions)->first();
-                    if (is_null($division)) {
-                        return '';
-                    }
-                    return $division ? $division->division_name : 'N/A';
-                })
-                ->addColumn('business_class', function ($d) {
-                    $business_class = DB::table('classes')->where('class_code', $d->classcode)->first();
-                    if (is_null($business_class)) {
-                        return '';
-                    }
-                    return $business_class ? $business_class->class_name : 'N/A';
-                })
+        // $business_types = $request->business_types;
 
-                ->addColumn('cedant_premium', function ($d) {
-                    return number_format($d->cede_premium, 2, '.', ',');
-                })
-                ->addColumn('reinsurer_premium', function ($d) {
-                    return number_format($d->rein_premium, 2, '.', ',');
-                })
-                ->addColumn('edit', function ($d) {
-                    if ($d->category_type && $d->stage != 1 && $d->stage != 5 && $d->stage != 4) {
-                        return '<a href="#" class="text-white update_proposal btn btn-sm btn-success rounded-pill" title="Udate proposal" data-stage="' . $d->stage . '" data-division="' . $d->divisions . '" data-opp="' . $d->opportunity_id . '" data-category_type="' . $d->category_type . '" " data-status="' . $d->status . '"> <i class="bx bx-refresh"></i>Edit</a>';
-                    } else {
-                    }
-                })
-                ->addColumn('action1', function ($d) {
-                    if ($d->category_type == 1) {
-                        return '<span class="badge bg-success">Quotation</span>';
-                    }
-                    if ($d->category_type == 2) {
-                        return '<span class="badge btn-primary" style="font-size: 10px; padding: 2px 5px;">Facultative offer</span>';
-                    } else {
-                    }
-                })
+        // $activities = DB::table('pipeline_opportunities')
+        //     ->leftJoin('handover_approvals', 'pipeline_opportunities.opportunity_id', '=', 'handover_approvals.prospect_id')
+        //     ->where('pipeline_id', $request->pipe_id)
+        //     ->where('stage', '>=', 1)
+        //     ->whereIn('type_of_bus', $business_types)
+        //     ->get();
 
-                ->addColumn('approval_status', function ($d) {
-                    return ($d->handed_over === 'Y')
-                        ? ($d->approval_status === '0'
-                            ? '<a href="#" title="click" data-rej-text="' . $d->reason_for_rejection . '" class="btn btn-sm btn-danger rounded-pill rej-text">
-                                    <i class="bi bi-x-circle"></i> Rejected
-                               </a>'
-                            : ($d->approval_status === '1'
-                                ? '<a href="#" title="click" data-rej-text="' . $d->approval_comment . '" class="btn btn-sm btn-success rej-text">
-                                        <i class="bi bi-check-circle"></i> Approved
-                                   </a>'
-                                : '<span class="badge bg-warning text-dark"><i class="bi bi-clock"></i> Pending</span>'
-                            )
-                        )
-                        : '';
-                })
+        // return Datatables::of([])
+        //     ->addColumn('customer_name', function ($d): mixed {
+
+        //         if (empty($d->customer_id)) {
+        //             return 'N/A';
+        //         }
+
+        //         $lead = DB::table('customers')
+        //             ->where('customer_id', (int) $d->customer_id)
+        //             ->first();
+
+        //         return $lead ? $lead->name : 'N/A';
+        //     })
+        //     ->editColumn('stage', function ($d) {
+        //         if ($d->category_type == 1) {
+        //             $query = DB::table('lead_status')
+        //                 ->where('id', $d->stage)
+        //                 ->where('category_type', $d->category_type)
+        //                 ->first();
+
+        //             if (is_null($query)) {
+        //                 return '';
+        //             }
+        //             if ($query->category_type == 1) {
+        //                 if ($d->handed_over == 'Y') {
+        //                     return $query->status_name . ' (handed ov)';
+        //                 }
+        //                 return $query->status_name;
+        //             }
+        //             if ($query->category_type == 2) {
+        //                 if ($d->handed_over == 'Y') {
+        //                     return $query->status_name . ' (handed ov)';
+        //                 }
+        //                 return $query->status_name;
+        //             }
+
+        //             // return $query->status_name ;
+        //         }
+        //         if ($d->category_type == 2) {
+        //             $query = DB::table('lead_status')
+        //                 ->where('id', $d->stage)
+        //                 ->where('category_type', $d->category_type)
+        //                 ->first();
+
+        //             if (is_null($query)) {
+        //                 return '';
+        //             }
+        //             if ($query->category_type == 2) {
+        //                 return $query->status_name;
+        //             } else {
+        //                 return $query->status_name;
+        //             }
+        //         }
+        //     })
+        //     ->addColumn('division_name', function ($d) {
+        //         $division = DB::table('reins_division')->where('division_code', $d->divisions)->first();
+        //         if (is_null($division)) {
+        //             return '';
+        //         }
+        //         return $division ? $division->division_name : 'N/A';
+        //     })
+        //     ->addColumn('business_class', function ($d) {
+        //         $business_class = DB::table('classes')->where('class_code', $d->classcode)->first();
+        //         if (is_null($business_class)) {
+        //             return '';
+        //         }
+        //         return $business_class ? $business_class->class_name : 'N/A';
+        //     })
+
+        //     ->addColumn('cedant_premium', function ($d) {
+        //         return number_format($d->cede_premium, 2, '.', ',');
+        //     })
+        //     ->addColumn('reinsurer_premium', function ($d) {
+        //         return number_format($d->rein_premium, 2, '.', ',');
+        //     })
+        //     ->addColumn('edit', function ($d) {
+        //         if ($d->category_type && $d->stage != 1 && $d->stage != 5 && $d->stage != 4) {
+        //             return '<a href="#" class="text-white update_proposal btn btn-sm btn-success rounded-pill" title="Udate proposal" data-stage="' . $d->stage . '" data-division="' . $d->divisions . '" data-opp="' . $d->opportunity_id . '" data-category_type="' . $d->category_type . '" " data-status="' . $d->status . '"> <i class="bx bx-refresh"></i>Edit</a>';
+        //         } else {
+        //         }
+        //     })
+        //     ->addColumn('action1', function ($d) {
+        //         if ($d->category_type == 1) {
+        //             return '<span class="badge bg-success">Quotation</span>';
+        //         }
+        //         if ($d->category_type == 2) {
+        //             return '<span class="badge btn-primary" style="font-size: 10px; padding: 2px 5px;">Facultative offer</span>';
+        //         } else {
+        //         }
+        //     })
+
+        //     ->addColumn('approval_status', function ($d) {
+        //         return ($d->handed_over === 'Y')
+        //             ? ($d->approval_status === '0'
+        //                 ? '<a href="#" title="click" data-rej-text="' . $d->reason_for_rejection . '" class="btn btn-sm btn-danger rounded-pill rej-text">
+        //                             <i class="bi bi-x-circle"></i> Rejected
+        //                        </a>'
+        //                 : ($d->approval_status === '1'
+        //                     ? '<a href="#" title="click" data-rej-text="' . $d->approval_comment . '" class="btn btn-sm btn-success rej-text">
+        //                                 <i class="bi bi-check-circle"></i> Approved
+        //                            </a>'
+        //                     : '<span class="badge bg-warning text-dark"><i class="bi bi-clock"></i> Pending</span>'
+        //                 )
+        //             )
+        //             : '';
+        //     })
 
 
-                ->addColumn('action', function ($d) {
-                    if ($d->category_type == 1 && $d->stage != 5 || $d->category_type == 2 && $d->stage != 5) {
-                        $cedant = DB::table('customers')->where('customer_id', $d->customer_id)->first();
+        //     ->addColumn('action', function ($d) {
+        //         if ($d->category_type == 1 && $d->stage != 5 || $d->category_type == 2 && $d->stage != 5) {
+        //             $cedant = DB::table('customers')->where('customer_id', $d->customer_id)->first();
 
-                        return '<a href="#"
-                        class="text-white update_status btn btn-sm btn-success rounded-pill"
-                        title="Update status"
-                        data-stage="' . e($d->stage) . '"
-                        data-division="' . e($d->divisions) . '"
-                        data-opp="' . e($d->opportunity_id) . '"
-                        data-category_type="' . e($d->category_type) . '"
-                        data-status="' . e($d->status) . '"
-                        data-sum-insured-type="' . e($d->sum_insured_type) . '"
-                        data-premium="' . e($d->rein_premium) . '"
-                        data-sum-insured="' . e($d->effective_sum_insured) . '"
-                        data-reins-comm-rate="' . e($d->reins_comm_rate) . '"
-                        data-fac-share-offered="' . e($d->fac_share_offered) . '"
-                        data-cedant-comm-rate="' . e($d->comm_rate) . '"
-                        data-classcode="' . e($d->classcode) . '"
-                        data-classgroup="' . e($d->class_group) . '"
-                        data-insured-name="' . e($d->insured_name) . '"
-                        data-data-exist-flag="' . e($d->data_exists_flag) . '"
-                        data-type-of-bus="' . e($d->type_of_bus) . '"
-                        data-cedant="' . e($cedant->name) . '"
+        //             return '<a href="#"
+        //                 class="text-white update_status btn btn-sm btn-success rounded-pill"
+        //                 title="Update status"
+        //                 data-stage="' . e($d->stage) . '"
+        //                 data-division="' . e($d->divisions) . '"
+        //                 data-opp="' . e($d->opportunity_id) . '"
+        //                 data-category_type="' . e($d->category_type) . '"
+        //                 data-status="' . e($d->status) . '"
+        //                 data-sum-insured-type="' . e($d->sum_insured_type) . '"
+        //                 data-premium="' . e($d->rein_premium) . '"
+        //                 data-sum-insured="' . e($d->effective_sum_insured) . '"
+        //                 data-reins-comm-rate="' . e($d->reins_comm_rate) . '"
+        //                 data-fac-share-offered="' . e($d->fac_share_offered) . '"
+        //                 data-cedant-comm-rate="' . e($d->comm_rate) . '"
+        //                 data-classcode="' . e($d->classcode) . '"
+        //                 data-classgroup="' . e($d->class_group) . '"
+        //                 data-insured-name="' . e($d->insured_name) . '"
+        //                 data-data-exist-flag="' . e($d->data_exists_flag) . '"
+        //                 data-type-of-bus="' . e($d->type_of_bus) . '"
+        //                 data-cedant="' . e($cedant->name) . '"
 
 
-                        <i class="bx bx-refresh"></i> Update status
-                    </a>';
-                    } else if (
-                        ($d->category_type == 1 && $d->stage == 5 && $d->handed_over == '') ||
-                        ($d->category_type == 2 && $d->stage == 5 && $d->handed_over == '')
-                    ) {
-                        return '<a href="' . route('lead.handover', ['prospect' => $d->opportunity_id, 'approval' => 0]) . '"
-                        class="text-white update_status btn btn-sm btn-success rounded-pill"
-                        title="Update status"
-                        data-stage="' . $d->stage . '"
-                        data-division="' . $d->divisions . '"
-                        data-opp="' . $d->opportunity_id . '"
-                        data-category_type="' . $d->category_type . '"
-                        data-status="' . $d->status . '"
-                        data-sum-insured-type="' . $d->sum_insured_type . '">
-                        <i class="bx bx-refresh"></i>Handover</a>';
-                    } else if (
-                        ($d->category_type == 1 && $d->stage == 5 && $d->handed_over == 'Y' && $d->approval_status === '0') ||
-                        ($d->category_type == 2 && $d->stage == 5 && $d->handed_over == 'Y' && $d->approval_status === '0')
-                    ) {
-                        return '<a href="' . route('lead.handover', ['prospect' => $d->opportunity_id, 'approval' => 0]) . '"
-                        class="text-white update_status btn btn-sm btn-success rounded-pill"
-                        title="Update status"
-                        data-stage="' . $d->stage . '"
-                        data-division="' . $d->divisions . '"
-                        data-opp="' . $d->opportunity_id . '"
-                        data-category_type="' . $d->category_type . '"
-                        data-status="' . $d->status . '"
-                        data-sum-insured-type="' . $d->sum_insured_type . '">
-                        <i class="bx bx-refresh"></i>Handover</a>';
-                    } else if ($d->category_type == '') {
-                        return '<a href="#"
-                        class="text-white update_category btn btn-sm btn-dark rounded-pill"
-                        data-stage="' . $d->stage . '"
-                        data-division="' . $d->divisions . '"
-                        data-opp="' . $d->opportunity_id . '">
-                        <i class="bx bx-edit-alt"></i>Update Category</a>';
-                    }
-                })
-                ->rawColumns(['edit', 'action1', 'action', 'approval_status'])
-                ->make(true);
-        } catch (Exception $e) {
-            return response()->json(['error' => 'Something went wrong'], 500);
+        //                 <i class="bx bx-refresh"></i> Update status
+        //             </a>';
+        //         } else if (
+        //             ($d->category_type == 1 && $d->stage == 5 && $d->handed_over == '') ||
+        //             ($d->category_type == 2 && $d->stage == 5 && $d->handed_over == '')
+        //         ) {
+        //             return '<a href="' . route('lead.handover', ['prospect' => $d->opportunity_id, 'approval' => 0]) . '"
+        //                 class="text-white update_status btn btn-sm btn-success rounded-pill"
+        //                 title="Update status"
+        //                 data-stage="' . $d->stage . '"
+        //                 data-division="' . $d->divisions . '"
+        //                 data-opp="' . $d->opportunity_id . '"
+        //                 data-category_type="' . $d->category_type . '"
+        //                 data-status="' . $d->status . '"
+        //                 data-sum-insured-type="' . $d->sum_insured_type . '">
+        //                 <i class="bx bx-refresh"></i>Handover</a>';
+        //         } else if (
+        //             ($d->category_type == 1 && $d->stage == 5 && $d->handed_over == 'Y' && $d->approval_status === '0') ||
+        //             ($d->category_type == 2 && $d->stage == 5 && $d->handed_over == 'Y' && $d->approval_status === '0')
+        //         ) {
+        //             return '<a href="' . route('lead.handover', ['prospect' => $d->opportunity_id, 'approval' => 0]) . '"
+        //                 class="text-white update_status btn btn-sm btn-success rounded-pill"
+        //                 title="Update status"
+        //                 data-stage="' . $d->stage . '"
+        //                 data-division="' . $d->divisions . '"
+        //                 data-opp="' . $d->opportunity_id . '"
+        //                 data-category_type="' . $d->category_type . '"
+        //                 data-status="' . $d->status . '"
+        //                 data-sum-insured-type="' . $d->sum_insured_type . '">
+        //                 <i class="bx bx-refresh"></i>Handover</a>';
+        //         } else if ($d->category_type == '') {
+        //             return '<a href="#"
+        //                 class="text-white update_category btn btn-sm btn-dark rounded-pill"
+        //                 data-stage="' . $d->stage . '"
+        //                 data-division="' . $d->divisions . '"
+        //                 data-opp="' . $d->opportunity_id . '">
+        //                 <i class="bx bx-edit-alt"></i>Update Category</a>';
+        //         }
+        //     })
+        //     ->rawColumns(['edit', 'action1', 'action', 'approval_status'])
+        //     ->make(true);
+    }
+
+    //         $division = DB::table('reins_division')->where('division_code', $d->divisions)->first();
+    //         if (is_null($division)) {
+    //             return '';
+    //         }
+    //         return $division ? $division->division_name : 'N/A';
+
+
+    private function getDivision($division)
+    {
+        $division = DB::table('reins_division')->where('division_code', $division)->first();
+        return $division ? $division->division_name : 'N/A';
+    }
+
+    private function getBusinessClass($classcode)
+    {
+        $business_class = DB::table('classes')->where('class_code', $classcode)->first();
+        return $business_class ? $business_class->class_name : 'N/A';
+    }
+
+    private function formatNumber($val, $currency = null)
+    {
+        $curr = $currency ? $currency . ' ' : '';
+
+        return $val !== null && $val !== ''
+            ? "<span class='currency'>{$curr}" . number_format((float) $val, 2) . "</span>"
+            : '0.00';
+    }
+
+    private function formatCategory($category)
+    {
+        $statusClasses = [
+            '1' => 'quotation',
+            '2' => 'facultative offer',
+        ];
+
+        $cat = $statusClasses[(string) $category] ?? 'facultative';
+
+        return "<span class='status-badge {$cat}'>" . ucfirst(str_replace('_', ' ', $cat)) . "</span>";
+    }
+
+    private function formatApprovalStatus($status)
+    {
+        $action = '<span class="badge bg-warning text-dark"><i class="bi bi-clock"></i> Pending</span>';
+        // if ($status === 'Y') {
+
+        // }
+        // ? ($d->approval_status === '0'
+        //     ? '<a href="#" title="click" data-rej-text="' . $d->reason_for_rejection . '" class="btn btn-sm btn-danger rounded-pill rej-text">
+        //                 <i class="bi bi-x-circle"></i> Rejected
+        //            </a>'
+        //     : ($d->approval_status === '1'
+        //         ? '<a href="#" title="click" data-rej-text="' . $d->approval_comment . '" class="btn btn-sm btn-success rej-text">
+        //                     <i class="bi bi-check-circle"></i> Approved
+        //                </a>'
+        //         : '<span class="badge bg-warning text-dark"><i class="bi bi-clock"></i> Pending</span>'
+        //     )
+        // )
+        // : '';
+        return $action;
+    }
+
+    private function buildOpportunityQuery($pipelineId, $quarter)
+    {
+        $query = PipelineOpportunity::where('pipeline_id', $pipelineId);
+
+        if ($quarter !== 'all' && is_numeric($quarter)) {
+            $query->where('fiscal_period', $quarter);
+        }
+
+        return $query;
+    }
+
+    private function getAp($status)
+    {
+        $statusClasses = [
+            'proposal' => 'status-proposal',
+            'negotiation' => 'status-negotiation',
+            'lead' => 'status-lead',
+            'won' => 'status-won',
+            'lost' => 'status-lost',
+            'final_stage' => 'status-final'
+        ];
+
+        $class = $statusClasses[$status] ?? 'badge-secondary';
+        return "<span class='status-badge {$class}'>" . ucfirst(str_replace('_', ' ', $status)) . "</span>";
+    }
+
+
+    //         return ($d->handed_over === 'Y')
+    //             ? ($d->approval_status === '0'
+    //                 ? '<a href="#" title="click" data-rej-text="' . $d->reason_for_rejection . '" class="btn btn-sm btn-danger rounded-pill rej-text">
+    //                             <i class="bi bi-x-circle"></i> Rejected
+    //                        </a>'
+    //                 : ($d->approval_status === '1'
+    //                     ? '<a href="#" title="click" data-rej-text="' . $d->approval_comment . '" class="btn btn-sm btn-success rej-text">
+    //                                 <i class="bi bi-check-circle"></i> Approved
+    //                            </a>'
+    //                     : '<span class="badge bg-warning text-dark"><i class="bi bi-clock"></i> Pending</span>'
+    //                 )
+    //             )
+    //             : '';
+
+    private function formatStatus($status)
+    {
+        $statusClasses = [
+            'proposal' => 'status-proposal',
+            'negotiation' => 'status-negotiation',
+            'lead' => 'status-lead',
+            'won' => 'status-won',
+            'lost' => 'status-lost',
+            'final_stage' => 'status-final'
+        ];
+
+        $class = $statusClasses[$status] ?? 'badge-secondary';
+        return "<span class='status-badge {$class}'>" . ucfirst(str_replace('_', ' ', $status)) . "</span>";
+    }
+
+    private function getActionButtons($id)
+    {
+        $showUrl  = ''; //route('opportunity.show', $id);
+        $editUrl  =  ''; //route('opportunity.edit', $id);
+
+        return "
+        <div class='btn-group'>
+            <button class='btn btn-info btn-sm me-1 edit-pipeline' title='Edit Pipeline'><i class='bx bx-edit'></i></button>
+            <button class='btn btn-sm btn-danger' onclick='deleteOpportunity({$id})'>
+                <i class='bx bx-trash'></i>
+            </button>
+        </div>
+    ";
+    }
+
+    public function getPipelineChartData(Request $request)
+    {
+        try {
+            $pipelineId = $request->get('pipeline_id');
+            $chartData = $this->buildChartData($pipelineId);
+
+            return response()->json($chartData);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Failed to load chart data',
+                'data' => [0, 0, 0, 0, 0, 0]
+            ], 500);
         }
     }
+
+    private function buildChartData($pipelineId)
+    {
+        $statusCounts = PipelineOpportunity::where('pipeline_id', $pipelineId)
+            ->groupBy('status')
+            // ->where('fiscal_period', 3)
+            ->selectRaw('status, count(*) as count')
+            ->pluck('count', 'status')
+            ->toArray();
+
+        $statusOrder = ['proposal', 'negotiation', 'lead', 'won', 'lost', 'final_stage'];
+        $data = [];
+
+        foreach ($statusOrder as $status) {
+            $data[] = $statusCounts[$status] ?? 0;
+        }
+
+        // logger()->debug($data);
+
+        return [
+            'data' => $data,
+            'labels' => ['Proposal', 'Negotiation', 'Lead', 'Won', 'Lost', 'Final Stage'],
+            'colors' => ['#d70206', '#f05b4f', '#f4c63d', '#d17905', '#453d3f', '#59922b']
+        ];
+    }
+
     public function pipeline_activity_treaty(Request $request)
     {
         try {
@@ -3277,6 +3456,7 @@ class PipelineController
             return response()->json(['error' => 'Something went wrong'], 500);
         }
     }
+
     public function update_category(Request $request)
     {
         try {
@@ -3305,6 +3485,7 @@ class PipelineController
             return redirect()->back()->with('error', 'Something went wrong: ' . $e->getMessage());
         }
     }
+
     public function facultativeOffer(Request $request)
     {
         // dd($request->all());
@@ -3416,8 +3597,6 @@ class PipelineController
         }
     }
 
-
-
     public function populate_quotefac_view_data()
     {
         try {
@@ -3455,7 +3634,6 @@ class PipelineController
             ], 500);
         }
     }
-
 
     public function prospects_showdocs(Request $request)
     {
@@ -3637,6 +3815,7 @@ class PipelineController
             return response()->json(['error' => 'Something went wrong'], 500);
         }
     }
+
     public function pipeline_activity_q1_treaty(Request $request)
     {
         // dd($request->all());
@@ -3963,6 +4142,7 @@ class PipelineController
             return response()->json(['error' => 'Something went wrong'], 500);
         }
     }
+
     public function pipeline_activity_q2_treaty(Request $request)
     {
         try {
@@ -4290,6 +4470,7 @@ class PipelineController
             return response()->json(['error' => 'Something went wrong'], 500);
         }
     }
+
     public function pipeline_activity_q3_treaty(Request $request)
     {
         try {
@@ -4456,7 +4637,6 @@ class PipelineController
         }
     }
 
-
     public function pipeline_activity_q4(Request $request)
     {
         try {
@@ -4620,6 +4800,7 @@ class PipelineController
             return response()->json(['error' => 'Something went wrong'], 500);
         }
     }
+
     public function pipeline_activity_q4_treaty(Request $request)
     {
         try {
@@ -5856,9 +6037,6 @@ class PipelineController
         }
     }
 
-
-
-
     public function stageNotThreeOrFour($request, $uploadsPath, $document_name, $checkbox_docs, $quote_reinsurer_Ids, $leadId, $stage_cycle)
     {
         // dd($request->document_file);
@@ -5931,6 +6109,7 @@ class PipelineController
             }
         }
     }
+
     public function stageEqualThreeOrFour($request, $uploadsPath, $document_name, $quote_reinsurer_Ids, $leadId, $stage_cycle)
     {
 
@@ -5994,6 +6173,7 @@ class PipelineController
             }
         }
     }
+
     public function stageNotThree($request, $uploadsPath, $document_name, $checkbox_docs, $quote_reinsurer_Ids, $leadId, $stage_cycle)
     {
         // dd($request->all());
@@ -6125,6 +6305,7 @@ class PipelineController
                 break;
         }
     }
+
     public function stageEqualThree($request, $uploadsPath, $document_name, $quote_reinsurer_Ids, $leadId, $stage_cycle)
     {
 
@@ -6187,6 +6368,7 @@ class PipelineController
             }
         }
     }
+
     public function stageCycleNotEqualFive($leadId, $stage_cycle, $pipeline, $division, $request)
     {
         $reinsurers = $request->reinsurers;
@@ -6237,6 +6419,7 @@ class PipelineController
             ]);
         }
     }
+
     public function stageCycleEqualFive($leadId, $stage_cycle, $pipeline, $division)
     {
         DB::table('pipeline_opportunities')
@@ -6249,6 +6432,7 @@ class PipelineController
         // DB::commit();
         return redirect()->route('lead.handover', ['prospect' => $leadId]);
     }
+
     public function stageCycle($leadId, $stage_cycle)
     {
         DB::table('pipeline_opportunities')
@@ -6274,8 +6458,6 @@ class PipelineController
         // Mail::to('mutuaian176@gmail.com')->send(new Prospectwonemail($data));
         Mail::to('marketing@accentriagroup.com')->send(new Prospectwonemail($data));
     }
-
-
 
     public function stageCycleFacNotEqualFour($leadId, $stage_cycle_fac, $pipeline, $division, $request)
     {
@@ -6357,6 +6539,7 @@ class PipelineController
                 ]);
         }
     }
+
     public function stageCycleFacEqualFour($leadId, $stage_cycle_fac, $pipeline, $division)
     {
         DB::table('pipeline_opportunities')
@@ -6369,6 +6552,7 @@ class PipelineController
         // DB::commit();
         return redirect()->route('lead.handover', ['prospect' => $leadId]);
     }
+
     public function stageCycleFac($leadId, $stage_cycle_fac)
     {
         DB::table('pipeline_opportunities')
@@ -7333,29 +7517,7 @@ class PipelineController
             }
         }
     }
-    // public function generateQuoteNo($category_type,$opportunity_id)
-    // {
-    //   // if($quote_id == !null )
 
-    //   $prefix = ($category_type == 1) ? 'FQ' : (($category_type == 2) ? 'FO' : '');
-
-    //   if (!$prefix) {
-    //     return null;
-    //   }
-    //   $lastQuote = Quote::where('quote_number', 'LIKE', "$prefix%")
-    //     ->latest('quote_number')
-    //     ->first();
-    //   $newNumber = $lastQuote
-    //     ? (intval(substr($lastQuote->quote_number, 2)) + 1)
-    //     : 1;
-    //   $quoteNumber = $prefix . str_pad($newNumber, 6, '0', STR_PAD_LEFT);
-
-    //   $quoteId = Quote::insertGetId([
-    //     'quote_number' => $quoteNumber,
-    //   ]);
-
-    //   return $quoteId;
-    // }
     public function generateQuoteNo($category_type, $opportunity_id)
     {
 
@@ -7568,8 +7730,6 @@ class PipelineController
 
     public function saveTenderDocs(Request $request)
     {
-        logger($request->all());
-
         $validated = $request->validate([
             'prospect_id' => 'required',
             'prospect_status' => 'required|integer',
@@ -7816,32 +7976,31 @@ class PipelineController
         $customerId = $request->customer_id;
 
         $customers = DB::select("
-    SELECT
-        c.*,
-        ARRAY_AGG(DISTINCT ct.type_id) AS type_ids,
-        (
-            SELECT json_agg(
-                json_build_object(
-                    'contact_name', cc.contact_name,
-                    'contact_email', cc.contact_email,
-                    'contact_mobile_no', cc.contact_mobile_no,
-                    'contact_position', cc.contact_position,
-                    'main_contact_person', cc.main_contact_person
-                )
-            )
-            FROM customer_contacts cc
-            WHERE cc.customer_id = c.customer_id
-        ) AS contact_persons
-    FROM customers c
-    LEFT JOIN customer_types ct
-        ON c.customer_type::jsonb @> to_jsonb(ct.type_id::text)
-    WHERE ct.code IN ('REINCO', 'INSCO', 'REINBROKER')
-      AND c.customer_id = ?
-    GROUP BY c.customer_id
-    ORDER BY c.name
-", [$customerId]);
+                        SELECT
+                            c.*,
+                            ARRAY_AGG(DISTINCT ct.type_id) AS type_ids,
+                            (
+                                SELECT json_agg(
+                                    json_build_object(
+                                        'contact_name', cc.contact_name,
+                                        'contact_email', cc.contact_email,
+                                        'contact_mobile_no', cc.contact_mobile_no,
+                                        'contact_position', cc.contact_position,
+                                        'main_contact_person', cc.main_contact_person
+                                    )
+                                )
+                                FROM customer_contacts cc
+                                WHERE cc.customer_id = c.customer_id
+                            ) AS contact_persons
+                        FROM customers c
+                        LEFT JOIN customer_types ct
+                            ON c.customer_type::jsonb @> to_jsonb(ct.type_id::text)
+                        WHERE ct.code IN ('REINCO', 'INSCO', 'REINBROKER')
+                        AND c.customer_id = ?
+                        GROUP BY c.customer_id
+                        ORDER BY c.name
+                    ", [$customerId]);
 
-        // Decode JSON fields so the frontend receives usable structures
         foreach ($customers as $customer) {
             $customer->contact_persons = json_decode($customer->contact_persons, true);
             $customer->type_ids = json_decode($customer->type_ids, true);

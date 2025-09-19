@@ -270,9 +270,8 @@
                         <div class="row mb-2">
                             <div class="col-md-12">
                                 <label for="role_ids" class="form-label fs-14">Assign to Roles:</label>
-                                <select name="role_ids[]" id="role_ids" multiple class="form-control form-inputs">
-                                    {{-- Role options will be populated dynamically --}}
-                                </select>
+                                <select name="role_ids[]" id="role_ids" multiple
+                                    class="form-control form-inputs"></select>
                             </div>
                         </div>
                     </form>
@@ -317,13 +316,13 @@
                 ajax: ROUTES.userData,
                 columns: [{
                         data: 'id',
-                        name: 'id',
+                        name: 'ID',
                         defaultContent: "<b class='dashes'>_</b>",
                         className: 'highlight-idx'
                     },
                     {
                         data: 'username',
-                        name: 'username',
+                        name: 'Username',
                         defaultContent: "<b class='dashes'>_</b>"
                     },
                     {
