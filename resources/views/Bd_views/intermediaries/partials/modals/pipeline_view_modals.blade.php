@@ -38,7 +38,7 @@
                     </div>
                 </div>
 
-                <div class="card custom-card section-box">
+                <div class="card custom-card section-box customScrollBar">
                     <!-- Coverage Details Section -->
                     <div class="form-section">
                         <div class="section-header" data-section="coverage-details">
@@ -112,15 +112,6 @@
                                     </div>
                                 </div>
                             </div>
-
-                            {{-- <div class="form-group">
-                                <label class="form-label">
-                                    Coverage Description
-                                    <span class="required-asterisk">*</span>
-                                </label>
-                                <textarea class="form-inputs" name="coverage_description" rows="4" required
-                                    placeholder="Describe the coverage, risks covered, and any specific conditions..."></textarea>
-                            </div> --}}
                         </div>
                     </div>
 
@@ -129,7 +120,7 @@
                         <div class="section-header">
                             <div class="section-title">
                                 <span>
-                                    <i class="bx bx-handshake section-icon"></i>
+                                    <i class="bx bx-hand section-icon"></i>
                                     Reinsurer Placement
                                 </span>
                             </div>
@@ -223,13 +214,12 @@
                                 </h6>
 
                                 <div class="table-responsive">
-                                    <table class="table table-hover table-striped selected-reinsurers-table"
+                                    <table class="table table-hover table-stripped selected-reinsurers-table"
                                         id="reinsurersTable">
                                         <thead class="table-d">
                                             <tr>
-                                                <th style="width: 30%">Reinsurer</th>
-                                                <th style="width: 15%">Rating</th>
-                                                <th style="width: 15%">Share (%)</th>
+                                                <th style="width: 45%">Reinsurer</th>
+                                                <th style="width: 15%">Written Share (%)</th>
                                                 <th style="width: 15%">Commission (%)</th>
                                                 <th style="width: 15%">Premium Amount</th>
                                                 <th style="width: 10%">Action</th>
@@ -240,91 +230,6 @@
                                     </table>
                                 </div>
                             </div>
-                            {{--
-                            <!-- Share Summary -->
-                            <div class="share-summary mt-4">
-                                <div class="row">
-                                    <div class="col-md-6">
-                                        <div class="share-calculator">
-                                            <h6 class="mb-3"><i class="bx bx-calculator me-2"></i>Share
-                                                Distribution Summary</h6>
-                                            <div class="share-item">
-                                                <span>Total Written Share:</span>
-                                                <span id="totalWrittenShare">100.00%</span>
-                                            </div>
-                                            <div class="share-item">
-                                                <span>Total Allocated:</span>
-                                                <span id="totalAllocatedShare" class="text-primary">0.00%</span>
-                                            </div>
-                                            <div class="share-item">
-                                                <span>Remaining (Retained):</span>
-                                                <span id="remainingShare" class="text-success">100.00%</span>
-                                            </div>
-                                            <div class="share-item border-top pt-2">
-                                                <span><strong>Allocation Status:</strong></span>
-                                                <span id="allocationStatus" class="badge bg-warning">Incomplete</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <div class="share-calculator">
-                                            <h6 class="mb-3"><i class="bx fa-money-bill-wave me-2"></i>Premium
-                                                Distribution</h6>
-                                            <div class="share-item">
-                                                <span>Total Premium:</span>
-                                                <span id="totalPremiumDisplay">KES 0.00</span>
-                                            </div>
-                                            <div class="share-item">
-                                                <span>Reinsurers' Premium:</span>
-                                                <span id="reinsurersPremiumTotal" class="text-primary">KES 0.00</span>
-                                            </div>
-                                            <div class="share-item">
-                                                <span>Retained Premium:</span>
-                                                <span id="retainedPremiumTotal" class="text-success">KES 0.00</span>
-                                            </div>
-                                            <div class="share-item border-top pt-2">
-                                                <span><strong>Total Commission:</strong></span>
-                                                <span id="totalCommissionAmount" class="text-info">KES 0.00</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div> --}}
-
-                            {{-- <!-- Placement Strategy Options -->
-                            <div class="placement-strategy mt-4">
-                                <h6 class="mb-3"><i class="bx fa-chess me-2"></i>Placement Strategy</h6>
-                                <div class="row">
-                                    <div class="col-md-4">
-                                        <div class="form-group">
-                                            <label class="form-label">Placement Type</label>
-                                            <select class="form-select" name="placement_type">
-                                                <option value="quota_share">Quota Share</option>
-                                                <option value="surplus" selected>Surplus Share</option>
-                                                <option value="excess_of_loss">Excess of Loss</option>
-                                                <option value="risk_excess">Risk Excess</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <div class="form-group">
-                                            <label class="form-label">Lead Reinsurer</label>
-                                            <select class="form-select" name="lead_reinsurer"
-                                                id="leadReinsurerSelect">
-                                                <option value="">Select Lead Reinsurer</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <div class="form-group">
-                                            <label class="form-label">Minimum Acceptance (%)</label>
-                                            <input type="number" class="form-control" name="minimum_acceptance"
-                                                placeholder="75.00" step="0.01" min="0" max="100"
-                                                value="75">
-                                        </div>
-                                    </div>
-                                </div>
-                            </div> --}}
 
                             <!-- Risk Distribution Analysis -->
                             <div class="risk-distribution mt-4" id="riskDistribution" style="display: none;">
@@ -364,7 +269,149 @@
                         </div>
                     </div>
 
+                    <!-- Terms and Conditions Section -->
+                    <div class="form-section">
+                        <div class="section-header" data-section="terms-conditions">
+                            <div class="section-title">
+                                <span>
+                                    <i class="bx bx-file section-icon"></i>
+                                    Terms & Conditions
+                                </span>
+                            </div>
+                        </div>
+                        <div class="section-content" id="terms-conditions">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label class="form-label">Policy Wording</label>
+                                        <select class="form-select" name="policy_wording">
+                                            <option value="">Select Policy Wording</option>
+                                            <option value="iua">IUA Standard Wording</option>
+                                            <option value="lloyd">Lloyd's Policy Form</option>
+                                            <option value="custom">Custom Policy Terms</option>
+                                            <option value="local">Local Market Wording</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label class="form-label">Governing Law</label>
+                                        <select class="form-select" name="governing_law">
+                                            <option value="">Select Governing Law</option>
+                                            <option value="kenya" selected>Laws of Kenya</option>
+                                            <option value="uganda">Laws of Uganda</option>
+                                            <option value="rwanda">Laws of Rwanda</option>
+                                            <option value="england">English Law</option>
+                                            <option value="singapore">Singapore Law</option>
+                                            <option value="new_york">New York Law</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
 
+                            <div class="form-group">
+                                <label class="form-label">Special Conditions</label>
+                                <textarea class="form-inputs" name="special_conditions" rows="4" style="resize: none;"
+                                    placeholder="Any special terms, conditions, or clauses applicable to this coverage..."></textarea>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">Exclusions</label>
+                                <textarea class="form-inputs" name="exclusions" rows="4" style="resize: none;"
+                                    placeholder="List any exclusions or limitations to coverage..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Supporting Documents Section -->
+                    <div class="form-section">
+                        <div class="section-header" data-section="documents">
+                            <div class="section-title">
+                                <span>
+                                    <i class="bx bx-upload section-icon"></i>
+                                    Supporting Documents
+                                </span>
+                            </div>
+                        </div>
+                        <div class="section-content" id="documents">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label class="form-label">
+                                            Policy Schedule
+                                            <span class="required-asterisk">*</span>
+                                        </label>
+                                        <div class="file-upload-area" data-field="policy_schedule">
+                                            <i class="fas fa-cloud-upload-alt fa-2x text-muted mb-2"></i>
+                                            <p class="mb-2">Drag & drop your policy schedule here</p>
+                                            <p class="text-muted small mb-2">or click to browse</p>
+                                            <input type="file" class="d-none" name="policy_schedule" required
+                                                accept=".pdf,.doc,.docx,.xls,.xlsx">
+                                            <div class="mt-2">
+                                                <small class="text-muted">Max size: 10MB | Formats: PDF, DOC, DOCX,
+                                                    XLS, XLSX</small>
+                                            </div>
+                                        </div>
+                                        <div class="file-preview-container"></div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label class="form-label">Loss Experience/Claims History</label>
+                                        <div class="file-upload-area" data-field="loss_experience">
+                                            <i class="fas fa-chart-line fa-2x text-muted mb-2"></i>
+                                            <p class="mb-2">Upload loss experience data</p>
+                                            <p class="text-muted small mb-2">or click to browse</p>
+                                            <input type="file" class="d-none" name="loss_experience"
+                                                accept=".pdf,.doc,.docx,.xls,.xlsx">
+                                            <div class="mt-2">
+                                                <small class="text-muted">Max size: 10MB | Formats: PDF, DOC, DOCX,
+                                                    XLS, XLSX</small>
+                                            </div>
+                                        </div>
+                                        <div class="file-preview-container"></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row mt-3">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label class="form-label">Risk Survey/Inspection Report</label>
+                                        <div class="file-upload-area" data-field="risk_survey">
+                                            <i class="fas fa-search fa-2x text-muted mb-2"></i>
+                                            <p class="mb-2">Upload risk survey report</p>
+                                            <p class="text-muted small mb-2">or click to browse</p>
+                                            <input type="file" class="d-none" name="risk_survey"
+                                                accept=".pdf,.doc,.docx">
+                                            <div class="mt-2">
+                                                <small class="text-muted">Max size: 10MB | Formats: PDF, DOC,
+                                                    DOCX</small>
+                                            </div>
+                                        </div>
+                                        <div class="file-preview-container"></div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label class="form-label">Additional Documents</label>
+                                        <div class="file-upload-area" data-field="additional_docs">
+                                            <i class="fas fa-file-plus fa-2x text-muted mb-2"></i>
+                                            <p class="mb-2">Upload any additional documents</p>
+                                            <p class="text-muted small mb-2">or click to browse</p>
+                                            <input type="file" class="d-none" name="additional_docs" multiple
+                                                accept=".pdf,.doc,.docx,.jpg,.jpeg,.png">
+                                            <div class="mt-2">
+                                                <small class="text-muted">Max size: 5MB per file | Multiple files
+                                                    allowed</small>
+                                            </div>
+                                        </div>
+                                        <div class="file-preview-container"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                     {{-- <div class="form-row">
                         <div class="form-group">
                             <label class="form-label">Proposal Number</label>
@@ -502,7 +549,7 @@
     }
 
     .section-title {
-        color: #000;
+        color: #c02e2e;
         font-size: 16px;
         font-weight: 600;
         margin-bottom: 0px;
@@ -568,7 +615,6 @@
     }
 </style>
 
-
 @push('script')
     <script>
         $(document).ready(function() {
@@ -590,6 +636,10 @@
                 ],
                 language: {
                     search: "Search reinsurers:",
+                    lengthMenu: "Show _MENU_ reinsurers per page",
+                    info: "Showing _START_ to _END_ of _TOTAL_ reinsurers",
+                    infoEmpty: "No reinsurers available",
+                    infoFiltered: "(filtered from _MAX_ total reinsurers)",
                     zeroRecords: "No matching reinsurers found",
                     emptyTable: "No reinsurers selected yet. Add reinsurers using the form above."
                 },
@@ -617,26 +667,47 @@
 
                 // Validation
                 if (!selectedOption.val()) {
-                    showAlert('Please select a reinsurer', 'warning');
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Select Reinsurer',
+                        text: 'Please select a reinsurer from the dropdown.',
+                        confirmButtonColor: '#3085d6'
+                    });
                     return;
                 }
 
                 if (!reinsurerShare || reinsurerShare <= 0 || reinsurerShare > 100) {
-                    showAlert('Please enter a valid share percentage (0.01 - 100)', 'warning');
-                    $('#reinsurerShare').focus();
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Invalid Share',
+                        text: 'Please enter a valid share percentage between 0.01% and 100%.',
+                        confirmButtonColor: '#3085d6'
+                    }).then(() => {
+                        $('#reinsurerShare').focus();
+                    });
                     return;
                 }
 
-                if (isNaN(reinsurerCommission) || reinsurerCommission < 0 ||
-                    reinsurerCommission > 50) {
-                    showAlert('Please enter a valid commission percentage (0 - 50)', 'warning');
-                    $('#reinsurerCommission').focus();
+                if (isNaN(reinsurerCommission) || reinsurerCommission < 0 || reinsurerCommission > 50) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Invalid Commission',
+                        text: 'Please enter a valid commission percentage between 0% and 50%.',
+                        confirmButtonColor: '#3085d6'
+                    }).then(() => {
+                        $('#reinsurerCommission').focus();
+                    });
                     return;
                 }
 
                 // Check if reinsurer already selected
                 if (selectedReinsurers.has(selectedOption.val())) {
-                    showAlert('This reinsurer has already been selected', 'warning');
+                    Swal.fire({
+                        icon: 'info',
+                        title: 'Already Selected',
+                        text: 'This reinsurer has already been added to the list.',
+                        confirmButtonColor: '#3085d6'
+                    });
                     return;
                 }
 
@@ -652,36 +723,32 @@
                 };
 
                 // Calculate premium amount (you might need to adjust this calculation based on your business logic)
-                const totalPremium =
-                    getTotalPremium(); // You'll need to implement this function
+                const totalPremium = getTotalPremium(); // You'll need to implement this function
                 const premiumAmount = (totalPremium * reinsurerShare / 100);
 
                 // Add row to table
                 const rowHtml = `
-            <tr data-reinsurer-id="${reinsurerData.id}">
-                <td>
-                    <div class="d-flex align-items-center">
-                        <div>
-                            <div class="fw-medium">${reinsurerData.name}</div>
-                            <small class="text-muted">${reinsurerData.country}</small>
-                        </div>
-                    </div>
-                </td>
-                <td>
-                    <span class="badge bg-info">${reinsurerData.rating}</span>
-                </td>
-                <td class="text-end">${reinsurerData.share.toFixed(2)}%</td>
-                <td class="text-end">${reinsurerData.commission.toFixed(2)}%</td>
-                <td class="text-end">$${premiumAmount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
-                <td class="text-center">
-                    <button type="button" class="btn btn-danger btn-sm remove-reinsurer"
-                            data-reinsurer-id="${reinsurerData.id}"
-                            title="Remove Reinsurer">
-                        <i class="bx bx-trash"></i>
-                    </button>
-                </td>
-            </tr>
-        `;
+                    <tr data-reinsurer-id="${reinsurerData.id}">
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <div>
+                                    <div class="fw-medium">${reinsurerData.name}</div>
+                                    <small class="text-muted">${reinsurerData.country}</small>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="text-end">${reinsurerData.share.toFixed(2)}%</td>
+                        <td class="text-end">${reinsurerData.commission.toFixed(2)}%</td>
+                        <td class="text-end">$${premiumAmount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                        <td class="text-center">
+                            <button type="button" class="btn btn-danger btn-sm remove-reinsurer"
+                                    data-reinsurer-id="${reinsurerData.id}"
+                                    title="Remove Reinsurer">
+                                <i class="bx bx-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
 
                 // Add row to DataTable
                 table.row.add($(rowHtml)).draw();
@@ -696,7 +763,15 @@
                 resetForm();
 
                 // Show success message
-                showAlert(`${reinsurerData.name} has been added successfully`, 'success');
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Reinsurer Added!',
+                    text: `${reinsurerData.name} has been successfully added to the list.`,
+                    timer: 2000,
+                    showConfirmButton: false,
+                    toast: true,
+                    position: 'top-end'
+                });
 
                 // Update total shares display
                 updateTotalShares();
@@ -708,23 +783,42 @@
                 const row = $(this).closest('tr');
                 const reinsurerName = row.find('td:first .fw-medium').text();
 
-                // Confirm deletion
-                if (confirm(`Are you sure you want to remove ${reinsurerName}?`)) {
-                    // Remove from DataTable
-                    table.row(row).remove().draw();
+                // Confirm deletion with SweetAlert
+                Swal.fire({
+                    title: 'Remove Reinsurer?',
+                    text: `Are you sure you want to remove ${reinsurerName} from the list?`,
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonColor: '#d33',
+                    cancelButtonColor: '#3085d6',
+                    confirmButtonText: 'Yes, remove it!',
+                    cancelButtonText: 'Cancel'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        // Remove from DataTable
+                        table.row(row).remove().draw();
 
-                    // Remove from selected reinsurers set
-                    selectedReinsurers.delete(reinsurerID.toString());
+                        // Remove from selected reinsurers set
+                        selectedReinsurers.delete(reinsurerID.toString());
 
-                    // Update reinsurer count
-                    updateReinsurerCount();
+                        // Update reinsurer count
+                        updateReinsurerCount();
 
-                    // Update total shares display
-                    updateTotalShares();
+                        // Update total shares display
+                        updateTotalShares();
 
-                    // Show success message
-                    showAlert(`${reinsurerName} has been removed`, 'info');
-                }
+                        // Show success message
+                        Swal.fire({
+                            icon: 'info',
+                            title: 'Removed!',
+                            text: `${reinsurerName} has been removed from the list.`,
+                            timer: 2000,
+                            showConfirmButton: false,
+                            toast: true,
+                            position: 'top-end'
+                        });
+                    }
+                });
             });
 
             // Helper functions
@@ -740,28 +834,34 @@
             }
 
             function showAlert(message, type = 'info') {
-                // Create alert element
-                const alertHtml = `
-            <div class="alert alert-${type} alert-dismissible fade show" role="alert">
-                ${message}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
-        `;
+                // Using SweetAlert2 for better UX
+                let icon = 'info';
+                let title = 'Information';
 
-                // Find or create alert container
-                let alertContainer = $('.alert-container');
-                if (alertContainer.length === 0) {
-                    alertContainer = $('<div class="alert-container mb-3"></div>');
-                    $('.reinsurer-selection-panel').before(alertContainer);
+                switch (type) {
+                    case 'success':
+                        icon = 'success';
+                        title = 'Success';
+                        break;
+                    case 'warning':
+                        icon = 'warning';
+                        title = 'Warning';
+                        break;
+                    case 'error':
+                        icon = 'error';
+                        title = 'Error';
+                        break;
                 }
 
-                // Add alert
-                alertContainer.html(alertHtml);
-
-                // Auto-hide after 5 seconds
-                setTimeout(() => {
-                    alertContainer.find('.alert').fadeOut();
-                }, 5000);
+                Swal.fire({
+                    icon: icon,
+                    title: title,
+                    text: message,
+                    timer: 3000,
+                    showConfirmButton: false,
+                    toast: true,
+                    position: 'top-end'
+                });
             }
 
             function getTotalPremium() {
@@ -793,8 +893,12 @@
 
                 // Validate total shares don't exceed 100%
                 if (totalShares > 100) {
-                    showAlert(`Warning: Total shares (${totalShares.toFixed(2)}%) exceed 100%`,
-                        'warning');
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Share Limit Exceeded',
+                        text: `Total shares (${totalShares.toFixed(2)}%) exceed 100%. Please review the allocation.`,
+                        confirmButtonColor: '#f39c12'
+                    });
                 }
             }
 
@@ -805,7 +909,7 @@
                     const displayHtml = `
                 <div class="total-shares-display mt-2">
                     <div class="d-flex justify-content-between align-items-center p-2 bg-light rounded">
-                        <span class="fw-medium">Total Shares:</span>
+                        <span class="fw-medium">Total Written Shares:</span>
                         <span class="badge bg-primary total-shares-value">0.00%</span>
                     </div>
                 </div>
@@ -815,8 +919,8 @@
                 }
 
                 // Update the value
-                const badgeClass = totalShares > 100 ? 'bg-danger' : totalShares === 100 ?
-                    'bg-success' : 'bg-primary';
+                const badgeClass = totalShares > 100 ? 'bg-danger' : totalShares === 100 ? 'bg-success' :
+                    'bg-primary';
                 totalSharesDisplay.find('.total-shares-value')
                     .removeClass('bg-primary bg-success bg-danger')
                     .addClass(badgeClass)
@@ -842,11 +946,19 @@
                 const remainingCapacity = 100 - totalShares;
 
                 if (currentValue > remainingCapacity) {
-                    showAlert(`Maximum available share is ${remainingCapacity.toFixed(2)}%`,
-                        'warning');
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Insufficient Capacity',
+                        text: `Maximum available share is ${remainingCapacity.toFixed(2)}%. The value has been adjusted.`,
+                        timer: 3000,
+                        showConfirmButton: false,
+                        toast: true,
+                        position: 'top-end'
+                    });
                     $(this).val(remainingCapacity.toFixed(2));
                 }
             });
+
         });
     </script>
 @endpush

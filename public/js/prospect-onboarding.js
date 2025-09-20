@@ -25,10 +25,8 @@ const ProspectOnboarding = {
         this.config = { ...this.config, ...options };
         this.cacheElements();
         this.bindEvents();
-        this.initializeFormSections();
-        this.setupValidation();
-
-        console.log("ProspectOnboarding module initialized");
+        // this.initializeFormSections();
+        // this.setupValidation();
     },
 
     cacheElements() {
@@ -131,17 +129,25 @@ const ProspectOnboarding = {
             this.handleContactSearch.bind(this)
         );
         $(document).on(
+            "blur",
+            '[id^="contact_name-"]',
+            this.handleContactBlur.bind(this)
+        );
+        $(document).on(
             "click",
             ".fullname-option",
             this.handleContactSelect.bind(this)
         );
         $("#insured_name").on("input", this.handleInsuredNameSearch.bind(this));
+        $("#insured_name").on("blur", this.handleInsuredNameBlur.bind(this));
         $(document).on(
             "click",
             ".insured-option",
             this.handleInsuredNameSelect.bind(this)
         );
         $("#lead_name").on("input", this.handleLeadNameSearch.bind(this));
+        $("#lead_name").on("blur", this.handleLeadNameBlur.bind(this));
+
         $(document).on(
             "click",
             ".lead-option",
@@ -240,8 +246,10 @@ const ProspectOnboarding = {
      * Show facultative section
      */
     showFacultativeSection() {
-        $("#fac_section").show();
-        $("#tpr_section, #tnp_section, #trt_common, #treaty_grp").hide();
+        $(
+            "#fac_section, #contactDetails, #engagementDetails, #contactDetails, #insuranceDetails"
+        ).show();
+        // $("#tpr_section, #tnp_section, #trt_common, #treaty_grp").hide();
         this.processSections(".fac_section", ".fac_section_div", "enable");
         this.processSections(
             ".reins_comm_rate",
@@ -254,7 +262,9 @@ const ProspectOnboarding = {
      * Hide facultative section
      */
     hideFacultativeSection() {
-        $("#fac_section").hide();
+        $(
+            "#fac_section, #contactDetails, #engagementDetails, #contactDetails, #insuranceDetails"
+        ).hide();
         this.processSections(".fac_section", ".fac_section_div", "disable");
     },
 
@@ -288,14 +298,13 @@ const ProspectOnboarding = {
         const lastContactSection = $(".contactsContainers").last();
         const prevCounter = lastContactSection.data("counter") || 0;
 
-        // Validate previous contact before adding new one
         if (!this.validateContactSection(prevCounter)) {
             return false;
         }
 
         const counter = prevCounter + 1;
         const contactHtml = this.generateContactHTML(counter);
-
+        console.log(contactHtml);
         $("#contactsContainer").append(contactHtml);
         this.state.contactCounter = counter;
     },
@@ -330,31 +339,49 @@ const ProspectOnboarding = {
     generateContactHTML(counter) {
         return `
             <div class="row contactsContainers" data-counter="${counter}">
-                <x-OnboardingInputDiv>
-                    <x-Input name="contact_name[]" id="contact_name-${counter}" class="contact_name-${counter}"
-                        placeholder="Enter name" inputLabel="Contact Full Name" req="required"
-                        oninput="this.value = this.value.toUpperCase();" />
-                    <div id="full_name_results_${counter}" class="dropdown-menu full-name-results"
-                        style="display: none;"></div>
-                    <div class="error-message" id="full_name_error_${counter}"></div>
-                </x-OnboardingInputDiv>
-                <x-OnboardingInputDiv>
-                    <x-EmailInput id="email-${counter}" name="email[]" req="required" inputLabel="Email Address"
-                        placeholder="Enter email" />
-                </x-OnboardingInputDiv>
-                <x-OnboardingInputDiv>
-                    <x-NumberInput id="phone_number-${counter}" name="phone_number[]" req="required"
-                        inputLabel="Mobile." class="phone" placeholder="Enter phone number" />
-                </x-OnboardingInputDiv>
-                <div class="col-md-3 col-sm-12 mt-2">
-                    <label class="form-label fw-bold" for="telephone-${counter}">Telephone</label>
-                    <div class="input-group mb-3">
-                        <input type="number" id="telephone-${counter}" class="form-control color-r"
-                            name="telephone[]" placeholder="Enter telephone number" />
-                        <button class="btn btn-danger remove-contact" type="button" id="remove-contact-${counter}"
-                            data-counter="${counter}">
-                            <i class="bx bx-minus"></i>
-                        </button>
+                <div class="col-md-3 col-sm-12">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold" for="contact_name-${counter}">Contact Full Name <span class="text-danger">*</span></label>
+                        <input type="text" name="contact_name[]" id="contact_name-${counter}"
+                            class="form-inputs contact_name-${counter}"
+                            placeholder="Enter name" required
+                            oninput="this.value = this.value.toUpperCase();" />
+                        <div id="full_name_results_${counter}" class="dropdown-menu full-name-results" style="display: none; max-width: 500px; width: 100%;"></div>
+                        <div class="error-message text-danger" id="full_name_error_${counter}"></div>
+                    </div>
+                </div>
+
+                <div class="col-md-3 col-sm-12">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold" for="email-${counter}">Email Address <span class="text-danger">*</span></label>
+                        <input type="email" id="email-${counter}" name="email[]"
+                            class="form-inputs" required
+                            placeholder="Enter email" />
+                    </div>
+                </div>
+
+                <div class="col-md-3 col-sm-12">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold" for="phone_number-${counter}">Mobile <span class="text-danger">*</span></label>
+                        <input type="tel" id="phone_number-${counter}" name="phone_number[]"
+                            class="form-inputs phone" required
+                            placeholder="Enter phone number" />
+                    </div>
+                </div>
+
+                <div class="col-md-3 col-sm-12">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold" for="telephone-${counter}">Telephone</label>
+                        <div class="input-group">
+                            <input type="tel" id="telephone-${counter}"
+                                class="form-control color-blk"
+                                name="telephone[]"
+                                placeholder="Enter telephone number" />
+                            <button class="btn btn-danger remove-contact" type="button"
+                                    id="remove-contact-${counter}" data-counter="${counter}">
+                                <i class="bx bx-minus"></i>
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -720,8 +747,8 @@ const ProspectOnboarding = {
      * Handle sum insured type change
      */
     handleSumInsuredTypeChange() {
-        const labelText = $("#sum_insured_type option:selected").text();
-        $("#sum_insured_label").text(`(${labelText})`);
+        const labelText = $("#sum_insured_type option:selected").text().trim();
+        $("#sum_insured_label").text(` (${labelText})`);
     },
 
     /**
@@ -904,9 +931,7 @@ const ProspectOnboarding = {
                 let results = "";
                 if (data.length > 0) {
                     data.forEach((item) => {
-                        results += `<div class="dropdown-item insured-option" data-id="${item.pipeline_id}">
-                        ${item.insured_name}
-                    </div>`;
+                        results += `<div class="dropdown-item insured-option" data-id="${item.pipeline_id}">${item.insured_name}</div>`;
                     });
                 } else {
                     const error =
@@ -921,8 +946,9 @@ const ProspectOnboarding = {
     /**
      * Handle insured name selection
      */
-    handleInsuredNameSelect() {
-        const selectedName = $(event.target).text();
+    handleInsuredNameSelect(e) {
+        const selectedName = $(e.target).text();
+
         $("#insured_name").val(selectedName);
         $("#insured_name_results").hide();
     },
@@ -945,9 +971,7 @@ const ProspectOnboarding = {
                 let results = "";
                 if (data.length > 0) {
                     data.forEach((item) => {
-                        results += `<div class="dropdown-item lead-option" data-id="${item.pipeline_id}">
-                        ${item.lead_name}
-                    </div>`;
+                        results += `<div class="dropdown-item lead-option" data-id="${item.pipeline_id}">${item.lead_name}</div>`;
                     });
                 } else {
                     const error =
@@ -959,11 +983,31 @@ const ProspectOnboarding = {
         );
     },
 
+    handleLeadNameBlur() {
+        const query = $("#lead_name").val().trim();
+        if (query) {
+            $("#lead_name_error").html("").hide();
+        }
+    },
+
+    handleInsuredNameBlur() {
+        const query = $("#insured_name").val().trim();
+        if (query) {
+            $("#insured_name_error").html("").hide();
+        }
+    },
+
+    handleContactBlur(e) {
+        const query = $(e.target).val().trim();
+        const index = $(e.target).attr("id").split("-")[1];
+        const resultsContainer = $(`#full_name_results_${index}`);
+    },
+
     /**
      * Handle lead name selection
      */
-    handleLeadNameSelect() {
-        $("#lead_name").val($(event.target).text());
+    handleLeadNameSelect(e) {
+        $("#lead_name").val($(e.target).text());
         $("#lead_name_results").hide();
     },
 
@@ -1011,17 +1055,52 @@ const ProspectOnboarding = {
      * Handle currency change
      */
     handleCurrencyChange() {
-        // Implementation for currency change
-        console.log("Currency changed");
+        var currency_code = $("select#currency_code option:selected").attr(
+            "value"
+        );
+
+        $.ajax({
+            type: "GET",
+            data: { currency_code: currency_code },
+            url: this.config.routes.getTodaysRate,
+            success: (resp) => {
+                var status = $.parseJSON(resp);
+
+                if (status.valid == 2) {
+                    $("#today_currency").val(1);
+                    $("#today_currency").prop("readonly", true);
+                } else if (status.valid == 1) {
+                    $("#today_currency").val(status.rate);
+                    $("#today_currency").prop("readonly", true);
+                } else {
+                    $("#today_currency").prop("readonly", true);
+                    $("#today_currency").val("");
+
+                    Swal.fire({
+                        icon: "warning",
+                        title: "Currency Rate Not Set",
+                        text: "Currency rate for the day not yet set",
+                        confirmButtonText: "OK",
+                    });
+                }
+            },
+            error: (resp) => {
+                console.error("Error fetching currency rate:", resp);
+
+                Swal.fire({
+                    icon: "error",
+                    title: "Error",
+                    text: "Failed to fetch currency rate. Please try again.",
+                    confirmButtonText: "OK",
+                });
+            },
+        });
     },
 
     /**
      * Handle country change
      */
-    handleCountryChange() {
-        // Implementation for country change
-        console.log("Country changed");
-    },
+    handleCountryChange() {},
 
     /**
      * Debounce function for search inputs

@@ -297,9 +297,11 @@ input[type="number"]::-webkit-inner-spin-button {
     color: var(--default-text-color) !important;
 }
 .color-blk {
-    border-color: var(--bs-black) !important;
+    border-color: #3634346e !important;
     border-radius: 0px;
-    color: var(--default-text-color);
+    border-top-left-radius: 0.35rem;
+    border-bottom-left-radius: 0.35rem;
+    color: var(--input-text-color);
 }
 b,
 strong {

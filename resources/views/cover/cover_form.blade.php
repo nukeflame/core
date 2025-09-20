@@ -2615,7 +2615,7 @@
             });
 
             $('select#currency_code').trigger('change');
-            /*currency logic*/
+
             $("select#currency_code").change(function() {
                 var selected_currency = $("select#currency_code option:selected").attr('value');
                 var selected_descr = $("select#currency_code option:selected").text();
@@ -3889,7 +3889,7 @@
                                     // $('#classcode').text(d.classcode + " - " +
                                     //     'FIRE INDUSTRIAL').trigger('change')
                                     console.log(d.class_group)
-                                      $('#classcode').val("101").trigger('change');
+                                    $('#classcode').val("101").trigger('change');
 
                                     // console.log(d.classcode)
                                 }
