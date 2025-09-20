@@ -2886,6 +2886,7 @@ class PipelineController
                     'status' => $this->formatStatus($opp->status),
                     'category' => $this->formatCategory($opp->category_type),
                     'approval_status' => $this->formatApprovalStatus($opp->handed_over),
+                    'stage_actions' => $this->formatStageActions($opp),
                     'action' => $this->getActionButtons($opp->id)
                 ];
             });
@@ -3127,7 +3128,79 @@ class PipelineController
 
         $cat = $statusClasses[(string) $category] ?? 'facultative';
 
-        return "<span class='status-badge {$cat}'>" . ucfirst(str_replace('_', ' ', $cat)) . "</span>";
+        $catText = '';
+        $catText =  "<span class='status-badge {$cat}'>" . ucfirst(str_replace('_', ' ', $cat)) . "</span>";
+        return $catText;
+    }
+
+    private function formatStageActions($opp)
+    {
+
+        // logger()->debug($opp);
+
+        // category_type
+
+        $currentStage = 'lead';
+        $stageFlow = [
+            'lead' => [
+                'next' =>  "proposal",
+                'button' => "Move to Proposal",
+                'class' => "btn-proposal",
+                'altNext' => "lost",
+                'modalId' => "leadModal",
+            ],
+            'proposal' => [
+                'next' =>  "negotiation",
+                'button' => "Move to Negotiation",
+                'class' => "btn-negotiation",
+                'altNext' => "lost",
+                'modalId' => "proposalModal",
+            ],
+            'negotiation' => [
+                'next' =>  "won",
+                'button' => "Mark as Won",
+                'class' => "btn-won",
+                'altNext' => "lost",
+                'modalId' => "negotiationModal",
+            ],
+            'won' => [
+                'next' =>  "final",
+                'button' => "Move to Final",
+                'class' => "btn-final",
+                'modalId' => "wonModal",
+            ],
+            'lost' => [
+                'next' =>  null,
+                'button' => "Deal Closed",
+                'class' => "btn-lost",
+                'modalId' => "lostModal",
+            ],
+            'final' =>  [
+                'next' =>  null,
+                'button' => "Deal Complete",
+                'class' => "btn-final",
+                'modalId' => "finalModal",
+            ],
+        ];
+
+        $stageInfo = $stageFlow[$currentStage];
+        $btn = '';
+        if (!$stageInfo) {
+            return $btn;
+        }
+
+        $nextStage = $stageInfo['next'];
+
+        if ($nextStage) {
+            $id = $opp->id;
+            $displayText = $stageInfo['button'];
+            $current_stage = $opp->status;
+
+            $btn = "<button id='stageAction-{$id}' data-deal_id='{$id}' data-current_stage='{$current_stage}' class='stage-btn btn-proposal stage_btn_action' style='opacity: 1; cursor: pointer;'>{$displayText}</button>";
+        }
+        // logger()->debug($stageInfo);
+
+        return $btn;
     }
 
     private function formatApprovalStatus($status)

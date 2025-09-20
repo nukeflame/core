@@ -24,27 +24,35 @@
                 <div class="kpi-card">
                     <div class="kpi-value">{{ number_format($kpis['active_opportunities']['value']) }}</div>
                     <div class="kpi-label">Active Opportunities</div>
-                    @if ($kpis['active_opportunities']['trend'])
-                        <div class="kpi-trend trend-{{ $kpis['active_opportunities']['trend']['direction'] }}">
-                            <i
-                                class="bx bx-arrow-{{ $kpis['active_opportunities']['trend']['direction'] == 'up' ? 'up' : 'down' }}"></i>
-                            {{ $kpis['active_opportunities']['trend']['direction'] == 'up' ? '+' : '-' }}{{ $kpis['active_opportunities']['trend']['percentage'] }}%
-                            this month
-                        </div>
+
+                    @if ((int) $kpis['active_opportunities']['value'] > 0)
+                        @if ($kpis['active_opportunities']['trend'])
+                            <div class="kpi-trend trend-{{ $kpis['active_opportunities']['trend']['direction'] }}">
+                                <i
+                                    class="bx bx-arrow-{{ $kpis['active_opportunities']['trend']['direction'] == 'up' ? 'up' : 'down' }}"></i>
+                                {{ $kpis['active_opportunities']['trend']['direction'] == 'up' ? '+' : '-' }}{{ $kpis['active_opportunities']['trend']['percentage'] }}%
+                                this month
+                            </div>
+                        @endif
                     @endif
                 </div>
             </div>
             <div class="col-md-3">
                 <div class="kpi-card">
-                    <div class="kpi-value">${{ number_format($kpis['pipeline_premium']['value'] / 1000000, 1) }}M</div>
+                    <div class="kpi-value">KES {{ number_format($kpis['pipeline_premium']['value'] / 1000000, 1) }}M</div>
                     <div class="kpi-label">Pipeline Premium</div>
-                    @if ($kpis['pipeline_premium']['trend'])
-                        <div class="kpi-trend trend-{{ $kpis['pipeline_premium']['trend']['direction'] }}">
-                            <i
-                                class="bx bx-arrow-{{ $kpis['pipeline_premium']['trend']['direction'] == 'up' ? 'up' : 'down' }}"></i>
-                            {{ $kpis['pipeline_premium']['trend']['direction'] == 'up' ? '+' : '-' }}{{ $kpis['pipeline_premium']['trend']['percentage'] }}%
-                            QoQ
-                        </div>
+
+                    @if ((int) $kpis['pipeline_premium']['value'] > 0)
+                        @if ((int) $kpis['pipeline_premium']['value'] > 0)
+                            @if ($kpis['pipeline_premium']['trend'])
+                                <div class="kpi-trend trend-{{ $kpis['pipeline_premium']['trend']['direction'] }}">
+                                    <i
+                                        class="bx bx-arrow-{{ $kpis['pipeline_premium']['trend']['direction'] == 'up' ? 'up' : 'down' }}"></i>
+                                    {{ $kpis['pipeline_premium']['trend']['direction'] == 'up' ? '+' : '-' }}{{ $kpis['pipeline_premium']['trend']['percentage'] }}%
+                                    QoQ
+                                </div>
+                            @endif
+                        @endif
                     @endif
                 </div>
             </div>
@@ -52,13 +60,16 @@
                 <div class="kpi-card">
                     <div class="kpi-value">{{ $kpis['conversion_rate']['value'] }}%</div>
                     <div class="kpi-label">Conversion Rate</div>
-                    @if ($kpis['conversion_rate']['trend'])
-                        <div class="kpi-trend trend-{{ $kpis['conversion_rate']['trend']['direction'] }}">
-                            <i
-                                class="bx bx-arrow-{{ $kpis['conversion_rate']['trend']['direction'] == 'up' ? 'up' : 'down' }}"></i>
-                            {{ $kpis['conversion_rate']['trend']['direction'] == 'up' ? '+' : '' }}{{ $kpis['conversion_rate']['trend']['percentage'] }}%
-                            improvement
-                        </div>
+
+                    @if ((int) $kpis['conversion_rate']['value'] > 0)
+                        @if ($kpis['conversion_rate']['trend'])
+                            <div class="kpi-trend trend-{{ $kpis['conversion_rate']['trend']['direction'] }}">
+                                <i
+                                    class="bx bx-arrow-{{ $kpis['conversion_rate']['trend']['direction'] == 'up' ? 'up' : 'down' }}"></i>
+                                {{ $kpis['conversion_rate']['trend']['direction'] == 'up' ? '+' : '' }}{{ $kpis['conversion_rate']['trend']['percentage'] }}%
+                                improvement
+                            </div>
+                        @endif
                     @endif
                 </div>
             </div>
@@ -66,9 +77,12 @@
                 <div class="kpi-card">
                     <div class="kpi-value">{{ $kpis['critical_deadlines']['value'] }}</div>
                     <div class="kpi-label">Critical Deadlines</div>
-                    <div class="kpi-trend trend-down">
-                        <i class="bx bx-clock text-warning"></i> Requires attention
-                    </div>
+
+                    @if ((int) $kpis['conversion_rate']['value'] > 0)
+                        <div class="kpi-trend trend-down">
+                            <i class="bx bx-clock text-warning"></i> Requires attention
+                        </div>
+                    @endif
                 </div>
             </div>
         </div>

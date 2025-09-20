@@ -125,7 +125,6 @@
                                         <th>Closing date</th>
                                         <th>Category</th>
                                         <th>Approval Status</th>
-                                        <th>Stage Actions</th>
                                         <th>Action</th>
                                     </thead>
                                     <tbody></tbody>
@@ -151,7 +150,6 @@
                                         <th>Closing date</th>
                                         <th>Category</th>
                                         <th>Approval Status</th>
-                                        <th>Stage Actions</th>
                                         <th>Action</th>
                                     </thead>
                                     <tbody></tbody>
@@ -177,7 +175,6 @@
                                         <th>Closing date</th>
                                         <th>Category</th>
                                         <th>Approval Status</th>
-                                        <th>Stage Actions</th>
                                         <th>Action</th>
                                     </thead>
                                     <tbody></tbody>
@@ -203,7 +200,6 @@
                                         <th>Closing date</th>
                                         <th>Category</th>
                                         <th>Approval Status</th>
-                                        <th>Stage Actions</th>
                                         <th>Action</th>
                                     </thead>
                                     <tbody></tbody>
@@ -229,7 +225,6 @@
                                         <th>Closing date</th>
                                         <th>Category</th>
                                         <th>Approval Status</th>
-                                        <th>Stage Actions</th>
                                         <th>Action</th>
                                     </thead>
                                     <tbody></tbody>
@@ -240,9 +235,6 @@
                 </div>
             </div>
         </div>
-
-        {{-- Modals --}}
-        @include('Bd_views.intermediaries.partials.modals.pipeline_view_modals')
     </div>
 @endsection
 
@@ -304,60 +296,6 @@
             background-color: #cce7ff;
             color: #0056b3;
         }
-
-        .stage-buttons {
-            display: flex;
-            gap: 0.5rem;
-            flex-wrap: wrap;
-        }
-
-        .stage-btn {
-            padding: 5px 15px;
-            border: none;
-            border-radius: 5px;
-            font-size: inherit;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            font-weight: 600;
-            text-transform: capitalize;
-            letter-spacing: 0.5px;
-            min-width: 140px;
-        }
-
-        .stage-btn:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
-        }
-
-        .btn-lead {
-            background: #2196f3;
-            color: white;
-        }
-
-        .btn-proposal {
-            background: #ff9800;
-            color: white;
-        }
-
-        .btn-negotiation {
-            background: #9c27b0;
-            color: white;
-        }
-
-        .btn-won {
-            background: #4caf50;
-            color: white;
-        }
-
-        .btn-lost {
-            background: #f44336;
-            color: white;
-        }
-
-        .btn-final {
-            background: #8bc34a;
-            color: white;
-        }
     </style>
 @endsection
 
@@ -365,124 +303,6 @@
     <script>
         $(document).ready(function() {
             let chartInstance = initializePipelineChart();
-            let currentDealId = null;
-            let currentStage = "lead";
-
-            const columnConfig = [{
-                    data: 'id',
-                    name: 'id',
-                    title: 'ID'
-                },
-                {
-                    data: 'insured_name',
-                    name: 'insured_name',
-                    title: 'Insured Name'
-                },
-                {
-                    data: 'division',
-                    name: 'division',
-                    title: 'Division'
-                },
-                {
-                    data: 'business_class',
-                    name: 'business_class',
-                    title: 'Business Class'
-                },
-                {
-                    data: 'status',
-                    name: 'status',
-                    title: 'Status'
-                },
-                {
-                    data: 'currency',
-                    name: 'currency',
-                    title: 'Currency',
-                    defaultContent: 'KES'
-                },
-                {
-                    data: 'sum_insured',
-                    name: 'sum_insured',
-                    title: 'Sum Insured'
-                },
-                {
-                    data: 'premium',
-                    name: 'premium',
-                    title: 'Premium'
-                },
-                {
-                    data: 'effective_date',
-                    name: 'effective_date',
-                    title: 'Effective Date'
-                },
-                {
-                    data: 'closing_date',
-                    name: 'closing_date',
-                    title: 'Closing Date'
-                },
-                {
-                    data: 'category',
-                    name: 'category',
-                    title: 'Category'
-                },
-                {
-                    data: 'approval_status',
-                    name: 'approval_status',
-                    title: 'Approval Status',
-                    orderable: false
-                },
-                {
-                    data: 'stage_actions',
-                    name: 'stage_actions',
-                    title: 'Stage Actions'
-                },
-                {
-                    data: 'action',
-                    orderable: false,
-                    searchable: false
-                }
-            ];
-
-            const stageFlow = {
-                lead: {
-                    next: "proposal",
-                    button: "Move to Proposal",
-                    class: "btn-proposal",
-                    altNext: "lost",
-                    modalId: "leadModal",
-                },
-                proposal: {
-                    next: "negotiation",
-                    button: "Move to Negotiation",
-                    class: "btn-negotiation",
-                    altNext: "lost",
-                    modalId: "proposalModal",
-                },
-                negotiation: {
-                    next: "won",
-                    button: "Mark as Won",
-                    class: "btn-won",
-                    altNext: "lost",
-                    modalId: "negotiationModal",
-                },
-                won: {
-                    next: "final",
-                    button: "Move to Final",
-                    class: "btn-final",
-                    modalId: "wonModal",
-                },
-                lost: {
-                    next: null,
-                    button: "Deal Closed",
-                    class: "btn-lost",
-                    modalId: "lostModal",
-                },
-                final: {
-                    next: null,
-                    button: "Deal Complete",
-                    class: "btn-final",
-                    modalId: "finalModal",
-                },
-            };
 
             $('#pip_year_select').on('change', function() {
                 if (chartInstance) {
@@ -510,7 +330,48 @@
                                     );
                                 }
                             },
-                            columns: columnConfig,
+                            columns: [{
+                                    data: 'id'
+                                },
+                                {
+                                    data: 'insured_name'
+                                },
+                                {
+                                    data: 'division'
+                                },
+                                {
+                                    data: 'business_class'
+                                },
+                                {
+                                    data: 'status'
+                                },
+                                {
+                                    data: 'currency'
+                                },
+                                {
+                                    data: 'sum_insured'
+                                },
+                                {
+                                    data: 'premium'
+                                },
+                                {
+                                    data: 'effective_date'
+                                },
+                                {
+                                    data: 'closing_date'
+                                },
+                                {
+                                    data: 'category'
+                                },
+                                {
+                                    data: 'approval_status'
+                                },
+                                {
+                                    data: 'action',
+                                    orderable: false,
+                                    searchable: false
+                                }
+                            ],
                             order: [
                                 [0, 'desc']
                             ],
@@ -529,97 +390,12 @@
                                     previous: "Previous"
                                 }
                             },
-                            drawCallback: function(settings) {
-                                initializeActionHandlers();
-                            }
                         });
                     } catch (error) {
                         console.error('Error initializing DataTable for', tableId, ':', error);
                     }
                 }
             });
-
-            function initializeActionHandlers() {
-                $('.stage_btn_action').off('click').on('click', function(e) {
-                    e.preventDefault();
-                    const data = $(this).data();
-                    console.log('Update status clicked:', data);
-
-                    try {
-                        currentDealId = data.deal_id;
-
-                        const dealCurrentStage = data.current_stage;
-                        currentStage = dealCurrentStage;
-
-                        const stageInfo = stageFlow[currentStage];
-                        if (!stageInfo) {
-                            throw new Error(`Invalid stage: ${currentStage}`);
-                        }
-
-                        const nextStage = stageInfo.next;
-                        if (nextStage) {
-                            openStageModal(nextStage, currentDealId);
-                        }
-                    } catch (error) {
-                        console.error("Error opening next stage modal:", error);
-                    }
-                });
-            }
-
-            function openStageModal(stage, dealId) {
-                try {
-                    currentDealId = dealId;
-                    const modalId = stage + "Modal";
-                    const modal = document.getElementById(modalId);
-
-                    if (!modal) {
-                        throw new Error(`Modal not found: ${modalId}`);
-                    }
-
-                    console.log(`#${modalId}`);
-
-                    // populateModalData(modalId, dealId);
-
-                    $(`#${modalId}`).modal('show')
-
-                    addEscapeKeyListener();
-                } catch (error) {
-                    console.error("Error opening modal:", error);
-                }
-            }
-
-            function populateModalData(modalId, dealId) {
-                try {
-                    const deal = dealData[dealId];
-                    if (!deal) return;
-
-                    const modal = document.getElementById(modalId);
-                    if (!modal) return;
-
-                    // const dealIdInput = modal.querySelector('input[value*="001625"]');
-                    // if (dealIdInput) {
-                    //     dealIdInput.value = `PROP-2025-${String(dealId).padStart(6, "0")}`;
-                    // }
-
-                } catch (error) {
-                    console.error("Error populating modal data:", error);
-                }
-            }
-
-            function addEscapeKeyListener() {
-                if (escapeKeyHandler) return;
-
-                escapeKeyHandler = function(event) {
-                    if (event.key === "Escape") {
-                        const openModal = document.querySelector('.modal[style*="block"]');
-                        if (openModal) {
-                            closeModal(openModal.id);
-                        }
-                    }
-                };
-
-                document.addEventListener("keydown", escapeKeyHandler);
-            }
 
             function getQuarterFromTableId(tableId) {
                 if (tableId.includes('q1')) return 1;
@@ -718,6 +494,10 @@
                         }
                     },
                     error: function(xhr, status, error) {
+                        console.error('AJAX Error Details:');
+                        console.error('Status:', status);
+                        console.error('Error:', error);
+                        console.error('Response Text:', xhr.responseText);
                         console.error('Status Code:', xhr.status);
                         updateChartData(chart, [0, 0, 0, 0]);
                     }
