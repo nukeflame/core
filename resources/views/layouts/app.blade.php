@@ -897,6 +897,15 @@
                     allowClear: false,
                     width: '100%'
                 });
+
+                $(this).on('change', function() {
+                    let selectedValue = $(this).val();
+
+                    if (selectedValue) {
+                        $(this).removeClass('is-invalid');
+                        $(this).next('span.error-message').hide();
+                    }
+                });
             });
             $('body').css('visibility', 'visible');
 

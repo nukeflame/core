@@ -25,14 +25,15 @@ const ProspectOnboarding = {
         this.config = { ...this.config, ...options };
         this.cacheElements();
         this.bindEvents();
-        // this.initializeFormSections();
-        // this.setupValidation();
+        this.initializeFormSections();
+        this.setupValidation();
     },
 
     cacheElements() {
         this.cache.form = document.getElementById(this.config.formId);
-        this.cache.submitBtn = document.getElementById("submitBtn");
-        this.cache.cancelBtn = document.getElementById("cancelBtn");
+        this.cache.submitBtn = document.getElementById("submits");
+        this.cache.cancelBtn = document.getElementById("cancel");
+
         this.cache.loadingOverlay = document.getElementById("loadingOverlay");
 
         if (!this.cache.form) {
@@ -108,6 +109,11 @@ const ProspectOnboarding = {
         $("#brokerage_comm_type").on(
             "change",
             this.handleBrokerageCommissionType.bind(this)
+        );
+
+        $("#reins_comm_type").on(
+            "change",
+            this.handleReinsurerCommissionType.bind(this)
         );
     },
 
@@ -197,6 +203,30 @@ const ProspectOnboarding = {
         $(".eml-div").hide();
         $(".brokerage_comm_amt_div").hide();
         $(".brokerage_comm_rate_div").hide();
+
+        // Set default value if none exists
+        if (!$("#apply_eml").val()) {
+            $("#apply_eml").val("N").trigger("change");
+        }
+
+        $("#cede_premium").on("keyup", () => {
+            this.calculateCommission();
+            $("#rein_premium").val($("#cede_premium").val());
+        });
+
+        $("#rein_premium").on("keyup", () => {
+            this.calculateReinsCommission();
+        });
+
+        // $("#comm_rate").keyup(function () {
+        //     var ratex = $(this).val() || 0;
+        //     var cede =
+        //         parseFloat(self.removeCommas($("#cede_premium").val())) || 0;
+        //     var commAmount = (ratex / 100) * cede;
+        //     $("#comm_amt").val(self.numberWithCommas(commAmount));
+
+        //     self.calculateBrokerageCommRate();
+        // });
     },
 
     /**
@@ -256,6 +286,7 @@ const ProspectOnboarding = {
             ".reins_comm_rate_div",
             "disable"
         );
+        $("#apply_eml").val("N").trigger("change");
     },
 
     /**
@@ -485,11 +516,11 @@ const ProspectOnboarding = {
         if (this.state.isSubmitting) {
             return;
         }
-
-        this.showConfirmDialog(
-            "Are you sure you want to submit this form?",
-            this.submitForm.bind(this)
-        );
+        console.log("object");
+        // this.showConfirmDialog(
+        //     "Are you sure you want to submit this form?",
+        //     this.submitForm.bind(this)
+        // );
     },
 
     /**
@@ -793,17 +824,23 @@ const ProspectOnboarding = {
      * Calculate total sum insured
      */
     calculateTotalSumInsured() {
-        const totalSumInsured = this.removeCommas(
-            $("#total_sum_insured").val()
+        const totalSumInsuredStr = $("#total_sum_insured").val();
+
+        if (!totalSumInsuredStr) {
+            $("#effective_sum_insured").val("");
+            return;
+        }
+
+        const totalSumInsured = parseFloat(
+            this.removeCommas(totalSumInsuredStr)
         );
         let effectiveSumInsured = totalSumInsured;
 
-        const emlRate = $("#eml_rate").val();
+        const emlRate = parseFloat($("#eml_rate").val()) || 0;
         const applyEml = $("#apply_eml").val();
 
-        if (emlRate && applyEml === "Y" && totalSumInsured) {
-            const emlAmt =
-                parseFloat(totalSumInsured) * (parseFloat(emlRate) / 100);
+        if (emlRate > 0 && applyEml === "Y" && totalSumInsured > 0) {
+            const emlAmt = totalSumInsured * (emlRate / 100);
             effectiveSumInsured = emlAmt;
             $("#eml_amt").val(this.numberWithCommas(emlAmt));
         }
@@ -861,6 +898,26 @@ const ProspectOnboarding = {
         $("#brokerage_comm_rate_amt").val(
             this.numberWithCommas(brokerageCommAmt)
         );
+    },
+
+    handleReinsurerCommissionType(e) {
+        const commType = $(e.target).val();
+
+        if (commType === "R") {
+            this.processSections(
+                ".reins_comm_rate",
+                ".reins_comm_rate_div",
+                "enable"
+            );
+            $("#reins_comm_amt").prop("readonly", true);
+        } else {
+            this.processSections(
+                ".reins_comm_rate",
+                ".reins_comm_rate_div",
+                "disable"
+            );
+            $("#reins_comm_amt").prop("readonly", false);
+        }
     },
 
     /**

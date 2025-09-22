@@ -425,13 +425,13 @@
                                         <textarea class="form-inputs section fac_section resize-none" id="risk_details" name="risk_details" required></textarea>
                                     </div>
                                     <div class="col-xl-3 fac_section_div">
-                                        <label class="form-label">Cedant Premium</label>
+                                        <label class="form-label" for="cede_premium">Cedant Premium</label>
                                         <input type="text" class="form-inputs fac_section" aria-label="cede_premium"
                                             id="cede_premium" name="cede_premium"
                                             onkeyup="this.value=numberWithCommas(this.value)" required>
                                     </div>
                                     <div class="col-xl-3 fac_section_div">
-                                        <label class="form-label">Reinsurer Premium</label>
+                                        <label class="form-label" for="rein_premium">Reinsurer Premium</label>
                                         <input type="text" class="form-inputs fac_section" aria-label="rein_premium"
                                             id="rein_premium" name="rein_premium"
                                             onkeyup="this.value=numberWithCommas(this.value)" required>
@@ -448,29 +448,29 @@
 
                                 <div class="row row-cols-12 mb-2">
                                     <div class="col-xl-3 fac_section_div">
-                                        <label class="form-label">Cedant Comm rate(%)</label>
+                                        <label class="form-label">Cedant Commission rate(%)</label>
                                         <input type="text" class="form-inputs fac_section" aria-label="comm_rate"
                                             id="comm_rate" name="comm_rate" required>
                                     </div>
                                     <div class="col-xl-3 fac_section_div">
-                                        <label class="form-label">Cedant Comm Amount</label>
+                                        <label class="form-label">Cedant Commission Amount</label>
                                         <input type="text" class="form-inputs fac_section" aria-label="comm_amt"
                                             id="comm_amt" name="comm_amt"
                                             onkeyup="this.value=numberWithCommas(this.value)" required>
                                     </div>
                                     <div class="col-xl-3 fac_section_div reins_comm_type_div">
-                                        <label class="form-label">Reinsurer Comm Type</label>
+                                        <label class="form-label">Reinsurer Commission Type</label>
                                         <div class="cover-card">
                                             <select class="form-inputs section select2 fac_section reins_comm_type"
                                                 name="reins_comm_type" id="reins_comm_type" required>
-                                                <option value="">Choose Reinsurer Comm Type</option>
+                                                <option value="">Choose Reinsurer Commission Type</option>
                                                 <option value="R">Rate</option>
                                                 <option value="A">Amount</option>
                                             </select>
                                         </div>
                                     </div>
                                     <div class="col-xl-3  fac_section_div reins_comm_rate_div">
-                                        <label class="form-label">Reinsurer Comm rate(%)</label>
+                                        <label class="form-label">Reinsurer Commission rate(%)</label>
                                         <input type="text" class="form-inputs fac_section reins_comm_rate"
                                             aria-label="reins_comm_rate" id="reins_comm_rate" name="reins_comm_rate"
                                             onkeyup="this.value=numberWithCommas(this.value)" required disabled>
@@ -479,7 +479,7 @@
 
                                 <div class="row row-cols-12 mb-2">
                                     <div class="col-xl-3 fac_section_div reins_comm_amt_div">
-                                        <label class="form-label">Reinsurer Comm Amount</label>
+                                        <label class="form-label">Reinsurer Commission Amount</label>
                                         <input type="text" class="form-inputs fac_section reins_comm_amt"
                                             aria-label="reins_comm_amt" id="reins_comm_amt" name="reins_comm_amt"
                                             onkeyup="this.value=numberWithCommas(this.value)"
@@ -491,8 +491,8 @@
                                             <select name="brokerage_comm_type" id="brokerage_comm_type"
                                                 class="form-inputs section select2">
                                                 <option value="">--Select basis--</option>
-                                                <option value="R">Rate (<small><i>reinsurer rate -
-                                                            cedant rate</i></small>)
+                                                <option value="R">Rate (<small><i>Reinsurer rate -
+                                                            Cedant rate</i></small>)
                                                 </option>
                                                 <option value="A">Quoted Amount</option>
                                             </select>
