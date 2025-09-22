@@ -594,7 +594,6 @@ class LeadsOnboardingController
     public function leads_get(Request $request)
     {
         $currentYear = Carbon::now()->format('Y');
-
         $query = DB::table('pipeline_opportunities')
             ->whereIn('type_of_bus', ['FNP', 'FPR']);
 
@@ -611,13 +610,13 @@ class LeadsOnboardingController
         }
 
         $data = $query->get();
+        // logger()->debug($data);
 
         return Datatables::of($data)
             ->addColumn('opportunity_id', function ($lead) {
                 return  '<strong>' . $lead->opportunity_id . '</strong>';
             })
-
-            ->addColumn('insured_name', function ($lead) {
+            ->addColumn('cedant', function ($lead) {
                 $customer = DB::table('customers')
                     ->where('customer_id', (int) $lead->customer_id)
                     ->first();
@@ -626,14 +625,15 @@ class LeadsOnboardingController
 
                 return  '<strong>' . $customerName . '</strong>';
             })
-
+            ->addColumn('insured_name', function ($lead) {
+                return  '<strong>' . $lead->insured_name . '</strong>';
+            })
             ->addColumn('class_of_business', function ($lead) {
                 $class = DB::table('classes')
                     ->where('class_code', (int) $lead->classcode)
                     ->first();
                 return $class ? $class->class_name : 'N/A';
             })
-
             ->addColumn('priority_badge', function ($lead) {
                 $priority = $lead->priority ?? 'Normal';
                 $badgeClass = match (strtolower($priority)) {
@@ -647,7 +647,6 @@ class LeadsOnboardingController
 
                 return '<span class="' . $badgeClass . '">' . ucfirst($priority) . '</span>';
             })
-
             ->addColumn('status_badge', function ($lead) {
                 $status = $lead->status ?? 'Active';
                 $badgeClass = match (strtolower($status)) {
@@ -660,29 +659,23 @@ class LeadsOnboardingController
 
                 return '<span class="' . $badgeClass . '">' . ucfirst($status) . '</span>';
             })
-
             ->addColumn('formatted_premium', function ($lead) {
                 return $lead->cede_premium ?
                     'KES ' . number_format($lead->cede_premium, 2) :
                     '-';
             })
-
             ->addColumn('commission_percentage', function ($lead) {
                 return $lead->comm_rate ?? null;
             })
-
             ->addColumn('formatted_expected_premium', function ($lead) {
                 // return $lead->expected_premium ?
                 //     'KES ' . number_format($lead->expected_premium, 2) :
                 //     '-';
                 return '-';
             })
-
             ->addColumn('expiry_date', function ($lead) {
                 return $lead->closing_date ?? '-';
             })
-
-
             ->addColumn('account_executive', function ($lead) {
                 $ae = DB::table('users')
                     ->where('id', $lead->lead_owner ?? 0)
@@ -692,7 +685,6 @@ class LeadsOnboardingController
                     'name' => $ae ? $ae->name : null
                 ];
             })
-
             // ->addColumn('territory', function ($lead) {
             //     // $territory = DB::table('territories')
             //     //     ->where('territory_id', $lead->territory_id ?? 0)
@@ -703,7 +695,6 @@ class LeadsOnboardingController
             //     // ];
             //     return '-';
             // })
-
             ->addColumn('urgency_class', function ($lead) {
                 // $deadline = $lead->quote_deadline ?? null;
                 // if (!$deadline) return null;
@@ -720,7 +711,6 @@ class LeadsOnboardingController
 
                 return null;
             })
-
             ->addColumn('client_category', function ($lead) {
                 if ((string) $lead->client_category === 'O') {
                     return 'Organic growth';
@@ -728,22 +718,24 @@ class LeadsOnboardingController
                     return "New";
                 }
             })
-
             ->addColumn('divisions', function ($lead) {
                 $div = DB::table('reins_division')->where('division_code', $lead->divisions)->first();
                 return $div ? $div->division_name : 'N/A';
             })
-
             ->addColumn('action', function ($lead) use ($request) {
                 $url = route('leads.onboarding', ['prospect' => $lead->opportunity_id]);
-                $handover = route('lead.handover', ['prospect' => $lead->opportunity_id]);
+                $prospectId = $lead->opportunity_id;
+                // $handover = route('lead.handover', ['prospect' => $lead->opportunity_id]);
                 // $btn_handover = '<a href="' . $handover . '" class="btn btn-outline-success btn-sm me-1">
                 //         <i class="fa fa-arrow-right"></i> Handover
                 //         </a>';
-                $btn_edit = '<a href="' . $url . '" class="btn btn-info btn-sm rounded-pill">
-                            <i class="bx bx-edit"></i> Edit prospect
+                $btn_edit = '<a href="' . $url . '" class="btn btn-info btn-sm rounded-pill mr-2">
+                            <i class="bx bx-edit"></i> Edit Prospect
                         </a>';
-                $btn_submitted = '<span class="btn btn-dark btn-sm rounded-pill">
+                $btn_edit .= '<a href="' . $url . '" class="btn btn-success btn-sm rounded-pill send_to_sales" data-prospect_id="' . $prospectId . '" title="Send to Sales">
+                             <i class="bx bx-paper-plane"></i>
+                        </a>';
+                $btn_submitted = '<span class="btn btn-success btn-sm rounded-pill">
                             Submitted To Sales
                         </span>';
 

@@ -3,12 +3,13 @@
 namespace App\Models\Bd;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\DB;
 
 class Prospects extends Model
 {
     protected $table = 'pipeline_opportunities';
 
-    protected $primaryKey =false;
+    protected $primaryKey = false;
 
     protected $guarded = [];
 
@@ -16,22 +17,24 @@ class Prospects extends Model
 
     public $timestamps = true;
 
-
-    public static function generateNextCode()
+    public static function generateNextCode($lead_year = null)
     {
-        $lastLead = self::orderByDesc('opportunity_id')->first();
+        $pipeYear = DB::table('pipelines')->where('id', $lead_year)->first();
 
-        if ($lastLead) {
-            $lastCodeNumber = (int) substr($lastLead->opportunity_id, 1);
-            
-            $nextCodeNumber = $lastCodeNumber + 1;
+        $currentYear = $pipeYear->year ?? date('Y');
+        $lastOpportunity = self::where('opportunity_id', 'LIKE', "FAC-{$currentYear}-%")
+            ->orderByDesc('opportunity_id')
+            ->first();
+
+        if ($lastOpportunity) {
+            $lastNumber = (int) substr($lastOpportunity->opportunity_id, -3);
+            $nextNumber = $lastNumber + 1;
         } else {
-            $nextCodeNumber = 1;
+            $nextNumber = 1;
         }
 
-        $nextCode = 'L' . str_pad($nextCodeNumber, 3, '0', STR_PAD_LEFT);
+        $nextOpportunityId = 'FAC-' . $currentYear . '-' . str_pad($nextNumber, 3, '0', STR_PAD_LEFT);
 
-        return $nextCode;
+        return $nextOpportunityId;
     }
-
 }

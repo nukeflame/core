@@ -184,7 +184,7 @@
                                     <th>Opportunity ID</th>
                                     <th>Client Category</th>
                                     <th>Priority</th>
-                                    <th>Insured Name</th>
+                                    <th>Cedant Name</th>
                                     <th>Class of Business</th>
                                     <th>Status</th>
                                     <th>Gross Premium</th>
@@ -193,7 +193,7 @@
                                     <th>Effective Date</th>
                                     <th>Expiry Date</th>
                                     {{-- <th>Quote Deadline</th> --}}
-                                    <th>Account Executive</th>
+                                    <th>Prospect Lead</th>
                                     {{-- <th>Territory</th> --}}
                                     <th>Actions</th>
                                 </tr>

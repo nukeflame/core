@@ -105,7 +105,7 @@
 
                                     {{-- Cedant --}}
                                     <x-OnboardingInputDiv>
-                                        <x-SearchableSelect name="customer_id" id="customer_id" req=""
+                                        <x-SearchableSelect name="customer_id" id="customer_id" req="required"
                                             inputLabel="Cedant" placeholder="-- Select Cedant --">
                                             <option value="">---Select Cedant---</option>
                                             @foreach ($customers as $customer)
@@ -263,7 +263,7 @@
                             <div class="card-body pb-0">
                                 <div class="row row-cols-12 mb-2">
                                     <div class="col-sm-3">
-                                        <label class="form-label required">Division</label>
+                                        <label class="form-label required">Division <i style="color:red;">*</i></label>
                                         <div class="cover-card">
                                             <select class="form-inputs section select2" name="division" id="division"
                                                 required>
@@ -277,7 +277,7 @@
                                         </div>
                                     </div>
                                     <div class="col-sm-3 class_group_div fac_section_div">
-                                        <label class="form-label required">Class Group</label>
+                                        <label class="form-label required">Class Group <i style="color:red;">*</i></label>
                                         <div class="cover-card">
                                             <select class="form-inputs section select2 fac_section" name="class_group"
                                                 id="class_group" required>
@@ -291,7 +291,7 @@
                                         </div>
                                     </div>
                                     <div class="col-sm-3 fac_section_div">
-                                        <label class="form-label required">Class Name</label>
+                                        <label class="form-label required">Class Name <i style="color:red;">*</i></label>
                                         <div class="cover-card">
                                             <select class="form-inputs section select2 fac_section" name="classcode"
                                                 id="classcode" required>
@@ -301,13 +301,12 @@
                                         </div>
                                     </div>
                                     <div class="col-sm-3 fac_section_div">
-                                        <label class="form-label required">Insured Name</label>
-                                        <div class="cover-card">
-                                            <input type="text" class="form-inputs section  fac_section"
-                                                name="insured_name" id="insured_name"
-                                                oninput="this.value = this.value.replace(/\b\w/g, char => char.toUpperCase());"
-                                                required />
-                                        </div>
+                                        <label class="form-label required">Insured Name <i
+                                                style="color:red;">*</i></label>
+                                        <input type="text" class="form-inputs section  fac_section"
+                                            name="insured_name" id="insured_name"
+                                            oninput="this.value = this.value.replace(/\b\w/g, char => char.toUpperCase());"
+                                            required />
                                         <div id="insured_name_results" class="dropdown-menu"
                                             style="display: none; max-width: 500px; width: 100%;">
                                         </div>
@@ -327,7 +326,8 @@
                                         </x-SearchableSelect>
                                     </x-OnboardingInputDiv>
                                     <x-OnboardingInputDiv id="fac_date_offered" class="fac_section_div">
-                                        <label class="form-label required">Expected Closure Date</label>
+                                        <label class="form-label required">Expected Closure Date <i
+                                                style="color:red;">*</i></label>
                                         <input type="date" class="form-inputs fac_section"
                                             aria-label="fac_date_offered" id="fac_date_offered" name="fac_date_offered"
                                             required>
@@ -337,7 +337,7 @@
 
                                 <div class="row row-cols-12 mb-2">
                                     <div class="col-sm-3 fac_section_div">
-                                        <label class="form-label required">Currency</label>
+                                        <label class="form-label required">Currency <i style="color:red;">*</i></label>
                                         <div class="cover-card">
                                             <select class="form-inputs select2" name="currency_code" id="currency_code"
                                                 required>
@@ -373,8 +373,8 @@
                                         </div>
                                     </div>
                                     <div class="col-xl-3 fac_section_div">
-                                        <label class="form-label">100% SUM INSURED<span
-                                                id="sum_insured_label"></span></label>
+                                        <label class="form-label">100% SUM INSURED<span id="sum_insured_label"></span> <i
+                                                style="color:red;">*</i></label>
                                         <input type="text" class="form-inputs fac_section"
                                             aria-label="total_sum_insured" id="total_sum_insured"
                                             name="total_sum_insured" onkeyup="this.value=numberWithCommas(this.value)"
@@ -410,7 +410,8 @@
                                         </div>
                                     </div>
                                     <div class="col-sm-3">
-                                        <label class="form-label">Effective Sum Insured</label>
+                                        <label class="form-label">Effective Sum Insured <i
+                                                style="color:red;">*</i></label>
                                         <span id="effective_sum_insured_error"></span>
                                         <input type="text" class="form-inputs fac_section amount"
                                             aria-label="effective_sum_insured" id="effective_sum_insured"
@@ -421,23 +422,25 @@
 
                                 <div class="row row-cols-12 mb-2">
                                     <div class="col-sm-3">
-                                        <label class="form-label">Risk Details</label>
+                                        <label class="form-label">Risk Details <i style="color:red;">*</i></label>
                                         <textarea class="form-inputs section fac_section resize-none" id="risk_details" name="risk_details" required></textarea>
                                     </div>
                                     <div class="col-xl-3 fac_section_div">
-                                        <label class="form-label" for="cede_premium">Cedant Premium</label>
+                                        <label class="form-label" for="cede_premium">Cedant Premium <i
+                                                style="color:red;">*</i></label>
                                         <input type="text" class="form-inputs fac_section" aria-label="cede_premium"
                                             id="cede_premium" name="cede_premium"
                                             onkeyup="this.value=numberWithCommas(this.value)" required>
                                     </div>
                                     <div class="col-xl-3 fac_section_div">
-                                        <label class="form-label" for="rein_premium">Reinsurer Premium</label>
+                                        <label class="form-label" for="rein_premium">Reinsurer Premium <i
+                                                style="color:red;">*</i></label>
                                         <input type="text" class="form-inputs fac_section" aria-label="rein_premium"
                                             id="rein_premium" name="rein_premium"
                                             onkeyup="this.value=numberWithCommas(this.value)" required>
                                     </div>
                                     <div class="col-xl-3 fac_section_div">
-                                        <label class="form-label">Written Share(%)</label>
+                                        <label class="form-label">Written Share(%) <i style="color:red;">*</i></label>
                                         <input type="number" class="form-inputs fac_section"
                                             aria-label="fac_share_offered" id="fac_share_offered"
                                             name="fac_share_offered" data-counter="0" min="0" max="100"
@@ -448,12 +451,14 @@
 
                                 <div class="row row-cols-12 mb-2">
                                     <div class="col-xl-3 fac_section_div">
-                                        <label class="form-label">Cedant Commission rate(%)</label>
+                                        <label class="form-label">Cedant Commission rate(%) <i
+                                                style="color:red;">*</i></label>
                                         <input type="text" class="form-inputs fac_section" aria-label="comm_rate"
                                             id="comm_rate" name="comm_rate" required>
                                     </div>
                                     <div class="col-xl-3 fac_section_div">
-                                        <label class="form-label">Cedant Commission Amount</label>
+                                        <label class="form-label">Cedant Commission Amount <i
+                                                style="color:red;">*</i></label>
                                         <input type="text" class="form-inputs fac_section" aria-label="comm_amt"
                                             id="comm_amt" name="comm_amt"
                                             onkeyup="this.value=numberWithCommas(this.value)" required>
@@ -556,15 +561,14 @@
                                     <x-OnboardingInputDiv id="date_effective_div">
                                         <x-DateInput name="effective_date" id="effective_date"
                                             placeholder="Enter cover start date" inputLabel="Cover Start Date"
-                                            req="" />
+                                            req="required" />
                                     </x-OnboardingInputDiv>
                                     <x-OnboardingInputDiv id="date_closing_div">
                                         <x-DateInput name="closing_date" id="closing_date"
                                             placeholder="Enter bid closing date" inputLabel="Cover End  Date"
-                                            req="" />
+                                            req="required" />
                                     </x-OnboardingInputDiv>
                                 </div>
-
                             </div>
                         </div>
 

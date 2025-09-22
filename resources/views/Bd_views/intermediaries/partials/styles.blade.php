@@ -312,4 +312,117 @@
         text-overflow: inherit;
         white-space: inherit;
     } */
+
+    /*  */
+
+    /* Specific border colors for different column types */
+    .border-left-primary {
+        border-left: 3px solid #0d6efd !important;
+        font-weight: 600;
+    }
+
+    .border-left-priority {
+        border-left: 2px solid #ffc107 !important;
+    }
+
+    .border-left-status {
+        border-left: 2px solid #198754 !important;
+    }
+
+    .border-left-warning {
+        border-left: 2px solid #dc3545 !important;
+    }
+
+    .border-left-actions {
+        border-left: 2px solid #6c757d !important;
+    }
+
+    .border-left-light {
+        border-left: 1px solid #dee2e6 !important;
+    }
+
+    /* Priority row styling */
+    .row-priority-critical {
+        background-color: #fff5f5 !important;
+        border-left: 4px solid #dc3545 !important;
+    }
+
+    .row-priority-high {
+        background-color: #fffbf0 !important;
+        border-left: 4px solid #fd7e14 !important;
+    }
+
+    .row-priority-medium {
+        background-color: #f8f9fa !important;
+        border-left: 4px solid #6c757d !important;
+    }
+
+    .row-priority-low {
+        background-color: #f0f9ff !important;
+        border-left: 4px solid #0dcaf0 !important;
+    }
+
+    /* Status badges */
+    .badge {
+        font-size: 0.75em;
+        padding: 0.375em 0.75em;
+        font-weight: 500;
+    }
+
+    /* Priority badges */
+    .priority-badge {
+        padding: 0.25rem 0.5rem;
+        border-radius: 0.375rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+
+    .priority-critical {
+        background-color: #dc3545;
+        color: white;
+    }
+
+    .priority-high {
+        background-color: #fd7e14;
+        color: white;
+    }
+
+    .priority-medium {
+        background-color: #6c757d;
+        color: white;
+    }
+
+    .priority-low {
+        background-color: #0dcaf0;
+        color: white;
+    }
+
+    /* Table header styling */
+    .table thead th {
+        background-color: #f8f9fa;
+        border-bottom: 2px solid #dee2e6;
+        font-weight: 600;
+        color: #495057;
+        font-size: 0.875rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+
+        .border-left-primary {
+            border-left-width: 2px !important;
+        }
+    }
+
+    /* Overdue deadline styling */
+    .text-danger {
+        color: #dc3545 !important;
+    }
+
+    .fw-bold {
+        font-weight: 700 !important;
+    }
 </style>

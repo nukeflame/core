@@ -14,6 +14,7 @@
                 [12, 25, 50, 100]
             ],
             searching: false,
+            dom: '<"table-responsive"t><"d-flex justify-content-between align-items-center mt-3"<"d-flex align-items-center"l><"d-flex align-items-center"ip>>',
             ajax: {
                 url: "{{ route('leads.get') }}",
                 type: "GET",
@@ -23,11 +24,6 @@
                     d.priority = $('#priorityFilter').val();
                 },
                 error: function(xhr, error, code) {
-                    console.error('AJAX Error:', error);
-                    console.error('Status Code:', xhr.status);
-                    console.error('Response:', xhr.responseText);
-
-                    // Show user-friendly error message
                     $('#opportunities_table_wrapper').prepend(
                         '<div class="alert alert-danger">Error loading data. Please refresh the page.</div>'
                     );
@@ -37,6 +33,7 @@
                     data: 'opportunity_id',
                     name: 'opportunity_id',
                     title: 'Opportunity ID',
+                    // className: 'border-left-primary fw-bold',
                     render: function(data, type, row) {
                         return data || 'N/A';
                     }
@@ -116,17 +113,6 @@
                         return data || 0;
                     }
                 },
-                // {
-                //     data: 'formatted_expected_premium',
-                //     name: 'expected_premium',
-                //     title: 'Expected Premium',
-                //     className: 'text-end',
-                //     orderable: true,
-                //     searchable: false,
-                //     render: function(data, type, row) {
-                //         return data || '-';
-                //     }
-                // },
                 {
                     data: 'effective_date',
                     name: 'effective_date',
@@ -153,58 +139,15 @@
                         return data || '-';
                     }
                 },
-                // {
-                //     data: 'quote_deadline',
-                //     name: 'quote_deadline',
-                //     title: 'Quote Deadline',
-                //     render: function(data, type, row) {
-                //         if (type === 'display' && data) {
-                //             const deadline = typeof moment !== 'undefined' ?
-                //                 moment(data) :
-                //                 new Date(data);
-
-                //             const formatted = typeof moment !== 'undefined' ?
-                //                 deadline.format('MMM DD, YYYY') :
-                //                 deadline.toLocaleDateString();
-
-                //             // Add urgency indicator
-                //             const now = typeof moment !== 'undefined' ? moment() : new Date();
-                //             const daysUntil = typeof moment !== 'undefined' ?
-                //                 deadline.diff(now, 'days') :
-                //                 Math.ceil((deadline - now) / (1000 * 60 * 60 * 24));
-
-                //             let urgencyIcon = '';
-                //             if (daysUntil <= 1) {
-                //                 urgencyIcon =
-                //                     '<i class="text-danger fa fa-exclamation-triangle ms-1" title="Very Urgent"></i>';
-                //             } else if (daysUntil <= 3) {
-                //                 urgencyIcon =
-                //                     '<i class="text-warning fa fa-clock ms-1" title="Urgent"></i>';
-                //             }
-
-                //             return formatted + urgencyIcon;
-                //         }
-                //         return data || '-';
-                //     }
-                // },
                 {
                     data: 'account_executive.name',
                     name: 'account_executive.name',
-                    title: 'Account Executive',
+                    title: 'Prospect Lead',
                     defaultContent: '-',
                     render: function(data, type, row) {
                         return data || '-';
                     }
                 },
-                // {
-                //     data: 'territory.name',
-                //     name: 'territory.name',
-                //     title: 'Territory',
-                //     defaultContent: '-',
-                //     render: function(data, type, row) {
-                //         return data || '-';
-                //     }
-                // },
                 {
                     data: 'action',
                     name: 'action',
@@ -220,18 +163,27 @@
                 [0, 'desc']
             ],
             createdRow: function(row, data, dataIndex) {
+                if (data.priority) {
+                    const priorityClass = `row-priority-${data.priority.toLowerCase()}`;
+                    $(row).addClass(priorityClass);
+                }
+
                 if (data.urgency_class) {
                     $(row).addClass(data.urgency_class);
                 }
 
                 $(row).attr('data-id', data.opportunity_id);
+                $(row).addClass('table-row-hover');
+
+                // if (data.urgency_class) {
+                //     $(row).addClass(data.urgency_class);
+                // }
+                // $(row).attr('data-id', data.opportunity_id);
             },
             drawCallback: function(settings) {
                 if (typeof $.fn.tooltip !== 'undefined') {
                     $('[data-bs-toggle="tooltip"]').tooltip();
                 }
-
-                if (typeof bootstrap !== 'undefined') {}
             },
             language: {
                 processing: "Loading opportunities...",
@@ -250,11 +202,6 @@
             filterTimeout = setTimeout(function() {
                 try {
                     table.ajax.reload();
-                    console.log('Filters applied:', {
-                        status: $('#statusFilter').val(),
-                        class: $('#classFilter').val(),
-                        priority: $('#priorityFilter').val()
-                    });
                 } catch (error) {
                     console.error('Error reloading table with filters:', error);
                 }
@@ -292,14 +239,56 @@
                 $(this).prop('disabled', false);
             }, 2000);
         });
+
+        table.on("click", ".send_to_sales", function(e) {
+            e.preventDefault();
+            const data = $(this).data();
+            sendOpportunityToSales(data.prospect_id)
+        });
     });
 
-    function viewOpportunity(id) {
+    function sendOpportunityToSales(id) {
         if (!id) {
             console.error('No opportunity ID provided');
             return;
         }
-        console.log('View opportunity:', id);
+
+        Swal.fire({
+            title: "Warning!",
+            html: "Are You Sure You Want to add this prospect to Sales Management",
+            icon: "warning",
+            confirmButtonText: "Yes",
+            showCancelButton: true
+        }).then(function(result) {
+            if (result.isConfirmed) {
+                $.ajax({
+                    type: 'POST',
+                    url: "{!! route('prospect.add.pipeline') !!}",
+                    data: {
+                        'prospect': id
+                    },
+                    headers: {
+                        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                    },
+                    success: function(response) {
+                        if (response.status == 1) {
+                            toastr.success(response.message, {
+                                timeOut: 5000
+                            });
+                        }
+
+                        $('#opportunities_table').DataTable().ajax.reload();
+                    },
+                    error: function(jqXHR, textStatus, errorThrown) {
+                        Swal.fire({
+                            title: "Error",
+                            text: textStatus,
+                            icon: "error"
+                        });
+                    }
+                });
+            }
+        })
     }
 
     function editOpportunity(id) {

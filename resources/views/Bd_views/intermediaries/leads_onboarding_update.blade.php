@@ -1402,7 +1402,6 @@
     </div>
     {{-- end --}}
 
-
     <!-- Modal -->
     <div class="modal fade" id="editStatusModal" tabindex="-1" role="dialog" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered modal-dialog modal-lg" role="document">
@@ -1629,7 +1628,6 @@
     <script>
         $(document).ready(function() {
 
-
             $('#tnp_section').hide();
             $('#tpr_section').hide();
             $('#fac_section').hide();
@@ -1642,14 +1640,8 @@
             $('.brokerage_comm_rate_div').hide();
             $('select#type_of_bus').trigger('change');
 
-            const derro = @json($prospProperties);
-            console.log(derro);
-
-
             $("select#type_of_bus").change(function() {
                 var bustype = $("select#type_of_bus option:selected").attr('value');
-                var wewe = {!! json_encode($prospProperties) !!};
-                console.log('wewe', bustype, wewe);
 
                 if (bustype == 'FPR' || bustype == 'FNP') {
                     $('#fac_section').show();

@@ -29,10 +29,16 @@
                             <div class="col-md-3">
                                 <x-SearchableSelect id="pip_year_select" req="" inputLabel="Pipeline Year"
                                     name="pipeline" placeholder="--Select Year--">
-                                    @foreach ($pipelines as $pip_year)
+                                    {{-- @foreach ($pipelines as $pip_year)
                                         <option @if ($pip_year->id == $pip) selected @endif
                                             value="{{ $pip_year->id }}">
                                             {{ $pip_year->year }}
+                                        </option>
+                                    @endforeach --}}
+                                    @foreach ($pipelines as $year)
+                                        <option value="{{ $year->id }}"
+                                            {{ old('lead_year', $pip ?? '') == $year->id ? 'selected' : '' }}>
+                                            {{ $year->year }}
                                         </option>
                                     @endforeach
                                 </x-SearchableSelect>
@@ -484,12 +490,6 @@
                 },
             };
 
-            $('#pip_year_select').on('change', function() {
-                if (chartInstance) {
-                    loadChartData(chartInstance);
-                }
-            });
-
             const tableIds = ['#all_opps', '#q1_opps', '#q2_opps', '#q3_opps', '#q4_opps'];
             tableIds.forEach(tableId => {
                 if ($(tableId).length > 0) {
@@ -539,6 +539,18 @@
                 }
             });
 
+
+            $('#pip_year_select').on('change', function() {
+                if (chartInstance) {
+                    loadChartData(chartInstance);
+                }
+                tableIds.forEach(function(tableId) {
+                    if ($.fn.DataTable.isDataTable(tableId)) {
+                        $(tableId).DataTable().ajax.reload();
+                    }
+                });
+            });
+
             function initializeActionHandlers() {
                 $('.stage_btn_action').off('click').on('click', function(e) {
                     e.preventDefault();
@@ -575,13 +587,8 @@
                     if (!modal) {
                         throw new Error(`Modal not found: ${modalId}`);
                     }
-
-                    console.log(`#${modalId}`);
-
                     // populateModalData(modalId, dealId);
-
                     $(`#${modalId}`).modal('show')
-
                     addEscapeKeyListener();
                 } catch (error) {
                     console.error("Error opening modal:", error);
@@ -595,7 +602,6 @@
 
                     const modal = document.getElementById(modalId);
                     if (!modal) return;
-
                     // const dealIdInput = modal.querySelector('input[value*="001625"]');
                     // if (dealIdInput) {
                     //     dealIdInput.value = `PROP-2025-${String(dealId).padStart(6, "0")}`;

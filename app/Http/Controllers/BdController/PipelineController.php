@@ -598,9 +598,10 @@ class PipelineController
 
         try {
             $currentyear = Carbon::now()->year;
-            $pipelines = DB::table('pipelines')->where('year', $currentyear);
+            $pipelines = DB::table('pipelines')->orderBy('year', 'asc');
+            $pipeYear = DB::table('pipelines')->where('year', $currentyear);
 
-            $pip = $request->get('pipeline', $pipelines->first()->id ?? null);
+            $pip = $request->get('pipeline', $pipeYear->first()->id ?? null);
             $pipelines = $pipelines->get();
         } catch (\Exception $e) {
             logger($e);
@@ -893,7 +894,6 @@ class PipelineController
 
     public function pipeline_create_opportunity(Request $request)
     {
-
         $validator = Validator::make($request->all(), [
             'division' => 'required',
             'prod_cost' => 'nullable|numeric',
@@ -972,12 +972,13 @@ class PipelineController
         } else {
             $mes = "Prospect updated successfully";
         }
-        $nextCode = Prospects::generateNextCode();
+
+        $nextCode = Prospects::generateNextCode($request->lead_year);
         $date = $request->effective_date;
         $carbonDate = Carbon::parse($date);
         $monthNumber = $carbonDate->month;
-        $pq_status = 'W';
 
+        $pq_status = 'W';
         if ($request->prequalification === 'Y' && $request->updateState != 'U') {
             $pq_status = 'P';
         } else if ($request->updateState === 'U') {
@@ -985,7 +986,6 @@ class PipelineController
         }
 
         $quarter = null;
-
         if ($monthNumber < 4) {
             $quarter = 1;
         } else if ($monthNumber >= 4 && $monthNumber < 7) {
@@ -1000,7 +1000,7 @@ class PipelineController
 
         try {
             if ($request->updateState === 'U') {
-                $activity = Prospects::where('opportunity_id', $request->prospect)
+                Prospects::where('opportunity_id', $request->prospect)
                     ->update(
                         [
                             'opportunity_id' => $request->prospect,
@@ -1085,7 +1085,7 @@ class PipelineController
                         ]
                     );
             } else {
-                $activity = Prospects::create(
+                Prospects::create(
                     [
                         'opportunity_id' => $nextCode,
                         'stage' => 0,
@@ -1167,15 +1167,11 @@ class PipelineController
                         // 'indemnity_treaty_limit' => $request->indemnity_treaty_limit ? json_encode($request->indemnity_treaty_limit) : null,
                         // 'underlying_limit' => $request->underlying_limit ? json_encode($request->underlying_limit) : null,
                         // 'pq_comments' => '', // Restored the commented line
-
-
-
                     ]
                 );
             }
 
             DB::commit();
-
             return ['status' => 1, 'message' => $mes];
         } catch (Exception $e) {
             DB::rollback();
@@ -1413,7 +1409,6 @@ class PipelineController
                 // }
             }
             if ($request->type_of_bus == 'TPR' && !empty($request->treatytype)) {
-                logger('inside prop');
                 $treaty_reinclass = $request->treaty_reinclass;
                 $user = Auth::user()->user_name;
 
@@ -2044,11 +2039,9 @@ class PipelineController
 
                             // Verify the file was uploaded
                             if (!Storage::disk('s3')->exists($S3FilePath)) {
-                                logger("Failed.ConcurrentModificationException: Failed to verify file in S3:  $S3FilePath");
                                 return response()->json(['error' => 'Failed to save file to S3.'], 500);
                             }
                         } catch (\Exception $e) {
-                            logger("S3 upload error for  $S3FilePath: " . $e->getMessage());
                             return response()->json(['error' => 'S3 upload error: ' . $e->getMessage()], 500);
                         }
                         $exist = DB::table('prospect_docs')->where([
@@ -2136,11 +2129,9 @@ class PipelineController
 
     public function prospectAddToPipeline(Request $request)
     {
-
+        logger()->debug($request->all());
         $year = DB::table('pipeline_opportunities')->where('opportunity_id', $request->prospect)->first()->pip_year;
-
         $pip_id = DB::table('pipelines')->where('id', $year)->first()->id;
-
         $update = DB::table('pipeline_opportunities')->where('opportunity_id', $request->prospect)
             ->update([
                 'pipeline_id' => $pip_id,
@@ -3592,9 +3583,6 @@ class PipelineController
             ->where('po.opportunity_id', $request->prospect)
             ->get();
 
-
-
-
         $formattedActivities = $activities->map(function ($d) {
             return [
                 'customer_name' => $d->customer_name ?? 'N/A',
@@ -3624,11 +3612,6 @@ class PipelineController
             ->select('qr.*', 'c.name', 'c.email', 'cc.contact_name')
             ->where('qr.opportunity_id', $request->prospect)
             ->get();
-
-
-
-
-        // dd($request->facschedule_details);
 
         $data = [
             'pipeline_data' => $formattedActivities,
@@ -3846,7 +3829,6 @@ class PipelineController
                         : '';
                 })
 
-
                 ->addColumn('action', function ($d) {
                     if ($d->category_type == 1 && $d->stage != 5 || $d->category_type == 2 && $d->stage != 5) {
                         // return '<a href="#" class="text-white update_status btn btn-sm btn-success rounded-pill" title="Update status" data-stage="' . $d->stage . '" data-division="' . $d->divisions . '" data-opp="' . $d->opportunity_id . '" data-category_type="' . $d->category_type . '" " data-status="' . $d->status . '" data-sum-insured-type="' . $d->sum_insured_type . '"> <i class="bx bx-refresh"></i>Update status</a>';
@@ -3870,7 +3852,6 @@ class PipelineController
                         data-insured-name="' . e($d->insured_name) . '"
                         data-data-exist-flag="' . e($d->data_exists_flag) . '"
                         data-type-of-bus="' . e($d->type_of_bus) . '"
-
 
                         <i class="bx bx-refresh"></i> Update status
                     </a>';
@@ -5279,8 +5260,6 @@ class PipelineController
                         }
                     }
                 } elseif (($stage_cycle_fac == 3 || $stage_cycle_fac == 4) && $request->bus_type == 'FAC') {
-
-
                     $reinsurers = $request->reinsurers;
                     $written_share = array_column($reinsurers, 'written_share');
                     $signed_share = array_column($reinsurers, 'signed_share');
@@ -5347,8 +5326,6 @@ class PipelineController
                                             [
                                                 'reason' => $declineReason,
                                             ]
-
-
                                         );
                                     } catch (\Exception $e) {
                                         DB::rollback();
@@ -5471,14 +5448,9 @@ class PipelineController
                     } else {
                     }
                 } elseif (($stage_cycle == 3 || $stage_cycle == 4) && $request->bus_type == 'FAC') {
-
-
                     $reinsurers = $request->reinsurers;
                     $written_share = array_column($reinsurers, 'written_share');
                     $signed_share = !empty($reinsurers) ? array_column($reinsurers, 'signed_share') : null;
-
-
-
 
                     if (is_array($reinsurers) && !is_null($reinsurers)) {
 
@@ -5608,17 +5580,8 @@ class PipelineController
             if (isset($request->stage_cycle) && $request->bus_type == 'TRT') {
                 if ($request->stage_cycle == 3 || $request->stage_cycle == 4) {
                     $customer_id = $request->customer_id;
-                    // dd($request->all());
-
-
-
 
                     if (!is_null($customer_id)) {
-
-
-
-
-
                         $id = $customer_id;
                         $name = $request->customer;
 
@@ -5626,11 +5589,9 @@ class PipelineController
                             $selected_contact_person_main = [];
                         }
 
-
                         $contactName = $selected_contact_person_main['contact_name'][0] ?? 'not provided';
                         $email = $selected_contact_person_main['contact_email'][0] ?? 'not_provided@example.com';
                         $mainContactPerson = $selected_contact_person_main['main_contact_person'][0] ?? null;
-
 
                         $declineCustomer = $re_details['decline'] ?? null;
                         $declineInserted = $re_details['decline_inserted'] ?? null;
@@ -5638,8 +5599,6 @@ class PipelineController
                         $qt_re_id = "";
 
                         try {
-
-
                             $exist = DB::table('quote_reinsurers')->where([
                                 'reinsurer_id' => $id,
                                 'opportunity_id' => $leadId,
@@ -5698,7 +5657,6 @@ class PipelineController
                                 $quote_reverted_to_lead = 'Y';
                             }
 
-
                             try {
                                 $exist = DB::table('quote_reinsurers')->where([
                                     'reinsurer_id' => $id,
@@ -5746,16 +5704,7 @@ class PipelineController
                 if ($request->stage_cycle_fac == 4) {
                     $customer_id = $request->customer_id;
                     // dd($request->all());
-
-
-
-
                     if (!is_null($customer_id)) {
-
-
-
-
-
                         $id = $customer_id;
                         $name = $request->customer;
 
@@ -6087,8 +6036,6 @@ class PipelineController
                 }
             }
 
-
-
             DB::commit();
             // if ($stage == 0) {
             //     return redirect()->route('pipelines.onboarding', ['qstring'=>Crypt::encrypt('pipeline='.$pipeline.'&prospect='.$leadId)])->with('success','Status updated successfully');
@@ -6220,13 +6167,9 @@ class PipelineController
 
                             // Verify the file was uploaded
                             if (!Storage::disk('s3')->exists($S3FilePath)) {
-                                logger("Failed.ConcurrentModificationException: Failed to verify file in S3: $S3FilePath");
                                 return response()->json(['error' => 'Failed to save file to S3.'], 500);
                             }
-
-                            logger("File uploaded successfully to S3: $S3FilePath");
                         } catch (\Exception $e) {
-                            logger("S3 upload error for $S3FilePath: " . $e->getMessage());
                             return response()->json(['error' => 'S3 upload error: ' . $e->getMessage()], 500);
                         }
 
@@ -6296,17 +6239,11 @@ class PipelineController
 
                                 // Verify the file was uploaded
                                 if (!Storage::disk('s3')->exists($S3FilePath)) {
-                                    logger("Failed.ConcurrentModificationException: Failed to verify file in S3: $S3FilePath");
                                     return response()->json(['error' => 'Failed to save file to S3.'], 500);
                                 }
-
-                                // logger("File uploaded successfully to S3: $S3FilePath");
                             } catch (\Exception $e) {
-                                logger("S3 upload error for $S3FilePath: " . $e->getMessage());
                                 return response()->json(['error' => 'S3 upload error: ' . $e->getMessage()], 500);
                             }
-                            // logger("File uploaded successfully to S3: $S3FilePath");
-
                             $prospect_doc_id = DB::table('prospect_docs')->insertGetId([
                                 'description' => $name,
                                 'prospect_id' => $leadId,
@@ -6353,16 +6290,11 @@ class PipelineController
 
                             // Verify the file was uploaded
                             if (!Storage::disk('s3')->exists($S3FilePath)) {
-                                logger("Failed.ConcurrentModificationException: Failed to verify file in S3: $S3FilePath");
                                 return response()->json(['error' => 'Failed to save file to S3.'], 500);
                             }
-
-                            logger("File uploaded successfully to S3: $S3FilePath");
                         } catch (\Exception $e) {
-                            logger("S3 upload error for $S3FilePath: " . $e->getMessage());
                             return response()->json(['error' => 'S3 upload error: ' . $e->getMessage()], 500);
                         }
-                        logger("File uploaded successfully to S3: $S3FilePath");
 
                         $prospect_doc_id = DB::table('prospect_docs')->insertGetId([
                             'description' => $name,
@@ -6417,13 +6349,9 @@ class PipelineController
 
                             // Verify the file was uploaded
                             if (!Storage::disk('s3')->exists($S3FilePath)) {
-                                logger("Failed.ConcurrentModificationException: Failed to verify file in S3: $S3FilePath");
                                 return response()->json(['error' => 'Failed to save file to S3.'], 500);
                             }
-
-                            logger("File uploaded successfully to S3: $S3FilePath");
                         } catch (\Exception $e) {
-                            logger("S3 upload error for $S3FilePath: " . $e->getMessage());
                             return response()->json(['error' => 'S3 upload error: ' . $e->getMessage()], 500);
                         }
 
@@ -6677,9 +6605,6 @@ class PipelineController
         $cedant_cc = isset($request->cedant_contact_person_cc) ? $request->cedant_contact_person_cc['cedant_cc'] : null;
         $cedant_contact_name = isset($request->selected_contact_person_main) ? $request->selected_contact_person_main['contact_name'][0] : null;
         // $emailBody = isset($request->emailBody) ? $request->emailBody : null;
-
-
-
 
         $columns = [
             'customers.name as customer_name',
@@ -7868,10 +7793,8 @@ class PipelineController
                                 $result = Storage::disk('s3')->put($s3FilePath, $fileContent, [
                                     'visibility' => 'public',
                                 ]);
-                                logger("S3 upload result for $s3FilePath: " . json_encode($result));
 
                                 if (!Storage::disk('s3')->exists($s3FilePath)) {
-                                    logger("Failed.ConcurrentModificationException: Failed to verify file in S3: $s3FilePath");
                                     throw new \Exception('Failed to save file to S3.');
                                 }
 
@@ -7884,7 +7807,6 @@ class PipelineController
                                     'path' => $s3FilePath
                                 ];
                             } catch (\Exception $e) {
-                                logger("S3 upload error for $s3FilePath: " . $e->getMessage());
                                 throw new \Exception('S3 upload error: ' . $e->getMessage());
                             }
                         }
@@ -7952,7 +7874,6 @@ class PipelineController
             Storage::disk('s3')->put($pdfPath, $pdfContent, ['visibility' => 'public']);
 
             if (!Storage::disk('s3')->exists($pdfPath)) {
-                logger("Failed to save PDF to S3: $pdfPath");
                 return response()->json(['error' => 'Failed to save PDF to S3.'], 500);
             }
         } catch (\Exception $e) {
@@ -7974,13 +7895,11 @@ class PipelineController
                     try {
                         Storage::disk('s3')->put($generatedFilePath, file_get_contents($file), ['visibility' => 'public']);
                         if (!Storage::disk('s3')->exists($generatedFilePath)) {
-                            logger("Failed to save file to S3: $generatedFilePath");
                             return response()->json(['error' => "Failed to save file to S3: $generatedFilePath"], 500);
                         }
                         $fileName[] = $generatedFileName;
                         $filePath[] = $generatedFilePath;
                     } catch (\Exception $e) {
-                        logger("S3 upload error for $generatedFilePath: " . $e->getMessage());
                         return response()->json(['error' => "S3 upload error: " . $e->getMessage()], 500);
                     }
                 }

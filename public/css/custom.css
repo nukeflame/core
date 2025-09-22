@@ -1901,6 +1901,35 @@ body::-webkit-scrollbar-thumb:hover {
     padding: 5px 0px !important;
 }
 
-/* {
-        border-color: #dc3545 !important;
-} */
+/* DataTable specific styling */
+.dataTables_wrapper {
+    margin-top: 1rem;
+}
+
+.dataTables_info {
+    color: #6c757d;
+    font-size: 0.875rem;
+}
+
+.dataTables_paginate {
+    margin-top: 0.5rem;
+}
+
+.paginate_button {
+    padding: 0.35rem 0.75rem !important;
+    margin: 0 0.125rem !important;
+    /* border: 1px solid #dee2e6 !important; */
+    background-color: white !important;
+    color: #6c757d !important;
+}
+
+.paginate_button:hover {
+    background-color: #e9ecef !important;
+    border-color: #adb5bd !important;
+}
+
+.paginate_button.current {
+    background-color: #0d6efd !important;
+    border-color: #0d6efd !important;
+    color: white !important;
+}

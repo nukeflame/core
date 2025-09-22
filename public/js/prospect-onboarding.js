@@ -217,16 +217,6 @@ const ProspectOnboarding = {
         $("#rein_premium").on("keyup", () => {
             this.calculateReinsCommission();
         });
-
-        // $("#comm_rate").keyup(function () {
-        //     var ratex = $(this).val() || 0;
-        //     var cede =
-        //         parseFloat(self.removeCommas($("#cede_premium").val())) || 0;
-        //     var commAmount = (ratex / 100) * cede;
-        //     $("#comm_amt").val(self.numberWithCommas(commAmount));
-
-        //     self.calculateBrokerageCommRate();
-        // });
     },
 
     /**
@@ -335,7 +325,6 @@ const ProspectOnboarding = {
 
         const counter = prevCounter + 1;
         const contactHtml = this.generateContactHTML(counter);
-        console.log(contactHtml);
         $("#contactsContainer").append(contactHtml);
         this.state.contactCounter = counter;
     },
@@ -516,18 +505,17 @@ const ProspectOnboarding = {
         if (this.state.isSubmitting) {
             return;
         }
-        console.log("object");
-        // this.showConfirmDialog(
-        //     "Are you sure you want to submit this form?",
-        //     this.submitForm.bind(this)
-        // );
+        this.handleValidatedSubmit.bind(this);
     },
 
     /**
      * Handle validated form submission
      */
     handleValidatedSubmit() {
-        this.submitForm();
+        this.showConfirmDialog(
+            "Are you sure you want to submit this form?",
+            this.submitForm.bind(this)
+        );
     },
 
     /**
