@@ -626,6 +626,14 @@
         margin-left: 48px;
         margin-top: 0px;
     }
+
+    .select2-container--default .select2-results>.select2-results__options {
+        max-height: 600px !important;
+    }
+
+    .select2-container--default .select2-results__option--highlighted.select2-results__option--selectable {
+        color: white !important;
+    }
 </style>
 
 @push('script')
@@ -671,8 +679,8 @@
 
             $('#addReinsurer').click(function() {
                 const selectedOption = $('#availableReinsurers option:selected');
-                const reinsurerShare = parseFloat($('#reinsurerShare').val());
-                const reinsurerCommission = parseFloat($('#reinsurerCommission').val());
+                // const reinsurerShare = parseFloat($('#reinsurerShare').val());
+                // const reinsurerCommission = parseFloat($('#reinsurerCommission').val());
 
                 if (!selectedOption.val()) {
                     Swal.fire({
@@ -684,29 +692,29 @@
                     return;
                 }
 
-                if (!reinsurerShare || reinsurerShare <= 0 || reinsurerShare > 100) {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Invalid Share',
-                        text: 'Please enter a valid share percentage between 0.01% and 100%.',
-                        confirmButtonColor: '#3085d6'
-                    }).then(() => {
-                        $('#reinsurerShare').focus();
-                    });
-                    return;
-                }
+                // if (!reinsurerShare || reinsurerShare <= 0 || reinsurerShare > 100) {
+                //     Swal.fire({
+                //         icon: 'error',
+                //         title: 'Invalid Share',
+                //         text: 'Please enter a valid share percentage between 0.01% and 100%.',
+                //         confirmButtonColor: '#3085d6'
+                //     }).then(() => {
+                //         $('#reinsurerShare').focus();
+                //     });
+                //     return;
+                // }
 
-                if (isNaN(reinsurerCommission) || reinsurerCommission < 0 || reinsurerCommission > 50) {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Invalid Commission',
-                        text: 'Please enter a valid commission percentage between 0% and 50%.',
-                        confirmButtonColor: '#3085d6'
-                    }).then(() => {
-                        $('#reinsurerCommission').focus();
-                    });
-                    return;
-                }
+                // if (isNaN(reinsurerCommission) || reinsurerCommission < 0 || reinsurerCommission > 50) {
+                //     Swal.fire({
+                //         icon: 'error',
+                //         title: 'Invalid Commission',
+                //         text: 'Please enter a valid commission percentage between 0% and 50%.',
+                //         confirmButtonColor: '#3085d6'
+                //     }).then(() => {
+                //         $('#reinsurerCommission').focus();
+                //     });
+                //     return;
+                // }
 
                 // Check if reinsurer already selected
                 if (selectedReinsurers.has(selectedOption.val())) {
@@ -729,56 +737,56 @@
                     commission: reinsurerCommission
                 };
 
-                const totalPremium = getTotalPremium(); // You'll need to implement this function
+                const totalPremium = getTotalPremium();
                 const premiumAmount = (totalPremium * reinsurerShare / 100);
 
-                const rowHtml = `
-                    <tr data-reinsurer-id="${reinsurerData.id}">
-                        <td>
-                            <div class="d-flex align-items-center">
-                                <div>
-                                    <div class="fw-medium">${reinsurerData.name}</div>
-                                    <small class="text-muted">${reinsurerData.country}</small>
-                                </div>
-                            </div>
-                        </td>
-                        <td class="text-end">${reinsurerData.share.toFixed(2)}%</td>
-                        <td class="text-end">${reinsurerData.commission.toFixed(2)}%</td>
-                        <td class="text-end">$${premiumAmount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
-                        <td class="text-center">
-                            <button type="button" class="btn btn-danger btn-sm remove-reinsurer"
-                                    data-reinsurer-id="${reinsurerData.id}"
-                                    title="Remove Reinsurer">
-                                <i class="bx bx-trash"></i>
-                            </button>
-                        </td>
-                    </tr>
-                `;
+                // const rowHtml = `
+            //     <tr data-reinsurer-id="${reinsurerData.id}">
+            //         <td>
+            //             <div class="d-flex align-items-center">
+            //                 <div>
+            //                     <div class="fw-medium">${reinsurerData.name}</div>
+            //                     <small class="text-muted">${reinsurerData.country}</small>
+            //                 </div>
+            //             </div>
+            //         </td>
+            //         <td class="text-end">${reinsurerData.share.toFixed(2)}%</td>
+            //         <td class="text-end">${reinsurerData.commission.toFixed(2)}%</td>
+            //         <td class="text-end">$${premiumAmount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+            //         <td class="text-center">
+            //             <button type="button" class="btn btn-danger btn-sm remove-reinsurer"
+            //                     data-reinsurer-id="${reinsurerData.id}"
+            //                     title="Remove Reinsurer">
+            //                 <i class="bx bx-trash"></i>
+            //             </button>
+            //         </td>
+            //     </tr>
+            // `;
 
-                table.row.add($(rowHtml)).draw();
+                // table.row.add($(rowHtml)).draw();
 
-                // Add to selected reinsurers set
-                selectedReinsurers.add(reinsurerData.id);
+                // // Add to selected reinsurers set
+                // selectedReinsurers.add(reinsurerData.id);
 
-                // Update reinsurer count
-                updateReinsurerCount();
+                // // Update reinsurer count
+                // updateReinsurerCount();
 
-                // Reset form
-                resetForm();
+                // // Reset form
+                // resetForm();
 
-                // Show success message
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Reinsurer Added!',
-                    text: `${reinsurerData.name} has been successfully added to the list.`,
-                    timer: 2000,
-                    showConfirmButton: false,
-                    toast: true,
-                    position: 'top-end'
-                });
+                // // Show success message
+                // Swal.fire({
+                //     icon: 'success',
+                //     title: 'Reinsurer Added!',
+                //     text: `${reinsurerData.name} has been successfully added to the list.`,
+                //     timer: 2000,
+                //     showConfirmButton: false,
+                //     toast: true,
+                //     position: 'top-end'
+                // });
 
-                // Update total shares display
-                updateTotalShares();
+                // // Update total shares display
+                // updateTotalShares();
             });
 
             // Remove reinsurer functionality
@@ -1045,6 +1053,7 @@
                 allowClear: true,
                 minimumInputLength: 0,
                 width: '100%',
+                dropdownParent: $('#proposalModal'),
                 ajax: {
                     url: "{{ route('pipeline.search_reinsurers') }}",
                     method: 'GET',
@@ -1057,13 +1066,11 @@
                         };
                     },
                     processResults: function(data, params) {
-                        console.log(data)
-
                         return {
-                            results: [],
-                            // pagination: {
-                            //     more: data.pagination && data.pagination.more
-                            // }
+                            results: data.results,
+                            pagination: {
+                                more: data.pagination && data.pagination.more
+                            }
                         };
                     },
                     // cache: true,
@@ -1075,21 +1082,23 @@
                     if (reinsurer.loading) return reinsurer.text;
                     if (!reinsurer.name) return reinsurer.text;
 
-                    const capacity = reinsurer.capacity ?
-                        '$' + (reinsurer.capacity / 1000000).toLocaleString() + 'M' : 'N/A';
+                    // console.log(reinsurer)
+                    // const capacity = reinsurer.capacity ?
+                    //     '$' + (reinsurer.capacity / 1000000).toLocaleString() + 'M' : 'N/A';
+                    const email = reinsurer.email
 
                     return `
                         <div class="reinsurer-option">
                             <div><strong>${reinsurer.name}</strong>
                                 <span class="badge bg-secondary ms-1">${reinsurer.rating}</span>
                             </div>
-                            <div><small class="text-muted">${reinsurer.country} | Capacity: ${capacity}</small></div>
+                            <div><small class="text-muted">${reinsurer.country} | Email: ${email}</small></div>
                         </div>
                     `;
                 },
                 templateSelection: function(reinsurer) {
                     return reinsurer.name ?
-                        `${reinsurer.name} (${reinsurer.rating}) - ${reinsurer.country}` :
+                        `${reinsurer.name} (${reinsurer.email}) - ${reinsurer.country}` :
                         reinsurer.text;
                 },
                 escapeMarkup: function(markup) {

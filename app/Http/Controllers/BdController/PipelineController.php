@@ -3581,75 +3581,55 @@ class PipelineController
     {
         $search = $request->get('q', '');
         $page = $request->get('page', 1);
-        $perPage = 10;
+        $perPage = 200;
 
-        logger()->debug($request->all());
+        $reinsurers = $this->getReinsurersData($search, $page, $perPage);
 
-        // $e = $this->getReinsurersData($search, $page, $perPage);
-        $reinsurers = [];
+        $results = collect($reinsurers['data'])->map(function ($reinsurer) {
+            $country = DB::table('countries')->where('country_iso', $reinsurer->country_iso)->first();
 
-        $results = collect([])->map(function ($reinsurer) {
             return [
-                'id' => $reinsurer['id'],
-                'text' => "{$reinsurer['name']} ({$reinsurer['rating']}) - {$reinsurer['country']}",
-                'name' => $reinsurer['name'],
-                'capacity' => $reinsurer['capacity'],
-                'rating' => $reinsurer['rating'],
-                'country' => $reinsurer['country']
+                'id' => $reinsurer->customer_id,
+                'text' => "{$reinsurer->name} ({$reinsurer->email}) - {$reinsurer->city}",
+                'name' => $reinsurer->name,
+                'capacity' => '',
+                'rating' => '',
+                'email' => $reinsurer->email,
+                'country' => $country?->country_name
             ];
         });
 
         return response()->json([
             'results' => $results,
             'pagination' => [
-                'more' => false
+                'more' => $reinsurers['has_more']
             ]
         ]);
     }
 
-    private function getReinsurersData(string $search, int $page, int $perPage): array
+    private function getReinsurersData($search, int $page, int $perPage): array
     {
-        $query = DB::table('customers')->query();
+        $query = DB::table('customers');
 
-        // logger($query->get());
+        if (!empty($search)) {
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'LIKE', "%{$search}%")
+                    ->orWhere('email', 'LIKE', "%{$search}%")
+                    ->orWhere('city', 'LIKE', "%{$search}%");
+            });
+        }
 
-        return [];
+        $total = $query->count();
+        $reinsurers = $query->offset(($page - 1) * $perPage)
+            ->limit($perPage)
+            ->get()
+            ->toArray();
 
-        // // [Inference] This is mock data - replace with actual database query
-        // $allReinsurers = [
-        //     ['id' => 1, 'name' => 'Swiss Re', 'capacity' => 500000000, 'rating' => 'AA-', 'country' => 'Switzerland'],
-        //     ['id' => 2, 'name' => 'Munich Re', 'capacity' => 750000000, 'rating' => 'AA', 'country' => 'Germany'],
-        //     ['id' => 3, 'name' => 'Lloyd\'s of London', 'capacity' => 1000000000, 'rating' => 'A+', 'country' => 'United Kingdom'],
-        //     ['id' => 4, 'name' => 'Berkshire Hathaway Re', 'capacity' => 1200000000, 'rating' => 'AA', 'country' => 'United States'],
-        //     ['id' => 5, 'name' => 'Hannover Re', 'capacity' => 400000000, 'rating' => 'AA-', 'country' => 'Germany'],
-        //     ['id' => 6, 'name' => 'SCOR SE', 'capacity' => 300000000, 'rating' => 'A+', 'country' => 'France'],
-        //     ['id' => 7, 'name' => 'Everest Re', 'capacity' => 250000000, 'rating' => 'A', 'country' => 'Bermuda'],
-        //     ['id' => 8, 'name' => 'PartnerRe', 'capacity' => 350000000, 'rating' => 'A+', 'country' => 'Bermuda'],
-        //     ['id' => 9, 'name' => 'RenaissanceRe', 'capacity' => 200000000, 'rating' => 'A', 'country' => 'Bermuda'],
-        //     ['id' => 10, 'name' => 'Axis Re', 'capacity' => 180000000, 'rating' => 'A+', 'country' => 'Bermuda'],
-        //     ['id' => 11, 'name' => 'QBE Re', 'capacity' => 150000000, 'rating' => 'A', 'country' => 'Australia'],
-        //     ['id' => 12, 'name' => 'Korean Re', 'capacity' => 120000000, 'rating' => 'A-', 'country' => 'South Korea'],
-        // ];
-
-        // // Filter by search term
-        // if (!empty($search)) {
-        //     $allReinsurers = array_filter($allReinsurers, function ($reinsurer) use ($search) {
-        //         return stripos($reinsurer['name'], $search) !== false ||
-        //             stripos($reinsurer['country'], $search) !== false ||
-        //             stripos($reinsurer['rating'], $search) !== false;
-        //     });
-        // }
-
-        // $total = count($allReinsurers);
-        // $offset = ($page - 1) * $perPage;
-        // $data = array_slice($allReinsurers, $offset, $perPage);
-        // $hasMore = ($offset + $perPage) < $total;
-
-        // return [
-        //     'data' => $data,
-        //     'has_more' => $hasMore,
-        //     'total' => $total
-        // ];
+        return [
+            'data' => $reinsurers,
+            'has_more' => (($page - 1) * $perPage + count($reinsurers)) < $total,
+            'total' => $total
+        ];
     }
 
 
