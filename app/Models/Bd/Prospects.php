@@ -33,7 +33,7 @@ class Prospects extends Model
             $nextNumber = 1;
         }
 
-        $nextOpportunityId = 'FAC-' . $currentYear . '-' . str_pad($nextNumber, 3, '0', STR_PAD_LEFT);
+        $nextOpportunityId = 'FAC-' . $currentYear . '-' . str_pad($nextNumber, 6, '0', STR_PAD_LEFT);
 
         return $nextOpportunityId;
     }

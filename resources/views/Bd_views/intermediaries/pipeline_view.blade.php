@@ -248,7 +248,8 @@
         </div>
 
         {{-- Modals --}}
-        @include('Bd_views.intermediaries.partials.modals.pipeline_view_modals')
+        @include('Bd_views.intermediaries.partials.modals.proposal_modal')
+        @include('Bd_views.intermediaries.partials.modals.negotiation_modal')
     </div>
 @endsection
 
@@ -373,6 +374,7 @@
             let chartInstance = initializePipelineChart();
             let currentDealId = null;
             let currentStage = "lead";
+            let escapeKeyHandler = null;
 
             const columnConfig = [{
                     data: 'id',
@@ -539,7 +541,6 @@
                 }
             });
 
-
             $('#pip_year_select').on('change', function() {
                 if (chartInstance) {
                     loadChartData(chartInstance);
@@ -554,13 +555,41 @@
             function initializeActionHandlers() {
                 $('.stage_btn_action').off('click').on('click', function(e) {
                     e.preventDefault();
-                    const data = $(this).data();
-                    console.log('Update status clicked:', data);
-
                     try {
-                        currentDealId = data.deal_id;
+                        const buttonData = $(this).data();
+                        currentDealId = buttonData.deal_id;
 
-                        const dealCurrentStage = data.current_stage;
+                        const $row = $(this).closest("tr");
+                        const $table = $row.closest("table");
+                        const tableId = "#" + $table.attr("id");
+                        const dataTable = $(tableId).DataTable();
+                        const rowData = dataTable.row($row).data();
+
+                        const _original = rowData._original
+                        const dealInfo = {
+                            id: _original.opportunity_id,
+                            created_at: _original.created_at,
+                            insured_name: _original.insured_name,
+                            insured_email: _original.insured_email,
+                            insured_phone: _original.insured_phone,
+                            contact_name: _original.contact_name,
+                            total_sum_insured: _original.total_sum_insured,
+                            premium: _original.premium,
+                            brokerage_rate: _original.brokerage_rate,
+                            // currency: _original.currency,
+                            // sum_insured: _original.sum_insured,
+                            // premium: _original.premium,
+                            // effective_date: _original.effective_date,
+                            // closing_date: _original.closing_date,
+                            // category: _original.category,
+                            // approval_status: _original.approval_status,
+                            // current_stage: buttonData.current_stage || rowData.status,
+                        };
+
+                        // console.log(_original);
+
+                        window.currentDealInfo = dealInfo;
+                        const dealCurrentStage = buttonData.current_stage || rowData.status;
                         currentStage = dealCurrentStage;
 
                         const stageInfo = stageFlow[currentStage];
@@ -570,15 +599,27 @@
 
                         const nextStage = stageInfo.next;
                         if (nextStage) {
-                            openStageModal(nextStage, currentDealId);
+                            openStageModal(nextStage, currentDealId, dealInfo);
                         }
                     } catch (error) {
                         console.error("Error opening next stage modal:", error);
                     }
                 });
+
+
+                $('.update_category_action').off('click').on('click', function(e) {
+                    e.preventDefault();
+                    const buttonData = $(this).data();
+
+                    $("#updateCategoryForm #opportunity_id").val(buttonData.opportunity_id);
+
+                    $('#updateCategoryTypeModal').modal('show')
+
+                })
+
             }
 
-            function openStageModal(stage, dealId) {
+            function openStageModal(stage, dealId, dealInfo = null) {
                 try {
                     currentDealId = dealId;
                     const modalId = stage + "Modal";
@@ -587,25 +628,54 @@
                     if (!modal) {
                         throw new Error(`Modal not found: ${modalId}`);
                     }
-                    // populateModalData(modalId, dealId);
-                    $(`#${modalId}`).modal('show')
+
+                    populateModalData(modalId, dealId, dealInfo);
+
+                    $(`#${modalId}`).modal('show');
+
                     addEscapeKeyListener();
                 } catch (error) {
                     console.error("Error opening modal:", error);
                 }
             }
 
-            function populateModalData(modalId, dealId) {
+            function populateModalData(modalId, dealId, dealInfo = null) {
                 try {
-                    const deal = dealData[dealId];
-                    if (!deal) return;
+                    const $modal = $(`#${modalId}`);
+                    if ($modal.length === 0) {
+                        console.error(`Modal not found: ${modalId}`);
+                        return;
+                    }
 
-                    const modal = document.getElementById(modalId);
-                    if (!modal) return;
-                    // const dealIdInput = modal.querySelector('input[value*="001625"]');
-                    // if (dealIdInput) {
-                    //     dealIdInput.value = `PROP-2025-${String(dealId).padStart(6, "0")}`;
-                    // }
+                    if (dealInfo) {
+                        console.log(dealInfo);
+                        $modal.find('.slip-display').text(dealInfo.id || '');
+
+                        if (dealInfo.created_at) {
+                            const dateObj = new Date(dealInfo.created_at);
+                            const options = {
+                                year: 'numeric',
+                                month: 'long',
+                                day: 'numeric'
+                            };
+                            const formattedDate = dateObj.toLocaleDateString('en-US', options);
+                            $modal.find('.created_at-display').text(formattedDate);
+                        } else {
+                            $modal.find('.created_at-display').text('');
+                        }
+
+                        $modal.find('.insured-name-display').text(dealInfo.insured_name || '');
+                        $modal.find('.insured-email-display').text(dealInfo.insured_email || '--');
+                        $modal.find('.insured-phone-display').text(dealInfo.insured_phone || '--');
+                        $modal.find('.insured-contact-name-display').text(dealInfo.contact_name || '--');
+
+                        $modal.find('.total_sum_insured').val(dealInfo.total_sum_insured || '0.00');
+                        $modal.find('.premium').val(dealInfo.premium || '0.00');
+                        $modal.find('.brokerage_rate').val(dealInfo.brokerage_rate || '0.00');
+
+
+
+                    }
 
                 } catch (error) {
                     console.error("Error populating modal data:", error);
@@ -619,7 +689,7 @@
                     if (event.key === "Escape") {
                         const openModal = document.querySelector('.modal[style*="block"]');
                         if (openModal) {
-                            closeModal(openModal.id);
+                            $(`#${openModal.id}`).modal('hide'); // Fixed: use proper modal hide method
                         }
                     }
                 };

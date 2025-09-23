@@ -70,6 +70,7 @@ use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\Bd\SalesReportExport;
 use App\Exports\Bd\PipelineReportExport;
 use App\Exports\Bd\ReinsurersDeclinedExport;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Str;
 
 class PipelineController
@@ -120,6 +121,7 @@ class PipelineController
             'leadsources'
         ));
     }
+
     public function pipeline_report(Request $request)
     {
         $pipelines = Pipeline::orderBy('year', 'asc')->get();
@@ -226,7 +228,6 @@ class PipelineController
             return response()->json(['error' => 'Something went wrong: ' . $e->getMessage()], 500);
         }
     }
-
 
     public function divisionClasses(Request $request)
     {
@@ -348,7 +349,6 @@ class PipelineController
     {
 
         DB::beginTransaction();
-
         try {
             $exists = DB::table('pipelines')->where('year', $request->year)->exists();
 
@@ -824,7 +824,6 @@ class PipelineController
         }
     }
 
-
     public function leads_edit(Request $request)
     {
         $string = $request->qstring;
@@ -1005,6 +1004,7 @@ class PipelineController
                         [
                             'opportunity_id' => $request->prospect,
                             'stage' => 0,
+                            'status' => 'lead',
                             'divisions' => $request->division,
                             // 'currency' => $request->currency,
                             'production_cost' => $request->prod_cost ? str_replace(',', '', $request->prod_cost) : null,
@@ -1089,6 +1089,7 @@ class PipelineController
                     [
                         'opportunity_id' => $nextCode,
                         'stage' => 0,
+                        'status' => 'lead',
                         'divisions' => $request->division,
                         // 'currency' => $request->currency,
                         'production_cost' => $request->prod_cost ? str_replace(',', '', $request->prod_cost) : null,
@@ -2865,7 +2866,7 @@ class PipelineController
 
             $data = $opportunities->map(function ($opp) {
                 return [
-                    'id' => $opp->id,
+                    'id' => $opp->opportunity_id,
                     'insured_name' => $opp->insured_name,
                     'division' => $this->getDivision($opp->divisions),
                     'business_class' => $this->getBusinessClass($opp->classcode),
@@ -2878,7 +2879,8 @@ class PipelineController
                     'category' => $this->formatCategory($opp->category_type),
                     'approval_status' => $this->formatApprovalStatus($opp->handed_over),
                     'stage_actions' => $this->formatStageActions($opp),
-                    'action' => $this->getActionButtons($opp->id)
+                    'action' => $this->getActionButtons($opp->id),
+                    '_original' => $this->formatOriginalData($opp),
                 ];
             });
 
@@ -2897,7 +2899,6 @@ class PipelineController
         }
 
         // $business_types = $request->business_types;
-
         // $activities = DB::table('pipeline_opportunities')
         //     ->leftJoin('handover_approvals', 'pipeline_opportunities.opportunity_id', '=', 'handover_approvals.prospect_id')
         //     ->where('pipeline_id', $request->pipe_id)
@@ -3082,13 +3083,6 @@ class PipelineController
         //     ->make(true);
     }
 
-    //         $division = DB::table('reins_division')->where('division_code', $d->divisions)->first();
-    //         if (is_null($division)) {
-    //             return '';
-    //         }
-    //         return $division ? $division->division_name : 'N/A';
-
-
     private function getDivision($division)
     {
         $division = DB::table('reins_division')->where('division_code', $division)->first();
@@ -3182,13 +3176,19 @@ class PipelineController
 
         $nextStage = $stageInfo['next'];
 
-        if ($nextStage) {
-            $id = $opp->id;
-            $displayText = $stageInfo['button'];
-            $current_stage = $opp->status;
+        if (!empty($opp->category_type)) {
+            if ($nextStage) {
+                $id = $opp->id;
+                $displayText = $stageInfo['button'];
+                $current_stage = $opp->status;
 
-            $btn = "<button id='stageAction-{$id}' data-deal_id='{$id}' data-current_stage='{$current_stage}' class='stage-btn btn-proposal stage_btn_action' style='opacity: 1; cursor: pointer;'>{$displayText}</button>";
+                $btn = "<button id='stageAction-{$id}' data-deal_id='{$id}' data-current_stage='{$current_stage}' class='stage-btn btn-proposal stage_btn_action' style='opacity: 1; cursor: pointer;'>{$displayText}</button>";
+            }
+        } else {
+            $opportunity_id = $opp->opportunity_id;
+            $btn = "<button  data-opportunity_id='{$opportunity_id}' class='stage-btn status-lost update_category_action' style='opacity: 1; cursor: pointer;'><i class='bx bx-pencil'></i> Update Category</button>";
         }
+
         // logger()->debug($stageInfo);
 
         return $btn;
@@ -3241,7 +3241,6 @@ class PipelineController
         return "<span class='status-badge {$class}'>" . ucfirst(str_replace('_', ' ', $status)) . "</span>";
     }
 
-
     //         return ($d->handed_over === 'Y')
     //             ? ($d->approval_status === '0'
     //                 ? '<a href="#" title="click" data-rej-text="' . $d->reason_for_rejection . '" class="btn btn-sm btn-danger rounded-pill rej-text">
@@ -3269,6 +3268,34 @@ class PipelineController
 
         $class = $statusClasses[$status] ?? 'badge-secondary';
         return "<span class='status-badge {$class}'>" . ucfirst(str_replace('_', ' ', $status)) . "</span>";
+    }
+
+
+    private function formatOriginalData($opp)
+    {
+        $insured_email = collect(json_decode($opp->email))->first();
+        $insured_phone = collect(json_decode($opp->phone))->first();
+        $contact_name = collect(json_decode($opp->contact_name))->first();
+
+        // logger()->debug($insured_email);
+
+        return [
+            'opportunity_id'    => $opp->opportunity_id,
+            'created_at'        => $opp->created_at,
+            'insured_name'      => $opp->insured_name,
+            'insured_email'     => $insured_email,
+            'insured_phone'     => $insured_phone,
+            'contact_name'      => $contact_name,
+            'total_sum_insured' => number_format((float) $opp->total_sum_insured),
+            'premium'           => number_format((float) $opp->cede_premium),
+            'brokerage_rate'    => number_format((float) $opp->reins_comm_rate, 2),
+            // 'contact_name'   => $contact_name,
+            // 'contact_name'   => $contact_name,
+            // 'contact_name'   => $contact_name,
+            // 'contact_name'   => $contact_name,
+            // 'contact_name'   => $contact_name,
+            // 'contact_name'   => $contact_name,
+        ];
     }
 
     private function getActionButtons($id)
@@ -3527,28 +3554,104 @@ class PipelineController
             $opp_id = $request->opportunity_id;
             $category_type = $request->category_type;
 
+            logger($request->all());
+
             if (!$opp_id || !$category_type) {
-                return redirect()->back()->with('error', 'Invalid data provided');
+                return response()->json(['error' => 'Invalid data provided'], 400);
             }
+
             $opportunity = PipelineOpportunity::where('opportunity_id', $opp_id)
                 ->firstOrFail();
+
             $opportunity->update([
                 'category_type' => $category_type,
                 'sales_entry_date' => now(),
                 // 'stage_updated_at' => Carbon::now(),
             ]);
 
-
-            if ($opportunity) {
-                return redirect()->back()->with('success', 'Category Type updated successfully');
-            } else {
-                return redirect()->back()->with('error', 'No record was updated');
-            }
+            return response()->json(['success' => 'Category Type updated successfully'], 200);
+        } catch (ModelNotFoundException $e) {
+            return response()->json(['error' => 'Opportunity not found'], 404);
         } catch (Exception $e) {
-            dd($e->getMessage());
-            return redirect()->back()->with('error', 'Something went wrong: ' . $e->getMessage());
+            return response()->json(['error' => 'Something went wrong. Please try again.'], 500);
         }
     }
+
+    public function getPipelineReinsurers(Request $request)
+    {
+        $search = $request->get('q', '');
+        $page = $request->get('page', 1);
+        $perPage = 10;
+
+        logger()->debug($request->all());
+
+        // $e = $this->getReinsurersData($search, $page, $perPage);
+        $reinsurers = [];
+
+        $results = collect([])->map(function ($reinsurer) {
+            return [
+                'id' => $reinsurer['id'],
+                'text' => "{$reinsurer['name']} ({$reinsurer['rating']}) - {$reinsurer['country']}",
+                'name' => $reinsurer['name'],
+                'capacity' => $reinsurer['capacity'],
+                'rating' => $reinsurer['rating'],
+                'country' => $reinsurer['country']
+            ];
+        });
+
+        return response()->json([
+            'results' => $results,
+            'pagination' => [
+                'more' => false
+            ]
+        ]);
+    }
+
+    private function getReinsurersData(string $search, int $page, int $perPage): array
+    {
+        $query = DB::table('customers')->query();
+
+        // logger($query->get());
+
+        return [];
+
+        // // [Inference] This is mock data - replace with actual database query
+        // $allReinsurers = [
+        //     ['id' => 1, 'name' => 'Swiss Re', 'capacity' => 500000000, 'rating' => 'AA-', 'country' => 'Switzerland'],
+        //     ['id' => 2, 'name' => 'Munich Re', 'capacity' => 750000000, 'rating' => 'AA', 'country' => 'Germany'],
+        //     ['id' => 3, 'name' => 'Lloyd\'s of London', 'capacity' => 1000000000, 'rating' => 'A+', 'country' => 'United Kingdom'],
+        //     ['id' => 4, 'name' => 'Berkshire Hathaway Re', 'capacity' => 1200000000, 'rating' => 'AA', 'country' => 'United States'],
+        //     ['id' => 5, 'name' => 'Hannover Re', 'capacity' => 400000000, 'rating' => 'AA-', 'country' => 'Germany'],
+        //     ['id' => 6, 'name' => 'SCOR SE', 'capacity' => 300000000, 'rating' => 'A+', 'country' => 'France'],
+        //     ['id' => 7, 'name' => 'Everest Re', 'capacity' => 250000000, 'rating' => 'A', 'country' => 'Bermuda'],
+        //     ['id' => 8, 'name' => 'PartnerRe', 'capacity' => 350000000, 'rating' => 'A+', 'country' => 'Bermuda'],
+        //     ['id' => 9, 'name' => 'RenaissanceRe', 'capacity' => 200000000, 'rating' => 'A', 'country' => 'Bermuda'],
+        //     ['id' => 10, 'name' => 'Axis Re', 'capacity' => 180000000, 'rating' => 'A+', 'country' => 'Bermuda'],
+        //     ['id' => 11, 'name' => 'QBE Re', 'capacity' => 150000000, 'rating' => 'A', 'country' => 'Australia'],
+        //     ['id' => 12, 'name' => 'Korean Re', 'capacity' => 120000000, 'rating' => 'A-', 'country' => 'South Korea'],
+        // ];
+
+        // // Filter by search term
+        // if (!empty($search)) {
+        //     $allReinsurers = array_filter($allReinsurers, function ($reinsurer) use ($search) {
+        //         return stripos($reinsurer['name'], $search) !== false ||
+        //             stripos($reinsurer['country'], $search) !== false ||
+        //             stripos($reinsurer['rating'], $search) !== false;
+        //     });
+        // }
+
+        // $total = count($allReinsurers);
+        // $offset = ($page - 1) * $perPage;
+        // $data = array_slice($allReinsurers, $offset, $perPage);
+        // $hasMore = ($offset + $perPage) < $total;
+
+        // return [
+        //     'data' => $data,
+        //     'has_more' => $hasMore,
+        //     'total' => $total
+        // ];
+    }
+
 
     public function facultativeOffer(Request $request)
     {
