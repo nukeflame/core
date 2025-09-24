@@ -1180,6 +1180,78 @@ class PipelineController
         }
     }
 
+    public function getPipelineReinContacts($reinsurerID)
+    {
+        try {
+            $reinsurer = DB::table('customers')->where('customer_id', $reinsurerID)->first();
+
+            if (!$reinsurer) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Reinsurer not found'
+                ], 404);
+            }
+
+            $primaryContact = DB::table('customer_contacts')->where('customer_id', $reinsurerID)
+                ->where('is_primary', true)
+                ->first();
+
+            if (!$primaryContact) {
+                $primaryContact = DB::table('customer_contacts')->where('customer_id', $reinsurerID)
+                    ->orderBy('created_at', 'asc')
+                    ->first();
+            }
+
+            $departmentContacts = DB::table('customer_contacts')->where('customer_id', $reinsurerID)
+                ->where('is_primary', false)
+                ->orderBy('customer_id')
+                ->orderBy('contact_name')
+                ->get();
+
+
+            $country = DB::table('countries')->where('country_iso', $reinsurer?->country_iso)
+                ->first();
+
+            $responseData = [
+                'reinsurer' => [
+                    'id' => $reinsurer->customer_id,
+                    'name' => $reinsurer->name,
+                    'email' => $reinsurer->email,
+                    'country' => $country?->country_name
+                ],
+                'primary_contact' => $primaryContact ? [
+                    'id' => $primaryContact->id,
+                    'name' => $primaryContact->contact_name,
+                    'email' => $primaryContact->contact_email,
+                    'phone' => $primaryContact->contact_mobile_no,
+                    'department' => 'Reinsurance'
+                ] : null,
+                'department_contacts' => $departmentContacts->map(function ($contact) {
+                    return [
+                        'id' => $contact->id,
+                        'name' => $contact->contact_name,
+                        'email' => $contact->contact_email,
+                        'phone' => $contact->contact_mobile_no,
+                        'department' => 'Reinsurance',
+                        'cc_email' => (bool) true, //$contact->cc_email,
+                        'created_at' => Carbon::parse($contact->created_at)->format('Y-m-d H:i:s')
+                    ];
+                })
+            ];
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Contacts fetched successfully',
+                'data' => $responseData
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while fetching contacts'
+            ], 500);
+        }
+    }
+
     public function treaty_pipeline_create_opportunity(Request $request)
     {
         $mes = '';
@@ -2891,7 +2963,7 @@ class PipelineController
                 'data' => $data
             ]);
         } catch (\Exception $e) {
-            logger()->debug($e);
+            // logger()->debug($e);
             return response()->json([
                 'error' => 'Failed to load pipeline data',
                 'message' => $e->getMessage()
@@ -3120,11 +3192,6 @@ class PipelineController
 
     private function formatStageActions($opp)
     {
-
-        // logger()->debug($opp);
-
-        // category_type
-
         $currentStage = 'lead';
         $stageFlow = [
             'lead' => [
@@ -3181,15 +3248,14 @@ class PipelineController
                 $id = $opp->id;
                 $displayText = $stageInfo['button'];
                 $current_stage = $opp->status;
+                $type_of_business = $opp->type_of_bus;
 
-                $btn = "<button id='stageAction-{$id}' data-deal_id='{$id}' data-current_stage='{$current_stage}' class='stage-btn btn-proposal stage_btn_action' style='opacity: 1; cursor: pointer;'>{$displayText}</button>";
+                $btn = "<button id='stageAction-{$id}' data-deal_id='{$id}' data-type_of_business='{$type_of_business}' data-current_stage='{$current_stage}' class='stage-btn btn-proposal stage_btn_action' style='opacity: 1; cursor: pointer;'>{$displayText}</button>";
             }
         } else {
             $opportunity_id = $opp->opportunity_id;
             $btn = "<button  data-opportunity_id='{$opportunity_id}' class='stage-btn status-lost update_category_action' style='opacity: 1; cursor: pointer;'><i class='bx bx-pencil'></i> Update Category</button>";
         }
-
-        // logger()->debug($stageInfo);
 
         return $btn;
     }
@@ -3270,14 +3336,15 @@ class PipelineController
         return "<span class='status-badge {$class}'>" . ucfirst(str_replace('_', ' ', $status)) . "</span>";
     }
 
-
     private function formatOriginalData($opp)
     {
         $insured_email = collect(json_decode($opp->email))->first();
         $insured_phone = collect(json_decode($opp->phone))->first();
         $contact_name = collect(json_decode($opp->contact_name))->first();
+        $type_of_business = $opp->type_of_bus;
 
-        // logger()->debug($insured_email);
+        $class = $opp->classcode;
+        $class_group = $opp->class_group;
 
         return [
             'opportunity_id'    => $opp->opportunity_id,
@@ -3286,15 +3353,13 @@ class PipelineController
             'insured_email'     => $insured_email,
             'insured_phone'     => $insured_phone,
             'contact_name'      => $contact_name,
+            'type_of_business'  => $type_of_business,
+            'class'             => $class,
+            'class_group'       => $class_group,
             'total_sum_insured' => number_format((float) $opp->total_sum_insured),
             'premium'           => number_format((float) $opp->cede_premium),
             'brokerage_rate'    => number_format((float) $opp->reins_comm_rate, 2),
-            // 'contact_name'   => $contact_name,
-            // 'contact_name'   => $contact_name,
-            // 'contact_name'   => $contact_name,
-            // 'contact_name'   => $contact_name,
-            // 'contact_name'   => $contact_name,
-            // 'contact_name'   => $contact_name,
+            'written_share'     => number_format((float) $opp->fac_share_offered, 2),
         ];
     }
 
@@ -8083,10 +8148,93 @@ class PipelineController
 
         return response()->json(['customers' => $customers]);
     }
+
     public function TenderDocAttachement(Request $request)
     {
         $opportunityID = $request->opportunity_id;
         $data = PipelineOpportunity::where('opportunity_id', $opportunityID)->get();
         return view('Bd_views.tenders.doc_attachment', ['opportunities' => $data]);
+    }
+
+    public function getHeaders(Request $request)
+    {
+        try {
+            $typeOfBus = $request->get('business_type', 'FPR');
+            $classGroup = $request->get('class_group');
+            $class = $request->get('class');
+
+            $businessType = null;
+            if ($typeOfBus === 'FPR') {
+                $businessType = 'FAC';
+            }
+
+            $query = QuoteScheduleHeader::where([
+                'class'         => $class,
+                'class_group'    => $classGroup,
+                'business_type' => $businessType
+            ])->orderBy('position', 'asc');
+
+            $headers = $query->get();
+
+            return response()->json([
+                'success' => true,
+                'headers' => $headers->map(function ($header) {
+                    return [
+                        'id' => $header->id,
+                        'name' => $header->name,
+                        'business_type' => $header->business_type,
+                        'position' => $header->position,
+                        'amount_field' => $header->amount_field,
+                        'sum_insured_type' => $header->sum_insured_type,
+                        'data_determinant' => $header->data_determinant,
+                        'class' => $header->class,
+                        'class_group' => $header->class_group,
+                        'type_of_sum_insured' => $header->type_of_sum_insured ?? null,
+                    ];
+                })
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch schedule headers',
+                'error' => config('app.debug') ? $e->getMessage() : 'Internal server error'
+            ], 500);
+        }
+    }
+
+    public function getTermsForOpportunity(Request $request)
+    {
+        try {
+            // $termsConditions = TermsCondition::where('opportunity_id', $opportunityId)
+            //     ->with(['scheduleValues.scheduleHeader'])
+            //     ->first();
+
+            // if (!$termsConditions) {
+            //     return response()->json([
+            //         'success' => false,
+            //         'message' => 'Terms and conditions not found for this opportunity'
+            //     ], 404);
+            // }
+
+            // return response()->json([
+            //     'success' => true,
+            //     'data' => [
+            //         'terms_conditions' => $termsConditions,
+            //         'schedule_values' => $termsConditions->scheduleValues->pluck('value', 'schedule_header_id')
+            //     ]
+            // ]);
+
+            $schedules = QuoteScheduleHeader::orderBy('position', 'asc')->get();
+
+            logger()->debug($schedules);
+
+            return [];
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch terms and conditions',
+                'error' => config('app.debug') ? $e->getMessage() : 'Internal server error'
+            ], 500);
+        }
     }
 }

@@ -2,9 +2,9 @@
 
 @section('content')
     <div>
+        <!-- Page Header -->
         <div class="d-md-flex d-block align-items-center justify-content-between my-4 page-header-breadcrumb">
-            <h1 class="page-title fw-semibold fs-18 mb-0">Sales Management
-            </h1>
+            <h1 class="page-title fw-semibold fs-18 mb-0">Sales Management</h1>
             <div class="ms-md-1 ms-0">
                 <nav>
                     <ol class="breadcrumb mb-0">
@@ -16,12 +16,13 @@
             </div>
         </div>
 
+        <!-- Pipeline Chart Card -->
         <div class="card custom-card">
             <div class="card-header">
                 <div class="card-title">Pipeline Details</div>
             </div>
-
             <div class="card-body">
+                <!-- Pipeline Year Selection -->
                 <div class="mb-4">
                     <form id="pip_year_form" action="{{ route('pipeline.view') }}" method="get">
                         <input type="hidden" id="opp_id" name="opp_id">
@@ -29,12 +30,6 @@
                             <div class="col-md-3">
                                 <x-SearchableSelect id="pip_year_select" req="" inputLabel="Pipeline Year"
                                     name="pipeline" placeholder="--Select Year--">
-                                    {{-- @foreach ($pipelines as $pip_year)
-                                        <option @if ($pip_year->id == $pip) selected @endif
-                                            value="{{ $pip_year->id }}">
-                                            {{ $pip_year->year }}
-                                        </option>
-                                    @endforeach --}}
                                     @foreach ($pipelines as $year)
                                         <option value="{{ $year->id }}"
                                             {{ old('lead_year', $pip ?? '') == $year->id ? 'selected' : '' }}>
@@ -46,210 +41,140 @@
                         </div>
                     </form>
                 </div>
+
+                <!-- Chart Container -->
                 <div class="d-flex justify-content-center flex-wrap" style="height:300px;">
-                    <div class="ct-chart-ranking ct-golden-section ct-series-a"></div>
+                    <div id="pipeline-chart" class="ct-chart-ranking ct-golden-section ct-series-a"></div>
+                    <div id="chart-loading" class="d-none">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading chart...</span>
+                        </div>
+                    </div>
+                    <div id="chart-error" class="d-none text-danger text-center">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <p>Failed to load chart data</p>
+                    </div>
                 </div>
 
+                <!-- Chart Legend -->
                 <div class="row">
                     <hr>
                     <div class="d-flex justify-content-center flex-wrap">
-                        <div class="d-flex align-items-center me-3 mb-2">
-                            <span class="dot rounded-circle me-2"
-                                style="background-color: #453d3f; width: 12px; height: 12px;"></span>
-                            <span class="fw-normal small">Lead</span>
-                        </div>
-                        <div class="d-flex align-items-center me-3 mb-2">
-                            <span class="dot rounded-circle me-2"
-                                style="background-color: #f05b4f; width: 12px; height: 12px;"></span>
-                            <span class="fw-normal small">Proposal</span>
-                        </div>
-                        <div class="d-flex align-items-center me-3 mb-2">
-                            <span class="dot rounded-circle me-2"
-                                style="background-color: #f4c63d; width: 12px; height: 12px;"></span>
-                            <span class="fw-normal small">Negotiation</span>
-                        </div>
-                        <div class="d-flex align-items-center me-3 mb-2">
-                            <span class="dot rounded-circle me-2"
-                                style="background-color: #d17905; width: 12px; height: 12px;"></span>
-                            <span class="fw-normal small">Won</span>
-                        </div>
-                        <div class="d-flex align-items-center me-3 mb-2">
-                            <span class="dot rounded-circle me-2"
-                                style="background-color: #d70206; width: 12px; height: 12px;"></span>
-                            <span class="fw-normal small">Lost</span>
-                        </div>
-                        <div class="d-flex align-items-center me-3 mb-2">
-                            <span class="dot rounded-circle me-2"
-                                style="background-color: #59922b; width: 12px; height: 12px;"></span>
-                            <span class="fw-normal small">Final Stage</span>
-                        </div>
+                        @php
+                            $stages = [
+                                ['color' => '#453d3f', 'label' => 'Lead'],
+                                ['color' => '#f05b4f', 'label' => 'Proposal'],
+                                ['color' => '#f4c63d', 'label' => 'Negotiation'],
+                                ['color' => '#d17905', 'label' => 'Won'],
+                                ['color' => '#d70206', 'label' => 'Lost'],
+                                ['color' => '#59922b', 'label' => 'Final Stage'],
+                            ];
+                        @endphp
+                        @foreach ($stages as $stage)
+                            <div class="d-flex align-items-center me-3 mb-2">
+                                <span class="dot rounded-circle me-2"
+                                    style="background-color: {{ $stage['color'] }}; width: 12px; height: 12px;"></span>
+                                <span class="fw-normal small">{{ $stage['label'] }}</span>
+                            </div>
+                        @endforeach
                     </div>
                 </div>
             </div>
         </div>
 
+        <!-- Data Tables Card -->
         <div class="card custom-card">
             <div class="card-body">
+                <!-- Tab Navigation -->
                 <ul class="nav nav-pills nav-style-3 mb-4 pb-1" role="tablist">
-                    <li class="nav-item" role="presentation">
-                        <a class="nav-link active" data-bs-toggle="tab" role="tab" aria-current="page"
-                            href="#general_details" aria-selected="true">All Quarters</a>
-                    </li>
-                    <li class="nav-item" role="presentation">
-                        <a class="nav-link" data-bs-toggle="tab" role="tab" aria-current="page" href="#q1_details"
-                            aria-selected="false" tabindex="-1">Quarter One</a>
-                    </li>
-                    <li class="nav-item" role="presentation">
-                        <a class="nav-link" data-bs-toggle="tab" role="tab" aria-current="page" href="#q2_details"
-                            aria-selected="false" tabindex="-1">Quarter Two</a>
-                    </li>
-                    <li class="nav-item" role="presentation">
-                        <a class="nav-link" data-bs-toggle="tab" role="tab" aria-current="page" href="#q3_details"
-                            aria-selected="false" tabindex="-1">Quarter Three</a>
-                    </li>
-                    <li class="nav-item" role="presentation">
-                        <a class="nav-link" data-bs-toggle="tab" role="tab" aria-current="page" href="#q4_details"
-                            aria-selected="false" tabindex="-1">Quarter Four</a>
-                    </li>
+                    @php
+                        $quarters = [
+                            ['id' => 'general_details', 'label' => 'All Quarters', 'active' => true],
+                            ['id' => 'q1_details', 'label' => 'Quarter One'],
+                            ['id' => 'q2_details', 'label' => 'Quarter Two'],
+                            ['id' => 'q3_details', 'label' => 'Quarter Three'],
+                            ['id' => 'q4_details', 'label' => 'Quarter Four'],
+                        ];
+                    @endphp
+                    @foreach ($quarters as $quarter)
+                        <li class="nav-item" role="presentation">
+                            <a class="nav-link {{ $quarter['active'] ?? false ? 'active' : '' }}" data-bs-toggle="tab"
+                                role="tab" aria-current="page" href="#{{ $quarter['id'] }}"
+                                aria-selected="{{ $quarter['active'] ?? false ? 'true' : 'false' }}"
+                                {{ !($quarter['active'] ?? false) ? 'tabindex="-1"' : '' }}>
+                                {{ $quarter['label'] }}
+                            </a>
+                        </li>
+                    @endforeach
                 </ul>
 
+                <!-- Tab Content -->
                 <div class="tab-content p-0 mt-1 border-none">
-                    <div class="tab-pane active border-none" id="general_details">
-                        <div class="row">
-                            <div class="table-responsive">
-                                <table id="all_opps" class="table table-striped" style="width:100%">
-                                    <thead>
-                                        <th>ID</th>
-                                        <th>Insured Name</th>
-                                        <th>Division</th>
-                                        <th>Business class</th>
-                                        <th>Status</th>
-                                        <th>Currency</th>
-                                        <th>Sum Insured</th>
-                                        <th>Premium</th>
-                                        <th>Effective date</th>
-                                        <th>Closing date</th>
-                                        <th>Category</th>
-                                        <th>Approval Status</th>
-                                        <th>Stage Actions</th>
-                                        <th>Action</th>
-                                    </thead>
-                                    <tbody></tbody>
-                                </table>
+                    @foreach ($quarters as $index => $quarter)
+                        <div class="tab-pane {{ $quarter['active'] ?? false ? 'active' : '' }} border-none"
+                            id="{{ $quarter['id'] }}">
+                            <div class="row">
+                                <div class="table-responsive">
+                                    @php
+                                        $tableIds = [
+                                            'general_details' => 'all_opps',
+                                            'q1_details' => 'q1_opps',
+                                            'q2_details' => 'q2_opps',
+                                            'q3_details' => 'q3_opps',
+                                            'q4_details' => 'q4_opps',
+                                        ];
+                                    @endphp
+                                    <table id="{{ $tableIds[$quarter['id']] }}" class="table table-striped pipeline-table"
+                                        style="width:100%" data-quarter="{{ $index === 0 ? 'all' : $index }}">
+                                        <thead>
+                                            <tr>
+                                                <th>ID</th>
+                                                <th>Insured Name</th>
+                                                <th>Division</th>
+                                                <th>Business Class</th>
+                                                <th>Status</th>
+                                                <th>Currency</th>
+                                                <th>Sum Insured</th>
+                                                <th>Premium</th>
+                                                <th>Effective Date</th>
+                                                <th>Closing Date</th>
+                                                <th>Category</th>
+                                                <th>Approval Status</th>
+                                                <th>Stage Actions</th>
+                                                <th>Action</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody></tbody>
+                                    </table>
+                                </div>
                             </div>
                         </div>
-                    </div>
-
-                    <div class="tab-pane border-none" id="q1_details">
-                        <div class="row">
-                            <div class="table-responsive">
-                                <table id="q1_opps" class="table table-striped" style="width:100%">
-                                    <thead>
-                                        <th>ID</th>
-                                        <th>Insured Name</th>
-                                        <th>Division</th>
-                                        <th>Business Class</th>
-                                        <th>Status</th>
-                                        <th>Currency</th>
-                                        <th>Sum Insured</th>
-                                        <th>Premium</th>
-                                        <th>Effective date</th>
-                                        <th>Closing date</th>
-                                        <th>Category</th>
-                                        <th>Approval Status</th>
-                                        <th>Stage Actions</th>
-                                        <th>Action</th>
-                                    </thead>
-                                    <tbody></tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="tab-pane border-none" id="q2_details">
-                        <div class="row">
-                            <div class="table-responsive">
-                                <table id="q2_opps" class="table table-striped" style="width:100%">
-                                    <thead>
-                                        <th>ID</th>
-                                        <th>Insured Name</th>
-                                        <th>Division</th>
-                                        <th>Business Class</th>
-                                        <th>Status</th>
-                                        <th>Currency</th>
-                                        <th>Sum Insured</th>
-                                        <th>Premium</th>
-                                        <th>Effective date</th>
-                                        <th>Closing date</th>
-                                        <th>Category</th>
-                                        <th>Approval Status</th>
-                                        <th>Stage Actions</th>
-                                        <th>Action</th>
-                                    </thead>
-                                    <tbody></tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="tab-pane border-none" id="q3_details">
-                        <div class="row">
-                            <div class="table-responsive">
-                                <table id="q3_opps" class="table table-striped" style="width:100%">
-                                    <thead class="mt-2">
-                                        <th>ID</th>
-                                        <th>Insured Name</th>
-                                        <th>Division</th>
-                                        <th>Business Class</th>
-                                        <th>Status</th>
-                                        <th>Currency</th>
-                                        <th>Sum Insured</th>
-                                        <th>Premium</th>
-                                        <th>Effective date</th>
-                                        <th>Closing date</th>
-                                        <th>Category</th>
-                                        <th>Approval Status</th>
-                                        <th>Stage Actions</th>
-                                        <th>Action</th>
-                                    </thead>
-                                    <tbody></tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="tab-pane border-none" id="q4_details">
-                        <div class="row">
-                            <div class="table-responsive">
-                                <table id="q4_opps" class="table table-striped" style="width:100%">
-                                    <thead>
-                                        <th>ID</th>
-                                        <th>Insured Name</th>
-                                        <th>Division</th>
-                                        <th>Business Class</th>
-                                        <th>Status</th>
-                                        <th>Currency</th>
-                                        <th>Sum Insured</th>
-                                        <th>Premium</th>
-                                        <th>Effective date</th>
-                                        <th>Closing date</th>
-                                        <th>Category</th>
-                                        <th>Approval Status</th>
-                                        <th>Stage Actions</th>
-                                        <th>Action</th>
-                                    </thead>
-                                    <tbody></tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
+                    @endforeach
                 </div>
             </div>
         </div>
 
-        {{-- Modals --}}
+        <div id="error-container" class="alert alert-danger d-none" role="alert">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            <span id="error-message"></span>
+        </div>
+
+        <div id="loading-overlay" class="d-none">
+            <div class="overlay-content">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p class="mt-2">Processing request...</p>
+            </div>
+        </div>
+
         @include('Bd_views.intermediaries.partials.modals.proposal_modal')
-        @include('Bd_views.intermediaries.partials.modals.negotiation_modal')
+        {{-- @includeIf('Bd_views.intermediaries.partials.modals.negotiation_modal')
+        @includeIf('Bd_views.intermediaries.partials.modals.lead_modal')
+        @includeIf('Bd_views.intermediaries.partials.modals.won_modal')
+        @includeIf('Bd_views.intermediaries.partials.modals.lost_modal')
+        @includeIf('Bd_views.intermediaries.partials.modals.final_modal')
+        @includeIf('Bd_views.intermediaries.partials.modals.update_category_modal') --}}
     </div>
 @endsection
 
@@ -265,6 +190,9 @@
             font-size: 0.75rem;
             font-weight: 500;
             text-transform: uppercase;
+            display: inline-block;
+            min-width: 70px;
+            text-align: center;
         }
 
         .status-proposal {
@@ -329,11 +257,19 @@
             text-transform: capitalize;
             letter-spacing: 0.5px;
             min-width: 140px;
+            position: relative;
+            overflow: hidden;
         }
 
         .stage-btn:hover {
             transform: translateY(-1px);
             box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+        }
+
+        .stage-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
         }
 
         .btn-lead {
@@ -365,164 +301,420 @@
             background: #8bc34a;
             color: white;
         }
+
+        .capitalize {
+            text-transform: capitalize;
+        }
+
+        .pl-1 {
+            padding-left: .3em !important;
+        }
+
+        #loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .overlay-content {
+            background: white;
+            padding: 2rem;
+            border-radius: 0.5rem;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .pipeline-table thead th {
+            background-color: #f8f9fa;
+            border-bottom: 2px solid #dee2e6;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .pipeline-table tbody tr:hover {
+            background-color: rgba(0, 123, 255, 0.05);
+        }
+
+        .ct-chart-ranking {
+            min-height: 300px;
+        }
+
+        #chart-loading,
+        #chart-error {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 300px;
+            width: 100%;
+        }
+
+        @media (max-width: 768px) {
+            .stage-btn {
+                min-width: 120px;
+                padding: 4px 12px;
+            }
+
+            .status-badge {
+                min-width: 60px;
+                font-size: 0.7rem;
+            }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+
+        .slide-in {
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateY(-10px);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
     </style>
 @endsection
 
 @push('script')
     <script>
-        $(document).ready(function() {
-            let chartInstance = initializePipelineChart();
-            let currentDealId = null;
-            let currentStage = "lead";
-            let escapeKeyHandler = null;
+        class PipelineManager {
+            constructor() {
+                this.chartInstance = null;
+                this.currentDealId = null;
+                this.currentStage = "lead";
+                this.escapeKeyHandler = null;
+                this.dataTables = new Map();
 
-            const columnConfig = [{
-                    data: 'id',
-                    name: 'id',
-                    title: 'ID'
-                },
-                {
-                    data: 'insured_name',
-                    name: 'insured_name',
-                    title: 'Insured Name'
-                },
-                {
-                    data: 'division',
-                    name: 'division',
-                    title: 'Division'
-                },
-                {
-                    data: 'business_class',
-                    name: 'business_class',
-                    title: 'Business Class'
-                },
-                {
-                    data: 'status',
-                    name: 'status',
-                    title: 'Status'
-                },
-                {
-                    data: 'currency',
-                    name: 'currency',
-                    title: 'Currency',
-                    defaultContent: 'KES'
-                },
-                {
-                    data: 'sum_insured',
-                    name: 'sum_insured',
-                    title: 'Sum Insured'
-                },
-                {
-                    data: 'premium',
-                    name: 'premium',
-                    title: 'Premium'
-                },
-                {
-                    data: 'effective_date',
-                    name: 'effective_date',
-                    title: 'Effective Date'
-                },
-                {
-                    data: 'closing_date',
-                    name: 'closing_date',
-                    title: 'Closing Date'
-                },
-                {
-                    data: 'category',
-                    name: 'category',
-                    title: 'Category'
-                },
-                {
-                    data: 'approval_status',
-                    name: 'approval_status',
-                    title: 'Approval Status',
-                    orderable: false
-                },
-                {
-                    data: 'stage_actions',
-                    name: 'stage_actions',
-                    title: 'Stage Actions'
-                },
-                {
-                    data: 'action',
-                    orderable: false,
-                    searchable: false
+                this.config = {
+                    routes: {
+                        pipelineData: "{{ route('pipeline.sales.get_pipeline_data') }}",
+                        chartData: "{{ route('pipeline.sales.get_pipeline_chart_data') }}",
+                        scheduleHeaders: "{{ route('schedule.headers.get') }}"
+                    },
+                    stageFlow: {
+                        lead: {
+                            next: "proposal",
+                            button: "Move to Proposal",
+                            class: "btn-proposal",
+                            altNext: "lost",
+                            modalId: "leadModal",
+                        },
+                        proposal: {
+                            next: "negotiation",
+                            button: "Move to Negotiation",
+                            class: "btn-negotiation",
+                            altNext: "lost",
+                            modalId: "proposalModal",
+                        },
+                        negotiation: {
+                            next: "won",
+                            button: "Mark as Won",
+                            class: "btn-won",
+                            altNext: "lost",
+                            modalId: "negotiationModal",
+                        },
+                        won: {
+                            next: "final",
+                            button: "Move to Final",
+                            class: "btn-final",
+                            modalId: "wonModal",
+                        },
+                        lost: {
+                            next: null,
+                            button: "Deal Closed",
+                            class: "btn-lost",
+                            modalId: "lostModal",
+                        },
+                        final: {
+                            next: null,
+                            button: "Deal Complete",
+                            class: "btn-final",
+                            modalId: "finalModal",
+                        },
+                    },
+                    columnConfig: [{
+                            data: 'id',
+                            name: 'id',
+                            title: 'ID'
+                        },
+                        {
+                            data: 'insured_name',
+                            name: 'insured_name',
+                            title: 'Insured Name'
+                        },
+                        {
+                            data: 'division',
+                            name: 'division',
+                            title: 'Division'
+                        },
+                        {
+                            data: 'business_class',
+                            name: 'business_class',
+                            title: 'Business Class'
+                        },
+                        {
+                            data: 'status',
+                            name: 'status',
+                            title: 'Status'
+                        },
+                        {
+                            data: 'currency',
+                            name: 'currency',
+                            title: 'Currency',
+                            defaultContent: 'KES'
+                        },
+                        {
+                            data: 'sum_insured',
+                            name: 'sum_insured',
+                            title: 'Sum Insured'
+                        },
+                        {
+                            data: 'premium',
+                            name: 'premium',
+                            title: 'Premium'
+                        },
+                        {
+                            data: 'effective_date',
+                            name: 'effective_date',
+                            title: 'Effective Date'
+                        },
+                        {
+                            data: 'closing_date',
+                            name: 'closing_date',
+                            title: 'Closing Date'
+                        },
+                        {
+                            data: 'category',
+                            name: 'category',
+                            title: 'Category'
+                        },
+                        {
+                            data: 'approval_status',
+                            name: 'approval_status',
+                            title: 'Approval Status',
+                            orderable: false
+                        },
+                        {
+                            data: 'stage_actions',
+                            name: 'stage_actions',
+                            title: 'Stage Actions'
+                        },
+                        {
+                            data: 'action',
+                            orderable: false,
+                            searchable: false
+                        }
+                    ]
+                };
+
+                this.init();
+            }
+
+            init() {
+                try {
+                    this.setupCSRF();
+                    this.setupErrorHandling();
+                    this.initializeChart();
+                    this.initializeDataTables();
+                    this.bindEvents();
+                } catch (error) {
+                    this.handleError('Initialization failed', error);
                 }
-            ];
+            }
 
-            const stageFlow = {
-                lead: {
-                    next: "proposal",
-                    button: "Move to Proposal",
-                    class: "btn-proposal",
-                    altNext: "lost",
-                    modalId: "leadModal",
-                },
-                proposal: {
-                    next: "negotiation",
-                    button: "Move to Negotiation",
-                    class: "btn-negotiation",
-                    altNext: "lost",
-                    modalId: "proposalModal",
-                },
-                negotiation: {
-                    next: "won",
-                    button: "Mark as Won",
-                    class: "btn-won",
-                    altNext: "lost",
-                    modalId: "negotiationModal",
-                },
-                won: {
-                    next: "final",
-                    button: "Move to Final",
-                    class: "btn-final",
-                    modalId: "wonModal",
-                },
-                lost: {
-                    next: null,
-                    button: "Deal Closed",
-                    class: "btn-lost",
-                    modalId: "lostModal",
-                },
-                final: {
-                    next: null,
-                    button: "Deal Complete",
-                    class: "btn-final",
-                    modalId: "finalModal",
-                },
-            };
+            setupCSRF() {
+                $.ajaxSetup({
+                    headers: {
+                        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                    }
+                });
+            }
 
-            const tableIds = ['#all_opps', '#q1_opps', '#q2_opps', '#q3_opps', '#q4_opps'];
-            tableIds.forEach(tableId => {
-                if ($(tableId).length > 0) {
+            setupErrorHandling() {
+                window.onerror = (message, source, lineno, colno, error) => {
+                    this.handleError('JavaScript Error', {
+                        message,
+                        source,
+                        lineno,
+                        error
+                    });
+                };
+            }
+
+            initializeChart() {
+                try {
+                    if (typeof Chartist === 'undefined') {
+                        throw new Error('Chartist library not loaded');
+                    }
+
+                    if ($('.ct-chart-ranking').length === 0) {
+                        throw new Error('Chart container not found');
+                    }
+
+                    this.showChartLoading();
+
+                    this.chartInstance = new Chartist.Bar('.ct-chart-ranking', {
+                        labels: ['Quarter One', 'Quarter Two', 'Quarter Three', 'Quarter Four'],
+                        series: [
+                            [0, 0, 0, 0]
+                        ]
+                    }, {
+                        low: 0,
+                        showArea: true,
+                        height: '300px',
+                        plugins: [
+                            Chartist.plugins.tooltip()
+                        ],
+                        axisX: {
+                            position: 'end'
+                        },
+                        axisY: {
+                            showGrid: false,
+                            showLabel: false,
+                            offset: 0
+                        }
+                    });
+
+                    this.chartInstance.on('draw', (data) => {
+                        if (data.type === 'bar') {
+                            data.element.animate({
+                                y2: {
+                                    dur: 1000,
+                                    from: data.y1,
+                                    to: data.y2,
+                                    easing: Chartist.Svg.Easing.easeOutQuint
+                                }
+                            });
+                        }
+                    });
+
+                    this.loadChartData();
+                    this.hideChartLoading();
+
+                } catch (error) {
+                    this.handleError('Chart initialization failed', error);
+                    this.showChartError();
+                }
+            }
+
+            showChartLoading() {
+                $('#chart-loading').removeClass('d-none');
+                $('#chart-error').addClass('d-none');
+            }
+
+            hideChartLoading() {
+                $('#chart-loading').addClass('d-none');
+            }
+
+            showChartError() {
+                $('#chart-loading').addClass('d-none');
+                $('#chart-error').removeClass('d-none');
+            }
+
+            loadChartData() {
+                const pipelineId = $('#pip_year_select').val();
+
+                $.ajax({
+                    url: this.config.routes.chartData,
+                    method: 'GET',
+                    data: {
+                        pipeline_id: pipelineId
+                    },
+                    timeout: 10000,
+                    success: (response) => {
+                        if (response && response.data && Array.isArray(response.data)) {
+                            this.updateChartData(response.data);
+                        } else {
+                            this.updateChartData([0, 0, 0, 0]);
+                        }
+                        this.hideChartLoading();
+                    },
+                    error: (xhr, status, error) => {
+                        this.handleError('Failed to load chart data', {
+                            xhr,
+                            status,
+                            error
+                        });
+                        this.updateChartData([0, 0, 0, 0]);
+                        this.showChartError();
+                    }
+                });
+            }
+
+            updateChartData(data) {
+                if (this.chartInstance) {
+                    this.chartInstance.update({
+                        labels: ['Quarter One', 'Quarter Two', 'Quarter Three', 'Quarter Four'],
+                        series: [data]
+                    });
+                }
+            }
+
+            initializeDataTables() {
+                const tables = $('.pipeline-table');
+
+                tables.each((index, table) => {
+                    const $table = $(table);
+                    const tableId = $table.attr('id');
+                    const quarter = $table.data('quarter');
+
                     try {
-                        $(tableId).DataTable({
+                        const dataTable = $table.DataTable({
                             processing: true,
                             serverSide: true,
                             ajax: {
-                                url: "{{ route('pipeline.sales.get_pipeline_data') }}",
-                                data: function(d) {
+                                url: this.config.routes.pipelineData,
+                                data: (d) => {
                                     d.pipeline_id = $('#pip_year_select').val();
-                                    d.quarter = getQuarterFromTableId(tableId);
+                                    d.quarter = quarter;
                                 },
-                                error: function(xhr, error, code) {
-                                    console.error('DataTables AJAX error:', error);
-                                    toastr.error(
-                                        'Failed to load approval data. Please refresh the page.'
-                                    );
+                                error: (xhr, error, code) => {
+                                    this.handleError(`DataTable AJAX error for ${tableId}`, {
+                                        status: xhr.status,
+                                        responseText: xhr.responseText,
+                                        error: error
+                                    });
                                 }
                             },
-                            columns: columnConfig,
+                            columns: this.config.columnConfig,
                             order: [
                                 [0, 'desc']
                             ],
+                            pageLength: 25,
+                            responsive: true,
                             language: {
-                                processing: '<div class="d-flex justify-content-center"><div class="spinner-border text-primary" role="status"><span class="sr-only">Loading...</span></div></div>',
+                                processing: this.getLoadingHTML(),
                                 emptyTable: "No pipeline records found",
-                                info: "Showing _START_ to _END_ of _TOTAL_ approvals",
+                                info: "Showing _START_ to _END_ of _TOTAL_ records",
                                 infoEmpty: "No pipeline available",
-                                infoFiltered: "(filtered from _MAX_ total pipeline)",
-                                lengthMenu: "Show _MENU_ pipeline per page",
+                                infoFiltered: "(filtered from _MAX_ total records)",
+                                lengthMenu: "Show _MENU_ records per page",
                                 search: "Search pipeline:",
                                 paginate: {
                                     first: "First",
@@ -531,124 +723,159 @@
                                     previous: "Previous"
                                 }
                             },
-                            drawCallback: function(settings) {
-                                initializeActionHandlers();
+                            drawCallback: () => {
+                                this.initializeActionHandlers();
+                                $table.addClass('fade-in');
                             }
                         });
-                    } catch (error) {
-                        console.error('Error initializing DataTable for', tableId, ':', error);
-                    }
-                }
-            });
 
-            $('#pip_year_select').on('change', function() {
-                if (chartInstance) {
-                    loadChartData(chartInstance);
-                }
-                tableIds.forEach(function(tableId) {
-                    if ($.fn.DataTable.isDataTable(tableId)) {
-                        $(tableId).DataTable().ajax.reload();
+                        this.dataTables.set(tableId, dataTable);
+                    } catch (error) {
+                        this.handleError(`Error initializing DataTable for ${tableId}`, error);
                     }
                 });
-            });
-
-            function initializeActionHandlers() {
-                $('.stage_btn_action').off('click').on('click', function(e) {
-                    e.preventDefault();
-                    try {
-                        const buttonData = $(this).data();
-                        currentDealId = buttonData.deal_id;
-
-                        const $row = $(this).closest("tr");
-                        const $table = $row.closest("table");
-                        const tableId = "#" + $table.attr("id");
-                        const dataTable = $(tableId).DataTable();
-                        const rowData = dataTable.row($row).data();
-
-                        const _original = rowData._original
-                        const dealInfo = {
-                            id: _original.opportunity_id,
-                            created_at: _original.created_at,
-                            insured_name: _original.insured_name,
-                            insured_email: _original.insured_email,
-                            insured_phone: _original.insured_phone,
-                            contact_name: _original.contact_name,
-                            total_sum_insured: _original.total_sum_insured,
-                            premium: _original.premium,
-                            brokerage_rate: _original.brokerage_rate,
-                            // currency: _original.currency,
-                            // sum_insured: _original.sum_insured,
-                            // premium: _original.premium,
-                            // effective_date: _original.effective_date,
-                            // closing_date: _original.closing_date,
-                            // category: _original.category,
-                            // approval_status: _original.approval_status,
-                            // current_stage: buttonData.current_stage || rowData.status,
-                        };
-
-                        // console.log(_original);
-
-                        window.currentDealInfo = dealInfo;
-                        const dealCurrentStage = buttonData.current_stage || rowData.status;
-                        currentStage = dealCurrentStage;
-
-                        const stageInfo = stageFlow[currentStage];
-                        if (!stageInfo) {
-                            throw new Error(`Invalid stage: ${currentStage}`);
-                        }
-
-                        const nextStage = stageInfo.next;
-                        if (nextStage) {
-                            openStageModal(nextStage, currentDealId, dealInfo);
-                        }
-                    } catch (error) {
-                        console.error("Error opening next stage modal:", error);
-                    }
-                });
-
-
-                $('.update_category_action').off('click').on('click', function(e) {
-                    e.preventDefault();
-                    const buttonData = $(this).data();
-
-                    $("#updateCategoryForm #opportunity_id").val(buttonData.opportunity_id);
-
-                    $('#updateCategoryTypeModal').modal('show')
-
-                })
-
             }
 
-            function openStageModal(stage, dealId, dealInfo = null) {
-                try {
-                    currentDealId = dealId;
-                    const modalId = stage + "Modal";
-                    const modal = document.getElementById(modalId);
+            getLoadingHTML() {
+                return `
+                    <div class="d-flex justify-content-center">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                `;
+            }
 
-                    if (!modal) {
+            bindEvents() {
+                $('#pip_year_select').on('change', () => {
+                    this.debounce(() => {
+                        this.loadChartData();
+                        this.reloadAllTables();
+                    }, 300)();
+                });
+
+                $('a[data-bs-toggle="tab"]').on('shown.bs.tab', (e) => {
+                    const target = $(e.target).attr("href");
+                    const tableId = this.getTableIdFromTab(target);
+
+                    if (tableId && this.dataTables.has(tableId)) {
+                        this.dataTables.get(tableId).columns.adjust().draw();
+                    }
+                });
+
+                $(document).ajaxError((event, xhr, settings, thrownError) => {
+                    this.handleError('AJAX Error', {
+                        url: settings.url,
+                        status: xhr.status,
+                        error: thrownError
+                    });
+                });
+            }
+
+            initializeActionHandlers() {
+                $('.stage_btn_action').off('click').on('click', (e) => {
+                    e.preventDefault();
+                    this.handleStageAction(e.currentTarget);
+                });
+
+                $('.update_category_action').off('click').on('click', (e) => {
+                    e.preventDefault();
+                    this.handleCategoryUpdate(e.currentTarget);
+                });
+            }
+
+            handleStageAction(button) {
+                try {
+                    this.showLoading();
+
+                    const buttonData = $(button).data();
+                    this.currentDealId = buttonData.deal_id;
+
+                    const $row = $(button).closest("tr");
+                    const $table = $row.closest("table");
+                    const tableId = $table.attr("id");
+                    const dataTable = this.dataTables.get(tableId);
+                    const rowData = dataTable.row($row).data();
+                    const _original = rowData._original;
+
+                    const dealInfo = {
+                        id: _original.opportunity_id,
+                        created_at: _original.created_at,
+                        insured_name: _original.insured_name,
+                        insured_email: _original.insured_email,
+                        insured_phone: _original.insured_phone,
+                        contact_name: _original.contact_name,
+                        total_sum_insured: _original.total_sum_insured,
+                        premium: _original.premium,
+                        brokerage_rate: _original.brokerage_rate,
+                        written_share: _original.written_share,
+                        type_of_business: buttonData.type_of_business,
+                        class: _original.class,
+                        class_group: _original.class_group,
+                    };
+
+                    window.currentDealInfo = dealInfo;
+                    const dealCurrentStage = buttonData.current_stage || rowData.status;
+                    this.currentStage = dealCurrentStage;
+
+                    const stageInfo = this.config.stageFlow[this.currentStage];
+                    if (!stageInfo) {
+                        throw new Error(`Invalid stage: ${this.currentStage}`);
+                    }
+
+                    const nextStage = stageInfo.next;
+                    if (nextStage) {
+                        this.openStageModal(nextStage, this.currentDealId, dealInfo);
+                    }
+
+                    this.hideLoading();
+                } catch (error) {
+                    this.handleError("Error handling stage action", error);
+                    this.hideLoading();
+                }
+            }
+
+            handleCategoryUpdate(button) {
+                const buttonData = $(button).data();
+                $("#updateCategoryForm #opportunity_id").val(buttonData.opportunity_id);
+                $('#updateCategoryTypeModal').modal('show');
+            }
+
+            openStageModal(stage, dealId, dealInfo = null) {
+                try {
+                    this.currentDealId = dealId;
+                    const modalId = stage + "Modal";
+                    const $modal = $(`#${modalId}`);
+
+                    if ($modal.length === 0) {
                         throw new Error(`Modal not found: ${modalId}`);
                     }
 
-                    populateModalData(modalId, dealId, dealInfo);
+                    const data = {
+                        dealId: dealId,
+                        typeOfBus: dealInfo.type_of_business,
+                        modalId: modalId,
+                        class: dealInfo.class,
+                        classGroup: dealInfo.class_group,
+                    };
 
-                    $(`#${modalId}`).modal('show');
+                    this.loadDynamicScheduleHeaders(data);
+                    this.populateModalData(modalId, dealId, dealInfo);
 
-                    addEscapeKeyListener();
+                    $modal.modal('show');
+                    $modal.addClass('slide-in');
+
+                    this.addEscapeKeyListener();
                 } catch (error) {
-                    console.error("Error opening modal:", error);
+                    this.handleError("Error opening modal", error);
                 }
             }
 
-            function populateModalData(modalId, dealId, dealInfo = null) {
+            populateModalData(modalId, dealId, dealInfo = null) {
                 try {
                     const $modal = $(`#${modalId}`);
-                    if ($modal.length === 0) {
-                        console.error(`Modal not found: ${modalId}`);
-                        return;
-                    }
 
                     if (dealInfo) {
-                        console.log(dealInfo);
                         $modal.find('.slip-display').text(dealInfo.id || '');
 
                         if (dealInfo.created_at) {
@@ -668,150 +895,299 @@
                         $modal.find('.insured-email-display').text(dealInfo.insured_email || '--');
                         $modal.find('.insured-phone-display').text(dealInfo.insured_phone || '--');
                         $modal.find('.insured-contact-name-display').text(dealInfo.contact_name || '--');
-
                         $modal.find('.total_sum_insured').val(dealInfo.total_sum_insured || '0.00');
                         $modal.find('.premium').val(dealInfo.premium || '0.00');
                         $modal.find('.brokerage_rate').val(dealInfo.brokerage_rate || '0.00');
-
-
-
+                        $modal.find('#totalReinsurerShare').val(dealInfo.written_share || '0.00');
                     }
-
                 } catch (error) {
-                    console.error("Error populating modal data:", error);
+                    this.handleError("Error populating modal data", error);
                 }
             }
 
-            function addEscapeKeyListener() {
-                if (escapeKeyHandler) return;
-
-                escapeKeyHandler = function(event) {
-                    if (event.key === "Escape") {
-                        const openModal = document.querySelector('.modal[style*="block"]');
-                        if (openModal) {
-                            $(`#${openModal.id}`).modal('hide'); // Fixed: use proper modal hide method
+            loadDynamicScheduleHeaders(data) {
+                $.ajax({
+                    url: this.config.routes.scheduleHeaders,
+                    method: 'POST',
+                    data: {
+                        opportunity_id: data.dealId,
+                        class: data.class,
+                        class_group: data.classGroup,
+                        business_type: data.typeOfBus,
+                    },
+                    success: (response) => {
+                        if (response.success && response.headers) {
+                            this.renderScheduleHeaders(response.headers, data);
                         }
+                    },
+                    error: (xhr, status, error) => {
+                        this.handleError('Error loading schedule headers', {
+                            xhr,
+                            status,
+                            error
+                        });
+                        this.showError('Failed to load schedule headers');
                     }
-                };
-
-                document.addEventListener("keydown", escapeKeyHandler);
+                });
             }
 
-            function getQuarterFromTableId(tableId) {
-                if (tableId.includes('q1')) return 1;
-                if (tableId.includes('q2')) return 2;
-                if (tableId.includes('q3')) return 3;
-                if (tableId.includes('q4')) return 4;
-                return 'all';
-            }
+            renderScheduleHeaders(headers, data) {
+                const $modal = $(`#${data.modalId}`);
+                const container = $modal.find('#termsConditions');
+                container.empty();
 
-            $('a[data-bs-toggle="tab"]').on('shown.bs.tab', function(e) {
-                const target = $(e.target).attr("href");
-
-                const tableId = getTableIdFromTab(target);
-                if (tableId && $.fn.DataTable.isDataTable(tableId)) {
-                    $(tableId).DataTable().columns.adjust().draw();
-                }
-            });
-
-            function getTableIdFromTab(tabId) {
-                const mapping = {
-                    '#general_details': '#all_opps',
-                    '#q1_details': '#q1_opps',
-                    '#q2_details': '#q2_opps',
-                    '#q3_details': '#q3_opps',
-                    '#q4_details': '#q4_opps'
-                };
-                return mapping[tabId];
-            }
-        });
-
-        function initializePipelineChart() {
-            try {
-                if ($('.ct-chart-ranking').length === 0) {
-                    console.error('Chart container not found');
+                if (!headers || headers.length === 0) {
+                    container.html('<p class="text-muted text-center my-4">No schedule headers configured.</p>');
                     return;
                 }
 
-                let chart = new Chartist.Bar('.ct-chart-ranking', {
-                    labels: ['Quarter One', 'Quarter Two', 'Quarter Three', 'Quarter Four'],
-                    series: [
-                        [0, 0, 0, 0]
-                    ]
-                }, {
-                    low: 0,
-                    showArea: true,
-                    height: '300px',
-                    plugins: [
-                        Chartist.plugins.tooltip()
-                    ],
-                    axisX: {
-                        position: 'end'
-                    },
-                    axisY: {
-                        showGrid: false,
-                        showLabel: false,
-                        offset: 0
+                let fieldsHtml = '<div class="row">';
+
+                headers.forEach((header, index) => {
+                    const fieldId = `schedule_${header.id}`;
+                    const colClass = 'col-md-6';
+                    const headerName = this.capitalize(header.name);
+
+                    fieldsHtml += `<div class="${colClass}">`;
+                    fieldsHtml += `<div class="form-group mb-3">`;
+                    fieldsHtml += `<label for="${fieldId}" class="form-label capitalize">${headerName}`;
+
+                    if (header.amount_field === 'Y') {
+                        fieldsHtml += ' <span class="text-danger pl-1">*</span>';
                     }
 
-                });
+                    fieldsHtml += `</label>`;
 
-                chart.on('draw', function(data) {
-                    if (data.type === 'bar') {
-                        data.element.animate({
-                            y2: {
-                                dur: 1000,
-                                from: data.y1,
-                                to: data.y2,
-                                easing: Chartist.Svg.Easing.easeOutQuint
-                            }
-                        });
+                    // Generate appropriate input type based on field characteristics
+                    fieldsHtml += this.generateFieldInput(header, fieldId);
+
+                    // Add validation feedback
+                    fieldsHtml += `<div class="invalid-feedback"></div>`;
+
+                    fieldsHtml += `</div></div>`;
+
+                    // Add row break every 2 fields
+                    if (index % 2 === 1) {
+                        fieldsHtml += '</div><div class="row">';
                     }
                 });
-                loadChartData(chart);
 
-                return chart;
-            } catch (error) {
-                console.error('Error initializing chart:', error);
+                fieldsHtml += '</div>';
+                container.html(fieldsHtml);
+
+                // Add validation to required fields
+                this.setupFieldValidation($modal);
             }
-        }
 
-        function loadChartData(chart) {
-            try {
-                const pipelineId = $('#pip_year_select').val();
+            generateFieldInput(header, fieldId) {
+                const baseInputClass = 'form-inputs';
+                const required = header.amount_field === 'Y' ? 'required' : '';
+                const placeholder = `Enter ${header.name.toLowerCase()}`;
 
-                $.ajax({
-                    url: "{{ route('pipeline.sales.get_pipeline_chart_data') }}",
-                    method: 'GET',
-                    data: {
-                        pipeline_id: pipelineId
-                    },
-                    success: function(response) {
-                        if (response && response.data && Array.isArray(response.data)) {
-                            updateChartData(chart, response.data);
-                        } else {
-                            updateChartData(chart, [0, 0, 0, 0]);
+                if (header.data_determinant === 'Sum Insured' ||
+                    header.data_determinant === 'Premium' ||
+                    header.name.toLowerCase().includes('amount')) {
+
+                    const currency = header.class_group === 'FIRE' ? 'KES' : 'USD';
+                    return `
+                        <div class="input-group">
+                            <span class="input-group-text">${currency}</span>
+                            <input type="number" class="${baseInputClass}" id="${fieldId}"
+                                   name="schedule_headers[${header.id}]" step="0.01" min="0"
+                                   placeholder="${placeholder}" ${required}>
+                        </div>`;
+                } else if (header.name.toLowerCase().includes('date')) {
+                    return `<input type="date" class="${baseInputClass}" id="${fieldId}"
+                                   name="schedule_headers[${header.id}]" ${required}>`;
+                } else if (header.name.toLowerCase().includes('percentage') ||
+                    header.name.toLowerCase().includes('rate')) {
+                    return `
+                        <div class="input-group">
+                            <input type="number" class="${baseInputClass}" id="${fieldId}"
+                                   name="schedule_headers[${header.id}]" step="0.01" min="0" max="100"
+                                   placeholder="${placeholder}" ${required}>
+                            <span class="input-group-text">%</span>
+                        </div>`;
+                } else if (header.type_of_sum_insured && header.type_of_sum_insured !== 'N/A') {
+                    let options = `<option value="">Select ${header.name}</option>`;
+                    if (header.type_of_sum_insured === 'TOTAL SUM INSURED') {
+                        options += `
+                            <option value="total_sum_insured">Total Sum Insured</option>
+                            <option value="individual_sum_insured">Individual Sum Insured</option>`;
+                    }
+                    return `<select class="form-select ${baseInputClass}" id="${fieldId}"
+                                    name="schedule_headers[${header.id}]" ${required}>${options}</select>`;
+                } else {
+                    return `<input type="text" class="${baseInputClass}" id="${fieldId}"
+                                   name="schedule_headers[${header.id}]" placeholder="${placeholder}" ${required}>`;
+                }
+            }
+
+            setupFieldValidation($modal) {
+                $modal.find('input[required], select[required]').on('blur change', function() {
+                    const $field = $(this);
+                    const value = $field.val();
+
+                    if (!value || value.trim() === '') {
+                        $field.addClass('is-invalid');
+                        $field.next('.invalid-feedback').text('This field is required.');
+                    } else {
+                        $field.removeClass('is-invalid');
+                        $field.next('.invalid-feedback').text('');
+                    }
+                });
+            }
+
+            validateScheduleForm(modalId) {
+                const $modal = $(`#${modalId}`);
+                const requiredFields = $modal.find('input[required], select[required]');
+                let isValid = true;
+
+                requiredFields.each(function() {
+                    const $field = $(this);
+                    const value = $field.val();
+
+                    if (!value || value.trim() === '') {
+                        $field.addClass('is-invalid');
+                        $field.next('.invalid-feedback').text('This field is required.');
+                        isValid = false;
+                    } else {
+                        $field.removeClass('is-invalid');
+                        $field.next('.invalid-feedback').text('');
+                    }
+                });
+
+                return isValid;
+            }
+
+            addEscapeKeyListener() {
+                if (this.escapeKeyHandler) return;
+
+                this.escapeKeyHandler = (event) => {
+                    if (event.key === "Escape") {
+                        const openModal = document.querySelector('.modal.show');
+                        if (openModal) {
+                            $(openModal).modal('hide');
                         }
-                    },
-                    error: function(xhr, status, error) {
-                        console.error('Status Code:', xhr.status);
-                        updateChartData(chart, [0, 0, 0, 0]);
                     }
+                };
+
+                document.addEventListener("keydown", this.escapeKeyHandler);
+            }
+
+            removeEscapeKeyListener() {
+                if (this.escapeKeyHandler) {
+                    document.removeEventListener("keydown", this.escapeKeyHandler);
+                    this.escapeKeyHandler = null;
+                }
+            }
+
+            reloadAllTables() {
+                this.dataTables.forEach((dataTable, tableId) => {
+                    dataTable.ajax.reload(null, false);
                 });
-            } catch (error) {
-                console.error('Error in loadChartData:', error);
+            }
+
+            getTableIdFromTab(tabId) {
+                const mapping = {
+                    '#general_details': 'all_opps',
+                    '#q1_details': 'q1_opps',
+                    '#q2_details': 'q2_opps',
+                    '#q3_details': 'q3_opps',
+                    '#q4_details': 'q4_opps'
+                };
+                return mapping[tabId];
+            }
+
+            capitalize(str) {
+                return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+            }
+
+            debounce(func, wait) {
+                let timeout;
+                return function executedFunction(...args) {
+                    const later = () => {
+                        clearTimeout(timeout);
+                        func(...args);
+                    };
+                    clearTimeout(timeout);
+                    timeout = setTimeout(later, wait);
+                };
+            }
+
+            showLoading() {
+                $('#loading-overlay').removeClass('d-none');
+            }
+
+            hideLoading() {
+                $('#loading-overlay').addClass('d-none');
+            }
+
+            showError(message) {
+                $('#error-message').text(message);
+                $('#error-container').removeClass('d-none');
+                setTimeout(() => {
+                    $('#error-container').addClass('d-none');
+                }, 5000);
+            }
+
+            handleError(context, error) {
+                if (typeof toastr !== 'undefined') {
+                    toastr.error(`${context}: ${error.message || 'Unknown error'}`);
+                } else {
+                    this.showError(`${context}: ${error.message || 'Unknown error'}`);
+                }
+            }
+
+            destroy() {
+                try {
+                    this.dataTables.forEach((dataTable, tableId) => {
+                        if ($.fn.DataTable.isDataTable(`#${tableId}`)) {
+                            dataTable.destroy();
+                        }
+                    });
+                    this.dataTables.clear();
+
+                    this.removeEscapeKeyListener();
+                    $('.stage_btn_action').off('click');
+                    $('.update_category_action').off('click');
+                    $('#pip_year_select').off('change');
+                    $('a[data-bs-toggle="tab"]').off('shown.bs.tab');
+                    $(document).off('ajaxError');
+
+                    if (this.chartInstance && this.chartInstance.detach) {
+                        this.chartInstance.detach();
+                    }
+                } catch (error) {
+                    console.error('Error during cleanup:', error);
+                }
             }
         }
 
-        function updateChartData(chart, data) {
+        let pipelineManager;
+
+        $(document).ready(function() {
             try {
-                chart.update({
-                    labels: ['Quarter One', 'Quarter Two', 'Quarter Three', 'Quarter Four'],
-                    series: [data]
-                });
+                pipelineManager = new PipelineManager();
             } catch (error) {
-                console.error('Error updating chart:', error);
+                console.error('Failed to initialize Pipeline Manager:', error);
+                if (typeof toastr !== 'undefined') {
+                    toastr.error('Failed to initialize the application. Please refresh the page.');
+                }
             }
-        }
+        });
+
+        $(window).on('beforeunload', function() {
+            if (pipelineManager) {
+                pipelineManager.destroy();
+            }
+        });
+
+        window.addEventListener('unhandledrejection', function(event) {
+            console.error('Unhandled promise rejection:', event.reason);
+            if (pipelineManager) {
+                pipelineManager.handleError('Unhandled Promise Rejection', event.reason);
+            }
+        });
     </script>
 @endpush

@@ -83,46 +83,6 @@
 </div>
 
 <style>
-    .mailc-checkbox {
-        width: 16px !important;
-        height: 16px !important;
-        margin: 0 !important;
-        border: 1px solid #8a8886 !important;
-        border-radius: 2px !important;
-        background-color: #ffffff !important;
-        cursor: pointer;
-        position: relative;
-        -webkit-appearance: none;
-        -moz-appearance: none;
-        appearance: none;
-    }
-
-    .mailc-checkbox:hover {
-        border-color: #605e5c !important;
-        background-color: #f3f2f1 !important;
-    }
-
-    .mailc-checkbox:checked {
-        background-color: var(--primary-color) !important;
-        border-color: var(--primary-color) !important;
-    }
-
-    .mailc-checkbox:checked::after {
-        content: '✓';
-        position: absolute;
-        top: -1px;
-        left: 2px;
-        color: white;
-        font-size: 12px;
-        font-weight: bold;
-    }
-
-    .mailc-checkbox:focus {
-        outline: 2px solid var(--primary-color);
-        outline-offset: 2px;
-        border-color: var(--primary-color) !important;
-    }
-
     .mailc-date {
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         font-size: 12px !important;

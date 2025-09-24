@@ -127,6 +127,9 @@ Route::middleware(['auth', 'check.first.login'])->group(function () {
     Route::get('get-pipeline-data', [PipelineController::class, 'getPipelineData'])->name('pipeline.sales.get_pipeline_data');
     Route::get('get-pipeline-chart-data', [PipelineController::class, 'getPipelineChartData'])->name('pipeline.sales.get_pipeline_chart_data');
     Route::get('reinsurers/search', [PipelineController::class, 'getPipelineReinsurers'])->name('pipeline.search_reinsurers');
+    Route::get('/reinsurers/{reinsurerID}/contacts', [PipelineController::class, 'getPipelineReinContacts'])->name('pipeline.getPipelineReinContacts');
+    Route::post('/schedule-headers', [PipelineController::class, 'getHeaders'])
+        ->name('schedule.headers.get');
 
     Route::get('pipelines_activityq1_treaty', [PipelineController::class, 'pipeline_activity_q1_treaty'])->name('pipeline.activity.q1.treaty');
     Route::get('pipelines_activityq2_treaty', [PipelineController::class, 'pipeline_activity_q2_treaty'])->name('pipeline.activity.q2.treaty');
