@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\BdController;
 
+use App\Enums\Stage;
 use App\Jobs\SendQuoteJob;
 use App\Jobs\TreatyJob;
 use App\Models\Bd\CustomerContact;
@@ -9,7 +10,6 @@ use App\Models\Bd\ReinsurersDeclined;
 use App\Jobs\SendHandOverApproverEmail;
 use App\Models\Bd\Client;
 use App\Models\Bd\Quote;
-use App\Jobs\sendCrEmailToClient;
 use App\Mail\Prospectwonemail;
 use App\Models\Bd\Gender;
 use App\Models\Bd\Occupation;
@@ -38,7 +38,6 @@ use App\Models\ReinsDivision;
 use App\Models\Bd\QuoteReinsurers;
 use App\Models\Bd\QuoteSchedule;
 use App\Models\BdScheduleData;
-use Illuminate\Support\Facades\Schema;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
@@ -245,73 +244,112 @@ class PipelineController
     public function stageDocuments(Request $request)
     {
         try {
-            $pipeline = $request->pipeline;
-            $prospect = $request->prospect;
-            $division = $request->divisions;
+            $prospect = $request->opportunity_id;
             $stage = $request->stage;
             $category_type = $request->category_type;
-            $type_of_bus = $request->type_of_business;
+            $type_of_bus = $request->business_type;
 
-            $prosp_doc = DB::table('prospect_docs')
-                ->where('prospect_id', $prospect)
-                ->get();
             $pros = DB::table('pipeline_opportunities')
-                ->where('pipeline_id', $pipeline)
-                ->where('divisions', $division)
-                ->where('opportunity_id', $prospect)->first();
+                ->where('id', $prospect)
+                ->first();
 
-
-            $engage = $pros->engage_type;
-
-
-            if ($pros->stage == 2) {
-
-                $docs = DB::table('stage_documents')
-                    ->where('stage_documents.category_type', $category_type)
-                    ->join('doc_types', 'stage_documents.doc_type', '=', 'doc_types.id')
-                    ->where('stage', $stage)
-                    ->whereJsonContains('type_of_bus', $type_of_bus)
-                    // ->where('engage_type', $engage)
-                    ->select('doc_types.id', 'doc_types.doc_type', 'doc_types.checkbox_doc', 'stage_documents.mandatory')  //added category_type
-                    ->get();
-            } else if ($pros->stage == 3) {
-                $docs = DB::table('stage_documents')
-                    ->where('stage_documents.category_type', $category_type)
-                    ->join('doc_types', 'stage_documents.doc_type', '=', 'doc_types.id')
-                    ->where('stage', $stage)
-                    ->whereJsonContains('type_of_bus', $type_of_bus)
-                    // ->where('category_type', $category_type)
-                    // ->orWhere('stage', ($stage+1))
-                    ->select('doc_types.id', 'doc_types.doc_type', 'doc_types.checkbox_doc', 'stage_documents.mandatory', 'stage_documents.stage')
-                    ->get();
-            } else if ($pros->stage == 4) {
-                $docs = DB::table('stage_documents')
-                    ->where('stage_documents.category_type', $category_type)
-                    ->join('doc_types', 'stage_documents.doc_type', '=', 'doc_types.id')
-                    ->where('stage', $stage)
-                    ->whereJsonContains('type_of_bus', $type_of_bus)
-                    // ->where('category_type', $category_type)
-                    // ->orWhere('stage', ($stage+1))
-                    ->select('doc_types.id', 'doc_types.doc_type', 'doc_types.checkbox_doc', 'stage_documents.mandatory', 'stage_documents.stage')
-                    ->get();
-            } else {
-                $docs = DB::table('stage_documents')
-                    ->where('stage_documents.category_type', $category_type)
-                    ->join('doc_types', 'stage_documents.doc_type', '=', 'doc_types.id')
-                    ->where('stage', $stage)
-                    ->whereJsonContains('type_of_bus', $type_of_bus)
-
-                    // ->where('category_type', $category_type)
-                    ->select('doc_types.id', 'doc_types.doc_type', 'doc_types.checkbox_doc', 'doc_types.file_name', 'doc_types.id', 'stage_documents.mandatory')
-                    ->get();
+            if (!$pros) {
+                return ['status' => 0, 'message' => 'Pipeline opportunity not found'];
             }
 
-            // Get the latest quote reinsurers with unique reinsurer_id
+            $prosp_doc = DB::table('prospect_docs')
+                ->where('prospect_id', $pros->opportunity_id)
+                ->get();
+
+            $classcode = DB::table('classes')->where('class_code', $request->class)->first();
+
+            // $engage = $pros->engage_type;
+            $docs = $this->getStageDocuments($stage, $category_type, $type_of_bus, $pros->stage);
+
+            $quoteReinsurers = $this->getQuoteReinsurers($request->prospect, $pros->stage);
+
+            $declined = ReinsurersDeclined::where('opportunity_id', $request->prospect)
+                ->pluck('reason', 'customer_id');
+
+            foreach ($quoteReinsurers as $reinsurer) {
+                $reinsurer->contacts = json_decode($reinsurer->contacts);
+                $reinsurer->decline_reason = $declined[$reinsurer->reinsurer_id] ?? null;
+
+                if (json_last_error() !== JSON_ERROR_NONE) {
+                    $reinsurer->contacts = [];
+                }
+            }
+
+            $res = [
+                'status'          => 1,
+                'docs'            => $docs,
+                'prosp_doc'       => $prosp_doc,
+                'class_name'      => Str::ucfirst(Str::lower($classcode?->class_name)),
+                'quoteReinsurers' => $quoteReinsurers,
+            ];
+
+            return $res;
+        } catch (\Throwable $e) {
+            return [
+                'status' => 0,
+                'message' => 'An error occurred while fetching stage documents',
+                'error' => app()->environment('local') ? $e->getMessage() : null
+            ];
+        }
+    }
+
+    private function getStageDocuments($stage, $category_type, $type_of_bus, $prosStage)
+    {
+        $stage = Stage::fromKeyValue($stage);
+        if (!$stage) return [];
+
+        $currentStage = $stage->getStage();
+
+        $baseQuery = DB::table('stage_documents')
+            ->where('stage_documents.category_type', $category_type)
+            ->join('doc_types', 'stage_documents.doc_type', '=', 'doc_types.id')
+            ->where('stage', $currentStage)
+            ->whereJsonContains('type_of_bus', $type_of_bus);
+
+        switch ($prosStage) {
+            case 2:
+                return $baseQuery->select(
+                    'doc_types.id',
+                    'doc_types.doc_type',
+                    'doc_types.checkbox_doc',
+                    'stage_documents.mandatory'
+                )->get();
+
+            case 3:
+            case 4:
+                return $baseQuery->select(
+                    'doc_types.id',
+                    'doc_types.doc_type',
+                    'doc_types.checkbox_doc',
+                    'stage_documents.mandatory',
+                    'stage_documents.stage'
+                )->get();
+
+            default:
+                return $baseQuery->select(
+                    'doc_types.id',
+                    'doc_types.doc_type',
+                    'doc_types.checkbox_doc',
+                    'doc_types.file_name',
+                    'stage_documents.mandatory'
+                )->get();
+        }
+    }
+
+    private function getQuoteReinsurers($prospectId, $prosStage)
+    {
+        try {
             $latestRecords = DB::table('quote_reinsurers')
                 ->select('reinsurer_id', DB::raw('MAX(created_at) as latest_created_at'))
-                ->where('opportunity_id', $request->prospect)
-                ->where('stage', '>=', $pros->stage)
+                ->where('opportunity_id', $prospectId)
+                ->where('stage', '>=', $prosStage)
                 ->groupBy('reinsurer_id');
+
             $quoteReinsurers = DB::table('quote_reinsurers as qr')
                 ->joinSub($latestRecords, 'latest', function ($join) {
                     $join->on('qr.reinsurer_id', '=', 'latest.reinsurer_id')
@@ -328,21 +366,11 @@ class PipelineController
                 ->groupBy('qr.id', 'c.name', 'c.email')
                 ->orderBy('qr.reinsurer_id')
                 ->get();
-            $declined = ReinsurersDeclined::where('opportunity_id', $request->prospect)->pluck('reason', 'customer_id');
 
-
-            // Decode JSONB field to an array
-            foreach ($quoteReinsurers as $reinsurer) {
-                $reinsurer->contacts = json_decode($reinsurer->contacts);
-                $reinsurer->decline_reason = $declined[$reinsurer->reinsurer_id] ?? null;
-            }
-            $users = DB::table('users')->get();
-
-            $res = ['status' => 1, 'docs' => $docs, 'prosp_doc' => $prosp_doc, 'quoteReinsurers' => $quoteReinsurers, 'users' => $users];
-        } catch (\Throwable $e) {
-            $res = ['status' => 0];
+            return $quoteReinsurers;
+        } catch (\Exception $e) {
+            throw $e;
         }
-        return $res;
     }
 
     public function save(Request $request)
@@ -2355,7 +2383,7 @@ class PipelineController
                 'ccEmails' => $ccEmails,
             ];
 
-            sendCrEmailToClient::dispatch($data);
+            // sendCrEmailToClient::dispatch($data);
 
             // update prospect to status 4 to move to client listing
             DB::table('prospect_handover')->where('prospect_id', "=", $request->input('prospectId'))->update([
@@ -3345,6 +3373,9 @@ class PipelineController
 
         $class = $opp->classcode;
         $class_group = $opp->class_group;
+        $category_type = $opp->category_type;
+
+        // logger()->debug($opp);
 
         return [
             'opportunity_id'    => $opp->opportunity_id,
@@ -3356,6 +3387,7 @@ class PipelineController
             'type_of_business'  => $type_of_business,
             'class'             => $class,
             'class_group'       => $class_group,
+            'category_type'       => $category_type,
             'total_sum_insured' => number_format((float) $opp->total_sum_insured),
             'premium'           => number_format((float) $opp->cede_premium),
             'brokerage_rate'    => number_format((float) $opp->reins_comm_rate, 2),

@@ -42,7 +42,7 @@
                         </div>
                     </div>
 
-                    <div class="card custom-card section-box customScrollBar shadow-none">
+                    <div class="card custom-card section-box customScrollBar shadow-none mb-0">
                         <!-- Coverage Details Section -->
                         <div class="form-section">
                             <div class="section-header" data-section="coverage-details">
@@ -64,7 +64,7 @@
                                                     title="Total coverage amount"></i>
                                             </label>
                                             <div class="currency-input">
-                                                <span class="currency-symbol cr-symbl" id="currencySymbol">KES</span>
+                                                <div class="currency-symbol" id="currencySymbol">KES</div>
                                                 <input type="text" class="form-inputs total_sum_insured"
                                                     name="total_sum_insured" required placeholder="0.00"
                                                     onkeyup="this.value=numberWithCommas(this.value)"
@@ -79,7 +79,7 @@
                                                 <span class="required-asterisk">*</span>
                                             </label>
                                             <div class="currency-input">
-                                                <span class="currency-symbol cr-symbl">KES</span>
+                                                <div class="currency-symbol">KES</div>
                                                 <input type="text" class="form-inputs premium" name="premium"
                                                     required placeholder="0.00"
                                                     onkeyup="this.value=numberWithCommas(this.value)"
@@ -89,42 +89,14 @@
                                     </div>
                                 </div>
 
-                                <div class="row">
-                                    <div class="col-md-4">
-                                        <div class="form-group">
-                                            <label class="form-label">
-                                                Deductible/Excess
-                                                <i class="bx bx-info-circle tooltip-trigger"
-                                                    title="Amount to be borne by insured"></i>
-                                            </label>
-                                            <div class="currency-input">
-                                                <span class="currency-symbol">KES</span>
-                                                <input type="text" class="form-inputs deductible" name="deductible"
-                                                    placeholder="0.00" onkeyup="this.value=numberWithCommas(this.value)"
-                                                    change="this.value=numberWithCommas(this.value)">
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <div class="form-group">
-                                            <label class="form-label">Reinsurer Commission Rate (%)</label>
-                                            <input type="text" class="form-inputs brokerage_rate"
-                                                name="brokerage_rate" placeholder="0.00"
-                                                onkeyup="this.value=numberWithCommas(this.value)"
-                                                change="this.value=numberWithCommas(this.value)" readonly
-                                                value="10">
-                                        </div>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <div class="form-group">
-                                            <label class="form-label">Interest Rate (%)</label>
-                                            <input type="text" class="form-inputs interest_rate"
-                                                name="interest_rate" placeholder="0.00"
-                                                onkeyup="this.value=numberWithCommas(this.value)"
-                                                change="this.value=numberWithCommas(this.value)">
-                                        </div>
-                                    </div>
+                                <div class="form-group">
+                                    <label class="form-label">Total sum insured breakdown</label>
+                                    <textarea class="form-inputs" name="special_conditions" rows="4" style="resize: none;"
+                                        placeholder="Any special terms, conditions, or clauses applicable to this coverage..."></textarea>
                                 </div>
+
+                                <input type="hidden" name="class_code" id="classCodeValue">
+                                <input type="hidden" name="class_group_code" id="classGroupCodeValue">
                             </div>
                         </div>
 
@@ -249,17 +221,131 @@
                             <div class="section-content" id="termsConditions"></div>
                         </div>
 
+                        <hr />
+
                         <!-- Supporting Documents Section -->
                         <div class="form-section">
                             <div class="section-header" data-section="documents">
                                 <div class="section-title">
-                                    <span>
+                                    <div>
                                         <i class="bx bx-upload section-icon"></i>
                                         Supporting Documents
-                                    </span>
+                                    </div>
+                                    <div id="documentsSubtitle" class="ms-3 fs-12 opacity-75"
+                                        style="margin-left: 9px;">
+                                        <small>Please select insurance class first</small>
+                                    </div>
                                 </div>
                             </div>
-                            <div class="section-content" id="documents">
+                            <div class="documents-section-content" id="documentsContent">
+                                <div id="documentFields" class="row g-4" style="display: none;"></div>
+                            </div>
+                            {{-- <div class="documents-section-content d-none">
+                                <div class="row g-4">
+                                    <!-- Policy Schedule -->
+                                    <div class="col-md-6">
+                                        <div class="form-group required-field">
+                                            <label class="form-label fw-semibold">
+                                                <i class="bx bx-file-blank me-1"></i>
+                                                Policy Schedule
+                                                <span class="text-danger">*</span>
+                                            </label>
+                                            <div class="file-upload-area" data-field="policy_schedule">
+                                                <i class="bx bx-cloud-upload upload-icon"></i>
+                                                <div class="upload-text">Drop your policy schedule here</div>
+                                                <div class="upload-subtext">or click to browse files</div>
+                                                <input type="file" class="d-none file-input"
+                                                    name="policy_schedule" required
+                                                    accept=".pdf,.doc,.docx,.xls,.xlsx">
+                                                <div class="upload-constraints">
+                                                    <i class="bx bx-info-circle me-1"></i>
+                                                    Max size: 10MB | Formats: PDF, DOC, DOCX, XLS, XLSX
+                                                </div>
+                                                <div class="upload-progress"></div>
+                                                <div class="file-count-badge">0</div>
+                                            </div>
+                                            <div class="file-preview-container"></div>
+                                        </div>
+                                    </div>
+
+
+                                    <!-- Loss Experience -->
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label class="form-label fw-semibold">
+                                                <i class="bx bx-trending-up me-1"></i>
+                                                Loss Experience / Claims History
+                                            </label>
+                                            <div class="file-upload-area" data-field="loss_experience">
+                                                <i class="bx bx-line-chart upload-icon"></i>
+                                                <div class="upload-text">Upload loss experience data</div>
+                                                <div class="upload-subtext">Historical claims and loss information
+                                                </div>
+                                                <input type="file" class="d-none file-input"
+                                                    name="loss_experience" accept=".pdf,.doc,.docx,.xls,.xlsx">
+                                                <div class="upload-constraints">
+                                                    <i class="bx bx-info-circle me-1"></i>
+                                                    Max size: 10MB | Formats: PDF, DOC, DOCX, XLS, XLSX
+                                                </div>
+                                                <div class="upload-progress"></div>
+                                                <div class="file-count-badge">0</div>
+                                            </div>
+                                            <div class="file-preview-container"></div>
+                                        </div>
+                                    </div>
+
+
+                                    <!-- Risk Survey -->
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label class="form-label fw-semibold">
+                                                <i class="bx bx-search-alt me-1"></i>
+                                                Risk Survey / Inspection Report
+                                            </label>
+                                            <div class="file-upload-area" data-field="risk_survey">
+                                                <i class="bx bx-search upload-icon"></i>
+                                                <div class="upload-text">Upload risk assessment</div>
+                                                <div class="upload-subtext">Professional risk evaluation reports</div>
+                                                <input type="file" class="d-none file-input" name="risk_survey"
+                                                    accept=".pdf,.doc,.docx">
+                                                <div class="upload-constraints">
+                                                    <i class="bx bx-info-circle me-1"></i>
+                                                    Max size: 10MB | Formats: PDF, DOC, DOCX
+                                                </div>
+                                                <div class="upload-progress"></div>
+                                                <div class="file-count-badge">0</div>
+                                            </div>
+                                            <div class="file-preview-container"></div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Additional Documents -->
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label class="form-label fw-semibold">
+                                                <i class="bx bx-folder-plus me-1"></i>
+                                                Additional Documents
+                                            </label>
+                                            <div class="file-upload-area" data-field="additional_docs">
+                                                <i class="bx bx-plus-circle upload-icon"></i>
+                                                <div class="upload-text">Add supporting files</div>
+                                                <div class="upload-subtext">Multiple files supported</div>
+                                                <input type="file" class="d-none file-input"
+                                                    name="additional_docs" multiple
+                                                    accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.xls,.xlsx">
+                                                <div class="upload-constraints">
+                                                    <i class="bx bx-info-circle me-1"></i>
+                                                    Max size: 5MB per file | Multiple files allowed
+                                                </div>
+                                                <div class="upload-progress"></div>
+                                                <div class="file-count-badge">0</div>
+                                            </div>
+                                            <div class="file-preview-container"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div> --}}
+                            {{-- <div class="section-content d-none" id="documents">
                                 <div class="row">
                                     <div class="col-md-6">
                                         <div class="form-group">
@@ -336,8 +422,34 @@
                                         </div>
                                     </div>
                                 </div>
-                            </div>
+                            </div> --}}
                         </div>
+
+                        <!-- Document Upload Summary -->
+                        {{-- <div class="form-section" id="documentSummarySection" style="display: none;">
+                            <div class="card border-success">
+                                <div class="card-header bg-success text-white">
+                                    <h6 class="mb-0">
+                                        <i class="bx bx-check-circle me-2"></i>
+                                        Document Upload Summary
+                                    </h6>
+                                </div>
+                                <div class="card-body">
+                                    <div id="uploadSummary"></div>
+                                </div>
+                                <div class="card-footer bg-light">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <button type="button" class="btn btn-outline-secondary btn-sm"
+                                            onclick="clearAllDocuments()">
+                                            <i class="bx bx-trash me-2"></i>Clear All Files
+                                        </button>
+                                        <div class="text-muted small">
+                                            Documents Required: <span id="docCount">0</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div> --}}
                     </div>
                 </div>
 
@@ -556,9 +668,6 @@
     .form-label {
         font-weight: 600;
         color: var(--bs-gray-700);
-        margin-bottom: 0.5rem;
-        display: flex;
-        align-items: center;
     }
 
     .required-asterisk {
@@ -584,12 +693,12 @@
     .currency-symbol {
         position: absolute;
         left: 12px;
-        top: 50%;
+        top: 20px;
         transform: translateY(-50%);
         color: var(--gray-700);
         font-weight: 600;
         z-index: 10;
-        font-size: 14px;
+        font-size: 15px;
     }
 
     .currency-input .form-inputs {
@@ -631,10 +740,6 @@
         max-height: 600px !important;
     }
 
-    /* .select2-container--default .select2-results__option--highlighted.select2-results__option--selectable {
-        color: white !important;
-    }
- */
     #contactsModal .form-label {
         color: #000;
     }
@@ -653,6 +758,259 @@
 
     .insured-contact-name-display {
         text-transform: capitalize !important;
+    }
+
+    /* Professional File Upload Styling */
+    .file-upload-area {
+        position: relative;
+        border: 2px dashed #e0e6ed;
+        border-radius: 12px;
+        padding: 2rem;
+        text-align: center;
+        background: linear-gradient(145deg, #fafbfc 0%, #f8f9fa 100%);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        cursor: pointer;
+        min-height: 0px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        overflow: hidden;
+    }
+
+    .file-upload-area::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: radial-gradient(circle at 50% 50%, rgba(13, 110, 253, 0.05) 0%, transparent 70%);
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+
+    .file-upload-area:hover {
+        border-color: #0d6efd;
+        background: linear-gradient(145deg, #f8f9ff 0%, #f0f4ff 100%);
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(13, 110, 253, 0.1);
+    }
+
+    .file-upload-area:hover::before {
+        opacity: 1;
+    }
+
+    .file-upload-area.drag-over {
+        border-color: #198754;
+        background: linear-gradient(145deg, #f8fff9 0%, #f0fff4 100%);
+        transform: scale(1.02);
+        box-shadow: 0 12px 30px rgba(25, 135, 84, 0.15);
+    }
+
+    .file-upload-area.drag-over .upload-icon {
+        color: #198754 !important;
+        transform: scale(1.1);
+    }
+
+    .file-upload-area.has-error {
+        border-color: #dc3545;
+        background: linear-gradient(145deg, #fff8f8 0%, #fff0f0 100%);
+    }
+
+    .file-upload-area.uploading {
+        pointer-events: none;
+        opacity: 0.7;
+    }
+
+    .upload-icon {
+        font-size: 3rem;
+        color: #6c757d;
+        margin-bottom: 1rem;
+        transition: all 0.3s ease;
+        display: block;
+    }
+
+    .file-upload-area:hover .upload-icon {
+        color: #0d6efd;
+        transform: translateY(-3px);
+    }
+
+    .upload-text {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #495057;
+        margin-bottom: 0.5rem;
+        line-height: 1.4;
+    }
+
+    .upload-subtext {
+        font-size: 0.9rem;
+        color: #6c757d;
+        margin-bottom: 1rem;
+    }
+
+    .upload-constraints {
+        font-size: 0.8rem;
+        color: #adb5bd;
+        border-top: 1px solid #e9ecef;
+        padding-top: 1rem;
+        margin-top: 1rem;
+        width: 100%;
+    }
+
+    /* File Preview Styling */
+    .file-preview-container {
+        margin-top: 1rem;
+    }
+
+    .file-preview-item {
+        display: flex;
+        align-items: center;
+        background: #fff;
+        border: 1px solid #e9ecef;
+        border-radius: 8px;
+        padding: 0.75rem;
+        margin-bottom: 0.5rem;
+        transition: all 0.2s ease;
+    }
+
+    .file-preview-item:hover {
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        border-color: #dee2e6;
+    }
+
+    .file-icon {
+        font-size: 1.5rem;
+        margin-right: 0.75rem;
+        color: #0d6efd;
+    }
+
+    .file-info {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .file-name {
+        font-weight: 500;
+        color: #212529;
+        margin-bottom: 0.25rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .file-details {
+        font-size: 0.8rem;
+        color: #6c757d;
+    }
+
+    .file-actions {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .file-action-btn {
+        padding: 0.25rem 0.5rem;
+        border: none;
+        border-radius: 4px;
+        font-size: 0.8rem;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .btn-view {
+        background: #e3f2fd;
+        color: #1976d2;
+    }
+
+    .btn-view:hover {
+        background: #bbdefb;
+    }
+
+    .btn-remove {
+        background: #ffebee;
+        color: #d32f2f;
+    }
+
+    .btn-remove:hover {
+        background: #ffcdd2;
+    }
+
+    /* Upload Progress */
+    .upload-progress {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        height: 4px;
+        background: #0d6efd;
+        border-radius: 0 0 12px 12px;
+        transition: width 0.3s ease;
+        opacity: 0;
+    }
+
+    .file-upload-area.uploading .upload-progress {
+        opacity: 1;
+    }
+
+    .file-upload-area.upload-success {
+        border-color: #198754;
+        background: linear-gradient(145deg, #f8fff9 0%, #f0fff4 100%);
+    }
+
+    .file-upload-area.upload-success .upload-icon {
+        color: #198754;
+    }
+
+    @media (max-width: 768px) {
+        .file-upload-area {
+            /* padding: 1.5rem;
+            min-height: 150px; */
+        }
+
+        .upload-icon {
+            font-size: 2.5rem;
+        }
+
+        .upload-text {
+            font-size: 1rem;
+        }
+    }
+
+    .file-count-badge {
+        position: absolute;
+        top: -10px;
+        right: -10px;
+        background: #0d6efd;
+        color: white;
+        border-radius: 50%;
+        width: 24px;
+        height: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.75rem;
+        font-weight: 600;
+        opacity: 0;
+        transform: scale(0);
+        transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    }
+
+    .file-count-badge.show {
+        opacity: 1;
+        transform: scale(1);
+    }
+
+    .documents-section-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 1rem 1.5rem;
+        border-radius: 8px 8px 0 0;
+        margin-bottom: 0;
+    }
+
+    .documents-section-content {
+        padding-top: 10px;
     }
 </style>
 
@@ -682,6 +1040,33 @@
                     message: "Please enter a valid email address",
                 },
             };
+
+            let uploadedFiles = {};
+            let currentClass = '';
+            let documentConfigs = {};
+
+            const fileIcons = {
+                'pdf': 'bx-file-pdf',
+                'doc': 'bx-file-doc',
+                'docx': 'bx-file-doc',
+                'xls': 'bx-file-excel',
+                'xlsx': 'bx-file-excel',
+                'jpg': 'bx-image',
+                'jpeg': 'bx-image',
+                'png': 'bx-image',
+                'default': 'bx-file'
+            };
+
+            initializeComponents();
+
+            function initializeComponents() {
+                // loadInsuranceClasses();
+                // initializeDataTable();
+            }
+
+            $('.file-upload-area').each(function() {
+                initializeFileUpload($(this));
+            });
 
             $.ajaxSetup({
                 headers: {
@@ -714,6 +1099,7 @@
                     className: 'text-start'
                 }]
             });
+
 
             let selectedReinsurers = new Set();
 
@@ -1457,15 +1843,11 @@
                 $("#proposalForm .reinsurer-validation-error").remove();
             });
 
-            $("#proposalForm").on("click", handleFormSubmission);
+            $("#proposalForm").on("submit", handleFormSubmission);
 
             $("#proposalForm").on("input blur", ".form-inputs", function() {
                 validateField($(this));
             });
-
-            // $("#proposalForm").on("change", "#availableReinsurers", function() {
-            //     validateReinsurerSelection();
-            // });
 
             function validateField($field) {
                 const fieldName = $field.attr("name") || $field.attr("id");
@@ -1574,7 +1956,7 @@
 
                 const validation = validateProposalForm();
 
-                console.log(validation)
+                // console.log(validation)
 
                 if (!validation.isValid) {
                     // Show validation errors
@@ -1750,7 +2132,6 @@
 
                 return true;
             }
-
         });
     </script>
 @endpush

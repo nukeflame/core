@@ -146,7 +146,7 @@ Route::middleware(['auth', 'check.first.login'])->group(function () {
     Route::get('search-insured-names', [PipelineController::class, 'search_insured_names'])->name('search-insured-names');
     Route::get('search-lead-names', [PipelineController::class, 'search_lead_names'])->name('search-lead-names');
 
-    Route::get('stage/documents', [PipelineController::class, 'stageDocuments'])->name('get_stage_documents');
+    Route::post('stage/documents', [PipelineController::class, 'stageDocuments'])->name('schedule.get_stage_documents');
     Route::get('cfac-offer', [PipelineController::class, 'facultativeOffer'])->name('get-fac-data');
     Route::post('edit-data', [PipelineController::class, 'editData'])->name('get-edit-data');
 
@@ -160,8 +160,6 @@ Route::middleware(['auth', 'check.first.login'])->group(function () {
     Route::get('division/classes', [PipelineController::class, 'divisionClasses'])->name('get_division_classes');
     // Route::get('search-prospect-fullnames', [PipelineController::class, 'search_prospect_fullnames'])->name('search-prospect-fullnames');
     Route::post('lead/handover/save', [PipelineController::class, 'handoverSave'])->name('client.stage');
-
-
 
     // Leads Routes
     Route::get('leads_get', [LeadsOnboardingController::class, 'leads_get'])->name('leads.get');
