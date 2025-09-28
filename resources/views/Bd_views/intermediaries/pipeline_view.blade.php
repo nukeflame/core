@@ -865,6 +865,7 @@
                         class: _original.class,
                         class_group: _original.class_group,
                         category_type: _original.category_type,
+                        sum_insured_type: _original.sum_insured_type
                     };
 
                     window.currentDealInfo = dealInfo;
@@ -920,7 +921,8 @@
                         class: dealInfo ? dealInfo.class : null,
                         classGroup: dealInfo ? dealInfo.class_group : null,
                         stage: stage,
-                        category_type: dealInfo ? dealInfo.category_type : null
+                        categoryType: dealInfo ? dealInfo.category_type : null,
+                        sumInsuredType: dealInfo?.sum_insured_type
                     };
 
                     this.loadScheduleHeaders(data);
@@ -974,6 +976,7 @@
                     $modal.find('.insured-email-display').text(dealInfo.insured_email || '--');
                     $modal.find('.insured-phone-display').text(dealInfo.insured_phone || '--');
                     $modal.find('.insured-contact-name-display').text(dealInfo.contact_name || '--');
+                    $modal.find('.sum_insured_type').text(`(${dealInfo.sum_insured_type})` || '');
 
                     $modal.find('.total_sum_insured').val(dealInfo.total_sum_insured || '0.00');
                     $modal.find('.premium').val(dealInfo.premium || '0.00');
@@ -1071,49 +1074,103 @@
             }
 
             renderScheduleHeaders(headers, data) {
+                if (!data || !data.modalId) {
+                    return;
+                }
+
                 const $modal = $(`#${data.modalId}`);
                 const container = $modal.find('#termsConditions');
-
                 if (container.length === 0) {
                     return;
                 }
 
                 container.empty();
 
-                if (!headers || headers.length === 0) {
+                if (!Array.isArray(headers)) {
+                    container.html('<p class="text-muted text-center my-4">Invalid headers data.</p>');
+                    return;
+                }
+
+                const excludedTerms = [
+                    'Premium',
+                    'Sum Insured Breakdown',
+                    'Reinsurer Commission Rate',
+                    'Allowed Commission',
+                    'Commission',
+                    'Deductible/Excess'
+                ];
+
+                const validHeaders = headers.filter(h => {
+                    if (!h) {
+                        return false;
+                    }
+
+                    const hasValidSumInsuredType = h.sum_insured_type?.trim() === '';
+                    const isNotExcluded = !excludedTerms.some(term =>
+                        h.name?.replace(/\s+/g, ' ').trim().includes(term)
+                    );
+
+                    return hasValidSumInsuredType && isNotExcluded;
+                });
+
+                validHeaders.sort((a, b) => {
+                    const positionA = parseInt(a.position) || 0;
+                    const positionB = parseInt(b.position) || 0;
+                    return positionA - positionB;
+                });
+
+
+
+                const includeDeductible = ['Deductible/Excess'];
+                const deductible = headers.filter(h =>
+                    includeDeductible.some(term =>
+                        h?.name?.replace(/\s+/g, ' ').trim().includes(term)
+                    )
+                );
+
+                $('.deductible_excess_div').hide();
+                if (deductible?.length > 0) {
+                    $('.deductible_excess_div').show();
+                }
+
+                if (validHeaders.length === 0) {
                     container.html('<p class="text-muted text-center my-4">No schedule headers configured.</p>');
                     return;
                 }
 
-                let fieldsHtml = '<div class="row">';
-
-                headers.forEach((header, index) => {
-                    const fieldId = `schedule_${header.id}`;
-                    const colClass = 'col-md-6';
-                    const headerName = this.capitalize(header.name);
-
-                    fieldsHtml += `<div class="${colClass}">`;
-                    fieldsHtml += `<div class="form-group mb-3">`;
-                    fieldsHtml += `<label for="${fieldId}" class="form-label capitalize">${headerName}`;
-
-                    if (header.amount_field === 'Y') {
-                        fieldsHtml += ' <span class="text-danger pl-1">*</span>';
+                let fieldsHtml = '';
+                validHeaders.forEach((header, index) => {
+                    if (index % 2 === 0) {
+                        fieldsHtml += '<div class="row">';
                     }
 
-                    fieldsHtml += `</label>`;
-                    fieldsHtml += this.generateFieldInput(header, fieldId);
-                    fieldsHtml += `<div class="invalid-feedback"></div>`;
-                    fieldsHtml += `</div></div>`;
+                    const fieldId = `schedule_${header.id}`;
 
-                    if (index % 2 === 1) {
-                        fieldsHtml += '</div><div class="row">';
+                    let headerName = this.capitalize(header.name);
+                    let fieldInput = this.generateFieldInput(header, fieldId);
+
+                    fieldsHtml += `
+                        <div class="col-md-12">
+                            <div class="form-group mb-3">
+                                <label for="${fieldId}" class="form-label capitalize">
+                                    ${headerName}${header.amount_field === 'Y' ? ' <span class="text-danger pl-1">*</span>' : ''}
+                                </label>
+                                ${fieldInput}
+                                <div class="invalid-feedback"></div>
+                            </div>
+                        </div>
+                    `;
+
+                    if (index % 2 === 1 || index === validHeaders.length - 1) {
+                        fieldsHtml += '</div>';
                     }
                 });
 
-                fieldsHtml += '</div>';
                 container.html(fieldsHtml);
 
-                this.setupFieldValidation($modal);
+                if (typeof this.setupFieldValidation === 'function') {
+                    this.setupFieldValidation($modal);
+                }
             }
 
             renderSlipDocuments(res, data, $modal) {
@@ -1130,7 +1187,7 @@
                             icon: 'bx-file-blank',
                             accepts: '.pdf,.doc,.docx',
                             description: 'Current policy terms and coverage details',
-                            max_size: 10485760 // 10MB in bytes
+                            max_size: 10485760
                         },
                         {
                             id: 'claims_history',
@@ -1148,7 +1205,7 @@
                             icon: 'bx-folder-plus',
                             accepts: '.pdf,.doc,.docx,.jpg,.jpeg,.png',
                             description: 'Any additional supporting documents',
-                            max_size: 5242880, // 5MB in bytes
+                            max_size: 5242880,
                             multiple: true
                         }
                     ]
@@ -1357,9 +1414,7 @@
                 const fileSize = this.formatFileSize(file.size);
                 const fileName = file.name || 'Unknown file';
 
-                // Check if preview already exists to prevent duplicates
                 if ($container.find(`[data-file-id="${fileId}"]`).length > 0) {
-                    console.warn(`File preview already exists for: ${fileId}`);
                     return;
                 }
 
@@ -1490,30 +1545,79 @@
                 return this.formatFileSize(totalSize);
             }
 
+            // generateFieldInput(header, fieldId) {
+            //     const baseInputClass = 'form-control form-inputs';
+            //     const required = header.amount_field === 'Y' ? 'required' : '';
+            //     const placeholder = `Enter ${header.name.toLowerCase()}`;
+
+            //     try {
+            //         if (header.data_determinant === 'Sum Insured' ||
+            //             header.data_determinant === 'Premium' ||
+            //             header.name.toLowerCase().includes('amount')) {
+
+            //             const currency = header.class_group === 'FIRE' ? 'KES' : 'USD';
+            //             return `
+        //                     <div class="input-group">
+        //                         <span class="input-group-text">${currency}</span>
+        //                         <input type="number" class="${baseInputClass}" id="${fieldId}"
+        //                             name="schedule_headers[${header.id}]" step="0.01" min="0"
+        //                             placeholder="${placeholder}" ${required}>
+        //                     </div>
+        //                 `;
+            //         } else if (header.name.toLowerCase().includes('date')) {
+            //             return `<input type="date" class="${baseInputClass}" id="${fieldId}"
+        //                         name="schedule_headers[${header.id}]" ${required}>`;
+            //         } else if (header.name.toLowerCase().includes('percentage') ||
+            //             header.name.toLowerCase().includes('rate')) {
+            //             return `
+        //                 <div class="input-group">
+        //                     <input type="number" class="${baseInputClass}" id="${fieldId}"
+        //                         name="schedule_headers[${header.id}]" step="0.01" min="0" max="100"
+        //                         placeholder="${placeholder}" ${required}>
+        //                     <span class="input-group-text">%</span>
+        //                 </div>`;
+            //         } else if (header.type_of_sum_insured && header.type_of_sum_insured !== 'N/A') {
+            //             let options = `<option value="">Select ${header.name}</option>`;
+            //             if (header.type_of_sum_insured === 'TOTAL SUM INSURED') {
+            //                 options += `
+        //                             <option value="total_sum_insured">Total Sum Insured</option>
+        //                             <option value="individual_sum_insured">Individual Sum Insured</option>`;
+            //             }
+            //             return `<select class="form-select ${baseInputClass.replace('form-control', '')}" id="${fieldId}"
+        //                     name="schedule_headers[${header.id}]" ${required}>${options}</select>`;
+            //         } else {
+            //             return `<input type="text" class="${baseInputClass}" id="${fieldId}"
+        //                    name="schedule_headers[${header.id}]" placeholder="${placeholder}" ${required}>`;
+            //         }
+            //     } catch (error) {
+            //         return `<input type="text" class="${baseInputClass}" id="${fieldId}"
+        //                name="schedule_headers[${header.id}]" placeholder="${placeholder}" ${required}>`;
+            //     }
+            // }
+
             generateFieldInput(header, fieldId) {
                 const baseInputClass = 'form-control form-inputs';
                 const required = header.amount_field === 'Y' ? 'required' : '';
-                const placeholder = `Enter ${header.name.toLowerCase()}`;
+                const placeholder = `Enter ${header.name?.toLowerCase() || 'value'}`;
 
                 try {
                     if (header.data_determinant === 'Sum Insured' ||
                         header.data_determinant === 'Premium' ||
-                        header.name.toLowerCase().includes('amount')) {
+                        header.name?.toLowerCase().includes('amount')) {
 
                         const currency = header.class_group === 'FIRE' ? 'KES' : 'USD';
                         return `
-                                <div class="input-group">
-                                    <span class="input-group-text">${currency}</span>
-                                    <input type="number" class="${baseInputClass}" id="${fieldId}"
-                                        name="schedule_headers[${header.id}]" step="0.01" min="0"
-                                        placeholder="${placeholder}" ${required}>
-                                </div>
-                            `;
-                    } else if (header.name.toLowerCase().includes('date')) {
-                        return `<input type="date" class="${baseInputClass}" id="${fieldId}"
-                                    name="schedule_headers[${header.id}]" ${required}>`;
-                    } else if (header.name.toLowerCase().includes('percentage') ||
-                        header.name.toLowerCase().includes('rate')) {
+                            <div class="input-group">
+                                <span class="input-group-text">${currency}</span>
+                                <input type="number" class="${baseInputClass}" id="${fieldId}"
+                                    name="schedule_headers[${header.id}]" step="0.01" min="0"
+                                    placeholder="${placeholder}" ${required}>
+                            </div>
+                        `;
+                    } else if (header.name?.toLowerCase().includes('date')) {
+                        return `<input type="date" class="${baseInputClass}" id="${fieldId}" name="schedule_headers[${header.id}]" ${required}>`;
+                    } else if (header.name?.toLowerCase().includes('percentage') ||
+                        header.name?.toLowerCase().includes('rate')) {
                         return `
                             <div class="input-group">
                                 <input type="number" class="${baseInputClass}" id="${fieldId}"
@@ -1525,18 +1629,27 @@
                         let options = `<option value="">Select ${header.name}</option>`;
                         if (header.type_of_sum_insured === 'TOTAL SUM INSURED') {
                             options += `
-                                        <option value="total_sum_insured">Total Sum Insured</option>
-                                        <option value="individual_sum_insured">Individual Sum Insured</option>`;
+                            <option value="total_sum_insured">Total Sum Insured</option>
+                            <option value="individual_sum_insured">Individual Sum Insured</option>`;
                         }
-                        return `<select class="form-select ${baseInputClass.replace('form-control', '')}" id="${fieldId}"
-                                name="schedule_headers[${header.id}]" ${required}>${options}</select>`;
+                        return `<select class="form-select ${baseInputClass.replace('form-control', '')}" id="${fieldId}" name="schedule_headers[${header.id}]" ${required}>${options}</select>`;
                     } else {
-                        return `<input type="text" class="${baseInputClass}" id="${fieldId}"
-                               name="schedule_headers[${header.id}]" placeholder="${placeholder}" ${required}>`;
+                        const isTextarea = !header.input_type || header.input_type === 'textarea';
+
+                        if (isTextarea) {
+                            return `<textarea class="form-inputs breakdown-textarea" id="${fieldId}" name="schedule_headers[${header.id}]" rows="4" maxlength="5000" aria-label="${header.name}" placeholder="${placeholder}" ${required} readonly></textarea>`;
+                        } else {
+                            return `<input type="text" class="${baseInputClass}" id="${fieldId}" name="schedule_headers[${header.id}]" placeholder="${placeholder}" ${required}>`;
+                        }
                     }
                 } catch (error) {
-                    return `<input type="text" class="${baseInputClass}" id="${fieldId}"
-                           name="schedule_headers[${header.id}]" placeholder="${placeholder}" ${required}>`;
+                    const isTextarea = !header?.input_type || header?.input_type === 'textarea';
+
+                    if (isTextarea) {
+                        return `<textarea class="form-inputs breakdown-textarea" id="${fieldId}" name="schedule_headers[${header.id}]" rows="4" maxlength="5000" aria-label="${header.name}" placeholder="${placeholder}" ${required} readonly></textarea>`;
+                    } else {
+                        return `<input type="text" class="${baseInputClass}" id="${fieldId}" name="schedule_headers[${header?.id || ''}]" placeholder="${placeholder}" ${required}>`;
+                    }
                 }
             }
 

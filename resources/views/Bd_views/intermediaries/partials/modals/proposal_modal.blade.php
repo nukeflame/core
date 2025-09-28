@@ -58,10 +58,9 @@
                                     <div class="col-md-6">
                                         <div class="form-group">
                                             <label class="form-label">
-                                                Total Sum Insured
+                                                100% Sum Insured
+                                                <span class="sum_insured_type" style="padding-left: 6px;"></span>
                                                 <span class="required-asterisk">*</span>
-                                                <i class="bx bx-info-circle tooltip-trigger"
-                                                    title="Total coverage amount"></i>
                                             </label>
                                             <div class="currency-input">
                                                 <div class="currency-symbol" id="currencySymbol">KES</div>
@@ -88,17 +87,53 @@
                                         </div>
                                     </div>
                                 </div>
-
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label class="form-label">Reinsurer Commission Rate (%)</label>
+                                            <input type="text" class="form-inputs brokerage_rate"
+                                                name="brokerage_rate" placeholder="0.00"
+                                                onkeyup="this.value=numberWithCommas(this.value)"
+                                                change="this.value=numberWithCommas(this.value)" readonly
+                                                value="10">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6 deductible_excess_div" style="display: none;">
+                                        <div class="form-group">
+                                            <label class="form-label">
+                                                Deductible/Excess
+                                                <span class="required-asterisk">*</span>
+                                            </label>
+                                            <div class="currency-input">
+                                                <span class="currency-symbol">KES</span>
+                                                <input type="text" class="form-inputs deductible" name="deductible"
+                                                    placeholder="0.00" onkeyup="this.value=numberWithCommas(this.value)"
+                                                    change="this.value=numberWithCommas(this.value)">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                                 <div class="form-group">
                                     <label class="form-label">Total sum insured breakdown</label>
-                                    <textarea class="form-inputs" name="special_conditions" rows="4" style="resize: none;"
-                                        placeholder="Any special terms, conditions, or clauses applicable to this coverage..."></textarea>
+                                    <div class="form-textarea-wrapper">
+                                        <textarea class="form-inputs fac-slip-textarea special_conditions" name="special_conditions" id="specialConditions"
+                                            rows="4" maxlength="5000" aria-label="Special Terms and Conditions"
+                                            placeholder="Any special terms, conditions, or clauses applicable to this coverage..."></textarea>
+                                        <div class="form-text mt-1">
+                                            <small class="text-muted">
+                                                <i class="bx bx-info-circle"></i>
+                                                Click to open the rich text editor. Maximum 5000 characters.
+                                            </small>
+                                        </div>
+                                    </div>
                                 </div>
 
                                 <input type="hidden" name="class_code" id="classCodeValue">
                                 <input type="hidden" name="class_group_code" id="classGroupCodeValue">
                             </div>
                         </div>
+
+                        <hr class="mt-0 pt-0" />
 
                         <!-- Reinsurer Information Section -->
                         <div class="form-section">
@@ -208,6 +243,8 @@
                             </div>
                         </div>
 
+                        <hr class="mt-0 pt-0" />
+
                         <!-- Terms and Conditions Section -->
                         <div class="form-section">
                             <div class="section-header">
@@ -233,223 +270,14 @@
                                     </div>
                                     <div id="documentsSubtitle" class="ms-3 fs-12 opacity-75"
                                         style="margin-left: 9px;">
-                                        <small>Please select insurance class first</small>
+                                        {{-- <small>Please select insurance class first</small> --}}
                                     </div>
                                 </div>
                             </div>
                             <div class="documents-section-content" id="documentsContent">
                                 <div id="documentFields" class="row g-4" style="display: none;"></div>
                             </div>
-                            {{-- <div class="documents-section-content d-none">
-                                <div class="row g-4">
-                                    <!-- Policy Schedule -->
-                                    <div class="col-md-6">
-                                        <div class="form-group required-field">
-                                            <label class="form-label fw-semibold">
-                                                <i class="bx bx-file-blank me-1"></i>
-                                                Policy Schedule
-                                                <span class="text-danger">*</span>
-                                            </label>
-                                            <div class="file-upload-area" data-field="policy_schedule">
-                                                <i class="bx bx-cloud-upload upload-icon"></i>
-                                                <div class="upload-text">Drop your policy schedule here</div>
-                                                <div class="upload-subtext">or click to browse files</div>
-                                                <input type="file" class="d-none file-input"
-                                                    name="policy_schedule" required
-                                                    accept=".pdf,.doc,.docx,.xls,.xlsx">
-                                                <div class="upload-constraints">
-                                                    <i class="bx bx-info-circle me-1"></i>
-                                                    Max size: 10MB | Formats: PDF, DOC, DOCX, XLS, XLSX
-                                                </div>
-                                                <div class="upload-progress"></div>
-                                                <div class="file-count-badge">0</div>
-                                            </div>
-                                            <div class="file-preview-container"></div>
-                                        </div>
-                                    </div>
-
-
-                                    <!-- Loss Experience -->
-                                    <div class="col-md-6">
-                                        <div class="form-group">
-                                            <label class="form-label fw-semibold">
-                                                <i class="bx bx-trending-up me-1"></i>
-                                                Loss Experience / Claims History
-                                            </label>
-                                            <div class="file-upload-area" data-field="loss_experience">
-                                                <i class="bx bx-line-chart upload-icon"></i>
-                                                <div class="upload-text">Upload loss experience data</div>
-                                                <div class="upload-subtext">Historical claims and loss information
-                                                </div>
-                                                <input type="file" class="d-none file-input"
-                                                    name="loss_experience" accept=".pdf,.doc,.docx,.xls,.xlsx">
-                                                <div class="upload-constraints">
-                                                    <i class="bx bx-info-circle me-1"></i>
-                                                    Max size: 10MB | Formats: PDF, DOC, DOCX, XLS, XLSX
-                                                </div>
-                                                <div class="upload-progress"></div>
-                                                <div class="file-count-badge">0</div>
-                                            </div>
-                                            <div class="file-preview-container"></div>
-                                        </div>
-                                    </div>
-
-
-                                    <!-- Risk Survey -->
-                                    <div class="col-md-6">
-                                        <div class="form-group">
-                                            <label class="form-label fw-semibold">
-                                                <i class="bx bx-search-alt me-1"></i>
-                                                Risk Survey / Inspection Report
-                                            </label>
-                                            <div class="file-upload-area" data-field="risk_survey">
-                                                <i class="bx bx-search upload-icon"></i>
-                                                <div class="upload-text">Upload risk assessment</div>
-                                                <div class="upload-subtext">Professional risk evaluation reports</div>
-                                                <input type="file" class="d-none file-input" name="risk_survey"
-                                                    accept=".pdf,.doc,.docx">
-                                                <div class="upload-constraints">
-                                                    <i class="bx bx-info-circle me-1"></i>
-                                                    Max size: 10MB | Formats: PDF, DOC, DOCX
-                                                </div>
-                                                <div class="upload-progress"></div>
-                                                <div class="file-count-badge">0</div>
-                                            </div>
-                                            <div class="file-preview-container"></div>
-                                        </div>
-                                    </div>
-
-                                    <!-- Additional Documents -->
-                                    <div class="col-md-6">
-                                        <div class="form-group">
-                                            <label class="form-label fw-semibold">
-                                                <i class="bx bx-folder-plus me-1"></i>
-                                                Additional Documents
-                                            </label>
-                                            <div class="file-upload-area" data-field="additional_docs">
-                                                <i class="bx bx-plus-circle upload-icon"></i>
-                                                <div class="upload-text">Add supporting files</div>
-                                                <div class="upload-subtext">Multiple files supported</div>
-                                                <input type="file" class="d-none file-input"
-                                                    name="additional_docs" multiple
-                                                    accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.xls,.xlsx">
-                                                <div class="upload-constraints">
-                                                    <i class="bx bx-info-circle me-1"></i>
-                                                    Max size: 5MB per file | Multiple files allowed
-                                                </div>
-                                                <div class="upload-progress"></div>
-                                                <div class="file-count-badge">0</div>
-                                            </div>
-                                            <div class="file-preview-container"></div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div> --}}
-                            {{-- <div class="section-content d-none" id="documents">
-                                <div class="row">
-                                    <div class="col-md-6">
-                                        <div class="form-group">
-                                            <label class="form-label">
-                                                Policy Schedule
-                                                <span class="required-asterisk">*</span>
-                                            </label>
-                                            <div class="file-upload-area" data-field="policy_schedule">
-                                                <i class="bx bx-cloud-upload-alt bx-2x text-muted mb-2"></i>
-                                                <p class="mb-2">Drag & drop your policy schedule here</p>
-                                                <p class="text-muted small mb-2">or click to browse</p>
-                                                <input type="file" class="d-none" name="policy_schedule" required
-                                                    accept=".pdf,.doc,.docx,.xls,.xlsx">
-                                                <div class="mt-2">
-                                                    <small class="text-muted">Max size: 10MB | Formats: PDF, DOC, DOCX,
-                                                        XLS, XLSX</small>
-                                                </div>
-                                            </div>
-                                            <div class="file-preview-container"></div>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <div class="form-group">
-                                            <label class="form-label">Loss Experience/Claims History</label>
-                                            <div class="file-upload-area" data-field="loss_experience">
-                                                <i class="bx bx-chart-line bx-2x text-muted mb-2"></i>
-                                                <p class="mb-2">Upload loss experience data</p>
-                                                <p class="text-muted small mb-2">or click to browse</p>
-                                                <input type="file" class="d-none" name="loss_experience"
-                                                    accept=".pdf,.doc,.docx,.xls,.xlsx">
-                                                <div class="mt-2">
-                                                    <small class="text-muted">Max size: 10MB | Formats: PDF, DOC, DOCX,
-                                                        XLS, XLSX</small>
-                                                </div>
-                                            </div>
-                                            <div class="file-preview-container"></div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div class="row mt-3">
-                                    <div class="col-md-6">
-                                        <div class="form-group">
-                                            <label class="form-label">Risk Survey/Inspection Report</label>
-                                            <div class="file-upload-area" data-field="risk_survey">
-                                                <i class="bx bx-search bx-2x text-muted mb-2"></i>
-                                                <p class="mb-2">Upload risk survey report</p>
-                                                <p class="text-muted small mb-2">or click to browse</p>
-                                                <input type="file" class="d-none" name="risk_survey"
-                                                    accept=".pdf,.doc,.docx">
-                                                <div class="mt-2">
-                                                    <small class="text-muted">Max size: 10MB | Formats: PDF, DOC,
-                                                        DOCX</small>
-                                                </div>
-                                            </div>
-                                            <div class="file-preview-container"></div>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <div class="form-group">
-                                            <label class="form-label">Additional Documents</label>
-                                            <div class="file-upload-area" data-field="additional_docs">
-                                                <i class="bx bx-file-plus bx-2x text-muted mb-2"></i>
-                                                <p class="mb-2">Upload any additional documents</p>
-                                                <p class="text-muted small mb-2">or click to browse</p>
-                                                <input type="file" class="d-none" name="additional_docs" multiple
-                                                    accept=".pdf,.doc,.docx,.jpg,.jpeg,.png">
-                                                <div class="mt-2">
-                                                    <small class="text-muted">Max size: 5MB per file | Multiple files
-                                                        allowed</small>
-                                                </div>
-                                            </div>
-                                            <div class="file-preview-container"></div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div> --}}
                         </div>
-
-                        <!-- Document Upload Summary -->
-                        {{-- <div class="form-section" id="documentSummarySection" style="display: none;">
-                            <div class="card border-success">
-                                <div class="card-header bg-success text-white">
-                                    <h6 class="mb-0">
-                                        <i class="bx bx-check-circle me-2"></i>
-                                        Document Upload Summary
-                                    </h6>
-                                </div>
-                                <div class="card-body">
-                                    <div id="uploadSummary"></div>
-                                </div>
-                                <div class="card-footer bg-light">
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <button type="button" class="btn btn-outline-secondary btn-sm"
-                                            onclick="clearAllDocuments()">
-                                            <i class="bx bx-trash me-2"></i>Clear All Files
-                                        </button>
-                                        <div class="text-muted small">
-                                            Documents Required: <span id="docCount">0</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div> --}}
                     </div>
                 </div>
 
@@ -575,6 +403,94 @@
                 <button type="button" class="btn btn-success" id="submitContactModal">
                     <i class="bx bx-save me-2"></i>Save Changes
                 </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Text Editor -->
+<div class="modal fade breakdown-modal effect-scale md-wrapper" id="breakdownModal" tabindex="-1"
+    data-bs-backdrop="static" data-bs-keyboard="false" aria-labelledby="breakdownModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="breakdownModalLabel">
+                    <i class="bx bx-edit-alt me-2"></i>
+                    Sum Insured Breakdown Editor
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                    aria-label="Close"></button>
+            </div>
+
+            <div class="modal-body p-0">
+                <div class="position-relative">
+                    <!-- Loading Overlay -->
+                    <div class="loading-overlay" id="loadingOverlay">
+                        <div class="text-center">
+                            <div class="spinner-border spinner-border-custom" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p class="mt-3 text-muted">Initializing editor...</p>
+                        </div>
+                    </div>
+
+                    <div class="p-3">
+                        <!-- Quick Templates Section -->
+                        <div class="template-section">
+                            <h6 class="mb-3 fw-bold text-primary">
+                                <i class="bx bx-layout me-2"></i>Quick Templates
+                            </h6>
+                            <div class="d-flex flex-wrap">
+                                <button type="button" class="template-btn" data-template="standard">
+                                    Standard Coverage
+                                </button>
+                                {{-- <button type="button" class="template-btn" data-template="property">
+                                    Property Insurance
+                                </button>
+                                <button type="button" class="template-btn" data-template="marine">
+                                    Marine Insurance
+                                </button>
+                                <button type="button" class="template-btn" data-template="aviation">
+                                    Aviation Coverage
+                                </button>
+                                <button type="button" class="template-btn" data-template="liability">
+                                    Liability Insurance
+                                </button> --}}
+                                <button type="button" class="template-btn" data-template="clear">
+                                    Clear All
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="quill-container position-relative">
+                            <div id="breakdownEditor"></div>
+                            <div class="character-counter" id="characterCounter">
+                                0 / 5000 characters
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer bg-light">
+                <div class="d-flex justify-content-between w-100 align-items-center">
+                    <div class="d-flex align-items-center">
+                        <button type="button" class="btn btn-outline-secondary me-2" id="previewBtn">
+                            <i class="bx bx-show me-1"></i>Preview
+                        </button>
+                        {{-- <button type="button" class="btn btn-outline-info btn-sm" id="exportBtn">
+                            <i class="bx bx-download me-1"></i>Export HTML
+                        </button> --}}
+                    </div>
+                    <div>
+                        <button type="button" class="btn btn-light me-2" data-bs-dismiss="modal">
+                            <i class="bx bx-x me-1"></i>Cancel
+                        </button>
+                        <button type="button" class="btn btn-primary" id="saveBreakdownBtn">
+                            <i class="bx bx-save me-1"></i>Save Changes
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -760,7 +676,6 @@
         text-transform: capitalize !important;
     }
 
-    /* Professional File Upload Styling */
     .file-upload-area {
         position: relative;
         border: 2px dashed #e0e6ed;
@@ -859,7 +774,6 @@
         width: 100%;
     }
 
-    /* File Preview Styling */
     .file-preview-container {
         margin-top: 1rem;
     }
@@ -937,7 +851,6 @@
         background: #ffcdd2;
     }
 
-    /* Upload Progress */
     .upload-progress {
         position: absolute;
         bottom: 0;
@@ -1012,6 +925,270 @@
     .documents-section-content {
         padding-top: 10px;
     }
+
+    .breakdown-textarea {
+        cursor: pointer !important;
+        background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%) !important;
+        border: 1px solid #ced4da !important;
+        transition: all 0.3s ease !important;
+        resize: none;
+    }
+
+    .breakdown-textarea:hover {
+        /* border-color: var(--secondary-color) !important;
+        box-shadow: 0 2px 8px rgba(52, 152, 219, 0.1) !important;
+        transform: translateY(-1px); */
+    }
+
+    .breakdown-textarea:focus {
+        border-color: var(--secondary-color) !important;
+        box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2) !important;
+    }
+
+    .breakdown-modal .modal-header {
+        background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+        color: white;
+        border-bottom: none;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .breakdown-modal .modal-header::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -50%;
+        width: 200%;
+        height: 200%;
+        background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="1" fill="rgba(255,255,255,0.1)"/></svg>') repeat;
+        animation: float 15s infinite linear;
+    }
+
+    .breakdown-modal .modal-title {
+        position: relative;
+        z-index: 2;
+        font-weight: 600;
+    }
+
+    .breakdown-modal .btn-close-white {
+        position: relative;
+        z-index: 2;
+        filter: brightness(0) invert(1);
+        opacity: 0.8;
+    }
+
+    .breakdown-modal .btn-close-white:hover {
+        opacity: 1;
+    }
+
+    .quill-container {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+    }
+
+    .ql-toolbar {
+        background: #f8f9fa;
+        border-bottom: 2px solid #dee2e6;
+        padding: 12px 16px;
+    }
+
+    .ql-toolbar .ql-formats {
+        margin-right: 20px;
+    }
+
+    .ql-toolbar button {
+        border-radius: 4px;
+        padding: 6px 8px;
+        margin: 0 2px;
+        transition: all 0.2s ease;
+    }
+
+    .ql-toolbar button:hover {
+        background: rgba(52, 152, 219, 0.1);
+        color: #3498db;
+    }
+
+    .ql-toolbar button.ql-active {
+        background: #3498db;
+        color: white;
+    }
+
+    .ql-editor {
+        font-size: 14px;
+        line-height: 1.6;
+        padding: 20px;
+        height: calc(100vh - 400px);
+    }
+
+    .ql-editor.ql-blank::before {
+        color: #6c757d;
+        font-style: normal;
+    }
+
+    /* Character Counter */
+    .character-counter {
+        position: absolute;
+        bottom: 15px;
+        right: 20px;
+        background: rgba(255, 255, 255, 0.9);
+        padding: 4px 8px;
+        border-radius: 12px;
+        font-size: 12px;
+        color: #6c757d;
+        border: 1px solid #dee2e6;
+        z-index: 10;
+    }
+
+    .character-counter.warning {
+        color: #f39c12;
+        border-color: #f39c12;
+    }
+
+    .character-counter.danger {
+        color: #e74c3c;
+        border-color: #e74c3c;
+    }
+
+    .template-section {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 16px;
+        margin-bottom: 20px;
+        border: 1px solid #ddd;
+    }
+
+    .template-btn {
+        background: white;
+        border: 2px solid #dee2e6;
+        border-radius: 6px;
+        padding: 7px 22px;
+        margin: 4px;
+        font-size: 12px;
+        color: #2c3e50;
+        transition: all 0.2s ease;
+        cursor: pointer;
+    }
+
+    .template-btn:hover {
+        border-color: #3498db;
+        background: rgba(52, 152, 219, 0.1);
+        color: #3498db;
+    }
+
+    .template-btn:active {
+        transform: translateY(1px);
+    }
+
+    .stats-panel {
+        background: white;
+        border-radius: 8px;
+        padding: 16px;
+        margin-top: 16px;
+        border-left: 4px solid #3498db;
+    }
+
+    .stats-item {
+        display: inline-block;
+        margin-right: 20px;
+        margin-bottom: 8px;
+    }
+
+    .stats-label {
+        font-size: 12px;
+        color: #6c757d;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .stats-value {
+        font-size: 16px;
+        font-weight: 600;
+        color: #2c3e50;
+    }
+
+    .loading-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(255, 255, 255, 0.9);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+        opacity: 0;
+        visibility: hidden;
+        transition: all 0.3s ease;
+    }
+
+    .loading-overlay.show {
+        opacity: 1;
+        visibility: visible;
+    }
+
+    .spinner-border-custom {
+        width: 3rem;
+        height: 3rem;
+        color: #3498db;
+    }
+
+    .preview-mode .ql-toolbar {
+        display: none;
+    }
+
+    .preview-mode .ql-editor {
+        border: 2px dashed #dee2e6;
+        background: #f8f9fa;
+    }
+
+    .ql-container.ql-focused {
+        box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
+    }
+
+    .save-success {
+        animation: pulse 0.6s ease-in-out;
+    }
+
+    @keyframes pulse {
+        0% {
+            transform: scale(1);
+        }
+
+        50% {
+            transform: scale(1.05);
+        }
+
+        100% {
+            transform: scale(1);
+        }
+    }
+
+    @media (max-width: 768px) {
+        .breakdown-modal .modal-dialog {
+            margin: 10px;
+        }
+
+        .ql-toolbar {
+            padding: 8px 12px;
+        }
+
+        .ql-toolbar .ql-formats {
+            margin-right: 10px;
+        }
+
+        .ql-editor {
+            height: calc(100vh - 400px);
+            padding: 15px;
+        }
+
+        .template-btn {
+            font-size: 11px;
+            padding: 6px 10px;
+        }
+    }
 </style>
 
 @push('script')
@@ -1057,12 +1234,12 @@
                 'default': 'bx-file'
             };
 
-            initializeComponents();
+            // initializeComponents();
 
-            function initializeComponents() {
-                // loadInsuranceClasses();
-                // initializeDataTable();
-            }
+            // function initializeComponents() {
+            //     // loadInsuranceClasses();
+            //     // initializeDataTable();
+            // }
 
             $('.file-upload-area').each(function() {
                 initializeFileUpload($(this));
@@ -2132,6 +2309,524 @@
 
                 return true;
             }
+
+            class BreakdownEditor {
+                constructor() {
+                    this.quill = null;
+                    this.maxCharacters = 5000;
+                    this.isPreviewMode = false;
+                    this.currentTextarea = null;
+                    this.templates = {
+                        standard: `
+                        <h3>Standard Coverage Breakdown</h3>
+                        <ul>
+                            <li><strong>Building Structure:</strong> Coverage for physical damage to buildings</li>
+                            <li><strong>Contents:</strong> Protection for business equipment and inventory</li>
+                            <li><strong>Business Interruption:</strong> Loss of income coverage</li>
+                            <li><strong>Public Liability:</strong> Third party claims protection</li>
+                        </ul>
+                        <p><em>All amounts subject to policy terms and conditions.</em></p>
+                    `,
+                        property: `
+                        <h3>Property Insurance Coverage</h3>
+                        <ol>
+                            <li><strong>Real Estate Value:</strong> Market value of land and buildings</li>
+                            <li><strong>Replacement Cost:</strong> Cost to rebuild at current prices</li>
+                            <li><strong>Personal Property:</strong> Furniture, fixtures, and equipment</li>
+                            <li><strong>Additional Living Expenses:</strong> Temporary accommodation costs</li>
+                        </ol>
+                        <blockquote>Coverage limits may vary based on property location and risk assessment.</blockquote>
+                    `,
+                        marine: `
+                        <h3>Marine Insurance Coverage</h3>
+                        <table style="width: 100%; border-collapse: collapse; border: 1px solid #dee2e6;">
+                            <tr style="background: #f8f9fa;"><td style="padding: 8px; border: 1px solid #dee2e6;"><strong>Hull & Machinery:</strong></td><td style="padding: 8px; border: 1px solid #dee2e6;">Vessel physical damage</td></tr>
+                            <tr><td style="padding: 8px; border: 1px solid #dee2e6;"><strong>Cargo:</strong></td><td style="padding: 8px; border: 1px solid #dee2e6;">Goods in transit</td></tr>
+                            <tr style="background: #f8f9fa;"><td style="padding: 8px; border: 1px solid #dee2e6;"><strong>Freight:</strong></td><td style="padding: 8px; border: 1px solid #dee2e6;">Loss of freight charges</td></tr>
+                            <tr><td style="padding: 8px; border: 1px solid #dee2e6;"><strong>P&I Coverage:</strong></td><td style="padding: 8px; border: 1px solid #dee2e6;">Protection & Indemnity</td></tr>
+                        </table>
+                    `,
+                        aviation: `
+                        <h3>Aviation Coverage Breakdown</h3>
+                        <p>Comprehensive coverage including:</p>
+                        <ul>
+                            <li>Aircraft hull damage (all risks)</li>
+                            <li>Third party liability (passengers & ground)</li>
+                            <li>Crew and passenger accident coverage</li>
+                            <li>Search and rescue expenses</li>
+                            <li>War risks and hijacking protection</li>
+                        </ul>
+                    `,
+                        liability: `
+                        <h3>Liability Insurance Coverage</h3>
+                        <p><strong>Coverage Scope:</strong></p>
+                        <ul>
+                            <li>General Public Liability</li>
+                            <li>Product Liability</li>
+                            <li>Professional Indemnity</li>
+                            <li>Employers Liability</li>
+                            <li>Directors & Officers Liability</li>
+                        </ul>
+                        <p><em>Subject to applicable deductibles and exclusions.</em></p>
+                    `
+                    };
+
+                    this.init();
+                }
+
+                init() {
+                    this.setupEventListeners();
+                    this.initializeModal();
+                    this.enhanceTextarea();
+                }
+
+                enhanceTextarea() {
+                    $("textarea.breakdown-textarea")
+                        .addClass("editor-enabled")
+                        .attr({
+                            readonly: true,
+                        })
+                        .css({
+                            cursor: "pointer",
+                            background: "linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%)",
+                            border: "2px solid #e9ecef",
+                            transition: "all 0.3s ease",
+                        });
+                }
+
+                setupEventListeners() {
+                    $(document).on("click", "textarea.breakdown-textarea", (e) => {
+                        e.preventDefault();
+                        const $textarea = $(e.currentTarget);
+                        this.openModal($textarea);
+                    });
+
+                    $(document).on("click", ".template-btn", (e) => {
+                        const template = $(e.target).data("template");
+                        this.applyTemplate(template);
+                    });
+
+                    $("#saveBreakdownBtn").on("click", () => {
+                        this.saveChanges();
+                    });
+
+                    $("#previewBtn").on("click", () => {
+                        this.togglePreview();
+                    });
+
+                    $("#breakdownModal").on("shown.bs.modal", () => {
+                        this.initializeQuill();
+                    });
+
+                    $('#breakdownModal').on('hidden.bs.modal', () => {
+                        this.cleanupEditor();
+                        this.currentTextarea = null;
+                        $('#proposalModal').modal('show');
+                    });
+
+                    $('#breakdownModal').on('hide.bs.modal', () => {
+                        this.cleanupEditor();
+                    });
+                }
+
+                initializeModal() {
+                    if (!document.getElementById('breakdownModal')) {
+                        console.error("Breakdown modal not found!");
+                        return;
+                    }
+                    this.modal = new bootstrap.Modal(document.getElementById('breakdownModal'));
+                }
+
+                cleanupEditor() {
+                    if (this.quill) {
+                        try {
+                            this.quill.off('text-change');
+                            const container = document.getElementById('breakdownEditor');
+                            if (container) {
+                                container.innerHTML = '';
+                                container.className = '';
+                            }
+
+                            this.quill = null;
+                        } catch (error) {
+                            console.warn('Error during cleanup:', error);
+                        }
+                    }
+                }
+
+                openModal($textarea) {
+                    if (!this.modal) {
+                        return;
+                    }
+
+                    this.currentTextarea = $textarea;
+
+                    const fieldLabel = $textarea
+                        .closest(".form-group")
+                        .find("label")
+                        .first()
+                        .text()
+                        .trim();
+                    $("#breakdownModalLabel").html(
+                        `<i class="bx bx-edit-alt me-2"></i>${fieldLabel || "Sum Insured Breakdown Editor"}`
+                    );
+
+                    $("#proposalModal").modal("hide");
+                    this.showLoading();
+                    this.modal.show();
+                }
+
+                showLoading() {
+                    $('#loadingOverlay').addClass('show');
+                }
+
+                hideLoading() {
+                    $('#loadingOverlay').removeClass('show');
+                }
+
+                initializeQuill() {
+                    if (typeof Quill === 'undefined') {
+                        console.error('Quill is not loaded!');
+                        this.hideLoading();
+                        return;
+                    }
+
+                    // Properly destroy existing instance and clear container
+                    if (this.quill) {
+                        try {
+                            // Remove all Quill event listeners
+                            this.quill.off('text-change');
+                            // Clear the container completely
+                            const container = document.getElementById('breakdownEditor');
+                            if (container) {
+                                container.innerHTML = '';
+                                // Remove any Quill-specific classes
+                                container.className = '';
+                            }
+                            this.quill = null;
+                        } catch (error) {
+                            console.warn('Error destroying Quill instance:', error);
+                        }
+                    }
+
+                    const editorContainer = document.getElementById('breakdownEditor');
+                    if (!editorContainer) {
+                        console.error('Editor container not found!');
+                        this.hideLoading();
+                        return;
+                    }
+
+                    // Ensure container is completely clean
+                    editorContainer.innerHTML = '';
+                    editorContainer.className = '';
+
+                    setTimeout(() => {
+                        const toolbarOptions = [
+                            [{
+                                'header': [1, 2, 3, false]
+                            }],
+                            ['bold', 'italic', 'underline'],
+                            [{
+                                'color': []
+                            }, {
+                                'background': []
+                            }],
+                            [{
+                                'list': 'ordered'
+                            }, {
+                                'list': 'bullet'
+                            }],
+                            [{
+                                'indent': '-1'
+                            }, {
+                                'indent': '+1'
+                            }],
+                            [{
+                                'align': []
+                            }],
+                            ['link'],
+                            ['clean']
+                        ];
+
+                        try {
+                            this.quill = new Quill('#breakdownEditor', {
+                                theme: 'snow',
+                                modules: {
+                                    toolbar: toolbarOptions
+                                },
+                                placeholder: 'Enter breakdown details here...\n\nUse formatting options above to create professional documentation.'
+                            });
+
+                            // Load existing content from the current textarea
+                            if (this.currentTextarea) {
+                                const existingContent = this.currentTextarea.val();
+                                if (existingContent && existingContent.trim()) {
+                                    this.quill.root.innerHTML = existingContent;
+                                }
+                            }
+
+                            // Add event listener
+                            this.quill.on('text-change', () => {
+                                this.updateStatistics();
+                                this.validateContent();
+                            });
+
+                            this.updateStatistics();
+                        } catch (error) {
+                            console.error('Error initializing Quill:', error);
+                        }
+
+                        this.hideLoading();
+                    }, 300);
+                }
+
+                // initializeQuill() {
+                //     if (typeof Quill === "undefined") {
+                //         this.hideLoading();
+                //         return;
+                //     }
+
+                //     if (this.quill) {
+                //         this.quill = null;
+                //         $("#breakdownEditor").html("");
+                //     }
+
+                //     if (!document.getElementById("breakdownEditor")) {
+                //         this.hideLoading();
+                //         return;
+                //     }
+
+                //     setTimeout(() => {
+                //         const toolbarOptions = [
+                //             [{
+                //                 header: [1, 2, 3, false]
+                //             }],
+                //             ["bold", "italic", "underline"],
+                //             [{
+                //                 color: []
+                //             }, {
+                //                 background: []
+                //             }],
+                //             [{
+                //                 list: "ordered"
+                //             }, {
+                //                 list: "bullet"
+                //             }],
+                //             [{
+                //                 indent: "-1"
+                //             }, {
+                //                 indent: "+1"
+                //             }],
+                //             [{
+                //                 align: []
+                //             }],
+                //             ["link"],
+                //             ["clean"],
+                //         ];
+
+                //         try {
+                //             this.quill = new Quill("#breakdownEditor", {
+                //                 theme: "snow",
+                //                 modules: {
+                //                     toolbar: toolbarOptions,
+                //                 },
+                //                 placeholder: "Enter breakdown details here...\n\nUse formatting options above to create professional documentation.",
+                //             });
+
+                //             if (this.currentTextarea) {
+                //                 const existingContent = this.currentTextarea.val();
+                //                 if (existingContent && existingContent.trim()) {
+                //                     this.quill.root.innerHTML = existingContent;
+                //                 }
+                //             }
+
+                //             this.quill.on("text-change", () => {
+                //                 this.updateStatistics();
+                //                 this.validateContent();
+                //             });
+
+                //             this.updateStatistics();
+                //         } catch (error) {
+                //             console.error("Error initializing Quill:", error);
+                //         }
+
+                //         this.hideLoading();
+                //     }, 300);
+                // }
+
+                updateStatistics() {
+                    if (!this.quill) return;
+
+                    const text = this.quill.getText();
+                    const charCount = text.trim().length;
+
+                    const counter = $("#characterCounter");
+                    counter.text(`${charCount} / ${this.maxCharacters} characters`);
+
+                    counter.removeClass("warning danger");
+                    if (charCount > this.maxCharacters * 0.9) {
+                        counter.addClass("warning");
+                    }
+                    if (charCount > this.maxCharacters) {
+                        counter.addClass("danger");
+                    }
+                }
+
+
+                validateContent() {
+                    if (!this.quill) return;
+
+                    const text = this.quill.getText();
+                    const saveBtn = $('#saveBreakdownBtn');
+
+                    if (text.length > this.maxCharacters) {
+                        saveBtn.addClass('disabled');
+                        saveBtn.attr('title', 'Content exceeds maximum character limit');
+                    } else {
+                        saveBtn.removeClass('disabled');
+                        saveBtn.removeAttr('title');
+                    }
+                }
+
+                applyTemplate(templateName) {
+                    if (!this.quill) return;
+
+                    if (templateName === 'clear') {
+                        Swal.fire({
+                            title: 'Clear Content?',
+                            text: 'This will remove all current content. Continue?',
+                            icon: 'warning',
+                            showCancelButton: true,
+                            confirmButtonColor: '#d33',
+                            cancelButtonColor: '#3085d6',
+                            confirmButtonText: 'Yes, clear it!'
+                        }).then((result) => {
+                            if (result.isConfirmed) {
+                                this.quill.setContents([]);
+                                this.showToast('Content cleared', 'info');
+                            }
+                        });
+                        return;
+                    }
+
+                    if (this.templates[templateName]) {
+                        Swal.fire({
+                            title: 'Apply Template?',
+                            text: 'This will replace your current content with the selected template.',
+                            icon: 'question',
+                            showCancelButton: true,
+                            confirmButtonColor: '#3085d6',
+                            cancelButtonColor: '#6c757d',
+                            confirmButtonText: 'Apply Template'
+                        }).then((result) => {
+                            if (result.isConfirmed) {
+                                this.quill.root.innerHTML = this.templates[templateName];
+                                this.updateStatistics();
+                                this.showToast('Template applied successfully', 'success');
+                            }
+                        });
+                    }
+                }
+
+                togglePreview() {
+                    const container = $('.quill-container');
+                    const btn = $('#previewBtn');
+
+                    if (this.isPreviewMode) {
+                        container.removeClass('preview-mode');
+                        btn.html('<i class="bx bx-show me-1"></i>Preview');
+                        this.isPreviewMode = false;
+                    } else {
+                        container.addClass('preview-mode');
+                        btn.html('<i class="bx bx-edit me-1"></i>Edit');
+                        this.isPreviewMode = true;
+                    }
+                }
+
+                exportHTML() {
+                    if (!this.quill) return;
+
+                    const html = this.quill.root.innerHTML;
+                    const blob = new Blob([html], {
+                        type: 'text/html'
+                    });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'sum-insured-breakdown.html';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+
+                    this.showToast('HTML exported successfully', 'success');
+                }
+
+                saveChanges() {
+                    if (!this.quill || !this.currentTextarea) {
+                        this.showToast("No content to save", "error");
+                        return;
+                    }
+
+                    const text = this.quill.getText().trim();
+                    const html = this.quill.root.innerHTML;
+
+                    if (text.length > this.maxCharacters) {
+                        this.showToast("Content exceeds maximum character limit", "error");
+                        return;
+                    }
+
+                    this.currentTextarea.val(html);
+
+                    const saveBtn = $("#saveBreakdownBtn");
+                    const originalText = saveBtn.html();
+
+                    saveBtn.html('<i class="bx bx-loader-alt bx-spin me-1"></i>Saving...');
+                    saveBtn.prop("disabled", true);
+
+                    setTimeout(() => {
+                        saveBtn.html('<i class="bx bx-check me-1"></i>Saved!');
+                        saveBtn.addClass("save-success");
+
+                        setTimeout(() => {
+                            saveBtn.html(originalText);
+                            saveBtn.prop("disabled", false);
+                            saveBtn.removeClass("save-success");
+                            this.modal.hide();
+
+                            this.showToast("Breakdown saved successfully", "success");
+                        }, 1000);
+                    }, 500);
+                }
+
+
+                showToast(message, type = 'info') {
+                    const Toast = Swal.mixin({
+                        toast: true,
+                        position: 'top-end',
+                        showConfirmButton: false,
+                        timer: 3000,
+                        timerProgressBar: true,
+                    });
+
+                    Toast.fire({
+                        icon: type,
+                        title: message
+                    });
+                }
+            }
+
+            let breakdownEditor;
+            try {
+                breakdownEditor = new BreakdownEditor();
+            } catch (error) {
+                if (typeof toastr !== 'undefined') {
+                    toastr.error('Failed to initialize the BreakdownEditor application. Please refresh the page.');
+                } else {
+                    alert('Failed to initialize the application. Please refresh the page.');
+                }
+            }
+
         });
     </script>
 @endpush

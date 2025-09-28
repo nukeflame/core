@@ -159,9 +159,6 @@
                     }
                 }
             ],
-            order: [
-                [0, 'desc']
-            ],
             createdRow: function(row, data, dataIndex) {
                 if (data.priority) {
                     const priorityClass = `row-priority-${data.priority.toLowerCase()}`;

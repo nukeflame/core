@@ -27,13 +27,20 @@ class Prospects extends Model
             ->first();
 
         if ($lastOpportunity) {
-            $lastNumber = (int) substr($lastOpportunity->opportunity_id, -3);
+            $lastNumber = (int) substr($lastOpportunity->opportunity_id, -6);
             $nextNumber = $lastNumber + 1;
         } else {
             $nextNumber = 1;
         }
 
-        $nextOpportunityId = 'FAC-' . $currentYear . '-' . str_pad($nextNumber, 6, '0', STR_PAD_LEFT);
+        do {
+            $nextOpportunityId = 'FAC-' . $currentYear . '-' . str_pad($nextNumber, 6, '0', STR_PAD_LEFT);
+            $exists = self::where('opportunity_id', $nextOpportunityId)->exists();
+
+            if ($exists) {
+                $nextNumber++;
+            }
+        } while ($exists);
 
         return $nextOpportunityId;
     }

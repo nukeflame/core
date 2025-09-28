@@ -609,8 +609,7 @@ class LeadsOnboardingController
             $query->where('priority', $request->priority);
         }
 
-        $data = $query->get();
-        // logger()->debug($data);
+        $data = $query->orderBy('created_at', 'desc');
 
         return Datatables::of($data)
             ->addColumn('opportunity_id', function ($lead) {

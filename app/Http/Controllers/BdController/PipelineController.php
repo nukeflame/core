@@ -632,7 +632,6 @@ class PipelineController
             $pip = $request->get('pipeline', $pipeYear->first()->id ?? null);
             $pipelines = $pipelines->get();
         } catch (\Exception $e) {
-            logger($e);
             $pipelines = [];
             $pip = null;
         }
@@ -992,8 +991,8 @@ class PipelineController
         if ($validator->fails()) {
             return response()->json(['status' => 0, 'message' => 'Validation failed', 'errors' => $validator->errors()]);
         }
-        $mes = '';
 
+        $mes = '';
         if (is_null($request->prospect)) {
             $mes = "Prospect created successfully";
         } else {
@@ -1203,6 +1202,7 @@ class PipelineController
             DB::commit();
             return ['status' => 1, 'message' => $mes];
         } catch (Exception $e) {
+            logger($e);
             DB::rollback();
             return ['status' => 0, 'message' => 'An error occurred.'];
         }
@@ -2962,7 +2962,7 @@ class PipelineController
             $totalRecords = $query->count();
             $filteredRecords = $totalRecords;
 
-            $opportunities = $query->skip($start)->take($length)->get();
+            $opportunities = $query->skip($start)->take($length)->orderBy('created_at', 'desc')->get();
 
             $data = $opportunities->map(function ($opp) {
                 return [
@@ -2991,7 +2991,6 @@ class PipelineController
                 'data' => $data
             ]);
         } catch (\Exception $e) {
-            // logger()->debug($e);
             return response()->json([
                 'error' => 'Failed to load pipeline data',
                 'message' => $e->getMessage()
@@ -3371,11 +3370,13 @@ class PipelineController
         $contact_name = collect(json_decode($opp->contact_name))->first();
         $type_of_business = $opp->type_of_bus;
 
-        $class = $opp->classcode;
-        $class_group = $opp->class_group;
-        $category_type = $opp->category_type;
+        $class            = $opp->classcode;
+        $class_group      = $opp->class_group;
+        $category_type    = $opp->category_type;
+        $sum_insured_type = TypeOfSumInsured::where(['sum_insured_code' => $opp->sum_insured_type, 'status' => 'A'])->first(['sum_insured_name']);
 
-        // logger()->debug($opp);
+
+        // logger()->debug(json_encode(Str::title($sum_insured_type->sum_insured_name), JSON_PRETTY_PRINT));
 
         return [
             'opportunity_id'    => $opp->opportunity_id,
@@ -3387,7 +3388,8 @@ class PipelineController
             'type_of_business'  => $type_of_business,
             'class'             => $class,
             'class_group'       => $class_group,
-            'category_type'       => $category_type,
+            'category_type'     => $category_type,
+            'sum_insured_type'  => Str::title($sum_insured_type->sum_insured_name),
             'total_sum_insured' => number_format((float) $opp->total_sum_insured),
             'premium'           => number_format((float) $opp->cede_premium),
             'brokerage_rate'    => number_format((float) $opp->reins_comm_rate, 2),
@@ -7485,11 +7487,6 @@ class PipelineController
 
                 $reinsurer = Customer::where('customer_id', $quote->reinsurer_id)->get();
 
-
-
-
-
-
                 $customer = Customer::where('customer_id', $quote->reinsurer_id)
                     ->first();
                 $contact_person = CustomerContact::where('customer_id', $quote->reinsurer_id)->value('contact_name');
@@ -8137,9 +8134,6 @@ class PipelineController
 
         DB::commit();
 
-
-
-
         return response()->json(['status' => $status, 'message' => 'Document saved successfully']);
     }
 
@@ -8208,12 +8202,14 @@ class PipelineController
 
             $headers = $query->get();
 
+            // logger()->debug(json_encode($headers, JSON_PRETTY_PRINT));
+
             return response()->json([
                 'success' => true,
                 'headers' => $headers->map(function ($header) {
                     return [
                         'id' => $header->id,
-                        'name' => $header->name,
+                        'name' => Str::title($header->name),
                         'business_type' => $header->business_type,
                         'position' => $header->position,
                         'amount_field' => $header->amount_field,
