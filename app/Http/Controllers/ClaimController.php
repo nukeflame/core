@@ -510,7 +510,7 @@ class ClaimController extends Controller
                 return $badge;
             })
             ->addColumn('action', function ($data) {
-                $detailUrl = route('claim.detail', $data->claim_no);
+                $detailUrl = route('claim.detail');
                 return '<button class="btn btn-sm btn-primary view_claim" data-claim_no="' . $data->claim_no . '" data-detail-url="' . $detailUrl . '">View <i class="bx bx-send"></i></button>';
             })
             ->rawColumns(['action', 'status'])

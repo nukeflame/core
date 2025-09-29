@@ -988,7 +988,6 @@
                 $parent.append(customerInfoHtml);
             }
 
-
             function formatCovers(covers) {
                 if (!Array.isArray(covers)) return "0";
                 if (covers.length === 0) return "0";
@@ -1129,7 +1128,6 @@
 
                 if (validEndorsements.length > 0) {
                     const bestEndorsement = validEndorsements[0];
-                    // console.log(bestEndorsement)
                     populateEndorsementDropdown(
                         selectedCustomerData.covers,
                         bestEndorsement.cover_no
@@ -1278,7 +1276,7 @@
                 });
             });
 
-            $(document).on("click", "#view-notf-claimstatus", function(e) {
+            $(document).on("click", ".view-notf-claimstatus", function(e) {
                 e.preventDefault();
                 var intimation_no = $(this).data("intimation_no");
                 var process_type = $(this).data("process_type");
@@ -1293,6 +1291,7 @@
                         if (process_type) {
                             claimDetailUrl.searchParams.set("process_type", process_type);
                         }
+
                         window.location.href = claimDetailUrl.toString();
                     } catch (error) {
                         console.error("URL error:", error);

@@ -118,7 +118,10 @@ Route::middleware(['auth', 'check.first.login'])->group(function () {
     Route::get('bd_handovers', [PipelineController::class, 'bd_handovers'])->name('pipeline.bd_handovers');
     Route::get('bd_handovers_datatable', [PipelineController::class, 'bd_handovers_datatable'])->name('pipeline.bd_handovers_datatable');
 
-    Route::post('update_category_type', [PipelineController::class, 'update_category'])->name('update.category_type'); //update category type
+    Route::post('update_category_type', [PipelineController::class, 'update_category'])->name('update.category_type');
+    Route::post('bd/notification/send', [PipelineController::class, 'sendBDNotification'])->name('bd.notification.send');
+
+    //update category type
     // Route::get('pipelines_activityq1', [PipelineController::class, 'pipeline_activity_q1'])->name('pipeline.activity.q1');
     // Route::get('pipelines_activityq2', [PipelineController::class, 'pipeline_activity_q2'])->name('pipeline.activity.q2');
     // Route::get('pipelines_activityq3', [PipelineController::class, 'pipeline_activity_q3'])->name('pipeline.activity.q3');

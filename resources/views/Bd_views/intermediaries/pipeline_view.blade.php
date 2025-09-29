@@ -168,6 +168,7 @@
             </div>
         </div>
 
+        @include('Bd_views.intermediaries.partials.modals.fac_email_modal')
         @include('Bd_views.intermediaries.partials.modals.proposal_modal')
         {{-- @includeIf('Bd_views.intermediaries.partials.modals.negotiation_modal')
         @includeIf('Bd_views.intermediaries.partials.modals.lead_modal')
@@ -1043,16 +1044,18 @@
                         class_group: data.classGroup,
                         business_type: data.typeOfBus,
                         stage: data.stage,
-                        category_type: data.category_type,
+                        category_type: data.categoryType,
                     },
                     success: (response) => {
+                        // console.log(response)
+
                         if (response.status) {
-                            this.renderSlipDocuments(response, data, $modal);
                             if ($documentsSubtitle.length > 0) {
                                 $documentsSubtitle.html(
                                     `<small>Documents for ${response.class_name || 'this class'}</small>`
                                 );
                             }
+                            this.renderSlipDocuments(response, data, $modal);
                         } else {
                             if ($documentsSubtitle.length > 0) {
                                 $documentsSubtitle.html(`<small>No documents found</small>`);
@@ -1175,46 +1178,46 @@
 
             renderSlipDocuments(res, data, $modal) {
                 if (!res.docs || !res.docs.length) {
+                    const $container = $modal.find('#documentsContent');
+                    if ($container.length) {
+                        $container.html(
+                            '<p class="text-muted text-center my-3">No documents available for this stage.</p>');
+                    }
                     return;
                 }
 
-                const fallbackConfig = {
-                    name: res.class_name || "Insurance Class",
-                    documents: [{
-                            id: 'policy_schedule',
-                            name: 'Policy Schedule',
-                            required: true,
-                            icon: 'bx-file-blank',
-                            accepts: '.pdf,.doc,.docx',
-                            description: 'Current policy terms and coverage details',
-                            max_size: 10485760
-                        },
-                        {
-                            id: 'claims_history',
-                            name: 'Claims History',
-                            required: true,
-                            icon: 'bx-history',
-                            accepts: '.pdf,.xls,.xlsx',
-                            description: '5-year claims experience report',
-                            max_size: 10485760
-                        },
-                        {
-                            id: 'additional_docs',
-                            name: 'Additional Documents',
-                            required: false,
-                            icon: 'bx-folder-plus',
-                            accepts: '.pdf,.doc,.docx,.jpg,.jpeg,.png',
-                            description: 'Any additional supporting documents',
-                            max_size: 5242880,
-                            multiple: true
-                        }
-                    ]
-                };
+                let docs = res.docs;
 
-                this.generateDocumentFields(fallbackConfig, $modal);
+                docs.push({
+                    name: 'additional_docs',
+                    id: Math.floor(Math.random() * 10000),
+                    file_name: 'additional_docs',
+                    doc_type: 'Additional Documents',
+                    mandatory: 'N',
+                    icon: 'bx-folder-plus',
+                    accepts: '.pdf,.doc,.docx,.jpg,.jpeg,.png',
+                    description: 'Any additional supporting documents',
+                    max_size: 5242880,
+                    multiple: true
+                });
+
+                const transformedDocs = docs.map((doc) => ({
+                    id: doc.id,
+                    name: doc.name || doc.doc_type,
+                    doc_type: doc.doc_type,
+                    file_name: doc.file_name,
+                    required: doc.mandatory === 'Y',
+                    icon: doc.icon ?? 'bx-file-blank',
+                    accepts: doc.accepts ?? '.pdf,.doc,.docx',
+                    description: doc.description ?? '',
+                    max_size: doc.max_size ?? 10485760,
+                    multiple: doc.multiple ?? false
+                }));
+
+                this.generateDocumentFields(transformedDocs, $modal);
             }
 
-            generateDocumentFields(config, $modal) {
+            generateDocumentFields(documents, $modal) {
                 const $container = $modal.find('#documentFields');
                 const $placeholder = $modal.find('#documentPlaceholder');
                 const $summarySection = $modal.find('#documentSummarySection');
@@ -1226,7 +1229,7 @@
                 if ($placeholder.length) $placeholder.hide();
                 $container.empty().show();
 
-                if (!config.documents || config.documents.length === 0) {
+                if (!documents || documents.length === 0) {
                     $container.html(`
                         <div class="col-12 text-center py-4">
                             <i class="bx bx-info-circle bx-2x text-muted mb-2"></i>
@@ -1237,8 +1240,8 @@
                     return;
                 }
 
-                config.documents.forEach((doc, index) => {
-                    const colSize = config.documents.length <= 2 ? 'col-12' : 'col-md-6';
+                documents.forEach((doc, index) => {
+                    const colSize = documents.length <= 2 ? 'col-12' : 'col-md-6';
                     const maxSizeText = this.formatFileSize(doc.max_size || 10485760);
                     const acceptsText = doc.accepts.replace(/\./g, '').toUpperCase();
 
@@ -1256,7 +1259,7 @@
                                         <div class="upload-text fw-semibold">${doc.name}</div>
                                         <div class="upload-subtext text-muted small">${doc.description}</div>
                                         <input type="file" class="d-none file-input"
-                                            name="${doc.id}"
+                                            name="${doc.file_name}"
                                             ${doc.required ? 'required' : ''}
                                             accept="${doc.accepts}"
                                             ${doc.multiple ? 'multiple' : ''}
@@ -1276,13 +1279,12 @@
                 });
 
                 if ($modal.find('#docCount').length) {
-                    $modal.find('#docCount').text(config.documents.length);
+                    $modal.find('#docCount').text(documents.length);
                 }
 
                 this.initializeFileUploads();
 
                 if ($summarySection.length) $summarySection.show();
-                this.updateDocumentSummary(config);
             }
 
             initializeFileUploads() {
@@ -1294,16 +1296,28 @@
                     $uploadArea.off('.fileUpload');
                     $input.off('.fileUpload');
 
-                    $uploadArea.on('click.fileUpload', (e) => {
-                        e.stopPropagation();
+                    $uploadArea.on('click.fileUpload', function(e) {
                         e.preventDefault();
+                        e.stopPropagation();
 
-                        if (!$(e.target).is('button, input, .file-action-btn, .file-remove-btn')) {
+                        const $target = $(e.target);
+                        const isInteractiveElement = $target.is(
+                                'button, input, a, .file-action-btn, .file-remove-btn') ||
+                            $target.closest('button, .file-action-btn, .file-remove-btn').length > 0;
+
+                        if (!isInteractiveElement) {
                             console.log('Triggering file input click for:', $uploadArea.data('field'));
-                            $input.trigger('click');
+                            const $fileInput = $uploadArea.find('.file-input');
+                            // $fileInput.removeClass('d-none').show();
+                            $fileInput[0].click();
+
+                            // setTimeout(() => {
+                            //     $fileInput.addClass('d-none').hide();
+                            // }, 100);
                         }
                     });
 
+                    // File input change handler
                     $input.on('change.fileUpload', (e) => {
                         e.stopPropagation();
                         console.log('File input changed:', e.target.files.length, 'files');
@@ -1314,7 +1328,7 @@
                         e.target.value = '';
                     });
 
-                    // Drag and drop events
+                    // Drag and drop events (keeping existing functionality)
                     $uploadArea.on('dragover.fileUpload dragenter.fileUpload', (e) => {
                         e.preventDefault();
                         e.stopPropagation();
@@ -1324,7 +1338,6 @@
                     $uploadArea.on('dragleave.fileUpload', (e) => {
                         e.preventDefault();
                         e.stopPropagation();
-                        // Only remove drag styling if we're leaving the upload area itself
                         if (!$uploadArea[0].contains(e.relatedTarget)) {
                             $uploadArea.removeClass('drag-over border-primary');
                         }
@@ -1379,21 +1392,6 @@
                 });
 
                 this.updateFileCountBadge($uploadArea, fieldId);
-
-                console.log(`File selection complete:`, {
-                    fieldId: fieldId,
-                    validFiles: validFiles,
-                    rejectedFiles: rejectedFiles,
-                    totalFiles: this.uploadedFiles[fieldId].length
-                });
-
-                try {
-                    if (typeof this.currentDocumentConfig !== 'undefined' && this.currentDocumentConfig) {
-                        this.updateDocumentSummary(this.currentDocumentConfig);
-                    }
-                } catch (error) {
-                    console.warn('Could not update document summary:', error);
-                }
             }
 
             updateFileCountBadge($uploadArea, fieldId) {
@@ -1462,68 +1460,10 @@
                         if ($uploadArea.length > 0) {
                             this.updateFileCountBadge($uploadArea, fieldId);
                         }
-
-                        try {
-                            if (typeof this.currentDocumentConfig !== 'undefined' && this.currentDocumentConfig) {
-                                this.updateDocumentSummary(this.currentDocumentConfig);
-                            }
-                        } catch (error) {
-                            console.warn('Could not update document summary after file removal:', error);
-                        }
                     }
 
                 } catch (error) {
                     this.handleError('Error removing file', error);
-                }
-            }
-
-            updateDocumentSummary(config) {
-                const totalFiles = Object.values(this.uploadedFiles).reduce((sum, files) => sum + files.length, 0);
-                const requiredDocs = config.documents.filter(doc => doc.required);
-                const uploadedRequiredDocs = requiredDocs.filter(doc =>
-                    this.uploadedFiles[doc.id] && this.uploadedFiles[doc.id].length > 0
-                );
-
-                const summaryData = {
-                    totalFiles,
-                    requiredDocs: requiredDocs.length,
-                    uploadedRequiredDocs: uploadedRequiredDocs.length,
-                    status: uploadedRequiredDocs.length === requiredDocs.length ? 'Complete' : 'Incomplete'
-                };
-
-                const $uploadSummary = $('#uploadSummary');
-                if ($uploadSummary.length) {
-                    const summaryHtml = `
-                        <div class="row g-3">
-                            <div class="col-md-3">
-                                <div class="text-center">
-                                    <div class="h4 text-primary mb-1">${summaryData.totalFiles}</div>
-                                    <div class="small text-muted">Total Files</div>
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="text-center">
-                                    <div class="h4 text-success mb-1">${summaryData.uploadedRequiredDocs}/${summaryData.requiredDocs}</div>
-                                    <div class="small text-muted">Required Documents</div>
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="text-center">
-                                    <div class="h4 text-info mb-1">${this.getTotalFileSize()}</div>
-                                    <div class="small text-muted">Total Size</div>
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="text-center">
-                                    <div class="h4 ${summaryData.status === 'Complete' ? 'text-success' : 'text-warning'} mb-1">
-                                        ${summaryData.status}
-                                    </div>
-                                    <div class="small text-muted">Status</div>
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                    $uploadSummary.html(summaryHtml);
                 }
             }
 

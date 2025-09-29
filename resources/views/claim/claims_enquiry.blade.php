@@ -1,7 +1,6 @@
 @extends('layouts.app')
 
 @section('content')
-    <!-- Page Header -->
     <div class="d-md-flex d-block align-items-center justify-content-between my-4 page-header-breadcrumb">
         <h1 class="page-title fw-semibold fs-18 mb-0">Claims Enquiry</h1>
         <div class="ms-md-1 ms-0">
@@ -15,7 +14,6 @@
             </nav>
         </div>
     </div>
-    <!-- Page Header Close -->
 
     <div class="row mt-3">
         <div class="col-xl-12">
@@ -102,13 +100,25 @@
 
             $(document).on('click', '.view_claim', function(e) {
                 e.preventDefault();
-                const $button = $(this);
-                const detailUrl = $button.data('detail-url');
+                var claim_no = $(this).data("claim_no");
+                const detailUrl = $(this).data('detail-url');
 
-                if (detailUrl) {
-                    window.location.href = detailUrl;
+                const claimDetailUrl = new URL(
+                    detailUrl,
+                    window.location.origin
+                );
+
+                if (claim_no !== "") {
+                    try {
+                        claimDetailUrl.searchParams.set("claim_no", claim_no);
+                        window.location.href = claimDetailUrl.toString();
+                    } catch (error) {
+                        console.error("URL error:", error);
+                        Swal.fire("Error", "Invalid URL parameters", "error");
+                    }
+                } else {
+                    Swal.fire("Error", "No intimation number provided.", "error");
                 }
-
             });
         });
     </script>

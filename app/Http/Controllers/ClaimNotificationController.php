@@ -627,7 +627,7 @@ class ClaimNotificationController extends Controller
                 $actions = '<div class="btn-group" role="group">';
                 $tableType = $request->get('type', 'claims');
 
-                $actions .= '<a href="#" class="btn btn-sm btn-primary" id="view-notf-claimstatus"
+                $actions .= '<a href="#" class="btn py-1 my-0 btn-primary view-notf-claimstatus"
                            data-intimation_no="' . e($fn->intimation_no) . '"
                            data-process_type="' . e($fn->process_type ?? '') . '"
                            title="View Details"><span class="pr-2">View</span>

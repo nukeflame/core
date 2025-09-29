@@ -3,7 +3,7 @@
     data-bs-keyboard="false" aria-labelledby="staticPropoalStageLabel" aria-hidden="true" role="dialog" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-xl" role="document">
         <div class="modal-content">
-            <form id="proposalForm" novalidate>
+            <form id="proposalForm" action="{{ route('update.opp.status') }}" novalidate>
                 <div class="modal-body fac-slip-container">
                     <div class="fac-slip-header">
                         <div class="d-flex justify-content-between align-items-start">
@@ -107,7 +107,8 @@
                                             <div class="currency-input">
                                                 <span class="currency-symbol">KES</span>
                                                 <input type="text" class="form-inputs deductible" name="deductible"
-                                                    placeholder="0.00" onkeyup="this.value=numberWithCommas(this.value)"
+                                                    placeholder="0.00"
+                                                    onkeyup="this.value=numberWithCommas(this.value)"
                                                     change="this.value=numberWithCommas(this.value)">
                                             </div>
                                         </div>
@@ -116,7 +117,7 @@
                                 <div class="form-group">
                                     <label class="form-label">Total sum insured breakdown</label>
                                     <div class="form-textarea-wrapper">
-                                        <textarea class="form-inputs fac-slip-textarea special_conditions" name="special_conditions" id="specialConditions"
+                                        <textarea class="form-inputs breakdown-textarea special_conditions" name="special_conditions" id="specialConditions"
                                             rows="4" maxlength="5000" aria-label="Special Terms and Conditions"
                                             placeholder="Any special terms, conditions, or clauses applicable to this coverage..."></textarea>
                                         <div class="form-text mt-1">
@@ -464,6 +465,9 @@
 
                         <div class="quill-container position-relative">
                             <div id="breakdownEditor"></div>
+                            {{-- <div id="quill-wrapper">
+                                <div id="breakdownEditor"></div>
+                            </div> --}}
                             <div class="character-counter" id="characterCounter">
                                 0 / 5000 characters
                             </div>
@@ -940,10 +944,10 @@
         transform: translateY(-1px); */
     }
 
-    .breakdown-textarea:focus {
+    /* .breakdown-textarea:focus {
         border-color: var(--secondary-color) !important;
         box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2) !important;
-    }
+    } */
 
     .breakdown-modal .modal-header {
         background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
@@ -1233,13 +1237,6 @@
                 'png': 'bx-image',
                 'default': 'bx-file'
             };
-
-            // initializeComponents();
-
-            // function initializeComponents() {
-            //     // loadInsuranceClasses();
-            //     // initializeDataTable();
-            // }
 
             $('.file-upload-area').each(function() {
                 initializeFileUpload($(this));
@@ -2012,7 +2009,6 @@
             }
 
             $("#proposalModal").on("shown.bs.modal", function() {
-                // Reset validation state
                 $("#proposalForm .is-invalid").removeClass(
                     "is-invalid"
                 );
@@ -2131,24 +2127,30 @@
             function handleFormSubmission(e) {
                 e.preventDefault();
 
+                const $submitBtn = $("#proposalForm button[type='submit']");
+                const originalBtnContent = $submitBtn.html();
+
                 const validation = validateProposalForm();
 
-                // console.log(validation)
-
                 if (!validation.isValid) {
-                    // Show validation errors
                     let errorHtml = '<ul class="mb-0">';
                     validation.errors.forEach((error) => {
                         errorHtml += `<li>${error}</li>`;
                     });
                     errorHtml += "</ul>";
 
-                    // Scroll to first error
+                    Swal.fire({
+                        icon: "error",
+                        title: "Validation Failed",
+                        html: errorHtml,
+                        confirmButtonColor: "#dc3545",
+                    });
+
                     const $firstError = $("#proposalForm .is-invalid").first();
                     if ($firstError.length) {
                         $firstError[0].scrollIntoView({
                             behavior: "smooth",
-                            block: "center"
+                            block: "center",
                         });
                         setTimeout(() => $firstError.focus(), 500);
                     }
@@ -2156,84 +2158,139 @@
                     return false;
                 }
 
-                // // Show loading state
-                // $submitBtn
-                //     .html('<i class="bx bx-loader-alt bx-spin me-1"></i> Sending Proposal...')
-                //     .prop("disabled", true);
+                $submitBtn
+                    .html('<i class="bx bx-loader-alt bx-spin me-1"></i> Sending Proposal...')
+                    .prop("disabled", true);
 
-                // // Prepare and submit data
-                // const formData = prepareFormData();
+                const formData = prepareFormData();
 
-                // $.ajax({
-                //     url: "/api/proposals/send", // Replace with your actual endpoint
-                //     method: "POST",
-                //     data: formData,
-                //     processData: false,
-                //     contentType: false,
-                //     headers: {
-                //         "X-Requested-With": "XMLHttpRequest",
-                //         "X-CSRF-TOKEN": $('meta[name="csrf-token"]').attr("content"),
-                //     },
-                //     timeout: 30000, // 30 second timeout
-                //     success: function(response) {
-                //         if (response.success) {
-                //             Swal.fire({
-                //                 icon: "success",
-                //                 title: "Proposal Sent Successfully!",
-                //                 text: response.message ||
-                //                     "Your proposal has been submitted and sent to the selected reinsurers.",
-                //                 timer: 3000,
-                //                 showConfirmButton: true,
-                //                 confirmButtonText: "View Details",
-                //             }).then((result) => {
-                //                 if (result.isConfirmed && response.proposal_id) {
-                //                     window.location.href = `/proposals/${response.proposal_id}`;
-                //                 } else {
-                //                     $("#proposalModal").modal("hide");
-                //                     // Optionally reload the page or update the UI
-                //                     location.reload();
-                //                 }
-                //             });
-                //         } else {
-                //             throw new Error(response.message || "Submission failed");
-                //         }
-                //     },
-                //     error: function(xhr, status, error) {
-                //         console.error("Proposal submission error:", {
-                //             xhr,
-                //             status,
-                //             error
-                //         });
+                $.ajax({
+                    url: $("#proposalForm").attr("action"),
+                    method: "POST",
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    headers: {
+                        "X-Requested-With": "XMLHttpRequest",
+                        "X-CSRF-TOKEN": $('meta[name="csrf-token"]').attr("content"),
+                    },
+                    timeout: 30000,
 
-                //         let errorMessage =
-                //             "An unexpected error occurred while sending the proposal.";
+                    success: function(response) {
+                        if (response.success) {
+                            Swal.fire({
+                                icon: "success",
+                                title: "Proposal Saved Successfully!",
+                                text: response.message || "Your proposal has been submitted",
+                                showConfirmButton: true,
+                            }).then((result) => {
+                                if (result.isConfirmed) {
+                                    handleSendBDNotification(response)
+                                } else {
+                                    $("#proposalModal").modal("hide");
+                                }
+                            });
+                        } else {
+                            throw new Error(response.message || "Submission failed");
+                        }
+                    },
 
-                //         if (xhr.status === 422 && xhr.responseJSON?.errors) {
-                //             // Handle validation errors from server
-                //             const serverErrors = xhr.responseJSON.errors;
-                //             errorMessage = Object.values(serverErrors).flat().join("<br>");
-                //         } else if (xhr.responseJSON?.message) {
-                //             errorMessage = xhr.responseJSON.message;
-                //         } else if (status === "timeout") {
-                //             errorMessage =
-                //                 "Request timed out. Please check your connection and try again.";
-                //         } else if (xhr.status === 0) {
-                //             errorMessage =
-                //                 "Network error. Please check your internet connection.";
-                //         }
+                    error: function(xhr, status, error) {
+                        console.error("Proposal submission error:", {
+                            status: xhr.status,
+                            statusText: xhr.statusText,
+                            responseText: xhr.responseText,
+                            error: error,
+                        });
 
-                //         Swal.fire({
-                //             icon: "error",
-                //             title: "Submission Failed",
-                //             html: errorMessage,
-                //             confirmButtonColor: "#dc3545",
-                //         });
-                //     },
-                //     complete: function() {
-                //         // Restore button state
-                //         $submitBtn.html(originalBtnContent).prop("disabled", false);
-                //     },
-                // });
+                        let errorMessage =
+                            "An unexpected error occurred while sending the proposal.";
+
+                        if (xhr.status === 422 && xhr.responseJSON?.errors) {
+                            const serverErrors = xhr.responseJSON.errors;
+                            errorMessage = Object.values(serverErrors).flat().join("<br>");
+                        } else if (xhr.responseJSON?.message) {
+                            errorMessage = xhr.responseJSON.message;
+                        } else if (status === "timeout") {
+                            errorMessage =
+                                "Request timed out. Please check your connection and try again.";
+                        } else if (xhr.status === 0) {
+                            errorMessage = "Network error. Please check your internet connection.";
+                        } else if (xhr.status === 404) {
+                            errorMessage =
+                                "The submission endpoint was not found. Please contact support.";
+                        } else if (xhr.status === 500) {
+                            errorMessage =
+                                "Server error occurred. Please try again later or contact support.";
+                        }
+
+                        Swal.fire({
+                            icon: "error",
+                            title: "Submission Failed",
+                            html: errorMessage,
+                            confirmButtonColor: "#dc3545",
+                        });
+                    },
+
+                    complete: function() {
+                        $submitBtn.html(originalBtnContent).prop("disabled", false);
+                    },
+                });
+            }
+
+            function handleSendBDNotification() {
+                $("#proposalModal").modal("hide");
+                $("#sendBDEmail").modal('show')
+            }
+
+            function prepareFormData() {
+                const formData = new FormData();
+
+                const $form = $("#proposalForm");
+                const formElements = $form.find("input, select, textarea");
+
+                formElements.each(function() {
+                    const $element = $(this);
+                    const name = $element.attr("name");
+                    const type = $element.attr("type");
+
+                    if (!name) return;
+
+                    if (type === "file") {
+                        const files = this.files;
+                        for (let i = 0; i < files.length; i++) {
+                            formData.append(name + "[]", files[i]);
+                        }
+                    } else if (type === "checkbox") {
+                        if ($element.is(":checked")) {
+                            formData.append(name, $element.val());
+                        }
+                    } else if (type === "radio") {
+                        if ($element.is(":checked")) {
+                            formData.append(name, $element.val());
+                        }
+                    } else {
+                        const value = $element.val();
+                        if (value !== null && value !== "") {
+                            formData.append(name, value);
+                        }
+                    }
+                });
+
+                const reinsurersData = [];
+                $("#reinsurersTable tbody tr").each(function() {
+                    const $row = $(this);
+                    const reinsurerData = {
+                        id: $row.data("reinsurer-id"),
+                        individual_share: $row.data("individual-share"),
+                    };
+                    reinsurersData.push(reinsurerData);
+                });
+
+                formData.append("reinsurers_data", JSON.stringify(reinsurersData));
+
+                // console.log("Prepared form data:", formData); // Debug log
+                return formData;
             }
 
             function validateProposalForm() {
@@ -2258,24 +2315,40 @@
                     errors.push("Reinsurer Selection: Please add at least one reinsurer");
                 }
 
-                const requiredFiles = $('#proposalForm input[type="file"][required]');
-                requiredFiles.each(function() {
-                    if (!this.files.length) {
-                        isFormValid = false;
-                        const fieldLabel = $(this)
-                            .closest(".form-group")
-                            .find("label")
-                            .text()
-                            .replace("*", "")
-                            .trim();
-                        errors.push(`${fieldLabel}: Please upload the required document`);
-                    }
-                });
+                // const requiredFiles = $('#proposalForm input.file-input[required]');
+
+                // requiredFiles.each(function() {
+                //     if (!this.files.length) {
+                //         isFormValid = false;
+                //         const fieldLabel = $(this)
+                //             .closest(".form-group")
+                //             .find("label")
+                //             .text()
+                //             .replace("*", "")
+                //             .trim();
+
+                //         const docError = `${fieldLabel}: Please upload the required document`
+                //         errors.push(docError);
+                //         validateDocInputs(docError)
+                //     }
+                // });
 
                 return {
                     isValid: isFormValid,
                     errors: errors,
                 };
+            }
+
+            function validateDocInputs(docError) {
+                const $docSection = $("#documentsContent");
+                const errorHtml = `
+                        <div class="alert alert-danger reinsurer-validation-error mt-2">
+                            <i class="bx bx-error-circle me-2"></i>
+                           ${docError}
+                        </div>
+                    `;
+                $docSection.append(errorHtml);
+                return false;
             }
 
             function validateReinsurerSelection() {
@@ -2395,26 +2468,30 @@
                 }
 
                 setupEventListeners() {
-                    $(document).on("click", "textarea.breakdown-textarea", (e) => {
+                    $(document).on('click', 'textarea.breakdown-textarea', (e) => {
                         e.preventDefault();
                         const $textarea = $(e.currentTarget);
                         this.openModal($textarea);
                     });
 
-                    $(document).on("click", ".template-btn", (e) => {
-                        const template = $(e.target).data("template");
+                    $(document).on('click', '.template-btn', (e) => {
+                        const template = $(e.target).data('template');
                         this.applyTemplate(template);
                     });
 
-                    $("#saveBreakdownBtn").on("click", () => {
+                    $('#saveBreakdownBtn').on('click', () => {
                         this.saveChanges();
                     });
 
-                    $("#previewBtn").on("click", () => {
+                    $('#previewBtn').on('click', () => {
                         this.togglePreview();
                     });
 
-                    $("#breakdownModal").on("shown.bs.modal", () => {
+                    $('#breakdownModal').on('show.bs.modal', () => {
+                        this.cleanupEditor();
+                    });
+
+                    $('#breakdownModal').on('shown.bs.modal', () => {
                         this.initializeQuill();
                     });
 
@@ -2441,17 +2518,22 @@
                     if (this.quill) {
                         try {
                             this.quill.off('text-change');
-                            const container = document.getElementById('breakdownEditor');
-                            if (container) {
-                                container.innerHTML = '';
-                                container.className = '';
-                            }
-
                             this.quill = null;
                         } catch (error) {
-                            console.warn('Error during cleanup:', error);
+                            console.warn('Error removing Quill listeners:', error);
                         }
                     }
+
+                    const container = document.getElementById('breakdownEditor');
+                    if (container) {
+                        container.innerHTML = '';
+                        container.className = '';
+                        container.removeAttribute('style');
+                    }
+
+                    const quillContainer = $('.quill-container');
+                    quillContainer.find('.ql-toolbar').remove();
+                    quillContainer.find('.ql-container').remove();
                 }
 
                 openModal($textarea) {
@@ -2486,21 +2568,19 @@
 
                 initializeQuill() {
                     if (typeof Quill === 'undefined') {
-                        console.error('Quill is not loaded!');
                         this.hideLoading();
                         return;
                     }
 
-                    // Properly destroy existing instance and clear container
+                    this.cleanupEditor();
+
+
                     if (this.quill) {
                         try {
-                            // Remove all Quill event listeners
                             this.quill.off('text-change');
-                            // Clear the container completely
                             const container = document.getElementById('breakdownEditor');
                             if (container) {
                                 container.innerHTML = '';
-                                // Remove any Quill-specific classes
                                 container.className = '';
                             }
                             this.quill = null;
@@ -2511,12 +2591,10 @@
 
                     const editorContainer = document.getElementById('breakdownEditor');
                     if (!editorContainer) {
-                        console.error('Editor container not found!');
                         this.hideLoading();
                         return;
                     }
 
-                    // Ensure container is completely clean
                     editorContainer.innerHTML = '';
                     editorContainer.className = '';
 
@@ -2554,10 +2632,8 @@
                                 modules: {
                                     toolbar: toolbarOptions
                                 },
-                                placeholder: 'Enter breakdown details here...\n\nUse formatting options above to create professional documentation.'
                             });
 
-                            // Load existing content from the current textarea
                             if (this.currentTextarea) {
                                 const existingContent = this.currentTextarea.val();
                                 if (existingContent && existingContent.trim()) {
@@ -2565,7 +2641,6 @@
                                 }
                             }
 
-                            // Add event listener
                             this.quill.on('text-change', () => {
                                 this.updateStatistics();
                                 this.validateContent();
@@ -2577,82 +2652,8 @@
                         }
 
                         this.hideLoading();
-                    }, 300);
+                    }, 500);
                 }
-
-                // initializeQuill() {
-                //     if (typeof Quill === "undefined") {
-                //         this.hideLoading();
-                //         return;
-                //     }
-
-                //     if (this.quill) {
-                //         this.quill = null;
-                //         $("#breakdownEditor").html("");
-                //     }
-
-                //     if (!document.getElementById("breakdownEditor")) {
-                //         this.hideLoading();
-                //         return;
-                //     }
-
-                //     setTimeout(() => {
-                //         const toolbarOptions = [
-                //             [{
-                //                 header: [1, 2, 3, false]
-                //             }],
-                //             ["bold", "italic", "underline"],
-                //             [{
-                //                 color: []
-                //             }, {
-                //                 background: []
-                //             }],
-                //             [{
-                //                 list: "ordered"
-                //             }, {
-                //                 list: "bullet"
-                //             }],
-                //             [{
-                //                 indent: "-1"
-                //             }, {
-                //                 indent: "+1"
-                //             }],
-                //             [{
-                //                 align: []
-                //             }],
-                //             ["link"],
-                //             ["clean"],
-                //         ];
-
-                //         try {
-                //             this.quill = new Quill("#breakdownEditor", {
-                //                 theme: "snow",
-                //                 modules: {
-                //                     toolbar: toolbarOptions,
-                //                 },
-                //                 placeholder: "Enter breakdown details here...\n\nUse formatting options above to create professional documentation.",
-                //             });
-
-                //             if (this.currentTextarea) {
-                //                 const existingContent = this.currentTextarea.val();
-                //                 if (existingContent && existingContent.trim()) {
-                //                     this.quill.root.innerHTML = existingContent;
-                //                 }
-                //             }
-
-                //             this.quill.on("text-change", () => {
-                //                 this.updateStatistics();
-                //                 this.validateContent();
-                //             });
-
-                //             this.updateStatistics();
-                //         } catch (error) {
-                //             console.error("Error initializing Quill:", error);
-                //         }
-
-                //         this.hideLoading();
-                //     }, 300);
-                // }
 
                 updateStatistics() {
                     if (!this.quill) return;

@@ -300,10 +300,10 @@ class PipelineController
 
     private function getStageDocuments($stage, $category_type, $type_of_bus, $prosStage)
     {
-        $stage = Stage::fromKeyValue($stage);
-        if (!$stage) return [];
+        $stageVal = Stage::fromKeyValue($stage);
+        if (!$stageVal) return [];
 
-        $currentStage = $stage->getStage();
+        $currentStage = $stageVal->getStage();
 
         $baseQuery = DB::table('stage_documents')
             ->where('stage_documents.category_type', $category_type)
@@ -2230,7 +2230,6 @@ class PipelineController
 
     public function prospectAddToPipeline(Request $request)
     {
-        logger()->debug($request->all());
         $year = DB::table('pipeline_opportunities')->where('opportunity_id', $request->prospect)->first()->pip_year;
         $pip_id = DB::table('pipelines')->where('id', $year)->first()->id;
         $update = DB::table('pipeline_opportunities')->where('opportunity_id', $request->prospect)
@@ -3375,9 +3374,6 @@ class PipelineController
         $category_type    = $opp->category_type;
         $sum_insured_type = TypeOfSumInsured::where(['sum_insured_code' => $opp->sum_insured_type, 'status' => 'A'])->first(['sum_insured_name']);
 
-
-        // logger()->debug(json_encode(Str::title($sum_insured_type->sum_insured_name), JSON_PRETTY_PRINT));
-
         return [
             'opportunity_id'    => $opp->opportunity_id,
             'created_at'        => $opp->created_at,
@@ -3442,8 +3438,6 @@ class PipelineController
         foreach ($statusOrder as $status) {
             $data[] = $statusCounts[$status] ?? 0;
         }
-
-        // logger()->debug($data);
 
         return [
             'data' => $data,
@@ -5204,1039 +5198,1045 @@ class PipelineController
 
     public function updateLeadStatus(Request $request)
     {
-        // dd($request->all());
-        $uploadsPath = 'uploads';
-
-        try {
-
-            DB::beginTransaction();
-            $leadId = $request->opp_id;
-            $pipeline = $request->pip_id;
-            $stage_cycle = $request->stage_cycle;
-            $stage_cycle_fac = $request->stage_cycle_fac;
-            $division = $request->division;
-            $underwriters = $request->underwriters;
-            $customer_id = $request->customer_id;
-            // dd($customer_id);
-            $customer_name = $request->customer_name;
-            $customer_email = $request->customer_email;
-            $selected_contact_person_main = $request->selected_contact_person_main;
-            $contact_name = $request->contact_name;
-            $schedule_details = !empty($request->schedule_details) ? ($request->schedule_details) : [];
-            $facschedule_details = !empty($request->facschedule_details) ? ($request->facschedule_details) : [];
-
-
-
-            $declineUncheckedCount = $request->declineUncheckedCount ?? null;
-            $document_name = $request->document_name;
-            $ced_checkbox_docs = $request->cedant_checkbox_docs ?? [];
-            $our_checkbox_docs = $request->our_checkbox_docs ?? [];
-            $received_docs_checkboxes = $request->received_docs_checkboxes ?? [];
-
-            $checkbox_docs = [];
-            // Ensure both arrays are defined and are arrays before merging
-
-            if ($request->bus_type == 'TRT') {
-                $newRequest = new Request($request->all());
-                $this->treaty_pipeline_create_opportunity($newRequest);
-                $checkbox_docs = array_merge(
-                    array_map(function ($name) {
-                        return ['name' => $name, 'source' => 1];
-                    }, $ced_checkbox_docs), //document required by cedant
-                    array_map(function ($name) {
-                        return ['name' => $name, 'source' => 2];
-                    }, $our_checkbox_docs), //document requred by us
-                    array_map(function ($name) {
-                        return ['name' => $name, 'source' => 3];
-                    }, $received_docs_checkboxes) //document received
-                );
-            }
-
-            $send_email_flag = $request->send_email_flag;
-
-            $pq_status = $request->pq_status;
-            $status = $request->status;
-            $query_text = $request->query_text;
-            $decline_negotiation_text = $request->decline_negotiation_text;
-
-            if ($schedule_details !== null) {
-                foreach ($schedule_details as &$item) {
-                    if (isset($item['amount'])) {
-                        $item['details'] = $item['amount'];
-                        unset($item['amount']);
-                    }
-                }
-            }
-            unset($item);
-            $manipulated_schedule_details = $schedule_details ?? [];
-
-            if ($facschedule_details !== null) {
-                foreach ($facschedule_details as &$item2) {
-                    if (isset($item2['amount'])) {
-                        $item2['details'] = $item2['amount'];
-                        unset($item2['amount']);
-                    }
-                }
-            }
-            unset($item2);
-            $manipulated_facschedule_details = $facschedule_details ?? [];
-
-
-            //*********update pipeline_opportunities***********
-            $all_schedule_details = array_merge($manipulated_schedule_details ?? [], $manipulated_facschedule_details ?? []);
-            $validNames = [
-                'FIRST LOSS',
-                'LIMIT OF INDEMNITY',
-                'MAXIMUM LOSS LIMIT',
-                'LIMIT OF LIABILITY',
-                'Agreed Value',
-                'Total Sum insured',
-                'TOP LOCATION'
-            ];
-            // dd($all_schedule_details);
-
-            $effective_sum_insured = null;
-            $rein_premium = null;
-            $reins_comm_rate = null;
-            $comm_rate = null;
-            $unplaced_share = $request->unplaced ?? null;
-            foreach ($all_schedule_details as $detail) {
-                if (!empty($detail['name']) && in_array($detail['name'], $validNames) && !empty($detail['details'])) {
-                    $effective_sum_insured = $detail['details'];
-                }
-                if ($detail['name'] === 'Premium') {
-                    $rein_premium = $detail['details'];
-                }
-                if ($detail['name'] === 'Reinsurer Commission Rate') {
-                    $reins_comm_rate = $detail['details'];
-                }
-                if ($detail['name'] === 'Cedant Commission Rate') {
-                    $comm_rate = $detail['details'];
-                }
-            }
-
-            // only update if the value is not empty
-            $updateData = [];
-            switch ($request->bus_type) {
-                case 'FAC':
-                    if ($rein_premium)
-                        $updateData['rein_premium'] = str_replace(',', '', $rein_premium);
-                    if ($reins_comm_rate)
-                        $updateData['reins_comm_rate'] = str_replace(',', '', $reins_comm_rate);
-                    if ($comm_rate)
-                        $updateData['comm_rate'] = str_replace(',', '', $comm_rate);
-                    if ($effective_sum_insured)
-                        $updateData['effective_sum_insured'] = str_replace(',', '', $effective_sum_insured);
-                    if (isset($unplaced_share))
-                        $updateData['unplaced_share'] = $unplaced_share;
-                    if (isset($request->written_share[0]))
-                        $updateData['fac_share_offered'] = str_replace(',', '', $request->written_share[0]);
-                    if (!empty($updateData)) {
-                        DB::table('pipeline_opportunities')->where('opportunity_id', $request->opp_id)
-                            ->update($updateData);
-                    }
-
-                    break;
-            }
-
-
-
-            //********end update of pipeline_opportunities********
-            if (!is_null($underwriters)) {
-                foreach ($underwriters as $uws) {
-                    DB::table('prospect_underwriters')->insert([
-                        'company_id' => $uws,
-                        'prospect_id' => $leadId
-                    ]);
-                }
-            }
-
-
-            DB::table('stage_comments')->insert([
-                'prospect_id' => $leadId,
-                'stage_id' => $stage_cycle_fac ?? $stage_cycle,
-                'quote_title_intro' => $request->quote_title_intro
-            ]);
-
-
-
-
-            $quoteId = $this->generateQuoteNo($request->category_type, $request->opp_id);
-
-            // if($request->bus_type == 'TRT') {
-            //     $quote_reinsurer_Ids = ['TRT'];
-            // }
-            $quote_reinsurer_Ids = [];
-
-            // dd($stage_cycle);
-
-            if (($stage_cycle == 5 || $stage_cycle_fac == 5) && $request->bus_type == 'FAC') {
-                DB::table('pipeline_opportunities')
-                    ->where('opportunity_id', $leadId)->update([
-                        'won_at' => now(),
-                    ]);
-            }
-            if (($stage_cycle == 6 || $stage_cycle_fac == 6) && $request->bus_type == 'FAC') {
-                DB::table('pipeline_opportunities')
-                    ->where('opportunity_id', $leadId)->update([
-                        'pipeline_id' => null,
-                        'year_before_revert' => DB::raw('pip_year'),
-                        'pip_year' => DB::raw('pip_year + 1'),
-                        'reverted_to_pipeline' => 'YES',
-                        'stage' => 6
-                    ]);
-            }
-
-            $reinsurerId = [];
-
-            if (isset($stage_cycle_fac)) {
-                if ($stage_cycle_fac == 2 && $request->bus_type == 'FAC') {
-
-                    if (is_array($customer_id) && is_array($customer_name)) {
-
-                        foreach ($customer_id as $index => $id) {
-
-                            $contactName = $selected_contact_person_main['contact_name'][$index] ?? null;
-                            $email = $selected_contact_person_main['contact_email'][$index] ?? null;
-                            $mainContactPerson = $selected_contact_person_main['main_contact_person'][$index] ?? null;
-                            $qt_re_id = '';
-                            try {
-                                $exist = DB::table('quote_reinsurers')->where([
-                                    'reinsurer_id' => $id,
-                                    'opportunity_id' => $leadId,
-                                    'quote_id' => $quoteId,
-                                    'stage' => $stage_cycle_fac
-                                ])->exists();
-                                if ($exist) {
-                                    $reinsurerName = DB::table('customers')->where('customer_id', $id)->value('name');
-                                    return redirect()->back()
-                                        ->withInput()
-                                        ->withErrors(['error' => $reinsurerName . "  " . 'data already exists']);
-                                } else {
-
-                                    $qt_re_id = DB::table('quote_reinsurers')->insertGetId([
-                                        'reinsurer_id' => $id,
-                                        'reinsurer_name' => $customer_name[$index],
-                                        'email' => $email,
-                                        'contact_name' => $contactName,
-                                        'main_contact_person' => $mainContactPerson,
-                                        'written_share' => $request->written_share[$index] ?? null,
-                                        'opportunity_id' => $leadId,
-                                        'quote_id' => $quoteId,
-                                        'stage' => $stage_cycle_fac,
-                                        'created_at' => now(),
-                                        'updated_at' => now()
-                                    ]);
-                                    $reinsurerId[] = $id;
-                                }
-                                if ($qt_re_id) {
-                                    $quote_reinsurer_Ids[] = $qt_re_id;
-                                } else {
-                                }
-                            } catch (\Exception $e) {
-                                DB::rollback();
-                                return redirect()->back()
-                                    ->withInput()
-                                    ->withErrors(['error' => 'An unexpected error occurred: ' . $e->getMessage()]);
-                            }
-                        }
-                    }
-                } elseif (($stage_cycle_fac == 3 || $stage_cycle_fac == 4) && $request->bus_type == 'FAC') {
-                    $reinsurers = $request->reinsurers;
-                    $written_share = array_column($reinsurers, 'written_share');
-                    $signed_share = array_column($reinsurers, 'signed_share');
-
-                    if (is_array($reinsurers)) {
-                        $blockInsertions = false;
-                        foreach ($reinsurers as $idx => $re) {
-                            if (!empty($re['decline']) && empty($re['decline_inserted']) && $unplaced_share > 0) {
-                                $blockInsertions = true;
-                                break;
-                            }
-                        }
-
-                        foreach ($reinsurers as $index => $re_details) {
-                            $id = $re_details['customer_id'] ?? null;
-                            $name = $re_details['name'] ?? null;
-                            if (!isset($selected_contact_person_main) || !is_array($selected_contact_person_main)) {
-                                $selected_contact_person_main = [];
-                            }
-
-                            if ($stage_cycle_fac == 4) {
-                                $contactName = $selected_contact_person_main['contact_name'][$index] ?? 'not provided';
-                                $email = $selected_contact_person_main['contact_email'][$index] ?? 'not_provided@example.com';
-
-                                $mainContactPerson = $selected_contact_person_main['main_contact_person'][$index] ?? null;
-                            } else if ($stage_cycle_fac == 3) {
-                                $contactName = $selected_contact_person_main['contact_name'][0] ?? 'not provided';
-                                $email = $selected_contact_person_main['contact_email'][0] ?? 'not_provided@example.com';
-                                $mainContactPerson = $selected_contact_person_main['main_contact_person'][0] ?? null;
-                            }
-
-                            $declineCustomer = $re_details['decline'] ?? null;
-                            $declineInserted = $re_details['decline_inserted'] ?? null;
-                            $declineReason = $re_details['comments'] ?? null;
-                            $qt_re_id = "";
-
-                            try {
-                                if ($declineCustomer !== null && $declineCustomer !== '' && $declineInserted == null) {
-
-                                    $data = [
-                                        'customer_id' => $declineCustomer,
-                                        'opportunity_id' => $leadId
-                                    ];
-
-                                    $rules = [
-                                        'customer_id' => 'required|integer',
-                                        'opportunity_id' => 'required'
-                                    ];
-
-                                    $validator = Validator::make($data, $rules);
-
-                                    if ($validator->fails()) {
-                                        return redirect()->back()
-                                            ->withInput()
-                                            ->withErrors($validator->errors());
-                                    }
-
-                                    try {
-                                        ReinsurersDeclined::updateOrCreate(
-                                            [
-                                                'customer_id' => $data['customer_id'],
-                                                'opportunity_id' => $data['opportunity_id'],
-                                            ],
-                                            [
-                                                'reason' => $declineReason,
-                                            ]
-                                        );
-                                    } catch (\Exception $e) {
-                                        DB::rollback();
-                                        return redirect()->back()
-                                            ->withInput()
-                                            ->withErrors(['error' => 'An unexpected error occurred: ' . $e->getMessage()]);
-                                    }
-                                    continue;
-                                }
-                                if (!$blockInsertions && (empty($declineCustomer))) {
-                                    $exist = DB::table('quote_reinsurers')->where([
-                                        'reinsurer_id' => $id,
-                                        'opportunity_id' => $leadId,
-                                        'quote_id' => $quoteId,
-                                        'stage' => $stage_cycle_fac
-                                    ])->exists();
-                                    if ($exist) {
-                                        $reinsurerName = DB::table('customers')->where('customer_id', $id)->value('name');
-                                        return redirect()->back()
-                                            ->withInput()
-                                            ->withErrors(['error' => $reinsurerName . "  " . 'data already exists']);
-                                    } else {
-                                        $qt_re_id = DB::table('quote_reinsurers')->insertGetId([
-                                            'reinsurer_id' => $id,
-                                            'reinsurer_name' => $name,
-                                            'email' => $email,
-                                            'contact_name' => $contactName,
-                                            'main_contact_person' => $mainContactPerson,
-                                            'written_share' => $written_share[$index],
-                                            'signed_share' => $signed_share[$index] ?? null,
-                                            'opportunity_id' => $leadId,
-                                            'quote_id' => $quoteId,
-                                            'stage' => $stage_cycle_fac,
-                                            'created_at' => now(),
-                                            'updated_at' => now()
-
-                                        ]);
-                                        $reinsurerId[] = $id;
-                                    }
-                                    if ($qt_re_id) {
-                                        $quote_reinsurer_Ids[] = $qt_re_id;
-                                    }
-                                }
-                            } catch (\Exception $e) {
-                                DB::rollback();
-                                return redirect()->back()
-                                    ->withInput()
-                                    ->withErrors(['error' => 'An unexpected error occurred: ' . $e->getMessage()]);
-                            }
-                        }
-                    } else {
-                    }
-                }
-            }
-            $quote_reverted_to_lead = 'N';
-
-            if (isset($request->stage_cycle)) {
-                if ($request->stage_cycle == 2 && $request->bus_type == 'FAC') {
-
-
-                    if (is_array($customer_id) && is_array($customer_name)) {
-                        foreach ($customer_id as $index => $id) {
-                            if (!isset($selected_contact_person_main) || !is_array($selected_contact_person_main)) {
-                                continue;
-                            }
-
-                            $contactName = $selected_contact_person_main['contact_name'][$index] ?? 'not provided';
-                            $email = $selected_contact_person_main['contact_email'][$index] ?? 'not_provided@example.com';
-                            $mainContactPerson = $selected_contact_person_main['main_contact_person'][$index] ?? null;
-
-                            if (!isset($customer_name[$index])) {
-                                continue;
-                            }
-                            $qt_re_id = "";
-                            if (isset($request->written_share[$index])) {
-                                $quote_reverted_to_lead = 'Y';
-                            }
-
-
-                            try {
-                                $exist = DB::table('quote_reinsurers')->where([
-                                    'reinsurer_id' => $id,
-                                    'opportunity_id' => $leadId,
-                                    'quote_id' => $quoteId,
-                                    'stage' => $stage_cycle
-                                ])->exists();
-                                if ($exist) {
-                                    $reinsurerName = DB::table('customers')->where('customer_id', $id)->value('name');
-                                    return redirect()->back()
-                                        ->withInput()
-                                        ->withErrors(['error' => $reinsurerName . "  " . 'data already exists']);
-                                } else {
-                                    $qt_re_id = DB::table('quote_reinsurers')->insertGetId([
-                                        'reinsurer_id' => $id,
-                                        'reinsurer_name' => $customer_name[$index],
-                                        'email' => $email,
-                                        'contact_name' => $contactName,
-                                        'main_contact_person' => $mainContactPerson,
-                                        'written_share' => $request->written_share[$index] ?? null,
-                                        'opportunity_id' => $leadId,
-                                        'quote_id' => $quoteId,
-                                        'stage' => $stage_cycle,
-                                        'quote_reverted_to_lead' => $quote_reverted_to_lead,
-                                        'created_at' => now(),
-                                        'updated_at' => now()
-
-                                    ]);
-                                    $reinsurerId[] = $id;
-                                }
-                                if ($qt_re_id) {
-                                    $quote_reinsurer_Ids[] = $qt_re_id;
-                                }
-                            } catch (\Exception $e) {
-                                DB::rollback();
-                                return redirect()->back()
-                                    ->withInput()
-                                    ->withErrors(['error' => 'An unexpected error occurred: ' . $e->getMessage()]);
-                            }
-                        }
-                    } else {
-                    }
-                } elseif (($stage_cycle == 3 || $stage_cycle == 4) && $request->bus_type == 'FAC') {
-                    $reinsurers = $request->reinsurers;
-                    $written_share = array_column($reinsurers, 'written_share');
-                    $signed_share = !empty($reinsurers) ? array_column($reinsurers, 'signed_share') : null;
-
-                    if (is_array($reinsurers) && !is_null($reinsurers)) {
-
-                        $blockInsertions = false;
-                        foreach ($reinsurers as $idx => $re) {
-                            if (!empty($re['decline']) && empty($re['decline_inserted']) && $unplaced_share > 0) {
-                                $blockInsertions = true;
-                                break;
-                            }
-                        }
-
-                        foreach ($reinsurers as $index => $re_details) {
-                            $id = $re_details['customer_id'] ?? null;
-                            $name = $re_details['name'] ?? null;
-
-                            if (!isset($selected_contact_person_main) || !is_array($selected_contact_person_main)) {
-                                $selected_contact_person_main = [];
-                            }
-                            if ($stage_cycle == 4) {
-                                $contactName = $selected_contact_person_main['contact_name'][$index] ?? 'not provided';
-                                $email = $selected_contact_person_main['contact_email'][$index] ?? 'not_provided@example.com';
-                                $mainContactPerson = $selected_contact_person_main['main_contact_person'][$index] ?? null;
-                            } else if ($stage_cycle == 3) {
-                                $contactName = $selected_contact_person_main['contact_name'][0] ?? 'not provided';
-                                $email = $selected_contact_person_main['contact_email'][0] ?? 'not_provided@example.com';
-
-                                $mainContactPerson = $selected_contact_person_main['main_contact_person'][0] ?? null;
-                            }
-
-                            $declineCustomer = $re_details['decline'] ?? null;
-                            $declineInserted = $re_details['decline_inserted'] ?? null;
-                            $declineReason = $re_details['comments'] ?? null;
-                            $qt_re_id = "";
-
-                            try {
-
-                                if ($declineCustomer !== null && $declineCustomer !== '' && $declineInserted == null) {
-
-                                    $data = [
-                                        'customer_id' => $declineCustomer,
-                                        'opportunity_id' => $leadId
-                                    ];
-
-                                    $rules = [
-                                        'customer_id' => 'required|integer',
-                                        'opportunity_id' => 'required'
-                                    ];
-
-                                    $validator = Validator::make($data, $rules);
-
-                                    if ($validator->fails()) {
-                                        return redirect()->back()
-                                            ->withInput()
-                                            ->withErrors($validator->errors());
-                                    }
-                                    if ($declineUncheckedCount !== "") {
-                                        pipelineOpportunity::updateOrCreate(['opportunity_id' => $leadId], ['decline_unchecked_count' => $declineUncheckedCount]);
-                                    }
-
-                                    try {
-                                        ReinsurersDeclined::updateOrCreate(
-                                            [
-                                                'customer_id' => $data['customer_id'],
-                                                'opportunity_id' => $data['opportunity_id'],
-                                            ],
-                                            [
-                                                'reason' => $declineReason,
-                                            ]
-
-
-                                        );
-                                    } catch (\Exception $e) {
-                                        DB::rollback();
-                                        return redirect()->back()
-                                            ->withInput()
-                                            ->withErrors(['error' => 'An unexpected error occurred: ' . $e->getMessage()]);
-                                    }
-                                    continue;
-                                }
-
-                                if (!$blockInsertions && (empty($declineCustomer))) {
-                                    $exist = DB::table('quote_reinsurers')->where([
-                                        'reinsurer_id' => $id,
-                                        'opportunity_id' => $leadId,
-                                        'quote_id' => $quoteId,
-                                        'stage' => $stage_cycle
-                                    ])->exists();
-                                    if ($exist) {
-                                        $reinsurerName = DB::table('customers')->where('customer_id', $id)->value('name');
-                                        return redirect()->back()
-                                            ->withInput()
-                                            ->withErrors(['error' => $reinsurerName . "  " . 'data already exists']);
-                                    } else {
-                                        $qt_re_id = DB::table('quote_reinsurers')->insertGetId([
-                                            'reinsurer_id' => $id,
-                                            'reinsurer_name' => $name,
-                                            'email' => $email,
-                                            'contact_name' => $contactName,
-                                            'main_contact_person' => $mainContactPerson,
-                                            'written_share' => $written_share[$index],
-                                            'signed_share' => $signed_share[$index] ?? null,
-                                            'opportunity_id' => $leadId,
-                                            'quote_id' => $quoteId,
-                                            'stage' => $stage_cycle,
-                                            'created_at' => now(),
-                                            'updated_at' => now()
-
-                                        ]);
-                                        $reinsurerId[] = $id;
-                                    }
-                                    if ($qt_re_id) {
-
-                                        $quote_reinsurer_Ids[] = $qt_re_id;
-                                    }
-                                }
-                            } catch (\Exception $e) {
-                                DB::rollback();
-                                return redirect()->back()
-                                    ->withInput()
-                                    ->withErrors(['error' => 'An unexpected error occurred: ' . $e->getMessage()]);
-                            }
-                        }
-                    } else {
-                    }
-                }
-            }
-            if (isset($request->stage_cycle) && $request->bus_type == 'TRT') {
-                if ($request->stage_cycle == 3 || $request->stage_cycle == 4) {
-                    $customer_id = $request->customer_id;
-
-                    if (!is_null($customer_id)) {
-                        $id = $customer_id;
-                        $name = $request->customer;
-
-                        if (!isset($selected_contact_person_main) || !is_array($selected_contact_person_main)) {
-                            $selected_contact_person_main = [];
-                        }
-
-                        $contactName = $selected_contact_person_main['contact_name'][0] ?? 'not provided';
-                        $email = $selected_contact_person_main['contact_email'][0] ?? 'not_provided@example.com';
-                        $mainContactPerson = $selected_contact_person_main['main_contact_person'][0] ?? null;
-
-                        $declineCustomer = $re_details['decline'] ?? null;
-                        $declineInserted = $re_details['decline_inserted'] ?? null;
-                        $declineReason = $re_details['comments'] ?? null;
-                        $qt_re_id = "";
-
-                        try {
-                            $exist = DB::table('quote_reinsurers')->where([
-                                'reinsurer_id' => $id,
-                                'opportunity_id' => $leadId,
-                                'quote_id' => $quoteId,
-                                'stage' => $stage_cycle
-                            ])->exists();
-                            if ($exist) {
-                                $reinsurerName = DB::table('customers')->where('customer_id', $id)->value('name');
-                                return redirect()->back()
-                                    ->withInput()
-                                    ->withErrors(['error' => $reinsurerName . "  " . 'data already exists']);
-                            } else {
-
-                                $qt_re_id = DB::table('quote_reinsurers')->insertGetId([
-                                    'reinsurer_id' => $id,
-                                    'reinsurer_name' => $name,
-                                    'email' => $email,
-                                    'contact_name' => $contactName,
-                                    'main_contact_person' => $mainContactPerson,
-                                    'opportunity_id' => $leadId,
-                                    'quote_id' => $quoteId,
-                                    'stage' => $stage_cycle,
-                                    'created_at' => now(),
-                                    'updated_at' => now()
-
-                                ]);
-                                $reinsurerId[] = $id;
-                            }
-                            if ($qt_re_id) {
-                                $quote_reinsurer_Ids[] = $qt_re_id;
-                            }
-                        } catch (\Exception $e) {
-                            DB::rollback();
-                            return redirect()->back()
-                                ->withInput()
-                                ->withErrors(['error' => 'An unexpected error occurred: ' . $e->getMessage()]);
-                        }
-                    } else {
-                    }
-                } else if ($request->stage_cycle == 5) {
-                    if (is_array($customer_id) && is_array($customer_name)) {
-                        foreach ($customer_id as $index => $id) {
-                            if (!isset($selected_contact_person_main) || !is_array($selected_contact_person_main)) {
-                                continue;
-                            }
-
-                            $contactName = $selected_contact_person_main['contact_name'][$index] ?? 'not provided';
-                            $email = $selected_contact_person_main['contact_email'][$index] ?? 'not_provided@example.com';
-                            $mainContactPerson = $selected_contact_person_main['main_contact_person'][$index] ?? null;
-
-                            if (!isset($customer_name[$index])) {
-                                continue;
-                            }
-                            $qt_re_id = "";
-                            if (isset($request->written_share[$index])) {
-                                $quote_reverted_to_lead = 'Y';
-                            }
-
-                            try {
-                                $exist = DB::table('quote_reinsurers')->where([
-                                    'reinsurer_id' => $id,
-                                    'opportunity_id' => $leadId,
-                                    'quote_id' => $quoteId,
-                                    'stage' => $stage_cycle
-                                ])->exists();
-                                if ($exist) {
-                                    $reinsurerName = DB::table('customers')->where('customer_id', $id)->value('name');
-                                    return redirect()->back()
-                                        ->withInput()
-                                        ->withErrors(['error' => $reinsurerName . "  " . 'data already exists']);
-                                } else {
-                                    $qt_re_id = DB::table('quote_reinsurers')->insertGetId([
-                                        'reinsurer_id' => $id,
-                                        'reinsurer_name' => $customer_name[$index],
-                                        'email' => $email,
-                                        'contact_name' => $contactName,
-                                        'main_contact_person' => $mainContactPerson,
-                                        'opportunity_id' => $leadId,
-                                        'quote_id' => $quoteId,
-                                        'stage' => $stage_cycle,
-                                        'quote_reverted_to_lead' => $quote_reverted_to_lead,
-                                        'created_at' => now(),
-                                        'updated_at' => now()
-
-                                    ]);
-                                    $reinsurerId[] = $id;
-                                }
-                                if ($qt_re_id) {
-                                    $quote_reinsurer_Ids[] = $qt_re_id;
-                                }
-                            } catch (\Exception $e) {
-                                DB::rollback();
-                                return redirect()->back()
-                                    ->withInput()
-                                    ->withErrors(['error' => 'An unexpected error occurred: ' . $e->getMessage()]);
-                            }
-                        }
-                    }
-                }
-            }
-
-            if (isset($request->stage_cycle_fac) && $request->bus_type == 'TRT') {
-                if ($request->stage_cycle_fac == 4) {
-                    $customer_id = $request->customer_id;
-                    // dd($request->all());
-                    if (!is_null($customer_id)) {
-                        $id = $customer_id;
-                        $name = $request->customer;
-
-                        if (!isset($selected_contact_person_main) || !is_array($selected_contact_person_main)) {
-                            $selected_contact_person_main = [];
-                        }
-
-
-                        $contactName = $selected_contact_person_main['contact_name'][0] ?? 'not provided';
-                        $email = $selected_contact_person_main['contact_email'][0] ?? 'not_provided@example.com';
-                        $mainContactPerson = $selected_contact_person_main['main_contact_person'][0] ?? null;
-
-
-                        $declineCustomer = $re_details['decline'] ?? null;
-                        $declineInserted = $re_details['decline_inserted'] ?? null;
-                        $declineReason = $re_details['comments'] ?? null;
-                        $qt_re_id = "";
-
-                        try {
-
-
-                            $exist = DB::table('quote_reinsurers')->where([
-                                'reinsurer_id' => $id,
-                                'opportunity_id' => $leadId,
-                                'quote_id' => $quoteId,
-                                'stage' => $stage_cycle_fac
-                            ])->exists();
-                            if ($exist) {
-                                $reinsurerName = DB::table('customers')->where('customer_id', $id)->value('name');
-                                return redirect()->back()
-                                    ->withInput()
-                                    ->withErrors(['error' => $reinsurerName . "  " . 'data already exists']);
-                            } else {
-
-                                $qt_re_id = DB::table('quote_reinsurers')->insertGetId([
-                                    'reinsurer_id' => $id,
-                                    'reinsurer_name' => $name,
-                                    'email' => $email,
-                                    'contact_name' => $contactName,
-                                    'main_contact_person' => $mainContactPerson,
-                                    'opportunity_id' => $leadId,
-                                    'quote_id' => $quoteId,
-                                    'stage' => $stage_cycle_fac,
-                                    'created_at' => now(),
-                                    'updated_at' => now()
-
-                                ]);
-                                $reinsurerId[] = $id;
-                            }
-                            if ($qt_re_id) {
-                                $quote_reinsurer_Ids[] = $qt_re_id;
-                            }
-                        } catch (\Exception $e) {
-                            DB::rollback();
-                            return redirect()->back()
-                                ->withInput()
-                                ->withErrors(['error' => 'An unexpected error occurred: ' . $e->getMessage()]);
-                        }
-                    } else {
-                    }
-                } else if ($request->stage_cycle_fac == 4) {
-                    if (is_array($customer_id) && is_array($customer_name)) {
-                        foreach ($customer_id as $index => $id) {
-                            if (!isset($selected_contact_person_main) || !is_array($selected_contact_person_main)) {
-                                continue;
-                            }
-
-                            $contactName = $selected_contact_person_main['contact_name'][$index] ?? 'not provided';
-                            $email = $selected_contact_person_main['contact_email'][$index] ?? 'not_provided@example.com';
-                            $mainContactPerson = $selected_contact_person_main['main_contact_person'][$index] ?? null;
-
-                            if (!isset($customer_name[$index])) {
-                                continue;
-                            }
-                            $qt_re_id = "";
-                            if (isset($request->written_share[$index])) {
-                                $quote_reverted_to_lead = 'Y';
-                            }
-
-
-                            try {
-                                $exist = DB::table('quote_reinsurers')->where([
-                                    'reinsurer_id' => $id,
-                                    'opportunity_id' => $leadId,
-                                    'quote_id' => $quoteId,
-                                    'stage' => $stage_cycle
-                                ])->exists();
-                                if ($exist) {
-                                    $reinsurerName = DB::table('customers')->where('customer_id', $id)->value('name');
-                                    return redirect()->back()
-                                        ->withInput()
-                                        ->withErrors(['error' => $reinsurerName . "  " . 'data already exists']);
-                                } else {
-                                    $qt_re_id = DB::table('quote_reinsurers')->insertGetId([
-                                        'reinsurer_id' => $id,
-                                        'reinsurer_name' => $customer_name[$index],
-                                        'email' => $email,
-                                        'contact_name' => $contactName,
-                                        'main_contact_person' => $mainContactPerson,
-                                        'opportunity_id' => $leadId,
-                                        'quote_id' => $quoteId,
-                                        'stage' => $stage_cycle,
-                                        'quote_reverted_to_lead' => $quote_reverted_to_lead,
-                                        'created_at' => now(),
-                                        'updated_at' => now()
-
-                                    ]);
-                                    $reinsurerId[] = $id;
-                                }
-                                if ($qt_re_id) {
-                                    $quote_reinsurer_Ids[] = $qt_re_id;
-                                }
-                            } catch (\Exception $e) {
-                                DB::rollback();
-                                return redirect()->back()
-                                    ->withInput()
-                                    ->withErrors(['error' => 'An unexpected error occurred: ' . $e->getMessage()]);
-                            }
-                        }
-                    }
-                }
-            }
-
-            if (!empty($manipulated_schedule_details) || !empty($manipulated_facschedule_details)) {
-                $all_schedule_details = array_merge($manipulated_schedule_details ?? [], $manipulated_facschedule_details ?? []);
-                switch ($request->bus_type) {
-                    case 'FAC':
-                        foreach ($all_schedule_details as $item) {
-                            if (!empty($item['details'])) {
-                                DB::table('quote_schedules')->insert([
-                                    'schedule_id' => $item['id'],
-                                    'name' => $item['name'],
-                                    'details' => $item['details'],
-                                    'opportunity_id' => $leadId,
-                                    'stage' => $request->stage_cycle ?? $request->stage_cycle_fac,
-                                    'quote_reverted_to_lead' => $quote_reverted_to_lead,
-                                    'created_at' => now(),
-                                ]);
-                            }
-                        }
-                        break;
-                    case 'TRT':
-                        foreach ($all_schedule_details as $item) {
-                            $details = json_decode($item['details'], true);
-                            $has_current_amount = isset($item['current_amount']) && !empty($item['current_amount']);
-                            $has_proposed_amount = isset($item['proposed_amount']) && !empty($item['proposed_amount']);
-                            $has_final_amount = isset($item['final_amount']) && !empty($item['final_amount']);
-
-
-                            if (
-                                !empty($details) &&
-                                ((isset($item['current_amount']) && !empty($item['current_amount'])) && (isset($item['proposed_amount']) && !empty($item['proposed_amount']))) ||
-                                (!empty($details['current']) || !empty($details['proposed']))
-                            ) {
-                                if (!empty($item['details'])) {
-                                    DB::table('quote_schedules')->insert([
-                                        'schedule_id' => $item['id'],
-                                        'name' => $item['name'],
-                                        // 'details' => $item['details'],
-
-                                        'current' => $has_current_amount ? ($item['current_amount'] ?? null) : ($details['current'] ?? null),
-                                        'proposed' => $has_proposed_amount ? ($item['proposed_amount'] ?? null) : ($details['proposed'] ?? null),
-                                        'final' => $has_final_amount ? ($item['final_amount'] ?? null) : ($details['final'] ?? null),
-                                        'opportunity_id' => $leadId,
-                                        'stage' => $request->stage_cycle ?? $request->stage_cycle_fac,
-                                        'quote_reverted_to_lead' => $quote_reverted_to_lead,
-                                        'created_at' => now(),
-                                    ]);
-                                }
-                            }
-                        }
-                        break;
-                }
-            }
-
-
-            // if ($request->stage_cycle == 4) {
-            //     if (!empty($manipulated_schedule_details)) {
-            //         $schedule_details = $manipulated_schedule_details ?? [];
-            //         foreach ($schedule_details as $item) {
-            //             if (is_array($customer_id) && is_array($customer_name)) {
-            //                 foreach ($customer_id as $index => $id) {
-            //                     DB::table('quote_schedules')->insert([
-            //                         'reinsurer_id' => $id,
-            //                         'reinsurer_name' => $customer_name[$index],
-            //                         'contact_name' => $contact_name[$index] ?? null,
-            //                         'details' => $item['details'],
-            //                         'opportunity_id' => $leadId
-            //                     ]);
-            //                 }
-            //             }
-            //         }
-            //     }
-            // }
-
-
-            // if ($request->stage_cycle == 4) {
-            //     if (!empty($manipulated_schedule_details)) {
-            //         $schedule_details = $manipulated_schedule_details ?? [];
-            //         foreach ($schedule_details as $item) {
-            //             if (is_array($customer_id) && is_array($customer_name)) {
-            //                 foreach ($customer_id as $index => $id) {
-            //                     DB::table('quote_schedules')->insert([
-            //                         'reinsurer_id' => $id,
-            //                         'reinsurer_name' => $customer_name[$index],
-            //                         'contact_name' => $contact_name[$index] ?? null,
-            //                         'details' => $item['details'],
-            //                         'opportunity_id' => $leadId
-            //                     ]);
-            //                 }
-            //             }
-            //         }
-            //     }
-            // }
-
-
-
-            if ($send_email_flag == 1 && !empty(array_filter($quote_reinsurer_Ids))) {
-
-                $customer_id = $reinsurerId ?? [];
-                $stage = $request->stage_cycle ?? $request->stage_cycle_fac;
-                $stageType = isset($request->stage_cycle) ? 1 : 2;
-
-                switch ($request->bus_type) {
-                    case 'FAC':
-                        $this->sendEmailFacSlipPerReinsurer($request->opp_id, $customer_id, $stage, $stageType, $request);
-                        break;
-                    case 'TRT':
-                        // logger('inside email treaty');
-                        // dd($checkbox_docs);
-                        $this->sendTreatyEmail($request->opp_id, $customer_id, $stage, $stageType, $request);
-                        break;
-                }
-            }
-
-
-            //insert file for quotation
-            if (isset($request->document_file, $stage_cycle)) {
-                if ($request->stage_cycle != 3 && $request->stage_cycle != 4) {
-                    $this->stageNotThreeOrFour($request, $uploadsPath, $document_name, $checkbox_docs, $quote_reinsurer_Ids, $leadId, $stage_cycle);
-                }
-                if ($request->stage_cycle == 3 || $request->stage_cycle == 4) {
-                    $this->stageEqualThreeOrFour($request, $uploadsPath, $document_name, $quote_reinsurer_Ids, $leadId, $stage_cycle);
-                }
-            }
-
-            //insert file for  fac logic
-            if (isset($request->document_file, $stage_cycle_fac) || $request->bus_type == 'TRT' && isset($stage_cycle_fac)) {
-                if ($request->stage_cycle_fac == 5 && $request->bus_type == 'TRT') {
-
-                    $this->stageNotThree($request, $uploadsPath, $document_name, $checkbox_docs, $quote_reinsurer_Ids, $leadId, $stage_cycle_fac);
-                }
-                if ($request->stage_cycle_fac == 4 && $request->bus_type == 'TRT') {
-                    $this->stageEqualThree($request, $uploadsPath, $document_name, $quote_reinsurer_Ids, $leadId, $stage_cycle_fac);
-                }
-                if ($request->stage_cycle_fac == 2 && $request->bus_type == 'FAC') {
-                    $this->stageNotThree($request, $uploadsPath, $document_name, $checkbox_docs, $quote_reinsurer_Ids, $leadId, $stage_cycle_fac);
-                }
-            }
-
-            if ($stage_cycle) {
-                if ($stage_cycle != 5 && $request->pq != 'Y') {
-
-                    $this->stageCycleNotEqualFive($leadId, $stage_cycle, $pipeline, $division, $request);
-                } else if ($stage_cycle == 5) {
-
-                    // $this->stageCycleEqualFive($leadId, $stage_cycle, $pipeline, $division);
-                    $opportunity = PipelineOpportunity::where('opportunity_id', $leadId)
-                        ->where('pipeline_id', $pipeline)
-                        ->where('divisions', $division)->firstOrFail();
-
-                    $opportunity->update([
-                        'stage' => $stage_cycle,
-                    ]);
-                    DB::commit();
-                    return redirect()->route('lead.handover', ['prospect' => $leadId]);
-                } else {
-                    $this->stageCycle($leadId, $stage_cycle);
-                }
-                if ($stage_cycle == 'W') {
-                    $this->stageCycleWon($leadId);
-                }
-            }
-
-            if ($stage_cycle_fac && $request->bus_type == "FAC") {
-                if ($stage_cycle_fac != 5 && $request->pq != 'Y') {
-
-                    $this->stageCycleFacNotEqualFour($leadId, $stage_cycle_fac, $pipeline, $division, $request);
-                } else if ($stage_cycle_fac == 5) {
-
-                    // $this->stageCycleFacEqualFour($leadId, $stage_cycle_fac, $pipeline, $division);
-                    $opportunity = PipelineOpportunity::where('opportunity_id', $leadId)
-                        ->where('pipeline_id', $pipeline)
-                        ->where('divisions', $division)->firstOrFail();
-
-                    $opportunity->update([
-                        'stage' => $stage_cycle,
-                    ]);
-                    DB::commit();
-                    return redirect()->route('lead.handover', ['prospect' => $leadId]);
-                } else {
-                    $this->stageCycleFac($leadId, $stage_cycle_fac);
-                }
-                if ($stage_cycle_fac == 'W') {
-                    $this->stageCycleFacWon($leadId);
-                }
-            }
-            if ($stage_cycle_fac && $request->bus_type == "TRT") {
-                if ($stage_cycle_fac != 9 && $request->pq != 'Y') {
-
-                    $this->stageCycleFacNotEqualNine($leadId, $stage_cycle_fac, $pipeline, $division, $request);
-                } else if ($stage_cycle_fac == 9) {
-
-                    // $this->stageCycleFacEqualFour($leadId, $stage_cycle_fac, $pipeline, $division);
-                    DB::table('pipeline_opportunities')
-                        ->where('opportunity_id', $leadId)
-                        ->where('pipeline_id', $pipeline)
-                        ->where('divisions', $division)
-                        ->update([
-                            'stage' => $stage_cycle_fac,
-                        ]);
-                    DB::commit();
-                    return redirect()->route('lead.handover', ['prospect' => $leadId]);
-                } else {
-                    $this->stageCycleFac($leadId, $stage_cycle_fac);
-                }
-                if ($stage_cycle_fac == 'W') {
-                    $this->stageCycleFacWon($leadId);
-                }
-            }
-
-            DB::commit();
-            // if ($stage == 0) {
-            //     return redirect()->route('pipelines.onboarding', ['qstring'=>Crypt::encrypt('pipeline='.$pipeline.'&prospect='.$leadId)])->with('success','Status updated successfully');
-            // }
-            return redirect()->back()->with('success', 'Status updated successfully');
-        } catch (\Throwable $th) {
-            DB::rollback();
-            Log::error('Something went wrong', [
-                'message' => $th->getMessage(),
-                'trace' => $th->getTraceAsString(),
-            ]);
-
-            // dd([
-            //     'message' => $th->getMessage(),
-            //     'file' => $th->getFile(),
-            //     'line' => $th->getLine(),
-            //     'trace' => $th->getTraceAsString(),
-            // ]);
-        }
+        logger()->debug($request->all());
+
+        return ['success' => true, 'data' => []];
+
+        // try {
+
+        //     DB::beginTransaction();
+        //     $leadId = $request->opp_id;
+        //     $pipeline = $request->pip_id;
+        //     $stage_cycle = $request->stage_cycle;
+        //     $stage_cycle_fac = $request->stage_cycle_fac;
+        //     $division = $request->division;
+        //     $underwriters = $request->underwriters;
+        //     $customer_id = $request->customer_id;
+        //     // dd($customer_id);
+        //     $customer_name = $request->customer_name;
+        //     $customer_email = $request->customer_email;
+        //     $selected_contact_person_main = $request->selected_contact_person_main;
+        //     $contact_name = $request->contact_name;
+        //     $schedule_details = !empty($request->schedule_details) ? ($request->schedule_details) : [];
+        //     $facschedule_details = !empty($request->facschedule_details) ? ($request->facschedule_details) : [];
+
+
+
+        //     $declineUncheckedCount = $request->declineUncheckedCount ?? null;
+        //     $document_name = $request->document_name;
+        //     $ced_checkbox_docs = $request->cedant_checkbox_docs ?? [];
+        //     $our_checkbox_docs = $request->our_checkbox_docs ?? [];
+        //     $received_docs_checkboxes = $request->received_docs_checkboxes ?? [];
+
+        //     $checkbox_docs = [];
+        //     // Ensure both arrays are defined and are arrays before merging
+
+        //     if ($request->bus_type == 'TRT') {
+        //         $newRequest = new Request($request->all());
+        //         $this->treaty_pipeline_create_opportunity($newRequest);
+        //         $checkbox_docs = array_merge(
+        //             array_map(function ($name) {
+        //                 return ['name' => $name, 'source' => 1];
+        //             }, $ced_checkbox_docs), //document required by cedant
+        //             array_map(function ($name) {
+        //                 return ['name' => $name, 'source' => 2];
+        //             }, $our_checkbox_docs), //document requred by us
+        //             array_map(function ($name) {
+        //                 return ['name' => $name, 'source' => 3];
+        //             }, $received_docs_checkboxes) //document received
+        //         );
+        //     }
+
+        //     $send_email_flag = $request->send_email_flag;
+
+        //     $pq_status = $request->pq_status;
+        //     $status = $request->status;
+        //     $query_text = $request->query_text;
+        //     $decline_negotiation_text = $request->decline_negotiation_text;
+
+        //     if ($schedule_details !== null) {
+        //         foreach ($schedule_details as &$item) {
+        //             if (isset($item['amount'])) {
+        //                 $item['details'] = $item['amount'];
+        //                 unset($item['amount']);
+        //             }
+        //         }
+        //     }
+        //     unset($item);
+        //     $manipulated_schedule_details = $schedule_details ?? [];
+
+        //     if ($facschedule_details !== null) {
+        //         foreach ($facschedule_details as &$item2) {
+        //             if (isset($item2['amount'])) {
+        //                 $item2['details'] = $item2['amount'];
+        //                 unset($item2['amount']);
+        //             }
+        //         }
+        //     }
+        //     unset($item2);
+        //     $manipulated_facschedule_details = $facschedule_details ?? [];
+
+
+        //     //*********update pipeline_opportunities***********
+        //     $all_schedule_details = array_merge($manipulated_schedule_details ?? [], $manipulated_facschedule_details ?? []);
+        //     $validNames = [
+        //         'FIRST LOSS',
+        //         'LIMIT OF INDEMNITY',
+        //         'MAXIMUM LOSS LIMIT',
+        //         'LIMIT OF LIABILITY',
+        //         'Agreed Value',
+        //         'Total Sum insured',
+        //         'TOP LOCATION'
+        //     ];
+        //     // dd($all_schedule_details);
+
+        //     $effective_sum_insured = null;
+        //     $rein_premium = null;
+        //     $reins_comm_rate = null;
+        //     $comm_rate = null;
+        //     $unplaced_share = $request->unplaced ?? null;
+        //     foreach ($all_schedule_details as $detail) {
+        //         if (!empty($detail['name']) && in_array($detail['name'], $validNames) && !empty($detail['details'])) {
+        //             $effective_sum_insured = $detail['details'];
+        //         }
+        //         if ($detail['name'] === 'Premium') {
+        //             $rein_premium = $detail['details'];
+        //         }
+        //         if ($detail['name'] === 'Reinsurer Commission Rate') {
+        //             $reins_comm_rate = $detail['details'];
+        //         }
+        //         if ($detail['name'] === 'Cedant Commission Rate') {
+        //             $comm_rate = $detail['details'];
+        //         }
+        //     }
+
+        //     // only update if the value is not empty
+        //     $updateData = [];
+        //     switch ($request->bus_type) {
+        //         case 'FAC':
+        //             if ($rein_premium)
+        //                 $updateData['rein_premium'] = str_replace(',', '', $rein_premium);
+        //             if ($reins_comm_rate)
+        //                 $updateData['reins_comm_rate'] = str_replace(',', '', $reins_comm_rate);
+        //             if ($comm_rate)
+        //                 $updateData['comm_rate'] = str_replace(',', '', $comm_rate);
+        //             if ($effective_sum_insured)
+        //                 $updateData['effective_sum_insured'] = str_replace(',', '', $effective_sum_insured);
+        //             if (isset($unplaced_share))
+        //                 $updateData['unplaced_share'] = $unplaced_share;
+        //             if (isset($request->written_share[0]))
+        //                 $updateData['fac_share_offered'] = str_replace(',', '', $request->written_share[0]);
+        //             if (!empty($updateData)) {
+        //                 DB::table('pipeline_opportunities')->where('opportunity_id', $request->opp_id)
+        //                     ->update($updateData);
+        //             }
+
+        //             break;
+        //     }
+
+
+
+        //     //********end update of pipeline_opportunities********
+        //     if (!is_null($underwriters)) {
+        //         foreach ($underwriters as $uws) {
+        //             DB::table('prospect_underwriters')->insert([
+        //                 'company_id' => $uws,
+        //                 'prospect_id' => $leadId
+        //             ]);
+        //         }
+        //     }
+
+
+        //     DB::table('stage_comments')->insert([
+        //         'prospect_id' => $leadId,
+        //         'stage_id' => $stage_cycle_fac ?? $stage_cycle,
+        //         'quote_title_intro' => $request->quote_title_intro
+        //     ]);
+
+
+
+
+        //     $quoteId = $this->generateQuoteNo($request->category_type, $request->opp_id);
+
+        //     // if($request->bus_type == 'TRT') {
+        //     //     $quote_reinsurer_Ids = ['TRT'];
+        //     // }
+        //     $quote_reinsurer_Ids = [];
+
+        //     // dd($stage_cycle);
+
+        //     if (($stage_cycle == 5 || $stage_cycle_fac == 5) && $request->bus_type == 'FAC') {
+        //         DB::table('pipeline_opportunities')
+        //             ->where('opportunity_id', $leadId)->update([
+        //                 'won_at' => now(),
+        //             ]);
+        //     }
+        //     if (($stage_cycle == 6 || $stage_cycle_fac == 6) && $request->bus_type == 'FAC') {
+        //         DB::table('pipeline_opportunities')
+        //             ->where('opportunity_id', $leadId)->update([
+        //                 'pipeline_id' => null,
+        //                 'year_before_revert' => DB::raw('pip_year'),
+        //                 'pip_year' => DB::raw('pip_year + 1'),
+        //                 'reverted_to_pipeline' => 'YES',
+        //                 'stage' => 6
+        //             ]);
+        //     }
+
+        //     $reinsurerId = [];
+
+        //     if (isset($stage_cycle_fac)) {
+        //         if ($stage_cycle_fac == 2 && $request->bus_type == 'FAC') {
+
+        //             if (is_array($customer_id) && is_array($customer_name)) {
+
+        //                 foreach ($customer_id as $index => $id) {
+
+        //                     $contactName = $selected_contact_person_main['contact_name'][$index] ?? null;
+        //                     $email = $selected_contact_person_main['contact_email'][$index] ?? null;
+        //                     $mainContactPerson = $selected_contact_person_main['main_contact_person'][$index] ?? null;
+        //                     $qt_re_id = '';
+        //                     try {
+        //                         $exist = DB::table('quote_reinsurers')->where([
+        //                             'reinsurer_id' => $id,
+        //                             'opportunity_id' => $leadId,
+        //                             'quote_id' => $quoteId,
+        //                             'stage' => $stage_cycle_fac
+        //                         ])->exists();
+        //                         if ($exist) {
+        //                             $reinsurerName = DB::table('customers')->where('customer_id', $id)->value('name');
+        //                             return redirect()->back()
+        //                                 ->withInput()
+        //                                 ->withErrors(['error' => $reinsurerName . "  " . 'data already exists']);
+        //                         } else {
+
+        //                             $qt_re_id = DB::table('quote_reinsurers')->insertGetId([
+        //                                 'reinsurer_id' => $id,
+        //                                 'reinsurer_name' => $customer_name[$index],
+        //                                 'email' => $email,
+        //                                 'contact_name' => $contactName,
+        //                                 'main_contact_person' => $mainContactPerson,
+        //                                 'written_share' => $request->written_share[$index] ?? null,
+        //                                 'opportunity_id' => $leadId,
+        //                                 'quote_id' => $quoteId,
+        //                                 'stage' => $stage_cycle_fac,
+        //                                 'created_at' => now(),
+        //                                 'updated_at' => now()
+        //                             ]);
+        //                             $reinsurerId[] = $id;
+        //                         }
+        //                         if ($qt_re_id) {
+        //                             $quote_reinsurer_Ids[] = $qt_re_id;
+        //                         } else {
+        //                         }
+        //                     } catch (\Exception $e) {
+        //                         DB::rollback();
+        //                         return redirect()->back()
+        //                             ->withInput()
+        //                             ->withErrors(['error' => 'An unexpected error occurred: ' . $e->getMessage()]);
+        //                     }
+        //                 }
+        //             }
+        //         } elseif (($stage_cycle_fac == 3 || $stage_cycle_fac == 4) && $request->bus_type == 'FAC') {
+        //             $reinsurers = $request->reinsurers;
+        //             $written_share = array_column($reinsurers, 'written_share');
+        //             $signed_share = array_column($reinsurers, 'signed_share');
+
+        //             if (is_array($reinsurers)) {
+        //                 $blockInsertions = false;
+        //                 foreach ($reinsurers as $idx => $re) {
+        //                     if (!empty($re['decline']) && empty($re['decline_inserted']) && $unplaced_share > 0) {
+        //                         $blockInsertions = true;
+        //                         break;
+        //                     }
+        //                 }
+
+        //                 foreach ($reinsurers as $index => $re_details) {
+        //                     $id = $re_details['customer_id'] ?? null;
+        //                     $name = $re_details['name'] ?? null;
+        //                     if (!isset($selected_contact_person_main) || !is_array($selected_contact_person_main)) {
+        //                         $selected_contact_person_main = [];
+        //                     }
+
+        //                     if ($stage_cycle_fac == 4) {
+        //                         $contactName = $selected_contact_person_main['contact_name'][$index] ?? 'not provided';
+        //                         $email = $selected_contact_person_main['contact_email'][$index] ?? 'not_provided@example.com';
+
+        //                         $mainContactPerson = $selected_contact_person_main['main_contact_person'][$index] ?? null;
+        //                     } else if ($stage_cycle_fac == 3) {
+        //                         $contactName = $selected_contact_person_main['contact_name'][0] ?? 'not provided';
+        //                         $email = $selected_contact_person_main['contact_email'][0] ?? 'not_provided@example.com';
+        //                         $mainContactPerson = $selected_contact_person_main['main_contact_person'][0] ?? null;
+        //                     }
+
+        //                     $declineCustomer = $re_details['decline'] ?? null;
+        //                     $declineInserted = $re_details['decline_inserted'] ?? null;
+        //                     $declineReason = $re_details['comments'] ?? null;
+        //                     $qt_re_id = "";
+
+        //                     try {
+        //                         if ($declineCustomer !== null && $declineCustomer !== '' && $declineInserted == null) {
+
+        //                             $data = [
+        //                                 'customer_id' => $declineCustomer,
+        //                                 'opportunity_id' => $leadId
+        //                             ];
+
+        //                             $rules = [
+        //                                 'customer_id' => 'required|integer',
+        //                                 'opportunity_id' => 'required'
+        //                             ];
+
+        //                             $validator = Validator::make($data, $rules);
+
+        //                             if ($validator->fails()) {
+        //                                 return redirect()->back()
+        //                                     ->withInput()
+        //                                     ->withErrors($validator->errors());
+        //                             }
+
+        //                             try {
+        //                                 ReinsurersDeclined::updateOrCreate(
+        //                                     [
+        //                                         'customer_id' => $data['customer_id'],
+        //                                         'opportunity_id' => $data['opportunity_id'],
+        //                                     ],
+        //                                     [
+        //                                         'reason' => $declineReason,
+        //                                     ]
+        //                                 );
+        //                             } catch (\Exception $e) {
+        //                                 DB::rollback();
+        //                                 return redirect()->back()
+        //                                     ->withInput()
+        //                                     ->withErrors(['error' => 'An unexpected error occurred: ' . $e->getMessage()]);
+        //                             }
+        //                             continue;
+        //                         }
+        //                         if (!$blockInsertions && (empty($declineCustomer))) {
+        //                             $exist = DB::table('quote_reinsurers')->where([
+        //                                 'reinsurer_id' => $id,
+        //                                 'opportunity_id' => $leadId,
+        //                                 'quote_id' => $quoteId,
+        //                                 'stage' => $stage_cycle_fac
+        //                             ])->exists();
+        //                             if ($exist) {
+        //                                 $reinsurerName = DB::table('customers')->where('customer_id', $id)->value('name');
+        //                                 return redirect()->back()
+        //                                     ->withInput()
+        //                                     ->withErrors(['error' => $reinsurerName . "  " . 'data already exists']);
+        //                             } else {
+        //                                 $qt_re_id = DB::table('quote_reinsurers')->insertGetId([
+        //                                     'reinsurer_id' => $id,
+        //                                     'reinsurer_name' => $name,
+        //                                     'email' => $email,
+        //                                     'contact_name' => $contactName,
+        //                                     'main_contact_person' => $mainContactPerson,
+        //                                     'written_share' => $written_share[$index],
+        //                                     'signed_share' => $signed_share[$index] ?? null,
+        //                                     'opportunity_id' => $leadId,
+        //                                     'quote_id' => $quoteId,
+        //                                     'stage' => $stage_cycle_fac,
+        //                                     'created_at' => now(),
+        //                                     'updated_at' => now()
+
+        //                                 ]);
+        //                                 $reinsurerId[] = $id;
+        //                             }
+        //                             if ($qt_re_id) {
+        //                                 $quote_reinsurer_Ids[] = $qt_re_id;
+        //                             }
+        //                         }
+        //                     } catch (\Exception $e) {
+        //                         DB::rollback();
+        //                         return redirect()->back()
+        //                             ->withInput()
+        //                             ->withErrors(['error' => 'An unexpected error occurred: ' . $e->getMessage()]);
+        //                     }
+        //                 }
+        //             } else {
+        //             }
+        //         }
+        //     }
+        //     $quote_reverted_to_lead = 'N';
+
+        //     if (isset($request->stage_cycle)) {
+        //         if ($request->stage_cycle == 2 && $request->bus_type == 'FAC') {
+
+
+        //             if (is_array($customer_id) && is_array($customer_name)) {
+        //                 foreach ($customer_id as $index => $id) {
+        //                     if (!isset($selected_contact_person_main) || !is_array($selected_contact_person_main)) {
+        //                         continue;
+        //                     }
+
+        //                     $contactName = $selected_contact_person_main['contact_name'][$index] ?? 'not provided';
+        //                     $email = $selected_contact_person_main['contact_email'][$index] ?? 'not_provided@example.com';
+        //                     $mainContactPerson = $selected_contact_person_main['main_contact_person'][$index] ?? null;
+
+        //                     if (!isset($customer_name[$index])) {
+        //                         continue;
+        //                     }
+        //                     $qt_re_id = "";
+        //                     if (isset($request->written_share[$index])) {
+        //                         $quote_reverted_to_lead = 'Y';
+        //                     }
+
+
+        //                     try {
+        //                         $exist = DB::table('quote_reinsurers')->where([
+        //                             'reinsurer_id' => $id,
+        //                             'opportunity_id' => $leadId,
+        //                             'quote_id' => $quoteId,
+        //                             'stage' => $stage_cycle
+        //                         ])->exists();
+        //                         if ($exist) {
+        //                             $reinsurerName = DB::table('customers')->where('customer_id', $id)->value('name');
+        //                             return redirect()->back()
+        //                                 ->withInput()
+        //                                 ->withErrors(['error' => $reinsurerName . "  " . 'data already exists']);
+        //                         } else {
+        //                             $qt_re_id = DB::table('quote_reinsurers')->insertGetId([
+        //                                 'reinsurer_id' => $id,
+        //                                 'reinsurer_name' => $customer_name[$index],
+        //                                 'email' => $email,
+        //                                 'contact_name' => $contactName,
+        //                                 'main_contact_person' => $mainContactPerson,
+        //                                 'written_share' => $request->written_share[$index] ?? null,
+        //                                 'opportunity_id' => $leadId,
+        //                                 'quote_id' => $quoteId,
+        //                                 'stage' => $stage_cycle,
+        //                                 'quote_reverted_to_lead' => $quote_reverted_to_lead,
+        //                                 'created_at' => now(),
+        //                                 'updated_at' => now()
+
+        //                             ]);
+        //                             $reinsurerId[] = $id;
+        //                         }
+        //                         if ($qt_re_id) {
+        //                             $quote_reinsurer_Ids[] = $qt_re_id;
+        //                         }
+        //                     } catch (\Exception $e) {
+        //                         DB::rollback();
+        //                         return redirect()->back()
+        //                             ->withInput()
+        //                             ->withErrors(['error' => 'An unexpected error occurred: ' . $e->getMessage()]);
+        //                     }
+        //                 }
+        //             } else {
+        //             }
+        //         } elseif (($stage_cycle == 3 || $stage_cycle == 4) && $request->bus_type == 'FAC') {
+        //             $reinsurers = $request->reinsurers;
+        //             $written_share = array_column($reinsurers, 'written_share');
+        //             $signed_share = !empty($reinsurers) ? array_column($reinsurers, 'signed_share') : null;
+
+        //             if (is_array($reinsurers) && !is_null($reinsurers)) {
+
+        //                 $blockInsertions = false;
+        //                 foreach ($reinsurers as $idx => $re) {
+        //                     if (!empty($re['decline']) && empty($re['decline_inserted']) && $unplaced_share > 0) {
+        //                         $blockInsertions = true;
+        //                         break;
+        //                     }
+        //                 }
+
+        //                 foreach ($reinsurers as $index => $re_details) {
+        //                     $id = $re_details['customer_id'] ?? null;
+        //                     $name = $re_details['name'] ?? null;
+
+        //                     if (!isset($selected_contact_person_main) || !is_array($selected_contact_person_main)) {
+        //                         $selected_contact_person_main = [];
+        //                     }
+        //                     if ($stage_cycle == 4) {
+        //                         $contactName = $selected_contact_person_main['contact_name'][$index] ?? 'not provided';
+        //                         $email = $selected_contact_person_main['contact_email'][$index] ?? 'not_provided@example.com';
+        //                         $mainContactPerson = $selected_contact_person_main['main_contact_person'][$index] ?? null;
+        //                     } else if ($stage_cycle == 3) {
+        //                         $contactName = $selected_contact_person_main['contact_name'][0] ?? 'not provided';
+        //                         $email = $selected_contact_person_main['contact_email'][0] ?? 'not_provided@example.com';
+
+        //                         $mainContactPerson = $selected_contact_person_main['main_contact_person'][0] ?? null;
+        //                     }
+
+        //                     $declineCustomer = $re_details['decline'] ?? null;
+        //                     $declineInserted = $re_details['decline_inserted'] ?? null;
+        //                     $declineReason = $re_details['comments'] ?? null;
+        //                     $qt_re_id = "";
+
+        //                     try {
+
+        //                         if ($declineCustomer !== null && $declineCustomer !== '' && $declineInserted == null) {
+
+        //                             $data = [
+        //                                 'customer_id' => $declineCustomer,
+        //                                 'opportunity_id' => $leadId
+        //                             ];
+
+        //                             $rules = [
+        //                                 'customer_id' => 'required|integer',
+        //                                 'opportunity_id' => 'required'
+        //                             ];
+
+        //                             $validator = Validator::make($data, $rules);
+
+        //                             if ($validator->fails()) {
+        //                                 return redirect()->back()
+        //                                     ->withInput()
+        //                                     ->withErrors($validator->errors());
+        //                             }
+        //                             if ($declineUncheckedCount !== "") {
+        //                                 pipelineOpportunity::updateOrCreate(['opportunity_id' => $leadId], ['decline_unchecked_count' => $declineUncheckedCount]);
+        //                             }
+
+        //                             try {
+        //                                 ReinsurersDeclined::updateOrCreate(
+        //                                     [
+        //                                         'customer_id' => $data['customer_id'],
+        //                                         'opportunity_id' => $data['opportunity_id'],
+        //                                     ],
+        //                                     [
+        //                                         'reason' => $declineReason,
+        //                                     ]
+
+
+        //                                 );
+        //                             } catch (\Exception $e) {
+        //                                 DB::rollback();
+        //                                 return redirect()->back()
+        //                                     ->withInput()
+        //                                     ->withErrors(['error' => 'An unexpected error occurred: ' . $e->getMessage()]);
+        //                             }
+        //                             continue;
+        //                         }
+
+        //                         if (!$blockInsertions && (empty($declineCustomer))) {
+        //                             $exist = DB::table('quote_reinsurers')->where([
+        //                                 'reinsurer_id' => $id,
+        //                                 'opportunity_id' => $leadId,
+        //                                 'quote_id' => $quoteId,
+        //                                 'stage' => $stage_cycle
+        //                             ])->exists();
+        //                             if ($exist) {
+        //                                 $reinsurerName = DB::table('customers')->where('customer_id', $id)->value('name');
+        //                                 return redirect()->back()
+        //                                     ->withInput()
+        //                                     ->withErrors(['error' => $reinsurerName . "  " . 'data already exists']);
+        //                             } else {
+        //                                 $qt_re_id = DB::table('quote_reinsurers')->insertGetId([
+        //                                     'reinsurer_id' => $id,
+        //                                     'reinsurer_name' => $name,
+        //                                     'email' => $email,
+        //                                     'contact_name' => $contactName,
+        //                                     'main_contact_person' => $mainContactPerson,
+        //                                     'written_share' => $written_share[$index],
+        //                                     'signed_share' => $signed_share[$index] ?? null,
+        //                                     'opportunity_id' => $leadId,
+        //                                     'quote_id' => $quoteId,
+        //                                     'stage' => $stage_cycle,
+        //                                     'created_at' => now(),
+        //                                     'updated_at' => now()
+
+        //                                 ]);
+        //                                 $reinsurerId[] = $id;
+        //                             }
+        //                             if ($qt_re_id) {
+
+        //                                 $quote_reinsurer_Ids[] = $qt_re_id;
+        //                             }
+        //                         }
+        //                     } catch (\Exception $e) {
+        //                         DB::rollback();
+        //                         return redirect()->back()
+        //                             ->withInput()
+        //                             ->withErrors(['error' => 'An unexpected error occurred: ' . $e->getMessage()]);
+        //                     }
+        //                 }
+        //             } else {
+        //             }
+        //         }
+        //     }
+        //     if (isset($request->stage_cycle) && $request->bus_type == 'TRT') {
+        //         if ($request->stage_cycle == 3 || $request->stage_cycle == 4) {
+        //             $customer_id = $request->customer_id;
+
+        //             if (!is_null($customer_id)) {
+        //                 $id = $customer_id;
+        //                 $name = $request->customer;
+
+        //                 if (!isset($selected_contact_person_main) || !is_array($selected_contact_person_main)) {
+        //                     $selected_contact_person_main = [];
+        //                 }
+
+        //                 $contactName = $selected_contact_person_main['contact_name'][0] ?? 'not provided';
+        //                 $email = $selected_contact_person_main['contact_email'][0] ?? 'not_provided@example.com';
+        //                 $mainContactPerson = $selected_contact_person_main['main_contact_person'][0] ?? null;
+
+        //                 $declineCustomer = $re_details['decline'] ?? null;
+        //                 $declineInserted = $re_details['decline_inserted'] ?? null;
+        //                 $declineReason = $re_details['comments'] ?? null;
+        //                 $qt_re_id = "";
+
+        //                 try {
+        //                     $exist = DB::table('quote_reinsurers')->where([
+        //                         'reinsurer_id' => $id,
+        //                         'opportunity_id' => $leadId,
+        //                         'quote_id' => $quoteId,
+        //                         'stage' => $stage_cycle
+        //                     ])->exists();
+        //                     if ($exist) {
+        //                         $reinsurerName = DB::table('customers')->where('customer_id', $id)->value('name');
+        //                         return redirect()->back()
+        //                             ->withInput()
+        //                             ->withErrors(['error' => $reinsurerName . "  " . 'data already exists']);
+        //                     } else {
+
+        //                         $qt_re_id = DB::table('quote_reinsurers')->insertGetId([
+        //                             'reinsurer_id' => $id,
+        //                             'reinsurer_name' => $name,
+        //                             'email' => $email,
+        //                             'contact_name' => $contactName,
+        //                             'main_contact_person' => $mainContactPerson,
+        //                             'opportunity_id' => $leadId,
+        //                             'quote_id' => $quoteId,
+        //                             'stage' => $stage_cycle,
+        //                             'created_at' => now(),
+        //                             'updated_at' => now()
+
+        //                         ]);
+        //                         $reinsurerId[] = $id;
+        //                     }
+        //                     if ($qt_re_id) {
+        //                         $quote_reinsurer_Ids[] = $qt_re_id;
+        //                     }
+        //                 } catch (\Exception $e) {
+        //                     DB::rollback();
+        //                     return redirect()->back()
+        //                         ->withInput()
+        //                         ->withErrors(['error' => 'An unexpected error occurred: ' . $e->getMessage()]);
+        //                 }
+        //             } else {
+        //             }
+        //         } else if ($request->stage_cycle == 5) {
+        //             if (is_array($customer_id) && is_array($customer_name)) {
+        //                 foreach ($customer_id as $index => $id) {
+        //                     if (!isset($selected_contact_person_main) || !is_array($selected_contact_person_main)) {
+        //                         continue;
+        //                     }
+
+        //                     $contactName = $selected_contact_person_main['contact_name'][$index] ?? 'not provided';
+        //                     $email = $selected_contact_person_main['contact_email'][$index] ?? 'not_provided@example.com';
+        //                     $mainContactPerson = $selected_contact_person_main['main_contact_person'][$index] ?? null;
+
+        //                     if (!isset($customer_name[$index])) {
+        //                         continue;
+        //                     }
+        //                     $qt_re_id = "";
+        //                     if (isset($request->written_share[$index])) {
+        //                         $quote_reverted_to_lead = 'Y';
+        //                     }
+
+        //                     try {
+        //                         $exist = DB::table('quote_reinsurers')->where([
+        //                             'reinsurer_id' => $id,
+        //                             'opportunity_id' => $leadId,
+        //                             'quote_id' => $quoteId,
+        //                             'stage' => $stage_cycle
+        //                         ])->exists();
+        //                         if ($exist) {
+        //                             $reinsurerName = DB::table('customers')->where('customer_id', $id)->value('name');
+        //                             return redirect()->back()
+        //                                 ->withInput()
+        //                                 ->withErrors(['error' => $reinsurerName . "  " . 'data already exists']);
+        //                         } else {
+        //                             $qt_re_id = DB::table('quote_reinsurers')->insertGetId([
+        //                                 'reinsurer_id' => $id,
+        //                                 'reinsurer_name' => $customer_name[$index],
+        //                                 'email' => $email,
+        //                                 'contact_name' => $contactName,
+        //                                 'main_contact_person' => $mainContactPerson,
+        //                                 'opportunity_id' => $leadId,
+        //                                 'quote_id' => $quoteId,
+        //                                 'stage' => $stage_cycle,
+        //                                 'quote_reverted_to_lead' => $quote_reverted_to_lead,
+        //                                 'created_at' => now(),
+        //                                 'updated_at' => now()
+
+        //                             ]);
+        //                             $reinsurerId[] = $id;
+        //                         }
+        //                         if ($qt_re_id) {
+        //                             $quote_reinsurer_Ids[] = $qt_re_id;
+        //                         }
+        //                     } catch (\Exception $e) {
+        //                         DB::rollback();
+        //                         return redirect()->back()
+        //                             ->withInput()
+        //                             ->withErrors(['error' => 'An unexpected error occurred: ' . $e->getMessage()]);
+        //                     }
+        //                 }
+        //             }
+        //         }
+        //     }
+
+        //     if (isset($request->stage_cycle_fac) && $request->bus_type == 'TRT') {
+        //         if ($request->stage_cycle_fac == 4) {
+        //             $customer_id = $request->customer_id;
+        //             // dd($request->all());
+        //             if (!is_null($customer_id)) {
+        //                 $id = $customer_id;
+        //                 $name = $request->customer;
+
+        //                 if (!isset($selected_contact_person_main) || !is_array($selected_contact_person_main)) {
+        //                     $selected_contact_person_main = [];
+        //                 }
+
+
+        //                 $contactName = $selected_contact_person_main['contact_name'][0] ?? 'not provided';
+        //                 $email = $selected_contact_person_main['contact_email'][0] ?? 'not_provided@example.com';
+        //                 $mainContactPerson = $selected_contact_person_main['main_contact_person'][0] ?? null;
+
+
+        //                 $declineCustomer = $re_details['decline'] ?? null;
+        //                 $declineInserted = $re_details['decline_inserted'] ?? null;
+        //                 $declineReason = $re_details['comments'] ?? null;
+        //                 $qt_re_id = "";
+
+        //                 try {
+
+
+        //                     $exist = DB::table('quote_reinsurers')->where([
+        //                         'reinsurer_id' => $id,
+        //                         'opportunity_id' => $leadId,
+        //                         'quote_id' => $quoteId,
+        //                         'stage' => $stage_cycle_fac
+        //                     ])->exists();
+        //                     if ($exist) {
+        //                         $reinsurerName = DB::table('customers')->where('customer_id', $id)->value('name');
+        //                         return redirect()->back()
+        //                             ->withInput()
+        //                             ->withErrors(['error' => $reinsurerName . "  " . 'data already exists']);
+        //                     } else {
+
+        //                         $qt_re_id = DB::table('quote_reinsurers')->insertGetId([
+        //                             'reinsurer_id' => $id,
+        //                             'reinsurer_name' => $name,
+        //                             'email' => $email,
+        //                             'contact_name' => $contactName,
+        //                             'main_contact_person' => $mainContactPerson,
+        //                             'opportunity_id' => $leadId,
+        //                             'quote_id' => $quoteId,
+        //                             'stage' => $stage_cycle_fac,
+        //                             'created_at' => now(),
+        //                             'updated_at' => now()
+
+        //                         ]);
+        //                         $reinsurerId[] = $id;
+        //                     }
+        //                     if ($qt_re_id) {
+        //                         $quote_reinsurer_Ids[] = $qt_re_id;
+        //                     }
+        //                 } catch (\Exception $e) {
+        //                     DB::rollback();
+        //                     return redirect()->back()
+        //                         ->withInput()
+        //                         ->withErrors(['error' => 'An unexpected error occurred: ' . $e->getMessage()]);
+        //                 }
+        //             } else {
+        //             }
+        //         } else if ($request->stage_cycle_fac == 4) {
+        //             if (is_array($customer_id) && is_array($customer_name)) {
+        //                 foreach ($customer_id as $index => $id) {
+        //                     if (!isset($selected_contact_person_main) || !is_array($selected_contact_person_main)) {
+        //                         continue;
+        //                     }
+
+        //                     $contactName = $selected_contact_person_main['contact_name'][$index] ?? 'not provided';
+        //                     $email = $selected_contact_person_main['contact_email'][$index] ?? 'not_provided@example.com';
+        //                     $mainContactPerson = $selected_contact_person_main['main_contact_person'][$index] ?? null;
+
+        //                     if (!isset($customer_name[$index])) {
+        //                         continue;
+        //                     }
+        //                     $qt_re_id = "";
+        //                     if (isset($request->written_share[$index])) {
+        //                         $quote_reverted_to_lead = 'Y';
+        //                     }
+
+
+        //                     try {
+        //                         $exist = DB::table('quote_reinsurers')->where([
+        //                             'reinsurer_id' => $id,
+        //                             'opportunity_id' => $leadId,
+        //                             'quote_id' => $quoteId,
+        //                             'stage' => $stage_cycle
+        //                         ])->exists();
+        //                         if ($exist) {
+        //                             $reinsurerName = DB::table('customers')->where('customer_id', $id)->value('name');
+        //                             return redirect()->back()
+        //                                 ->withInput()
+        //                                 ->withErrors(['error' => $reinsurerName . "  " . 'data already exists']);
+        //                         } else {
+        //                             $qt_re_id = DB::table('quote_reinsurers')->insertGetId([
+        //                                 'reinsurer_id' => $id,
+        //                                 'reinsurer_name' => $customer_name[$index],
+        //                                 'email' => $email,
+        //                                 'contact_name' => $contactName,
+        //                                 'main_contact_person' => $mainContactPerson,
+        //                                 'opportunity_id' => $leadId,
+        //                                 'quote_id' => $quoteId,
+        //                                 'stage' => $stage_cycle,
+        //                                 'quote_reverted_to_lead' => $quote_reverted_to_lead,
+        //                                 'created_at' => now(),
+        //                                 'updated_at' => now()
+
+        //                             ]);
+        //                             $reinsurerId[] = $id;
+        //                         }
+        //                         if ($qt_re_id) {
+        //                             $quote_reinsurer_Ids[] = $qt_re_id;
+        //                         }
+        //                     } catch (\Exception $e) {
+        //                         DB::rollback();
+        //                         return redirect()->back()
+        //                             ->withInput()
+        //                             ->withErrors(['error' => 'An unexpected error occurred: ' . $e->getMessage()]);
+        //                     }
+        //                 }
+        //             }
+        //         }
+        //     }
+
+        //     if (!empty($manipulated_schedule_details) || !empty($manipulated_facschedule_details)) {
+        //         $all_schedule_details = array_merge($manipulated_schedule_details ?? [], $manipulated_facschedule_details ?? []);
+        //         switch ($request->bus_type) {
+        //             case 'FAC':
+        //                 foreach ($all_schedule_details as $item) {
+        //                     if (!empty($item['details'])) {
+        //                         DB::table('quote_schedules')->insert([
+        //                             'schedule_id' => $item['id'],
+        //                             'name' => $item['name'],
+        //                             'details' => $item['details'],
+        //                             'opportunity_id' => $leadId,
+        //                             'stage' => $request->stage_cycle ?? $request->stage_cycle_fac,
+        //                             'quote_reverted_to_lead' => $quote_reverted_to_lead,
+        //                             'created_at' => now(),
+        //                         ]);
+        //                     }
+        //                 }
+        //                 break;
+        //             case 'TRT':
+        //                 foreach ($all_schedule_details as $item) {
+        //                     $details = json_decode($item['details'], true);
+        //                     $has_current_amount = isset($item['current_amount']) && !empty($item['current_amount']);
+        //                     $has_proposed_amount = isset($item['proposed_amount']) && !empty($item['proposed_amount']);
+        //                     $has_final_amount = isset($item['final_amount']) && !empty($item['final_amount']);
+
+
+        //                     if (
+        //                         !empty($details) &&
+        //                         ((isset($item['current_amount']) && !empty($item['current_amount'])) && (isset($item['proposed_amount']) && !empty($item['proposed_amount']))) ||
+        //                         (!empty($details['current']) || !empty($details['proposed']))
+        //                     ) {
+        //                         if (!empty($item['details'])) {
+        //                             DB::table('quote_schedules')->insert([
+        //                                 'schedule_id' => $item['id'],
+        //                                 'name' => $item['name'],
+        //                                 // 'details' => $item['details'],
+
+        //                                 'current' => $has_current_amount ? ($item['current_amount'] ?? null) : ($details['current'] ?? null),
+        //                                 'proposed' => $has_proposed_amount ? ($item['proposed_amount'] ?? null) : ($details['proposed'] ?? null),
+        //                                 'final' => $has_final_amount ? ($item['final_amount'] ?? null) : ($details['final'] ?? null),
+        //                                 'opportunity_id' => $leadId,
+        //                                 'stage' => $request->stage_cycle ?? $request->stage_cycle_fac,
+        //                                 'quote_reverted_to_lead' => $quote_reverted_to_lead,
+        //                                 'created_at' => now(),
+        //                             ]);
+        //                         }
+        //                     }
+        //                 }
+        //                 break;
+        //         }
+        //     }
+
+
+        //     // if ($request->stage_cycle == 4) {
+        //     //     if (!empty($manipulated_schedule_details)) {
+        //     //         $schedule_details = $manipulated_schedule_details ?? [];
+        //     //         foreach ($schedule_details as $item) {
+        //     //             if (is_array($customer_id) && is_array($customer_name)) {
+        //     //                 foreach ($customer_id as $index => $id) {
+        //     //                     DB::table('quote_schedules')->insert([
+        //     //                         'reinsurer_id' => $id,
+        //     //                         'reinsurer_name' => $customer_name[$index],
+        //     //                         'contact_name' => $contact_name[$index] ?? null,
+        //     //                         'details' => $item['details'],
+        //     //                         'opportunity_id' => $leadId
+        //     //                     ]);
+        //     //                 }
+        //     //             }
+        //     //         }
+        //     //     }
+        //     // }
+
+
+        //     // if ($request->stage_cycle == 4) {
+        //     //     if (!empty($manipulated_schedule_details)) {
+        //     //         $schedule_details = $manipulated_schedule_details ?? [];
+        //     //         foreach ($schedule_details as $item) {
+        //     //             if (is_array($customer_id) && is_array($customer_name)) {
+        //     //                 foreach ($customer_id as $index => $id) {
+        //     //                     DB::table('quote_schedules')->insert([
+        //     //                         'reinsurer_id' => $id,
+        //     //                         'reinsurer_name' => $customer_name[$index],
+        //     //                         'contact_name' => $contact_name[$index] ?? null,
+        //     //                         'details' => $item['details'],
+        //     //                         'opportunity_id' => $leadId
+        //     //                     ]);
+        //     //                 }
+        //     //             }
+        //     //         }
+        //     //     }
+        //     // }
+
+
+
+        //     if ($send_email_flag == 1 && !empty(array_filter($quote_reinsurer_Ids))) {
+
+        //         $customer_id = $reinsurerId ?? [];
+        //         $stage = $request->stage_cycle ?? $request->stage_cycle_fac;
+        //         $stageType = isset($request->stage_cycle) ? 1 : 2;
+
+        //         switch ($request->bus_type) {
+        //             case 'FAC':
+        //                 $this->sendEmailFacSlipPerReinsurer($request->opp_id, $customer_id, $stage, $stageType, $request);
+        //                 break;
+        //             case 'TRT':
+        //                 // logger('inside email treaty');
+        //                 // dd($checkbox_docs);
+        //                 $this->sendTreatyEmail($request->opp_id, $customer_id, $stage, $stageType, $request);
+        //                 break;
+        //         }
+        //     }
+
+
+        //     //insert file for quotation
+        //     if (isset($request->document_file, $stage_cycle)) {
+        //         if ($request->stage_cycle != 3 && $request->stage_cycle != 4) {
+        //             $this->stageNotThreeOrFour($request, $uploadsPath, $document_name, $checkbox_docs, $quote_reinsurer_Ids, $leadId, $stage_cycle);
+        //         }
+        //         if ($request->stage_cycle == 3 || $request->stage_cycle == 4) {
+        //             $this->stageEqualThreeOrFour($request, $uploadsPath, $document_name, $quote_reinsurer_Ids, $leadId, $stage_cycle);
+        //         }
+        //     }
+
+        //     //insert file for  fac logic
+        //     if (isset($request->document_file, $stage_cycle_fac) || $request->bus_type == 'TRT' && isset($stage_cycle_fac)) {
+        //         if ($request->stage_cycle_fac == 5 && $request->bus_type == 'TRT') {
+
+        //             $this->stageNotThree($request, $uploadsPath, $document_name, $checkbox_docs, $quote_reinsurer_Ids, $leadId, $stage_cycle_fac);
+        //         }
+        //         if ($request->stage_cycle_fac == 4 && $request->bus_type == 'TRT') {
+        //             $this->stageEqualThree($request, $uploadsPath, $document_name, $quote_reinsurer_Ids, $leadId, $stage_cycle_fac);
+        //         }
+        //         if ($request->stage_cycle_fac == 2 && $request->bus_type == 'FAC') {
+        //             $this->stageNotThree($request, $uploadsPath, $document_name, $checkbox_docs, $quote_reinsurer_Ids, $leadId, $stage_cycle_fac);
+        //         }
+        //     }
+
+        //     if ($stage_cycle) {
+        //         if ($stage_cycle != 5 && $request->pq != 'Y') {
+
+        //             $this->stageCycleNotEqualFive($leadId, $stage_cycle, $pipeline, $division, $request);
+        //         } else if ($stage_cycle == 5) {
+
+        //             // $this->stageCycleEqualFive($leadId, $stage_cycle, $pipeline, $division);
+        //             $opportunity = PipelineOpportunity::where('opportunity_id', $leadId)
+        //                 ->where('pipeline_id', $pipeline)
+        //                 ->where('divisions', $division)->firstOrFail();
+
+        //             $opportunity->update([
+        //                 'stage' => $stage_cycle,
+        //             ]);
+        //             DB::commit();
+        //             return redirect()->route('lead.handover', ['prospect' => $leadId]);
+        //         } else {
+        //             $this->stageCycle($leadId, $stage_cycle);
+        //         }
+        //         if ($stage_cycle == 'W') {
+        //             $this->stageCycleWon($leadId);
+        //         }
+        //     }
+
+        //     if ($stage_cycle_fac && $request->bus_type == "FAC") {
+        //         if ($stage_cycle_fac != 5 && $request->pq != 'Y') {
+
+        //             $this->stageCycleFacNotEqualFour($leadId, $stage_cycle_fac, $pipeline, $division, $request);
+        //         } else if ($stage_cycle_fac == 5) {
+
+        //             // $this->stageCycleFacEqualFour($leadId, $stage_cycle_fac, $pipeline, $division);
+        //             $opportunity = PipelineOpportunity::where('opportunity_id', $leadId)
+        //                 ->where('pipeline_id', $pipeline)
+        //                 ->where('divisions', $division)->firstOrFail();
+
+        //             $opportunity->update([
+        //                 'stage' => $stage_cycle,
+        //             ]);
+        //             DB::commit();
+        //             return redirect()->route('lead.handover', ['prospect' => $leadId]);
+        //         } else {
+        //             $this->stageCycleFac($leadId, $stage_cycle_fac);
+        //         }
+        //         if ($stage_cycle_fac == 'W') {
+        //             $this->stageCycleFacWon($leadId);
+        //         }
+        //     }
+        //     if ($stage_cycle_fac && $request->bus_type == "TRT") {
+        //         if ($stage_cycle_fac != 9 && $request->pq != 'Y') {
+
+        //             $this->stageCycleFacNotEqualNine($leadId, $stage_cycle_fac, $pipeline, $division, $request);
+        //         } else if ($stage_cycle_fac == 9) {
+
+        //             // $this->stageCycleFacEqualFour($leadId, $stage_cycle_fac, $pipeline, $division);
+        //             DB::table('pipeline_opportunities')
+        //                 ->where('opportunity_id', $leadId)
+        //                 ->where('pipeline_id', $pipeline)
+        //                 ->where('divisions', $division)
+        //                 ->update([
+        //                     'stage' => $stage_cycle_fac,
+        //                 ]);
+        //             DB::commit();
+        //             return redirect()->route('lead.handover', ['prospect' => $leadId]);
+        //         } else {
+        //             $this->stageCycleFac($leadId, $stage_cycle_fac);
+        //         }
+        //         if ($stage_cycle_fac == 'W') {
+        //             $this->stageCycleFacWon($leadId);
+        //         }
+        //     }
+
+        //     DB::commit();
+        //     // if ($stage == 0) {
+        //     //     return redirect()->route('pipelines.onboarding', ['qstring'=>Crypt::encrypt('pipeline='.$pipeline.'&prospect='.$leadId)])->with('success','Status updated successfully');
+        //     // }
+        //     return redirect()->back()->with('success', 'Status updated successfully');
+        // } catch (\Throwable $th) {
+        //     DB::rollback();
+        //     Log::error('Something went wrong', [
+        //         'message' => $th->getMessage(),
+        //         'trace' => $th->getTraceAsString(),
+        //     ]);
+
+        //     // dd([
+        //     //     'message' => $th->getMessage(),
+        //     //     'file' => $th->getFile(),
+        //     //     'line' => $th->getLine(),
+        //     //     'trace' => $th->getTraceAsString(),
+        //     // ]);
+        // }
+    }
+
+    public function sendBDNotification(Request $request)
+    {
+        return [];
     }
 
     public function stageNotThreeOrFour($request, $uploadsPath, $document_name, $checkbox_docs, $quote_reinsurer_Ids, $leadId, $stage_cycle)
@@ -8202,8 +8202,6 @@ class PipelineController
 
             $headers = $query->get();
 
-            // logger()->debug(json_encode($headers, JSON_PRETTY_PRINT));
-
             return response()->json([
                 'success' => true,
                 'headers' => $headers->map(function ($header) {
@@ -8253,8 +8251,6 @@ class PipelineController
             // ]);
 
             $schedules = QuoteScheduleHeader::orderBy('position', 'asc')->get();
-
-            logger()->debug($schedules);
 
             return [];
         } catch (\Exception $e) {

@@ -47,6 +47,7 @@ final class Stage extends Enum
         if (self::hasValue($key)) {
             return new static($key);
         }
+
         return null;
     }
 
