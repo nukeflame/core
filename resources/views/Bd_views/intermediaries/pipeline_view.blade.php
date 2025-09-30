@@ -170,12 +170,6 @@
 
         @include('Bd_views.intermediaries.partials.modals.fac_email_modal')
         @include('Bd_views.intermediaries.partials.modals.proposal_modal')
-        {{-- @includeIf('Bd_views.intermediaries.partials.modals.negotiation_modal')
-        @includeIf('Bd_views.intermediaries.partials.modals.lead_modal')
-        @includeIf('Bd_views.intermediaries.partials.modals.won_modal')
-        @includeIf('Bd_views.intermediaries.partials.modals.lost_modal')
-        @includeIf('Bd_views.intermediaries.partials.modals.final_modal')
-        @includeIf('Bd_views.intermediaries.partials.modals.update_category_modal') --}}
     </div>
 @endsection
 
@@ -407,6 +401,7 @@
         class PipelineManager {
             constructor() {
                 this.chartInstance = null;
+                this.totalSumInsured = null;
                 this.currentDealId = null;
                 this.currentStage = "lead";
                 this.escapeKeyHandler = null;
@@ -418,7 +413,8 @@
                         pipelineData: "{{ route('pipeline.sales.get_pipeline_data') }}",
                         chartData: "{{ route('pipeline.sales.get_pipeline_chart_data') }}",
                         scheduleHeaders: "{{ route('schedule.headers.get') }}",
-                        slipDocuments: "{{ route('schedule.get_stage_documents') }}"
+                        slipDocuments: "{{ route('schedule.get_stage_documents') }}",
+                        getBdTerms: "{{ route('get.bd_terms') }}",
                     },
                     stageFlow: {
                         lead: {
@@ -917,6 +913,7 @@
 
                     const data = {
                         dealId: dealId,
+                        opportunityId: dealInfo.id,
                         typeOfBus: dealInfo ? dealInfo.type_of_business : null,
                         modalId: modalId,
                         class: dealInfo ? dealInfo.class : null,
@@ -926,6 +923,7 @@
                         sumInsuredType: dealInfo?.sum_insured_type
                     };
 
+                    this.loadBdTerms(data)
                     this.loadScheduleHeaders(data);
                     this.loadSlipDocuments(data);
                     this.populateModalData(modalId, dealId, dealInfo);
@@ -979,6 +977,8 @@
                     $modal.find('.insured-contact-name-display').text(dealInfo.contact_name || '--');
                     $modal.find('.sum_insured_type').text(`(${dealInfo.sum_insured_type})` || '');
 
+                    $modal.find('#opportunity_id').val(dealInfo.id);
+
                     $modal.find('.total_sum_insured').val(dealInfo.total_sum_insured || '0.00');
                     $modal.find('.premium').val(dealInfo.premium || '0.00');
                     $modal.find('.brokerage_rate').val(dealInfo.brokerage_rate || '0.00');
@@ -1020,6 +1020,47 @@
                         this.showError('Failed to load schedule headers');
                     }
                 });
+            }
+
+            loadBdTerms(data) {
+                if (!data.dealId || !data.class || !data.classGroup) {
+                    return;
+                }
+
+                $.ajax({
+                    url: this.config.routes.getBdTerms,
+                    method: 'GET',
+                    data: {
+                        opportunity_id: data.opportunityId,
+                    },
+                    success: (response) => {
+                        if (response.success) {
+                            this.renderBdTerms(response.data, data);
+                        }
+                    },
+                    error: (xhr, status, error) => {
+                        this.handleError('Error loading schedule headers', {
+                            xhr,
+                            status,
+                            error
+                        });
+                        this.showError('Failed to load schedule headers');
+                    }
+                });
+            }
+
+            renderBdTerms(data, dealInfo) {
+                const $modal = $(`#${dealInfo.modalId}`);
+
+                if (data.length > 0) {
+                    for (let i = 0; i < data.length; i++) {
+                        const v = data[i];
+                        if (v.title === 'total_sum_insured_breakdown') {
+                            $modal.find('#totalSumInsuredContent').val(v.content);
+                            $modal.find('#specialConditions').val(v.short_content ?? '');
+                        }
+                    }
+                }
             }
 
             loadSlipDocuments(data) {

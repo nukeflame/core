@@ -11,9 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('gltransactions', function (Blueprint $table) {
-            $table->string('batch_no',20)->nullable(true);
-            $table->string('cheque_no',20)->nullable(true);
+        Schema::create('bd_reinsurers_contacts', function (Blueprint $table) {
+            $table->id();
+            $table->timestamps();
         });
     }
 
@@ -22,9 +22,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('gltransactions', function (Blueprint $table) {
-            $table->dropColumn('batch_no');
-            $table->dropColumn('cheque_no');
-        });
+        Schema::dropIfExists('bd_reinsurers_contacts');
     }
 };

@@ -1,36 +1,36 @@
-<div id="composeForm">
-    <div class="d-flex justify-content-between align-items-center mb-4">
+<div id="bdComposeForm">
+    <div class="d-flex justify-content-between align-items-center mb-3">
         <h2 class="mb-0" id="composeTitle">Compose New Email</h2>
         <button type="button" class="btn btn-outline-secondary btn-sm" id="clearFormBtn" style="display: none;">
             Start New Email Instead
         </button>
     </div>
 
-    <form id="emailForm" class="claimReinEmailForm" novalidate>
+    <form id="bdEmailForm" class="bd_email_form" novalidate>
         @csrf
-        <input type="hidden" id="replyToId" name="reply_to_id">
+        {{-- <input type="hidden" id="replyToId" name="reply_to_id">
         <input type="hidden" id="originalMessageId" name="original_message_id">
         <input type="hidden" name="claim_no" value="{{ $ClaimRegister->claim_no }}">
         <input type="hidden" name="customer_id" value="{{ $ClaimRegister->customer_id }}">
         <input type="hidden" name="claim_notice_file" id="claimNoticeFile">
         <input type="hidden" name="debit_note_file" id="debitNoteFile">
-        <input type="hidden" name="partner_email" id="partnerToEmail">
+        <input type="hidden" name="partner_email" id="partnerToEmail"> --}}
 
         <!-- Recipients Row -->
-        <div class="row mb-2">
-            <div class="col-md-12">
+        <div class="row">
+            <div class="col-md-12 mb-3">
                 <label for="toEmail" class="form-label">To: <span class="text-danger">*</span></label>
                 <input type="text" class="form-inputs custom-disabled" id="toEmail" name="to_email" value=""
                     required readonly>
                 <div class="invalid-feedback"></div>
             </div>
-            <div class="col-md-12">
+            <div class="col-md-12 mb-3">
                 <label for="contacts" class="form-label">Contacts: <span class="text-danger">*</span></label>
                 <select class="form-inputs select2" id="contacts" name="contacts[]" multiple></select>
                 <div class="invalid-feedback"></div>
             </div>
         </div>
-        <div class="row mb-2">
+        <div class="row mb-3">
             <div class="col-md-6">
                 <label for="ccEmail" class="form-label">CC:</label>
                 <select class="form-inputs select2" id="ccEmail" name="cc_email[]" multiple
@@ -44,11 +44,10 @@
             </div>
         </div>
 
-        <div class="row mb-2">
+        <div class="row mb-3">
             <div class="col-md-8">
                 <label for="subject" class="form-label">Subject: <span class="text-danger">*</span></label>
-                <input type="text" class="form-inputs" id="subject" name="subject"
-                    value="{{ is_array($claimSubject) ? implode(' ', $claimSubject) : $claimSubject }}" required>
+                <input type="text" class="form-inputs" id="subject" name="subject" {{-- value="{{ is_array($claimSubject) ? implode(' ', $claimSubject) : $claimSubject }}" --}} required>
                 <div class="invalid-feedback"></div>
             </div>
             <div class="col-md-4">
@@ -63,15 +62,16 @@
             </div>
         </div>
 
-        <div class="row mb-2">
+        <div class="row mb-3">
             <div class="col-md-6">
                 <label for="category" class="form-label">Category:</label>
                 <select class="form-inputs select2" id="category" name="category">
-                    <option value="claim">Claim Notification</option>
-                    <option value="policy">Policy Communication</option>
-                    <option value="risk">Risk Assessment</option>
-                    <option value="settlement">Settlement</option>
-                    <option value="general">General Correspondence</option>
+                    <option value="lead">Lead</option>
+                    <option value="proposal">Proposal</option>
+                    <option value="negotiation">Negotiation</option>
+                    <option value="won">Won</option>
+                    <option value="lost">Lost</option>
+                    <option value="final">Final</option>
                 </select>
                 <div class="invalid-feedback"></div>
             </div>
@@ -79,8 +79,7 @@
                 <label for="reference" class="form-label">Reference Number:</label>
                 <div class="input-group">
                     <input type="text" class="form-control color-blk @error('reference') is-invalid @enderror"
-                        id="reference" name="reference" value="{{ old('reference') }}"
-                        placeholder="REF-2025-XXXXXX">
+                        id="reference" name="reference" value="{{ old('reference') }}" placeholder="REF-2025-XXXXXX">
                     <button type="button" class="btn btn-outline-dark" id="generateRefBtn">
                         Generate
                     </button>
@@ -91,7 +90,7 @@
             </div>
         </div>
 
-        <div class="row mb-2">
+        <div class="row mb-3">
             <div class="col-12">
                 <label for="message" class="form-label">Message: <span class="text-danger">*</span></label>
                 <div class="d-flex gap-2 mb-2">
@@ -133,8 +132,8 @@
                     </div>
                 </div>
 
-                <textarea class="form-inputs @error('message') is-invalid @enderror" id="message" name="message" rows="14"
-                    required placeholder="Reply message...">{{ $defaultMessage ?? '' }}</textarea>
+                <textarea class="form-inputs resize-none @error('message') is-invalid @enderror" id="message" name="message"
+                    rows="10" required placeholder="Reply message...">{{ $defaultMessage ?? '' }}</textarea>
                 <div class="invalid-feedback"></div>
             </div>
         </div>
@@ -155,7 +154,7 @@
                                     </div>
                                     <div class="file-info flex-grow-1">
                                         <h6 class="mb-1">
-                                            Claim_Notice_{{ $ClaimRegister->intimation_no }}
+                                            {{-- Claim_Notice_{{ $ClaimRegister->intimation_no }} --}}
                                         </h6>
                                         <div class="file-meta">
                                             PDF Document
@@ -173,7 +172,7 @@
                                     </div>
                                     <div class="file-info flex-grow-1">
                                         <h6 class="mb-1">
-                                            Debit_Note_{{ $ClaimRegister->intimation_no }}
+                                            {{-- Debit_Note_{{ $ClaimRegister->intimation_no }} --}}
                                         </h6>
                                         <div class="file-meta">
                                             PDF Document
@@ -267,16 +266,16 @@
                 <div class="mt-2 compose_attachement">
                     <small class="text-muted">
                         <i class="fas fa-info-circle me-1"></i>
-                        {{-- <span id="fileCount">
-                            {{ 2 + ($claimDocuments && count($claimDocuments) > 0 ? count($claimDocuments) : 0) }}
+                        <span id="fileCount">
+                            {{ 2 + ($filesAttached && count($filesAttached) > 0 ? count($filesAttached) : 0) }}
                             files attached
-                        </span> --}}
+                        </span>
                     </small>
                 </div>
             </div>
         </div>
 
-        <div class="d-flex justify-content-between align-items-center pt-3 border-top">
+        {{-- <div class="d-flex justify-content-between align-items-center pt-3 border-top">
             <div class="d-flex gap-3">
                 <div class="form-check">
                     <input class="form-check-input" type="checkbox" id="readReceipt" name="read_receipt">
@@ -302,7 +301,7 @@
                     <i class="bx bx-paper-plane me-1"></i>Send Email
                 </button>
             </div>
-        </div>
+        </div> --}}
     </form>
 </div>
 
@@ -470,8 +469,14 @@
         border-radius: 8px;
         margin: 1rem 0;
     }
+
+    .select2-container .select2-search--inline .select2-search__field {
+        margin-block-start: 7px !important;
+        font-size: 14px;
+    }
 </style>
 
+{{--
 @push('script')
     <script>
         $(document).ready(function() {
@@ -608,7 +613,7 @@
                 $('#composeTitle').text('Reply to Message');
                 $('#clearFormBtn').show();
 
-                $('#emailForm.claimReinEmailForm').addClass('reply-context-highlight');
+                $('#emailForm.bd_email_form').addClass('reply-context-highlight');
             }
 
             /**
@@ -701,7 +706,7 @@
                     //         console.error('Draft save failed:', error);
                     //         toastr.error('Failed to save draft. Please try again.');
                     //     }
-                    // --}}});
+                    // --});
 
                 } catch (error) {
                     toastr.error('Error saving draft: ' + error.message);
@@ -860,7 +865,7 @@
             }
 
             function resetDocumentForm() {
-                $('#emailForm.claimReinEmailForm')[0].reset();
+                $('#emailForm.bd_email_form')[0].reset();
 
                 replyState.isReply = false;
                 replyState.originalMessage = null;
@@ -874,9 +879,9 @@
 
                 $('#emailBody').addClass('hidden');
 
-                $('.claimReinEmailForm #message').val(@json($defaultMessage ?? ''));
-                $('.claimReinEmailForm #subject').val(@json(is_array($claimSubject ?? '') ? implode(' ', $claimSubject) : $claimSubject ?? ''));
-                $('.claimReinEmailForm #toEmail').val('{{ $reinserEmail ?? '' }}');
+                $('.bd_email_form #message').val(@json($defaultMessage ?? ''));
+                $('.bd_email_form #subject').val(@json(is_array($claimSubject ?? '') ? implode(' ', $claimSubject) : $claimSubject ?? ''));
+                $('.bd_email_form #toEmail').val('{{ $reinserEmail ?? '' }}');
 
                 $('#priority').val('normal').trigger('change');
                 $('#category').val('general').trigger('change');
@@ -944,7 +949,7 @@
                 trackFormChanges();
             }
 
-            $('.claimReinEmailForm #contacts, .claimReinEmailForm #ccEmail, .claimReinEmailForm #bccEmail').on(
+            $('.bd_email_form #contacts, .bd_email_form #ccEmail, .bd_email_form #bccEmail').on(
                 'change',
                 function() {
                     const changedDropdown = $(this);
@@ -992,9 +997,9 @@
             }
 
             function resolveDuplicates(changedField, newlySelectedEmails) {
-                const toEmails = $('.claimReinEmailForm #contacts').val() || [];
-                const ccEmails = $('.claimReinEmailForm #ccEmail').val() || [];
-                const bccEmails = $('.claimReinEmailForm #bccEmail').val() || [];
+                const toEmails = $('.bd_email_form #contacts').val() || [];
+                const ccEmails = $('.bd_email_form #ccEmail').val() || [];
+                const bccEmails = $('.bd_email_form #bccEmail').val() || [];
 
                 newlySelectedEmails.forEach(email => {
                     if (changedField === 'contacts') {
@@ -1025,14 +1030,14 @@
             }
 
             function updateToEmailField() {
-                const toEmails = $('.claimReinEmailForm #contacts').val() || [];
-                // $('.claimReinEmailForm #toEmail').val(toEmails.join(', '));
+                const toEmails = $('.bd_email_form #contacts').val() || [];
+                // $('.bd_email_form #toEmail').val(toEmails.join(', '));
             }
 
             function validateEmailSelection() {
-                const toEmails = $('.claimReinEmailForm #contacts').val() || [];
-                const ccEmails = $('.claimReinEmailForm #ccEmail').val() || [];
-                const bccEmails = $('.claimReinEmailForm #bccEmail').val() || [];
+                const toEmails = $('.bd_email_form #contacts').val() || [];
+                const ccEmails = $('.bd_email_form #ccEmail').val() || [];
+                const bccEmails = $('.bd_email_form #bccEmail').val() || [];
 
                 if (toEmails.length === 0 && ccEmails.length === 0 && bccEmails.length === 0) {
                     $("#contacts").after(
@@ -1055,4 +1060,4 @@
             }
         });
     </script>
-@endpush
+@endpush --}}

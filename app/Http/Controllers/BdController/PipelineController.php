@@ -515,119 +515,13 @@ class PipelineController
 
     public function pipeline_view(Request $request)
     {
-        // try {
-        //     if (is_null($request->pipeline)) {
-        //         $currentyear = Carbon::now()->year;
-        //         $pip_id = DB::table('pipelines')->where('year', $currentyear)->first()->id;
-        //     } else {
-        //         $pip_id = $request->pipeline;
-        //     }
-
-        //     $opportunities = Leads::all();
-        //     $statuses = LeadStatus::all();
-        //     $underwriters = DB::table('companies')->get();
-
-        //     $q1_pipe_opps = DB::table('pipeline_opportunities')->where('pipeline_id', $pip_id)->where('fiscal_period', 1)->get();
-        //     $q2_pipe_opps = DB::table('pipeline_opportunities')->where('pipeline_id', $pip_id)->where('fiscal_period', 2)->get();
-        //     $q3_pipe_opps = DB::table('pipeline_opportunities')->where('pipeline_id', $pip_id)->where('fiscal_period', 3)->get();
-        //     $q4_pipe_opps = DB::table('pipeline_opportunities')->where('pipeline_id', $pip_id)->where('fiscal_period', 4)->get();
-        //     $pip = $pip_id;
-
-        //     $q1_won = collect($q1_pipe_opps)->where('stage', 5)->count();
-        //     $q2_won = collect($q2_pipe_opps)->where('stage', 5)->count();
-        //     $q3_won = collect($q3_pipe_opps)->where('stage', 5)->count();
-        //     $q4_won = collect($q4_pipe_opps)->where('stage', 5)->count();
-
-        //     $q1_lost = collect($q1_pipe_opps)->where('stage', 6)->count();
-        //     $q2_lost = collect($q2_pipe_opps)->where('stage', 6)->count();
-        //     $q3_lost = collect($q3_pipe_opps)->where('stage', 6)->count();
-        //     $q4_lost = collect($q4_pipe_opps)->where('stage', 6)->count();
-
-        //     $q1_lead = collect($q1_pipe_opps)->where('stage', 1)->count();
-        //     $q2_lead = collect($q2_pipe_opps)->where('stage', 1)->count();
-        //     $q3_lead = collect($q3_pipe_opps)->where('stage', 1)->count();
-        //     $q4_lead = collect($q4_pipe_opps)->where('stage', 1)->count();
-
-        //     $q1_proposal = collect($q1_pipe_opps)->where('stage', 2)->count();
-        //     $q2_proposal = collect($q2_pipe_opps)->where('stage', 2)->count();
-        //     $q3_proposal = collect($q3_pipe_opps)->where('stage', 2)->count();
-        //     $q4_proposal = collect($q4_pipe_opps)->where('stage', 2)->count();
-
-        //     $q1_negotiation = collect($q1_pipe_opps)->where('stage', 3)->count();
-        //     $q2_negotiation = collect($q2_pipe_opps)->where('stage', 3)->count();
-        //     $q3_negotiation = collect($q3_pipe_opps)->where('stage', 3)->count();
-        //     $q4_negotiation = collect($q4_pipe_opps)->where('stage', 3)->count();
-
-        //     $q1_final_stage = collect($q1_pipe_opps)->where('stage', 4)->count();
-        //     $q2_final_stage = collect($q2_pipe_opps)->where('stage', 4)->count();
-        //     $q3_final_stage = collect($q3_pipe_opps)->where('stage', 4)->count();
-        //     $q4_final_stage = collect($q4_pipe_opps)->where('stage', 4)->count();
-
-        //     $q1_arr = [$q1_won, $q2_won, $q3_won, $q4_won];
-        //     $q2_arr = [$q1_lost, $q2_lost, $q3_lost, $q4_lost];
-        //     $q3_arr = [$q1_lead, $q2_lead, $q3_lead, $q4_lead];
-        //     $q4_arr = [$q1_proposal, $q2_proposal, $q3_proposal, $q4_proposal];
-        //     $q5_arr = [$q1_negotiation, $q2_negotiation, $q3_negotiation, $q4_negotiation];
-        //     $q6_arr = [$q1_final_stage, $q2_final_stage, $q3_final_stage, $q4_final_stage];
-
-        //     $data = [$q4_arr, $q5_arr, $q3_arr, $q1_arr, $q2_arr, $q6_arr];
-
-        //     $customers = DB::select("
-        //                     SELECT c.*,
-        //                         ARRAY_AGG(DISTINCT ct.type_id) AS type_ids,
-        //                         (
-        //                             SELECT jsonb_agg(
-        //                                 jsonb_build_object(
-        //                                     'contact_name', cc.contact_name,
-        //                                     'contact_email', cc.contact_email,
-        //                                     'contact_mobile_no', cc.contact_mobile_no,
-        //                                     'contact_position', cc.contact_position,
-        //                                     'main_contact_person', cc.main_contact_person
-        //                                 )
-        //                             )::json
-        //                             FROM customer_contacts cc
-        //                             WHERE cc.customer_id = c.customer_id
-        //                         ) AS contact_persons
-        //                     FROM customers c
-        //                     LEFT JOIN customer_types ct
-        //                         ON c.customer_type::jsonb @> to_jsonb(ct.type_id::text)
-        //                     WHERE ct.code IN ('REINCO', 'INSCO', 'REINBROKER')
-        //                     AND EXISTS (
-        //                         SELECT 1
-        //                         FROM customer_contacts cc
-        //                         WHERE cc.customer_id = c.customer_id
-        //                     )
-        //                     GROUP BY c.customer_id
-        //                     ORDER BY c.name;
-        //                 ");
-
-        //     $users = DB::table('users')->where('is_staff', true)->get();
-        //     $pipelines = DB::table('pipelines')->orderBy('year', 'ASC')->get();
-        //     $schedule = QuoteScheduleHeader::orderBy('position', 'asc')->get();
-
-        //     return view('Bd_views.intermediaries.pipeline_view', compact(
-        //         'pipelines',
-        //         'statuses',
-        //         'pip',
-        //         'q1_pipe_opps',
-        //         'q2_pipe_opps',
-        //         'q3_pipe_opps',
-        //         'q4_pipe_opps',
-        //         'opportunities',
-        //         'data',
-        //         'underwriters',
-        //         'customers',
-        //         'schedule',
-        //         'users'
-        //     ));
-        // } catch (\Exception $e) {
-        //     return redirect()->back()->with('error', 'An error occurred');
-        // }
-
         try {
             $currentyear = Carbon::now()->year;
             $pipelines = DB::table('pipelines')->orderBy('year', 'asc');
             $pipeYear = DB::table('pipelines')->where('year', $currentyear);
+            $emailFrom = Company::where('company_id', 1)->first()->email ?? '';
+            $defaultMessage  = '';
+            $filesAttached = [];
 
             $pip = $request->get('pipeline', $pipeYear->first()->id ?? null);
             $pipelines = $pipelines->get();
@@ -636,7 +530,7 @@ class PipelineController
             $pip = null;
         }
 
-        return view('Bd_views.intermediaries.pipeline_view', compact('pipelines', 'pip'));
+        return view('Bd_views.intermediaries.pipeline_view', compact('pipelines', 'emailFrom', 'pip', 'defaultMessage', 'filesAttached'));
     }
 
     public function treaty_pipeline_view(Request $request)
@@ -1202,7 +1096,6 @@ class PipelineController
             DB::commit();
             return ['status' => 1, 'message' => $mes];
         } catch (Exception $e) {
-            logger($e);
             DB::rollback();
             return ['status' => 0, 'message' => 'An error occurred.'];
         }
@@ -3647,8 +3540,6 @@ class PipelineController
             $opp_id = $request->opportunity_id;
             $category_type = $request->category_type;
 
-            logger($request->all());
-
             if (!$opp_id || !$category_type) {
                 return response()->json(['error' => 'Invalid data provided'], 400);
             }
@@ -5198,9 +5089,60 @@ class PipelineController
 
     public function updateLeadStatus(Request $request)
     {
-        logger()->debug($request->all());
+        DB::beginTransaction();
+        try {
+            $term = null;
 
-        return ['success' => true, 'data' => []];
+            if ($request->has('_update')) {
+                $title = $request->breakdown_title;
+                $content = $request->breakdown_content;
+                $short_content = $this->convertHtmlToRaw($request->breakdown_content);
+                $prospect = DB::table('pipeline_opportunities')
+                    ->where('opportunity_id', $request->opportunity_id)
+                    ->first();
+
+                if ($prospect) {
+                    $data = [
+                        'title'          => $title,
+                        'content'        => $content,
+                        'short_content'  => Str::limit($this->convertHtmlToRaw($request->breakdown_content), 500),
+                        'created_by'     => auth()->id(),
+                        // 'effective_date'  => $effective_date,
+                        'created_at'  => now(),
+                        'updated_by'  => auth()->id(),
+                        'updated_at'  => now(),
+                        'opportunity_id' => $prospect->opportunity_id,
+                    ];
+
+                    $termsUpdated = DB::table('bd_terms_conditions')->updateOrInsert(
+                        [
+                            'title' => $data['title'],
+                            'opportunity_id' => $prospect->opportunity_id
+                        ],
+                        $data
+                    );
+                    if ($termsUpdated) {
+                        $term = DB::table('bd_terms_conditions')->where(
+                            [
+                                'title' => $data['title'],
+                                'opportunity_id' => $prospect->opportunity_id
+                            ],
+                        )->first();
+                    }
+                }
+            }
+
+            DB::commit();
+            return ['success' => true, 'data' => [
+                'short_content' => $term?->short_content,
+                'content' => $term?->content,
+            ]];
+        } catch (\Exception $e) {
+            DB::rollBack();
+            throw $e;
+        }
+
+
 
         // try {
 
@@ -6232,6 +6174,15 @@ class PipelineController
         //     //     'trace' => $th->getTraceAsString(),
         //     // ]);
         // }
+    }
+
+    public function convertHtmlToRaw($htmlContent)
+    {
+        $rawText = strip_tags($htmlContent);
+
+        $rawText = preg_replace('/\s+/', ' ', trim($rawText));
+
+        return $rawText;
     }
 
     public function sendBDNotification(Request $request)
@@ -8228,37 +8179,18 @@ class PipelineController
         }
     }
 
-    public function getTermsForOpportunity(Request $request)
+    public function getBdTerms(Request $request)
     {
         try {
-            // $termsConditions = TermsCondition::where('opportunity_id', $opportunityId)
-            //     ->with(['scheduleValues.scheduleHeader'])
-            //     ->first();
+            $term = DB::table('bd_terms_conditions')->where(
+                [
+                    'opportunity_id' => $request->opportunity_id
+                ],
+            )->select(['title', 'short_content', 'content'])->get();
 
-            // if (!$termsConditions) {
-            //     return response()->json([
-            //         'success' => false,
-            //         'message' => 'Terms and conditions not found for this opportunity'
-            //     ], 404);
-            // }
-
-            // return response()->json([
-            //     'success' => true,
-            //     'data' => [
-            //         'terms_conditions' => $termsConditions,
-            //         'schedule_values' => $termsConditions->scheduleValues->pluck('value', 'schedule_header_id')
-            //     ]
-            // ]);
-
-            $schedules = QuoteScheduleHeader::orderBy('position', 'asc')->get();
-
-            return [];
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to fetch terms and conditions',
-                'error' => config('app.debug') ? $e->getMessage() : 'Internal server error'
-            ], 500);
+            return ['success' => true, 'data' => $term];
+        } catch (\Throwable $th) {
+            throw $th;
         }
     }
 }

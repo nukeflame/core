@@ -4,6 +4,8 @@
     <div class="modal-dialog modal-dialog-centered modal-xl" role="document">
         <div class="modal-content">
             <form id="proposalForm" action="{{ route('update.opp.status') }}" novalidate>
+                <input type="hidden" name="opportunity_id" id="opportunity_id">
+
                 <div class="modal-body fac-slip-container">
                     <div class="fac-slip-header">
                         <div class="d-flex justify-content-between align-items-start">
@@ -117,6 +119,8 @@
                                 <div class="form-group">
                                     <label class="form-label">Total sum insured breakdown</label>
                                     <div class="form-textarea-wrapper">
+                                        <input type="hidden" id="totalSumInsuredContent"
+                                            name="totalSumInsuredContent" />
                                         <textarea class="form-inputs breakdown-textarea special_conditions" name="special_conditions" id="specialConditions"
                                             rows="4" maxlength="5000" aria-label="Special Terms and Conditions"
                                             placeholder="Any special terms, conditions, or clauses applicable to this coverage..."></textarea>
@@ -185,7 +189,6 @@
                                     </div>
                                 </div>
 
-                                <!-- Selected Reinsurers Table -->
                                 <div class="selected-reinsurers-section">
                                     <h6 class="mb-3">
                                         <i class="bx bx-building me-1"></i>Selected Reinsurers
@@ -206,41 +209,13 @@
                                             </tbody>
                                         </table>
                                     </div>
-                                </div>
 
-                                <!-- Risk Distribution Analysis -->
-                                <div class="risk-distribution mt-4" id="riskDistribution" style="display: none;">
-                                    <h6 class="mb-3"><i class="bx bx-chart-pie me-2"></i>Risk Distribution Analysis
-                                    </h6>
-                                    <div class="row">
-                                        <div class="col-md-8">
-                                            <canvas id="riskDistributionChart" height="200"></canvas>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <div class="risk-metrics">
-                                                <div class="metric-item">
-                                                    <span class="metric-label">Largest Single Exposure:</span>
-                                                    <span class="metric-value" id="largestExposure">0%</span>
-                                                </div>
-                                                <div class="metric-item">
-                                                    <span class="metric-label">Geographic Diversification:</span>
-                                                    <span class="metric-value" id="geoDiversification">Low</span>
-                                                </div>
-                                                <div class="metric-item">
-                                                    <span class="metric-label">Rating Weighted Average:</span>
-                                                    <span class="metric-value" id="avgRating">-</span>
-                                                </div>
-                                                <div class="metric-item">
-                                                    <span class="metric-label">Capacity Utilization:</span>
-                                                    <span class="metric-value" id="capacityUtil">0%</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
                                 </div>
 
                                 <input type="hidden" name="reinsurers_data" id="reinsurersData">
                                 <input type="hidden" name="retained_share" id="retainedShareValue">
+                                <input type="hidden" name="total_placed_shares" id="totalPlacedShares">
+                                <input type="hidden" name="total_unplaced_shares" id="totalUnplacedShares">
                             </div>
                         </div>
 
@@ -1193,6 +1168,256 @@
             padding: 6px 10px;
         }
     }
+
+    .shares-card {
+        background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+        border: 2px solid #e9ecef;
+        border-radius: 12px;
+        padding: 9px 12px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+
+    .shares-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    .shares-card.placed-shares {
+        border-left: 2px solid #198754;
+    }
+
+    .shares-card.unplaced-shares {
+        border-left: 2px solid #ffc107;
+    }
+
+    .shares-icon {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 20px;
+        flex-shrink: 0;
+    }
+
+    .placed-shares .shares-icon {
+        background: rgba(25, 135, 84, 0.1);
+        color: #198754;
+    }
+
+    .unplaced-shares .shares-icon {
+        background: rgba(255, 193, 7, 0.1);
+        color: #ffc107;
+    }
+
+    .shares-info {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        flex: 1;
+    }
+
+    .shares-label {
+        font-size: 13px;
+        color: #6c757d;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+
+    .shares-value {
+        font-size: 13px;
+        font-weight: 700;
+        line-height: 14px;
+    }
+
+    .shares-progress {
+        margin-top: 1rem;
+    }
+
+    .shares-progress .progress {
+        background-color: #e9ecef;
+        border-radius: 10px;
+        overflow: hidden;
+    }
+
+    .shares-progress .progress-bar {
+        transition: width 0.6s ease;
+        border-radius: 10px;
+    }
+
+    .total-shares-display {
+        margin-top: 1.5rem;
+        padding: 1rem;
+        background: #f8f9fa;
+        border-radius: 8px;
+        border: 1px solid #dee2e6;
+    }
+
+    @media (max-width: 768px) {
+        .shares-card {
+            padding: 1rem;
+        }
+
+        .shares-icon {
+            width: 40px;
+            height: 40px;
+            font-size: 20px;
+        }
+
+        .shares-value {
+            font-size: 1.5rem;
+        }
+
+        .total-shares-display {
+            padding: 0.75rem;
+        }
+    }
+
+    @keyframes valueChange {
+        0% {
+            transform: scale(1);
+        }
+
+        50% {
+            transform: scale(1.1);
+        }
+
+        100% {
+            transform: scale(1);
+        }
+    }
+
+    .shares-value {
+        animation: valueChange 0.3s ease-in-out;
+    }
+
+    /* Color transitions for different states */
+    .shares-value.text-success {
+        color: #198754 !important;
+    }
+
+    .shares-value.text-danger {
+        color: #dc3545 !important;
+    }
+
+    .shares-value.text-warning {
+        color: #ffc107 !important;
+    }
+
+    .shares-value.text-primary {
+        color: #0d6efd !important;
+    }
+
+    .reinsurer-selection-panel {
+        background: #f8f9fa;
+        padding: 1rem;
+        border-radius: 8px;
+        border: 1px solid #dee2e6;
+        margin-bottom: 1.5rem;
+    }
+
+    .selected-reinsurers-section {
+        margin-top: 1.5rem;
+    }
+
+    .selected-reinsurers-section h6 {
+        color: #495057;
+        font-weight: 600;
+    }
+
+    .selected-reinsurers-table thead {
+        background: #f8f9fa;
+    }
+
+    .selected-reinsurers-table tbody tr:hover {
+        background: #f8f9fa;
+    }
+
+    #reinsurerCount {
+        font-size: 0.875rem;
+        padding: 0.35em 0.65em;
+    }
+
+    .contacts-reinsurer,
+    .remove-reinsurer {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.875rem;
+    }
+
+    .contacts-reinsurer {
+        margin-right: 0.25rem;
+    }
+
+    .reinsurer-validation-error {
+        border-radius: 8px;
+        padding: 0.75rem 1rem;
+        margin-top: 1rem;
+    }
+
+    .reinsurer-validation-error i {
+        font-size: 1.25rem;
+        vertical-align: middle;
+    }
+
+    #addReinsurer {
+        height: 100%;
+        min-height: 38px;
+    }
+
+    #addReinsurer .bx-loader {
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        0% {
+            transform: rotate(0deg);
+        }
+
+        100% {
+            transform: rotate(360deg);
+        }
+    }
+
+    .selected-reinsurers-table tbody:empty::after {
+        content: "No reinsurers selected yet. Add reinsurers using the form above.";
+        display: block;
+        text-align: center;
+        padding: 2rem;
+        color: #6c757d;
+        font-style: italic;
+    }
+
+    .shares-progress .progress-bar.bg-success::after {
+        content: "✓";
+        position: absolute;
+        right: 10px;
+        color: white;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+
+    @media (max-width: 576px) {
+        .reinsurer-selection-panel .row {
+            row-gap: 0.5rem;
+        }
+
+        .reinsurer-selection-panel .col-md-8,
+        .reinsurer-selection-panel .col-md-3,
+        .reinsurer-selection-panel .col-md-1 {
+            width: 100%;
+        }
+
+        #addReinsurer {
+            width: 100%;
+            padding: 0.5rem 0;
+        }
+    }
 </style>
 
 @push('script')
@@ -1222,67 +1447,114 @@
                 },
             };
 
-            let uploadedFiles = {};
-            let currentClass = '';
-            let documentConfigs = {};
-
             const fileIcons = {
-                'pdf': 'bx-file-pdf',
-                'doc': 'bx-file-doc',
-                'docx': 'bx-file-doc',
-                'xls': 'bx-file-excel',
-                'xlsx': 'bx-file-excel',
-                'jpg': 'bx-image',
-                'jpeg': 'bx-image',
-                'png': 'bx-image',
-                'default': 'bx-file'
+                pdf: "bx-file-pdf",
+                doc: "bx-file-doc",
+                docx: "bx-file-doc",
+                xls: "bx-file-excel",
+                xlsx: "bx-file-excel",
+                jpg: "bx-image",
+                jpeg: "bx-image",
+                png: "bx-image",
+                default: "bx-file",
             };
 
-            $('.file-upload-area').each(function() {
-                initializeFileUpload($(this));
-            });
+            let uploadedFiles = {};
+            let currentClass = "";
+            let documentConfigs = {};
+            let selectedReinsurers = new Set();
 
             $.ajaxSetup({
                 headers: {
-                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-                }
+                    "X-CSRF-TOKEN": $('meta[name="csrf-token"]').attr("content"),
+                },
             });
 
-            const table = $('#reinsurersTable').DataTable({
+            const table = $("#reinsurersTable").DataTable({
                 responsive: true,
                 pageLength: 10,
                 paging: false,
                 searching: false,
                 info: false,
                 order: [
-                    [0, 'asc']
+                    [0, "asc"]
                 ],
                 language: {
-                    search: "Search reinsurers:",
-                    lengthMenu: "Show _MENU_ reinsurers per page",
-                    info: "Showing _START_ to _END_ of _TOTAL_ reinsurers",
-                    infoEmpty: "No reinsurers available",
-                    infoFiltered: "(filtered from _MAX_ total reinsurers)",
-                    zeroRecords: "No matching reinsurers found",
-                    emptyTable: "No reinsurers selected yet. Add reinsurers using the form above."
+                    emptyTable: "No reinsurers selected yet. Add reinsurers using the form above.",
                 },
                 columnDefs: [{
                     targets: -1,
                     orderable: false,
                     searchable: false,
-                    className: 'text-start'
-                }]
+                    className: "text-start",
+                }, ],
             });
 
+            $("#availableReinsurers").select2({
+                placeholder: "Search and select reinsurer...",
+                allowClear: true,
+                minimumInputLength: 0,
+                width: "100%",
+                dropdownParent: $("#proposalModal"),
+                ajax: {
+                    url: "{{ route('pipeline.search_reinsurers') }}",
+                    method: "GET",
+                    dataType: "json",
+                    delay: 300,
+                    data: function(params) {
+                        return {
+                            q: params.term || "",
+                            page: params.page || 1,
+                        };
+                    },
+                    processResults: function(data, params) {
+                        return {
+                            results: data.results,
+                            pagination: {
+                                more: data.pagination && data.pagination.more,
+                            },
+                        };
+                    },
+                    cache: true,
+                    error: function(xhr, status, error) {
+                        console.error("AJAX Error:", error);
+                    },
+                },
+                templateResult: function(reinsurer) {
+                    if (reinsurer.loading) return reinsurer.text;
+                    if (!reinsurer.name) return reinsurer.text;
 
-            let selectedReinsurers = new Set();
+                    const email = reinsurer.email;
+
+                    return `
+                        <div class="reinsurer-option">
+                            <div><strong>${reinsurer.name}</strong>
+                                <span class="badge bg-secondary ms-1">${reinsurer.rating}</span>
+                            </div>
+                            <div><small class="text-muted">${reinsurer.country} | Email: ${email}</small></div>
+                        </div>
+                    `;
+                },
+                templateSelection: function(reinsurer) {
+                    if (!reinsurer.id) return reinsurer.text;
+
+                    let option = $("#availableReinsurers").find(
+                        `option[value='${reinsurer.id}']`
+                    );
+                    option.attr("data-name", reinsurer.name || "");
+                    option.attr("data-email", reinsurer.email || "");
+                    option.attr("data-country", reinsurer.country || "");
+
+                    return `${reinsurer.name} (${reinsurer.email}) - ${reinsurer.country}`;
+                },
+                escapeMarkup: function(markup) {
+                    return markup;
+                },
+            });
 
             $("#addReinsurer").click(function() {
                 const selectedOption = $("#availableReinsurers option:selected");
-                const individualSharePercent = parseFloat($("#reinsurerShare").val());
-                const totalReinsurerSharePercent = parseFloat(
-                    $("#totalReinsurerShare").val()
-                );
+                const writtenSharePercent = parseFloat($("#reinsurerShare").val());
 
                 if (!selectedOption.val()) {
                     Swal.fire({
@@ -1294,39 +1566,15 @@
                     return;
                 }
 
-                if (!totalReinsurerSharePercent || totalReinsurerSharePercent <= 0) {
-                    Swal.fire({
-                        icon: "error",
-                        title: "Missing Total Share",
-                        text: "Please enter the Total Written Share percentage first.",
-                        confirmButtonColor: "#3085d6",
-                    }).then(() => {
-                        $("#totalReinsurerShare").focus();
-                    });
-                    return;
-                }
-
-                if (totalReinsurerSharePercent > 100) {
-                    Swal.fire({
-                        icon: "error",
-                        title: "Invalid Total Share",
-                        text: "Total Written Share cannot exceed 100%.",
-                        confirmButtonColor: "#3085d6",
-                    }).then(() => {
-                        $("#totalReinsurerShare").focus();
-                    });
-                    return;
-                }
-
                 if (
-                    !individualSharePercent ||
-                    individualSharePercent <= 0 ||
-                    individualSharePercent > 100
+                    !writtenSharePercent ||
+                    writtenSharePercent <= 0 ||
+                    writtenSharePercent > 100
                 ) {
                     Swal.fire({
                         icon: "error",
-                        title: "Invalid Individual Share",
-                        text: "Please enter a valid individual share percentage between 0.01% and 100%.",
+                        title: "Invalid Written Share",
+                        text: "Please enter a valid written share percentage between 0.01% and 100%.",
                         confirmButtonColor: "#3085d6",
                     }).then(() => {
                         $("#reinsurerShare").focus();
@@ -1334,20 +1582,19 @@
                     return;
                 }
 
-                let currentTotalIndividualShares = 0;
+                let currentTotalPlacedShares = 0;
                 table.rows().every(function() {
                     const row = $(this.node());
-                    const individualShare =
-                        parseFloat(row.attr("data-individual-share")) || 0;
-                    currentTotalIndividualShares += individualShare;
+                    const writtenShare = parseFloat(row.attr("data-written-share")) || 0;
+                    currentTotalPlacedShares += writtenShare;
                 });
 
-                if (currentTotalIndividualShares + individualSharePercent > 100) {
-                    const remainingCapacity = 100 - currentTotalIndividualShares;
+                if (currentTotalPlacedShares + writtenSharePercent > 100) {
+                    const remainingCapacity = 100 - currentTotalPlacedShares;
                     Swal.fire({
                         icon: "warning",
                         title: "Insufficient Capacity",
-                        text: `Maximum available individual share is ${remainingCapacity.toFixed(2)}%. Total individual shares cannot exceed 100%.`,
+                        text: `Maximum available share is ${remainingCapacity.toFixed(2)}%. Total placed shares cannot exceed 100%.`,
                         confirmButtonColor: "#f39c12",
                     });
                     return;
@@ -1363,32 +1610,22 @@
                     return;
                 }
 
-                const writtenShare = calculateWrittenShare(
-                    individualSharePercent,
-                    totalReinsurerSharePercent
-                );
-
                 const reinsurerData = {
                     id: selectedOption.val(),
                     name: selectedOption.data("name"),
                     email: selectedOption.data("email"),
                     country: selectedOption.data("country"),
-                    individualShare: individualSharePercent,
-                    writtenShare: writtenShare,
+                    writtenShare: writtenSharePercent,
                 };
 
                 const rowHtml = `
-                    <tr data-reinsurer-id="${
-                      reinsurerData.id
-                    }" data-individual-share="${reinsurerData.individualShare}">
+                    <tr data-reinsurer-id="${reinsurerData.id}" data-written-share="${reinsurerData.writtenShare}">
                         <td>
                             <div class="d-flex align-items-center">
                                 <div>
-                                    <div class="fw-medium">${
-                                      reinsurerData.name
-                                    }</div>
+                                    <div class="fw-medium">${reinsurerData.name}</div>
                                     <small class="text-muted">(${
-                                      reinsurerData.email
+                                    reinsurerData.email
                                     }) - ${reinsurerData.country}</small>
                                 </div>
                             </div>
@@ -1396,11 +1633,8 @@
                         <td class="text-start">
                             <div class="share-display">
                                 <strong>${reinsurerData.writtenShare.toFixed(
-                                  2
+                                2
                                 )}%</strong>
-                                <br><small class="text-muted">(${
-                                  reinsurerData.individualShare
-                                }% of ${totalReinsurerSharePercent}%)</small>
                             </div>
                         </td>
                         <td class="text-start">
@@ -1421,466 +1655,20 @@
                 table.row.add($(rowHtml)).draw();
                 selectedReinsurers.add(reinsurerData.id);
                 updateReinsurerCount();
-                resetForm();
+                resetReinsurerForm();
+                toggleTotalWrittenShareField();
 
                 Swal.fire({
                     icon: "success",
                     title: "Reinsurer Added!",
-                    text: `${reinsurerData.name} has been successfully added with ${writtenShare.toFixed(2)}% written share.`,
+                    text: `${reinsurerData.name} has been successfully added with ${writtenSharePercent.toFixed(2)}% written share.`,
                     timer: 2000,
                     showConfirmButton: false,
                     toast: true,
                     position: "top-end",
                 });
 
-                updateTotalSharesDisplay();
-            });
-
-            $(document).on("click", ".remove-reinsurer", function() {
-                const reinsurerID = $(this).data("reinsurer-id");
-                const row = $(this).closest("tr");
-                const reinsurerName = row.find("td:first .fw-medium").text();
-
-                Swal.fire({
-                    title: "Remove Reinsurer?",
-                    text: `Are you sure you want to remove ${reinsurerName} from the list?`,
-                    icon: "question",
-                    showCancelButton: true,
-                    confirmButtonColor: "#d33",
-                    cancelButtonColor: "#3085d6",
-                    confirmButtonText: "Yes, remove it!",
-                    cancelButtonText: "Cancel",
-                }).then((result) => {
-                    if (result.isConfirmed) {
-                        table.row(row).remove().draw();
-                        selectedReinsurers.delete(reinsurerID.toString());
-                        updateReinsurerCount();
-                        updateTotalSharesDisplay();
-
-                        Swal.fire({
-                            icon: "info",
-                            title: "Removed!",
-                            text: `${reinsurerName} has been removed from the list.`,
-                            timer: 2000,
-                            showConfirmButton: false,
-                            toast: true,
-                            position: "top-end",
-                        });
-                    }
-                });
-            });
-
-            function updateReinsurerCount() {
-                const count = selectedReinsurers.size;
-                $("#reinsurerCount").text(count);
-            }
-
-            $(document).on('click', '.contacts-reinsurer', function(e) {
-                e.preventDefault()
-
-                const reinsurerID = $(this).data('reinsurer-id');
-                const row = $(this).closest('tr');
-                let reinsurerName = row.find('td:first .fw-medium').text();
-
-                if (!reinsurerID) {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Error',
-                        text: 'Reinsurer ID not found',
-                        timer: 3000,
-                        toast: true,
-                        position: 'top-end'
-                    });
-                    return;
-                }
-
-                const originalHtml = $(this).html();
-                $(this).html('<i class="bx bx-loader bx-spin"></i>');
-                $(this).prop('disabled', true);
-
-                $.ajax({
-                    url: `/reinsurers/${reinsurerID}/contacts`,
-                    method: 'GET',
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest',
-                        'Accept': 'application/json'
-                    },
-                    success: function(response) {
-                        if (response.success) {
-                            reinsurerName = response?.data?.reinsurer?.name;
-                            populateContactsModal(response.data, reinsurerName);
-                            $('#proposalModal').modal('hide');
-                            $('#contactsModal').modal('show');
-                        } else {
-                            showContactError(response.message || 'Failed to fetch contacts');
-                        }
-                    },
-                    error: function(xhr) {
-                        let errorMessage = 'Failed to fetch reinsurer contacts';
-
-                        if (xhr.status === 404) {
-                            errorMessage = 'Reinsurer contacts not found';
-                        } else if (xhr.status === 403) {
-                            errorMessage = 'Access denied to reinsurer contacts';
-                        } else if (xhr.responseJSON && xhr.responseJSON.message) {
-                            errorMessage = xhr.responseJSON.message;
-                        }
-
-                        showContactError(errorMessage);
-                    },
-                    complete: function() {
-                        $('.contacts-reinsurer').html(originalHtml);
-                        $('.contacts-reinsurer').prop('disabled', false);
-                    }
-                });
-            });
-
-            function populateContactsModal(contactData, reinsurerName) {
-                $('#contactsModalLabel').html(`
-                    <i class="bx bx-building me-1"></i>${reinsurerName} - Contact Management
-                `);
-
-                if (contactData.primary_contact) {
-                    $('.primary-name').val(contactData.primary_contact.name || 'N/A');
-                    $('.primary-email').val(contactData.primary_contact.email || 'N/A');
-                }
-
-                $('#departmentContacts').empty();
-
-                if (contactData.department_contacts && contactData.department_contacts.length > 0) {
-                    contactData.department_contacts.forEach(function(contact, index) {
-                        const contactHtml = createContactItemHtml(contact, index);
-                        $('#departmentContacts').append(contactHtml);
-                    });
-                } else {
-                    $('#departmentContacts').html(`
-                        <div class="text-center py-4">
-                            <i class="bx bx-info-circle bx-2x text-muted mb-2 fs-15"></i>
-                            <p class="text-muted">No department contacts found for this reinsurer.</p>
-                        </div>
-                    `);
-                }
-            }
-
-            function createContactItemHtml(contact, index) {
-                const showLabels = index === 0;
-
-                return `
-                    <div class="contact-item rounded px-3 pb-1" data-contact-id="${contact.id || index}">
-                        <div class="row align-items-center">
-                            <div class="col-md-3">
-                                ${showLabels ? '<label class="form-label fw-semibold mb-1">Contact Name</label>' : ''}
-                                <input type="text" class="form-control-plaintext contact-name"
-                                    value="${contact.name || ''}" data-field="name">
-                            </div>
-                            <div class="col-md-6">
-                                ${showLabels ? '<label class="form-label fw-semibold mb-1">Email</label>' : ''}
-                                <input type="email" class="form-control-plaintext contact-email"
-                                    value="${contact.email || ''}" data-field="email">
-                            </div>
-                            <div class="col-md-2">
-                                ${showLabels ? '<label class="form-label fw-semibold mb-1">CC Email</label>' : ''}
-                                <div class="form-check mt-2 px-0">
-                                    <input class="form-check-input mailc-checkbox" type="checkbox"
-                                        ${contact.cc_email ? 'checked' : ''} data-field="cc_email">
-                                    <label class="form-check-label cc-email-indicator">
-                                        <i class="bx bx-envelope envlope-ico"></i>
-                                    </label>
-                                </div>
-                            </div>
-                            <div class="col-md-1"></div>
-                        </div>
-                    </div>
-                `;
-            }
-
-            function showContactError(message) {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Contact Fetch Error',
-                    text: message,
-                    timer: 4000,
-                    toast: true,
-                    position: 'top-end',
-                    showConfirmButton: false
-                });
-            }
-
-            $('#contactsModal').on('hidden.bs.modal', function() {
-                $('#proposalModal').modal('show')
-            });
-
-            function updateReinsurerCount() {
-                const count = selectedReinsurers.size;
-                $('#reinsurerCount').text(count);
-            }
-
-            function resetForm() {
-                $('#availableReinsurers').val(null).trigger('change');
-                $('#reinsurerShare').val('');
-                $('#reinsurerCommission').val('');
-            }
-
-            function showAlert(message, type = 'info') {
-                let icon = 'info';
-                let title = 'Information';
-
-                switch (type) {
-                    case 'success':
-                        icon = 'success';
-                        title = 'Success';
-                        break;
-                    case 'warning':
-                        icon = 'warning';
-                        title = 'Warning';
-                        break;
-                    case 'error':
-                        icon = 'error';
-                        title = 'Error';
-                        break;
-                }
-
-                Swal.fire({
-                    icon: icon,
-                    title: title,
-                    text: message,
-                    timer: 3000,
-                    showConfirmButton: false,
-                    toast: true,
-                    position: 'top-end'
-                });
-            }
-
-            function getTotalPremium() {
-                const totalPremiumInput = $('#totalPremium');
-                if (totalPremiumInput.length && totalPremiumInput.val()) {
-                    return parseFloat(totalPremiumInput.val());
-                }
-                return 1000000;
-            }
-
-            function updateTotalShares() {
-                let totalShares = 0;
-
-                table.rows().every(function() {
-                    const rowData = $(this.node());
-                    const shareText = rowData.find('td:nth-child(2)').text();
-                    const share = parseFloat(shareText.replace('%', ''));
-                    if (!isNaN(share)) {
-                        totalShares += share;
-                    }
-                });
-
-                updateTotalSharesDisplay(totalShares);
-
-                if (totalShares > 100) {
-                    Swal.fire({
-                        icon: 'warning',
-                        title: 'Share Limit Exceeded',
-                        text: `Total shares (${totalShares.toFixed(2)}%) exceed 100%. Please review the allocation.`,
-                        confirmButtonColor: '#f39c12'
-                    });
-                }
-            }
-
-            $('#reinsurerShare').on('input', function() {
-                const currentValue = parseFloat($(this).val());
-                if (isNaN(currentValue)) return;
-
-                let totalShares = 0;
-                table.rows().every(function() {
-                    const rowData = $(this.node());
-                    const shareText = rowData.find('td:nth-child(2)').text();
-                    const share = parseFloat(shareText.replace('%', ''));
-
-                    if (!isNaN(share)) {
-                        totalShares += share;
-                    }
-                });
-
-                const remainingCapacity = 100 - totalShares;
-
-                if (currentValue > remainingCapacity) {
-                    Swal.fire({
-                        icon: 'warning',
-                        title: 'Insufficient Capacity',
-                        text: `Maximum available share is ${remainingCapacity.toFixed(2)}%. The value has been adjusted.`,
-                        timer: 3000,
-                        showConfirmButton: false,
-                        toast: true,
-                        position: 'top-end'
-                    });
-                    $(this).val(remainingCapacity.toFixed(2));
-                }
-            });
-
-            const $categorySelect = $('#category_type');
-            const $updateCategoryTypeModal = $('#updateCategoryTypeModal');
-            const $updateCategorySubmitBtn = $('#updateCategorySubmitBtn');
-
-            $('#updateCategoryForm').on('submit', function(e) {
-                e.preventDefault();
-
-                if (!$categorySelect.val()) {
-                    $categorySelect.addClass('is-invalid');
-                    $categorySelect.focus();
-                    return false;
-                } else {
-                    $categorySelect.removeClass('is-invalid');
-                }
-
-                $updateCategorySubmitBtn.addClass('btn-loading');
-                $updateCategorySubmitBtn.html('<span class="">Updating...</span>');
-                $updateCategorySubmitBtn.prop('disabled', true);
-
-                const formData = new FormData(this);
-                const actionUrl = $(this).attr('action');
-
-                $.ajax({
-                    url: actionUrl,
-                    method: 'POST',
-                    data: formData,
-                    processData: false,
-                    contentType: false,
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest'
-                    },
-                    success: function(response) {
-                        if (response.success) {
-                            Swal.fire({
-                                icon: 'success',
-                                title: 'Success',
-                                text: 'Category type updated successfully!',
-                                timer: 2000,
-                                showConfirmButton: false,
-                                toast: true,
-                                position: 'top-end'
-                            }).then(() => {
-                                location.reload();
-                            });
-                        }
-                        $updateCategoryTypeModal.modal('hide');
-
-                    },
-                    error: function(xhr, status, error) {
-                        let errorMessage = 'An error occurred while updating the category.';
-
-                        if (xhr.responseJSON && xhr.responseJSON.message) {
-                            errorMessage = xhr.responseJSON.message;
-                        } else if (xhr.responseJSON && xhr.responseJSON.errors) {
-                            const errors = xhr.responseJSON.errors;
-                            errorMessage = Object.values(errors).flat().join('<br>');
-                        }
-
-                        toastr.error(errorMessage, 'error');
-                    },
-                    complete: function() {
-                        $updateCategorySubmitBtn.removeClass('btn-loading');
-                        $updateCategorySubmitBtn.html(
-                            '<i class="bi bi-check-circle me-1"></i>Update Category');
-                        $updateCategorySubmitBtn.prop('disabled', false);
-                    }
-                });
-            });
-
-            $updateCategoryTypeModal.on('hidden.bs.modal', function() {
-                $('#updateCategoryForm')[0].reset();
-                $updateCategorySubmitBtn.removeClass('btn-loading');
-                $updateCategorySubmitBtn.html('<i class="bi bi-check-circle me-1"></i>Update Category');
-                $updateCategorySubmitBtn.prop('disabled', false);
-                $categorySelect.removeClass('is-invalid');
-            });
-
-            $('#availableReinsurers').select2({
-                placeholder: 'Search and select reinsurer...',
-                allowClear: true,
-                minimumInputLength: 0,
-                width: '100%',
-                dropdownParent: $('#proposalModal'),
-                ajax: {
-                    url: "{{ route('pipeline.search_reinsurers') }}",
-                    method: 'GET',
-                    dataType: 'json',
-                    delay: 300,
-                    data: function(params) {
-                        return {
-                            q: params.term || '',
-                            page: params.page || 1
-                        };
-                    },
-                    processResults: function(data, params) {
-
-                        return {
-                            results: data.results,
-                            pagination: {
-                                more: data.pagination && data.pagination.more
-                            }
-                        };
-                    },
-                    cache: true,
-                    error: function(xhr, status, error) {
-                        console.error('AJAX Error:', error);
-                    }
-                },
-                templateResult: function(reinsurer) {
-                    if (reinsurer.loading) return reinsurer.text;
-                    if (!reinsurer.name) return reinsurer.text;
-
-                    const email = reinsurer.email
-
-                    return `
-                        <div class="reinsurer-option">
-                            <div><strong>${reinsurer.name}</strong>
-                                <span class="badge bg-secondary ms-1">${reinsurer.rating}</span>
-                            </div>
-                            <div><small class="text-muted">${reinsurer.country} | Email: ${email}</small></div>
-                        </div>
-                    `;
-                },
-                templateSelection: function(reinsurer) {
-                    if (!reinsurer.id) return reinsurer.text;
-
-                    let option = $('#availableReinsurers').find(`option[value='${reinsurer.id}']`);
-                    option.attr('data-name', reinsurer.name || '');
-                    option.attr('data-email', reinsurer.email || '');
-                    option.attr('data-country', reinsurer.country || '');
-
-                    return `${reinsurer.name} (${reinsurer.email}) - ${reinsurer.country}`;
-                },
-                escapeMarkup: function(markup) {
-                    return markup;
-                }
-            });
-
-            $(document).on('click', '#submitContactModal', function() {
-                const contacts = [];
-
-                $('#departmentContacts .contact-item').each(function() {
-                    const contactData = {
-                        id: $(this).data('contact-id'),
-                        name: $(this).find('.contact-name').val(),
-                        email: $(this).find('.contact-email').val(),
-                        cc_email: $(this).find('.mailc-checkbox').is(':checked')
-                    };
-
-                    if (contactData.name || contactData.email) {
-                        contacts.push(contactData);
-                    }
-                });
-
-                if (contacts.length > 0) {
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Changes Saved!',
-                        text: 'Contact information has been updated.',
-                        timer: 2000,
-                        toast: true,
-                        position: 'top-end',
-                        showConfirmButton: false
-                    });
-                }
-
-                $("#contactsModal").modal('hide')
+                updateSharesDisplay();
             });
 
             $("#totalReinsurerShare").on("input", function() {
@@ -1902,121 +1690,394 @@
                 if (value < 0) {
                     $(this).val("0");
                 }
-
-                recalculateIndividualShares();
             });
 
-            function calculateWrittenShare(
-                individualSharePercent,
-                totalReinsurerSharePercent
-            ) {
-                if (!totalReinsurerSharePercent || totalReinsurerSharePercent === 0) {
-                    return 0;
-                }
-                return (individualSharePercent / 100) * totalReinsurerSharePercent;
-            }
+            $(document).on("click", ".remove-reinsurer", function() {
+                const reinsurerID = $(this).data("reinsurer-id");
+                const row = $(this).closest("tr");
+                const reinsurerName = row.find("td:first .fw-medium").text();
 
-            function recalculateIndividualShares() {
-                const totalReinsurerShare =
-                    parseFloat($("#totalReinsurerShare").val()) || 0;
+                Swal.fire({
+                    title: "Remove Reinsurer?",
+                    text: `Are you sure you want to remove ${reinsurerName} from the list?`,
+                    icon: "question",
+                    showCancelButton: true,
+                    confirmButtonColor: "#d33",
+                    cancelButtonColor: "#3085d6",
+                    confirmButtonText: "Yes, remove it!",
+                    cancelButtonText: "Cancel",
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        table.row(row).remove().draw();
+                        selectedReinsurers.delete(reinsurerID.toString());
+                        updateReinsurerCount();
+                        updateSharesDisplay();
+                        toggleTotalWrittenShareField();
+
+                        Swal.fire({
+                            icon: "info",
+                            title: "Removed!",
+                            text: `${reinsurerName} has been removed from the list.`,
+                            timer: 2000,
+                            showConfirmButton: false,
+                            toast: true,
+                            position: "top-end",
+                        });
+                    }
+                });
+            });
+
+            function updateSharesDisplay() {
+                let totalPlacedShares = 0;
+                let totalReinsurerShare = parseFloat($("#totalReinsurerShare").val()) || 0;
 
                 table.rows().every(function() {
                     const row = $(this.node());
-                    const individualSharePercent =
-                        parseFloat(row.attr("data-individual-share")) || 0;
-                    const writtenShare = calculateWrittenShare(
-                        individualSharePercent,
-                        totalReinsurerShare
-                    );
-
-                    row.find("td:nth-child(2)").html(`
-                        <div class="share-display">
-                            <strong>${writtenShare.toFixed(2)}%</strong>
-                            <br><small class="text-muted">(${individualSharePercent}% of ${totalReinsurerShare}%)</small>
-                        </div>
-                    `);
+                    const writtenShare = parseFloat(row.attr("data-written-share")) || 0;
+                    totalPlacedShares += writtenShare;
                 });
 
-                updateTotalSharesDisplay();
-            }
+                const totalUnplacedShares = totalReinsurerShare - totalPlacedShares;
 
-            function updateTotalSharesDisplay() {
-                const totalReinsurerShare =
-                    parseFloat($("#totalReinsurerShare").val()) || 0;
-                let totalIndividualShares = 0;
-                let totalWrittenShares = 0;
-
-                table.rows().every(function() {
-                    const row = $(this.node());
-                    const individualShare =
-                        parseFloat(row.attr("data-individual-share")) || 0;
-                    const writtenShare = calculateWrittenShare(
-                        individualShare,
-                        totalReinsurerShare
-                    );
-
-                    totalIndividualShares += individualShare;
-                    totalWrittenShares += writtenShare;
-                });
-
-                let totalSharesDisplay = $(".total-shares-display");
-                if (totalSharesDisplay.length === 0) {
+                let sharesDisplay = $(".total-shares-display");
+                if (sharesDisplay.length === 0) {
                     const displayHtml = `
-                        <div class="total-shares-display mt-2">
-                            <div class="row">
+                        <div class="total-shares-display mt-3">
+                            <div class="row g-3">
                                 <div class="col-md-6">
-                                    <div class="d-flex justify-content-between align-items-center p-2 bg-light rounded">
-                                        <span class="fw-medium">Individual Shares Total:</span>
-                                        <span class="badge bg-info individual-shares-value">0.00%</span>
+                                    <div class="shares-card placed-shares">
+                                        <div class="shares-icon">
+                                            <i class="bx bx-check-circle"></i>
+                                        </div>
+                                        <div class="shares-info">
+                                            <span class="shares-label">Placed Shares</span>
+                                            <span class="shares-value placed-value">0.00%</span>
+                                        </div>
                                     </div>
                                 </div>
                                 <div class="col-md-6">
-                                    <div class="d-flex justify-content-between align-items-center p-2 bg-light rounded">
-                                        <span class="fw-medium">Written Shares Total:</span>
-                                        <span class="badge bg-primary written-shares-value">0.00%</span>
+                                    <div class="shares-card unplaced-shares">
+                                        <div class="shares-icon">
+                                            <i class="bx bx-time-five"></i>
+                                        </div>
+                                        <div class="shares-info">
+                                            <span class="shares-label">Unplaced Shares</span>
+                                            <span class="shares-value unplaced-value">100.00%</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="shares-progress mt-2">
+                                <div class="progress" style="height: 8px;">
+                                    <div class="progress-bar bg-success placed-progress" role="progressbar"
+                                        style="width: 0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
                                     </div>
                                 </div>
                             </div>
                         </div>
                     `;
                     $(".selected-reinsurers-section").append(displayHtml);
-                    totalSharesDisplay = $(".total-shares-display");
+                    sharesDisplay = $(".total-shares-display");
                 }
 
-                const individualBadgeClass =
-                    totalIndividualShares > 100 ?
-                    "bg-danger" :
-                    totalIndividualShares === 100 ?
-                    "bg-success" :
-                    "bg-info";
-                totalSharesDisplay
-                    .find(".individual-shares-value")
-                    .removeClass("bg-info bg-success bg-danger")
-                    .addClass(individualBadgeClass)
-                    .text(`${totalIndividualShares.toFixed(2)}%`);
+                const placedValueClass =
+                    totalPlacedShares === totalReinsurerShare ?
+                    "text-success" :
+                    totalPlacedShares > totalReinsurerShare ?
+                    "text-danger" :
+                    "text-primary";
+                sharesDisplay
+                    .find(".placed-value")
+                    .removeClass("text-success text-danger text-primary text-warning")
+                    .addClass(placedValueClass)
+                    .text(`${totalPlacedShares.toFixed(2)}%`);
 
-                const writtenBadgeClass =
-                    totalWrittenShares > totalReinsurerShare ?
-                    "bg-danger" :
-                    totalWrittenShares === totalReinsurerShare ?
+                const unplacedValueClass =
+                    totalUnplacedShares === 0 ?
+                    "text-success" :
+                    totalUnplacedShares < 0 ?
+                    "text-danger" :
+                    "text-warning";
+                sharesDisplay
+                    .find(".unplaced-value")
+                    .removeClass("text-success text-danger text-primary text-warning")
+                    .addClass(unplacedValueClass)
+                    .text(`${totalUnplacedShares.toFixed(2)}%`);
+
+                let progressWidth = 0;
+                if (totalReinsurerShare > 0) {
+                    progressWidth = (totalPlacedShares / totalReinsurerShare) * 100;
+                    progressWidth = Math.min(progressWidth, 100);
+                }
+
+                const progressClass =
+                    totalPlacedShares === totalReinsurerShare ?
                     "bg-success" :
+                    totalPlacedShares > totalReinsurerShare ?
+                    "bg-danger" :
                     "bg-primary";
-                totalSharesDisplay
-                    .find(".written-shares-value")
-                    .removeClass("bg-primary bg-success bg-danger")
-                    .addClass(writtenBadgeClass)
-                    .text(`${totalWrittenShares.toFixed(2)}%`);
+                sharesDisplay
+                    .find(".placed-progress")
+                    .removeClass("bg-success bg-danger bg-primary")
+                    .addClass(progressClass)
+                    .css("width", `${progressWidth}%`)
+                    .attr("aria-valuenow", progressWidth)
+                    .attr("aria-valuemax", 100);
+
+                $("#retainedShareValue").val(totalUnplacedShares.toFixed(2));
             }
 
-            $("#proposalModal").on("shown.bs.modal", function() {
-                $("#proposalForm .is-invalid").removeClass(
-                    "is-invalid"
-                );
-                $("#proposalForm .invalid-feedback").remove();
-                $("#proposalForm .reinsurer-validation-error").remove();
+            function updateReinsurerCount() {
+                const count = selectedReinsurers.size;
+                $("#reinsurerCount").text(count);
+            }
+
+            function resetReinsurerForm() {
+                $("#availableReinsurers").val(null).trigger("change");
+                $("#reinsurerShare").val("");
+            }
+
+            function showAlert(message, type = "info") {
+                const iconMap = {
+                    success: "success",
+                    warning: "warning",
+                    error: "error",
+                    info: "info",
+                };
+
+                const titleMap = {
+                    success: "Success",
+                    warning: "Warning",
+                    error: "Error",
+                    info: "Information",
+                };
+
+                Swal.fire({
+                    icon: iconMap[type],
+                    title: titleMap[type],
+                    text: message,
+                    timer: 3000,
+                    showConfirmButton: false,
+                    toast: true,
+                    position: "top-end",
+                });
+            }
+
+            $(document).on("click", ".contacts-reinsurer", function(e) {
+                e.preventDefault();
+
+                const reinsurerID = $(this).data("reinsurer-id");
+                const row = $(this).closest("tr");
+                let reinsurerName = row.find("td:first .fw-medium").text();
+
+                if (!reinsurerID) {
+                    showAlert("Reinsurer ID not found", "error");
+                    return;
+                }
+
+                const originalHtml = $(this).html();
+                $(this).html('<i class="bx bx-loader bx-spin"></i>');
+                $(this).prop("disabled", true);
+
+                $.ajax({
+                    url: `/reinsurers/${reinsurerID}/contacts`,
+                    method: "GET",
+                    headers: {
+                        "X-Requested-With": "XMLHttpRequest",
+                        Accept: "application/json",
+                    },
+                    success: function(response) {
+                        if (response.success) {
+                            reinsurerName = response?.data?.reinsurer?.name;
+                            populateContactsModal(response.data, reinsurerName);
+                            $("#proposalModal").modal("hide");
+                            $("#contactsModal").modal("show");
+                        } else {
+                            showAlert(response.message || "Failed to fetch contacts", "error");
+                        }
+                    },
+                    error: function(xhr) {
+                        let errorMessage = "Failed to fetch reinsurer contacts";
+
+                        if (xhr.status === 404) {
+                            errorMessage = "Reinsurer contacts not found";
+                        } else if (xhr.status === 403) {
+                            errorMessage = "Access denied to reinsurer contacts";
+                        } else if (xhr.responseJSON && xhr.responseJSON.message) {
+                            errorMessage = xhr.responseJSON.message;
+                        }
+
+                        showAlert(errorMessage, "error");
+                    },
+                    complete: function() {
+                        $(".contacts-reinsurer").html(originalHtml);
+                        $(".contacts-reinsurer").prop("disabled", false);
+                    },
+                });
             });
 
-            $("#proposalForm").on("submit", handleFormSubmission);
+            function populateContactsModal(contactData, reinsurerName) {
+                $("#contactsModalLabel").html(
+                    `<i class="bx bx-building me-1"></i>${reinsurerName} - Contact Management`);
+
+                if (contactData.primary_contact) {
+                    $(".primary-name").val(contactData.primary_contact.name || "N/A");
+                    $(".primary-email").val(contactData.primary_contact.email || "N/A");
+                }
+
+                $("#departmentContacts").empty();
+
+                if (
+                    contactData.department_contacts &&
+                    contactData.department_contacts.length > 0
+                ) {
+                    contactData.department_contacts.forEach(function(contact, index) {
+                        const contactHtml = createContactItemHtml(contact, index);
+                        $("#departmentContacts").append(contactHtml);
+                    });
+                } else {
+                    $("#departmentContacts").html(`
+                        <div class="text-center py-4">
+                            <i class="bx bx-info-circle bx-2x text-muted mb-2 fs-15"></i>
+                            <p class="text-muted">No department contacts found for this reinsurer.</p>
+                        </div>
+                    `);
+                }
+            }
+
+            function createContactItemHtml(contact, index) {
+                const showLabels = index === 0;
+
+                return `
+                    <div class="contact-item rounded px-3 pb-1" data-contact-id="${
+                    contact.id || index
+                    }">
+                        <div class="row align-items-center">
+                            <div class="col-md-3">
+                                ${
+                                showLabels
+                                    ? '<label class="form-label fw-semibold mb-1">Contact Name</label>'
+                                    : ""
+                                }
+                                <input type="text" class="form-control-plaintext contact-name"
+                                    value="${contact.name || ""}" data-field="name">
+                            </div>
+                            <div class="col-md-6">
+                                ${
+                                showLabels
+                                    ? '<label class="form-label fw-semibold mb-1">Email</label>'
+                                    : ""
+                                }
+                                <input type="email" class="form-control-plaintext contact-email"
+                                    value="${contact.email || ""}" data-field="email">
+                            </div>
+                            <div class="col-md-2">
+                                ${
+                                showLabels
+                                    ? '<label class="form-label fw-semibold mb-1">CC Email</label>'
+                                    : ""
+                                }
+                                <div class="form-check mt-2 px-0">
+                                    <input class="form-check-input mailc-checkbox" type="checkbox"
+                                        ${
+                                        contact.cc_email ? "checked" : ""
+                                        } data-field="cc_email">
+                                    <label class="form-check-label cc-email-indicator">
+                                        <i class="bx bx-envelope envlope-ico"></i>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-1"></div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            $("#contactsModal").on("hidden.bs.modal", function() {
+                $("#proposalModal").modal("show");
+            });
+
+            $(document).on("click", "#submitContactModal", function() {
+                const contacts = [];
+
+                $("#departmentContacts .contact-item").each(function() {
+                    const contactData = {
+                        id: $(this).data("contact-id"),
+                        name: $(this).find(".contact-name").val(),
+                        email: $(this).find(".contact-email").val(),
+                        cc_email: $(this).find(".mailc-checkbox").is(":checked"),
+                    };
+
+                    if (contactData.name || contactData.email) {
+                        contacts.push(contactData);
+                    }
+                });
+
+                if (contacts.length > 0) {
+                    showAlert("Contact information has been updated.", "success");
+                }
+
+                $("#contactsModal").modal("hide");
+            });
+
+            $("#updateCategoryForm").on("submit", function(e) {
+                e.preventDefault();
+
+                const $categorySelect = $("#category_type");
+                const $updateCategorySubmitBtn = $("#updateCategorySubmitBtn");
+
+                if (!$categorySelect.val()) {
+                    $categorySelect.addClass("is-invalid");
+                    $categorySelect.focus();
+                    return false;
+                } else {
+                    $categorySelect.removeClass("is-invalid");
+                }
+
+                $updateCategorySubmitBtn.addClass("btn-loading");
+                $updateCategorySubmitBtn.html('<span class="">Updating...</span>');
+                $updateCategorySubmitBtn.prop("disabled", true);
+
+                const formData = new FormData(this);
+                const actionUrl = $(this).attr("action");
+
+                $.ajax({
+                    url: actionUrl,
+                    method: "POST",
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    headers: {
+                        "X-Requested-With": "XMLHttpRequest",
+                    },
+                    success: function(response) {
+                        if (response.success) {
+                            showAlert("Category type updated successfully!", "success");
+                            setTimeout(() => location.reload(), 2000);
+                        }
+                        $("#updateCategoryTypeModal").modal("hide");
+                    },
+                    error: function(xhr, status, error) {
+                        let errorMessage = "An error occurred while updating the category.";
+
+                        if (xhr.responseJSON && xhr.responseJSON.message) {
+                            errorMessage = xhr.responseJSON.message;
+                        } else if (xhr.responseJSON && xhr.responseJSON.errors) {
+                            const errors = xhr.responseJSON.errors;
+                            errorMessage = Object.values(errors).flat().join("<br>");
+                        }
+
+                        showAlert(errorMessage, "error");
+                    },
+                    complete: function() {
+                        $updateCategorySubmitBtn.removeClass("btn-loading");
+                        $updateCategorySubmitBtn.html(
+                            '<i class="bi bi-check-circle me-1"></i>Update Category'
+                        );
+                        $updateCategorySubmitBtn.prop("disabled", false);
+                    },
+                });
+            });
 
             $("#proposalForm").on("input blur", ".form-inputs", function() {
                 validateField($(this));
@@ -2047,7 +2108,7 @@
                 }
 
                 if (isValid && fieldValue) {
-                    $field.addClass("is-validate");
+                    $field.addClass("is-v");
                 } else if (!isValid) {
                     $field.addClass("is-invalid");
                     $field.after(`<div class="invalid-feedback">${errorMessage}</div>`);
@@ -2071,13 +2132,13 @@
                     ) {
                         return {
                             isValid: false,
-                            message: FIELD_VALIDATORS.currency.message
+                            message: FIELD_VALIDATORS.currency.message,
                         };
                     }
                     if (numericValue <= 0) {
                         return {
                             isValid: false,
-                            message: "Amount must be greater than 0"
+                            message: "Amount must be greater than 0",
                         };
                     }
                 }
@@ -2086,7 +2147,7 @@
                     if (!FIELD_VALIDATORS.percentage.pattern.test(fieldValue)) {
                         return {
                             isValid: false,
-                            message: FIELD_VALIDATORS.percentage.message
+                            message: FIELD_VALIDATORS.percentage.message,
                         };
                     }
                     if (
@@ -2104,25 +2165,122 @@
                     if (!FIELD_VALIDATORS.email.pattern.test(fieldValue)) {
                         return {
                             isValid: false,
-                            message: FIELD_VALIDATORS.email.message
+                            message: FIELD_VALIDATORS.email.message,
                         };
                     }
                 }
 
                 return {
-                    isValid: true
+                    isValid: true,
                 };
             }
 
-            function calculateTotalShares() {
-                let total = 0;
-                $("#reinsurersTable tbody tr").each(function() {
-                    const shareText = $(this).find("td:nth-child(2) strong").text();
-                    const shareValue = parseFloat(shareText.replace("%", "")) || 0;
-                    total += shareValue;
+            function validateProposalForm() {
+                let isFormValid = true;
+                const errors = [];
+
+                $("#proposalForm .form-inputs").each(function() {
+                    if (!validateField($(this))) {
+                        isFormValid = false;
+                        const fieldLabel = $(this)
+                            .closest(".form-group")
+                            .find("label")
+                            .text()
+                            .replace("*", "")
+                            .trim();
+                        errors.push(`${fieldLabel}: Please check the entered value`);
+                    }
                 });
-                return total;
+
+                if (!validateReinsurerSelection()) {
+                    isFormValid = false;
+                    errors.push("Reinsurer Selection: Please add at least one reinsurer");
+                }
+
+                if (!validateSharesMatch()) {
+                    isFormValid = false;
+                    errors.push("Share Mismatch: Placed shares must equal Total Written Share");
+                }
+
+                return {
+                    isValid: isFormValid,
+                    errors: errors,
+                };
             }
+
+            function validateSharesMatch() {
+                const totalWrittenShare = parseFloat($("#totalReinsurerShare").val()) || 0;
+
+                let totalPlacedShares = 0;
+                table.rows().every(function() {
+                    const row = $(this.node());
+                    const writtenShare = parseFloat(row.attr("data-written-share")) || 0;
+                    totalPlacedShares += writtenShare;
+                });
+
+                const totalUnplacedShares = totalWrittenShare - totalPlacedShares;
+
+                const sharesDifference = Math.abs(totalWrittenShare - totalPlacedShares);
+
+                if (sharesDifference > 0.01 || totalUnplacedShares !== 0) {
+                    Swal.fire({
+                        icon: "error",
+                        title: "Share Allocation Mismatch",
+                        html: `
+                            <div class="text-start">
+                                <p class="mb-3"><strong>The share allocation is incomplete or incorrect:</strong></p>
+                                <ul class="list-unstyled">
+                                    <li class="mb-2">
+                                        <i class="bx bx-info-circle text-primary me-2"></i>
+                                        <strong>Total Written Share:</strong> ${totalWrittenShare.toFixed(2)}%
+                                    </li>
+                                    <li class="mb-2">
+                                        <i class="bx bx-check-circle ${totalPlacedShares === totalWrittenShare ? 'text-success' : 'text-danger'} me-2"></i>
+                                        <strong>Placed Shares:</strong> ${totalPlacedShares.toFixed(2)}%
+                                    </li>
+                                    <li class="mb-2">
+                                        <i class="bx bx-x-circle ${totalUnplacedShares === 0 ? 'text-success' : 'text-warning'} me-2"></i>
+                                        <strong>Unplaced Shares:</strong> ${totalUnplacedShares.toFixed(2)}%
+                                    </li>
+                                </ul>
+                                <div class="alert alert-warning mt-3 mb-0">
+                                    <i class="bx bx-error-circle me-2"></i>
+                                    Please ensure all shares are allocated and Unplaced Shares equals 0%.
+                                </div>
+                            </div>
+                        `,
+                        confirmButtonColor: "#dc3545",
+                        confirmButtonText: "Fix Allocation",
+                        width: "600px",
+                    });
+
+                    return false;
+                }
+
+                return true;
+            }
+
+            function validateReinsurerSelection() {
+                const reinsurerCount = selectedReinsurers.size;
+                const $reinsurerSection = $("#reinsurer-info");
+
+                $reinsurerSection.find(".reinsurer-validation-error").remove();
+
+                if (reinsurerCount < VALIDATION_CONFIG.MIN_REINSURERS) {
+                    const errorHtml = `
+                        <div class="alert alert-danger reinsurer-validation-error mt-2">
+                            <i class="bx bx-error-circle me-2"></i>
+                            At least ${VALIDATION_CONFIG.MIN_REINSURERS} reinsurer must be selected
+                        </div>
+                    `;
+                    $reinsurerSection.append(errorHtml);
+                    return false;
+                }
+
+                return true;
+            }
+
+            $("#proposalForm").on("submit", handleFormSubmission);
 
             function handleFormSubmission(e) {
                 e.preventDefault();
@@ -2178,6 +2336,8 @@
 
                     success: function(response) {
                         if (response.success) {
+                            resetProposalModal();
+
                             Swal.fire({
                                 icon: "success",
                                 title: "Proposal Saved Successfully!",
@@ -2185,7 +2345,7 @@
                                 showConfirmButton: true,
                             }).then((result) => {
                                 if (result.isConfirmed) {
-                                    handleSendBDNotification(response)
+                                    handleSendBDNotification(response);
                                 } else {
                                     $("#proposalModal").modal("hide");
                                 }
@@ -2215,7 +2375,8 @@
                             errorMessage =
                                 "Request timed out. Please check your connection and try again.";
                         } else if (xhr.status === 0) {
-                            errorMessage = "Network error. Please check your internet connection.";
+                            errorMessage =
+                                "Network error. Please check your internet connection.";
                         } else if (xhr.status === 404) {
                             errorMessage =
                                 "The submission endpoint was not found. Please contact support.";
@@ -2238,14 +2399,13 @@
                 });
             }
 
-            function handleSendBDNotification() {
+            function handleSendBDNotification(response) {
                 $("#proposalModal").modal("hide");
-                $("#sendBDEmail").modal('show')
+                $("#sendBDEmail").modal("show");
             }
 
             function prepareFormData() {
                 const formData = new FormData();
-
                 const $form = $("#proposalForm");
                 const formElements = $form.find("input, select, textarea");
 
@@ -2278,109 +2438,28 @@
                 });
 
                 const reinsurersData = [];
+                let totalPlacedShares = 0;
+
                 $("#reinsurersTable tbody tr").each(function() {
                     const $row = $(this);
+                    const writtenShare = parseFloat($row.attr("data-written-share")) || 0;
+                    totalPlacedShares += writtenShare;
+
                     const reinsurerData = {
                         id: $row.data("reinsurer-id"),
-                        individual_share: $row.data("individual-share"),
+                        written_share: writtenShare,
                     };
                     reinsurersData.push(reinsurerData);
                 });
 
                 formData.append("reinsurers_data", JSON.stringify(reinsurersData));
+                formData.append("total_placed_shares", totalPlacedShares.toFixed(2));
+                formData.append(
+                    "total_unplaced_shares",
+                    (100 - totalPlacedShares).toFixed(2)
+                );
 
-                // console.log("Prepared form data:", formData); // Debug log
                 return formData;
-            }
-
-            function validateProposalForm() {
-                let isFormValid = true;
-                const errors = [];
-
-                $("#proposalForm .form-inputs").each(function() {
-                    if (!validateField($(this))) {
-                        isFormValid = false;
-                        const fieldLabel = $(this)
-                            .closest(".form-group")
-                            .find("label")
-                            .text()
-                            .replace("*", "")
-                            .trim();
-                        errors.push(`${fieldLabel}: Please check the entered value`);
-                    }
-                });
-
-                if (!validateReinsurerSelection()) {
-                    isFormValid = false;
-                    errors.push("Reinsurer Selection: Please add at least one reinsurer");
-                }
-
-                // const requiredFiles = $('#proposalForm input.file-input[required]');
-
-                // requiredFiles.each(function() {
-                //     if (!this.files.length) {
-                //         isFormValid = false;
-                //         const fieldLabel = $(this)
-                //             .closest(".form-group")
-                //             .find("label")
-                //             .text()
-                //             .replace("*", "")
-                //             .trim();
-
-                //         const docError = `${fieldLabel}: Please upload the required document`
-                //         errors.push(docError);
-                //         validateDocInputs(docError)
-                //     }
-                // });
-
-                return {
-                    isValid: isFormValid,
-                    errors: errors,
-                };
-            }
-
-            function validateDocInputs(docError) {
-                const $docSection = $("#documentsContent");
-                const errorHtml = `
-                        <div class="alert alert-danger reinsurer-validation-error mt-2">
-                            <i class="bx bx-error-circle me-2"></i>
-                           ${docError}
-                        </div>
-                    `;
-                $docSection.append(errorHtml);
-                return false;
-            }
-
-            function validateReinsurerSelection() {
-                const reinsurerCount = selectedReinsurers.size;
-                const $reinsurerSection = $("#reinsurer-info");
-
-                $reinsurerSection.find(".reinsurer-validation-error").remove();
-
-                if (reinsurerCount < VALIDATION_CONFIG.MIN_REINSURERS) {
-                    const errorHtml = `
-                        <div class="alert alert-danger reinsurer-validation-error mt-2">
-                            <i class="bx bx-error-circle me-2"></i>
-                            At least ${VALIDATION_CONFIG.MIN_REINSURERS} reinsurer must be selected
-                        </div>
-                    `;
-                    $reinsurerSection.append(errorHtml);
-                    return false;
-                }
-
-                const totalShares = calculateTotalShares();
-                if (totalShares === 0) {
-                    const errorHtml = `
-                        <div class="alert alert-danger reinsurer-validation-error mt-2">
-                            <i class="bx bx-error-circle me-2"></i>
-                            Total reinsurer shares cannot be 0%
-                        </div>
-                    `;
-                    $reinsurerSection.append(errorHtml);
-                    return false;
-                }
-
-                return true;
             }
 
             class BreakdownEditor {
@@ -2391,57 +2470,25 @@
                     this.currentTextarea = null;
                     this.templates = {
                         standard: `
-                        <h3>Standard Coverage Breakdown</h3>
-                        <ul>
-                            <li><strong>Building Structure:</strong> Coverage for physical damage to buildings</li>
-                            <li><strong>Contents:</strong> Protection for business equipment and inventory</li>
-                            <li><strong>Business Interruption:</strong> Loss of income coverage</li>
-                            <li><strong>Public Liability:</strong> Third party claims protection</li>
-                        </ul>
-                        <p><em>All amounts subject to policy terms and conditions.</em></p>
-                    `,
+                            <h3>Standard Coverage Breakdown</h3>
+                            <ul>
+                                <li><strong>Building Structure:</strong> Coverage for physical damage to buildings</li>
+                                <li><strong>Contents:</strong> Protection for business equipment and inventory</li>
+                                <li><strong>Business Interruption:</strong> Loss of income coverage</li>
+                                <li><strong>Public Liability:</strong> Third party claims protection</li>
+                            </ul>
+                            <p><em>All amounts subject to policy terms and conditions.</em></p>
+                        `,
                         property: `
-                        <h3>Property Insurance Coverage</h3>
-                        <ol>
-                            <li><strong>Real Estate Value:</strong> Market value of land and buildings</li>
-                            <li><strong>Replacement Cost:</strong> Cost to rebuild at current prices</li>
-                            <li><strong>Personal Property:</strong> Furniture, fixtures, and equipment</li>
-                            <li><strong>Additional Living Expenses:</strong> Temporary accommodation costs</li>
-                        </ol>
-                        <blockquote>Coverage limits may vary based on property location and risk assessment.</blockquote>
-                    `,
-                        marine: `
-                        <h3>Marine Insurance Coverage</h3>
-                        <table style="width: 100%; border-collapse: collapse; border: 1px solid #dee2e6;">
-                            <tr style="background: #f8f9fa;"><td style="padding: 8px; border: 1px solid #dee2e6;"><strong>Hull & Machinery:</strong></td><td style="padding: 8px; border: 1px solid #dee2e6;">Vessel physical damage</td></tr>
-                            <tr><td style="padding: 8px; border: 1px solid #dee2e6;"><strong>Cargo:</strong></td><td style="padding: 8px; border: 1px solid #dee2e6;">Goods in transit</td></tr>
-                            <tr style="background: #f8f9fa;"><td style="padding: 8px; border: 1px solid #dee2e6;"><strong>Freight:</strong></td><td style="padding: 8px; border: 1px solid #dee2e6;">Loss of freight charges</td></tr>
-                            <tr><td style="padding: 8px; border: 1px solid #dee2e6;"><strong>P&I Coverage:</strong></td><td style="padding: 8px; border: 1px solid #dee2e6;">Protection & Indemnity</td></tr>
-                        </table>
-                    `,
-                        aviation: `
-                        <h3>Aviation Coverage Breakdown</h3>
-                        <p>Comprehensive coverage including:</p>
-                        <ul>
-                            <li>Aircraft hull damage (all risks)</li>
-                            <li>Third party liability (passengers & ground)</li>
-                            <li>Crew and passenger accident coverage</li>
-                            <li>Search and rescue expenses</li>
-                            <li>War risks and hijacking protection</li>
-                        </ul>
-                    `,
-                        liability: `
-                        <h3>Liability Insurance Coverage</h3>
-                        <p><strong>Coverage Scope:</strong></p>
-                        <ul>
-                            <li>General Public Liability</li>
-                            <li>Product Liability</li>
-                            <li>Professional Indemnity</li>
-                            <li>Employers Liability</li>
-                            <li>Directors & Officers Liability</li>
-                        </ul>
-                        <p><em>Subject to applicable deductibles and exclusions.</em></p>
-                    `
+                            <h3>Property Insurance Coverage</h3>
+                            <ol>
+                                <li><strong>Real Estate Value:</strong> Market value of land and buildings</li>
+                                <li><strong>Replacement Cost:</strong> Cost to rebuild at current prices</li>
+                                <li><strong>Personal Property:</strong> Furniture, fixtures, and equipment</li>
+                                <li><strong>Additional Living Expenses:</strong> Temporary accommodation costs</li>
+                            </ol>
+                            <blockquote>Coverage limits may vary based on property location and risk assessment.</blockquote>
+                        `,
                     };
 
                     this.init();
@@ -2468,72 +2515,74 @@
                 }
 
                 setupEventListeners() {
-                    $(document).on('click', 'textarea.breakdown-textarea', (e) => {
+                    $(document).on("click", "textarea.breakdown-textarea", (e) => {
                         e.preventDefault();
                         const $textarea = $(e.currentTarget);
                         this.openModal($textarea);
                     });
 
-                    $(document).on('click', '.template-btn', (e) => {
-                        const template = $(e.target).data('template');
+                    $(document).on("click", ".template-btn", (e) => {
+                        const template = $(e.target).data("template");
                         this.applyTemplate(template);
                     });
 
-                    $('#saveBreakdownBtn').on('click', () => {
+                    $("#saveBreakdownBtn").on("click", () => {
                         this.saveChanges();
                     });
 
-                    $('#previewBtn').on('click', () => {
+                    $("#previewBtn").on("click", () => {
                         this.togglePreview();
                     });
 
-                    $('#breakdownModal').on('show.bs.modal', () => {
+                    $("#breakdownModal").on("show.bs.modal", () => {
                         this.cleanupEditor();
                     });
 
-                    $('#breakdownModal').on('shown.bs.modal', () => {
+                    $("#breakdownModal").on("shown.bs.modal", () => {
                         this.initializeQuill();
                     });
 
-                    $('#breakdownModal').on('hidden.bs.modal', () => {
+                    $("#breakdownModal").on("hidden.bs.modal", () => {
                         this.cleanupEditor();
                         this.currentTextarea = null;
-                        $('#proposalModal').modal('show');
+                        $("#proposalModal").modal("show");
                     });
 
-                    $('#breakdownModal').on('hide.bs.modal', () => {
+                    $("#breakdownModal").on("hide.bs.modal", () => {
                         this.cleanupEditor();
                     });
                 }
 
                 initializeModal() {
-                    if (!document.getElementById('breakdownModal')) {
+                    if (!document.getElementById("breakdownModal")) {
                         console.error("Breakdown modal not found!");
                         return;
                     }
-                    this.modal = new bootstrap.Modal(document.getElementById('breakdownModal'));
+                    this.modal = new bootstrap.Modal(
+                        document.getElementById("breakdownModal")
+                    );
                 }
 
                 cleanupEditor() {
                     if (this.quill) {
                         try {
-                            this.quill.off('text-change');
+                            this.quill.off("text-change");
                             this.quill = null;
                         } catch (error) {
-                            console.warn('Error removing Quill listeners:', error);
+                            console.warn("Error removing Quill listeners:", error);
                         }
                     }
 
-                    const container = document.getElementById('breakdownEditor');
+                    const container = document.getElementById("breakdownEditor");
                     if (container) {
-                        container.innerHTML = '';
-                        container.className = '';
-                        container.removeAttribute('style');
+                        container.innerHTML = "";
+                        container.className = "";
+                        container.removeAttribute("style");
                     }
 
-                    const quillContainer = $('.quill-container');
-                    quillContainer.find('.ql-toolbar').remove();
-                    quillContainer.find('.ql-container').remove();
+                    const quillContainer = $(".quill-container");
+                    quillContainer.find(".ql-toolbar").remove();
+                    quillContainer.find(".ql-container").remove();
                 }
 
                 openModal($textarea) {
@@ -2541,7 +2590,7 @@
                         return;
                     }
 
-                    this.currentTextarea = $textarea;
+                    this.currentTextarea = $("#totalSumInsuredContent");
 
                     const fieldLabel = $textarea
                         .closest(".form-group")
@@ -2550,7 +2599,7 @@
                         .text()
                         .trim();
                     $("#breakdownModalLabel").html(
-                        `<i class="bx bx-edit-alt me-2"></i>${fieldLabel || "Sum Insured Breakdown Editor"}`
+                        `<i class="bx bx-edit-alt me-2"></i>${fieldLabel || ""}`
                     );
 
                     $("#proposalModal").modal("hide");
@@ -2559,78 +2608,83 @@
                 }
 
                 showLoading() {
-                    $('#loadingOverlay').addClass('show');
+                    $("#loadingOverlay").addClass("show");
                 }
 
                 hideLoading() {
-                    $('#loadingOverlay').removeClass('show');
+                    $("#loadingOverlay").removeClass("show");
                 }
 
                 initializeQuill() {
-                    if (typeof Quill === 'undefined') {
+                    if (typeof Quill === "undefined") {
                         this.hideLoading();
                         return;
                     }
 
                     this.cleanupEditor();
 
-
                     if (this.quill) {
                         try {
-                            this.quill.off('text-change');
-                            const container = document.getElementById('breakdownEditor');
+                            this.quill.off("text-change");
+                            const container = document.getElementById("breakdownEditor");
                             if (container) {
-                                container.innerHTML = '';
-                                container.className = '';
+                                container.innerHTML = "";
+                                container.className = "";
                             }
                             this.quill = null;
                         } catch (error) {
-                            console.warn('Error destroying Quill instance:', error);
+                            console.warn("Error destroying Quill instance:", error);
                         }
                     }
 
-                    const editorContainer = document.getElementById('breakdownEditor');
+                    const editorContainer = document.getElementById("breakdownEditor");
                     if (!editorContainer) {
                         this.hideLoading();
                         return;
                     }
 
-                    editorContainer.innerHTML = '';
-                    editorContainer.className = '';
+                    editorContainer.innerHTML = "";
+                    editorContainer.className = "";
 
                     setTimeout(() => {
                         const toolbarOptions = [
                             [{
-                                'header': [1, 2, 3, false]
-                            }],
-                            ['bold', 'italic', 'underline'],
+                                header: [1, 2, 3, false],
+                            }, ],
+                            ["bold", "italic", "underline"],
                             [{
-                                'color': []
-                            }, {
-                                'background': []
-                            }],
+                                    color: [],
+                                },
+                                {
+                                    background: [],
+                                },
+                            ],
                             [{
-                                'list': 'ordered'
-                            }, {
-                                'list': 'bullet'
-                            }],
+                                    list: "ordered",
+                                },
+                                {
+                                    list: "bullet",
+                                },
+                            ],
                             [{
-                                'indent': '-1'
-                            }, {
-                                'indent': '+1'
-                            }],
+                                    indent: "-1",
+                                },
+                                {
+                                    indent: "+1",
+                                },
+                            ],
                             [{
-                                'align': []
-                            }],
-                            ['link'],
-                            ['clean']
+                                align: [],
+                            }, ],
+                            ["link"],
+                            ["clean"],
                         ];
 
                         try {
-                            this.quill = new Quill('#breakdownEditor', {
-                                theme: 'snow',
+                            this.quill = new Quill("#breakdownEditor", {
+                                theme: "snow",
                                 modules: {
-                                    toolbar: toolbarOptions
+                                    toolbar: toolbarOptions,
                                 },
                             });
 
@@ -2641,14 +2695,14 @@
                                 }
                             }
 
-                            this.quill.on('text-change', () => {
+                            this.quill.on("text-change", () => {
                                 this.updateStatistics();
                                 this.validateContent();
                             });
 
                             this.updateStatistics();
                         } catch (error) {
-                            console.error('Error initializing Quill:', error);
+                            console.error("Error initializing Quill:", error);
                         }
 
                         this.hideLoading();
@@ -2673,38 +2727,37 @@
                     }
                 }
 
-
                 validateContent() {
                     if (!this.quill) return;
 
                     const text = this.quill.getText();
-                    const saveBtn = $('#saveBreakdownBtn');
+                    const saveBtn = $("#saveBreakdownBtn");
 
                     if (text.length > this.maxCharacters) {
-                        saveBtn.addClass('disabled');
-                        saveBtn.attr('title', 'Content exceeds maximum character limit');
+                        saveBtn.addClass("disabled");
+                        saveBtn.attr("title", "Content exceeds maximum character limit");
                     } else {
-                        saveBtn.removeClass('disabled');
-                        saveBtn.removeAttr('title');
+                        saveBtn.removeClass("disabled");
+                        saveBtn.removeAttr("title");
                     }
                 }
 
                 applyTemplate(templateName) {
                     if (!this.quill) return;
 
-                    if (templateName === 'clear') {
+                    if (templateName === "clear") {
                         Swal.fire({
-                            title: 'Clear Content?',
-                            text: 'This will remove all current content. Continue?',
-                            icon: 'warning',
+                            title: "Clear Content?",
+                            text: "This will remove all current content. Continue?",
+                            icon: "warning",
                             showCancelButton: true,
-                            confirmButtonColor: '#d33',
-                            cancelButtonColor: '#3085d6',
-                            confirmButtonText: 'Yes, clear it!'
+                            confirmButtonColor: "#d33",
+                            cancelButtonColor: "#3085d6",
+                            confirmButtonText: "Yes, clear it!",
                         }).then((result) => {
                             if (result.isConfirmed) {
                                 this.quill.setContents([]);
-                                this.showToast('Content cleared', 'info');
+                                this.showToast("Content cleared", "info");
                             }
                         });
                         return;
@@ -2712,55 +2765,36 @@
 
                     if (this.templates[templateName]) {
                         Swal.fire({
-                            title: 'Apply Template?',
-                            text: 'This will replace your current content with the selected template.',
-                            icon: 'question',
+                            title: "Apply Template?",
+                            text: "This will replace your current content with the selected template.",
+                            icon: "question",
                             showCancelButton: true,
-                            confirmButtonColor: '#3085d6',
-                            cancelButtonColor: '#6c757d',
-                            confirmButtonText: 'Apply Template'
+                            confirmButtonColor: "#3085d6",
+                            cancelButtonColor: "#6c757d",
+                            confirmButtonText: "Apply Template",
                         }).then((result) => {
                             if (result.isConfirmed) {
                                 this.quill.root.innerHTML = this.templates[templateName];
                                 this.updateStatistics();
-                                this.showToast('Template applied successfully', 'success');
+                                this.showToast("Template applied successfully", "success");
                             }
                         });
                     }
                 }
 
                 togglePreview() {
-                    const container = $('.quill-container');
-                    const btn = $('#previewBtn');
+                    const container = $(".quill-container");
+                    const btn = $("#previewBtn");
 
                     if (this.isPreviewMode) {
-                        container.removeClass('preview-mode');
+                        container.removeClass("preview-mode");
                         btn.html('<i class="bx bx-show me-1"></i>Preview');
                         this.isPreviewMode = false;
                     } else {
-                        container.addClass('preview-mode');
+                        container.addClass("preview-mode");
                         btn.html('<i class="bx bx-edit me-1"></i>Edit');
                         this.isPreviewMode = true;
                     }
-                }
-
-                exportHTML() {
-                    if (!this.quill) return;
-
-                    const html = this.quill.root.innerHTML;
-                    const blob = new Blob([html], {
-                        type: 'text/html'
-                    });
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = 'sum-insured-breakdown.html';
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                    URL.revokeObjectURL(url);
-
-                    this.showToast('HTML exported successfully', 'success');
                 }
 
                 saveChanges() {
@@ -2777,34 +2811,71 @@
                         return;
                     }
 
-                    this.currentTextarea.val(html);
-
                     const saveBtn = $("#saveBreakdownBtn");
                     const originalText = saveBtn.html();
 
                     saveBtn.html('<i class="bx bx-loader-alt bx-spin me-1"></i>Saving...');
                     saveBtn.prop("disabled", true);
 
-                    setTimeout(() => {
-                        saveBtn.html('<i class="bx bx-check me-1"></i>Saved!');
-                        saveBtn.addClass("save-success");
+                    const formData = new FormData();
+                    formData.append("breakdown_content", html);
+                    formData.append("breakdown_title", "total_sum_insured_breakdown");
+                    formData.append("_update", true);
+                    formData.append("opportunity_id", $("#opportunity_id").val() || "");
+                    formData.append("_token", $('meta[name="csrf-token"]').attr("content"));
 
-                        setTimeout(() => {
-                            saveBtn.html(originalText);
-                            saveBtn.prop("disabled", false);
-                            saveBtn.removeClass("save-success");
-                            this.modal.hide();
+                    $.ajax({
+                        url: "{{ route('update.opp.status') }}",
+                        method: "POST",
+                        data: formData,
+                        processData: false,
+                        contentType: false,
+                        headers: {
+                            "X-Requested-With": "XMLHttpRequest",
+                        },
+                        success: (response) => {
+                            if (response.success) {
+                                saveBtn.html(originalText);
+                                saveBtn.prop("disabled", false);
+                                saveBtn.removeClass("save-success");
 
-                            this.showToast("Breakdown saved successfully", "success");
-                        }, 1000);
-                    }, 500);
+                                if (response.data && response.data.short_content) {
+                                    $("#totalSumInsuredContent").val(response.data.short_content);
+                                }
+                                this.modal.hide();
+                                this.showToast("Saved successfully", "success");
+                            } else {
+                                throw new Error(response.message || "Save failed");
+                            }
+                        },
+                        error: (xhr, status, error) => {
+                            console.error("Save error:", error);
+                            let errorMessage = "Failed to save breakdown";
+                            if (xhr.responseJSON && xhr.responseJSON.message) {
+                                errorMessage = xhr.responseJSON.message;
+                            } else if (xhr.status === 422 && xhr.responseJSON?.errors) {
+                                const errors = Object.values(xhr.responseJSON.errors).flat();
+                                errorMessage = errors.join(", ");
+                            } else if (xhr.status === 0) {
+                                errorMessage = "Network error - please check your connection";
+                            }
+
+                            this.showToast(errorMessage, "error");
+                        },
+                        complete: () => {
+                            if (saveBtn.prop("disabled")) {
+                                saveBtn.html(originalText);
+                                saveBtn.prop("disabled", false);
+                                saveBtn.removeClass("save-success");
+                            }
+                        },
+                    });
                 }
 
-
-                showToast(message, type = 'info') {
+                showToast(message, type = "info") {
                     const Toast = Swal.mixin({
                         toast: true,
-                        position: 'top-end',
+                        position: "top-end",
                         showConfirmButton: false,
                         timer: 3000,
                         timerProgressBar: true,
@@ -2812,22 +2883,115 @@
 
                     Toast.fire({
                         icon: type,
-                        title: message
+                        title: message,
                     });
                 }
+            }
+
+            function toggleTotalWrittenShareField() {
+                const $totalWrittenShareInput = $("#totalReinsurerShare");
+                const reinsurerCount = selectedReinsurers.size;
+
+                if (reinsurerCount > 0) {
+                    $totalWrittenShareInput.prop("disabled", true);
+                    $totalWrittenShareInput.css({
+                        "background-color": "#e9ecef",
+                        "cursor": "not-allowed",
+                        "opacity": "0.6"
+                    });
+                } else {
+                    $totalWrittenShareInput.prop("disabled", false);
+                    $totalWrittenShareInput.css({
+                        "background-color": "",
+                        "cursor": "",
+                        "opacity": ""
+                    });
+                }
+            }
+
+
+            function resetProposalModal() {
+                $("#proposalForm")[0].reset();
+
+                $("#proposalForm .is-invalid").removeClass("is-invalid");
+                $("#proposalForm .is-v").removeClass("is-v");
+                $("#proposalForm .invalid-feedback").remove();
+                $("#proposalForm .reinsurer-validation-error").remove();
+
+                table.clear().draw();
+                selectedReinsurers.clear();
+                updateReinsurerCount();
+
+                $("#availableReinsurers").val(null).trigger("change");
+
+                $("#totalReinsurerShare").val("");
+                $("#reinsurerShare").val("");
+                $("#retainedShareValue").val("");
+                $("#totalPlacedShares").val("");
+                $("#totalUnplacedShares").val("");
+
+                $("#totalReinsurerShare").prop("disabled", false);
+                $("#totalReinsurerShare").css({
+                    "background-color": "",
+                    "cursor": "",
+                    "opacity": ""
+                });
+
+                $(".total-shares-display").remove();
+
+                $("#opportunity_id").val("");
+                $("#reinsurersData").val("");
+                $("#totalSumInsuredContent").val("");
+                $("#classCodeValue").val("");
+                $("#classGroupCodeValue").val("");
+
+                $(".slip-display").text("");
+                $(".created_at-display").text("");
+                $(".insured-name-display").text("");
+                $(".insured-contact-name-display").text("");
+                $(".insured-email-display").text("");
+                $(".insured-phone-display").text("");
+                $(".sum_insured_type").text("");
+
+                $(".total_sum_insured").val("");
+                $(".premium").val("");
+                $(".brokerage_rate").val("10");
+                $(".deductible").val("");
+
+                $(".special_conditions").val("");
+                $("#specialConditions").val("");
+
+                $("#documentFields").empty().hide();
+                $("#documentsSubtitle").html("");
+                uploadedFiles = {};
+
+                $(".deductible_excess_div").hide();
             }
 
             let breakdownEditor;
             try {
                 breakdownEditor = new BreakdownEditor();
             } catch (error) {
-                if (typeof toastr !== 'undefined') {
-                    toastr.error('Failed to initialize the BreakdownEditor application. Please refresh the page.');
-                } else {
-                    alert('Failed to initialize the application. Please refresh the page.');
-                }
+                console.error("Failed to initialize BreakdownEditor:", error);
+                showAlert(
+                    "Failed to initialize the editor. Please refresh the page.",
+                    "error"
+                );
             }
 
+            $("#proposalModal").on("shown.bs.modal", function() {
+                $("#proposalForm .is-invalid").removeClass("is-invalid");
+                $("#proposalForm .invalid-feedback").remove();
+                $("#proposalForm .reinsurer-validation-error").remove();
+            });
+
+            $("#updateCategoryTypeModal").on("hidden.bs.modal", function() {
+                resetProposalModal();
+            });
+
+            $("#proposalModal").on("click", "button[data-bs-dismiss='modal']", function() {
+                resetProposalModal();
+            });
         });
     </script>
 @endpush

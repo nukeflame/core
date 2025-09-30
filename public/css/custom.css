@@ -831,7 +831,7 @@ div.dataTables_wrapper div.dataTables_length select {
     border-top-left-radius: 0rem !important;
 }
 .select2-container--default .select2-search--dropdown .select2-search__field {
-    border: 1px solid #111 !important;
+    border: 1px solid #3634346e !important;
     border-radius: 0px !important;
 }
 .notice-action.datatable-action-btn {
@@ -889,8 +889,12 @@ button.link:hover {
     line-height: 12px !important;
 }
 .select2-container--default .select2-selection--multiple {
-    border: solid black 1px !important;
-    border-radius: 0px !important;
+    border: solid #3634346e 1px !important;
+    border-radius: 0.35rem !important;
+    font-size: inherit;
+    padding-left: 7px;
+    padding-right: 20px;
+    color: var(--default-text-color) !important;
 }
 
 .partner_info .col-xl-11,

@@ -120,6 +120,7 @@ Route::middleware(['auth', 'check.first.login'])->group(function () {
 
     Route::post('update_category_type', [PipelineController::class, 'update_category'])->name('update.category_type');
     Route::post('bd/notification/send', [PipelineController::class, 'sendBDNotification'])->name('bd.notification.send');
+    Route::get('get/bd_terms', [PipelineController::class, 'getBdTerms'])->name('get.bd_terms');
 
     //update category type
     // Route::get('pipelines_activityq1', [PipelineController::class, 'pipeline_activity_q1'])->name('pipeline.activity.q1');
