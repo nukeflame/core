@@ -81,6 +81,9 @@
     <link rel="stylesheet" type="text/css" href="{{ asset('assets/css/buttons.dataTables.min.css') }}">
 
     <link href="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.snow.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/quill-better-table@1.2.10/dist/quill-better-table.css" rel="stylesheet" />
+    {{-- <link href="https://unpkg.com/quill-better-table@1.2.10/dist/quill-better-table.css" rel="stylesheet"> --}}
+
 
     {{-- <link href="{{ asset('assets/libs/quill/quill.min.css') }}" rel="stylesheet" /> --}}
     {{-- <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/default.min.css" /> --}}
@@ -503,8 +506,11 @@
         hljs.highlightAll();
     </script> --}}
     {{-- <script src="{{ asset('assets/libs/quill/quill.min.js') }}"></script> --}}
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.min.js"></script>
+    {{-- <script src="https://cdn.jsdelivr.net/npm/quill@1.3.7/dist/quill.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/quill-better-table@1.2.10/dist/quill-better-table.min.js"></script> --}}
 
+    <script src="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.js"></script>
+    <script src="https://unpkg.com/quill-better-table@1.2.10/dist/quill-better-table.js"></script>
 
     <script>
         // Realtime implemention

@@ -870,6 +870,7 @@
                     this.currentStage = dealCurrentStage;
 
                     const stageInfo = this.config.stageFlow[this.currentStage];
+
                     if (!stageInfo) {
                         throw new Error(`Invalid stage: ${this.currentStage}`);
                     }
@@ -923,10 +924,10 @@
                         sumInsuredType: dealInfo?.sum_insured_type
                     };
 
-                    this.loadBdTerms(data)
                     this.loadScheduleHeaders(data);
                     this.loadSlipDocuments(data);
-                    this.populateModalData(modalId, dealId, dealInfo);
+                    this.populateModalData(modalId, dealId, stage, dealInfo);
+                    this.loadBdTerms(data)
 
                     $modal.modal('show');
                     $modal.addClass('slide-in');
@@ -937,7 +938,7 @@
                 }
             }
 
-            populateModalData(modalId, dealId, dealInfo = null) {
+            populateModalData(modalId, dealId, stage, dealInfo = null) {
                 try {
                     const $modal = $(`#${modalId}`);
 
@@ -958,7 +959,6 @@
                             const formattedDate = dateObj.toLocaleDateString('en-US', options);
                             $modal.find('.created_at-display').text(formattedDate);
                         } catch (dateError) {
-                            console.warn('Error formatting date:', dateError);
                             $modal.find('.created_at-display').text('');
                         }
                     }
@@ -978,6 +978,7 @@
                     $modal.find('.sum_insured_type').text(`(${dealInfo.sum_insured_type})` || '');
 
                     $modal.find('#opportunity_id').val(dealInfo.id);
+                    $modal.find('#currentStage').val(stage);
 
                     $modal.find('.total_sum_insured').val(dealInfo.total_sum_insured || '0.00');
                     $modal.find('.premium').val(dealInfo.premium || '0.00');
@@ -1055,10 +1056,17 @@
                 if (data.length > 0) {
                     for (let i = 0; i < data.length; i++) {
                         const v = data[i];
-                        if (v.title === 'total_sum_insured_breakdown') {
-                            $modal.find('#totalSumInsuredContent').val(v.content);
-                            $modal.find('#specialConditions').val(v.short_content ?? '');
-                        }
+
+                        const title = v.title
+                        const content = v.content
+                        const short_content = v.short_content
+
+                        const plainText = $('<div>').html(short_content).text();
+
+                        $(`#${title}`).val(plainText);
+                        $(`#${title}Content`).val(content);
+
+
                     }
                 }
             }
@@ -1188,10 +1196,11 @@
                         fieldsHtml += '<div class="row">';
                     }
 
-                    const fieldId = `schedule_${header.id}`;
-
                     let headerName = this.capitalize(header.name);
+                    const fieldId = this.toPascalCase(header.name);
                     let fieldInput = this.generateFieldInput(header, fieldId);
+
+                    let hiddenInput = `<input type="hidden" id="${fieldId}Content" name="${fieldId}Content" />`;
 
                     fieldsHtml += `
                         <div class="col-md-12">
@@ -1200,6 +1209,7 @@
                                     ${headerName}${header.amount_field === 'Y' ? ' <span class="text-danger pl-1">*</span>' : ''}
                                 </label>
                                 ${fieldInput}
+                                ${hiddenInput}
                                 <div class="invalid-feedback"></div>
                             </div>
                         </div>
@@ -1217,6 +1227,20 @@
                 }
             }
 
+            toPascalCase(rawTxt) {
+                return rawTxt
+                    .replace(/['"]/g, '')
+                    .split(/\s+/)
+                    .map((word, index) => {
+                        let clean = word.toLowerCase();
+                        if (index === 0) {
+                            return clean;
+                        }
+                        return clean.charAt(0).toUpperCase() + clean.slice(1);
+                    })
+                    .join('');
+            }
+
             renderSlipDocuments(res, data, $modal) {
                 if (!res.docs || !res.docs.length) {
                     const $container = $modal.find('#documentsContent');
@@ -1230,7 +1254,7 @@
                 let docs = res.docs;
 
                 docs.push({
-                    name: 'additional_docs',
+                    name: 'Additional Documents',
                     id: Math.floor(Math.random() * 10000),
                     file_name: 'additional_docs',
                     doc_type: 'Additional Documents',
@@ -1338,38 +1362,29 @@
                     $input.off('.fileUpload');
 
                     $uploadArea.on('click.fileUpload', function(e) {
-                        e.preventDefault();
-                        e.stopPropagation();
-
                         const $target = $(e.target);
                         const isInteractiveElement = $target.is(
                                 'button, input, a, .file-action-btn, .file-remove-btn') ||
                             $target.closest('button, .file-action-btn, .file-remove-btn').length > 0;
 
                         if (!isInteractiveElement) {
-                            console.log('Triggering file input click for:', $uploadArea.data('field'));
-                            const $fileInput = $uploadArea.find('.file-input');
-                            // $fileInput.removeClass('d-none').show();
-                            $fileInput[0].click();
+                            e.preventDefault();
+                            e.stopPropagation();
 
-                            // setTimeout(() => {
-                            //     $fileInput.addClass('d-none').hide();
-                            // }, 100);
+                            if ($input.length > 0 && $input[0]) {
+                                $input[0].click();
+                            }
                         }
                     });
 
-                    // File input change handler
                     $input.on('change.fileUpload', (e) => {
                         e.stopPropagation();
-                        console.log('File input changed:', e.target.files.length, 'files');
                         if (e.target.files && e.target.files.length > 0) {
                             this.handleFileSelection(e.target.files, $uploadArea, $previewContainer);
                         }
-                        // Clear the input value to allow selecting the same file again
                         e.target.value = '';
                     });
 
-                    // Drag and drop events (keeping existing functionality)
                     $uploadArea.on('dragover.fileUpload dragenter.fileUpload', (e) => {
                         e.preventDefault();
                         e.stopPropagation();
@@ -1391,7 +1406,6 @@
 
                         const files = e.originalEvent.dataTransfer?.files;
                         if (files && files.length > 0) {
-                            console.log('Files dropped:', files.length);
                             this.handleFileSelection(files, $uploadArea, $previewContainer);
                         }
                     });
@@ -1457,21 +1471,33 @@
                     return;
                 }
 
+                if (!file.fileId) {
+                    file.fileId = fileId;
+                }
+
                 const previewHtml = `
                     <div class="file-preview-item d-flex align-items-center justify-content-between p-2 border rounded mb-2" data-file-id="${fileId}">
-                        <div class="d-flex align-items-center">
+                        <div class="d-flex align-items-center flex-grow-1">
                             <i class="bx bx-file me-2 text-primary"></i>
-                            <div>
-                                <div class="fw-semibold text-truncate" style="max-width: 200px;" title="${fileName}">${fileName}</div>
+                            <div class="flex-grow-1">
+                                <div class="fw-semibold text-truncate" style="max-width: 400px;" title="${fileName}">${fileName}</div>
                                 <div class="small text-muted">${fileSize}</div>
                             </div>
                         </div>
-                        <button type="button" class="btn btn-sm btn-outline-danger file-remove-btn"
+                        <div class="d-flex gap-1">
+                            <button type="button" class="btn btn-sm btn-outline-primary file-view-btn"
+                                data-field="${fieldId}"
+                                data-file-id="${fileId}"
+                                title="View file">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-danger file-remove-btn"
                                 data-field="${fieldId}"
                                 data-file-id="${fileId}"
                                 title="Remove file">
-                            <i class="bx bx-x"></i>
-                        </button>
+                                <i class="bx bx-x"></i>
+                            </button>
+                        </div>
                     </div>
                 `;
 
@@ -1482,6 +1508,13 @@
                     e.stopPropagation();
                     e.preventDefault();
                     this.removeFile(fieldId, fileId);
+                });
+
+                const $viewBtn = $container.find(`[data-file-id="${fileId}"] .file-view-btn`);
+                $viewBtn.off('click.fileView').on('click.fileView', (e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    this.viewFile(fieldId, fileId);
                 });
             }
 
@@ -1501,11 +1534,148 @@
                         if ($uploadArea.length > 0) {
                             this.updateFileCountBadge($uploadArea, fieldId);
                         }
+
+                        if (newLength === 0) {
+                            const $fileInput = $uploadArea.find('.file-input');
+                            if ($fileInput.length > 0) {
+                                $fileInput.val('');
+                            }
+                        }
                     }
 
                 } catch (error) {
                     this.handleError('Error removing file', error);
                 }
+            }
+
+            viewFile(fieldId, fileId) {
+                try {
+                    let fileToView = null;
+                    if (this.uploadedFiles[fieldId] && Array.isArray(this.uploadedFiles[fieldId])) {
+                        fileToView = this.uploadedFiles[fieldId].find(f => f.fileId === fileId);
+                    }
+
+                    if (!fileToView) {
+                        this.showToast('error', 'File not found');
+                        return;
+                    }
+
+                    const fileExtension = fileToView.name.split('.').pop().toLowerCase();
+                    const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg'];
+                    const pdfExtensions = ['pdf'];
+                    const textExtensions = ['txt', 'csv', 'json', 'xml', 'log'];
+
+                    const fileUrl = URL.createObjectURL(fileToView);
+
+                    if (imageExtensions.includes(fileExtension)) {
+                        this.showImageModal(fileToView.name, fileUrl);
+                    } else if (pdfExtensions.includes(fileExtension)) {
+                        window.open(fileUrl, '_blank');
+                    } else if (textExtensions.includes(fileExtension)) {
+                        this.showTextFileModal(fileToView, fileUrl);
+                    } else {
+                        this.downloadFile(fileToView.name, fileUrl);
+                    }
+
+                } catch (error) {
+                    this.handleError('Error viewing file', error);
+                }
+            }
+
+            showImageModal(fileName, fileUrl) {
+                $('#proposalModal').modal('hide');
+
+                const modalHtml = `
+                    <div class="modal fade effect-scale md-wrapper" id="fileViewModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false" role="dialog" aria-hidden="true">
+                        <div class="modal-dialog modal-lg modal-dialog-centered">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title text-truncate" style="max-height: 200px; line-height: 18px;">${fileName}</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                </div>
+                                <div class="modal-body text-center">
+                                    <img src="${fileUrl}" class="img-fluid" alt="${fileName}">
+                                </div>
+                                <div class="modal-footer">
+                                    <a href="${fileUrl}" download="${fileName}" class="btn btn-primary">
+                                        <i class="bx bx-download me-1"></i> Download
+                                    </a>
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                $('#fileViewModal').remove();
+
+                $('body').append(modalHtml);
+                const modal = new bootstrap.Modal(document.getElementById('fileViewModal'));
+
+                $('#fileViewModal').on('hidden.bs.modal', function() {
+                    URL.revokeObjectURL(fileUrl);
+                    $(this).remove();
+                    $('#proposalModal').modal('show');
+                });
+
+                modal.show();
+            }
+
+            showTextFileModal(file, fileUrl) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const content = e.target.result;
+                    const modalHtml = `
+                        <div class="modal fade" id="fileViewModal" tabindex="-1">
+                            <div class="modal-dialog modal-xl modal-dialog-centered">
+                                <div class="modal-content">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title">${file.name}</h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                    </div>
+                                    <div class="modal-body">
+                                        <pre class="bg-light p-3 rounded" style="max-height: 500px; overflow-y: auto;">${this.escapeHtml(content)}</pre>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <a href="${fileUrl}" download="${file.name}" class="btn btn-primary">
+                                            <i class="bx bx-download me-1"></i> Download
+                                        </a>
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+
+                    $('#fileViewModal').remove();
+                    $('body').append(modalHtml);
+                    const modal = new bootstrap.Modal(document.getElementById('fileViewModal'));
+
+                    $('#fileViewModal').on('hidden.bs.modal', function() {
+                        URL.revokeObjectURL(fileUrl);
+                        $(this).remove();
+                    });
+
+                    modal.show();
+                };
+                reader.readAsText(file);
+            }
+
+            downloadFile(fileName, fileUrl) {
+                const a = document.createElement('a');
+                a.href = fileUrl;
+                a.download = fileName;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+
+                setTimeout(() => URL.revokeObjectURL(fileUrl), 100);
+            }
+
+            escapeHtml(text) {
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
             }
 
             formatFileSize(bytes) {
@@ -1526,56 +1696,6 @@
                 return this.formatFileSize(totalSize);
             }
 
-            // generateFieldInput(header, fieldId) {
-            //     const baseInputClass = 'form-control form-inputs';
-            //     const required = header.amount_field === 'Y' ? 'required' : '';
-            //     const placeholder = `Enter ${header.name.toLowerCase()}`;
-
-            //     try {
-            //         if (header.data_determinant === 'Sum Insured' ||
-            //             header.data_determinant === 'Premium' ||
-            //             header.name.toLowerCase().includes('amount')) {
-
-            //             const currency = header.class_group === 'FIRE' ? 'KES' : 'USD';
-            //             return `
-        //                     <div class="input-group">
-        //                         <span class="input-group-text">${currency}</span>
-        //                         <input type="number" class="${baseInputClass}" id="${fieldId}"
-        //                             name="schedule_headers[${header.id}]" step="0.01" min="0"
-        //                             placeholder="${placeholder}" ${required}>
-        //                     </div>
-        //                 `;
-            //         } else if (header.name.toLowerCase().includes('date')) {
-            //             return `<input type="date" class="${baseInputClass}" id="${fieldId}"
-        //                         name="schedule_headers[${header.id}]" ${required}>`;
-            //         } else if (header.name.toLowerCase().includes('percentage') ||
-            //             header.name.toLowerCase().includes('rate')) {
-            //             return `
-        //                 <div class="input-group">
-        //                     <input type="number" class="${baseInputClass}" id="${fieldId}"
-        //                         name="schedule_headers[${header.id}]" step="0.01" min="0" max="100"
-        //                         placeholder="${placeholder}" ${required}>
-        //                     <span class="input-group-text">%</span>
-        //                 </div>`;
-            //         } else if (header.type_of_sum_insured && header.type_of_sum_insured !== 'N/A') {
-            //             let options = `<option value="">Select ${header.name}</option>`;
-            //             if (header.type_of_sum_insured === 'TOTAL SUM INSURED') {
-            //                 options += `
-        //                             <option value="total_sum_insured">Total Sum Insured</option>
-        //                             <option value="individual_sum_insured">Individual Sum Insured</option>`;
-            //             }
-            //             return `<select class="form-select ${baseInputClass.replace('form-control', '')}" id="${fieldId}"
-        //                     name="schedule_headers[${header.id}]" ${required}>${options}</select>`;
-            //         } else {
-            //             return `<input type="text" class="${baseInputClass}" id="${fieldId}"
-        //                    name="schedule_headers[${header.id}]" placeholder="${placeholder}" ${required}>`;
-            //         }
-            //     } catch (error) {
-            //         return `<input type="text" class="${baseInputClass}" id="${fieldId}"
-        //                name="schedule_headers[${header.id}]" placeholder="${placeholder}" ${required}>`;
-            //     }
-            // }
-
             generateFieldInput(header, fieldId) {
                 const baseInputClass = 'form-control form-inputs';
                 const required = header.amount_field === 'Y' ? 'required' : '';
@@ -1591,18 +1711,18 @@
                             <div class="input-group">
                                 <span class="input-group-text">${currency}</span>
                                 <input type="number" class="${baseInputClass}" id="${fieldId}"
-                                    name="schedule_headers[${header.id}]" step="0.01" min="0"
+                                    name="schedule_headers[${fieldId}]" step="0.01" min="0"
                                     placeholder="${placeholder}" ${required}>
                             </div>
                         `;
                     } else if (header.name?.toLowerCase().includes('date')) {
-                        return `<input type="date" class="${baseInputClass}" id="${fieldId}" name="schedule_headers[${header.id}]" ${required}>`;
+                        return `<input type="date" class="${baseInputClass}" id="${fieldId}" name="schedule_headers[${fieldId}]" ${required}>`;
                     } else if (header.name?.toLowerCase().includes('percentage') ||
                         header.name?.toLowerCase().includes('rate')) {
                         return `
                             <div class="input-group">
                                 <input type="number" class="${baseInputClass}" id="${fieldId}"
-                                    name="schedule_headers[${header.id}]" step="0.01" min="0" max="100"
+                                    name="schedule_headers[${fieldId}]" step="0.01" min="0" max="100"
                                     placeholder="${placeholder}" ${required}>
                                 <span class="input-group-text">%</span>
                             </div>`;
@@ -1613,23 +1733,23 @@
                             <option value="total_sum_insured">Total Sum Insured</option>
                             <option value="individual_sum_insured">Individual Sum Insured</option>`;
                         }
-                        return `<select class="form-select ${baseInputClass.replace('form-control', '')}" id="${fieldId}" name="schedule_headers[${header.id}]" ${required}>${options}</select>`;
+                        return `<select class="form-select ${baseInputClass.replace('form-control', '')}" id="${fieldId}" name="schedule_headers[${fieldId}]" ${required}>${options}</select>`;
                     } else {
                         const isTextarea = !header.input_type || header.input_type === 'textarea';
 
                         if (isTextarea) {
-                            return `<textarea class="form-inputs breakdown-textarea" id="${fieldId}" name="schedule_headers[${header.id}]" rows="4" maxlength="5000" aria-label="${header.name}" placeholder="${placeholder}" ${required} readonly></textarea>`;
+                            return `<textarea class="form-inputs breakdown-textarea" id="${fieldId}" name="schedule_headers[${fieldId}]" rows="4" maxlength="5000" aria-label="${header.name}" placeholder="${placeholder}" ${required} readonly></textarea>`;
                         } else {
-                            return `<input type="text" class="${baseInputClass}" id="${fieldId}" name="schedule_headers[${header.id}]" placeholder="${placeholder}" ${required}>`;
+                            return `<input type="text" class="${baseInputClass}" id="${fieldId}" name="schedule_headers[${fieldId}]" placeholder="${placeholder}" ${required}>`;
                         }
                     }
                 } catch (error) {
                     const isTextarea = !header?.input_type || header?.input_type === 'textarea';
 
                     if (isTextarea) {
-                        return `<textarea class="form-inputs breakdown-textarea" id="${fieldId}" name="schedule_headers[${header.id}]" rows="4" maxlength="5000" aria-label="${header.name}" placeholder="${placeholder}" ${required} readonly></textarea>`;
+                        return `<textarea class="form-inputs breakdown-textarea" id="${fieldId}" name="schedule_headers[${fieldId}]" rows="4" maxlength="5000" aria-label="${header.name}" placeholder="${placeholder}" ${required} readonly></textarea>`;
                     } else {
-                        return `<input type="text" class="${baseInputClass}" id="${fieldId}" name="schedule_headers[${header?.id || ''}]" placeholder="${placeholder}" ${required}>`;
+                        return `<input type="text" class="${baseInputClass}" id="${fieldId}" name="schedule_headers[${fieldId || ''}]" placeholder="${placeholder}" ${required}>`;
                     }
                 }
             }

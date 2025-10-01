@@ -4,7 +4,9 @@
     <div class="modal-dialog modal-dialog-centered modal-xl" role="document">
         <div class="modal-content">
             <form id="proposalForm" action="{{ route('update.opp.status') }}" novalidate>
-                <input type="hidden" name="opportunity_id" id="opportunity_id">
+                <input type="hidden" id="opportunity_id" name="opportunity_id" />
+                <input type="hidden" id="specialConditionsContent" name="specialConditionsContent" />
+                <input type="hidden" id="currentStage" name="current_stage" />
 
                 <div class="modal-body fac-slip-container">
                     <div class="fac-slip-header">
@@ -108,8 +110,8 @@
                                             </label>
                                             <div class="currency-input">
                                                 <span class="currency-symbol">KES</span>
-                                                <input type="text" class="form-inputs deductible" name="deductible"
-                                                    placeholder="0.00"
+                                                <input type="text" class="form-inputs deductible"
+                                                    name="deductible" placeholder="0.00"
                                                     onkeyup="this.value=numberWithCommas(this.value)"
                                                     change="this.value=numberWithCommas(this.value)">
                                             </div>
@@ -119,8 +121,6 @@
                                 <div class="form-group">
                                     <label class="form-label">Total sum insured breakdown</label>
                                     <div class="form-textarea-wrapper">
-                                        <input type="hidden" id="totalSumInsuredContent"
-                                            name="totalSumInsuredContent" />
                                         <textarea class="form-inputs breakdown-textarea special_conditions" name="special_conditions" id="specialConditions"
                                             rows="4" maxlength="5000" aria-label="Special Terms and Conditions"
                                             placeholder="Any special terms, conditions, or clauses applicable to this coverage..."></textarea>
@@ -330,14 +330,14 @@
         <div class="modal-content">
             <div class="modal-header bg-primary text-white">
                 <h5 class="modal-title" id="contactsModalLabel">
-                    <i class="bx bx-building me-1"></i>GA Insurance - Contact Management
+                    <i class="bx bx-building me-1"></i>
                 </h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
                     aria-label="Close"></button>
             </div>
             <div class="modal-body">
 
-                <div class="mb-4">
+                <div class="mb-4" id="primary-contacts">
                     <h6 class="text-uppercase fw-bold text-muted mb-3">
                         <i class="bx bx-star text-warning me-2"></i>Primary Contact
                     </h6>
@@ -357,6 +357,8 @@
                                     </div>
                                 </div>
                             </div>
+
+                            <input type="hidden" class="primary-contact_id" name="contact_id" readonly>
                         </div>
                     </div>
                 </div>
@@ -1869,6 +1871,7 @@
                 const reinsurerID = $(this).data("reinsurer-id");
                 const row = $(this).closest("tr");
                 let reinsurerName = row.find("td:first .fw-medium").text();
+                const opportunityId = $('#opportunity_id').val();
 
                 if (!reinsurerID) {
                     showAlert("Reinsurer ID not found", "error");
@@ -1881,7 +1884,11 @@
 
                 $.ajax({
                     url: `/reinsurers/${reinsurerID}/contacts`,
-                    method: "GET",
+                    method: "POST",
+                    data: {
+                        opportunity_id: opportunityId,
+                        reinsurer_id: reinsurerID,
+                    },
                     headers: {
                         "X-Requested-With": "XMLHttpRequest",
                         Accept: "application/json",
@@ -1921,8 +1928,9 @@
                     `<i class="bx bx-building me-1"></i>${reinsurerName} - Contact Management`);
 
                 if (contactData.primary_contact) {
-                    $(".primary-name").val(contactData.primary_contact.name || "N/A");
-                    $(".primary-email").val(contactData.primary_contact.email || "N/A");
+                    $("#primary-contacts .primary-name").val(contactData.primary_contact.name || "N/A");
+                    $("#primary-contacts .primary-email").val(contactData.primary_contact.email || "N/A");
+                    $("#primary-contacts .primary-contact_id").val(contactData.primary_contact.id);
                 }
 
                 $("#departmentContacts").empty();
@@ -2000,12 +2008,25 @@
             $(document).on("click", "#submitContactModal", function() {
                 const contacts = [];
 
+                const primaryData = {
+                    id: parseInt($("#primary-contacts .primary-contact_id").val()),
+                    name: $("#primary-contacts .primary-name").val(),
+                    email: $("#primary-contacts .primary-email").val(),
+                    cc_email: false,
+                    is_primary: true,
+                };
+
+                if (primaryData.name || primaryData.email) {
+                    contacts.push(primaryData);
+                }
+
                 $("#departmentContacts .contact-item").each(function() {
                     const contactData = {
-                        id: $(this).data("contact-id"),
-                        name: $(this).find(".contact-name").val(),
-                        email: $(this).find(".contact-email").val(),
+                        id: parseInt($(this).data("contact-id")),
+                        name: $(this).find(".contact-name").val().trim(),
+                        email: $(this).find(".contact-email").val().trim(),
                         cc_email: $(this).find(".mailc-checkbox").is(":checked"),
+                        is_primary: false,
                     };
 
                     if (contactData.name || contactData.email) {
@@ -2013,13 +2034,39 @@
                     }
                 });
 
-                if (contacts.length > 0) {
-                    showAlert("Contact information has been updated.", "success");
+                if (contacts.length === 0) {
+                    showAlert("Please add at least one contact.", "warning");
+                    return;
                 }
 
-                $("#contactsModal").modal("hide");
-            });
+                const $submitBtn = $(this);
+                $submitBtn.prop("disabled", true);
+                const opportunity_id = $('#opportunity_id').val();
 
+                $.ajax({
+                    url: "{{ route('rein.contacts.update') }}",
+                    method: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({
+                        opportunity_id: opportunity_id,
+                        contacts: contacts
+                    }),
+                    success: function(response) {
+                        if (response.success) {
+                            showAlert("Contact information has been updated.", "success");
+                            $("#contactsModal").modal("hide");
+                            $("#proposalModal").modal("show");
+                        }
+
+                    },
+                    error: function(xhr, status, error) {
+                        console.error(error)
+                    },
+                    complete: function() {
+                        $submitBtn.prop("disabled", false);
+                    }
+                });
+            });
             $("#updateCategoryForm").on("submit", function(e) {
                 e.preventDefault();
 
@@ -2194,13 +2241,13 @@
 
                 if (!validateReinsurerSelection()) {
                     isFormValid = false;
-                    errors.push("Reinsurer Selection: Please add at least one reinsurer");
+                    errors.push("<b>Reinsurer Selection:</b> Please add at least one reinsurer");
                 }
 
-                if (!validateSharesMatch()) {
-                    isFormValid = false;
-                    errors.push("Share Mismatch: Placed shares must equal Total Written Share");
-                }
+                // if (!validateSharesMatch()) {
+                //     isFormValid = false;
+                //     errors.push("<b>Share Mismatch:</b> Placed shares must equal Total Written Share");
+                // }
 
                 return {
                     isValid: isFormValid,
@@ -2229,7 +2276,7 @@
                         html: `
                             <div class="text-start">
                                 <p class="mb-3"><strong>The share allocation is incomplete or incorrect:</strong></p>
-                                <ul class="list-unstyled">
+                                <ul class="list-unstyled m-0 p-0">
                                     <li class="mb-2">
                                         <i class="bx bx-info-circle text-primary me-2"></i>
                                         <strong>Total Written Share:</strong> ${totalWrittenShare.toFixed(2)}%
@@ -2291,9 +2338,9 @@
                 const validation = validateProposalForm();
 
                 if (!validation.isValid) {
-                    let errorHtml = '<ul class="mb-0">';
+                    let errorHtml = '<ul class="m-0 p-0">';
                     validation.errors.forEach((error) => {
-                        errorHtml += `<li>${error}</li>`;
+                        errorHtml += `<li class="m-0 p-0" style="text-align: start;">${error}</li>`;
                     });
                     errorHtml += "</ul>";
 
@@ -2336,20 +2383,22 @@
 
                     success: function(response) {
                         if (response.success) {
-                            resetProposalModal();
+                            console.log(response)
 
-                            Swal.fire({
-                                icon: "success",
-                                title: "Proposal Saved Successfully!",
-                                text: response.message || "Your proposal has been submitted",
-                                showConfirmButton: true,
-                            }).then((result) => {
-                                if (result.isConfirmed) {
-                                    handleSendBDNotification(response);
-                                } else {
-                                    $("#proposalModal").modal("hide");
-                                }
-                            });
+                            // resetProposalModal();
+
+                            // Swal.fire({
+                            //     icon: "success",
+                            //     title: "Proposal Saved Successfully!",
+                            //     text: response.message || "Your proposal has been submitted",
+                            //     showConfirmButton: true,
+                            // }).then((result) => {
+                            //     if (result.isConfirmed) {
+                            //         handleSendBDNotification(response);
+                            //     } else {
+                            //         $("#proposalModal").modal("hide");
+                            //     }
+                            // });
                         } else {
                             throw new Error(response.message || "Submission failed");
                         }
@@ -2468,6 +2517,7 @@
                     this.maxCharacters = 5000;
                     this.isPreviewMode = false;
                     this.currentTextarea = null;
+                    this.textareaId = null;
                     this.templates = {
                         standard: `
                             <h3>Standard Coverage Breakdown</h3>
@@ -2518,7 +2568,9 @@
                     $(document).on("click", "textarea.breakdown-textarea", (e) => {
                         e.preventDefault();
                         const $textarea = $(e.currentTarget);
-                        this.openModal($textarea);
+                        const textareaId = $textarea.attr('id');
+
+                        this.openModal($textarea, textareaId);
                     });
 
                     $(document).on("click", ".template-btn", (e) => {
@@ -2563,6 +2615,22 @@
                     );
                 }
 
+                toCamelCase(str) {
+                    let words = str
+                        .replace(/['"]/g, '')
+                        .toLowerCase()
+                        .split(/\s+/);
+
+                    return words
+                        .map((word, index) => {
+                            if (index === 0) {
+                                return word;
+                            }
+                            return word.charAt(0).toUpperCase() + word.slice(1);
+                        })
+                        .join('');
+                }
+
                 cleanupEditor() {
                     if (this.quill) {
                         try {
@@ -2585,12 +2653,13 @@
                     quillContainer.find(".ql-container").remove();
                 }
 
-                openModal($textarea) {
+                openModal($textarea, textareaId) {
                     if (!this.modal) {
                         return;
                     }
 
-                    this.currentTextarea = $("#totalSumInsuredContent");
+                    this.currentTextarea = $(`#${textareaId}Content`);
+                    this.textareaId = textareaId
 
                     const fieldLabel = $textarea
                         .closest(".form-group")
@@ -2598,6 +2667,7 @@
                         .first()
                         .text()
                         .trim();
+
                     $("#breakdownModalLabel").html(
                         `<i class="bx bx-edit-alt me-2"></i>${fieldLabel || ""}`
                     );
@@ -2648,35 +2718,60 @@
 
                     setTimeout(() => {
                         const toolbarOptions = [
+                            // [{
+                            //     header: [1, 2, 3, false],
+                            // }, ],
+                            // ["bold", "italic", "underline"],
+                            // [{
+                            //         color: [],
+                            //     },
+                            //     {
+                            //         background: [],
+                            //     },
+                            // ],
+                            // [{
+                            //         list: "ordered",
+                            //     },
+                            //     {
+                            //         list: "bullet",
+                            //     },
+                            // ],
+                            // [{
+                            //         indent: "-1",
+                            //     },
+                            //     {
+                            //         indent: "+1",
+                            //     },
+                            // ],
+                            // [{
+                            //     align: [],
+                            // }, ],
+                            // ["link"],
+                            // ["clean"],
                             [{
-                                header: [1, 2, 3, false],
-                            }, ],
+                                header: [1, 2, 3, false]
+                            }],
                             ["bold", "italic", "underline"],
                             [{
-                                    color: [],
-                                },
-                                {
-                                    background: [],
-                                },
-                            ],
+                                color: []
+                            }, {
+                                background: []
+                            }],
                             [{
-                                    list: "ordered",
-                                },
-                                {
-                                    list: "bullet",
-                                },
-                            ],
+                                list: "ordered"
+                            }, {
+                                list: "bullet"
+                            }],
                             [{
-                                    indent: "-1",
-                                },
-                                {
-                                    indent: "+1",
-                                },
-                            ],
+                                indent: "-1"
+                            }, {
+                                indent: "+1"
+                            }],
                             [{
-                                align: [],
-                            }, ],
+                                align: []
+                            }],
                             ["link"],
+                            ["table"],
                             ["clean"],
                         ];
 
@@ -2687,6 +2782,7 @@
                                     toolbar: toolbarOptions,
                                 },
                             });
+
 
                             if (this.currentTextarea) {
                                 const existingContent = this.currentTextarea.val();
@@ -2819,7 +2915,7 @@
 
                     const formData = new FormData();
                     formData.append("breakdown_content", html);
-                    formData.append("breakdown_title", "total_sum_insured_breakdown");
+                    formData.append("breakdown_title", this.textareaId);
                     formData.append("_update", true);
                     formData.append("opportunity_id", $("#opportunity_id").val() || "");
                     formData.append("_token", $('meta[name="csrf-token"]').attr("content"));
@@ -2839,9 +2935,16 @@
                                 saveBtn.prop("disabled", false);
                                 saveBtn.removeClass("save-success");
 
-                                if (response.data && response.data.short_content) {
-                                    $("#totalSumInsuredContent").val(response.data.short_content);
-                                }
+                                const title = response.data.title
+                                const content = response.data.content
+                                const short_content = response.data.short_content
+
+                                const plainText = $('<div>').html(short_content).text();
+
+                                $(`#${title}`).val(plainText);
+                                $(`#${title}Content`).val(content);
+
+
                                 this.modal.hide();
                                 this.showToast("Saved successfully", "success");
                             } else {
@@ -2849,7 +2952,6 @@
                             }
                         },
                         error: (xhr, status, error) => {
-                            console.error("Save error:", error);
                             let errorMessage = "Failed to save breakdown";
                             if (xhr.responseJSON && xhr.responseJSON.message) {
                                 errorMessage = xhr.responseJSON.message;
@@ -2909,7 +3011,6 @@
                 }
             }
 
-
             function resetProposalModal() {
                 $("#proposalForm")[0].reset();
 
@@ -2941,7 +3042,7 @@
 
                 $("#opportunity_id").val("");
                 $("#reinsurersData").val("");
-                $("#totalSumInsuredContent").val("");
+                $("#specialConditionsContent").val("");
                 $("#classCodeValue").val("");
                 $("#classGroupCodeValue").val("");
 

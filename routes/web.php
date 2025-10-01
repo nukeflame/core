@@ -121,6 +121,7 @@ Route::middleware(['auth', 'check.first.login'])->group(function () {
     Route::post('update_category_type', [PipelineController::class, 'update_category'])->name('update.category_type');
     Route::post('bd/notification/send', [PipelineController::class, 'sendBDNotification'])->name('bd.notification.send');
     Route::get('get/bd_terms', [PipelineController::class, 'getBdTerms'])->name('get.bd_terms');
+    Route::post('bd/contacts/update', [PipelineController::class, 'updateReinContacts'])->name('rein.contacts.update');
 
     //update category type
     // Route::get('pipelines_activityq1', [PipelineController::class, 'pipeline_activity_q1'])->name('pipeline.activity.q1');
@@ -131,7 +132,7 @@ Route::middleware(['auth', 'check.first.login'])->group(function () {
     Route::get('get-pipeline-data', [PipelineController::class, 'getPipelineData'])->name('pipeline.sales.get_pipeline_data');
     Route::get('get-pipeline-chart-data', [PipelineController::class, 'getPipelineChartData'])->name('pipeline.sales.get_pipeline_chart_data');
     Route::get('reinsurers/search', [PipelineController::class, 'getPipelineReinsurers'])->name('pipeline.search_reinsurers');
-    Route::get('/reinsurers/{reinsurerID}/contacts', [PipelineController::class, 'getPipelineReinContacts'])->name('pipeline.getPipelineReinContacts');
+    Route::post('/reinsurers/{reinsurerID}/contacts', [PipelineController::class, 'getPipelineReinContacts'])->name('pipeline.getPipelineReinContacts');
     Route::post('/schedule-headers', [PipelineController::class, 'getHeaders'])
         ->name('schedule.headers.get');
 

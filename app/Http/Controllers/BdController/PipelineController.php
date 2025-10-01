@@ -1101,8 +1101,16 @@ class PipelineController
         }
     }
 
-    public function getPipelineReinContacts($reinsurerID)
+    public function getPipelineReinContacts($reinsurerID,  Request $request)
     {
+        $validated = $request->validate([
+            'reinsurer_id' => 'required|integer|exists:customers,customer_id',
+            'opportunity_id' => 'required'
+        ]);
+
+        $reinsurerID = $validated['reinsurer_id'];
+        $opportunityId = $validated['opportunity_id'];
+
         try {
             $reinsurer = DB::table('customers')->where('customer_id', $reinsurerID)->first();
 
@@ -1133,6 +1141,14 @@ class PipelineController
             $country = DB::table('countries')->where('country_iso', $reinsurer?->country_iso)
                 ->first();
 
+            $reinContacts = DB::table('bd_reinsurers_contacts')
+                ->where('opportunity_id', $opportunityId)
+                ->get();
+
+            $reinContactsMap = $reinContacts->keyBy('customer_contact_id')->map(function ($reinContact) {
+                return (bool) $reinContact->is_cc_email;
+            });
+
             $responseData = [
                 'reinsurer' => [
                     'id' => $reinsurer->customer_id,
@@ -1147,14 +1163,19 @@ class PipelineController
                     'phone' => $primaryContact->contact_mobile_no,
                     'department' => 'Reinsurance'
                 ] : null,
-                'department_contacts' => $departmentContacts->map(function ($contact) {
+                'department_contacts' => $departmentContacts->map(function ($contact) use ($reinContactsMap) {
+                    $ccEmail = false;
+                    if ($reinContactsMap->has($contact->id)) {
+                        $ccEmail = $reinContactsMap->get($contact->id);
+                    }
+
                     return [
                         'id' => $contact->id,
                         'name' => $contact->contact_name,
                         'email' => $contact->contact_email,
                         'phone' => $contact->contact_mobile_no,
-                        'department' => 'Reinsurance',
-                        'cc_email' => (bool) true, //$contact->cc_email,
+                        'department' => $contact->department ?? 'Reinsurance',
+                        'cc_email' => $ccEmail,
                         'created_at' => Carbon::parse($contact->created_at)->format('Y-m-d H:i:s')
                     ];
                 })
@@ -5092,20 +5113,22 @@ class PipelineController
         DB::beginTransaction();
         try {
             $term = null;
+            $opportunityId = $request->opportunity_id;
+
+            $prospect = DB::table('pipeline_opportunities')
+                ->where('opportunity_id', $opportunityId)
+                ->first();
 
             if ($request->has('_update')) {
                 $title = $request->breakdown_title;
                 $content = $request->breakdown_content;
-                $short_content = $this->convertHtmlToRaw($request->breakdown_content);
-                $prospect = DB::table('pipeline_opportunities')
-                    ->where('opportunity_id', $request->opportunity_id)
-                    ->first();
+                $short_content = Str::limit($request->breakdown_content, 930);
 
                 if ($prospect) {
                     $data = [
                         'title'          => $title,
                         'content'        => $content,
-                        'short_content'  => Str::limit($this->convertHtmlToRaw($request->breakdown_content), 500),
+                        'short_content'  => $short_content,
                         'created_by'     => auth()->id(),
                         // 'effective_date'  => $effective_date,
                         'created_at'  => now(),
@@ -5132,9 +5155,196 @@ class PipelineController
                 }
             }
 
+            if ($prospect) {
+
+                $stage = $request->current_stage;
+                $total_sum_insured      = str_replace(',', '', $request->total_sum_insured);
+                $premium                = str_replace(',', '', $request->premium);
+                $brokerage_rate         = str_replace(',', '', $request->brokerage_rate);
+                $class_code             = $request->class_code;
+                $class_group_code       = $request->class_group_code;
+                $total_written_share    = $request->total_reinsurer_share;
+                $total_unplaced_shares    = $request->total_unplaced_shares;
+
+                logger()->debug($request->all());
+
+                switch ($stage) {
+                    case Stage::PROPOSAL:
+                        $updateData = [
+                            'total_sum_insured' => $total_sum_insured,
+                            'premium'           => $premium,
+                            'cede_premium'      => $premium,
+                            'rein_premium'      => $premium,
+                            'class_group'       => $class_group_code,
+                            'classcode'         => $class_code,
+                            'stage_updated_at'  => now(),
+                            'unplaced_share'    => $total_unplaced_shares,
+                            'updated_at'        => now()
+                        ];
+
+
+                        //             if (is_array($customer_id) && is_array($customer_name)) {
+
+                        //                 foreach ($customer_id as $index => $id) {
+
+                        //                     $contactName = $selected_contact_person_main['contact_name'][$index] ?? null;
+                        //                     $email = $selected_contact_person_main['contact_email'][$index] ?? null;
+                        //                     $mainContactPerson = $selected_contact_person_main['main_contact_person'][$index] ?? null;
+                        //                     $qt_re_id = '';
+                        //                     try {
+                        //                         $exist = DB::table('quote_reinsurers')->where([
+                        //                             'reinsurer_id' => $id,
+                        //                             'opportunity_id' => $leadId,
+                        //                             'quote_id' => $quoteId,
+                        //                             'stage' => $stage_cycle_fac
+                        //                         ])->exists();
+                        //                         if ($exist) {
+                        //                             $reinsurerName = DB::table('customers')->where('customer_id', $id)->value('name');
+                        //                             return redirect()->back()
+                        //                                 ->withInput()
+                        //                                 ->withErrors(['error' => $reinsurerName . "  " . 'data already exists']);
+                        //                         } else {
+
+                        //                             $qt_re_id = DB::table('quote_reinsurers')->insertGetId([
+                        //                                 'reinsurer_id' => $id,
+                        //                                 'reinsurer_name' => $customer_name[$index],
+                        //                                 'email' => $email,
+                        //                                 'contact_name' => $contactName,
+                        //                                 'main_contact_person' => $mainContactPerson,
+                        //                                 'written_share' => $request->written_share[$index] ?? null,
+                        //                                 'opportunity_id' => $leadId,
+                        //                                 'quote_id' => $quoteId,
+                        //                                 'stage' => $stage_cycle_fac,
+                        //                                 'created_at' => now(),
+                        //                                 'updated_at' => now()
+                        //                             ]);
+                        //                             $reinsurerId[] = $id;
+                        //                         }
+                        //                         if ($qt_re_id) {
+                        //                             $quote_reinsurer_Ids[] = $qt_re_id;
+                        //                         } else {
+                        //                         }
+                        //                     } catch (\Exception $e) {
+                        //                         DB::rollback();
+                        //                         return redirect()->back()
+                        //                             ->withInput()
+                        //                             ->withErrors(['error' => 'An unexpected error occurred: ' . $e->getMessage()]);
+                        //                     }
+                        //                 }
+                        //             }
+
+                        break;
+
+                    default:
+                        break;
+                }
+
+                DB::table('pipeline_opportunities')->where('opportunity_id', $prospect->opportunity_id)->update($updateData);
+
+
+                // $updateData = [
+                // 'currency' => '',
+                // 'divisions' => '',
+
+                // 'fiscal_period' => '',
+                // 'insurance_class' => '',
+                // 'engage_type' => '',
+                // 'effective_date' => '',
+                // 'closing_date' => '',
+                // 'income' => '',
+                // 'lead_owner' => '',
+                // 'lead_status' => '',
+                // 'physical_address' => '',
+                // 'rating' => '',
+                // 'lead_source' => '',
+                // 'source_desc' => '',
+                // 'customer_id' => '',
+                // 'fullname' => '',
+                // 'prequalification' => '',
+                // 'industry' => '',
+                // 'client_type' => '',
+                // 'client_category' => '',
+                // 'pip_year' => '',
+                // 'handed_over' => '',
+                // 'lead_handler' => '',
+                // 'contact_position' => '',
+                // 'country_code' => '',
+                // 'alternate_contact' => '',
+                // 'alternate_email' => '',
+                // 'alternate_phone' => '',
+                // 'alternate_position' => '',
+                // 'town' => '',
+                // 'production_cost' => '',
+                // 'prod_currency' => '',
+                // 'narration' => '',
+                // 'pq_status' => '',
+                // 'postalAddress' => '',
+                // 'postal_code' => '',
+                // 'pq_comments' => '',
+                // 'eml_rate' => '',
+                // 'eml_amt' => '',
+                // 'effective_sum_insured' => '',
+                // 'comm_amt' => '',
+                // 'reins_comm_amt' => '',
+                // 'brokerage_comm_amt' => '',
+                // 'vat_charged' => '',
+                // 'indemnity_treaty_limit' => '',
+                // 'underlying_limit' => '',
+                // 'layer_no' => '',
+                // 'nonprop_reinclass' => '',
+                // 'nonprop_reinclass_desc' => '',
+                // 'prospect' => '',
+                // 'type_of_bus' => '',
+                // 'branchcode' => '',
+                // 'broker_flag' => '',
+                // 'brokercode' => '',
+                // 'pay_method' => '',
+                // 'no_of_installments' => '',
+                // 'currency_code' => '',
+                // 'today_currency' => '',
+                // 'premium_payment_term' => '',
+
+                // 'insured_name' => '',
+                // 'fac_date_offered' => '',
+                // 'sum_insured_type' => '',
+                // 'apply_eml' => '',
+                // 'risk_details' => '',
+                // 'limit_per_reinclass' => '',
+                // 'fac_share_offered' => '',
+                // 'comm_rate' => '',
+                // 'reins_comm_type' => '',
+                // 'brokerage_comm_type' => '',
+                // 'brokerage_comm_rate' => '',
+                // 'lead_name' => '',
+                // 'contact_name' => '',
+                // 'email' => '',
+                // 'phone' => '',
+                // 'telephone' => '',
+                // 'category_type' => '',
+                // 'status' => '',
+                // 'confirmation_file' => '',
+                // 'query_file' => '',
+                // 'query_text' => '',
+                // 'decline_negotiation_text' => '',
+                // 'reins_comm_rate' => '',
+                // 'sales_entry_date' => '',
+                // 'won_at' => '',
+                // 'data_exists_flag' => '',
+                // 'year_before_revert' => '',
+                // 'reverted_to_pipeline' => '',
+                // 'tr_date_offered' => '',
+                // 'prem_tax_rate' => '',
+                // 'ri_tax_rate' => '',
+                // 'treaty_code' => '',
+                // 'expected_closure_date' => '',
+                // 'decline_unchecked_count' => '',
+                // ];
+            }
+
             DB::commit();
             return ['success' => true, 'data' => [
                 'short_content' => $term?->short_content,
+                'title' => $term?->title,
                 'content' => $term?->content,
             ]];
         } catch (\Exception $e) {
@@ -6178,11 +6388,15 @@ class PipelineController
 
     public function convertHtmlToRaw($htmlContent)
     {
+        $htmlContent = str_ireplace(
+            ['<br>', '<br/>', '</p>', '</div>'],
+            " ",
+            $htmlContent
+        );
+
         $rawText = strip_tags($htmlContent);
-
+        $rawText = html_entity_decode($rawText, ENT_QUOTES | ENT_HTML5, 'UTF-8');
         $rawText = preg_replace('/\s+/', ' ', trim($rawText));
-
-        return $rawText;
     }
 
     public function sendBDNotification(Request $request)
@@ -8191,6 +8405,104 @@ class PipelineController
             return ['success' => true, 'data' => $term];
         } catch (\Throwable $th) {
             throw $th;
+        }
+    }
+
+    public function updateReinContacts(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'opportunity_id' => 'required|string|exists:pipeline_opportunities,opportunity_id',
+            'contacts' => 'required|array|min:1',
+            'contacts.*.id' => 'nullable|integer|exists:customer_contacts,id',
+            'contacts.*.name' => 'required|string|max:255',
+            'contacts.*.email' => 'required|email|max:255',
+            'contacts.*.cc_email' => 'required|boolean',
+            'contacts.*.is_primary' => 'required|boolean',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        DB::beginTransaction();
+        try {
+            $opportunity_id = $request->opportunity_id;
+            $contacts = $request->contacts;
+            $updatedContacts = [];
+
+            $reinContact = DB::table('bd_reinsurers_contacts')
+                ->where('opportunity_id', $opportunity_id)
+                ->first();
+
+            if (count($contacts) > 0) {
+                foreach ($contacts as $contactData) {
+                    if ($reinContact) {
+                        $affected = DB::table('bd_reinsurers_contacts')
+                            ->where('opportunity_id', $opportunity_id)
+                            ->where('customer_contact_id', $contactData['id'])
+                            ->update([
+                                'full_name' => $contactData['name'],
+                                'email' => $contactData['email'],
+                                'is_cc_email' => $contactData['cc_email'],
+                                'is_primary' => $contactData['is_primary'],
+                                'updated_at' => now(),
+                            ]);
+
+                        if ($affected > 0) {
+                            $contact = DB::table('bd_reinsurers_contacts')
+                                ->where('opportunity_id', $opportunity_id)
+                                ->where('customer_contact_id', $contactData['id'])
+                                ->first();
+
+                            $updatedContacts[] = $contact;
+                        }
+                    } else {
+                        $contactId = DB::table('bd_reinsurers_contacts')->insertGetId([
+                            'opportunity_id' => $opportunity_id,
+                            'customer_contact_id' => $contactData['id'] ?? null,
+                            'full_name' => $contactData['name'],
+                            'email' => $contactData['email'],
+                            'is_active' => true,
+                            'is_cc_email' => $contactData['cc_email'],
+                            'is_primary' => $contactData['is_primary'],
+                            'created_by' => auth()->id(),
+                            'created_at' => now(),
+                            'updated_at' => now(),
+                        ]);
+
+                        $contact = DB::table('bd_reinsurers_contacts')
+                            ->where('id', $contactId)
+                            ->first();
+
+                        $updatedContacts[] = $contact;
+                    }
+                }
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Contact information has been updated successfully.',
+                'data' => $updatedContacts
+            ], 200);
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            logger()->error('Error updating reinsurer contacts: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+                'opportunity_id' => $request->opportunity_id ?? null,
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while updating contacts.',
+                'error' => config('app.debug') ? $e->getMessage() : null
+            ], 500);
         }
     }
 }
