@@ -3341,8 +3341,8 @@ class PipelineController
         return "
         <div class='btn-group'>
             {$editButton}
-            <button class='btn btn-sm btn-danger'
-                    onclick='deleteOpportunity({$escapedId})'>
+            <button class='btn btn-sm btn-danger del_opp_sales'
+                    data-opp_id='{$escapedId}'>
                 <i class='bx bx-trash'></i>
             </button>
         </div>

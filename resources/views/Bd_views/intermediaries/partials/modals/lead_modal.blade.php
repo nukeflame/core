@@ -246,7 +246,6 @@
                                     </div>
                                     <div id="documentsSubtitle" class="ms-3 fs-12 opacity-75"
                                         style="margin-left: 9px;">
-                                        {{-- <small>Please select insurance class first</small> --}}
                                     </div>
                                 </div>
                             </div>
@@ -422,18 +421,6 @@
                                 <button type="button" class="template-btn" data-template="standard">
                                     Standard Coverage
                                 </button>
-                                {{-- <button type="button" class="template-btn" data-template="property">
-                                    Property Insurance
-                                </button>
-                                <button type="button" class="template-btn" data-template="marine">
-                                    Marine Insurance
-                                </button>
-                                <button type="button" class="template-btn" data-template="aviation">
-                                    Aviation Coverage
-                                </button>
-                                <button type="button" class="template-btn" data-template="liability">
-                                    Liability Insurance
-                                </button> --}}
                                 <button type="button" class="template-btn" data-template="clear">
                                     Clear All
                                 </button>
@@ -442,9 +429,6 @@
 
                         <div class="quill-container position-relative">
                             <div id="breakdownEditor"></div>
-                            {{-- <div id="quill-wrapper">
-                                <div id="breakdownEditor"></div>
-                            </div> --}}
                             <div class="character-counter" id="characterCounter">
                                 0 / 5000 characters
                             </div>
@@ -459,9 +443,6 @@
                         <button type="button" class="btn btn-outline-secondary me-2" id="previewBtn">
                             <i class="bx bx-show me-1"></i>Preview
                         </button>
-                        {{-- <button type="button" class="btn btn-outline-info btn-sm" id="exportBtn">
-                            <i class="bx bx-download me-1"></i>Export HTML
-                        </button> --}}
                     </div>
                     <div>
                         <button type="button" class="btn btn-light me-2" data-bs-dismiss="modal">
