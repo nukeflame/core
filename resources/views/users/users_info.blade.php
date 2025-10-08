@@ -316,9 +316,8 @@
                 ajax: ROUTES.userData,
                 columns: [{
                         data: 'id',
-                        name: 'ID',
+                        name: 'id',
                         defaultContent: "<b class='dashes'>_</b>",
-                        className: 'highlight-idx'
                     },
                     {
                         data: 'username',

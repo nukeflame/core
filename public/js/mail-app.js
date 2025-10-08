@@ -20,7 +20,6 @@ class MailApp {
     }
 
     initializeEditors() {
-        // Initialize Quill editor for reply
         const $replyEditor = $("#mail-reply-editor");
         if ($replyEditor.length) {
             this.quillReply = new Quill("#mail-reply-editor", {
@@ -39,7 +38,6 @@ class MailApp {
     }
 
     initializeSelects() {
-        // Initialize Select2 for email recipients with enhanced options
         $("#toMail, #mailCC, #mailBcc").select2({
             tags: true,
             tokenSeparators: [",", " "],
@@ -50,7 +48,6 @@ class MailApp {
                 const term = params.term.trim();
                 if (term === "") return null;
 
-                // Enhanced email validation
                 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
                 if (!emailRegex.test(term)) return null;
 
@@ -72,7 +69,6 @@ class MailApp {
             },
         });
 
-        // Initialize priority select
         $("#mailPriority").select2({
             minimumResultsForSearch: Infinity,
             width: "100%",
@@ -106,7 +102,6 @@ class MailApp {
     }
 
     bindEvents() {
-        // Email item clicks
         this.$document.on("click", ".email-content", (e) => {
             const $emailItem = $(e.currentTarget).closest(".mail-page");
             const emailId = $emailItem.data("email-id");
@@ -116,7 +111,6 @@ class MailApp {
             }
         });
 
-        // Checkbox selection
         this.$document.on("change", ".email-checkbox", (e) => {
             this.handleEmailSelection($(e.target));
         });
@@ -125,7 +119,6 @@ class MailApp {
             this.handleSelectAll($(e.target).is(":checked"));
         });
 
-        // Star/unstar emails
         this.$document.on("click", ".mail-starred", (e) => {
             e.preventDefault();
             e.stopPropagation();
@@ -134,7 +127,6 @@ class MailApp {
             this.toggleStar(emailId, $btn);
         });
 
-        // Folder navigation
         this.$document.on("click", ".mail-folder-link", (e) => {
             e.preventDefault();
             const $link = $(e.currentTarget);
@@ -142,13 +134,11 @@ class MailApp {
             this.switchFolder(folder);
         });
 
-        // Compose form submission
         $("#compose-email-form").on("submit", (e) => {
             e.preventDefault();
             this.sendEmail();
         });
 
-        // Search functionality
         $("#emailSearch").on(
             "input",
             this.debounce((e) => {
@@ -156,19 +146,16 @@ class MailApp {
             }, 300)
         );
 
-        // Email actions
         this.$document.on("click", "[data-action]", (e) => {
             e.preventDefault();
             const action = $(e.currentTarget).data("action");
             this.handleEmailAction(action, $(e.currentTarget));
         });
 
-        // Sync button
         $("#syncEmailsBtn").on("click", () => {
             this.syncEmails();
         });
 
-        // Template selection
         this.$document.on("click", ".select-template", (e) => {
             const $templateCard = $(e.currentTarget).closest(".template-card");
             const template = $templateCard.data("template");
@@ -666,7 +653,6 @@ class MailApp {
                 method: "GET",
             });
 
-            // Update email list content
             const $tempDiv = $("<div>").html(html);
             const $newEmailList = $tempDiv.find(".mail-messages");
 
@@ -694,10 +680,8 @@ class MailApp {
     }
 
     forwardEmail(emailId) {
-        // Open compose modal with email content pre-filled
         $("#mail-compose-modal").modal("show");
 
-        // Pre-fill subject with "Fwd: "
         if (this.currentEmail) {
             $("#mailSubject").val(`Fwd: ${this.currentEmail.subject}`);
 
@@ -810,15 +794,11 @@ class MailApp {
     }
 
     setupNotifications() {
-        // Request notification permission
         if ("Notification" in window && Notification.permission === "default") {
             Notification.requestPermission();
         }
 
-        // Set up periodic email checking
-        setInterval(() => {
-            this.checkForNewEmails();
-        }, 30000); // Check every 30 seconds
+        this.checkForNewEmails();
     }
 
     async checkForNewEmails() {
@@ -831,13 +811,12 @@ class MailApp {
                 dataType: "json",
             });
 
+            console.log(result);
             if (result.newEmails > 0) {
                 this.showNewEmailNotification(result.newEmails);
                 this.refreshEmailList();
             }
-        } catch (error) {
-            // Silent fail for background checks
-        }
+        } catch (error) {}
     }
 
     showNewEmailNotification(count) {
@@ -852,7 +831,6 @@ class MailApp {
             );
         }
 
-        // Also show in-app notification
         this.showInfo(`${count} new email${count > 1 ? "s" : ""} received`);
     }
 

@@ -891,7 +891,6 @@
                 loadBulletinNotices(type);
             });
 
-            // Auto-refresh every 5 minutes
             setInterval(loadBulletinNotices, 300000);
 
             $('#users-table').DataTable({
@@ -1015,7 +1014,6 @@
                         completed: $(this).find('.todo-check').is(':checked')
                     });
                 });
-                console.log(todos)
 
                 $.ajax({
                     url: '{{ route('todos.save') }}',

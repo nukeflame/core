@@ -2039,3 +2039,8 @@ body::-webkit-scrollbar-thumb:hover {
 .btn-close-white:hover {
     opacity: 1;
 }
+
+.empty-state {
+    position: absolute;
+    top: 36%;
+}

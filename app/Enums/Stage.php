@@ -63,4 +63,15 @@ final class Stage extends Enum
     {
         return self::$stages[$key] ?? null;
     }
+
+    public static function fromStageValue(string $stageValue): ?string
+    {
+        $key = array_search($stageValue, self::$stages, true);
+
+        if ($key !== false) {
+            return $key;
+        }
+
+        return null;
+    }
 }

@@ -601,7 +601,6 @@ class OutlookService
     public function getAuthUrl(): array
     {
         try {
-
             $state = Str::random(32);
             $codeVerifier = PkceHelper::generateCodeVerifier();
             $codeChallenge = PkceHelper::generateCodeChallenge($codeVerifier);
@@ -651,7 +650,7 @@ class OutlookService
     /**
      * Make authenticated HTTP request to Microsoft Graph
      */
-    private function makeRequest(string $method, string $endpoint, array $options = []): array
+    public function makeRequest(string $method, string $endpoint, array $options = []): array
     {
         $startTime = microtime(true);
         $requestId = Str::uuid()->toString();
@@ -670,16 +669,12 @@ class OutlookService
                 throw new Exception("Unsupported HTTP method: {$method}");
             }
 
-            // Prepare HTTP client with authentication and options
             $httpClient = $this->prepareHttpClient($token, $options, $requestId);
 
-            // Execute HTTP request with method-specific handling
             $response = $this->executeHttpRequest($httpClient, $method, $url, $options);
 
-            // Calculate response time
             $responseTime = round((microtime(true) - $startTime) * 1000, 2);
 
-            // Handle response and errors
             $result = $this->handleApiResponse($response, $method, $url, $responseTime, $requestId);
 
             return $result;
@@ -893,13 +888,11 @@ class OutlookService
     {
         $contentType = $response->header('Content-Type');
 
-        // Handle different content types
         if (str_contains($contentType, 'application/json')) {
             $data = $response->json();
             return is_array($data) ? $data : [];
         }
 
-        // Handle binary content (file downloads, images, etc.)
         if (
             str_contains($contentType, 'application/octet-stream') ||
             str_contains($contentType, 'image/') ||
@@ -912,7 +905,6 @@ class OutlookService
             ];
         }
 
-        // Handle text content
         if (str_contains($contentType, 'text/')) {
             return [
                 'content' => $response->body(),
@@ -920,12 +912,10 @@ class OutlookService
             ];
         }
 
-        // Handle empty responses (like DELETE operations)
         if ($method === 'DELETE' || $response->status() === 204) {
             return ['success' => true];
         }
 
-        // Default: try to parse as JSON, fallback to empty array
         try {
             return $response->json() ?? [];
         } catch (Exception $e) {
@@ -1142,7 +1132,6 @@ class OutlookService
             ];
         }
     }
-
 
     /**
      * Get current user information

@@ -23,11 +23,12 @@
             <div class="col-md-3">
                 <select class="form-inputs select2" id="filterCategory">
                     <option value="all">All Categories</option>
-                    <option value="claim">Claim Notification</option>
-                    <option value="policy">Policy Communication</option>
-                    <option value="risk">Risk Assessment</option>
-                    <option value="settlement">Settlement</option>
-                    <option value="general">General Correspondence</option>
+                    <option value="lead">Lead</option>
+                    <option value="proposal">Proposal</option>
+                    <option value="negotiation">Negotiation</option>
+                    <option value="won">Won</option>
+                    <option value="lost">Lost</option>
+                    <option value="final">Final</option>
                 </select>
             </div>
             <div class="col-md-3">
@@ -372,8 +373,8 @@
                 this.currentFolder = 'inbox';
                 this.isLoading = false;
 
-                this.handleSearch = this.debounce(this.filterMessages.bind(this), 500);
-                this.handleFilterChange = this.handleFilterChange.bind(this);
+                // this.handleSearch = this.debounce(this.filterMessages.bind(this), 500);
+                // this.handleFilterChange = this.handleFilterChange.bind(this);
 
                 this.initialize();
             }
@@ -398,25 +399,25 @@
                     }
                 });
 
-                $('#searchTerm').on('input', this.handleSearch);
-                $('#filterPriority, #filterCategory').on('change', this.handleFilterChange);
+                // $('#searchTerm').on('input', this.handleSearch);
+                // $('#filterPriority, #filterCategory').on('change', this.handleFilterChange);
                 $('#filterFolder').on('change', (e) => {
                     this.currentFolder = $(e.target).val();
                     this.loadMessages();
                 });
 
-                $('#refreshEmailsBtn').on('click', () => this.refreshData());
-                $('#checkConnectionBtn').on('click', () => this.checkConnection());
+                // $('#refreshEmailsBtn').on('click', () => this.refreshData());
+                // $('#checkConnectionBtn').on('click', () => this.checkConnection());
                 $('#connectOutlookBtn').on('click', () => this.redirectToMail());
-                $('#fetchMoreBtn').on('click', () => this.fetchMoreEmails());
-                $('#clearFiltersBtn').on('click', () => this.clearFilters());
-                $('#saveDraftBtn').on('click', () => this.saveDraft());
-                $('#newEmailBtn, #newEmailInstead').on('click', () => this.handleNewEmail());
+                // $('#fetchMoreBtn').on('click', () => this.fetchMoreEmails());
+                // $('#clearFiltersBtn').on('click', () => this.clearFilters());
+                // $('#saveDraftBtn').on('click', () => this.saveDraft());
+                // $('#newEmailBtn, #newEmailInstead').on('click', () => this.handleNewEmail());
             }
 
             async checkConnection() {
                 try {
-                    const connectionStatus = @json(auth()->user()->hasOutlookConnection());
+                    const connectionStatus = true; //@json(auth()->user()->hasOutlookConnection());
                     this.isConnected = Boolean(connectionStatus);
                     this.updateConnectionUI(this.isConnected);
                     return this.isConnected;
@@ -475,101 +476,157 @@
 
             async loadOutlookMessages(forceRefresh = false, folderFilter = null) {
                 try {
-                    const emailData = @json($emails);
+                    this.showLoadingState();
 
-                    if (!emailData || !Array.isArray(emailData)) {
-                        throw new Error('Invalid email data received');
+                    const response = await $.ajax({
+                        url: "{{ route('admin.emails.fetch') }}",
+                        method: 'POST',
+                        dataType: 'json',
+                        data: {
+                            force_refresh: forceRefresh ? 1 : 0,
+                            folder: folderFilter,
+                            _token: $('meta[name="csrf-token"]').attr('content')
+                        },
+                        headers: {
+                            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
+                            'Accept': 'application/json'
+                        },
+                        timeout: 30000
+                    });
+
+                    if (!response.success) {
+                        // this.showErrorMessage('Failed to fetch emails');;
+                        this.updateConnectionUI(false);
                     }
 
-                    this.allMessages = emailData.map(email => this.transformOutlookMessage(email));
+                    // const emailData = response.data;
 
-                    this.applyFolderFilter(folderFilter);
+                    // if (!emailData || !Array.isArray(emailData)) {
+                    //     console.warn('No email data available');
+                    //     this.allMessages = [];
+                    //     this.filteredMessages = [];
+                    //     this.updateResultsInfo();
+                    //     this.renderMessages();
+                    //     return;
+                    // }
 
-                    this.sortMessages(this.filteredMessages, 'date', 'desc');
+                    // // Transform emails with error handling
+                    // this.allMessages = emailData
+                    //     .map(email => {
+                    //         try {
+                    //             return this.transformOutlookMessage(email);
+                    //         } catch (err) {
+                    //             console.error('Failed to transform email:', email, err);
+                    //             return null;
+                    //         }
+                    //     })
+                    //     .filter(msg => msg !== null);
 
-                    this.currentPage = 1;
+                    // // Apply filters and sorting
+                    // this.applyFolderFilter(folderFilter);
+                    // this.sortMessages(this.filteredMessages, 'date', 'desc');
+                    // this.currentPage = 1;
 
-                    this.updateResultsInfo();
-                    this.renderMessages();
-                    this.renderPagination();
+                    // // Update UI
+                    // this.updateResultsInfo();
+                    // this.renderMessages();
+                    // this.renderPagination();
 
                 } catch (error) {
                     console.error('Outlook fetch failed:', error);
-                    throw error;
-                }
-            }
 
-            applyFolderFilter(folderFilter) {
-                const targetFolder = folderFilter || 'inbox';
-                this.filteredMessages = this.allMessages.filter(message => {
-                    if (!message.folder) return false;
-                    return message.folder.toLowerCase() === targetFolder.toLowerCase();
-                });
-            }
-
-            transformOutlookMessage(outlookMsg) {
-                try {
-                    let formattedList = '';
-                    if (outlookMsg.to_recipients) {
-                        try {
-                            const recipients = typeof outlookMsg.to_recipients === 'string' ?
-                                JSON.parse(outlookMsg.to_recipients) :
-                                outlookMsg.to_recipients;
-
-                            if (Array.isArray(recipients)) {
-                                formattedList = recipients
-                                    .map(item => `${item.name || item.email} <${item.email}>`)
-                                    .join(', ');
-                            }
-                        } catch (e) {
-                            console.warn('Failed to parse recipients for message:', outlookMsg.id);
-                        }
+                    let errorMessage = 'Failed to load emails';
+                    if (error.status === 401) {
+                        errorMessage = 'Session expired. Please login again.';
+                    } else if (error.status === 403) {
+                        errorMessage = 'Access denied. Please reconnect your Outlook account.';
+                    } else if (error.status === 500) {
+                        errorMessage = 'Server error. Please try again later.';
+                    } else if (error.responseJSON && error.responseJSON.message) {
+                        errorMessage = error.responseJSON.message;
+                    } else if (error.message) {
+                        errorMessage = error.message;
                     }
 
-                    return {
-                        id: outlookMsg.id || `msg_${Date.now()}`,
-                        subject: this.sanitizeText(outlookMsg.subject) || '(No Subject)',
-                        from: this.sanitizeText(outlookMsg.from_email) || 'Unknown',
-                        fromName: this.sanitizeText(outlookMsg.from_name) || '',
-                        preview: this.sanitizeText(outlookMsg.body_preview) || '',
-                        priority: this.detectPriority(outlookMsg),
-                        category: this.detectCategory(outlookMsg),
-                        reference: this.extractReference(outlookMsg),
-                        date: this.formatDate(outlookMsg.date_received),
-                        isRead: Boolean(outlookMsg.is_read),
-                        thread: Boolean(outlookMsg.conversation_id),
-                        conversationId: outlookMsg.conversation_id || '',
-                        importance: outlookMsg.importance || 'normal',
-                        hasAttachments: Boolean(outlookMsg.has_attachments),
-                        bodyHtml: outlookMsg.body_html || '',
-                        toList: formattedList,
-                        messageId: outlookMsg.uid || outlookMsg.id || '',
-                        folder: outlookMsg.folder || 'inbox'
-                    };
-                } catch (error) {
-                    console.error('Message transformation failed:', error, outlookMsg);
-                    return {
-                        id: outlookMsg.id || `error_${Date.now()}`,
-                        subject: '(Error loading message)',
-                        from: 'Unknown',
-                        fromName: '',
-                        preview: 'Failed to load message content',
-                        priority: 'normal',
-                        category: 'general',
-                        reference: '',
-                        date: 'Unknown',
-                        isRead: true,
-                        thread: false,
-                        conversationId: '',
-                        importance: 'normal',
-                        hasAttachments: false,
-                        bodyHtml: '',
-                        toList: '',
-                        messageId: '',
-                        folder: 'inbox'
-                    };
+                    this.showErrorMessage(errorMessage);
+                    throw error;
+
+                } finally {
+                    this.hideLoadingState();
                 }
             }
+
+            // applyFolderFilter(folderFilter) {
+            //     const targetFolder = folderFilter || 'inbox';
+            //     this.filteredMessages = this.allMessages.filter(message => {
+            //         if (!message.folder) return false;
+            //         return message.folder.toLowerCase() === targetFolder.toLowerCase();
+            //     });
+            // }
+
+            // transformOutlookMessage(outlookMsg) {
+            //     try {
+            //         let formattedList = '';
+            //         if (outlookMsg.to_recipients) {
+            //             try {
+            //                 const recipients = typeof outlookMsg.to_recipients === 'string' ?
+            //                     JSON.parse(outlookMsg.to_recipients) :
+            //                     outlookMsg.to_recipients;
+
+            //                 if (Array.isArray(recipients)) {
+            //                     formattedList = recipients
+            //                         .map(item => `${item.name || item.email} <${item.email}>`)
+            //                         .join(', ');
+            //                 }
+            //             } catch (e) {
+            //                 console.warn('Failed to parse recipients for message:', outlookMsg.id);
+            //             }
+            //         }
+
+            //         return {
+            //             id: outlookMsg.id || `msg_${Date.now()}`,
+            //             subject: this.sanitizeText(outlookMsg.subject) || '(No Subject)',
+            //             from: this.sanitizeText(outlookMsg.from_email) || 'Unknown',
+            //             fromName: this.sanitizeText(outlookMsg.from_name) || '',
+            //             preview: this.sanitizeText(outlookMsg.body_preview) || '',
+            //             priority: this.detectPriority(outlookMsg),
+            //             category: this.detectCategory(outlookMsg),
+            //             reference: this.extractReference(outlookMsg),
+            //             date: this.formatDate(outlookMsg.date_received),
+            //             isRead: Boolean(outlookMsg.is_read),
+            //             thread: Boolean(outlookMsg.conversation_id),
+            //             conversationId: outlookMsg.conversation_id || '',
+            //             importance: outlookMsg.importance || 'normal',
+            //             hasAttachments: Boolean(outlookMsg.has_attachments),
+            //             bodyHtml: outlookMsg.body_html || '',
+            //             toList: formattedList,
+            //             messageId: outlookMsg.uid || outlookMsg.id || '',
+            //             folder: outlookMsg.folder || 'inbox'
+            //         };
+            //     } catch (error) {
+            //         console.error('Message transformation failed:', error, outlookMsg);
+            //         return {
+            //             id: outlookMsg.id || `error_${Date.now()}`,
+            //             subject: '(Error loading message)',
+            //             from: 'Unknown',
+            //             fromName: '',
+            //             preview: 'Failed to load message content',
+            //             priority: 'normal',
+            //             category: 'general',
+            //             reference: '',
+            //             date: 'Unknown',
+            //             isRead: true,
+            //             thread: false,
+            //             conversationId: '',
+            //             importance: 'normal',
+            //             hasAttachments: false,
+            //             bodyHtml: '',
+            //             toList: '',
+            //             messageId: '',
+            //             folder: 'inbox'
+            //         };
+            //     }
+            // }
 
             sanitizeText(text) {
                 if (!text) return '';
@@ -585,404 +642,398 @@
                 });
             }
 
-            sortMessages(messages, sortBy = 'date', sortOrder = 'desc') {
-                messages.sort((a, b) => {
-                    let aValue, bValue;
+            // sortMessages(messages, sortBy = 'date', sortOrder = 'desc') {
+            //     messages.sort((a, b) => {
+            //         let aValue, bValue;
 
-                    switch (sortBy.toLowerCase()) {
-                        case 'date':
-                            aValue = new Date(a.date === 'Unknown' ? 0 : a.date);
-                            bValue = new Date(b.date === 'Unknown' ? 0 : b.date);
-                            break;
-                        case 'subject':
-                            aValue = (a.subject || '').toLowerCase();
-                            bValue = (b.subject || '').toLowerCase();
-                            break;
-                        case 'from':
-                            aValue = (a.from || '').toLowerCase();
-                            bValue = (b.from || '').toLowerCase();
-                            break;
-                        case 'priority':
-                            const priorityOrder = {
-                                'urgent': 4,
-                                'high': 3,
-                                'normal': 2,
-                                'low': 1
-                            };
-                            aValue = priorityOrder[a.priority] || 2;
-                            bValue = priorityOrder[b.priority] || 2;
-                            break;
-                        default:
-                            aValue = String(a[sortBy] || '').toLowerCase();
-                            bValue = String(b[sortBy] || '').toLowerCase();
-                    }
+            //         switch (sortBy.toLowerCase()) {
+            //             case 'date':
+            //                 aValue = new Date(a.date === 'Unknown' ? 0 : a.date);
+            //                 bValue = new Date(b.date === 'Unknown' ? 0 : b.date);
+            //                 break;
+            //             case 'subject':
+            //                 aValue = (a.subject || '').toLowerCase();
+            //                 bValue = (b.subject || '').toLowerCase();
+            //                 break;
+            //             case 'from':
+            //                 aValue = (a.from || '').toLowerCase();
+            //                 bValue = (b.from || '').toLowerCase();
+            //                 break;
+            //             case 'priority':
+            //                 const priorityOrder = {
+            //                     'urgent': 4,
+            //                     'high': 3,
+            //                     'normal': 2,
+            //                     'low': 1
+            //                 };
+            //                 aValue = priorityOrder[a.priority] || 2;
+            //                 bValue = priorityOrder[b.priority] || 2;
+            //                 break;
+            //             default:
+            //                 aValue = String(a[sortBy] || '').toLowerCase();
+            //                 bValue = String(b[sortBy] || '').toLowerCase();
+            //         }
 
-                    if (aValue instanceof Date && bValue instanceof Date) {
-                        return sortOrder === 'desc' ? bValue - aValue : aValue - bValue;
-                    } else if (typeof aValue === 'number' && typeof bValue === 'number') {
-                        return sortOrder === 'desc' ? bValue - aValue : aValue - bValue;
-                    } else {
-                        const comparison = String(aValue).localeCompare(String(bValue));
-                        return sortOrder === 'desc' ? -comparison : comparison;
-                    }
-                });
-            }
+            //         if (aValue instanceof Date && bValue instanceof Date) {
+            //             return sortOrder === 'desc' ? bValue - aValue : aValue - bValue;
+            //         } else if (typeof aValue === 'number' && typeof bValue === 'number') {
+            //             return sortOrder === 'desc' ? bValue - aValue : aValue - bValue;
+            //         } else {
+            //             const comparison = String(aValue).localeCompare(String(bValue));
+            //             return sortOrder === 'desc' ? -comparison : comparison;
+            //         }
+            //     });
+            // }
 
-            detectPriority(msg) {
-                const importance = (msg.importance || 'normal').toLowerCase();
-                const subject = (msg.subject || '').toLowerCase();
-                const preview = (msg.body_preview || '').toLowerCase();
-                const content = subject + ' ' + preview;
+            // detectPriority(msg) {
+            //     const importance = (msg.importance || 'normal').toLowerCase();
+            //     const subject = (msg.subject || '').toLowerCase();
+            //     const preview = (msg.body_preview || '').toLowerCase();
+            //     const content = subject + ' ' + preview;
 
-                if (importance === 'high' || content.includes('urgent') || content.includes('asap')) {
-                    return 'urgent';
-                } else if (importance === 'high') {
-                    return 'high';
-                } else if (importance === 'low') {
-                    return 'low';
-                }
-                return 'normal';
-            }
+            //     if (importance === 'high' || content.includes('urgent') || content.includes('asap')) {
+            //         return 'urgent';
+            //     } else if (importance === 'high') {
+            //         return 'high';
+            //     } else if (importance === 'low') {
+            //         return 'low';
+            //     }
+            //     return 'normal';
+            // }
 
-            detectCategory(msg) {
-                const subject = (msg.subject || '').toLowerCase();
-                const preview = (msg.body_preview || '').toLowerCase();
-                const content = subject + ' ' + preview;
+            // detectCategory(msg) {
+            //     const subject = (msg.subject || '').toLowerCase();
+            //     const preview = (msg.body_preview || '').toLowerCase();
+            //     const content = subject + ' ' + preview;
 
-                if (content.includes('settlement')) return 'settlement';
-                if (content.includes('claim')) return 'claim';
-                if (content.includes('policy')) return 'policy';
-                if (content.includes('risk') || content.includes('assessment')) return 'risk';
-                return 'general';
-            }
+            //     if (content.includes('settlement')) return 'settlement';
+            //     if (content.includes('claim')) return 'claim';
+            //     if (content.includes('policy')) return 'policy';
+            //     if (content.includes('risk') || content.includes('assessment')) return 'risk';
+            //     return 'general';
+            // }
 
-            extractReference(msg) {
-                const subject = msg.subject || '';
-                const preview = msg.body_preview || '';
-                const content = subject + ' ' + preview;
+            // extractReference(msg) {
+            //     const subject = msg.subject || '';
+            //     const preview = msg.body_preview || '';
+            //     const content = subject + ' ' + preview;
 
-                const refMatch = content.match(/(?:REF|CLAIM|POL|CASE)[-:\s]*([A-Z0-9]+)/i);
-                return refMatch ? refMatch[0] : `MSG-${String(msg.id).substring(0, 8)}`;
-            }
+            //     const refMatch = content.match(/(?:REF|CLAIM|POL|CASE)[-:\s]*([A-Z0-9]+)/i);
+            //     return refMatch ? refMatch[0] : `MSG-${String(msg.id).substring(0, 8)}`;
+            // }
 
-            formatDate(dateString) {
-                if (!dateString) return 'Unknown';
+            // formatDate(dateString) {
+            //     if (!dateString) return 'Unknown';
 
-                try {
-                    const date = new Date(dateString);
-                    if (isNaN(date.getTime())) return 'Invalid Date';
+            //     try {
+            //         const date = new Date(dateString);
+            //         if (isNaN(date.getTime())) return 'Invalid Date';
 
-                    const now = new Date();
-                    const diffMs = now - date;
-                    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+            //         const now = new Date();
+            //         const diffMs = now - date;
+            //         const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
-                    if (diffDays === 0) {
-                        return date.toLocaleTimeString([], {
-                            hour: '2-digit',
-                            minute: '2-digit'
-                        });
-                    } else if (diffDays === 1) {
-                        return 'Yesterday';
-                    } else if (diffDays < 7) {
-                        return `${diffDays} days ago`;
-                    } else {
-                        return date.toLocaleDateString();
-                    }
-                } catch (error) {
-                    console.warn('Date formatting failed:', dateString, error);
-                    return 'Unknown';
-                }
-            }
+            //         if (diffDays === 0) {
+            //             return date.toLocaleTimeString([], {
+            //                 hour: '2-digit',
+            //                 minute: '2-digit'
+            //             });
+            //         } else if (diffDays === 1) {
+            //             return 'Yesterday';
+            //         } else if (diffDays < 7) {
+            //             return `${diffDays} days ago`;
+            //         } else {
+            //             return date.toLocaleDateString();
+            //         }
+            //     } catch (error) {
+            //         console.warn('Date formatting failed:', dateString, error);
+            //         return 'Unknown';
+            //     }
+            // }
 
-            filterMessages() {
-                const searchTerm = $('#searchTerm').val().toLowerCase().trim();
-                const priorityFilter = $('#filterPriority').val();
-                const categoryFilter = $('#filterCategory').val();
+            // filterMessages() {
+            //     const searchTerm = $('#searchTerm').val().toLowerCase().trim();
+            //     const priorityFilter = $('#filterPriority').val();
+            //     const categoryFilter = $('#filterCategory').val();
 
-                this.filteredMessages = this.allMessages.filter(message => {
-                    const folderMatch = !message.folder ||
-                        message.folder.toLowerCase() === this.currentFolder.toLowerCase();
-                    if (!folderMatch) return false;
+            //     this.filteredMessages = this.allMessages.filter(message => {
+            //         const folderMatch = !message.folder ||
+            //             message.folder.toLowerCase() === this.currentFolder.toLowerCase();
+            //         if (!folderMatch) return false;
 
-                    const matchesSearch = !searchTerm || [
-                        message.subject,
-                        message.from,
-                        message.fromName,
-                        message.preview,
-                        message.reference
-                    ].some(field => (field || '').toLowerCase().includes(searchTerm));
+            //         const matchesSearch = !searchTerm || [
+            //             message.subject,
+            //             message.from,
+            //             message.fromName,
+            //             message.preview,
+            //             message.reference
+            //         ].some(field => (field || '').toLowerCase().includes(searchTerm));
 
-                    const matchesPriority = priorityFilter === 'all' || message.priority === priorityFilter;
-                    const matchesCategory = categoryFilter === 'all' || message.category === categoryFilter;
+            //         const matchesPriority = priorityFilter === 'all' || message.priority === priorityFilter;
+            //         const matchesCategory = categoryFilter === 'all' || message.category === categoryFilter;
 
-                    return matchesSearch && matchesPriority && matchesCategory;
-                });
+            //         return matchesSearch && matchesPriority && matchesCategory;
+            //     });
 
-                this.sortMessages(this.filteredMessages, 'date', 'desc');
+            //     this.sortMessages(this.filteredMessages, 'date', 'desc');
 
-                this.currentPage = 1;
-                this.updateResultsInfo();
-                this.renderMessages();
-                this.renderPagination();
-            }
+            //     this.currentPage = 1;
+            //     this.updateResultsInfo();
+            //     this.renderMessages();
+            //     this.renderPagination();
+            // }
 
-            handleFilterChange(e) {
-                if (e.target.id === 'filterFolder') {
-                    this.currentFolder = $(e.target).val();
-                    this.loadMessages();
-                } else {
-                    this.filterMessages();
-                }
-            }
+            // handleFilterChange(e) {
+            //     if (e.target.id === 'filterFolder') {
+            //         this.currentFolder = $(e.target).val();
+            //         this.loadMessages();
+            //     } else {
+            //         this.filterMessages();
+            //     }
+            // }
 
-            clearFilters() {
-                $('#searchTerm').val('');
-                $('#filterPriority').val('all').trigger('change');
-                $('#filterCategory').val('all').trigger('change');
-                this.filterMessages();
-            }
+            // clearFilters() {
+            //     $('#searchTerm').val('');
+            //     $('#filterPriority').val('all').trigger('change');
+            //     $('#filterCategory').val('all').trigger('change');
+            //     this.filterMessages();
+            // }
 
-            updateResultsInfo() {
-                const totalFiltered = this.filteredMessages.length;
-                const totalAll = this.allMessages.length;
+            // updateResultsInfo() {
+            //     const totalFiltered = this.filteredMessages.length;
+            //     const totalAll = this.allMessages.length;
 
-                $('#filteredCount').text(totalFiltered);
-                $('#resultsInfo').text(`Showing ${totalFiltered} of ${totalAll} messages`);
-            }
+            //     $('#filteredCount').text(totalFiltered);
+            //     $('#resultsInfo').text(`Showing ${totalFiltered} of ${totalAll} messages`);
+            // }
 
-            renderMessages() {
-                const startIndex = (this.currentPage - 1) * this.messagesPerPage;
-                const currentMessages = this.filteredMessages.slice(startIndex, startIndex + this.messagesPerPage);
+            // renderMessages() {
+            //     const startIndex = (this.currentPage - 1) * this.messagesPerPage;
+            //     const currentMessages = this.filteredMessages.slice(startIndex, startIndex + this.messagesPerPage);
 
-                if (currentMessages.length === 0) {
-                    $('#messagesContainer').html(`
-                        <div class="text-center py-5 bg-light rounded">
-                            <i class="bx bx-envelope fa-6x text-muted mb-3"></i>
-                            <p class="text-muted">No messages found matching your criteria</p>
-                            <button type="button" class="btn btn-primary btn-sm" onclick="emailManager.clearFilters()">
-                                Clear filters
-                            </button>
-                        </div>
-                    `);
-                    $('#paginationContainer').addClass('d-none');
-                    return;
-                }
+            //     if (currentMessages.length === 0) {
+            //         $('#messagesContainer').html(`
+        //             <div class="text-center py-5 bg-light rounded">
+        //                 <i class="bx bx-envelope fa-6x text-muted mb-3"></i>
+        //                 <p class="text-muted">No messages found matching your criteria</p>
+        //                 <button type="button" class="btn btn-primary btn-sm" onclick="emailManager.clearFilters()">
+        //                     Clear filters
+        //                 </button>
+        //             </div>
+        //         `);
+            //         $('#paginationContainer').addClass('d-none');
+            //         return;
+            //     }
 
-                const messagesHtml = currentMessages.map(message => this.renderMessageCard(message)).join('');
-                $('#messagesContainer').html(messagesHtml);
-                $('#paginationContainer').removeClass('d-none');
-            }
+            //     const messagesHtml = currentMessages.map(message => this.renderMessageCard(message)).join('');
+            //     $('#messagesContainer').html(messagesHtml);
+            //     $('#paginationContainer').removeClass('d-none');
+            // }
 
-            /**
-             * Render individual message card
-             */
-            renderMessageCard(message) {
-                const badges = [
-                    message.priority ?
-                    `<span class="badge badge--priority-${message.priority}">${message.priority.toUpperCase()}</span>` :
-                    '',
-                    message.category ?
-                    `<span class="badge badge--type-${message.category}">${message.category.toUpperCase()}</span>` :
-                    '',
-                    message.reference ? `<span class="badge badge--id">${message.reference}</span>` : '',
-                    message.thread ? `<span class="badge badge--thread">THREAD</span>` : '',
-                    !message.isRead ? `<span class="badge badge--unread">UNREAD</span>` :
-                    `<span class="badge badge--read">READ</span>`,
-                    message.hasAttachments ? `<span class="badge badge--thread">📎</span>` : ''
-                ].filter(Boolean).join('');
+            // renderMessageCard(message) {
+            //     const badges = [
+            //         message.priority ?
+            //         `<span class="badge badge--priority-${message.priority}">${message.priority.toUpperCase()}</span>` :
+            //         '',
+            //         message.category ?
+            //         `<span class="badge badge--type-${message.category}">${message.category.toUpperCase()}</span>` :
+            //         '',
+            //         message.reference ? `<span class="badge badge--id">${message.reference}</span>` : '',
+            //         message.thread ? `<span class="badge badge--thread">THREAD</span>` : '',
+            //         !message.isRead ? `<span class="badge badge--unread">UNREAD</span>` :
+            //         `<span class="badge badge--read">READ</span>`,
+            //         message.hasAttachments ? `<span class="badge badge--thread">📎</span>` : ''
+            //     ].filter(Boolean).join('');
 
-                return `
-                    <div class="settlement-card ${!message.isRead ? 'message-unread' : ''}"
-                        data-message-id="${message.id}"
-                        ondblclick="emailManager.handleReply('${message.id}')">
-                        <div class="settlement-card__content">
-                            <div class="settlement-card__main">
-                                <div class="settlement-card__badges">${badges}</div>
-                                <h3 class="settlement-card__title">${message.subject}</h3>
-                                <p class="settlement-card__from">
-                                    From: <span class="settlement-card__from-email">${message.fromName || message.from}</span>
-                                    ${message.fromName && message.from !== message.fromName ?
-                                        `<span class="text-muted">&lt;${message.from}&gt;</span>` : ''}
-                                </p>
-                                <p class="settlement-card__description">${message.preview}</p>
-                            </div>
-                            <div class="settlement-card__sidebar">
-                                <p class="settlement-card__timestamp">${message.date}</p>
-                                <button class="reply-button" onclick="event.stopPropagation(); emailManager.handleReply('${message.id}')">
-                                    <svg class="reply-button__icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
-                                        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                                        stroke-linecap="round" stroke-linejoin="round">
-                                        <path d="M20 18v-2a4 4 0 0 0-4-4H4"></path>
-                                        <path d="m9 17-5-5 5-5"></path>
-                                    </svg>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            }
+            //     return `
+        //         <div class="settlement-card ${!message.isRead ? 'message-unread' : ''}"
+        //             data-message-id="${message.id}"
+        //             ondblclick="emailManager.handleReply('${message.id}')">
+        //             <div class="settlement-card__content">
+        //                 <div class="settlement-card__main">
+        //                     <div class="settlement-card__badges">${badges}</div>
+        //                     <h3 class="settlement-card__title">${message.subject}</h3>
+        //                     <p class="settlement-card__from">
+        //                         From: <span class="settlement-card__from-email">${message.fromName || message.from}</span>
+        //                         ${message.fromName && message.from !== message.fromName ?
+        //                             `<span class="text-muted">&lt;${message.from}&gt;</span>` : ''}
+        //                     </p>
+        //                     <p class="settlement-card__description">${message.preview}</p>
+        //                 </div>
+        //                 <div class="settlement-card__sidebar">
+        //                     <p class="settlement-card__timestamp">${message.date}</p>
+        //                     <button class="reply-button" onclick="event.stopPropagation(); emailManager.handleReply('${message.id}')">
+        //                         <svg class="reply-button__icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+        //                             viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+        //                             stroke-linecap="round" stroke-linejoin="round">
+        //                             <path d="M20 18v-2a4 4 0 0 0-4-4H4"></path>
+        //                             <path d="m9 17-5-5 5-5"></path>
+        //                         </svg>
+        //                     </button>
+        //                 </div>
+        //             </div>
+        //         </div>
+        //     `;
+            // }
 
-            renderPagination() {
-                const totalPages = Math.ceil(this.filteredMessages.length / this.messagesPerPage);
+            // renderPagination() {
+            //     const totalPages = Math.ceil(this.filteredMessages.length / this.messagesPerPage);
 
-                if (totalPages <= 1) {
-                    $('#paginationContainer').addClass('d-none');
-                    return;
-                }
+            //     if (totalPages <= 1) {
+            //         $('#paginationContainer').addClass('d-none');
+            //         return;
+            //     }
 
-                $('#paginationInfo').text(`Page ${this.currentPage} of ${totalPages}`);
+            //     $('#paginationInfo').text(`Page ${this.currentPage} of ${totalPages}`);
 
-                let paginationHtml = '';
+            //     let paginationHtml = '';
 
-                paginationHtml += `
-                    <li class="page-item ${this.currentPage === 1 ? 'disabled' : ''}">
-                        <a class="page-link" href="#" onclick="emailManager.changePage(${this.currentPage - 1})">&laquo;</a>
-                    </li>
-                `;
+            //     paginationHtml += `
+        //         <li class="page-item ${this.currentPage === 1 ? 'disabled' : ''}">
+        //             <a class="page-link" href="#" onclick="emailManager.changePage(${this.currentPage - 1})">&laquo;</a>
+        //         </li>
+        //     `;
 
-                for (let i = 1; i <= totalPages; i++) {
-                    if (i === 1 || i === totalPages || (i >= this.currentPage - 2 && i <= this.currentPage + 2)) {
-                        paginationHtml += `
-                    <li class="page-item ${i === this.currentPage ? 'active' : ''}">
-                        <a class="page-link" href="#" onclick="emailManager.changePage(${i})">${i}</a>
-                    </li>
-                `;
-                    } else if (i === this.currentPage - 3 || i === this.currentPage + 3) {
-                        paginationHtml += '<li class="page-item disabled"><span class="page-link">...</span></li>';
-                    }
-                }
+            //     for (let i = 1; i <= totalPages; i++) {
+            //         if (i === 1 || i === totalPages || (i >= this.currentPage - 2 && i <= this.currentPage + 2)) {
+            //             paginationHtml += `
+        //         <li class="page-item ${i === this.currentPage ? 'active' : ''}">
+        //             <a class="page-link" href="#" onclick="emailManager.changePage(${i})">${i}</a>
+        //         </li>
+        //     `;
+            //         } else if (i === this.currentPage - 3 || i === this.currentPage + 3) {
+            //             paginationHtml += '<li class="page-item disabled"><span class="page-link">...</span></li>';
+            //         }
+            //     }
 
-                paginationHtml += `
-                    <li class="page-item ${this.currentPage === totalPages ? 'disabled' : ''}">
-                        <a class="page-link" href="#" onclick="emailManager.changePage(${this.currentPage + 1})">&raquo;</a>
-                    </li>
-                `;
+            //     paginationHtml += `
+        //         <li class="page-item ${this.currentPage === totalPages ? 'disabled' : ''}">
+        //             <a class="page-link" href="#" onclick="emailManager.changePage(${this.currentPage + 1})">&raquo;</a>
+        //         </li>
+        //     `;
 
-                $('#paginationList').html(paginationHtml);
-                $('#paginationContainer').removeClass('d-none');
-            }
+            //     $('#paginationList').html(paginationHtml);
+            //     $('#paginationContainer').removeClass('d-none');
+            // }
 
-            changePage(page) {
-                const totalPages = Math.ceil(this.filteredMessages.length / this.messagesPerPage);
-                if (page >= 1 && page <= totalPages && page !== this.currentPage) {
-                    this.currentPage = page;
-                    this.renderMessages();
-                    this.renderPagination();
-                }
-            }
+            // changePage(page) {
+            //     const totalPages = Math.ceil(this.filteredMessages.length / this.messagesPerPage);
+            //     if (page >= 1 && page <= totalPages && page !== this.currentPage) {
+            //         this.currentPage = page;
+            //         this.renderMessages();
+            //         this.renderPagination();
+            //     }
+            // }
 
-            handleReply(messageId) {
-                const message = this.allMessages.find(m => String(m.id) === String(messageId));
-                if (!message) {
-                    console.error('Message not found:', messageId);
-                    this.showToast('error', 'Message not found');
-                    return;
-                }
+            // handleReply(messageId) {
+            //     const message = this.allMessages.find(m => String(m.id) === String(messageId));
+            //     if (!message) {
+            //         console.error('Message not found:', messageId);
+            //         this.showToast('error', 'Message not found');
+            //         return;
+            //     }
 
-                try {
-                    $('#to').val(message.from);
-                    $('#subject').val(message.subject.startsWith('Re:') ? message.subject : `Re: ${message.subject}`);
-                    $('#category').val(message.category);
+            //     try {
+            //         $('#to').val(message.from);
+            //         $('#subject').val(message.subject.startsWith('Re:') ? message.subject : `Re: ${message.subject}`);
+            //         $('#category').val(message.category);
 
-                    $('#toggleEmailBodyBtn').css('display', 'block').html(
-                        '<i class="bx bx-chevron-up me-1"></i>Hide Original Email');
-                    $('#emailBody').removeClass('hidden');
-                    $('#message').attr('rows', 5).val('');
+            //         $('#toggleEmailBodyBtn').css('display', 'block').html(
+            //             '<i class="bx bx-chevron-up me-1"></i>Hide Original Email');
+            //         $('#emailBody').removeClass('hidden');
+            //         $('#message').attr('rows', 5).val('');
 
-                    $('#emailBody #originalFrom').text(`${message.fromName} <${message.from}>`);
-                    $('#emailBody #originalSent').text(message.date);
-                    $('#emailBody #originalTo').text(message.toList);
-                    $('#emailBody #originalSubject').text(message.subject);
+            //         $('#emailBody #originalFrom').text(`${message.fromName} <${message.from}>`);
+            //         $('#emailBody #originalSent').text(message.date);
+            //         $('#emailBody #originalTo').text(message.toList);
+            //         $('#emailBody #originalSubject').text(message.subject);
 
-                    $('#originalContent #threadMessages').contents().find('body').html(message.bodyHtml);
+            //         $('#originalContent #threadMessages').contents().find('body').html(message.bodyHtml);
 
-                    $('#isReply').val('1');
-                    $('#replyToId').val(message.messageId);
-                    $('#originalMessageId').val(message.conversationId);
-                    $('#composeTitle').text('Reply to Message');
-                    $('#newEmailInstead').removeClass('d-none');
+            //         $('#isReply').val('1');
+            //         $('#replyToId').val(message.messageId);
+            //         $('#originalMessageId').val(message.conversationId);
+            //         $('#composeTitle').text('Reply to Message');
+            //         $('#newEmailInstead').removeClass('d-none');
 
-                    $('.compose_attachement').hide();
+            //         $('.compose_attachement').hide();
 
-                    $('#compose-tab').tab('show');
+            //         $('#compose-tab').tab('show');
 
-                    const subject = message.subject || '';
-                    const preview = subject.length > 50 ? subject.substring(0, 50) + '...' : subject;
-                    this.showToast('success', `Replying to: ${preview}`);
+            //         const subject = message.subject || '';
+            //         const preview = subject.length > 50 ? subject.substring(0, 50) + '...' : subject;
+            //         this.showToast('success', `Replying to: ${preview}`);
 
-                } catch (error) {
-                    console.error('Reply setup failed:', error);
-                    this.showToast('error', 'Failed to setup reply');
-                }
-            }
+            //     } catch (error) {
+            //         console.error('Reply setup failed:', error);
+            //         this.showToast('error', 'Failed to setup reply');
+            //     }
+            // }
 
-            handleNewEmail() {
-                this.resetForm();
-                $('#compose-tab').tab('show');
-            }
+            // handleNewEmail() {
+            //     this.resetForm();
+            //     $('#compose-tab').tab('show');
+            // }
 
-            resetForm() {
-                $('#emailForm')[0].reset();
-                $('#isReply').val('0');
-                $('#originalMessageId').val('');
-                $('#composeTitle').text('Compose New Email');
-                $('#newEmailInstead').addClass('d-none');
-                $('#threadMessage').css('display', 'none');
-                $('.compose_attachement').show();
-            }
+            // resetForm() {
+            //     $('#emailForm')[0].reset();
+            //     $('#isReply').val('0');
+            //     $('#originalMessageId').val('');
+            //     $('#composeTitle').text('Compose New Email');
+            //     $('#newEmailInstead').addClass('d-none');
+            //     $('#threadMessage').css('display', 'none');
+            //     $('.compose_attachement').show();
+            // }
 
-            async refreshData() {
-                const $btn = $('#refreshEmailsBtn');
-                const originalHtml = $btn.html();
+            // async refreshData() {
+            //     const $btn = $('#refreshEmailsBtn');
+            //     const originalHtml = $btn.html();
 
-                try {
-                    $btn.prop('disabled', true).html(
-                        '<span class="spinner-border spinner-border-sm me-1"></span> Refreshing...');
+            //     try {
+            //         $btn.prop('disabled', true).html(
+            //             '<span class="spinner-border spinner-border-sm me-1"></span> Refreshing...');
 
-                    await this.loadMessages(true);
-                    this.showToast('success', 'Messages refreshed successfully!');
+            //         await this.loadMessages(true);
+            //         this.showToast('success', 'Messages refreshed successfully!');
 
-                } catch (error) {
-                    console.error('Refresh failed:', error);
-                    this.showToast('error', 'Failed to refresh messages');
-                } finally {
-                    $btn.prop('disabled', false).html(originalHtml);
-                }
-            }
+            //     } catch (error) {
+            //         console.error('Refresh failed:', error);
+            //         this.showToast('error', 'Failed to refresh messages');
+            //     } finally {
+            //         $btn.prop('disabled', false).html(originalHtml);
+            //     }
+            // }
 
-            async fetchMoreEmails() {
-                const $btn = $('#fetchMoreBtn');
-                const originalHtml = $btn.html();
+            // async fetchMoreEmails() {
+            //     const $btn = $('#fetchMoreBtn');
+            //     const originalHtml = $btn.html();
 
-                try {
-                    $btn.prop('disabled', true).html(
-                        '<span class="spinner-border spinner-border-sm me-1"></span> Fetching...');
+            //     try {
+            //         $btn.prop('disabled', true).html(
+            //             '<span class="spinner-border spinner-border-sm me-1"></span> Fetching...');
 
-                    this.showToast('info', 'Fetch more functionality needs backend implementation');
+            //         this.showToast('info', 'Fetch more functionality needs backend implementation');
 
-                } catch (error) {
-                    console.error('Fetch more failed:', error);
-                    this.showToast('error', 'Failed to fetch more emails');
-                } finally {
-                    $btn.prop('disabled', false).html(originalHtml);
-                }
-            }
+            //     } catch (error) {
+            //         console.error('Fetch more failed:', error);
+            //         this.showToast('error', 'Failed to fetch more emails');
+            //     } finally {
+            //         $btn.prop('disabled', false).html(originalHtml);
+            //     }
+            // }
 
-            /**
-             * Save draft (placeholder)
-             */
-            async saveDraft() {
-                try {
-                    const formData = new FormData($('#emailForm')[0]);
-                    formData.append('save_as_draft', '1');
+            // async saveDraft() {
+            //     try {
+            //         const formData = new FormData($('#emailForm')[0]);
+            //         formData.append('save_as_draft', '1');
 
-                    this.showToast('info', 'Draft save functionality needs backend implementation');
+            //         this.showToast('info', 'Draft save functionality needs backend implementation');
 
-                } catch (error) {
-                    console.error('Save draft failed:', error);
-                    this.showToast('error', 'Failed to save draft');
-                }
-            }
+            //     } catch (error) {
+            //         console.error('Save draft failed:', error);
+            //         this.showToast('error', 'Failed to save draft');
+            //     }
+            // }
 
             redirectToMail() {
                 window.location.href = '/mail';
@@ -1011,29 +1062,31 @@
                 $('#paginationContainer').addClass('d-none');
             }
 
-            showToast(type, message) {
-                if (typeof toastr !== 'undefined') {
-                    toastr[type](message);
-                } else {
-                    console.log(`${type.toUpperCase()}: ${message}`);
-                }
-            }
+            // showToast(type, message) {
+            //     if (typeof toastr !== 'undefined') {
+            //         toastr[type](message);
+            //     } else {
+            //         console.log(`${type.toUpperCase()}: ${message}`);
+            //     }
+            // }
 
-            debounce(func, wait) {
-                let timeout;
-                return function executedFunction(...args) {
-                    const later = () => {
-                        clearTimeout(timeout);
-                        func.apply(this, args);
-                    };
-                    clearTimeout(timeout);
-                    timeout = setTimeout(later, wait);
-                };
-            }
+            // debounce(func, wait) {
+            //     let timeout;
+            //     return function executedFunction(...args) {
+            //         const later = () => {
+            //             clearTimeout(timeout);
+            //             func.apply(this, args);
+            //         };
+            //         clearTimeout(timeout);
+            //         timeout = setTimeout(later, wait);
+            //     };
+            // }
         }
 
         $(document).ready(function() {
             window.emailManager = new EmailManager();
+            // this.emailManager.hideLoadingState()
+
         });
 
         window.changePage = function(page) {

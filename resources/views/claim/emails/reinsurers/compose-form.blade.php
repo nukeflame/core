@@ -16,7 +16,6 @@
         <input type="hidden" name="debit_note_file" id="debitNoteFile">
         <input type="hidden" name="partner_email" id="partnerToEmail">
 
-        <!-- Recipients Row -->
         <div class="row mb-2">
             <div class="col-md-12">
                 <label for="toEmail" class="form-label">To: <span class="text-danger">*</span></label>
@@ -30,6 +29,7 @@
                 <div class="invalid-feedback"></div>
             </div>
         </div>
+
         <div class="row mb-2">
             <div class="col-md-6">
                 <label for="ccEmail" class="form-label">CC:</label>

@@ -3,9 +3,12 @@
 namespace App\Services;
 
 use App\Jobs\SendEmailJob;
-use App\Models\User;
+use App\Jobs\SyncOutlookJob;
+use Carbon\Carbon;
+use Exception;
 use Illuminate\Support\Str;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
@@ -25,8 +28,9 @@ class MailService
 
     public function getMailData(string $folder = 'inbox', ?string $search = null, int $limit = 50): array
     {
+        $forceRefresh = false;
         return [
-            'emails' => $this->getEmails($folder, $limit, $search),
+            'emails' => $this->getEmails($folder, $limit, $forceRefresh, $search),
             'folders' => $this->getFolders(),
             'contacts' => $this->getContacts(),
             'onlineUsers' => $this->getOnlineUsers()
@@ -37,29 +41,9 @@ class MailService
      * Get emails from Outlook service or database
      * Maintains compatibility with original method signature
      */
-    public function getEmails(string $folder = 'inbox', int $limit = 50, ?string $search = null): Collection
+    public function getEmails(string $folder = 'inbox', int $limit = 50, bool $forceRefresh = false, ?string $search = null): Collection
     {
-
         return $this->storageService->getStoredEmails($folder, $limit, $search);
-
-        // $cacheKey = "emails.{$folder}.{$limit}." . md5($search ?? '');
-        // return Cache::remember($cacheKey, 300, function () use ($folder, $limit, $search) {
-        //     try {
-        //         $storedEmails = $this->storageService->getStoredEmails($folder, $limit, $search);
-
-        //         // If we have stored emails and no search, return them
-        //         if ($storedEmails->isNotEmpty() && !$search) {
-        //             return $storedEmails;
-        //         }
-
-        //         return collect();
-        //         // Fetch from Outlook service - matches original outlookService->getEmails() call
-        //         // return $this->outlookService->getEmails($folder, $limit, $search);
-        //     } catch (\Exception $e) {
-        //         // Fallback to stored emails
-        //         return $this->storageService->getStoredEmails($folder, $limit, $search);
-        //     }
-        // });
     }
 
     /**
@@ -199,9 +183,7 @@ class MailService
             foreach ($recipients as $index => $recipient) {
                 try {
                     $jobId = $this->batchId . '-' . ($index + 1);
-
                     $recipientEmail = is_array($recipient) ? $recipient : [$recipient];
-
                     $recipientName = $recipientNames[$recipient] ?? 'Sir/Madam';
 
                     $personalizedMessage = $this->formatMessageForHtml($data['body'], $recipientName);
@@ -313,15 +295,55 @@ class MailService
         return $this->outlookService->markMessage($this->auth, $id, false);
     }
 
-    public function getNewEmailCount(): int
+    public function getNewEmail()
     {
         try {
-            return 0;
 
-            // return $this->outlookService->getNewEmailCount();
+            $this->getEmails();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Outlook sync queued successfully'
+            ]);
         } catch (\Exception $e) {
-            return 0;
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to queue outlook sync',
+                'error' => $e->getMessage()
+            ], 500);
         }
+    }
+
+    private function getSinceDateForUser(int $userId, ?string $folder)
+    {
+        if ($userId) {
+            $lastSync = DB::table('email_sync_logs')
+                ->where('user_id', $userId)
+                ->where('folder', $folder)
+                ->where('status', 'success')
+                ->orderBy('completed_at', 'desc')
+                ->value('completed_at');
+
+            if ($lastSync) {
+                $lastSyncCarbon = Carbon::parse($lastSync)->setTimezone(config('app.timezone'));
+                $sinceDate = $lastSyncCarbon->subHours(1)->utc()->toDateTimeString();
+
+                return $sinceDate;
+            }
+
+            $daysBack = (int) 30;
+            $sinceDate = now()->utc()->subDays($daysBack)->toDateTimeString();
+
+            return $sinceDate;
+        }
+    }
+
+    private function handleUserSyncError(object $user, Exception $e, ?int $syncLogId): void
+    {
+        logger()->error('User email sync failed', [
+            'error' => $e->getMessage(),
+            'trace' => $e->getTraceAsString()
+        ]);
     }
 
     public function downloadAttachment(string $emailId, string $attachmentId)

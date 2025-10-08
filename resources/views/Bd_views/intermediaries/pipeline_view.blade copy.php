@@ -2390,11 +2390,9 @@
                                                         <input type="text"  value="${existingFile.file}" class="form-control document_file checkempty" />
                                                      </div>
                                                 <div class="col-2" style="margin-top: 20px;">
-                                                        ${existingFile ? `<a href="${fileUrl}" target="_blank">
-                                                                                                                                                                                                                                                                                                                                                                                    <i class="bx bx-show"></i> </a>` : '<span class="text-muted">No file uploaded</span>'}
+                                                        ${existingFile ? `<a href="${fileUrl}" target="_blank"> <i class="bx bx-show"></i> </a>` : '<span class="text-muted">No file uploaded</span>'}
                                                  </div>
                                             </div>
-
                                         `;
                                         }
                                     });
@@ -2424,27 +2422,11 @@
                                                 <i class="bx bx-show preview  optionFile${this.id}"" id="preview${this.id}"" style="cursor:pointer;"></i>
                                          </div>
 
-                                    </div>
-
-
-
-                                            ${fileInputHtml}
-
-
-
-
-                                    `
+                                    </div>${fileInputHtml}`
                                     );
                                 }
-
                             });
 
-
-
-
-
-
-                            // Handle click event for adding new file inputs
                             $(document).off('click', '.add-doc').on('click', '.add-doc',
                                 function() {
                                     const parentRow = $(this).closest('.row');
@@ -2478,9 +2460,6 @@
                                     parentRow.after(newRow);
                                 });
 
-
-
-                            // Handle click event for removing file inputs
                             $(document).on('click', '.remove-doc', function() {
                                 $(this).closest('.file-row').remove();
                             });

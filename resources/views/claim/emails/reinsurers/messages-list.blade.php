@@ -93,7 +93,6 @@
         </div>
     </div>
 
-    {{-- Pagination --}}
     <nav id="paginationContainer" class="d-none">
         <div class="d-flex justify-content-between align-items-center bg-white border rounded"
             style="padding: 8px 16px; margin-top: 16px;">
@@ -421,7 +420,6 @@
                     this.updateConnectionUI(this.isConnected);
                     return this.isConnected;
                 } catch (error) {
-                    console.error('Connection check failed:', error);
                     this.isConnected = false;
                     this.updateConnectionUI(false);
                     return false;

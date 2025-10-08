@@ -18,12 +18,9 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Facades\Storage;
 
 class MailController extends Controller
 {
@@ -40,8 +37,6 @@ class MailController extends Controller
 
         $this->batchId = Str::uuid()->toString();
     }
-
-    function fetchEmails() {}
 
     public function index(Request $request): View
     {
@@ -60,8 +55,54 @@ class MailController extends Controller
             ]));
         } catch (\Exception $e) {
             logger()->error('Mail index failed', ['error' => $e->getMessage(), 'user' => Auth::id()]);
-
             return view('mail.index', $this->getEmptyMailData($requestData['folder']));
+        }
+    }
+
+    public function fetchEmails(Request $request)
+    {
+        try {
+            $validated = $request->validate([
+                'force_refresh' => 'sometimes|boolean',
+                'folder' => 'sometimes|string|nullable',
+                'limit' => 'sometimes|integer|min:1|max:100'
+            ]);
+
+            $forceRefresh = $validated['force_refresh'] ?? false;
+            $folder = $validated['folder'] ?? 'inbox';
+            $limit = $validated['limit'] ?? 50;
+
+            if (!auth()->check()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'User not authenticated'
+                ], 401);
+            }
+
+            $outlookStatus = app(OutlookOAuthController::class)->status();
+            $status = json_decode($outlookStatus->getContent(), true);
+            $accessOutlook = $status['connected'] ?? false;
+
+            if (!$accessOutlook) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $status['error'] ?? $status['message']
+                ]);
+            }
+
+            $emails = $this->mailService->getEmails($folder, $limit);
+
+            return response()->json([
+                'success' => true,
+                'data' => $emails,
+                'count' => count($emails),
+                'folder' => $folder
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch emails: ' . $e->getMessage()
+            ], 500);
         }
     }
 
@@ -91,13 +132,11 @@ class MailController extends Controller
                 return response()->json(['error' => 'Email not found'], 404);
             }
 
-            // Mark as read when viewing
             $this->mailService->markAsRead($email['uid']);
 
             return response()->json($email);
         } catch (\Exception $e) {
             logger()->error('Email show failed', ['id' => $id, 'error' => $e->getMessage()]);
-
             return response()->json(['error' => 'Failed to load email'], 500);
         }
     }
@@ -232,10 +271,26 @@ class MailController extends Controller
     public function checkNew(): JsonResponse
     {
         try {
-            $newEmailCount = $this->mailService->getNewEmailCount();
-            return response()->json(['newEmails' => $newEmailCount]);
+            $outlookStatus = app(OutlookOAuthController::class)->status();
+            $status = json_decode($outlookStatus->getContent(), true);
+            $accessOutlook = $status['connected'] ?? false;
+
+            if (!$accessOutlook) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $status['error'] ?? $status['message']
+                ]);
+            }
+
+            $newEmails = $this->mailService->getNewEmail();
+
+            logger()->debug($newEmails);
+
+            return response()->json(['newEmails' => 0, 'success' => true]);
         } catch (\Exception $e) {
-            return response()->json(['newEmails' => 0]);
+            // logger()->debug($e);
+
+            return response()->json(['newEmails' => 0, 'success' => false]);
         }
     }
 

@@ -169,7 +169,9 @@
         </div>
 
         @include('Bd_views.intermediaries.partials.modals.fac_email_modal')
+        @include('Bd_views.intermediaries.partials.modals.lead_modal')
         @include('Bd_views.intermediaries.partials.modals.proposal_modal')
+        @include('Bd_views.intermediaries.partials.modals.negotiation_modal')
     </div>
 @endsection
 
@@ -191,7 +193,7 @@
         }
 
         .status-proposal {
-            background-color: #d70206;
+            background-color: #f05b4f;
             color: white;
         }
 
@@ -201,23 +203,23 @@
         }
 
         .status-lead {
-            background-color: #f4c63d;
-            color: #000;
+            background-color: #453d3f;
+            color: #fff;
         }
 
         .status-won {
             background-color: #d17905;
-            color: white;
+            color: #fff;
         }
 
         .status-lost {
             background-color: #453d3f;
-            color: white;
+            color: #fff;
         }
 
         .status-final {
             background-color: #59922b;
-            color: white;
+            color: #fff;
         }
 
         .currency {
@@ -875,9 +877,11 @@
                         throw new Error(`Invalid stage: ${this.currentStage}`);
                     }
 
+
                     const nextStage = stageInfo.next;
+                    const modalId = stageInfo.modalId;
                     if (nextStage) {
-                        this.openStageModal(nextStage, this.currentDealId, dealInfo);
+                        this.openStageModal(nextStage, modalId, this.currentDealId, dealInfo);
                     }
 
                     this.hideLoading();
@@ -902,10 +906,15 @@
                 }
             }
 
-            openStageModal(stage, dealId, dealInfo = null) {
+            openStageModal(stage, modalId, dealId, dealInfo = null) {
                 try {
                     this.currentDealId = dealId;
-                    const modalId = stage + "Modal";
+                    // let modalId = stage + "Modal";
+                    // if (stage === 'negotiation') {
+                    //     modalId = modalId
+                    // }
+                    console.log(modalId)
+
                     const $modal = $(`#${modalId}`);
 
                     if ($modal.length === 0) {
@@ -924,10 +933,15 @@
                         sumInsuredType: dealInfo?.sum_insured_type
                     };
 
+
+
                     this.loadScheduleHeaders(data);
                     this.loadSlipDocuments(data);
                     this.populateModalData(modalId, dealId, stage, dealInfo);
                     this.loadBdTerms(data)
+
+                    // console.log(stage)
+
 
                     $modal.modal('show');
                     $modal.addClass('slide-in');
@@ -1096,8 +1110,6 @@
                         category_type: data.categoryType,
                     },
                     success: (response) => {
-                        // console.log(response)
-
                         if (response.status) {
                             if ($documentsSubtitle.length > 0) {
                                 $documentsSubtitle.html(
@@ -1256,7 +1268,7 @@
                 docs.push({
                     name: 'Additional Documents',
                     id: Math.floor(Math.random() * 10000),
-                    file_name: 'additional_docs',
+                    file_name: 'additionalDocs',
                     doc_type: 'Additional Documents',
                     mandatory: 'N',
                     icon: 'bx-folder-plus',
@@ -1273,10 +1285,10 @@
                     file_name: doc.file_name,
                     required: doc.mandatory === 'Y',
                     icon: doc.icon ?? 'bx-file-blank',
-                    accepts: doc.accepts ?? '.pdf,.doc,.docx',
+                    accepts: doc.accepts ?? '.pdf,.doc,.docx,.jpg,.jpeg,.png',
                     description: doc.description ?? '',
                     max_size: doc.max_size ?? 10485760,
-                    multiple: doc.multiple ?? false
+                    multiple: doc.multiple ?? true
                 }));
 
                 this.generateDocumentFields(transformedDocs, $modal);
@@ -1319,7 +1331,7 @@
                                         ${doc.name}
                                         ${doc.required ? '<span class="required-indicator text-danger">*</span>' : ''}
                                     </label>
-                                    <div class="file-upload-area border rounded p-3 text-center" data-field="${doc.id}">
+                                    <div class="file-upload-area border rounded p-3 text-center" data-field="${doc.id}" data-field_name="${doc.name}">
                                         <i class="bx ${doc.icon} upload-icon fs-2 text-muted"></i>
                                         <div class="upload-text fw-semibold">${doc.name}</div>
                                         <div class="upload-subtext text-muted small">${doc.description}</div>
@@ -1418,6 +1430,7 @@
                 }
 
                 const fieldId = $uploadArea.data('field');
+                const fieldName = $uploadArea.data('field_name');
                 const maxSize = parseInt($uploadArea.find('.file-input').data('max-size')) || 10485760; // Default 10MB
 
                 if (!this.uploadedFiles[fieldId]) {
@@ -1436,8 +1449,11 @@
                     }
 
                     const fileId = `file_${fieldId}_${Date.now()}_${index}`;
+                    const fileName = this.toPascalCase(fieldName);
+
                     const fileWithId = Object.assign(file, {
-                        fileId
+                        fileId,
+                        fileName
                     });
 
                     this.uploadedFiles[fieldId].push(fileWithId);
@@ -1905,7 +1921,6 @@
                             if ($.fn.DataTable.isDataTable(`#${tableId}`)) {
                                 dataTable.destroy(true);
                                 destroyCount++;
-                                console.log(`DataTable ${tableId} destroyed`);
                             }
                         } catch (error) {
                             console.error(`Error destroying DataTable ${tableId}:`, error);
@@ -1931,6 +1946,10 @@
                 } catch (error) {
                     console.error('Error during cleanup:', error);
                 }
+            }
+
+            getAllUploadedFiles() {
+                return this.uploadedFiles;
             }
         }
 

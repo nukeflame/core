@@ -133,11 +133,11 @@ class SyncOutlookEmails extends Command
             $this->error('Stack trace: ' . $e->getTraceAsString());
         }
 
-        logger()->error('Outlook sync failed', [
-            'error' => $e->getMessage(),
-            'trace' => $e->getTraceAsString(),
-            'options' => $this->options()
-        ]);
+        // logger()->error('Outlook sync failed', [
+        //     'error' => $e->getMessage(),
+        //     'trace' => $e->getTraceAsString(),
+        //     'options' => $this->options()
+        // ]);
 
         return Command::FAILURE;
     }
@@ -288,12 +288,14 @@ class SyncOutlookEmails extends Command
             $this->completeSyncLog($syncLogId, 'failed', 0, $e->getMessage());
         }
 
-        logger()->error('User email sync failed', [
-            'user_id' => $user->user_id,
-            'email' => $user->email,
-            'error' => $e->getMessage(),
-            'trace' => $e->getTraceAsString()
-        ]);
+        // 'f05b4f'
+
+        // logger()->error('User email sync failed', [
+        //     'user_id' => $user->user_id,
+        //     'email' => $user->email,
+        //     'error' => $e->getMessage(),
+        //     'trace' => $e->getTraceAsString()
+        // ]);
     }
 
     private function validateAndRefreshToken(object $user): bool
@@ -372,7 +374,6 @@ class SyncOutlookEmails extends Command
                 'scope' => implode(' ', self::REQUIRED_SCOPES)
             ];
 
-            // Only send redirect_uri if it was configured and used during initial auth
             if (config('services.azure.redirect_uri')) {
                 $payload['redirect_uri'] = config('services.azure.redirect_uri');
             }
@@ -402,11 +403,11 @@ class SyncOutlookEmails extends Command
                     $this->error("Token refresh failed with response: " . json_encode($errorResponse, JSON_PRETTY_PRINT));
                 }
 
-                logger()->error('Token refresh failed', [
-                    'user_id' => $user->user_id,
-                    'response_status' => $response->status(),
-                    'response_body' => $errorResponse,
-                ]);
+                // logger()->error('Token refresh failed', [
+                //     'user_id' => $user->user_id,
+                //     'response_status' => $response->status(),
+                //     'response_body' => $errorResponse,
+                // ]);
 
                 throw new Exception('Token refresh failed: ' . ($errorResponse['error_description'] ?? 'Unknown error'));
             }
@@ -499,7 +500,7 @@ class SyncOutlookEmails extends Command
                 $lastException = $e;
 
                 if ($attempt < $maxRetries) {
-                    $delay = min(2 ** ($attempt - 1), 30); // Exponential backoff, max 30 seconds
+                    $delay = min(2 ** ($attempt - 1), 30);
                     if ($this->option('debug')) {
                         $this->warn("Attempt {$attempt} failed: {$e->getMessage()}. Retrying in {$delay} seconds...");
                     }
@@ -685,8 +686,6 @@ class SyncOutlookEmails extends Command
                         if ($content) {
                             $filename = $this->generateUniqueFilename($attachment['name'], $messageId);
                             $filepath = "public/emails/{$this->user->email}/{$filename}";
-
-                            // logger($filename);
 
                             $directory = dirname($filepath);
                             if (!Storage::disk($storageDisk)->exists($directory)) {
@@ -1027,8 +1026,6 @@ class SyncOutlookEmails extends Command
 
     private function saveOrUpdateEmail(array $email): array
     {
-
-        logger()->info('ff');
         if (!$email['message_id']) {
             throw new Exception('Email missing message_id, cannot save');
         }
@@ -1117,7 +1114,6 @@ class SyncOutlookEmails extends Command
     private function saveAttachmentsToDatabase(string $messageId, array $attachments): void
     {
 
-        // logger()->debug(['attachments' => $attachments]);
         // foreach ($attachments as $attachment) {
         //     try {
         //         DB::table('email_attachments')->updateOrInsert(
@@ -1280,8 +1276,6 @@ class SyncOutlookEmails extends Command
             return null;
         }
     }
-
-
 
     private function getSinceDateForUser(int $userId): string
     {

@@ -194,13 +194,17 @@ class UserController extends Controller
 
     public function getUserData()
     {
-        $user = User::select(['id', 'user_name', 'name', 'email', 'status', 'role_id', 'department_id', 'last_login', 'phone_number'])
+        $users = User::select(['id', 'user_name', 'name', 'email', 'status', 'role_id', 'department_id', 'last_login', 'phone_number'])
             ->where('is_active', true)
             ->where('user_name', '!=', 'super_admin')
             ->orderBy('id', 'asc');
-        $auth = User::where('id', auth()->user()->id)->first();
 
-        return DataTables::of($user)
+        $auth = User::where('id', auth()->id())->first();
+
+        return DataTables::of($users)
+            ->addColumn('id', function ($user) {
+                return $user->id ?? null;
+            })
             ->addColumn('username', function ($user) {
                 return $user->user_name ?? null;
             })

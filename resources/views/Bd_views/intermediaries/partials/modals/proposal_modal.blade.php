@@ -1,12 +1,11 @@
-<!-- Proposal Stage Modal -->
+{{-- <!-- Proposal Stage Modal -->
 <div id="proposalModal" class="modal fade effect-scale md-wrapper" tabindex="-1" data-bs-backdrop="static"
     data-bs-keyboard="false" aria-labelledby="staticPropoalStageLabel" aria-hidden="true" role="dialog" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-xl" role="document">
         <div class="modal-content">
             <form id="proposalForm" action="{{ route('update.opp.status') }}" novalidate>
-                <input type="hidden" id="opportunity_id" name="opportunity_id" />
-                <input type="hidden" id="specialConditionsContent" name="specialConditionsContent" />
-                <input type="hidden" id="currentStage" name="current_stage" />
+                <input type="hidden" id="opportunityNegId" name="opportunityNegId" />
+                <input type="hidden" id="currentNegStage" name="current_stage" />
 
                 <div class="modal-body fac-slip-container">
                     <div class="fac-slip-header">
@@ -47,17 +46,30 @@
                     </div>
 
                     <div class="card custom-card section-box customScrollBar shadow-none mb-0">
-                        <!-- Coverage Details Section -->
+                        <!-- Proposal Details Section -->
                         <div class="form-section">
                             <div class="section-header" data-section="coverage-details">
                                 <div class="section-title">
                                     <span>
-                                        <i class="bi bi-umbrella section-icon"></i>
-                                        Coverage Details
+                                        <i class="bx bx-check section-icon"></i>
+                                        Proposal Details
                                     </span>
                                 </div>
                             </div>
                             <div class="section-content" id="coverage-details">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label class="form-label">
+                                                Last Contact Date
+                                                <span class="required-asterisk">*</span>
+                                            </label>
+                                            <div class="">
+                                                <input type="date" class="form-inputs" value="2025-09-18" />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                                 <div class="row">
                                     <div class="col-md-6">
                                         <div class="form-group">
@@ -91,54 +103,8 @@
                                         </div>
                                     </div>
                                 </div>
-                                <div class="row">
-                                    <div class="col-md-6">
-                                        <div class="form-group">
-                                            <label class="form-label">Reinsurer Commission Rate (%)</label>
-                                            <input type="text" class="form-inputs brokerage_rate"
-                                                name="brokerage_rate" placeholder="0.00"
-                                                onkeyup="this.value=numberWithCommas(this.value)"
-                                                change="this.value=numberWithCommas(this.value)" readonly
-                                                value="10">
-                                        </div>
-                                    </div>
-                                    <div class="col-md-6 deductible_excess_div" style="display: none;">
-                                        <div class="form-group">
-                                            <label class="form-label">
-                                                Deductible/Excess
-                                                <span class="required-asterisk">*</span>
-                                            </label>
-                                            <div class="currency-input">
-                                                <span class="currency-symbol">KES</span>
-                                                <input type="text" class="form-inputs deductible"
-                                                    name="deductible" placeholder="0.00"
-                                                    onkeyup="this.value=numberWithCommas(this.value)"
-                                                    change="this.value=numberWithCommas(this.value)">
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="form-group">
-                                    <label class="form-label">Total sum insured breakdown</label>
-                                    <div class="form-textarea-wrapper">
-                                        <textarea class="form-inputs breakdown-textarea special_conditions" name="special_conditions" id="specialConditions"
-                                            rows="4" maxlength="5000" aria-label="Special Terms and Conditions"
-                                            placeholder="Any special terms, conditions, or clauses applicable to this coverage..."></textarea>
-                                        <div class="form-text mt-1">
-                                            <small class="text-muted">
-                                                <i class="bx bx-info-circle"></i>
-                                                Click to open the rich text editor. Maximum 5000 characters.
-                                            </small>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <input type="hidden" name="class_code" id="classCodeValue">
-                                <input type="hidden" name="class_group_code" id="classGroupCodeValue">
                             </div>
                         </div>
-
-                        <hr class="mt-0 pt-0" />
 
                         <!-- Reinsurer Information Section -->
                         <div class="form-section">
@@ -156,7 +122,7 @@
                                         <div class="col-md-6">
                                             <div class="form-group">
                                                 <label class="form-label">Add Reinsurer</label>
-                                                <select class="sel" id="availableReinsurers"
+                                                <select class="sel" id="availableNegReinsurers"
                                                     placeholder="Search and select reinsurer...">
                                                     <option value="">Search and select reinsurer...</option>
                                                 </select>
@@ -165,7 +131,7 @@
                                         <div class="col-md-3">
                                             <div class="form-group">
                                                 <label class="form-label">Total Written Share (%)</label>
-                                                <input type="number" class="form-inputs" id="totalReinsurerShare"
+                                                <input type="number" class="form-inputs" id="totalNegReinsurerShare"
                                                     name="total_reinsurer_share" placeholder="0.00" step="0.01"
                                                     min="0.01" max="100">
                                             </div>
@@ -173,7 +139,7 @@
                                         <div class="col-md-2">
                                             <div class="form-group">
                                                 <label class="form-label">Share (%)</label>
-                                                <input type="number" class="form-inputs" id="reinsurerShare"
+                                                <input type="number" class="form-inputs" id="reinsurerNegShare"
                                                     placeholder="0.00" step="0.01" min="0.01" max="100">
                                             </div>
                                         </div>
@@ -181,7 +147,7 @@
                                             <div class="form-group">
                                                 <label class="form-label">&nbsp;</label>
                                                 <button type="button" class="btn btn-success w-100"
-                                                    id="addReinsurer" style="padding: 2px 0px;">
+                                                    id="addNegReinsurer" style="padding: 2px 0px;">
                                                     <i class="bx bx-plus" style="font-size: 27px;"></i>
                                                 </button>
                                             </div>
@@ -197,7 +163,7 @@
 
                                     <div class="table-responsive">
                                         <table class="table table-hover table-stripped selected-reinsurers-table"
-                                            id="reinsurersTable">
+                                            id="reinsurersNegTable">
                                             <thead class="table-d">
                                                 <tr>
                                                     <th style="width: 70%">Reinsurer</th>
@@ -209,29 +175,8 @@
                                             </tbody>
                                         </table>
                                     </div>
-
-                                </div>
-
-                                <input type="hidden" name="reinsurers_data" id="reinsurersData">
-                                <input type="hidden" name="retained_share" id="retainedShareValue">
-                                <input type="hidden" name="total_placed_shares" id="totalPlacedShares">
-                                <input type="hidden" name="total_unplaced_shares" id="totalUnplacedShares">
-                            </div>
-                        </div>
-
-                        <hr class="mt-0 pt-0" />
-
-                        <!-- Terms and Conditions Section -->
-                        <div class="form-section">
-                            <div class="section-header">
-                                <div class="section-title">
-                                    <span>
-                                        <i class="bx bx-file section-icon"></i>
-                                        Terms & Conditions
-                                    </span>
                                 </div>
                             </div>
-                            <div class="section-content" id="termsConditions"></div>
                         </div>
 
                         <hr />
@@ -246,7 +191,6 @@
                                     </div>
                                     <div id="documentsSubtitle" class="ms-3 fs-12 opacity-75"
                                         style="margin-left: 9px;">
-                                        {{-- <small>Please select insurance class first</small> --}}
                                     </div>
                                 </div>
                             </div>
@@ -272,1155 +216,6 @@
         </div>
     </div>
 </div>
-
-<!-- Update Category Modal -->
-<div class="modal fade effect-scale md-wrapper" id="updateCategoryTypeModal" data-bs-backdrop="static"
-    data-bs-keyboard="false" aria-labelledby="staticUpdateCategoryTypeModalLabel" aria-hidden="true" role="dialog">
-    <div class="modal-dialog modal-dialog-centered modal-md" role="document">
-        <div class="modal-content">
-            <div class="modal-header bg-primary text-white">
-                <h5 class="modal-title" id="staticUpdateCategoryTypeModalLabel">
-                    <i class="bi bi-pencil-square"></i>
-                    Update Category Type
-                </h5>
-                <button type="button" class="btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <form action="{{ route('update.category_type') }}" method="POST" enctype="multipart/form-data"
-                id="updateCategoryForm">
-                @csrf
-                <div class="modal-body">
-                    <input type="hidden" name="opportunity_id" id="opportunity_id" />
-
-                    <div class="mb-4">
-                        <label for="category_type" class="form-label">
-                            Category Type<span class="required-asterisk">*</span>
-                        </label>
-                        <select class="form-inputs select2" name="category_type" id="category_type"
-                            aria-describedby="categoryTypeHelp">
-                            <option value="" disabled selected>Select Category</option>
-                            <option value="1">Quotation</option>
-                            <option value="2">Facultative Offer</option>
-                        </select>
-                        <div class="form-text" id="categoryTypeHelp">
-                            Please select the appropriate category type for this opportunity.
-                        </div>
-                    </div>
-                </div>
-                <div class="modal-footer bg-light">
-                    <div class="d-flex justify-content-between w-100">
-                        <div></div>
-                        <div>
-                            <button type="button" class="btn btn-light me-2" data-bs-dismiss="modal">Cancel</button>
-                            <button type="submit" class="btn btn-success" id="updateCategorySubmitBtn">
-                                <i class="bx bx-check-circle me-1"></i> Update Category
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </form>
-
-        </div>
-    </div>
-</div>
-
-<!-- Contacts Modal -->
-<div class="modal fade effect-scale md-wrapper" id="contactsModal" tabindex="-1" data-bs-backdrop="static"
-    aria-labelledby="contactsModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-xl">
-        <div class="modal-content">
-            <div class="modal-header bg-primary text-white">
-                <h5 class="modal-title" id="contactsModalLabel">
-                    <i class="bx bx-building me-1"></i>
-                </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
-                    aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-
-                <div class="mb-4" id="primary-contacts">
-                    <h6 class="text-uppercase fw-bold text-muted mb-3">
-                        <i class="bx bx-star text-warning me-2"></i>Primary Contact
-                    </h6>
-                    <div class="card border-warning">
-                        <div class="card-body">
-                            <div class="row">
-                                <div class="col-md-4">
-                                    <label class="form-label fw-semibold">Contact Name</label>
-                                    <input type="text" class="form-control-plaintext primary-name" value=""
-                                        readonly>
-                                </div>
-                                <div class="col-md-8">
-                                    <label class="form-label fw-semibold">Primary Email</label>
-                                    <div class="input-group">
-                                        <input type="email" class="form-control-plaintext primary-email"
-                                            value="" readonly>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <input type="hidden" class="primary-contact_id" name="contact_id" readonly>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Department Emails Section -->
-                <div class="mb-4">
-                    <div class="department-header rounded mb-3">
-                        <h6 class="mb-0 fw-medium">
-                            <i class="bx bx-user me-2"></i>Department Contacts
-                        </h6>
-                    </div>
-
-                    <div id="departmentContacts"></div>
-                </div>
-            </div>
-            <div class="modal-footer bg-light">
-                <button type="button" class="btn btn-light" data-bs-dismiss="modal">
-                    <i class="bx bx-times me-2"></i>Cancel
-                </button>
-                <button type="button" class="btn btn-success" id="submitContactModal">
-                    <i class="bx bx-save me-2"></i>Save Changes
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Text Editor -->
-<div class="modal fade breakdown-modal effect-scale md-wrapper" id="breakdownModal" tabindex="-1"
-    data-bs-backdrop="static" data-bs-keyboard="false" aria-labelledby="breakdownModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-xl">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="breakdownModalLabel">
-                    <i class="bx bx-edit-alt me-2"></i>
-                    Sum Insured Breakdown Editor
-                </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
-                    aria-label="Close"></button>
-            </div>
-
-            <div class="modal-body p-0">
-                <div class="position-relative">
-                    <!-- Loading Overlay -->
-                    <div class="loading-overlay" id="loadingOverlay">
-                        <div class="text-center">
-                            <div class="spinner-border spinner-border-custom" role="status">
-                                <span class="visually-hidden">Loading...</span>
-                            </div>
-                            <p class="mt-3 text-muted">Initializing editor...</p>
-                        </div>
-                    </div>
-
-                    <div class="p-3">
-                        <!-- Quick Templates Section -->
-                        <div class="template-section">
-                            <h6 class="mb-3 fw-bold text-primary">
-                                <i class="bx bx-layout me-2"></i>Quick Templates
-                            </h6>
-                            <div class="d-flex flex-wrap">
-                                <button type="button" class="template-btn" data-template="standard">
-                                    Standard Coverage
-                                </button>
-                                {{-- <button type="button" class="template-btn" data-template="property">
-                                    Property Insurance
-                                </button>
-                                <button type="button" class="template-btn" data-template="marine">
-                                    Marine Insurance
-                                </button>
-                                <button type="button" class="template-btn" data-template="aviation">
-                                    Aviation Coverage
-                                </button>
-                                <button type="button" class="template-btn" data-template="liability">
-                                    Liability Insurance
-                                </button> --}}
-                                <button type="button" class="template-btn" data-template="clear">
-                                    Clear All
-                                </button>
-                            </div>
-                        </div>
-
-                        <div class="quill-container position-relative">
-                            <div id="breakdownEditor"></div>
-                            {{-- <div id="quill-wrapper">
-                                <div id="breakdownEditor"></div>
-                            </div> --}}
-                            <div class="character-counter" id="characterCounter">
-                                0 / 5000 characters
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="modal-footer bg-light">
-                <div class="d-flex justify-content-between w-100 align-items-center">
-                    <div class="d-flex align-items-center">
-                        <button type="button" class="btn btn-outline-secondary me-2" id="previewBtn">
-                            <i class="bx bx-show me-1"></i>Preview
-                        </button>
-                        {{-- <button type="button" class="btn btn-outline-info btn-sm" id="exportBtn">
-                            <i class="bx bx-download me-1"></i>Export HTML
-                        </button> --}}
-                    </div>
-                    <div>
-                        <button type="button" class="btn btn-light me-2" data-bs-dismiss="modal">
-                            <i class="bx bx-x me-1"></i>Cancel
-                        </button>
-                        <button type="button" class="btn btn-primary" id="saveBreakdownBtn">
-                            <i class="bx bx-save me-1"></i>Save Changes
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<style>
-    .fac-slip-container {
-        border-block-end: 1px solid var(--default-border);
-        border-top-left-radius: .5rem;
-        border-top-right-radius: .5rem;
-        padding: 0px !important;
-    }
-
-    .fac-slip-header {
-        background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
-        color: white;
-        padding: 1rem;
-        position: relative;
-        overflow: hidden;
-        padding-top: 1.5rem;
-        border-top-left-radius: .5rem;
-        border-top-right-radius: .5rem;
-    }
-
-    .fac-slip-header::before {
-        content: '';
-        position: absolute;
-        top: -50%;
-        right: -50%;
-        width: 200%;
-        height: 200%;
-        background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="2" fill="rgba(255,255,255,0.1)"/></svg>') repeat;
-        animation: float 20s infinite linear;
-    }
-
-    @keyframes float {
-        0% {
-            transform: translate(-50%, -50%) rotate(0deg);
-        }
-
-        100% {
-            transform: translate(-50%, -50%) rotate(360deg);
-        }
-    }
-
-    .slip-title {
-        font-size: 24px;
-        font-weight: 700;
-        margin-bottom: 0.5rem;
-        position: relative;
-        z-index: 2;
-    }
-
-    .slip-subtitle {
-        font-size: 14px;
-        opacity: 0.9;
-        position: relative;
-        z-index: 2;
-    }
-
-    .company-info {
-        background: #0a0a0a0a;
-        padding: 1rem;
-        border-radius: 8px;
-        backdrop-filter: blur(10px);
-        margin-top: .5rem;
-        position: relative;
-        z-index: 2;
-    }
-
-    .form-group {
-        border: none !important;
-        margin-bottom: 0px !important;
-    }
-
-    .section-box {
-        padding: 1rem;
-        padding-top: 0px;
-        height: 70vh;
-        overflow-x: hidden;
-        overflow-y: auto;
-    }
-
-    .section-title {
-        color: #c02e2e;
-        font-size: 16px;
-        font-weight: 600;
-        margin-bottom: 0px;
-    }
-
-    .form-label {
-        font-weight: 600;
-        color: var(--bs-gray-700);
-    }
-
-    .required-asterisk {
-        color: var(--bs-danger);
-        margin-left: 0.25rem;
-    }
-
-    .tooltip-trigger {
-        cursor: help;
-        color: var(--bs-blue);
-        margin-left: 0.5rem;
-        line-height: 1px;
-    }
-
-    .currency-input {
-        position: relative;
-    }
-
-    .cr-symbl {
-        transform: translateY(-51%) !important;
-    }
-
-    .currency-symbol {
-        position: absolute;
-        left: 12px;
-        top: 20px;
-        transform: translateY(-50%);
-        color: var(--gray-700);
-        font-weight: 600;
-        z-index: 10;
-        font-size: 15px;
-    }
-
-    .currency-input .form-inputs {
-        padding-left: 2.5rem !important;
-    }
-
-    .form-inputs {
-        margin-bottom: 0px;
-    }
-
-    .form-section {
-        margin-bottom: 15px;
-    }
-
-    .selected-reinsurers-table>:not(caption)>*>* {
-        padding: .5rem .5rem;
-        color: var(--bs-table-color-state, var(--bs-table-color-type, var(--bs-table-color)));
-        background-color: var(--bs-table-bg);
-        border-bottom-width: var(--bs-border-width);
-        box-shadow: inset 0 0 0 9999px var(--bs-table-bg-state, var(--bs-table-bg-type, var(--bs-table-accent-bg)));
-    }
-
-    .swal2-popup.swal2-toast .swal2-title {
-        padding: 0px;
-        text-align: left;
-    }
-
-    .swal2-popup.swal2-toast {
-        padding: 13px !important;
-    }
-
-    .swal2-popup.swal2-toast .swal2-html-container {
-        padding: 0px;
-        margin-left: 48px;
-        margin-top: 0px;
-    }
-
-    .select2-container--default .select2-results>.select2-results__options {
-        max-height: 600px !important;
-    }
-
-    #contactsModal .form-label {
-        color: #000;
-    }
-
-    .envlope-ico {
-        font-size: 21px;
-        line-height: 0px;
-        vertical-align: -4px;
-        margin-left: 10px;
-        color: #aaa;
-    }
-
-    .insured-email-display {
-        text-transform: lowercase !important;
-    }
-
-    .insured-contact-name-display {
-        text-transform: capitalize !important;
-    }
-
-    .file-upload-area {
-        position: relative;
-        border: 2px dashed #e0e6ed;
-        border-radius: 12px;
-        padding: 2rem;
-        text-align: center;
-        background: linear-gradient(145deg, #fafbfc 0%, #f8f9fa 100%);
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        cursor: pointer;
-        min-height: 0px;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-        overflow: hidden;
-    }
-
-    .file-upload-area::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: radial-gradient(circle at 50% 50%, rgba(13, 110, 253, 0.05) 0%, transparent 70%);
-        opacity: 0;
-        transition: opacity 0.3s ease;
-    }
-
-    .file-upload-area:hover {
-        border-color: #0d6efd;
-        background: linear-gradient(145deg, #f8f9ff 0%, #f0f4ff 100%);
-        transform: translateY(-2px);
-        box-shadow: 0 8px 25px rgba(13, 110, 253, 0.1);
-    }
-
-    .file-upload-area:hover::before {
-        opacity: 1;
-    }
-
-    .file-upload-area.drag-over {
-        border-color: #198754;
-        background: linear-gradient(145deg, #f8fff9 0%, #f0fff4 100%);
-        transform: scale(1.02);
-        box-shadow: 0 12px 30px rgba(25, 135, 84, 0.15);
-    }
-
-    .file-upload-area.drag-over .upload-icon {
-        color: #198754 !important;
-        transform: scale(1.1);
-    }
-
-    .file-upload-area.has-error {
-        border-color: #dc3545;
-        background: linear-gradient(145deg, #fff8f8 0%, #fff0f0 100%);
-    }
-
-    .file-upload-area.uploading {
-        pointer-events: none;
-        opacity: 0.7;
-    }
-
-    .upload-icon {
-        font-size: 3rem;
-        color: #6c757d;
-        margin-bottom: 1rem;
-        transition: all 0.3s ease;
-        display: block;
-    }
-
-    .file-upload-area:hover .upload-icon {
-        color: #0d6efd;
-        transform: translateY(-3px);
-    }
-
-    .upload-text {
-        font-size: 1.1rem;
-        font-weight: 600;
-        color: #495057;
-        margin-bottom: 0.5rem;
-        line-height: 1.4;
-    }
-
-    .upload-subtext {
-        font-size: 0.9rem;
-        color: #6c757d;
-        margin-bottom: 1rem;
-    }
-
-    .upload-constraints {
-        font-size: 0.8rem;
-        color: #adb5bd;
-        border-top: 1px solid #e9ecef;
-        padding-top: 1rem;
-        margin-top: 1rem;
-        width: 100%;
-    }
-
-    .file-preview-container {
-        margin-top: 1rem;
-    }
-
-    .file-preview-item {
-        display: flex;
-        align-items: center;
-        background: #fff;
-        border: 1px solid #e9ecef;
-        border-radius: 8px;
-        padding: 0.75rem;
-        margin-bottom: 0.5rem;
-        transition: all 0.2s ease;
-    }
-
-    .file-preview-item:hover {
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-        border-color: #dee2e6;
-    }
-
-    .file-icon {
-        font-size: 1.5rem;
-        margin-right: 0.75rem;
-        color: #0d6efd;
-    }
-
-    .file-info {
-        flex: 1;
-        min-width: 0;
-    }
-
-    .file-name {
-        font-weight: 500;
-        color: #212529;
-        margin-bottom: 0.25rem;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-
-    .file-details {
-        font-size: 0.8rem;
-        color: #6c757d;
-    }
-
-    .file-actions {
-        display: flex;
-        gap: 0.5rem;
-    }
-
-    .file-action-btn {
-        padding: 0.25rem 0.5rem;
-        border: none;
-        border-radius: 4px;
-        font-size: 0.8rem;
-        cursor: pointer;
-        transition: all 0.2s ease;
-    }
-
-    .btn-view {
-        background: #e3f2fd;
-        color: #1976d2;
-    }
-
-    .btn-view:hover {
-        background: #bbdefb;
-    }
-
-    .btn-remove {
-        background: #ffebee;
-        color: #d32f2f;
-    }
-
-    .btn-remove:hover {
-        background: #ffcdd2;
-    }
-
-    .upload-progress {
-        position: absolute;
-        bottom: 0;
-        left: 0;
-        height: 4px;
-        background: #0d6efd;
-        border-radius: 0 0 12px 12px;
-        transition: width 0.3s ease;
-        opacity: 0;
-    }
-
-    .file-upload-area.uploading .upload-progress {
-        opacity: 1;
-    }
-
-    .file-upload-area.upload-success {
-        border-color: #198754;
-        background: linear-gradient(145deg, #f8fff9 0%, #f0fff4 100%);
-    }
-
-    .file-upload-area.upload-success .upload-icon {
-        color: #198754;
-    }
-
-    @media (max-width: 768px) {
-        .file-upload-area {
-            /* padding: 1.5rem;
-            min-height: 150px; */
-        }
-
-        .upload-icon {
-            font-size: 2.5rem;
-        }
-
-        .upload-text {
-            font-size: 1rem;
-        }
-    }
-
-    .file-count-badge {
-        position: absolute;
-        top: -10px;
-        right: -10px;
-        background: #0d6efd;
-        color: white;
-        border-radius: 50%;
-        width: 24px;
-        height: 24px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 0.75rem;
-        font-weight: 600;
-        opacity: 0;
-        transform: scale(0);
-        transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-    }
-
-    .file-count-badge.show {
-        opacity: 1;
-        transform: scale(1);
-    }
-
-    .documents-section-header {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        padding: 1rem 1.5rem;
-        border-radius: 8px 8px 0 0;
-        margin-bottom: 0;
-    }
-
-    .documents-section-content {
-        padding-top: 10px;
-    }
-
-    .breakdown-textarea {
-        cursor: pointer !important;
-        background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%) !important;
-        border: 1px solid #ced4da !important;
-        transition: all 0.3s ease !important;
-        resize: none;
-    }
-
-    .breakdown-textarea:hover {
-        /* border-color: var(--secondary-color) !important;
-        box-shadow: 0 2px 8px rgba(52, 152, 219, 0.1) !important;
-        transform: translateY(-1px); */
-    }
-
-    /* .breakdown-textarea:focus {
-        border-color: var(--secondary-color) !important;
-        box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2) !important;
-    } */
-
-    .breakdown-modal .modal-header {
-        background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
-        color: white;
-        border-bottom: none;
-        position: relative;
-        overflow: hidden;
-    }
-
-    .breakdown-modal .modal-header::before {
-        content: '';
-        position: absolute;
-        top: -50%;
-        right: -50%;
-        width: 200%;
-        height: 200%;
-        background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="1" fill="rgba(255,255,255,0.1)"/></svg>') repeat;
-        animation: float 15s infinite linear;
-    }
-
-    .breakdown-modal .modal-title {
-        position: relative;
-        z-index: 2;
-        font-weight: 600;
-    }
-
-    .breakdown-modal .btn-close-white {
-        position: relative;
-        z-index: 2;
-        filter: brightness(0) invert(1);
-        opacity: 0.8;
-    }
-
-    .breakdown-modal .btn-close-white:hover {
-        opacity: 1;
-    }
-
-    .quill-container {
-        background: white;
-        border-radius: 8px;
-        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-        overflow: hidden;
-    }
-
-    .ql-toolbar {
-        background: #f8f9fa;
-        border-bottom: 2px solid #dee2e6;
-        padding: 12px 16px;
-    }
-
-    .ql-toolbar .ql-formats {
-        margin-right: 20px;
-    }
-
-    .ql-toolbar button {
-        border-radius: 4px;
-        padding: 6px 8px;
-        margin: 0 2px;
-        transition: all 0.2s ease;
-    }
-
-    .ql-toolbar button:hover {
-        background: rgba(52, 152, 219, 0.1);
-        color: #3498db;
-    }
-
-    .ql-toolbar button.ql-active {
-        background: #3498db;
-        color: white;
-    }
-
-    .ql-editor {
-        font-size: 14px;
-        line-height: 1.6;
-        padding: 20px;
-        height: calc(100vh - 400px);
-    }
-
-    .ql-editor.ql-blank::before {
-        color: #6c757d;
-        font-style: normal;
-    }
-
-    /* Character Counter */
-    .character-counter {
-        position: absolute;
-        bottom: 15px;
-        right: 20px;
-        background: rgba(255, 255, 255, 0.9);
-        padding: 4px 8px;
-        border-radius: 12px;
-        font-size: 12px;
-        color: #6c757d;
-        border: 1px solid #dee2e6;
-        z-index: 10;
-    }
-
-    .character-counter.warning {
-        color: #f39c12;
-        border-color: #f39c12;
-    }
-
-    .character-counter.danger {
-        color: #e74c3c;
-        border-color: #e74c3c;
-    }
-
-    .template-section {
-        background: #f8f9fa;
-        border-radius: 8px;
-        padding: 16px;
-        margin-bottom: 20px;
-        border: 1px solid #ddd;
-    }
-
-    .template-btn {
-        background: white;
-        border: 2px solid #dee2e6;
-        border-radius: 6px;
-        padding: 7px 22px;
-        margin: 4px;
-        font-size: 12px;
-        color: #2c3e50;
-        transition: all 0.2s ease;
-        cursor: pointer;
-    }
-
-    .template-btn:hover {
-        border-color: #3498db;
-        background: rgba(52, 152, 219, 0.1);
-        color: #3498db;
-    }
-
-    .template-btn:active {
-        transform: translateY(1px);
-    }
-
-    .stats-panel {
-        background: white;
-        border-radius: 8px;
-        padding: 16px;
-        margin-top: 16px;
-        border-left: 4px solid #3498db;
-    }
-
-    .stats-item {
-        display: inline-block;
-        margin-right: 20px;
-        margin-bottom: 8px;
-    }
-
-    .stats-label {
-        font-size: 12px;
-        color: #6c757d;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-    }
-
-    .stats-value {
-        font-size: 16px;
-        font-weight: 600;
-        color: #2c3e50;
-    }
-
-    .loading-overlay {
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: rgba(255, 255, 255, 0.9);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 1000;
-        opacity: 0;
-        visibility: hidden;
-        transition: all 0.3s ease;
-    }
-
-    .loading-overlay.show {
-        opacity: 1;
-        visibility: visible;
-    }
-
-    .spinner-border-custom {
-        width: 3rem;
-        height: 3rem;
-        color: #3498db;
-    }
-
-    .preview-mode .ql-toolbar {
-        display: none;
-    }
-
-    .preview-mode .ql-editor {
-        border: 2px dashed #dee2e6;
-        background: #f8f9fa;
-    }
-
-    .ql-container.ql-focused {
-        box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
-    }
-
-    .save-success {
-        animation: pulse 0.6s ease-in-out;
-    }
-
-    @keyframes pulse {
-        0% {
-            transform: scale(1);
-        }
-
-        50% {
-            transform: scale(1.05);
-        }
-
-        100% {
-            transform: scale(1);
-        }
-    }
-
-    @media (max-width: 768px) {
-        .breakdown-modal .modal-dialog {
-            margin: 10px;
-        }
-
-        .ql-toolbar {
-            padding: 8px 12px;
-        }
-
-        .ql-toolbar .ql-formats {
-            margin-right: 10px;
-        }
-
-        .ql-editor {
-            height: calc(100vh - 400px);
-            padding: 15px;
-        }
-
-        .template-btn {
-            font-size: 11px;
-            padding: 6px 10px;
-        }
-    }
-
-    .shares-card {
-        background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
-        border: 2px solid #e9ecef;
-        border-radius: 12px;
-        padding: 9px 12px;
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        transition: all 0.3s ease;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-    }
-
-    .shares-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-    }
-
-    .shares-card.placed-shares {
-        border-left: 2px solid #198754;
-    }
-
-    .shares-card.unplaced-shares {
-        border-left: 2px solid #ffc107;
-    }
-
-    .shares-icon {
-        width: 20px;
-        height: 20px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 20px;
-        flex-shrink: 0;
-    }
-
-    .placed-shares .shares-icon {
-        background: rgba(25, 135, 84, 0.1);
-        color: #198754;
-    }
-
-    .unplaced-shares .shares-icon {
-        background: rgba(255, 193, 7, 0.1);
-        color: #ffc107;
-    }
-
-    .shares-info {
-        display: flex;
-        flex-direction: column;
-        gap: 2px;
-        flex: 1;
-    }
-
-    .shares-label {
-        font-size: 13px;
-        color: #6c757d;
-        font-weight: 500;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-    }
-
-    .shares-value {
-        font-size: 13px;
-        font-weight: 700;
-        line-height: 14px;
-    }
-
-    .shares-progress {
-        margin-top: 1rem;
-    }
-
-    .shares-progress .progress {
-        background-color: #e9ecef;
-        border-radius: 10px;
-        overflow: hidden;
-    }
-
-    .shares-progress .progress-bar {
-        transition: width 0.6s ease;
-        border-radius: 10px;
-    }
-
-    .total-shares-display {
-        margin-top: 1.5rem;
-        padding: 1rem;
-        background: #f8f9fa;
-        border-radius: 8px;
-        border: 1px solid #dee2e6;
-    }
-
-    @media (max-width: 768px) {
-        .shares-card {
-            padding: 1rem;
-        }
-
-        .shares-icon {
-            width: 40px;
-            height: 40px;
-            font-size: 20px;
-        }
-
-        .shares-value {
-            font-size: 1.5rem;
-        }
-
-        .total-shares-display {
-            padding: 0.75rem;
-        }
-    }
-
-    @keyframes valueChange {
-        0% {
-            transform: scale(1);
-        }
-
-        50% {
-            transform: scale(1.1);
-        }
-
-        100% {
-            transform: scale(1);
-        }
-    }
-
-    .shares-value {
-        animation: valueChange 0.3s ease-in-out;
-    }
-
-    /* Color transitions for different states */
-    .shares-value.text-success {
-        color: #198754 !important;
-    }
-
-    .shares-value.text-danger {
-        color: #dc3545 !important;
-    }
-
-    .shares-value.text-warning {
-        color: #ffc107 !important;
-    }
-
-    .shares-value.text-primary {
-        color: #0d6efd !important;
-    }
-
-    .reinsurer-selection-panel {
-        background: #f8f9fa;
-        padding: 1rem;
-        border-radius: 8px;
-        border: 1px solid #dee2e6;
-        margin-bottom: 1.5rem;
-    }
-
-    .selected-reinsurers-section {
-        margin-top: 1.5rem;
-    }
-
-    .selected-reinsurers-section h6 {
-        color: #495057;
-        font-weight: 600;
-    }
-
-    .selected-reinsurers-table thead {
-        background: #f8f9fa;
-    }
-
-    .selected-reinsurers-table tbody tr:hover {
-        background: #f8f9fa;
-    }
-
-    #reinsurerCount {
-        font-size: 0.875rem;
-        padding: 0.35em 0.65em;
-    }
-
-    .contacts-reinsurer,
-    .remove-reinsurer {
-        padding: 0.25rem 0.5rem;
-        font-size: 0.875rem;
-    }
-
-    .contacts-reinsurer {
-        margin-right: 0.25rem;
-    }
-
-    .reinsurer-validation-error {
-        border-radius: 8px;
-        padding: 0.75rem 1rem;
-        margin-top: 1rem;
-    }
-
-    .reinsurer-validation-error i {
-        font-size: 1.25rem;
-        vertical-align: middle;
-    }
-
-    #addReinsurer {
-        height: 100%;
-        min-height: 38px;
-    }
-
-    #addReinsurer .bx-loader {
-        animation: spin 1s linear infinite;
-    }
-
-    @keyframes spin {
-        0% {
-            transform: rotate(0deg);
-        }
-
-        100% {
-            transform: rotate(360deg);
-        }
-    }
-
-    .selected-reinsurers-table tbody:empty::after {
-        content: "No reinsurers selected yet. Add reinsurers using the form above.";
-        display: block;
-        text-align: center;
-        padding: 2rem;
-        color: #6c757d;
-        font-style: italic;
-    }
-
-    .shares-progress .progress-bar.bg-success::after {
-        content: "✓";
-        position: absolute;
-        right: 10px;
-        color: white;
-        font-size: 0.75rem;
-        font-weight: 600;
-    }
-
-    @media (max-width: 576px) {
-        .reinsurer-selection-panel .row {
-            row-gap: 0.5rem;
-        }
-
-        .reinsurer-selection-panel .col-md-8,
-        .reinsurer-selection-panel .col-md-3,
-        .reinsurer-selection-panel .col-md-1 {
-            width: 100%;
-        }
-
-        #addReinsurer {
-            width: 100%;
-            padding: 0.5rem 0;
-        }
-    }
-</style>
 
 @push('script')
     <script>
@@ -1462,9 +257,17 @@
             };
 
             let uploadedFiles = {};
-            let currentClass = "";
-            let documentConfigs = {};
             let selectedReinsurers = new Set();
+            let bdReinsurers = {};
+
+            const $proposalForm = $("#proposalForm");
+            const $proposalModal = $("#proposalModal");
+            const $totalNegReinsurerShare = $("#totalNegReinsurerShare");
+            const $availableNegReinsurers = $("#availableNegReinsurers");
+            const $reinsurerNegShare = $("#reinsurerNegShare");
+            const $opportunityNegId = $("#opportunityNegId");
+            const $reinsurersTable = $("#reinsurersNegTable");
+            const $reinsurerCount = $("#reinsurerCount");
 
             $.ajaxSetup({
                 headers: {
@@ -1472,7 +275,7 @@
                 },
             });
 
-            const table = $("#reinsurersTable").DataTable({
+            const table = $reinsurersTable.DataTable({
                 responsive: true,
                 pageLength: 10,
                 paging: false,
@@ -1489,17 +292,17 @@
                     orderable: false,
                     searchable: false,
                     className: "text-start",
-                }, ],
+                }],
             });
 
-            $("#availableReinsurers").select2({
+            $availableNegReinsurers.select2({
                 placeholder: "Search and select reinsurer...",
                 allowClear: true,
                 minimumInputLength: 0,
                 width: "100%",
-                dropdownParent: $("#proposalModal"),
+                dropdownParent: $proposalModal,
                 ajax: {
-                    url: "{{ route('pipeline.search_reinsurers') }}",
+                    url: "/pipeline/search_reinsurers",
                     method: "GET",
                     dataType: "json",
                     delay: 300,
@@ -1510,8 +313,9 @@
                         };
                     },
                     processResults: function(data, params) {
+                        bdReinsurers = data.results || [];
                         return {
-                            results: data.results,
+                            results: data.results || [],
                             pagination: {
                                 more: data.pagination && data.pagination.more,
                             },
@@ -1520,173 +324,87 @@
                     cache: true,
                     error: function(xhr, status, error) {
                         console.error("AJAX Error:", error);
+                        showAlert("Failed to load reinsurers", "error");
                     },
                 },
                 templateResult: function(reinsurer) {
                     if (reinsurer.loading) return reinsurer.text;
                     if (!reinsurer.name) return reinsurer.text;
 
-                    const email = reinsurer.email;
-
                     return `
                         <div class="reinsurer-option">
                             <div><strong>${reinsurer.name}</strong>
-                                <span class="badge bg-secondary ms-1">${reinsurer.rating}</span>
+                                <span class="badge bg-secondary ms-1">${reinsurer.rating || 'N/A'}</span>
                             </div>
-                            <div><small class="text-muted">${reinsurer.country} | Email: ${email}</small></div>
+                            <div><small class="text-muted">${reinsurer.country || ''} | Email: ${reinsurer.email || 'N/A'}</small></div>
                         </div>
                     `;
                 },
                 templateSelection: function(reinsurer) {
                     if (!reinsurer.id) return reinsurer.text;
 
-                    let option = $("#availableReinsurers").find(
-                        `option[value='${reinsurer.id}']`
-                    );
+                    let option = $availableNegReinsurers.find(`option[value='${reinsurer.id}']`);
                     option.attr("data-name", reinsurer.name || "");
                     option.attr("data-email", reinsurer.email || "");
                     option.attr("data-country", reinsurer.country || "");
 
-                    return `${reinsurer.name} (${reinsurer.email}) - ${reinsurer.country}`;
+                    return `${reinsurer.name || 'Unknown'} (${reinsurer.email || 'No email'}) - ${reinsurer.country || 'Unknown'}`;
                 },
                 escapeMarkup: function(markup) {
                     return markup;
                 },
             });
 
-            $("#addReinsurer").click(function() {
-                const selectedOption = $("#availableReinsurers option:selected");
-                const writtenSharePercent = parseFloat($("#reinsurerShare").val());
+            $("#addNegReinsurer").on("click", function() {
+                const selectedOption = $availableNegReinsurers.find("option:selected");
+                const writtenSharePercent = parseFloat($reinsurerNegShare.val());
 
                 if (!selectedOption.val()) {
-                    Swal.fire({
-                        icon: "warning",
-                        title: "Select Reinsurer",
-                        text: "Please select a reinsurer from the dropdown.",
-                        confirmButtonColor: "#3085d6",
-                    });
+                    showAlert("Please select a reinsurer from the dropdown", "warning");
                     return;
                 }
 
-                if (
-                    !writtenSharePercent ||
-                    writtenSharePercent <= 0 ||
-                    writtenSharePercent > 100
-                ) {
-                    Swal.fire({
-                        icon: "error",
-                        title: "Invalid Written Share",
-                        text: "Please enter a valid written share percentage between 0.01% and 100%.",
-                        confirmButtonColor: "#3085d6",
-                    }).then(() => {
-                        $("#reinsurerShare").focus();
-                    });
+                if (!writtenSharePercent || writtenSharePercent <= 0 || writtenSharePercent > 100) {
+                    showAlert("Please enter a valid written share percentage between 0.01% and 100%",
+                        "error");
+                    $reinsurerNegShare.focus();
                     return;
                 }
 
-                let currentTotalPlacedShares = 0;
-                table.rows().every(function() {
-                    const row = $(this.node());
-                    const writtenShare = parseFloat(row.attr("data-written-share")) || 0;
-                    currentTotalPlacedShares += writtenShare;
-                });
+                let currentTotalPlacedShares = calculateTotalPlacedShares();
 
                 if (currentTotalPlacedShares + writtenSharePercent > 100) {
                     const remainingCapacity = 100 - currentTotalPlacedShares;
-                    Swal.fire({
-                        icon: "warning",
-                        title: "Insufficient Capacity",
-                        text: `Maximum available share is ${remainingCapacity.toFixed(2)}%. Total placed shares cannot exceed 100%.`,
-                        confirmButtonColor: "#f39c12",
-                    });
+                    showAlert(
+                        `Maximum available share is ${remainingCapacity.toFixed(2)}%. Total placed shares cannot exceed 100%.`,
+                        "warning");
                     return;
                 }
 
                 if (selectedReinsurers.has(selectedOption.val())) {
-                    Swal.fire({
-                        icon: "info",
-                        title: "Already Selected",
-                        text: "This reinsurer has already been added to the list.",
-                        confirmButtonColor: "#3085d6",
-                    });
+                    showAlert("This reinsurer has already been added to the list", "info");
                     return;
                 }
 
                 const reinsurerData = {
                     id: selectedOption.val(),
-                    name: selectedOption.data("name"),
-                    email: selectedOption.data("email"),
-                    country: selectedOption.data("country"),
+                    name: selectedOption.data("name") || "Unknown",
+                    email: selectedOption.data("email") || "N/A",
+                    country: selectedOption.data("country") || "Unknown",
                     writtenShare: writtenSharePercent,
                 };
 
-                const rowHtml = `
-                    <tr data-reinsurer-id="${reinsurerData.id}" data-written-share="${reinsurerData.writtenShare}">
-                        <td>
-                            <div class="d-flex align-items-center">
-                                <div>
-                                    <div class="fw-medium">${reinsurerData.name}</div>
-                                    <small class="text-muted">(${
-                                    reinsurerData.email
-                                    }) - ${reinsurerData.country}</small>
-                                </div>
-                            </div>
-                        </td>
-                        <td class="text-start">
-                            <div class="share-display">
-                                <strong>${reinsurerData.writtenShare.toFixed(
-                                2
-                                )}%</strong>
-                            </div>
-                        </td>
-                        <td class="text-start">
-                            <button type="button" class="btn btn-primary btn-sm contacts-reinsurer"
-                                    data-reinsurer-id="${reinsurerData.id}"
-                                    title="Contacts">
-                                <i class="bx bx-book"></i>
-                            </button>
-                            <button type="button" class="btn btn-danger btn-sm remove-reinsurer"
-                                    data-reinsurer-id="${reinsurerData.id}"
-                                    title="Remove Reinsurer">
-                                <i class="bx bx-trash"></i>
-                            </button>
-                        </td>
-                    </tr>
-                `;
-
-                table.row.add($(rowHtml)).draw();
-                selectedReinsurers.add(reinsurerData.id);
-                updateReinsurerCount();
-                resetReinsurerForm();
-                toggleTotalWrittenShareField();
-
-                Swal.fire({
-                    icon: "success",
-                    title: "Reinsurer Added!",
-                    text: `${reinsurerData.name} has been successfully added with ${writtenSharePercent.toFixed(2)}% written share.`,
-                    timer: 2000,
-                    showConfirmButton: false,
-                    toast: true,
-                    position: "top-end",
-                });
-
+                addReinsurerToTable(reinsurerData);
                 updateSharesDisplay();
             });
 
-            $("#totalReinsurerShare").on("input", function() {
+            $totalNegReinsurerShare.on("input", function() {
                 const value = parseFloat($(this).val());
 
                 if (value > 100) {
                     $(this).val("100");
-                    Swal.fire({
-                        icon: "warning",
-                        title: "Maximum Share Exceeded",
-                        text: "Total Written Share cannot exceed 100%. Value has been adjusted to 100%.",
-                        timer: 3000,
-                        showConfirmButton: false,
-                        toast: true,
-                        position: "top-end",
-                    });
+                    showAlert("Total Written Share cannot exceed 100%. Value has been adjusted to 100%.",
+                        "warning");
                 }
 
                 if (value < 0) {
@@ -1710,38 +428,293 @@
                     cancelButtonText: "Cancel",
                 }).then((result) => {
                     if (result.isConfirmed) {
-                        table.row(row).remove().draw();
-                        selectedReinsurers.delete(reinsurerID.toString());
-                        updateReinsurerCount();
-                        updateSharesDisplay();
-                        toggleTotalWrittenShareField();
-
-                        Swal.fire({
-                            icon: "info",
-                            title: "Removed!",
-                            text: `${reinsurerName} has been removed from the list.`,
-                            timer: 2000,
-                            showConfirmButton: false,
-                            toast: true,
-                            position: "top-end",
-                        });
+                        removeReinsurerFromTable(reinsurerID, row, reinsurerName);
                     }
                 });
             });
 
-            function updateSharesDisplay() {
-                let totalPlacedShares = 0;
-                let totalReinsurerShare = parseFloat($("#totalReinsurerShare").val()) || 0;
+            $(document).on("click", ".contacts-reinsurer", function(e) {
+                e.preventDefault();
 
+                const reinsurerID = $(this).data("reinsurer-id");
+                const row = $(this).closest("tr");
+                let reinsurerName = row.find("td:first .fw-medium").text();
+                const opportunityId = $opportunityNegId.val();
+
+                if (!reinsurerID) {
+                    showAlert("Reinsurer ID not found", "error");
+                    return;
+                }
+
+                const originalHtml = $(this).html();
+                const $btn = $(this);
+                $btn.html('<i class="bx bx-loader bx-spin"></i>').prop("disabled", true);
+
+                $.ajax({
+                    url: `/reinsurers/${reinsurerID}/contacts`,
+                    method: "POST",
+                    data: {
+                        opportunityNegId: opportunityId,
+                        reinsurer_id: reinsurerID,
+                    },
+                    success: function(response) {
+                        if (response.success) {
+                            reinsurerName = response?.data?.reinsurer?.name || reinsurerName;
+                            populateContactsModal(response.data, reinsurerName);
+                            $proposalModal.modal("hide");
+                            $("#contactsModal").modal("show");
+                        } else {
+                            showAlert(response.message || "Failed to fetch contacts", "error");
+                        }
+                    },
+                    error: function(xhr) {
+                        let errorMessage = "Failed to fetch reinsurer contacts";
+
+                        if (xhr.status === 404) {
+                            errorMessage = "Reinsurer contacts not found";
+                        } else if (xhr.status === 403) {
+                            errorMessage = "Access denied to reinsurer contacts";
+                        } else if (xhr.responseJSON && xhr.responseJSON.message) {
+                            errorMessage = xhr.responseJSON.message;
+                        }
+
+                        showAlert(errorMessage, "error");
+                    },
+                    complete: function() {
+                        $btn.html(originalHtml).prop("disabled", false);
+                    },
+                });
+            });
+
+            $proposalForm.on("input blur", ".form-inputs", function() {
+                validateField($(this));
+            });
+
+            $proposalForm.on("submit", function(e) {
+                e.preventDefault();
+
+                const validation = validateProposalForm();
+
+                if (!validation.isValid) {
+                    displayValidationErrors(validation.errors);
+                    return false;
+                }
+
+                submitNegotiationForm();
+            });
+
+            $("#updateCategoryForm").on("submit", function(e) {
+                e.preventDefault();
+
+                const $categorySelect = $("#category_type");
+                const $submitBtn = $("#updateCategorySubmitBtn");
+
+                if (!$categorySelect.val()) {
+                    $categorySelect.addClass("is-invalid").focus();
+                    return false;
+                }
+
+                $categorySelect.removeClass("is-invalid");
+                $submitBtn.addClass("btn-loading")
+                    .html('<span class="">Updating...</span>')
+                    .prop("disabled", true);
+
+                const formData = new FormData(this);
+
+                $.ajax({
+                    url: $(this).attr("action"),
+                    method: "POST",
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    success: function(response) {
+                        if (response.success) {
+                            showAlert("Category type updated successfully!", "success");
+                            setTimeout(() => location.reload(), 2000);
+                        }
+                        $("#updateCategoryTypeModal").modal("hide");
+                    },
+                    error: function(xhr) {
+                        let errorMessage = "An error occurred while updating the category.";
+
+                        if (xhr.responseJSON && xhr.responseJSON.message) {
+                            errorMessage = xhr.responseJSON.message;
+                        } else if (xhr.responseJSON && xhr.responseJSON.errors) {
+                            errorMessage = Object.values(xhr.responseJSON.errors).flat().join(
+                                "<br>");
+                        }
+
+                        showAlert(errorMessage, "error");
+                    },
+                    complete: function() {
+                        $submitBtn.removeClass("btn-loading")
+                            .html('<i class="bi bi-check-circle me-1"></i>Update Category')
+                            .prop("disabled", false);
+                    },
+                });
+            });
+
+            $(document).on("click", "#submitContactModal", function() {
+                const contacts = [];
+
+                const primaryData = {
+                    id: parseInt($("#primary-contacts .primary-contact_id").val()),
+                    name: $("#primary-contacts .primary-name").val(),
+                    email: $("#primary-contacts .primary-email").val(),
+                    cc_email: false,
+                    is_primary: true,
+                };
+
+                if (primaryData.name || primaryData.email) {
+                    contacts.push(primaryData);
+                }
+
+                $("#departmentContacts .contact-item").each(function() {
+                    const contactData = {
+                        id: parseInt($(this).data("contact-id")),
+                        name: $(this).find(".contact-name").val().trim(),
+                        email: $(this).find(".contact-email").val().trim(),
+                        cc_email: $(this).find(".mailc-checkbox").is(":checked"),
+                        is_primary: false,
+                    };
+
+                    if (contactData.name || contactData.email) {
+                        contacts.push(contactData);
+                    }
+                });
+
+                if (contacts.length === 0) {
+                    showAlert("Please add at least one contact.", "warning");
+                    return;
+                }
+
+                const $submitBtn = $(this);
+                $submitBtn.prop("disabled", true);
+                const opportunityNegId = $opportunityNegId.val();
+
+                $.ajax({
+                    url: "/reinsurers/contacts/update",
+                    method: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({
+                        opportunityNegId: opportunityNegId,
+                        contacts: contacts
+                    }),
+                    success: function(response) {
+                        if (response.success) {
+                            showAlert("Contact information has been updated.", "success");
+                            $("#contactsModal").modal("hide");
+                            $proposalModal.modal("show");
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        console.error("Contact update error:", error);
+                        showAlert("Failed to update contacts", "error");
+                    },
+                    complete: function() {
+                        $submitBtn.prop("disabled", false);
+                    }
+                });
+            });
+
+            // Modal Event Handlers
+            $("#contactsModal").on("hidden.bs.modal", function() {
+                $proposalModal.modal("show");
+            });
+
+            $proposalModal.on("shown.bs.modal", function() {
+                $proposalForm.find(".is-invalid").removeClass("is-invalid");
+                $proposalForm.find(".invalid-feedback").remove();
+                $proposalForm.find(".reinsurer-validation-error").remove();
+            });
+
+            $("#updateCategoryTypeModal").on("hidden.bs.modal", function() {
+                resetProposalModal();
+            });
+
+            $proposalModal.on("click", "button[data-bs-dismiss='modal']", function() {
+                resetProposalModal();
+            });
+
+            function calculateTotalPlacedShares() {
+                let total = 0;
                 table.rows().every(function() {
                     const row = $(this.node());
                     const writtenShare = parseFloat(row.attr("data-written-share")) || 0;
-                    totalPlacedShares += writtenShare;
+                    total += writtenShare;
                 });
+                return total;
+            }
 
-                const totalUnplacedShares = totalReinsurerShare - totalPlacedShares;
+            function addReinsurerToTable(reinsurerData) {
+                const rowHtml = `
+                    <tr data-reinsurer-id="${reinsurerData.id}" data-written-share="${reinsurerData.writtenShare}">
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <div>
+                                    <div class="fw-medium">${reinsurerData.name}</div>
+                                    <small class="text-muted">(${reinsurerData.email}) - ${reinsurerData.country}</small>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="text-start">
+                            <div class="share-display">
+                                <strong>${reinsurerData.writtenShare.toFixed(2)}%</strong>
+                            </div>
+                        </td>
+                        <td class="text-start">
+                            <button type="button" class="btn btn-primary btn-sm contacts-reinsurer"
+                                    data-reinsurer-id="${reinsurerData.id}"
+                                    title="Contacts">
+                                <i class="bx bx-book"></i>
+                            </button>
+                            <button type="button" class="btn btn-danger btn-sm remove-reinsurer"
+                                    data-reinsurer-id="${reinsurerData.id}"
+                                    title="Remove Reinsurer">
+                                <i class="bx bx-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+
+                try {
+                    table.row.add($(rowHtml)).draw();
+                    selectedReinsurers.add(reinsurerData.id);
+                    updateReinsurerCount();
+                    resetReinsurerForm();
+                    toggleTotalWrittenShareField();
+
+                    showAlert(
+                        `${reinsurerData.name} has been successfully added with ${reinsurerData.writtenShare.toFixed(2)}% written share.`,
+                        "success");
+                } catch (error) {
+                    console.error("Error adding reinsurer to table:", error);
+                    showAlert("Failed to add reinsurer to table", "error");
+                }
+            }
+
+            function removeReinsurerFromTable(reinsurerID, row, reinsurerName) {
+                try {
+                    table.row(row).remove().draw();
+                    selectedReinsurers.delete(reinsurerID.toString());
+                    updateReinsurerCount();
+                    updateSharesDisplay();
+                    toggleTotalWrittenShareField();
+
+                    showAlert(`${reinsurerName} has been removed from the list.`, "info");
+                } catch (error) {
+                    console.error("Error removing reinsurer:", error);
+                    showAlert("Failed to remove reinsurer", "error");
+                }
+            }
+
+            function updateSharesDisplay() {
+                let totalPlacedShares = calculateTotalPlacedShares();
+                let totalNegReinsurerShare = parseFloat($totalNegReinsurerShare.val()) || 0;
+                const totalUnplacedShares = totalNegReinsurerShare - totalPlacedShares;
 
                 let sharesDisplay = $(".total-shares-display");
+
                 if (sharesDisplay.length === 0) {
                     const displayHtml = `
                         <div class="total-shares-display mt-3">
@@ -1782,359 +755,70 @@
                     sharesDisplay = $(".total-shares-display");
                 }
 
-                const placedValueClass =
-                    totalPlacedShares === totalReinsurerShare ?
-                    "text-success" :
-                    totalPlacedShares > totalReinsurerShare ?
-                    "text-danger" :
-                    "text-primary";
-                sharesDisplay
-                    .find(".placed-value")
+                const placedValueClass = totalPlacedShares === totalNegReinsurerShare ? "text-success" :
+                    totalPlacedShares > totalNegReinsurerShare ? "text-danger" : "text-primary";
+
+                sharesDisplay.find(".placed-value")
                     .removeClass("text-success text-danger text-primary text-warning")
                     .addClass(placedValueClass)
                     .text(`${totalPlacedShares.toFixed(2)}%`);
 
-                const unplacedValueClass =
-                    totalUnplacedShares === 0 ?
-                    "text-success" :
-                    totalUnplacedShares < 0 ?
-                    "text-danger" :
-                    "text-warning";
-                sharesDisplay
-                    .find(".unplaced-value")
+                const unplacedValueClass = totalUnplacedShares === 0 ? "text-success" :
+                    totalUnplacedShares < 0 ? "text-danger" : "text-warning";
+
+                sharesDisplay.find(".unplaced-value")
                     .removeClass("text-success text-danger text-primary text-warning")
                     .addClass(unplacedValueClass)
                     .text(`${totalUnplacedShares.toFixed(2)}%`);
 
                 let progressWidth = 0;
-                if (totalReinsurerShare > 0) {
-                    progressWidth = (totalPlacedShares / totalReinsurerShare) * 100;
-                    progressWidth = Math.min(progressWidth, 100);
+                if (totalNegReinsurerShare > 0) {
+                    progressWidth = Math.min((totalPlacedShares / totalNegReinsurerShare) * 100, 100);
                 }
 
-                const progressClass =
-                    totalPlacedShares === totalReinsurerShare ?
-                    "bg-success" :
-                    totalPlacedShares > totalReinsurerShare ?
-                    "bg-danger" :
-                    "bg-primary";
-                sharesDisplay
-                    .find(".placed-progress")
+                const progressClass = totalPlacedShares === totalNegReinsurerShare ? "bg-success" :
+                    totalPlacedShares > totalNegReinsurerShare ? "bg-danger" : "bg-primary";
+
+                sharesDisplay.find(".placed-progress")
                     .removeClass("bg-success bg-danger bg-primary")
                     .addClass(progressClass)
                     .css("width", `${progressWidth}%`)
-                    .attr("aria-valuenow", progressWidth)
-                    .attr("aria-valuemax", 100);
+                    .attr("aria-valuenow", progressWidth);
 
                 $("#retainedShareValue").val(totalUnplacedShares.toFixed(2));
             }
 
             function updateReinsurerCount() {
-                const count = selectedReinsurers.size;
-                $("#reinsurerCount").text(count);
+                $reinsurerCount.text(selectedReinsurers.size);
             }
 
             function resetReinsurerForm() {
-                $("#availableReinsurers").val(null).trigger("change");
-                $("#reinsurerShare").val("");
+                $availableNegReinsurers.val(null).trigger("change");
+                $reinsurerNegShare.val("");
             }
 
-            function showAlert(message, type = "info") {
-                const iconMap = {
-                    success: "success",
-                    warning: "warning",
-                    error: "error",
-                    info: "info",
-                };
+            function toggleTotalWrittenShareField() {
+                const reinsurerCount = selectedReinsurers.size;
 
-                const titleMap = {
-                    success: "Success",
-                    warning: "Warning",
-                    error: "Error",
-                    info: "Information",
-                };
-
-                Swal.fire({
-                    icon: iconMap[type],
-                    title: titleMap[type],
-                    text: message,
-                    timer: 3000,
-                    showConfirmButton: false,
-                    toast: true,
-                    position: "top-end",
-                });
-            }
-
-            $(document).on("click", ".contacts-reinsurer", function(e) {
-                e.preventDefault();
-
-                const reinsurerID = $(this).data("reinsurer-id");
-                const row = $(this).closest("tr");
-                let reinsurerName = row.find("td:first .fw-medium").text();
-                const opportunityId = $('#opportunity_id').val();
-
-                if (!reinsurerID) {
-                    showAlert("Reinsurer ID not found", "error");
-                    return;
-                }
-
-                const originalHtml = $(this).html();
-                $(this).html('<i class="bx bx-loader bx-spin"></i>');
-                $(this).prop("disabled", true);
-
-                $.ajax({
-                    url: `/reinsurers/${reinsurerID}/contacts`,
-                    method: "POST",
-                    data: {
-                        opportunity_id: opportunityId,
-                        reinsurer_id: reinsurerID,
-                    },
-                    headers: {
-                        "X-Requested-With": "XMLHttpRequest",
-                        Accept: "application/json",
-                    },
-                    success: function(response) {
-                        if (response.success) {
-                            reinsurerName = response?.data?.reinsurer?.name;
-                            populateContactsModal(response.data, reinsurerName);
-                            $("#proposalModal").modal("hide");
-                            $("#contactsModal").modal("show");
-                        } else {
-                            showAlert(response.message || "Failed to fetch contacts", "error");
-                        }
-                    },
-                    error: function(xhr) {
-                        let errorMessage = "Failed to fetch reinsurer contacts";
-
-                        if (xhr.status === 404) {
-                            errorMessage = "Reinsurer contacts not found";
-                        } else if (xhr.status === 403) {
-                            errorMessage = "Access denied to reinsurer contacts";
-                        } else if (xhr.responseJSON && xhr.responseJSON.message) {
-                            errorMessage = xhr.responseJSON.message;
-                        }
-
-                        showAlert(errorMessage, "error");
-                    },
-                    complete: function() {
-                        $(".contacts-reinsurer").html(originalHtml);
-                        $(".contacts-reinsurer").prop("disabled", false);
-                    },
-                });
-            });
-
-            function populateContactsModal(contactData, reinsurerName) {
-                $("#contactsModalLabel").html(
-                    `<i class="bx bx-building me-1"></i>${reinsurerName} - Contact Management`);
-
-                if (contactData.primary_contact) {
-                    $("#primary-contacts .primary-name").val(contactData.primary_contact.name || "N/A");
-                    $("#primary-contacts .primary-email").val(contactData.primary_contact.email || "N/A");
-                    $("#primary-contacts .primary-contact_id").val(contactData.primary_contact.id);
-                }
-
-                $("#departmentContacts").empty();
-
-                if (
-                    contactData.department_contacts &&
-                    contactData.department_contacts.length > 0
-                ) {
-                    contactData.department_contacts.forEach(function(contact, index) {
-                        const contactHtml = createContactItemHtml(contact, index);
-                        $("#departmentContacts").append(contactHtml);
+                if (reinsurerCount > 0) {
+                    $totalNegReinsurerShare.prop("disabled", true).css({
+                        "background-color": "#e9ecef",
+                        "cursor": "not-allowed",
+                        "opacity": "0.6"
                     });
                 } else {
-                    $("#departmentContacts").html(`
-                        <div class="text-center py-4">
-                            <i class="bx bx-info-circle bx-2x text-muted mb-2 fs-15"></i>
-                            <p class="text-muted">No department contacts found for this reinsurer.</p>
-                        </div>
-                    `);
+                    $totalNegReinsurerShare.prop("disabled", false).css({
+                        "background-color": "",
+                        "cursor": "",
+                        "opacity": ""
+                    });
                 }
             }
-
-            function createContactItemHtml(contact, index) {
-                const showLabels = index === 0;
-
-                return `
-                    <div class="contact-item rounded px-3 pb-1" data-contact-id="${
-                    contact.id || index
-                    }">
-                        <div class="row align-items-center">
-                            <div class="col-md-3">
-                                ${
-                                showLabels
-                                    ? '<label class="form-label fw-semibold mb-1">Contact Name</label>'
-                                    : ""
-                                }
-                                <input type="text" class="form-control-plaintext contact-name"
-                                    value="${contact.name || ""}" data-field="name">
-                            </div>
-                            <div class="col-md-6">
-                                ${
-                                showLabels
-                                    ? '<label class="form-label fw-semibold mb-1">Email</label>'
-                                    : ""
-                                }
-                                <input type="email" class="form-control-plaintext contact-email"
-                                    value="${contact.email || ""}" data-field="email">
-                            </div>
-                            <div class="col-md-2">
-                                ${
-                                showLabels
-                                    ? '<label class="form-label fw-semibold mb-1">CC Email</label>'
-                                    : ""
-                                }
-                                <div class="form-check mt-2 px-0">
-                                    <input class="form-check-input mailc-checkbox" type="checkbox"
-                                        ${
-                                        contact.cc_email ? "checked" : ""
-                                        } data-field="cc_email">
-                                    <label class="form-check-label cc-email-indicator">
-                                        <i class="bx bx-envelope envlope-ico"></i>
-                                    </label>
-                                </div>
-                            </div>
-                            <div class="col-md-1"></div>
-                        </div>
-                    </div>
-                `;
-            }
-
-            $("#contactsModal").on("hidden.bs.modal", function() {
-                $("#proposalModal").modal("show");
-            });
-
-            $(document).on("click", "#submitContactModal", function() {
-                const contacts = [];
-
-                const primaryData = {
-                    id: parseInt($("#primary-contacts .primary-contact_id").val()),
-                    name: $("#primary-contacts .primary-name").val(),
-                    email: $("#primary-contacts .primary-email").val(),
-                    cc_email: false,
-                    is_primary: true,
-                };
-
-                if (primaryData.name || primaryData.email) {
-                    contacts.push(primaryData);
-                }
-
-                $("#departmentContacts .contact-item").each(function() {
-                    const contactData = {
-                        id: parseInt($(this).data("contact-id")),
-                        name: $(this).find(".contact-name").val().trim(),
-                        email: $(this).find(".contact-email").val().trim(),
-                        cc_email: $(this).find(".mailc-checkbox").is(":checked"),
-                        is_primary: false,
-                    };
-
-                    if (contactData.name || contactData.email) {
-                        contacts.push(contactData);
-                    }
-                });
-
-                if (contacts.length === 0) {
-                    showAlert("Please add at least one contact.", "warning");
-                    return;
-                }
-
-                const $submitBtn = $(this);
-                $submitBtn.prop("disabled", true);
-                const opportunity_id = $('#opportunity_id').val();
-
-                $.ajax({
-                    url: "{{ route('rein.contacts.update') }}",
-                    method: 'POST',
-                    contentType: 'application/json',
-                    data: JSON.stringify({
-                        opportunity_id: opportunity_id,
-                        contacts: contacts
-                    }),
-                    success: function(response) {
-                        if (response.success) {
-                            showAlert("Contact information has been updated.", "success");
-                            $("#contactsModal").modal("hide");
-                            $("#proposalModal").modal("show");
-                        }
-
-                    },
-                    error: function(xhr, status, error) {
-                        console.error(error)
-                    },
-                    complete: function() {
-                        $submitBtn.prop("disabled", false);
-                    }
-                });
-            });
-            $("#updateCategoryForm").on("submit", function(e) {
-                e.preventDefault();
-
-                const $categorySelect = $("#category_type");
-                const $updateCategorySubmitBtn = $("#updateCategorySubmitBtn");
-
-                if (!$categorySelect.val()) {
-                    $categorySelect.addClass("is-invalid");
-                    $categorySelect.focus();
-                    return false;
-                } else {
-                    $categorySelect.removeClass("is-invalid");
-                }
-
-                $updateCategorySubmitBtn.addClass("btn-loading");
-                $updateCategorySubmitBtn.html('<span class="">Updating...</span>');
-                $updateCategorySubmitBtn.prop("disabled", true);
-
-                const formData = new FormData(this);
-                const actionUrl = $(this).attr("action");
-
-                $.ajax({
-                    url: actionUrl,
-                    method: "POST",
-                    data: formData,
-                    processData: false,
-                    contentType: false,
-                    headers: {
-                        "X-Requested-With": "XMLHttpRequest",
-                    },
-                    success: function(response) {
-                        if (response.success) {
-                            showAlert("Category type updated successfully!", "success");
-                            setTimeout(() => location.reload(), 2000);
-                        }
-                        $("#updateCategoryTypeModal").modal("hide");
-                    },
-                    error: function(xhr, status, error) {
-                        let errorMessage = "An error occurred while updating the category.";
-
-                        if (xhr.responseJSON && xhr.responseJSON.message) {
-                            errorMessage = xhr.responseJSON.message;
-                        } else if (xhr.responseJSON && xhr.responseJSON.errors) {
-                            const errors = xhr.responseJSON.errors;
-                            errorMessage = Object.values(errors).flat().join("<br>");
-                        }
-
-                        showAlert(errorMessage, "error");
-                    },
-                    complete: function() {
-                        $updateCategorySubmitBtn.removeClass("btn-loading");
-                        $updateCategorySubmitBtn.html(
-                            '<i class="bi bi-check-circle me-1"></i>Update Category'
-                        );
-                        $updateCategorySubmitBtn.prop("disabled", false);
-                    },
-                });
-            });
-
-            $("#proposalForm").on("input blur", ".form-inputs", function() {
-                validateField($(this));
-            });
 
             function validateField($field) {
                 const fieldName = $field.attr("name") || $field.attr("id");
                 const fieldValue = $field.val().trim();
-                const isRequired =
-                    $field.prop("required") ||
+                const isRequired = $field.prop("required") ||
                     VALIDATION_CONFIG.REQUIRED_FIELDS.includes(fieldName);
 
                 $field.removeClass("is-invalid");
@@ -2169,14 +853,10 @@
                 const fieldValue = $field.val();
                 const numericValue = parseFloat(fieldValue.replace(/,/g, ""));
 
-                if (
-                    $field.closest(".currency-input").length ||
+                if ($field.closest(".currency-input").length ||
                     fieldName.includes("premium") ||
-                    fieldName.includes("sum_insured")
-                ) {
-                    if (
-                        !FIELD_VALIDATORS.currency.pattern.test(fieldValue.replace(/,/g, ""))
-                    ) {
+                    fieldName.includes("sum_insured")) {
+                    if (!FIELD_VALIDATORS.currency.pattern.test(fieldValue.replace(/,/g, ""))) {
                         return {
                             isValid: false,
                             message: FIELD_VALIDATORS.currency.message,
@@ -2197,10 +877,8 @@
                             message: FIELD_VALIDATORS.percentage.message,
                         };
                     }
-                    if (
-                        numericValue < FIELD_VALIDATORS.percentage.min ||
-                        numericValue > FIELD_VALIDATORS.percentage.max
-                    ) {
+                    if (numericValue < FIELD_VALIDATORS.percentage.min ||
+                        numericValue > FIELD_VALIDATORS.percentage.max) {
                         return {
                             isValid: false,
                             message: `Percentage must be between ${FIELD_VALIDATORS.percentage.min} and ${FIELD_VALIDATORS.percentage.max}`,
@@ -2218,7 +896,7 @@
                 }
 
                 return {
-                    isValid: true,
+                    isValid: true
                 };
             }
 
@@ -2226,15 +904,11 @@
                 let isFormValid = true;
                 const errors = [];
 
-                $("#proposalForm .form-inputs").each(function() {
+                $proposalForm.find(".form-inputs").each(function() {
                     if (!validateField($(this))) {
                         isFormValid = false;
-                        const fieldLabel = $(this)
-                            .closest(".form-group")
-                            .find("label")
-                            .text()
-                            .replace("*", "")
-                            .trim();
+                        const fieldLabel = $(this).closest(".form-group")
+                            .find("label").text().replace("*", "").trim();
                         errors.push(`${fieldLabel}: Please check the entered value`);
                     }
                 });
@@ -2244,67 +918,29 @@
                     errors.push("<b>Reinsurer Selection:</b> Please add at least one reinsurer");
                 }
 
-                // if (!validateSharesMatch()) {
-                //     isFormValid = false;
-                //     errors.push("<b>Share Mismatch:</b> Placed shares must equal Total Written Share");
-                // }
+                const requiredFiles = $proposalForm.find('input[type="file"][required]');
+                const missingFiles = [];
+
+                requiredFiles.each(function() {
+                    const fileName = $(this).attr('name');
+                    const fileInput = this;
+
+                    if (!fileInput.files || fileInput.files.length === 0) {
+                        const fieldLabel = $(this).closest(".form-group")
+                            .find("label").text().replace("*", "").trim();
+                        missingFiles.push(fieldLabel || fileName);
+                    }
+                });
+
+                if (missingFiles.length > 0) {
+                    isFormValid = false;
+                    errors.push(`<b>Required Files:</b> Please upload: ${missingFiles.join(', ')}`);
+                }
 
                 return {
                     isValid: isFormValid,
                     errors: errors,
                 };
-            }
-
-            function validateSharesMatch() {
-                const totalWrittenShare = parseFloat($("#totalReinsurerShare").val()) || 0;
-
-                let totalPlacedShares = 0;
-                table.rows().every(function() {
-                    const row = $(this.node());
-                    const writtenShare = parseFloat(row.attr("data-written-share")) || 0;
-                    totalPlacedShares += writtenShare;
-                });
-
-                const totalUnplacedShares = totalWrittenShare - totalPlacedShares;
-
-                const sharesDifference = Math.abs(totalWrittenShare - totalPlacedShares);
-
-                if (sharesDifference > 0.01 || totalUnplacedShares !== 0) {
-                    Swal.fire({
-                        icon: "error",
-                        title: "Share Allocation Mismatch",
-                        html: `
-                            <div class="text-start">
-                                <p class="mb-3"><strong>The share allocation is incomplete or incorrect:</strong></p>
-                                <ul class="list-unstyled m-0 p-0">
-                                    <li class="mb-2">
-                                        <i class="bx bx-info-circle text-primary me-2"></i>
-                                        <strong>Total Written Share:</strong> ${totalWrittenShare.toFixed(2)}%
-                                    </li>
-                                    <li class="mb-2">
-                                        <i class="bx bx-check-circle ${totalPlacedShares === totalWrittenShare ? 'text-success' : 'text-danger'} me-2"></i>
-                                        <strong>Placed Shares:</strong> ${totalPlacedShares.toFixed(2)}%
-                                    </li>
-                                    <li class="mb-2">
-                                        <i class="bx bx-x-circle ${totalUnplacedShares === 0 ? 'text-success' : 'text-warning'} me-2"></i>
-                                        <strong>Unplaced Shares:</strong> ${totalUnplacedShares.toFixed(2)}%
-                                    </li>
-                                </ul>
-                                <div class="alert alert-warning mt-3 mb-0">
-                                    <i class="bx bx-error-circle me-2"></i>
-                                    Please ensure all shares are allocated and Unplaced Shares equals 0%.
-                                </div>
-                            </div>
-                        `,
-                        confirmButtonColor: "#dc3545",
-                        confirmButtonText: "Fix Allocation",
-                        width: "600px",
-                    });
-
-                    return false;
-                }
-
-                return true;
             }
 
             function validateReinsurerSelection() {
@@ -2315,11 +951,11 @@
 
                 if (reinsurerCount < VALIDATION_CONFIG.MIN_REINSURERS) {
                     const errorHtml = `
-                        <div class="alert alert-danger reinsurer-validation-error mt-2">
-                            <i class="bx bx-error-circle me-2"></i>
-                            At least ${VALIDATION_CONFIG.MIN_REINSURERS} reinsurer must be selected
-                        </div>
-                    `;
+                <div class="alert alert-danger reinsurer-validation-error mt-2">
+                    <i class="bx bx-error-circle me-2"></i>
+                    At least ${VALIDATION_CONFIG.MIN_REINSURERS} reinsurer must be selected
+                </div>
+            `;
                     $reinsurerSection.append(errorHtml);
                     return false;
                 }
@@ -2327,105 +963,83 @@
                 return true;
             }
 
-            $("#proposalForm").on("submit", handleFormSubmission);
+            function displayValidationErrors(errors) {
+                let errorHtml = '<ul class="m-0 p-0" style="text-align: start;">';
+                errors.forEach((error) => {
+                    errorHtml += `<li class="mb-2">${error}</li>`;
+                });
+                errorHtml += "</ul>";
 
-            function handleFormSubmission(e) {
-                e.preventDefault();
+                Swal.fire({
+                    icon: "error",
+                    title: "Validation Failed",
+                    html: errorHtml,
+                    confirmButtonColor: "#dc3545",
+                });
 
-                const $submitBtn = $("#proposalForm button[type='submit']");
+                const $firstError = $proposalForm.find(".is-invalid").first();
+                if ($firstError.length) {
+                    $firstError[0].scrollIntoView({
+                        behavior: "smooth",
+                        block: "center",
+                    });
+                    setTimeout(() => $firstError.focus(), 500);
+                }
+            }
+
+            function submitNegotiationForm() {
+                const $submitBtn = $proposalForm.find("button[type='submit']");
                 const originalBtnContent = $submitBtn.html();
 
-                const validation = validateProposalForm();
-
-                if (!validation.isValid) {
-                    let errorHtml = '<ul class="m-0 p-0">';
-                    validation.errors.forEach((error) => {
-                        errorHtml += `<li class="m-0 p-0" style="text-align: start;">${error}</li>`;
-                    });
-                    errorHtml += "</ul>";
-
-                    Swal.fire({
-                        icon: "error",
-                        title: "Validation Failed",
-                        html: errorHtml,
-                        confirmButtonColor: "#dc3545",
-                    });
-
-                    const $firstError = $("#proposalForm .is-invalid").first();
-                    if ($firstError.length) {
-                        $firstError[0].scrollIntoView({
-                            behavior: "smooth",
-                            block: "center",
-                        });
-                        setTimeout(() => $firstError.focus(), 500);
-                    }
-
-                    return false;
-                }
-
-                $submitBtn
-                    .html('<i class="bx bx-loader-alt bx-spin me-1"></i> Sending Proposal...')
+                $submitBtn.html('<i class="bx bx-loader-alt bx-spin me-1"></i> Sending Negotiation...')
                     .prop("disabled", true);
 
                 const formData = prepareFormData();
 
                 $.ajax({
-                    url: $("#proposalForm").attr("action"),
+                    url: $proposalForm.attr("action"),
                     method: "POST",
                     data: formData,
                     processData: false,
                     contentType: false,
-                    headers: {
-                        "X-Requested-With": "XMLHttpRequest",
-                        "X-CSRF-TOKEN": $('meta[name="csrf-token"]').attr("content"),
-                    },
                     timeout: 30000,
-
                     success: function(response) {
                         if (response.success) {
-                            console.log(response)
-
-                            // resetProposalModal();
-
-                            // Swal.fire({
-                            //     icon: "success",
-                            //     title: "Proposal Saved Successfully!",
-                            //     text: response.message || "Your proposal has been submitted",
-                            //     showConfirmButton: true,
-                            // }).then((result) => {
-                            //     if (result.isConfirmed) {
-                            //         handleSendBDNotification(response);
-                            //     } else {
-                            //         $("#proposalModal").modal("hide");
-                            //     }
-                            // });
+                            Swal.fire({
+                                icon: "success",
+                                title: "Negotiation Sent Successfully!",
+                                text: response.message || "Your negotiation has been submitted",
+                                showConfirmButton: true,
+                            }).then((result) => {
+                                if (result.isConfirmed && response.data) {
+                                    handleSendBDNotification(response);
+                                } else {
+                                    $proposalModal.modal("hide");
+                                    resetProposalModal();
+                                }
+                            });
                         } else {
                             throw new Error(response.message || "Submission failed");
                         }
                     },
-
                     error: function(xhr, status, error) {
-                        console.error("Proposal submission error:", {
+                        console.error("Negotiation submission error:", {
                             status: xhr.status,
-                            statusText: xhr.statusText,
-                            responseText: xhr.responseText,
                             error: error,
                         });
 
                         let errorMessage =
-                            "An unexpected error occurred while sending the proposal.";
+                            "An unexpected error occurred while sending the negotiation.";
 
                         if (xhr.status === 422 && xhr.responseJSON?.errors) {
-                            const serverErrors = xhr.responseJSON.errors;
-                            errorMessage = Object.values(serverErrors).flat().join("<br>");
+                            errorMessage = Object.values(xhr.responseJSON.errors).flat().join("<br>");
                         } else if (xhr.responseJSON?.message) {
                             errorMessage = xhr.responseJSON.message;
                         } else if (status === "timeout") {
                             errorMessage =
                                 "Request timed out. Please check your connection and try again.";
                         } else if (xhr.status === 0) {
-                            errorMessage =
-                                "Network error. Please check your internet connection.";
+                            errorMessage = "Network error. Please check your internet connection.";
                         } else if (xhr.status === 404) {
                             errorMessage =
                                 "The submission endpoint was not found. Please contact support.";
@@ -2441,40 +1055,23 @@
                             confirmButtonColor: "#dc3545",
                         });
                     },
-
                     complete: function() {
                         $submitBtn.html(originalBtnContent).prop("disabled", false);
                     },
                 });
             }
 
-            function handleSendBDNotification(response) {
-                $("#proposalModal").modal("hide");
-                $("#sendBDEmail").modal("show");
-            }
-
             function prepareFormData() {
                 const formData = new FormData();
-                const $form = $("#proposalForm");
-                const formElements = $form.find("input, select, textarea");
 
-                formElements.each(function() {
+                $proposalForm.find("input:not([type='file']), select, textarea").each(function() {
                     const $element = $(this);
                     const name = $element.attr("name");
                     const type = $element.attr("type");
 
                     if (!name) return;
 
-                    if (type === "file") {
-                        const files = this.files;
-                        for (let i = 0; i < files.length; i++) {
-                            formData.append(name + "[]", files[i]);
-                        }
-                    } else if (type === "checkbox") {
-                        if ($element.is(":checked")) {
-                            formData.append(name, $element.val());
-                        }
-                    } else if (type === "radio") {
+                    if (type === "checkbox" || type === "radio") {
                         if ($element.is(":checked")) {
                             formData.append(name, $element.val());
                         }
@@ -2486,29 +1083,274 @@
                     }
                 });
 
-                const reinsurersData = [];
+                $proposalForm.find("input[type='file']").each(function() {
+                    const $fileInput = $(this);
+                    const name = $fileInput.attr("name");
+
+                    if (name && this.files && this.files.length > 0) {
+                        Array.from(this.files).forEach(file => {
+                            formData.append('facultative_files[]', file);
+                        });
+                    }
+                });
+
+                const reinsurersNegData = [];
                 let totalPlacedShares = 0;
 
-                $("#reinsurersTable tbody tr").each(function() {
+                $reinsurersTable.find("tbody tr").each(function() {
                     const $row = $(this);
                     const writtenShare = parseFloat($row.attr("data-written-share")) || 0;
                     totalPlacedShares += writtenShare;
 
-                    const reinsurerData = {
+                    reinsurersNegData.push({
                         id: $row.data("reinsurer-id"),
                         written_share: writtenShare,
-                    };
-                    reinsurersData.push(reinsurerData);
+                    });
                 });
 
-                formData.append("reinsurers_data", JSON.stringify(reinsurersData));
+                formData.append("reinsurers_data", JSON.stringify(reinsurersNegData));
                 formData.append("total_placed_shares", totalPlacedShares.toFixed(2));
-                formData.append(
-                    "total_unplaced_shares",
-                    (100 - totalPlacedShares).toFixed(2)
-                );
+                formData.append("total_unplaced_shares", (100 - totalPlacedShares).toFixed(2));
 
                 return formData;
+            }
+
+            function handleSendBDNotification(res) {
+                if (!res.data || !res.data.opportunityNegId) {
+                    console.error("Missing opportunity data");
+                    return;
+                }
+
+                const opportunityId = res.data.opportunityNegId;
+
+                const data = {
+                    partners: res.data.partners || [],
+                    contacts: res.data.contacts || [],
+                    bdEmailTitle: res.data.stageTitle || "Negotiation"
+                };
+
+                prepareBDEmailModal(opportunityId, data);
+                $proposalModal.modal("hide");
+            }
+
+            function prepareBDEmailModal(opportunityId, data) {
+                try {
+                    const $bdNotificationForm = $("#bdNotificationForm");
+
+                    if (!data || !data.bdEmailTitle) {
+                        console.error('Missing required data:', data);
+                        return;
+                    }
+
+                    $bdNotificationForm.find('.modal-bd-title').text(`- ${data.bdEmailTitle}`);
+                    $bdNotificationForm.find('#category').val(data.bdEmailTitle.toLowerCase()).trigger('change');
+
+                    const $contactsSelect = $bdNotificationForm.find('#toContacts');
+                    const $bccEmailSelect = $bdNotificationForm.find('#bccEmail');
+                    const $ccEmailSelect = $bdNotificationForm.find('#ccEmail');
+
+                    const resetSelect = ($select, placeholder) => {
+                        $select.empty().append(`<option value="" disabled>${placeholder}</option>`);
+                    };
+
+                    resetSelect($contactsSelect, '--Select contacts--');
+                    resetSelect($ccEmailSelect, '--Select CC emails--');
+                    resetSelect($bccEmailSelect, '--Select BCC emails--');
+
+                    const partnerEmails = [];
+                    if (Array.isArray(data.partners) && data.partners.length > 0) {
+                        data.partners.forEach(partner => {
+                            if (partner.email) {
+                                partnerEmails.push(partner.email);
+                            }
+                        });
+                    }
+
+                    $bdNotificationForm.find("#toEmail").val(partnerEmails);
+                    $bdNotificationForm.find("#partnerToEmail").val(data.partners || []);
+
+                    const primaryContacts = [];
+                    const regularContacts = [];
+
+                    if (Array.isArray(data.contacts) && data.contacts.length > 0) {
+                        data.contacts.forEach(contact => {
+                            const email = contact.email;
+                            if (!email) return;
+
+                            let optionText = contact.name ? `${contact.name} (${email})` : email;
+                            if (contact.phone) optionText += ` - ${contact.phone}`;
+                            if (contact.isPrimary) optionText += ' [Primary]';
+
+                            const createOption = () => $('<option></option>')
+                                .attr('value', email)
+                                .text(optionText)
+                                .data('contact-data', contact)
+                                .data('is-primary', !!contact.isPrimary);
+
+                            $contactsSelect.append(createOption());
+
+                            if (!contact.isPrimary) {
+                                $ccEmailSelect.append(createOption());
+                                $bccEmailSelect.append(createOption());
+                            }
+
+                            if (contact.isPrimary) {
+                                primaryContacts.push(email);
+                            } else {
+                                regularContacts.push(email);
+                            }
+                        });
+
+                        setTimeout(() => {
+                            if (primaryContacts.length > 0) {
+                                $contactsSelect.val(primaryContacts).trigger('change');
+                            } else if (regularContacts.length === 1) {
+                                $contactsSelect.val(regularContacts[0]).trigger('change');
+                            }
+
+                            [$contactsSelect, $ccEmailSelect, $bccEmailSelect].forEach($select => {
+                                if ($select.hasClass('select2-hidden-accessible')) {
+                                    $select.trigger('change.select2');
+                                }
+                            });
+                        }, 100);
+                    }
+
+                    $("#sendBDEmailModal").modal("show");
+
+                } catch (error) {
+                    console.error('Error in prepareBDEmailModal:', error);
+                    showAlert("Failed to prepare email modal", "error");
+                }
+            }
+
+            function populateContactsModal(contactData, reinsurerName) {
+                $("#contactsModalLabel").html(
+                    `<i class="bx bx-building me-1"></i>${reinsurerName} - Contact Management`
+                );
+
+                if (contactData.primary_contact) {
+                    $("#primary-contacts .primary-name").val(contactData.primary_contact.name || "N/A");
+                    $("#primary-contacts .primary-email").val(contactData.primary_contact.email || "N/A");
+                    $("#primary-contacts .primary-contact_id").val(contactData.primary_contact.id || "");
+                }
+
+                $("#departmentContacts").empty();
+
+                if (contactData.department_contacts && contactData.department_contacts.length > 0) {
+                    contactData.department_contacts.forEach(function(contact, index) {
+                        const contactHtml = createContactItemHtml(contact, index);
+                        $("#departmentContacts").append(contactHtml);
+                    });
+                } else {
+                    $("#departmentContacts").html(`
+                <div class="text-center py-4">
+                    <i class="bx bx-info-circle bx-2x text-muted mb-2 fs-15"></i>
+                    <p class="text-muted">No department contacts found for this reinsurer.</p>
+                </div>
+            `);
+                }
+            }
+
+            function createContactItemHtml(contact, index) {
+                const showLabels = index === 0;
+
+                return `
+            <div class="contact-item rounded px-3 pb-1" data-contact-id="${contact.id || index}">
+                <div class="row align-items-center">
+                    <div class="col-md-3">
+                        ${showLabels ? '<label class="form-label fw-semibold mb-1">Contact Name</label>' : ""}
+                        <input type="text" class="form-control-plaintext contact-name"
+                            value="${contact.name || ""}" data-field="name">
+                    </div>
+                    <div class="col-md-6">
+                        ${showLabels ? '<label class="form-label fw-semibold mb-1">Email</label>' : ""}
+                        <input type="email" class="form-control-plaintext contact-email"
+                            value="${contact.email || ""}" data-field="email">
+                    </div>
+                    <div class="col-md-2">
+                        ${showLabels ? '<label class="form-label fw-semibold mb-1">CC Email</label>' : ""}
+                        <div class="form-check mt-2 px-0">
+                            <input class="form-check-input mailc-checkbox" type="checkbox"
+                                ${contact.cc_email ? "checked" : ""} data-field="cc_email">
+                            <label class="form-check-label cc-email-indicator">
+                                <i class="bx bx-envelope envlope-ico"></i>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="col-md-1"></div>
+                </div>
+            </div>
+        `;
+            }
+
+            function resetProposalModal() {
+                $proposalForm[0].reset();
+
+                $proposalForm.find(".is-invalid").removeClass("is-invalid");
+                $proposalForm.find(".is-v").removeClass("is-v");
+                $proposalForm.find(".invalid-feedback").remove();
+                $proposalForm.find(".reinsurer-validation-error").remove();
+
+                table.clear().draw();
+                selectedReinsurers.clear();
+                updateReinsurerCount();
+
+                $availableNegReinsurers.val(null).trigger("change");
+
+                $totalNegReinsurerShare.val("");
+                $reinsurerNegShare.val("");
+                $("#retainedShareValue").val("");
+                $("#totalPlacedShares").val("");
+                $("#totalUnplacedShares").val("");
+
+                $totalNegReinsurerShare.prop("disabled", false).css({
+                    "background-color": "",
+                    "cursor": "",
+                    "opacity": ""
+                });
+
+                $(".total-shares-display").remove();
+
+                $opportunityNegId.val("");
+                $("#currentNegStage").val("");
+
+                $(".slip-display").text("");
+                $(".created_at-display").text("");
+                $(".insured-name-display").text("");
+                $(".insured-contact-name-display").text("");
+                $(".insured-email-display").text("");
+                $(".insured-phone-display").text("");
+
+                $("#documentFields").empty().hide();
+                $("#documentsSubtitle").html("");
+                uploadedFiles = {};
+            }
+
+            function showAlert(message, type = "info") {
+                const iconMap = {
+                    success: "success",
+                    warning: "warning",
+                    error: "error",
+                    info: "info",
+                };
+
+                const titleMap = {
+                    success: "Success",
+                    warning: "Warning",
+                    error: "Error",
+                    info: "Information",
+                };
+
+                Swal.fire({
+                    icon: iconMap[type] || "info",
+                    title: titleMap[type] || "Information",
+                    text: message,
+                    timer: 3000,
+                    showConfirmButton: false,
+                    toast: true,
+                    position: "top-end",
+                });
             }
 
             class BreakdownEditor {
@@ -2554,7 +1396,7 @@
                     $("textarea.breakdown-textarea")
                         .addClass("editor-enabled")
                         .attr({
-                            readonly: true,
+                            readonly: true
                         })
                         .css({
                             cursor: "pointer",
@@ -2569,7 +1411,6 @@
                         e.preventDefault();
                         const $textarea = $(e.currentTarget);
                         const textareaId = $textarea.attr('id');
-
                         this.openModal($textarea, textareaId);
                     });
 
@@ -2597,7 +1438,7 @@
                     $("#breakdownModal").on("hidden.bs.modal", () => {
                         this.cleanupEditor();
                         this.currentTextarea = null;
-                        $("#proposalModal").modal("show");
+                        $proposalModal.modal("show");
                     });
 
                     $("#breakdownModal").on("hide.bs.modal", () => {
@@ -2610,25 +1451,7 @@
                         console.error("Breakdown modal not found!");
                         return;
                     }
-                    this.modal = new bootstrap.Modal(
-                        document.getElementById("breakdownModal")
-                    );
-                }
-
-                toCamelCase(str) {
-                    let words = str
-                        .replace(/['"]/g, '')
-                        .toLowerCase()
-                        .split(/\s+/);
-
-                    return words
-                        .map((word, index) => {
-                            if (index === 0) {
-                                return word;
-                            }
-                            return word.charAt(0).toUpperCase() + word.slice(1);
-                        })
-                        .join('');
+                    this.modal = new bootstrap.Modal(document.getElementById("breakdownModal"));
                 }
 
                 cleanupEditor() {
@@ -2654,25 +1477,19 @@
                 }
 
                 openModal($textarea, textareaId) {
-                    if (!this.modal) {
-                        return;
-                    }
+                    if (!this.modal) return;
 
                     this.currentTextarea = $(`#${textareaId}Content`);
-                    this.textareaId = textareaId
+                    this.textareaId = textareaId;
 
-                    const fieldLabel = $textarea
-                        .closest(".form-group")
-                        .find("label")
-                        .first()
-                        .text()
-                        .trim();
+                    const fieldLabel = $textarea.closest(".form-group")
+                        .find("label").first().text().trim();
 
                     $("#breakdownModalLabel").html(
                         `<i class="bx bx-edit-alt me-2"></i>${fieldLabel || ""}`
                     );
 
-                    $("#proposalModal").modal("hide");
+                    $proposalModal.modal("hide");
                     this.showLoading();
                     this.modal.show();
                 }
@@ -2688,24 +1505,11 @@
                 initializeQuill() {
                     if (typeof Quill === "undefined") {
                         this.hideLoading();
+                        console.error("Quill is not loaded");
                         return;
                     }
 
                     this.cleanupEditor();
-
-                    if (this.quill) {
-                        try {
-                            this.quill.off("text-change");
-                            const container = document.getElementById("breakdownEditor");
-                            if (container) {
-                                container.innerHTML = "";
-                                container.className = "";
-                            }
-                            this.quill = null;
-                        } catch (error) {
-                            console.warn("Error destroying Quill instance:", error);
-                        }
-                    }
 
                     const editorContainer = document.getElementById("breakdownEditor");
                     if (!editorContainer) {
@@ -2718,36 +1522,6 @@
 
                     setTimeout(() => {
                         const toolbarOptions = [
-                            // [{
-                            //     header: [1, 2, 3, false],
-                            // }, ],
-                            // ["bold", "italic", "underline"],
-                            // [{
-                            //         color: [],
-                            //     },
-                            //     {
-                            //         background: [],
-                            //     },
-                            // ],
-                            // [{
-                            //         list: "ordered",
-                            //     },
-                            //     {
-                            //         list: "bullet",
-                            //     },
-                            // ],
-                            // [{
-                            //         indent: "-1",
-                            //     },
-                            //     {
-                            //         indent: "+1",
-                            //     },
-                            // ],
-                            // [{
-                            //     align: [],
-                            // }, ],
-                            // ["link"],
-                            // ["clean"],
                             [{
                                 header: [1, 2, 3, false]
                             }],
@@ -2779,10 +1553,9 @@
                             this.quill = new Quill("#breakdownEditor", {
                                 theme: "snow",
                                 modules: {
-                                    toolbar: toolbarOptions,
+                                    toolbar: toolbarOptions
                                 },
                             });
-
 
                             if (this.currentTextarea) {
                                 const existingContent = this.currentTextarea.val();
@@ -2910,40 +1683,32 @@
                     const saveBtn = $("#saveBreakdownBtn");
                     const originalText = saveBtn.html();
 
-                    saveBtn.html('<i class="bx bx-loader-alt bx-spin me-1"></i>Saving...');
-                    saveBtn.prop("disabled", true);
+                    saveBtn.html('<i class="bx bx-loader-alt bx-spin me-1"></i>Saving...')
+                        .prop("disabled", true);
 
                     const formData = new FormData();
                     formData.append("breakdown_content", html);
                     formData.append("breakdown_title", this.textareaId);
                     formData.append("_update", true);
-                    formData.append("opportunity_id", $("#opportunity_id").val() || "");
+                    formData.append("opportunityNegId", $opportunityNegId.val() || "");
                     formData.append("_token", $('meta[name="csrf-token"]').attr("content"));
 
                     $.ajax({
-                        url: "{{ route('update.opp.status') }}",
+                        url: $proposalForm.attr("action") || "/opportunities/update",
                         method: "POST",
                         data: formData,
                         processData: false,
                         contentType: false,
-                        headers: {
-                            "X-Requested-With": "XMLHttpRequest",
-                        },
                         success: (response) => {
                             if (response.success) {
-                                saveBtn.html(originalText);
-                                saveBtn.prop("disabled", false);
-                                saveBtn.removeClass("save-success");
-
-                                const title = response.data.title
-                                const content = response.data.content
-                                const short_content = response.data.short_content
+                                const title = response.data.title;
+                                const content = response.data.content;
+                                const short_content = response.data.short_content;
 
                                 const plainText = $('<div>').html(short_content).text();
 
                                 $(`#${title}`).val(plainText);
                                 $(`#${title}Content`).val(content);
-
 
                                 this.modal.hide();
                                 this.showToast("Saved successfully", "success");
@@ -2953,6 +1718,7 @@
                         },
                         error: (xhr, status, error) => {
                             let errorMessage = "Failed to save breakdown";
+
                             if (xhr.responseJSON && xhr.responseJSON.message) {
                                 errorMessage = xhr.responseJSON.message;
                             } else if (xhr.status === 422 && xhr.responseJSON?.errors) {
@@ -2965,11 +1731,7 @@
                             this.showToast(errorMessage, "error");
                         },
                         complete: () => {
-                            if (saveBtn.prop("disabled")) {
-                                saveBtn.html(originalText);
-                                saveBtn.prop("disabled", false);
-                                saveBtn.removeClass("save-success");
-                            }
+                            saveBtn.html(originalText).prop("disabled", false);
                         },
                     });
                 }
@@ -2990,109 +1752,13 @@
                 }
             }
 
-            function toggleTotalWrittenShareField() {
-                const $totalWrittenShareInput = $("#totalReinsurerShare");
-                const reinsurerCount = selectedReinsurers.size;
-
-                if (reinsurerCount > 0) {
-                    $totalWrittenShareInput.prop("disabled", true);
-                    $totalWrittenShareInput.css({
-                        "background-color": "#e9ecef",
-                        "cursor": "not-allowed",
-                        "opacity": "0.6"
-                    });
-                } else {
-                    $totalWrittenShareInput.prop("disabled", false);
-                    $totalWrittenShareInput.css({
-                        "background-color": "",
-                        "cursor": "",
-                        "opacity": ""
-                    });
-                }
-            }
-
-            function resetProposalModal() {
-                $("#proposalForm")[0].reset();
-
-                $("#proposalForm .is-invalid").removeClass("is-invalid");
-                $("#proposalForm .is-v").removeClass("is-v");
-                $("#proposalForm .invalid-feedback").remove();
-                $("#proposalForm .reinsurer-validation-error").remove();
-
-                table.clear().draw();
-                selectedReinsurers.clear();
-                updateReinsurerCount();
-
-                $("#availableReinsurers").val(null).trigger("change");
-
-                $("#totalReinsurerShare").val("");
-                $("#reinsurerShare").val("");
-                $("#retainedShareValue").val("");
-                $("#totalPlacedShares").val("");
-                $("#totalUnplacedShares").val("");
-
-                $("#totalReinsurerShare").prop("disabled", false);
-                $("#totalReinsurerShare").css({
-                    "background-color": "",
-                    "cursor": "",
-                    "opacity": ""
-                });
-
-                $(".total-shares-display").remove();
-
-                $("#opportunity_id").val("");
-                $("#reinsurersData").val("");
-                $("#specialConditionsContent").val("");
-                $("#classCodeValue").val("");
-                $("#classGroupCodeValue").val("");
-
-                $(".slip-display").text("");
-                $(".created_at-display").text("");
-                $(".insured-name-display").text("");
-                $(".insured-contact-name-display").text("");
-                $(".insured-email-display").text("");
-                $(".insured-phone-display").text("");
-                $(".sum_insured_type").text("");
-
-                $(".total_sum_insured").val("");
-                $(".premium").val("");
-                $(".brokerage_rate").val("10");
-                $(".deductible").val("");
-
-                $(".special_conditions").val("");
-                $("#specialConditions").val("");
-
-                $("#documentFields").empty().hide();
-                $("#documentsSubtitle").html("");
-                uploadedFiles = {};
-
-                $(".deductible_excess_div").hide();
-            }
-
             let breakdownEditor;
             try {
                 breakdownEditor = new BreakdownEditor();
             } catch (error) {
                 console.error("Failed to initialize BreakdownEditor:", error);
-                showAlert(
-                    "Failed to initialize the editor. Please refresh the page.",
-                    "error"
-                );
+                showAlert("Failed to initialize the editor. Please refresh the page.", "error");
             }
-
-            $("#proposalModal").on("shown.bs.modal", function() {
-                $("#proposalForm .is-invalid").removeClass("is-invalid");
-                $("#proposalForm .invalid-feedback").remove();
-                $("#proposalForm .reinsurer-validation-error").remove();
-            });
-
-            $("#updateCategoryTypeModal").on("hidden.bs.modal", function() {
-                resetProposalModal();
-            });
-
-            $("#proposalModal").on("click", "button[data-bs-dismiss='modal']", function() {
-                resetProposalModal();
-            });
         });
     </script>
-@endpush
+@endpush --}}

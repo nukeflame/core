@@ -1,4 +1,4 @@
-<!-- Proposal Stage Modal -->
+{{-- <!-- Proposal Stage Modal -->
 <div id="finalStageModal" class="modal fade effect-scale md-wrapper" tabindex="-1" data-bs-backdrop="static"
     data-bs-keyboard="false" aria-labelledby="staticPropoalStageLabel" aria-hidden="true" role="dialog" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-xl" role="document">
@@ -458,7 +458,7 @@
                         <label class="form-label">Proposal Notes</label>
                         <textarea class="form-inputs" rows="3"
                             placeholder="Include risk assessment, coverage details, exclusions, and client feedback..."></textarea>
-                    </div> --}}
+                    </div> -
                 </div>
             </div>
 
@@ -553,4 +553,4 @@
             </button>
         </div>
     </div>
-</div>
+</div> --}}

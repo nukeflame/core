@@ -299,7 +299,6 @@ class ClaimController extends Controller
         $process = SystemProcess::where('nice_name', 'claim_registration')->first();
         $verifyprocessAction = SystemProcessAction::where('nice_name', 'verify_claim')->first();
 
-        // Calculate debit amounts
         $CRperilTotal = ClaimPeril::where('claim_no', $claim_no)->where('dr_cr_note_no', 0)->where('dr_cr', 'CR')->sum('final_amount') ?? 0;
         $DRperilTotal = ClaimPeril::where('claim_no', $claim_no)->where('dr_cr_note_no', 0)->where('dr_cr', 'DR')->sum('final_amount') ?? 0;
 
@@ -320,7 +319,6 @@ class ClaimController extends Controller
         $finalTotalCR = $claimperils->where('dr_cr', 'CR')->sum('basic_amount');
         $totalClaimAmount = (float) $finalTotalDR - $finalTotalCR;
 
-        // Process uploaded documents
         $files = collect($uploadedDocs)->map(function ($query) {
             return [
                 'id' => $query->id,
@@ -383,8 +381,6 @@ class ClaimController extends Controller
             $customer->name ?? ''
         ])->filter()->implode(' - ');
 
-
-        // Filter to only allowed mail folders
         $folders = ['inbox', 'sent', 'drafts'];
         $limit = (int) $request->get('limit', 50);
         $search = $request->get('search');
@@ -401,9 +397,6 @@ class ClaimController extends Controller
                 ]);
             }
         }
-
-        // logger()->info(json_encode($results['emails'], JSON_PRETTY_PRINT));
-
 
         return view('claim.claim_home', [
             'ClaimRegister' => $claimRegister,

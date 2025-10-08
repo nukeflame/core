@@ -4,6 +4,7 @@ namespace App\Console;
 
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Console\Kernel as ConsoleKernel;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 class Kernel extends ConsoleKernel
@@ -22,6 +23,19 @@ class Kernel extends ConsoleKernel
         $schedule->command('partner:glupdate')->everyMinute();
         $schedule->command('cover:glupdate')->everyMinute();
         $schedule->command('coverReinsurer:glupdate')->everyMinute();
+
+        // Inbox - every sec
+        $schedule->command('outlook:sync --all-users --folder=inbox --fetch-profile-pictures --download-profile-pictures --attachment-storage=local --profile-picture-size=360×360')
+            // ->withoutOverlapping()
+            ->everyMinute()
+            ->before(function () {
+                Cache::put('scheduler_last_run', now()->toDateTimeString());
+                Cache::increment('scheduler_total_runs');
+            })
+            ->onFailure(function () {
+                Cache::increment('scheduler_failed_runs');
+            });
+
 
         // $schedule->command('renewal:send-notices')
         //     ->daily()
