@@ -170,8 +170,8 @@
 
         @include('Bd_views.intermediaries.partials.modals.fac_email_modal')
         @include('Bd_views.intermediaries.partials.modals.lead_modal')
-        @include('Bd_views.intermediaries.partials.modals.proposal_modal')
-        @include('Bd_views.intermediaries.partials.modals.negotiation_modal')
+        {{-- @include('Bd_views.intermediaries.partials.modals.proposal_modal')
+        @include('Bd_views.intermediaries.partials.modals.negotiation_modal') --}}
     </div>
 @endsection
 
@@ -963,78 +963,8 @@
             deletePipeline(dealId, insuredName) {
                 this.showLoading();
 
-                //{{-- $.ajax({
-                //     url: "{{ route('pipeline.delete') }}", // Update with your actual route
-                //     method: 'DELETE',
-                //     data: {
-                //         deal_id: dealId
-                //     },
-                //     success: (response) => {
-                //         this.hideLoading();
+                console.log($dealId)
 
-                //         if (response.success) {
-                //             Swal.fire({
-                //                 title: 'Deleted!',
-                //                 text: `Pipeline for ${insuredName} has been deleted successfully.`,
-                //                 icon: 'success',
-                //                 confirmButtonColor: '#3085d6',
-                //                 confirmButtonText: 'OK',
-                //                 customClass: {
-                //                     confirmButton: 'btn btn-primary'
-                //                 },
-                //                 buttonsStyling: false
-                //             }).then(() => {
-                //                 this.reloadAllTables();
-                //                 this.loadChartData();
-                //             });
-                //         } else {
-                //             Swal.fire({
-                //                 title: 'Error!',
-                //                 text: response.message || 'Failed to delete pipeline.',
-                //                 icon: 'error',
-                //                 confirmButtonColor: '#d33',
-                //                 confirmButtonText: 'OK',
-                //                 customClass: {
-                //                     confirmButton: 'btn btn-danger'
-                //                 },
-                //                 buttonsStyling: false
-                //             });
-                //         }
-                //     },
-                //     error: (xhr, status, error) => {
-                //         this.hideLoading();
-
-                //         let errorMessage = 'An error occurred while deleting the pipeline.';
-
-                //         if (xhr.responseJSON && xhr.responseJSON.message) {
-                //             errorMessage = xhr.responseJSON.message;
-                //         } else if (xhr.status === 404) {
-                //             errorMessage = 'Pipeline not found.';
-                //         } else if (xhr.status === 403) {
-                //             errorMessage = 'You do not have permission to delete this pipeline.';
-                //         } else if (xhr.status === 500) {
-                //             errorMessage = 'Server error occurred. Please try again later.';
-                //         }
-
-                //         Swal.fire({
-                //             title: 'Deletion Failed',
-                //             text: errorMessage,
-                //             icon: 'error',
-                //             confirmButtonColor: '#d33',
-                //             confirmButtonText: 'OK',
-                //             customClass: {
-                //                 confirmButton: 'btn btn-danger'
-                //             },
-                //             buttonsStyling: false
-                //         });
-
-                //         this.handleError('Error deleting pipeline', {
-                //             xhr,
-                //             status,
-                //             error
-                //         });
-                //     }
-                // }); --}}
             }
 
             openStageModal(stage, modalId, dealId, dealInfo = null) {
