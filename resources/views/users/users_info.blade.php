@@ -910,34 +910,24 @@
                 }
             }
 
-            function handleDeleteError(xhr) {
-                if (xhr.status === 422 && xhr.responseJSON?.errors) {
-                    Object.values(xhr.responseJSON.errors).forEach(error => {
-                        const errorMessage = Array.isArray(error) ? error[0] : error;
-                        toastr.error(errorMessage);
-                    });
+            function handleDeleteError(xhr, customMessage = null) {
+
+                if (xhr.status === 422) {
+                    const message = customMessage || 'Validation error. Please check your input and try again.';
+                    toastr.error(message);
                     return;
                 }
 
                 if (xhr.status === 403) {
-                    let forbiddenMessage = 'Access denied';
-                    if (xhr.responseJSON?.message) {
-                        forbiddenMessage = xhr.responseJSON.message;
-                    } else if (xhr.responseText) {
-                        try {
-                            const response = JSON.parse(xhr.responseText);
-                            forbiddenMessage = response.message || forbiddenMessage;
-                        } catch (e) {
-                            console.warn('Could not parse 403 response text:', xhr.responseText);
-                        }
-                    }
-
-                    toastr.error(forbiddenMessage);
+                    const message = customMessage ||
+                        'Access denied. You do not have permission to perform this action.';
+                    toastr.error(message);
                     return;
                 }
 
                 if (xhr.status === 401) {
-                    toastr.error('You are not authenticated. Please log in again.');
+                    const message = customMessage || 'You are not authenticated. Please log in again.';
+                    toastr.error(message);
                     setTimeout(() => {
                         window.location.href = '/login';
                     }, 2000);
@@ -945,7 +935,8 @@
                 }
 
                 if (xhr.status === 404) {
-                    toastr.error('User not found or has already been deleted');
+                    const message = customMessage || 'User not found or has already been deleted.';
+                    toastr.error(message);
 
                     if (typeof $userTable !== 'undefined' && $userTable.ajax) {
                         $userTable.ajax.reload();
@@ -954,35 +945,20 @@
                 }
 
                 if (xhr.status === 500) {
-                    let serverErrorMessage = 'Server error occurred. Please try again later.';
-                    if (xhr.responseJSON?.message) {
-                        serverErrorMessage = xhr.responseJSON.message;
-                    }
-                    toastr.error(serverErrorMessage);
+                    const message = customMessage || 'Server error occurred. Please try again later.';
+                    toastr.error(message);
                     return;
                 }
 
                 if (xhr.status === 0 || xhr.statusText === 'timeout') {
-                    toastr.error('Request timed out. Please check your connection and try again.');
+                    const message = customMessage ||
+                        'Request timed out. Please check your connection and try again.';
+                    toastr.error(message);
                     return;
                 }
 
-                let genericErrorMessage = 'An error occurred while deleting the user';
-
-                if (xhr.responseJSON?.message) {
-                    genericErrorMessage = xhr.responseJSON.message;
-                } else if (xhr.responseText) {
-                    try {
-                        const response = JSON.parse(xhr.responseText);
-                        if (response.message) {
-                            genericErrorMessage = response.message;
-                        }
-                    } catch (e) {
-                        console.warn('Could not parse error response:', xhr.responseText);
-                    }
-                }
-
-                toastr.error(genericErrorMessage);
+                const message = customMessage || 'An error occurred while deleting the user. Please try again.';
+                toastr.error(message);
             }
 
             function setDeleteButtonLoading($button, isLoading) {

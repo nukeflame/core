@@ -145,25 +145,36 @@
                                             <input type="search" class="form-inputs mb-0"
                                                 placeholder="Search opportunities..." id="globalSearch">
 
-                                            <select class="filter-select form-select" id="statusFilter">
+                                            <select class="filter-select form-select" id="statusFilter"
+                                                placeholder="Select status">
                                                 <option value="">All Statuses</option>
-                                                @foreach ($statuses as $key => $status)
+                                                {{-- @foreach ($statuses as $key => $status)
                                                     <option value="{{ $key }}">{{ $status }}</option>
-                                                @endforeach
+                                                @endforeach --}}
                                             </select>
 
-                                            <select class="filter-select form-select" id="classFilter">
-                                                <option value="">All Classes</option>
-                                                @foreach ($classes as $key => $class)
+                                            <select class="filter-select form-select" id="classGroupFilter"
+                                                placeholder="Select class group">
+                                                <option value="">All Class Group</option>
+                                                {{-- @foreach ($classes as $key => $class)
                                                     <option value="{{ $key }}">{{ $class }}</option>
-                                                @endforeach
+                                                @endforeach --}}
                                             </select>
 
-                                            <select class="filter-select form-select" id="priorityFilter">
+                                            <select class="filter-select form-select" id="classFilter"
+                                                placeholder="Select class">
+                                                <option value="">All Class</option>
+                                                {{-- @foreach ($classes as $key => $class)
+                                                    <option value="{{ $key }}">{{ $class }}</option>
+                                                @endforeach --}}
+                                            </select>
+
+                                            <select class="filter-select form-select" id="priorityFilter"
+                                                placeholder="Select priority">
                                                 <option value="">All Priorities</option>
-                                                @foreach ($priorities as $key => $priority)
+                                                {{-- @foreach ($priorities as $key => $priority)
                                                     <option value="{{ $key }}">{{ $priority }}</option>
-                                                @endforeach
+                                                @endforeach --}}
                                             </select>
                                         </div>
                                     </div>
