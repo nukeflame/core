@@ -477,11 +477,13 @@ class LeadsOnboardingController
         $kpis =  $this->pipelineService->getKPIs();
         $statuses = PipelineOpportunity::getStatusOptions();
         $classes =  PipelineOpportunity::getClassOptions();
+        $classGroups =  PipelineOpportunity::getClassGroupsOptions();
         $priorities = PipelineOpportunity::getPriorityOptions();
 
         return view('Bd_views.intermediaries.leads_listing', compact(
             'kpis',
             'statuses',
+            'classGroups',
             'classes',
             'priorities'
         ));

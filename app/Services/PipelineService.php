@@ -3,8 +3,8 @@
 namespace App\Services;
 
 use App\Models\Bd\PipelineOpportunity;
-use App\Models\KPI;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class PipelineService
 {
@@ -13,60 +13,60 @@ class PipelineService
      */
     public function getKPIs(): array
     {
-        $currentMonth = Carbon::now()->month;
-        $previousMonth = Carbon::now()->subMonth()->month;
-        $currentQuarter = Carbon::now()->quarter;
-        $previousQuarter = Carbon::now()->subQuarter()->quarter;
+        $now = Carbon::now();
+        $currentMonth = $now->month;
+        $currentYear = $now->year;
 
-        // return [
-        //     'active_opportunities' => [
-        //         'value' => PipelineOpportunity::where('status', '!=', 'declined')->count(),
-        //         'trend' => $this->calculateTrend(
-        //             PipelineOpportunity::whereMonth('created_at', $currentMonth)->count(),
-        //             PipelineOpportunity::whereMonth('created_at', $previousMonth)->count()
-        //         ),
-        //         'trend_type' => 'monthly'
-        //     ],
-        //     'pipeline_premium' => [
-        //         'value' => PipelineOpportunity::where('status', '!=', 'declined')->sum('gross_premium'),
-        //         'trend' => $this->calculateTrend(
-        //             PipelineOpportunity::whereQuarter('created_at', $currentQuarter)->sum('gross_premium'),
-        //             PipelineOpportunity::whereQuarter('created_at', $previousQuarter)->sum('gross_premium')
-        //         ),
-        //         'trend_type' => 'quarterly'
-        //     ],
-        //     'conversion_rate' => [
-        //         'value' => $this->getConversionRate(),
-        //         'trend' => $this->getConversionRateTrend(),
-        //         'trend_type' => 'improvement'
-        //     ],
-        //     'critical_deadlines' => [
-        //         'value' => $this->getCriticalDeadlinesCount(),
-        //         'trend' => null,
-        //         'trend_type' => 'attention'
-        //     ]
-        // ];
+        $previousPeriod = $now->copy()->subMonth();
+        $previousMonth = $previousPeriod->month;
+        // $[previousMonthYear] = $previousPeriod->year;
+
+        $currentQuarter = $now->quarter;
+        $previousQuarterPeriod = $now->copy()->subQuarter();
+        $previousQuarter = $previousQuarterPeriod->quarter;
+        $previousYear = $previousQuarterPeriod->year;
+
+        $activeOpp = DB::table('pipeline_opportunities')
+            ->where('status', '!=', 'declined')
+            ->count();
+
+        // $pipTrend = $this->calculateTrend(
+        //     DB::table('pipeline_opportunities')
+        //         ->whereRaw('EXTRACT(QUARTER FROM created_at::timestamp) = ? AND EXTRACT(YEAR FROM created_at::timestamp) = ?', [$currentQuarter, $currentYear])
+        //         ->sum('cede_premium'),
+
+        //     DB::table('pipeline_opportunities')
+        //         ->whereRaw('EXTRACT(QUARTER FROM created_at::timestamp) = ? AND EXTRACT(YEAR FROM created_at::timestamp) = ?', [$previousQuarter, $previousYear])
+        //         ->sum('cede_premium')
+        // );
+
+        $pipPremium = DB::table('pipeline_opportunities')
+            ->where('status', '!=', 'declined')
+            ->sum('cede_premium');
+
+        // $activeTrend = $this->calculateTrend(
+        //     DB::table('pipeline_opportunities')
+        //         ->whereRaw("EXTRACT(MONTH FROM created_at::timestamp) = ?", [$currentMonth])
+        //         ->count(),
+        //     DB::table('pipeline_opportunities')
+        //         ->whereRaw("EXTRACT(MONTH FROM created_at::timestamp) = ?", [$previousMonth])
+        //         ->count()
+        // );
 
         return [
             'active_opportunities' => [
-                'value' => 0,
-                'trend' => $this->calculateTrend(
-                    1,
-                    1
-                ),
+                'value' => $activeOpp,
+                'trend' => 0,
                 'trend_type' => 'monthly'
             ],
             'pipeline_premium' => [
-                'value' => 0,
-                'trend' => $this->calculateTrend(
-                    0,
-                    0
-                ),
+                'value' => $pipPremium,
+                'trend' => 0,
                 'trend_type' => 'quarterly'
             ],
             'conversion_rate' => [
-                'value' => 0,
-                'trend' => 0,
+                'value' => $this->getConversionRate(),
+                'trend' => $this->getConversionRateTrend(),
                 'trend_type' => 'improvement'
             ],
             'critical_deadlines' => [
@@ -90,7 +90,13 @@ class PipelineService
         ];
 
         $class = $priorities[$opportunity->priority] ?? 'priority-medium';
-        return "<span class='priority-badge {$class}'>{$opportunity->priority}</span>";
+        $label = ucfirst($opportunity->priority ?? 'medium');
+
+        return sprintf(
+            '<span class="priority-badge %s">%s</span>',
+            htmlspecialchars($class, ENT_QUOTES, 'UTF-8'),
+            htmlspecialchars($label, ENT_QUOTES, 'UTF-8')
+        );
     }
 
     /**
@@ -107,7 +113,13 @@ class PipelineService
         ];
 
         $class = $statuses[$opportunity->status] ?? 'status-inquiry';
-        return "<span class='status-badge {$class}'>{$opportunity->status}</span>";
+        $label = ucfirst($opportunity->status ?? 'inquiry');
+
+        return sprintf(
+            '<span class="status-badge %s">%s</span>',
+            htmlspecialchars($class, ENT_QUOTES, 'UTF-8'),
+            htmlspecialchars($label, ENT_QUOTES, 'UTF-8')
+        );
     }
 
     /**
@@ -119,11 +131,13 @@ class PipelineService
             return 'highlight-normal';
         }
 
-        $today = Carbon::now();
-        $effectiveDate = Carbon::parse($opportunity->effective_date);
+        $today = Carbon::now()->startOfDay();
+        $effectiveDate = Carbon::parse($opportunity->effective_date)->startOfDay();
         $daysToEffective = $today->diffInDays($effectiveDate, false);
 
-        if ($daysToEffective <= 7) {
+        if ($daysToEffective < 0) {
+            return 'highlight-overdue';
+        } elseif ($daysToEffective <= 7) {
             return 'highlight-critical';
         } elseif ($daysToEffective <= 14) {
             return 'highlight-urgent';
@@ -139,9 +153,14 @@ class PipelineService
      */
     public function formatCurrency($amount): string
     {
-        if (!$amount) return '-';
+        if (!$amount) {
+            return '-';
+        }
 
-        return '<span class="currency">$' . number_format($amount, 2) . '</span>';
+        return sprintf(
+            '<span class="currency">$%s</span>',
+            number_format((float)$amount, 2)
+        );
     }
 
     /**
@@ -149,28 +168,44 @@ class PipelineService
      */
     public function getActionButtons(PipelineOpportunity $opportunity): string
     {
-        return "
-            <div class='action-btn-group'>
-                <button class='action-btn btn-view' onclick='viewOpportunity({$opportunity->id})' title='View'>
-                    <i class='bx bx-eye'></i>
+        $id = (int)$opportunity->id;
+
+        return sprintf(
+            '<div class="action-btn-group">
+                <button class="action-btn btn-view" onclick="viewOpportunity(%d)" title="View">
+                    <i class="bx bx-eye"></i>
                 </button>
-                <button class='action-btn btn-edit' onclick='editOpportunity({$opportunity->id})' title='Edit'>
-                    <i class='bx bx-edit'></i>
+                <button class="action-btn btn-edit" onclick="editOpportunity(%d)" title="Edit">
+                    <i class="bx bx-edit"></i>
                 </button>
-                <button class='action-btn btn-pipeline' onclick='updatePipeline({$opportunity->id})' title='Update Pipeline'>
-                    <i class='bx bx-git-branch'></i>
+                <button class="action-btn btn-pipeline" onclick="updatePipeline(%d)" title="Update Pipeline">
+                    <i class="bx bx-git-branch"></i>
                 </button>
-                <button class='action-btn btn-docs' onclick='viewDocuments({$opportunity->id})' title='Documents'>
-                    <i class='bx bx-file'></i>
+                <button class="action-btn btn-docs" onclick="viewDocuments(%d)" title="Documents">
+                    <i class="bx bx-file"></i>
                 </button>
-            </div>
-        ";
+            </div>',
+            $id,
+            $id,
+            $id,
+            $id
+        );
     }
 
+    /**
+     * Calculate trend between two periods
+     */
     private function calculateTrend($current, $previous): array
     {
+        // Handle null or non-numeric values
+        $current = (float)($current ?? 0);
+        $previous = (float)($previous ?? 0);
+
         if ($previous == 0) {
-            return ['percentage' => 0, 'direction' => 'neutral'];
+            if ($current > 0) {
+                return ['percentage' => 100.0, 'direction' => 'up'];
+            }
+            return ['percentage' => 0.0, 'direction' => 'neutral'];
         }
 
         $percentage = (($current - $previous) / $previous) * 100;
@@ -182,29 +217,69 @@ class PipelineService
         ];
     }
 
+    /**
+     * Get current conversion rate
+     */
     private function getConversionRate(): float
     {
-        $totalOpportunities = PipelineOpportunity::count();
-        // $boundOpportunities = PipelineOpportunity::where('status', 'bound')->count();
-        $boundOpportunities = 0;
+        $totalOpportunities = DB::table('pipeline_opportunities')->count();
+        $boundOpportunities = DB::table('pipeline_opportunities')
+            ->where('status', 'bound')
+            ->count();
 
-        return $totalOpportunities > 0 ? round(($boundOpportunities / $totalOpportunities) * 100, 1) : 0;
+        return $totalOpportunities > 0
+            ? round(($boundOpportunities / $totalOpportunities) * 100, 1)
+            : 0.0;
     }
 
+    /**
+     * Get conversion rate trend
+     */
     private function getConversionRateTrend(): array
     {
-        // Calculate previous period conversion rate and compare
-        // $currentRate = $this->getConversionRate();
-        // Implementation for previous period comparison...
+        $now = Carbon::now();
+        $currentMonthStart = $now->copy()->startOfMonth();
+        $previousMonthStart = $now->copy()->subMonth()->startOfMonth();
+        $previousMonthEnd = $now->copy()->subMonth()->endOfMonth();
 
-        return ['percentage' => 2.1, 'direction' => 'up'];
+        // Current month conversion rate
+        $currentTotal = DB::table('pipeline_opportunities')
+            ->where('created_at', '>=', $currentMonthStart)
+            ->count();
+
+        $currentBound = DB::table('pipeline_opportunities')
+            ->where('created_at', '>=', $currentMonthStart)
+            ->where('status', 'bound')
+            ->count();
+
+        $currentRate = $currentTotal > 0 ? ($currentBound / $currentTotal) * 100 : 0;
+
+        // Previous month conversion rate
+        $previousTotal = DB::table('pipeline_opportunities')
+            ->whereBetween('created_at', [$previousMonthStart, $previousMonthEnd])
+            ->count();
+
+        $previousBound = DB::table('pipeline_opportunities')
+            ->whereBetween('created_at', [$previousMonthStart, $previousMonthEnd])
+            ->where('status', 'bound')
+            ->count();
+
+        $previousRate = $previousTotal > 0 ? ($previousBound / $previousTotal) * 100 : 0;
+
+        return $this->calculateTrend($currentRate, $previousRate);
     }
 
+    /**
+     * Get count of opportunities with critical deadlines
+     */
     private function getCriticalDeadlinesCount(): int
     {
-        // return PipelineOpportunity::whereDate('quote_deadline', '<=', Carbon::now()->addDays(7))
-        //     ->where('status', '!=', 'declined')
-        //     ->count();
-        return 0;
+        $criticalDate = Carbon::now()->addDays(7)->format('Y-m-d');
+
+        return DB::table('pipeline_opportunities')
+            ->whereRaw('effective_date::date <= ?', [$criticalDate])
+            ->where('status', '!=', 'declined')
+            ->where('status', '!=', 'bound')
+            ->count();
     }
 }

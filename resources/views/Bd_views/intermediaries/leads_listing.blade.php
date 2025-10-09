@@ -143,22 +143,27 @@
                                     <div class="col-md-8">
                                         <div class="table-controls">
                                             <input type="search" class="form-inputs mb-0"
+                                                style="font-size: 14px; border:1px solid #3634346e !important;"
                                                 placeholder="Search opportunities..." id="globalSearch">
 
                                             <select class="filter-select form-select" id="statusFilter"
                                                 placeholder="Select status">
                                                 <option value="">All Statuses</option>
-                                                {{-- @foreach ($statuses as $key => $status)
-                                                    <option value="{{ $key }}">{{ $status }}</option>
-                                                @endforeach --}}
+                                                @if ($statuses)
+                                                    @foreach ($statuses as $key => $status)
+                                                        <option value="{{ $key }}">{{ $status }}</option>
+                                                    @endforeach
+                                                @endif
                                             </select>
 
                                             <select class="filter-select form-select" id="classGroupFilter"
                                                 placeholder="Select class group">
                                                 <option value="">All Class Group</option>
-                                                {{-- @foreach ($classes as $key => $class)
-                                                    <option value="{{ $key }}">{{ $class }}</option>
-                                                @endforeach --}}
+                                                @if ($classGroups)
+                                                    @foreach ($classGroups as $key => $group)
+                                                        <option value="{{ $key }}">{{ $group }}</option>
+                                                    @endforeach
+                                                @endif
                                             </select>
 
                                             <select class="filter-select form-select" id="classFilter"

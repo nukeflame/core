@@ -11,6 +11,7 @@ use App\Models\ReinsDivision;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class PipelineOpportunity extends Model
 {
@@ -78,23 +79,29 @@ class PipelineOpportunity extends Model
     public static function getStatusOptions(): array
     {
         return [
-            'inquiry' => 'Inquiry',
-            'quoted' => 'Quoted',
-            'negotiation' => 'Under Negotiation',
-            'bound' => 'Bound',
-            'declined' => 'Declined'
+            'lead' => 'Lead',
+            'proposal' => 'Proposal',
+            'negotiation' => 'Negotiation',
+            'won' => 'Won',
+            'lost' => 'Lost',
+            'final' => 'Final Stage',
         ];
     }
 
     public static function getClassOptions(): array
     {
-        return [
-            'property' => 'Property',
-            'casualty' => 'Casualty',
-            'marine' => 'Marine',
-            'aviation' => 'Aviation',
-            'energy' => 'Energy'
-        ];
+        // return DB::table('classes')
+        //     ->pluck('class_name', 'class_code')
+        //     ->toArray();
+        return [];
+    }
+
+    public static function getClassGroupsOptions(): array
+    {
+        // return DB::table('class_groups')
+        //     ->pluck('group_name', 'group_code')
+        //     ->toArray();
+        return [];
     }
 
     public static function getPriorityOptions(): array
