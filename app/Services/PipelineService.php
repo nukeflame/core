@@ -14,17 +14,17 @@ class PipelineService
     public function getKPIs(): array
     {
         $now = Carbon::now();
-        $currentMonth = $now->month;
-        $currentYear = $now->year;
+        // $currentMonth = $now->month;
+        // $currentYear = $now->year;
 
         $previousPeriod = $now->copy()->subMonth();
         $previousMonth = $previousPeriod->month;
         // $[previousMonthYear] = $previousPeriod->year;
 
-        $currentQuarter = $now->quarter;
+        // $currentQuarter = $now->quarter;
         $previousQuarterPeriod = $now->copy()->subQuarter();
-        $previousQuarter = $previousQuarterPeriod->quarter;
-        $previousYear = $previousQuarterPeriod->year;
+        // $previousQuarter = $previousQuarterPeriod->quarter;
+        // $previousYear = $previousQuarterPeriod->year;
 
         $activeOpp = DB::table('pipeline_opportunities')
             ->where('status', '!=', 'declined')

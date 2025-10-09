@@ -419,9 +419,9 @@ class LeadsOnboardingController
 
             $status = 1;
 
-            return array('status' => 200, 'qstring' => Crypt::encrypt('pipeline=' . $pipeline->id . '&prospect=' . $nextCode));
+            // return array('status' => 200, 'qstring' => Crypt::encrypt('pipeline=' . $pipeline->id . '&prospect=' . $nextCode));
+            return null;
         } catch (Exception $e) {
-            // dd($e)
             DB::rollback();
 
             return array('status' => 400);
@@ -429,46 +429,46 @@ class LeadsOnboardingController
     }
     public function insertProspectReinProp($data)
     {
-        $CoverRegister = CoverRegister::where('endorsement_no', $this->_endorsement_no)->first();
+        // $CoverRegister = CoverRegister::where('endorsement_no', $this->_endorsement_no)->first();
 
-        $CoverReinProp = CoverReinProp::where('endorsement_no', $this->_endorsement_no)
-            ->where('reinclass', $data['treaty_class'])
-            ->where('item_description', $data['item_description']);
+        // $CoverReinProp = CoverReinProp::where('endorsement_no', $this->_endorsement_no)
+        //     ->where('reinclass', $data['treaty_class'])
+        //     ->where('item_description', $data['item_description']);
 
-        if ($CoverReinProp->count() > 0) {
-            $CoverReinProp = $CoverReinProp->first();
-        } else {
+        // if ($CoverReinProp->count() > 0) {
+        //     $CoverReinProp = $CoverReinProp->first();
+        // } else {
 
-            $count = CoverReinProp::where('cover_no', $CoverRegister->cover_no)
-                ->where('endorsement_no', $this->_endorsement_no)
-                ->count();
-            $count = $count + 1;
+        //     $count = CoverReinProp::where('cover_no', $CoverRegister->cover_no)
+        //         ->where('endorsement_no', $this->_endorsement_no)
+        //         ->count();
+        //     $count = $count + 1;
 
-            $CoverReinProp = new CoverReinProp();
-            $CoverReinProp->cover_no = $CoverRegister->cover_no;
-            $CoverReinProp->endorsement_no = $CoverRegister->endorsement_no;
-            $CoverReinProp->item_no = $count;
-            $CoverReinProp->created_by = Auth::user()->user_name;
-        }
+        //     $CoverReinProp = new CoverReinProp();
+        //     $CoverReinProp->cover_no = $CoverRegister->cover_no;
+        //     $CoverReinProp->endorsement_no = $CoverRegister->endorsement_no;
+        //     $CoverReinProp->item_no = $count;
+        //     $CoverReinProp->created_by = Auth::user()->user_name;
+        // }
 
-        $CoverReinProp->reinclass = $data['treaty_class'];
-        $CoverReinProp->item_description = $data['item_description'];
-        $CoverReinProp->retention_rate = $data['retention_per'];
-        $CoverReinProp->treaty_rate = $data['treaty_rate'];
-        $CoverReinProp->retention_amount = $data['retention_amount'];
-        $CoverReinProp->no_of_lines = $data['no_of_lines'];
-        $CoverReinProp->treaty_amount = $data['treaty_amount'];
-        $CoverReinProp->treaty_limit = $data['treaty_limit'];
-        $CoverReinProp->port_prem_rate = 0;
-        $CoverReinProp->port_loss_rate = 0;
-        $CoverReinProp->profit_comm_rate = 0;
-        $CoverReinProp->mgnt_exp_rate = 0;
-        $CoverReinProp->deficit_yrs = 0;
-        $CoverReinProp->estimated_income = $data['estimated_income'];
-        $CoverReinProp->cashloss_limit = $data['cashloss_limit'];
-        $CoverReinProp->updated_by = Auth::user()->user_name;
+        // $CoverReinProp->reinclass = $data['treaty_class'];
+        // $CoverReinProp->item_description = $data['item_description'];
+        // $CoverReinProp->retention_rate = $data['retention_per'];
+        // $CoverReinProp->treaty_rate = $data['treaty_rate'];
+        // $CoverReinProp->retention_amount = $data['retention_amount'];
+        // $CoverReinProp->no_of_lines = $data['no_of_lines'];
+        // $CoverReinProp->treaty_amount = $data['treaty_amount'];
+        // $CoverReinProp->treaty_limit = $data['treaty_limit'];
+        // $CoverReinProp->port_prem_rate = 0;
+        // $CoverReinProp->port_loss_rate = 0;
+        // $CoverReinProp->profit_comm_rate = 0;
+        // $CoverReinProp->mgnt_exp_rate = 0;
+        // $CoverReinProp->deficit_yrs = 0;
+        // $CoverReinProp->estimated_income = $data['estimated_income'];
+        // $CoverReinProp->cashloss_limit = $data['cashloss_limit'];
+        // $CoverReinProp->updated_by = Auth::user()->user_name;
 
-        $CoverReinProp->save();
+        // $CoverReinProp->save();
     }
 
     public function listing()
