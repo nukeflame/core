@@ -3,8 +3,8 @@
     data-bs-keyboard="false" aria-labelledby="staticPropoalStageLabel" aria-hidden="true" role="dialog" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-xl" role="document">
         <div class="modal-content">
-            <form id="proposalForm" action="{{ route('update.opp.status') }}" novalidate>
-                <input type="hidden" id="opportunity_id" name="opportunity_id" />
+            <form id="leadForm" action="{{ route('update.opp.status') }}" novalidate>
+                <input type="hidden" class="opportunity_id" id="leadOpportunityId" name="opportunity_id" />
                 <input type="hidden" id="specialConditionsContent" name="specialConditionsContent" />
                 <input type="hidden" id="currentStage" name="current_stage" />
 
@@ -1479,7 +1479,7 @@
                 allowClear: true,
                 minimumInputLength: 0,
                 width: "100%",
-                dropdownParent: $("#proposalModal"),
+                dropdownParent: $("#leadModal"),
                 ajax: {
                     url: "{{ route('pipeline.search_reinsurers') }}",
                     method: "GET",
@@ -1854,7 +1854,7 @@
                 const reinsurerID = $(this).data("reinsurer-id");
                 const row = $(this).closest("tr");
                 let reinsurerName = row.find("td:first .fw-medium").text();
-                const opportunityId = $('#opportunity_id').val();
+                const opportunityId = $('#leadOpportunityId').val();
 
                 if (!reinsurerID) {
                     showAlert("Reinsurer ID not found", "error");
@@ -1880,7 +1880,7 @@
                         if (response.success) {
                             reinsurerName = response?.data?.reinsurer?.name;
                             populateContactsModal(response.data, reinsurerName);
-                            $("#proposalModal").modal("hide");
+                            $("#leadModal").modal("hide");
                             $("#contactsModal").modal("show");
                         } else {
                             showAlert(response.message || "Failed to fetch contacts", "error");
@@ -1985,7 +1985,7 @@
             }
 
             $("#contactsModal").on("hidden.bs.modal", function() {
-                $("#proposalModal").modal("show");
+                $("#leadModal").modal("show");
             });
 
             $(document).on("click", "#submitContactModal", function() {
@@ -2024,7 +2024,7 @@
 
                 const $submitBtn = $(this);
                 $submitBtn.prop("disabled", true);
-                const opportunity_id = $('#opportunity_id').val();
+                const opportunity_id = $('#leadOpportunityId').val();
 
                 $.ajax({
                     url: "{{ route('rein.contacts.update') }}",
@@ -2038,7 +2038,7 @@
                         if (response.success) {
                             showAlert("Contact information has been updated.", "success");
                             $("#contactsModal").modal("hide");
-                            $("#proposalModal").modal("show");
+                            $("#leadModal").modal("show");
                         }
 
                     },
@@ -2050,6 +2050,7 @@
                     }
                 });
             });
+
             $("#updateCategoryForm").on("submit", function(e) {
                 e.preventDefault();
 
@@ -2109,7 +2110,7 @@
                 });
             });
 
-            $("#proposalForm").on("input blur", ".form-inputs", function() {
+            $("#leadForm").on("input blur", ".form-inputs", function() {
                 validateField($(this));
             });
 
@@ -2205,11 +2206,11 @@
                 };
             }
 
-            function validateProposalForm() {
+            function validateLeadForm() {
                 let isFormValid = true;
                 const errors = [];
 
-                $("#proposalForm .form-inputs").each(function() {
+                $("#leadForm .form-inputs").each(function() {
                     if (!validateField($(this))) {
                         isFormValid = false;
                         const fieldLabel = $(this)
@@ -2232,7 +2233,7 @@
                     Object.values(innerArray).map(fileObj => fileObj.fileName)
                 );
 
-                const requiredFiles = $('#proposalForm input[type="file"][required]');
+                const requiredFiles = $('#leadForm input[type="file"][required]');
                 const missingFiles = [];
 
                 requiredFiles.each(function() {
@@ -2339,17 +2340,17 @@
                 return true;
             }
 
-            $("#proposalForm").on("submit", handleFormSubmission);
+            $("#leadForm").on("submit", handleFormSubmission);
 
             function handleFormSubmission(e) {
                 e.preventDefault();
 
-                const $proposalForm = $("#proposalForm");
-                const $submitBtn = $proposalForm.find("button[type='submit']");
+                const $leadForm = $("#leadForm");
+                const $submitBtn = $leadForm.find("button[type='submit']");
 
                 const originalBtnContent = $submitBtn.html();
 
-                const validation = validateProposalForm();
+                const validation = validateLeadForm();
 
                 if (!validation.isValid) {
                     let errorHtml = '<ul class="m-0 p-0">';
@@ -2365,7 +2366,7 @@
                         confirmButtonColor: "#dc3545",
                     });
 
-                    const $firstError = $proposalForm.find(".is-invalid").first();
+                    const $firstError = $leadForm.find(".is-invalid").first();
                     if ($firstError.length) {
                         $firstError[0].scrollIntoView({
                             behavior: "smooth",
@@ -2378,13 +2379,13 @@
                 }
 
                 $submitBtn
-                    .html('<i class="bx bx-loader-alt bx-spin me-1"></i> Sending Proposal...')
+                    .html('<i class="bx bx-loader-alt bx-spin me-1"></i> Sending Lead...')
                     .prop("disabled", true);
 
                 const formData = prepareFormData();
 
                 $.ajax({
-                    url: $proposalForm.attr("action"),
+                    url: $leadForm.attr("action"),
                     method: "POST",
                     data: formData,
                     processData: false,
@@ -2396,17 +2397,17 @@
                     timeout: 30000,
                     success: function(response) {
                         if (response.success) {
-                            // resetProposalModal();
+                            // resetLeadModal();
                             Swal.fire({
                                 icon: "success",
-                                title: "Proposal Saved Successfully!",
-                                text: response.message || "Your proposal has been submitted",
+                                title: "Lead Saved Successfully!",
+                                text: response.message || "Your lead has been submitted",
                                 showConfirmButton: true,
                             }).then((result) => {
                                 if (result.isConfirmed) {
                                     handleSendBDNotification(response);
                                 } else {
-                                    $("#proposalModal").modal("hide");
+                                    $("#leadModal").modal("hide");
                                 }
                             });
                         } else {
@@ -2414,7 +2415,7 @@
                         }
                     },
                     error: function(xhr, status, error) {
-                        console.error("Proposal submission error:", {
+                        console.error("Lead submission error:", {
                             status: xhr.status,
                             statusText: xhr.statusText,
                             responseText: xhr.responseText,
@@ -2422,7 +2423,7 @@
                         });
 
                         let errorMessage =
-                            "An unexpected error occurred while sending the proposal.";
+                            "An unexpected error occurred while sending the lead.";
 
                         if (xhr.status === 422 && xhr.responseJSON?.errors) {
                             const serverErrors = xhr.responseJSON.errors;
@@ -2467,7 +2468,7 @@
 
                 prepareBDEmailModal(opportunityId, data);
 
-                $("#proposalModal").modal("hide");
+                $("#leadModal").modal("hide");
             }
 
             function prepareBDEmailModal(opportunityId, data) {
@@ -2562,7 +2563,7 @@
 
             function prepareFormData() {
                 const formData = new FormData();
-                const $form = $("#proposalForm");
+                const $form = $("#leadForm");
 
                 $form.find("input:not([type='file']), select, textarea").each(function() {
                     const $element = $(this);
@@ -2698,7 +2699,7 @@
                     $("#breakdownModal").on("hidden.bs.modal", () => {
                         this.cleanupEditor();
                         this.currentTextarea = null;
-                        $("#proposalModal").modal("show");
+                        $("#leadModal").modal("show");
                     });
 
                     $("#breakdownModal").on("hide.bs.modal", () => {
@@ -2773,7 +2774,7 @@
                         `<i class="bx bx-edit-alt me-2"></i>${fieldLabel || ""}`
                     );
 
-                    $("#proposalModal").modal("hide");
+                    $("#leadModal").modal("hide");
                     this.showLoading();
                     this.modal.show();
                 }
@@ -3020,9 +3021,9 @@
                     formData.append("breakdown_content", html);
                     formData.append("breakdown_title", this.textareaId);
                     formData.append("_update", true);
-                    formData.append("opportunity_id", $("#opportunity_id").val() || "");
+                    formData.append("opportunity_id", $("#leadOpportunityId").val() || "");
                     formData.append("_token", $('meta[name="csrf-token"]').attr("content"));
-
+                    console.log($("#leadOpportunityId").val())
                     $.ajax({
                         url: "{{ route('update.opp.status') }}",
                         method: "POST",
@@ -3082,18 +3083,7 @@
                 }
 
                 showToast(message, type = "info") {
-                    const Toast = Swal.mixin({
-                        toast: true,
-                        position: "top-end",
-                        showConfirmButton: false,
-                        timer: 3000,
-                        timerProgressBar: true,
-                    });
-
-                    Toast.fire({
-                        icon: type,
-                        title: message,
-                    });
+                    toastr[type](message)
                 }
             }
 
@@ -3118,13 +3108,13 @@
                 }
             }
 
-            function resetProposalModal() {
-                $("#proposalForm")[0].reset();
+            function resetLeadModal() {
+                $("#leadForm")[0].reset();
 
-                $("#proposalForm .is-invalid").removeClass("is-invalid");
-                $("#proposalForm .is-v").removeClass("is-v");
-                $("#proposalForm .invalid-feedback").remove();
-                $("#proposalForm .reinsurer-validation-error").remove();
+                $("#leadForm .is-invalid").removeClass("is-invalid");
+                $("#leadForm .is-v").removeClass("is-v");
+                $("#leadForm .invalid-feedback").remove();
+                $("#leadForm .reinsurer-validation-error").remove();
 
                 table.clear().draw();
                 selectedReinsurers.clear();
@@ -3147,7 +3137,7 @@
 
                 $(".total-shares-display").remove();
 
-                $("#opportunity_id").val("");
+                $("#leadOpportunityId").val("");
                 $("#reinsurersData").val("");
                 $("#specialConditionsContent").val("");
                 $("#classCodeValue").val("");
@@ -3187,18 +3177,18 @@
                 );
             }
 
-            $("#proposalModal").on("shown.bs.modal", function() {
-                $("#proposalForm .is-invalid").removeClass("is-invalid");
-                $("#proposalForm .invalid-feedback").remove();
-                $("#proposalForm .reinsurer-validation-error").remove();
+            $("#leadModal").on("shown.bs.modal", function() {
+                $("#leadForm .is-invalid").removeClass("is-invalid");
+                $("#leadForm .invalid-feedback").remove();
+                $("#leadForm .reinsurer-validation-error").remove();
             });
 
             $("#updateCategoryTypeModal").on("hidden.bs.modal", function() {
-                resetProposalModal();
+                resetLeadModal();
             });
 
-            $("#proposalModal").on("click", "button[data-bs-dismiss='modal']", function() {
-                resetProposalModal();
+            $("#leadModal").on("click", "button[data-bs-dismiss='modal']", function() {
+                resetLeadModal();
             });
         });
     </script>

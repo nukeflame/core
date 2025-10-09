@@ -431,7 +431,7 @@
                             button: "Move to Negotiation",
                             class: "btn-negotiation",
                             altNext: "lost",
-                            modalId: "proposalModal",
+                            modalId: "leadModal",
                         },
                         negotiation: {
                             next: "won",
@@ -1052,7 +1052,7 @@
                     $modal.find('.insured-contact-name-display').text(dealInfo.contact_name || '--');
                     $modal.find('.sum_insured_type').text(`(${dealInfo.sum_insured_type})` || '');
 
-                    $modal.find('#opportunity_id').val(dealInfo.id);
+                    $modal.find('.opportunity_id').val(dealInfo.id);
                     $modal.find('#currentStage').val(stage);
 
                     $modal.find('.total_sum_insured').val(dealInfo.total_sum_insured || '0.00');
@@ -1670,7 +1670,7 @@
 
 
             showImageModal(fileName, fileUrl) {
-                $('#proposalModal').modal('hide');
+                $('#leadModal').modal('hide');
 
                 const modalHtml = `
                     <div class="modal fade effect-scale md-wrapper" id="fileViewModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false" role="dialog" aria-hidden="true">
@@ -1678,7 +1678,7 @@
                             <div class="modal-content">
                                 <div class="modal-header">
                                     <h5 class="modal-title text-truncate" style="max-height: 200px; line-height: 18px;">${fileName}</h5>
-                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                                 </div>
                                 <div class="modal-body text-center">
                                     <img src="${fileUrl}" class="img-fluid" alt="${fileName}">
@@ -1702,7 +1702,7 @@
                 $('#fileViewModal').on('hidden.bs.modal', function() {
                     URL.revokeObjectURL(fileUrl);
                     $(this).remove();
-                    $('#proposalModal').modal('show');
+                    $('#leadModal').modal('show');
                 });
 
                 modal.show();

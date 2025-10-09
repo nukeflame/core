@@ -5172,6 +5172,7 @@ class PipelineController
     public function updateLeadStatus(Request $request)
     {
         DB::beginTransaction();
+
         try {
             $term = null;
             $opportunityId = $request->opportunity_id;
