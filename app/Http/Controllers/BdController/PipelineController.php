@@ -3238,20 +3238,20 @@ class PipelineController
         return $query;
     }
 
-    private function getAp($status)
-    {
-        $statusClasses = [
-            'proposal' => 'status-proposal',
-            'negotiation' => 'status-negotiation',
-            'lead' => 'status-lead',
-            'won' => 'status-won',
-            'lost' => 'status-lost',
-            'final_stage' => 'status-final'
-        ];
+    // private function getAp($status)
+    // {
+    //     $statusClasses = [
+    //         'proposal' => 'status-proposal',
+    //         'negotiation' => 'status-negotiation',
+    //         'lead' => 'status-lead',
+    //         'won' => 'status-won',
+    //         'lost' => 'status-lost',
+    //         'final_stage' => 'status-final'
+    //     ];
 
-        $class = $statusClasses[$status] ?? 'badge-secondary';
-        return "<span class='status-badge {$class}'>" . ucfirst(str_replace('_', ' ', $status)) . "</span>";
-    }
+    //     $class = $statusClasses[$status] ?? 'badge-secondary';
+    //     return "<span class='status-badge {$class}'>" . ucfirst(str_replace('_', ' ', $status)) . "</span>";
+    // }
 
     //         return ($d->handed_over === 'Y')
     //             ? ($d->approval_status === '0'
@@ -3271,7 +3271,6 @@ class PipelineController
     {
         $status = $opp->status;
 
-        // logger()->debug(json_encode($status, JSON_PRETTY_PRINT));
         $statusClasses = [
             'proposal' => 'status-proposal',
             'negotiation' => 'status-negotiation',
@@ -3329,11 +3328,17 @@ class PipelineController
     {
         $id = (int) $opp->id;
         $escapedId = htmlspecialchars((string) $id, ENT_QUOTES, 'UTF-8');
-        $currentStage = (int) $opp->stage;
+        $stage = (int) $opp->stage;
+        $currentStage =  Str::title($opp->status);
 
-        $editButton = '';
-        if ($currentStage > 1) {
-            $editButton = "<button class='btn btn-info btn-sm me-1 edit-pipeline'
+        $btnActions = '';
+        if ($stage > 1) {
+            $btnActions .= "<button class='btn btn-primary btn-sm me-1 mail-btn' data-current_stage='{$currentStage}'
+                              data-opportunity_id='{$escapedId}'
+                              title='Send Email'>
+                          <i class='bi bi-send'></i>
+                       </button>";
+            $btnActions .= "<button class='btn btn-info btn-sm me-1 edit-pipeline'
                               data-opportunity-id='{$escapedId}'
                               title='Edit'>
                           <i class='bx bx-edit'></i>
@@ -3342,7 +3347,7 @@ class PipelineController
 
         return "
         <div class='btn-group'>
-            {$editButton}
+            {$btnActions}
             <button class='btn btn-sm btn-danger del_opp_sales'
                     data-opp_id='{$escapedId}'>
                 <i class='bx bx-trash'></i>
@@ -5175,7 +5180,7 @@ class PipelineController
     {
         DB::beginTransaction();
 
-        logger()->debug($request->all());
+        // logger()->debug($request->all());
 
         try {
             $term = null;
@@ -5504,8 +5509,6 @@ class PipelineController
                 ->whereIn('customer_id', $reinsurer_ids)
                 ->get(['email', 'telephone', 'partner_number', 'name']);
             $rensuersSubject = 'Dear {recipient}';
-
-            // logger()->debug(json_encode($partners, JSON_PRETTY_PRINT));
 
             // DB::commit();
 
@@ -7681,6 +7684,92 @@ class PipelineController
                 'success' => true,
                 'data' => $reins,
                 'count' => $reins->count()
+            ];
+        } catch (\Illuminate\Database\QueryException $e) {
+            return [
+                'success' => false,
+                'message' => 'Database error occurred',
+                'error' => config('app.debug') ? $e->getMessage() : 'Please contact support'
+            ];
+        } catch (\Exception $e) {
+            return [
+                'success' => false,
+                'message' => 'An error occurred while fetching reinsurers',
+                'error' => config('app.debug') ? $e->getMessage() : 'Please contact support'
+            ];
+        }
+    }
+
+    public function getBdEmailData(Request $request)
+    {
+        try {
+            $oppId = $request->opportunity_id;
+            if (!$oppId) {
+                return [
+                    'success' => false,
+                    'message' => 'Opportunity ID is required',
+                    'data' => []
+                ];
+            }
+
+            $opp = DB::table('pipeline_opportunities')
+                ->where('id', $oppId)
+                ->select([
+                    'opportunity_id',
+                ])
+                ->first();
+            $opportunityId = $opp->opportunity_id;
+
+            $reinsurerIds = DB::table('bd_fac_reinsurers')
+                ->where('opportunity_id', $opportunityId)
+                ->pluck('reinsurer_id')
+                ->toArray();
+
+            $partners = DB::table('customers')
+                ->whereIn('customer_id', $reinsurerIds)
+                ->select(['email', 'telephone', 'partner_number', 'name'])
+                ->get();
+
+            $rensuersSubject = 'Dear {recipient}';
+            $reinContacts = DB::table('bd_reinsurers_contacts')
+                ->where('opportunity_id', $opportunityId)
+                ->get();
+
+            $reinContactsMap = $reinContacts->keyBy('customer_contact_id')->map(function ($reinContact) {
+                return (bool) $reinContact->is_cc_email;
+            });
+
+            $reinsuersContacts = DB::table('customer_contacts')->whereIn('customer_id', $reinsurerIds)
+                ->orderBy('customer_id')
+                ->orderBy('contact_name')
+                ->get();
+
+            $contacts = $reinsuersContacts->map(function ($contact) use ($reinContactsMap) {
+                $ccEmail = false;
+                if ($reinContactsMap->has($contact->id)) {
+                    $ccEmail = $reinContactsMap->get($contact->id);
+                }
+
+                return [
+                    'id' => $contact->id,
+                    'name' => $contact->contact_name,
+                    'email' => $contact->contact_email,
+                    'phone' => $contact->contact_mobile_no,
+                    'isPrimary' => $contact->is_primary,
+                    'notSelected' => $ccEmail,
+                ];
+            });
+
+            $data = [
+                'partners'        => $partners,
+                'contacts'        => $contacts,
+                'attachedFiles'   => [],
+                'rensuersSubject' => $rensuersSubject,
+            ];
+
+            return [
+                'success' => true,
+                'data' => $data,
             ];
         } catch (\Illuminate\Database\QueryException $e) {
             return [

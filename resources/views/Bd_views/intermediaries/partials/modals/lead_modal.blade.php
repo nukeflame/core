@@ -2402,7 +2402,7 @@
                             Swal.fire({
                                 icon: "success",
                                 title: "Lead Saved Successfully!",
-                                text: response.message || "Your lead has been submitted",
+                                text: "Your lead has been submitted",
                                 showConfirmButton: true,
                             }).then((result) => {
                                 if (result.isConfirmed) {
@@ -2613,7 +2613,6 @@
 
                 return formData;
             }
-
             class BreakdownEditor {
                 constructor() {
                     this.quill = null;

@@ -123,12 +123,7 @@ Route::middleware(['auth', 'check.first.login'])->group(function () {
     Route::get('get/bd_terms', [PipelineController::class, 'getBdTerms'])->name('get.bd_terms');
     Route::post('bd/contacts/update', [PipelineController::class, 'updateReinContacts'])->name('rein.contacts.update');
     Route::get('bd/selected_reinsurers', [PipelineController::class, 'getSelectedBdRein'])->name('get.selected_bd_reinsurers');
-
-    //update category type
-    // Route::get('pipelines_activityq1', [PipelineController::class, 'pipeline_activity_q1'])->name('pipeline.activity.q1');
-    // Route::get('pipelines_activityq2', [PipelineController::class, 'pipeline_activity_q2'])->name('pipeline.activity.q2');
-    // Route::get('pipelines_activityq3', [PipelineController::class, 'pipeline_activity_q3'])->name('pipeline.activity.q3');
-    // Route::get('pipelines_activityq4', [PipelineController::class, 'pipeline_activity_q4'])->name('pipeline.activity.q4');
+    Route::post('bd/bd_email_data', [PipelineController::class, 'getBdEmailData'])->name('fetch.bd_email_data');
 
     Route::get('get-pipeline-data', [PipelineController::class, 'getPipelineData'])->name('pipeline.sales.get_pipeline_data');
     Route::get('get-pipeline-chart-data', [PipelineController::class, 'getPipelineChartData'])->name('pipeline.sales.get_pipeline_chart_data');

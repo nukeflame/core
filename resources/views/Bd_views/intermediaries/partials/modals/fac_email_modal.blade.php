@@ -390,7 +390,6 @@
 
                     showConfirmationModal();
                 } catch (error) {
-                    console.error('Error submitting email:', error);
                     toastr.error('Error sending email: ' + error.message);
                 }
             }

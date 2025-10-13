@@ -131,8 +131,8 @@
         </div>
     </div>
 
-    <div class="row mb-3">
-        <div class="col-12">
+    <div class="row" id="attachedBdFiles">
+        {{-- <div class="col-12">
             <label for="message" class="form-label fw-bold">
                 Attached Files:
             </label>
@@ -147,7 +147,7 @@
                                 </div>
                                 <div class="file-info flex-grow-1">
                                     <h6 class="mb-1">
-                                        {{-- Claim_Notice_{{ $ClaimRegister->intimation_no }} --}}
+                                        {{-- Claim_Notice_{{ $ClaimRegister->intimation_no }} --
                                     </h6>
                                     <div class="file-meta">
                                         PDF Document
@@ -165,7 +165,7 @@
                                 </div>
                                 <div class="file-info flex-grow-1">
                                     <h6 class="mb-1">
-                                        {{-- Debit_Note_{{ $ClaimRegister->intimation_no }} --}}
+                                        {{-- Debit_Note_{{ $ClaimRegister->intimation_no }} --
                                     </h6>
                                     <div class="file-meta">
                                         PDF Document
@@ -252,7 +252,7 @@
                                     </small>
                                 </div>
                             </div>
-                        @endif --}}
+                        @endif --
                 </div>
             </div>
 
@@ -265,7 +265,7 @@
                     </span>
                 </small>
             </div>
-        </div>
+        </div> --}}
     </div>
 </div>
 

@@ -811,6 +811,7 @@
                 $('.stage_btn_action').off('click.pipeline');
                 $('.del_opp_sales').off('click.pipeline');
                 $('.update_category_action').off('click.pipeline');
+                $('.mail-btn').off('click.pipeline');
 
                 $('.stage_btn_action').on('click.pipeline', (e) => {
                     e.preventDefault();
@@ -825,6 +826,11 @@
                 $('.del_opp_sales').on('click.pipeline', (e) => {
                     e.preventDefault();
                     this.handleDelPipeline(e.currentTarget);
+                });
+
+                $('.mail-btn').on('click.pipeline', (e) => {
+                    e.preventDefault();
+                    this.handleSendBDNotification(e.currentTarget);
                 });
             }
 
@@ -936,7 +942,6 @@
                         }
                     }
 
-                    // Show SweetAlert confirmation dialog
                     Swal.fire({
                         title: 'Delete Pipeline?',
                         html: `Are you sure you want to delete the pipeline for <strong>${insuredName}</strong>?<br><br>This action cannot be undone.`,
@@ -2394,6 +2399,155 @@
 
             getAllUploadedFiles() {
                 return this.uploadedFiles;
+            }
+
+            handleSendBDNotification(button) {
+                try {
+                    this.showLoading();
+
+                    const buttonData = $(button).data();
+                    this.currentDealId = buttonData.opportunity_id;
+
+                    if (!this.currentDealId) {
+                        throw new Error('Deal ID not found in button data');
+                    }
+
+                    const opportunityId = this.currentDealId;
+                    const currentStage = buttonData.current_stage;
+
+                    this.loadBdEssentials(opportunityId, currentStage)
+
+                } catch (error) {
+                    this.handleError("Error handling stage action", error);
+                    this.hideLoading();
+                }
+            }
+
+            loadBdEssentials(opportunityId, currentStage) {
+                $.ajax({
+                    url: 'bd/bd_email_data',
+                    method: "POST",
+                    data: {
+                        opportunity_id: opportunityId,
+                        current_stage: currentStage
+                    },
+                    headers: {
+                        "X-Requested-With": "XMLHttpRequest",
+                        "X-CSRF-TOKEN": $('meta[name="csrf-token"]').attr("content"),
+                    },
+                    timeout: 30000,
+                    context: this,
+                    success: function(response) {
+                        if (response.success) {
+                            const data = {
+                                partners: response.data.partners,
+                                contacts: response.data.contacts,
+                                bdEmailTitle: currentStage
+                            };
+                            this.prepareBDEmailModal(opportunityId, data);
+
+                        }
+                        this.hideLoading();
+                    },
+                    error: function(xhr, status, error) {
+                        this.hideLoading();
+                        Swal.fire({
+                            icon: "error",
+                            title: "Submission Failed",
+                            html: `An error occurred: <b>${error}</b>`,
+                            confirmButtonColor: "#dc3545",
+                        });
+                    }
+                });
+            }
+
+            prepareBDEmailModal(opportunityId, data) {
+                try {
+                    const $bdMailModal = $("#sendBDEmailModal");
+                    const $bdNotificationForm = $("#bdNotificationForm");
+
+                    if (!data || !data.bdEmailTitle) {
+                        return;
+                    }
+
+                    $bdMailModal.find('.modal-bd-title').text(`- ${data.bdEmailTitle}`);
+                    $bdMailModal.find('#category').val(data.bdEmailTitle.toLowerCase()).trigger('change');
+
+                    const $contactsSelect = $bdNotificationForm.find('#toContacts');
+                    const $bccEmailSelect = $bdNotificationForm.find('#bccEmail');
+                    const $ccEmailSelect = $bdNotificationForm.find('#ccEmail');
+
+                    const resetSelect = ($select, placeholder) => {
+                        $select.empty().append(`<option value="" disabled>${placeholder}</option>`);
+                    };
+
+                    resetSelect($contactsSelect, '--Select contacts--');
+                    resetSelect($ccEmailSelect, '--Select CC emails--');
+                    resetSelect($bccEmailSelect, '--Select BCC emails--');
+
+                    const partnerEmails = [];
+                    if (Array.isArray(data.partners) && data.partners.length > 0) {
+                        data.partners.forEach(partner => {
+                            if (partner.email) {
+                                partnerEmails.push(partner.email);
+                            }
+                        });
+                    }
+
+                    $bdNotificationForm.find("#toEmail").val(partnerEmails);
+                    $bdNotificationForm.find("#partnerToEmail").val(data.partners || []);
+
+                    const primaryContacts = [];
+                    const regularContacts = [];
+
+                    if (Array.isArray(data.contacts) && data.contacts.length > 0) {
+                        data.contacts.forEach(contact => {
+                            const email = contact.email;
+                            if (!email) return;
+
+                            let optionText = contact.name ? `${contact.name} (${email})` : email;
+                            if (contact.phone) optionText += ` - ${contact.phone}`;
+                            if (contact.isPrimary) optionText += ' [Primary]';
+
+                            const createOption = () => $('<option></option>')
+                                .attr('value', email)
+                                .text(optionText)
+                                .data('contact-data', contact)
+                                .data('is-primary', !!contact.isPrimary);
+
+                            $contactsSelect.append(createOption());
+
+                            if (!contact.isPrimary) {
+                                $ccEmailSelect.append(createOption());
+                                $bccEmailSelect.append(createOption());
+                            }
+
+                            if (contact.isPrimary) {
+                                primaryContacts.push(email);
+                            } else {
+                                regularContacts.push(email);
+                            }
+                        });
+
+                        setTimeout(() => {
+                            if (primaryContacts.length > 0) {
+                                $contactsSelect.val(primaryContacts).trigger('change');
+                            } else if (regularContacts.length === 1) {
+                                $contactsSelect.val(regularContacts[0]).trigger('change');
+                            }
+
+                            [$contactsSelect, $ccEmailSelect, $bccEmailSelect].forEach($select => {
+                                if ($select.hasClass('select2-hidden-accessible')) {
+                                    $select.trigger('change.select2');
+                                }
+                            });
+                        }, 100);
+                    }
+
+                    $("#sendBDEmailModal").modal("show");
+                } catch (error) {
+                    console.error('Error in prepareBDEmailModal:', error);
+                }
             }
         }
 

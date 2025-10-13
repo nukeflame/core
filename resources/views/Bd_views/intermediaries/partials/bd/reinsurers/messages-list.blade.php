@@ -495,20 +495,22 @@
                     });
 
                     if (!response.success) {
-                        // this.showErrorMessage('Failed to fetch emails');;
+                        this.showErrorMessage('Failed to fetch emails');;
                         this.updateConnectionUI(false);
                     }
 
-                    // const emailData = response.data;
+                    const emailData = response.data;
 
-                    // if (!emailData || !Array.isArray(emailData)) {
-                    //     console.warn('No email data available');
-                    //     this.allMessages = [];
-                    //     this.filteredMessages = [];
-                    //     this.updateResultsInfo();
-                    //     this.renderMessages();
-                    //     return;
-                    // }
+                    if (!emailData || !Array.isArray(emailData)) {
+                        console.warn('No email data available');
+                        this.allMessages = [];
+                        this.filteredMessages = [];
+                        this.updateResultsInfo();
+                        this.renderMessages();
+                        return;
+                    }
+
+                    console.log(emailData)
 
                     // // Transform emails with error handling
                     // this.allMessages = emailData
@@ -799,13 +801,13 @@
             //     this.filterMessages();
             // }
 
-            // updateResultsInfo() {
-            //     const totalFiltered = this.filteredMessages.length;
-            //     const totalAll = this.allMessages.length;
+            updateResultsInfo() {
+                const totalFiltered = this.filteredMessages.length;
+                const totalAll = this.allMessages.length;
 
-            //     $('#filteredCount').text(totalFiltered);
-            //     $('#resultsInfo').text(`Showing ${totalFiltered} of ${totalAll} messages`);
-            // }
+                $('#filteredCount').text(totalFiltered);
+                $('#resultsInfo').text(`Showing ${totalFiltered} of ${totalAll} messages`);
+            }
 
             // renderMessages() {
             //     const startIndex = (this.currentPage - 1) * this.messagesPerPage;
