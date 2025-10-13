@@ -298,7 +298,6 @@ class MailService
     public function getNewEmail()
     {
         try {
-
             $this->getEmails();
 
             return response()->json([

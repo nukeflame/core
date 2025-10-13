@@ -40,14 +40,16 @@ class MailController extends Controller
 
     public function index(Request $request): View
     {
-        $requestData = $this->validateIndexRequest($request);
-
         try {
+            $requestData = $this->validateIndexRequest($request);
+
             $data = $this->mailService->getMailData(
                 $requestData['folder'],
                 $requestData['search'],
                 $requestData['limit']
             );
+
+            // logger()->debug($requestData);
 
             return view('mail.index', array_merge($data, [
                 'folder' => $requestData['folder'],

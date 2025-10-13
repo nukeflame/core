@@ -861,7 +861,6 @@
                     }
 
                     const _original = rowData._original;
-
                     const dealInfo = {
                         id: _original.opportunity_id,
                         created_at: _original.created_at,
@@ -996,15 +995,13 @@
                     };
 
                     if (this.currentStage === 'lead') {
-                        this.loadScheduleHeaders(data);
-                        this.loadSlipDocuments(data);
                         this.loadBdTerms(data)
                     } else if (this.currentStage === 'proposal') {
-                        this.loadSlipDocuments(data);
                         this.loadSelectedReinsurers(data);
-                        this.loadScheduleHeaders(data);
                     }
 
+                    this.loadSlipDocuments(data);
+                    this.loadScheduleHeaders(data);
                     this.populateModalData(modalId, dealId, stage, dealInfo);
 
                     $modal.modal('show');
@@ -1076,13 +1073,10 @@
                         $cedantName.text(dealInfo?.cedant?.name || '')
                     }
 
-
                     const $lastContactDate = $modal.find('#lastContactDate');
                     if ($lastContactDate.length > 0) {
                         $lastContactDate.val(dealInfo?.last_updated || '')
                     }
-
-
                 } catch (error) {
                     this.handleError("Error populating modal data", error);
                 }
@@ -1139,8 +1133,9 @@
                         opportunity_id: data.opportunityId,
                     },
                     success: (response) => {
-                        const tableData = (response.success && response.data) ? response.data : [];
-                        this.renderReinsurersTable(tableData, $table, data);
+                        $modal.find('#reinsurerCount').text(response.count ?? 0);
+                        const reinsurers = (response.success && response.data) ? response.data : [];
+                        this.renderReinsurersTable(reinsurers, $table, data);
                     },
                     error: (xhr, status, error) => {
                         this.handleError('Error loading selected reinsurers', {
@@ -1202,6 +1197,7 @@
                         written_share: parseFloat(reinsurer.written_share || 0).toFixed(2),
                         commission: parseFloat(reinsurer.brokerage_rate || 0).toFixed(2),
                         status: reinsurer.status,
+                        country: reinsurer.country,
                         contact: reinsurer.email || '-',
                         action: ''
                     };
@@ -1224,15 +1220,12 @@
                         title: 'Reinsurer',
                         render: (data, type, row) => {
                             return `
-                            <div class="d-flex align-items-center">
-                                <div class="avatar avatar-sm me-2 bg-light">
-                                    <span class="avatar-initial rounded-circle bg-label-primary">
-                                        ${data.charAt(0).toUpperCase()}
-                                    </span>
-                                </div>
+                            <div class="d-flex flex-start">
                                 <div>
-                                    <strong>${data}</strong>
-                                    ${row.status ? `<br><small class="text-muted">${row.status}</small>` : ''}
+                                    <div class="fw-medium">${data}</div>
+                                    <small class="text-muted">(${
+                                    row.contact
+                                    })</small>
                                 </div>
                             </div>
                         `;
@@ -1241,7 +1234,7 @@
                     {
                         data: 'written_share',
                         title: 'Written Share (%)',
-                        className: 'text-center',
+                        className: 'text-left',
                         render: (data) => {
                             const percentage = parseFloat(data);
                             const badgeClass = this.getShareBadgeClass(percentage);
@@ -1253,30 +1246,25 @@
                         title: 'Action',
                         orderable: false,
                         searchable: false,
-                        className: 'text-center',
+                        className: 'text-left',
                         render: (data, type, row) => {
                             return `
-                    <div class="btn-group" role="group">
-                        <button type="button"
-                                class="btn btn-sm btn-outline-primary edit-reinsurer-btn"
-                                data-reinsurer-id="${row.id}"
-                                data-written-share="${row.written_share}"
-                                title="Edit">
-                            <i class="bx bx-edit"></i>
-                        </button>
-                        <button type="button"
-                                class="btn btn-sm btn-outline-danger remove-reinsurer-btn"
-                                data-reinsurer-id="${row.id}"
-                                title="Remove">
-                            <i class="bx bx-trash"></i>
-                        </button>
-                    </div>
-                `;
+                                <div>
+                                    <button type="button" class="btn btn-primary btn-sm edit-reinsurer-btn"
+                                    data-reinsurer-id="${row.id}" data-written-share="${row.written_share}"
+                                    title="Edit Written Share"><i class="bx bx-edit"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-danger btn-sm remove-reinsurer-btn"
+                                            data-reinsurer-id="${row.id}"
+                                            title="Remove">
+                                        <i class="bx bx-trash"></i>
+                                    </button>
+                                </div>
+                            `;
                         }
                     }
                 ];
             }
-
 
             getShareBadgeClass(percentage) {
                 if (percentage >= 50) return 'bg-success';
@@ -1287,29 +1275,30 @@
             showTableLoading($table) {
                 const $tbody = $table.find('tbody');
                 $tbody.html(`
-        <tr>
-            <td colspan="3" class="text-center py-4">
-                <div class="spinner-border text-primary" role="status">
-                    <span class="visually-hidden">Loading...</span>
-                </div>
-                <p class="mt-2 text-muted">Loading reinsurers...</p>
-            </td>
-        </tr>
-    `);
+                    <tr>
+                        <td colspan="3" class="text-center py-4">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p class="mt-2 text-muted">Loading reinsurers...</p>
+                        </td>
+                    </tr>
+                `);
             }
+
             updateTableFooter($table, totalShare) {
                 if ($table.find('tfoot').length === 0) {
                     $table.append(`
-            <tfoot class="table-light">
-                <tr>
-                    <th class="text-end">Total:</th>
-                    <th class="text-center">
-                        <strong class="total-share-display">${totalShare.toFixed(2)}%</strong>
-                    </th>
-                    <th></th>
-                </tr>
-            </tfoot>
-        `);
+                        <tfoot class="table-light">
+                            <tr>
+                                <th class="text-end">Total:</th>
+                                <th class="text-center">
+                                    <div class="total-share-display fw-medium">${totalShare.toFixed(2)}%</div>
+                                </th>
+                                <th></th>
+                            </tr>
+                        </tfoot>
+                    `);
                 } else {
                     $table.find('.total-share-display').text(`${totalShare.toFixed(2)}%`);
                 }
@@ -1322,13 +1311,13 @@
                 if (Math.abs(totalShare - 100) > 0.01) {
                     const remaining = (100 - totalShare).toFixed(2);
                     const warningHtml = `
-            <div class="alert alert-warning mt-3 share-warning" role="alert">
-                <i class="bx bx-error me-2"></i>
-                <strong>Warning:</strong> Total share is ${totalShare.toFixed(2)}%.
-                It should equal 100%.
-                <strong>Remaining: ${remaining}%</strong>
-            </div>
-        `;
+                        <div class="alert alert-warning mt-3 share-warning" role="alert">
+                            <i class="bx bx-error me-2"></i>
+                            <strong>Warning:</strong> Total share is ${totalShare.toFixed(2)}%.
+                            It should equal 100%.
+                            <strong>Remaining: ${remaining}%</strong>
+                        </div>
+                    `;
                     $table.after(warningHtml);
                 }
             }
@@ -1357,7 +1346,6 @@
                     this.handleRemoveReinsurer(reinsurerId, $table);
                 });
             }
-
             handleEditReinsurer(reinsurerData, $table) {
                 Swal.fire({
                     title: 'Edit Written Share',
@@ -1365,25 +1353,48 @@
                     inputLabel: 'Written Share (%)',
                     inputValue: reinsurerData.written_share,
                     inputAttributes: {
-                        min: 0.01,
-                        max: 100,
-                        step: 0.01
+                        min: '0.01',
+                        max: '100',
+                        step: '0.01',
+                        autocomplete: 'off'
                     },
                     showCancelButton: true,
                     confirmButtonText: 'Update',
                     cancelButtonText: 'Cancel',
+                    // Fix z-index to appear above Bootstrap modal
+                    customClass: {
+                        container: 'swal-on-modal'
+                    },
+                    didOpen: () => {
+                        // Ensure SweetAlert2 is above the modal backdrop
+                        const swalContainer = document.querySelector('.swal2-container');
+                        if (swalContainer) {
+                            swalContainer.style.zIndex = '9999';
+                        }
+
+                        const input = Swal.getInput();
+                        if (input) {
+                            input.focus();
+                            input.select();
+                        }
+                    },
                     inputValidator: (value) => {
-                        if (!value || parseFloat(value) <= 0 || parseFloat(value) > 100) {
+                        const numValue = parseFloat(value);
+
+                        if (value === '' || value === null || isNaN(numValue)) {
+                            return 'Please enter a value';
+                        }
+
+                        if (numValue <= 0 || numValue > 100) {
                             return 'Please enter a valid share between 0.01 and 100';
                         }
                     }
                 }).then((result) => {
-                    if (result.isConfirmed) {
+                    if (result.isConfirmed && result.value) {
                         this.updateReinsurerShare(reinsurerData.id, result.value, $table);
                     }
                 });
             }
-
             handleRemoveReinsurer(reinsurerId, $table) {
                 Swal.fire({
                     title: 'Remove Reinsurer?',
