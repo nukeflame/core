@@ -3138,19 +3138,12 @@ class PipelineController
 
         $stageFlow = [
             'lead' => [
-                'next' => "update_lead",
+                'next' => "proposal",
                 'button' => "Update Lead",
                 'class' => "btn-proposal",
                 'altNext' => "lost",
                 'modalId' => "leadModal",
             ],
-            // 'lead' => [
-            //     'next' => "proposal",
-            //     'button' => "Move to Proposal",
-            //     'class' => "btn-proposal",
-            //     'altNext' => "lost",
-            //     'modalId' => "leadModal",
-            // ],
             'proposal' => [
                 'next' => "negotiation",
                 'button' => "Update Proposal",
@@ -3298,11 +3291,17 @@ class PipelineController
         $insured_phone = collect(json_decode($opp->phone))->first();
         $contact_name = collect(json_decode($opp->contact_name))->first();
         $type_of_business = $opp->type_of_bus;
+        $cedant = DB::table('customers')->where('customer_id', $opp->customer_id)->first(['name', 'customer_id']);
+        $risk_class = DB::table('classes')->where('class_group_code', $opp->class_group)->first(['class_name', 'class_code']);
 
         $class            = $opp->classcode;
         $class_group      = $opp->class_group;
         $category_type    = $opp->category_type;
+        $risk_type        = $risk_class->class_name;
+        $last_updated     = Carbon::parse($opp->updated_at)->format('Y-m-d');
         $sum_insured_type = TypeOfSumInsured::where(['sum_insured_code' => $opp->sum_insured_type, 'status' => 'A'])->first(['sum_insured_name']);
+
+        // logger()->debug(json_encode($last_updated, JSON_PRETTY_PRINT));
 
         return [
             'opportunity_id'    => $opp->opportunity_id,
@@ -3314,6 +3313,9 @@ class PipelineController
             'type_of_business'  => $type_of_business,
             'class'             => $class,
             'class_group'       => $class_group,
+            'risk_type'         => $risk_type,
+            'cedant'            => $cedant,
+            'last_updated'      => $last_updated,
             'category_type'     => $category_type,
             'sum_insured_type'  => Str::title($sum_insured_type->sum_insured_name),
             'total_sum_insured' => number_format((float) $opp->total_sum_insured),
@@ -5173,6 +5175,8 @@ class PipelineController
     {
         DB::beginTransaction();
 
+        logger()->debug($request->all());
+
         try {
             $term = null;
             $opportunityId = $request->opportunity_id;
@@ -5219,7 +5223,8 @@ class PipelineController
                     ])->first();
                 }
 
-                DB::commit();
+                // DB::commit();
+
                 return response()->json([
                     'success' => true,
                     'data' => [
@@ -5502,7 +5507,7 @@ class PipelineController
 
             // logger()->debug(json_encode($partners, JSON_PRETTY_PRINT));
 
-            DB::commit();
+            // DB::commit();
 
             return response()->json([
                 'success' => true,
@@ -7494,6 +7499,8 @@ class PipelineController
             $businessType = null;
             if ($typeOfBus === 'FPR') {
                 $businessType = 'FAC';
+            } else if ($typeOfBus === 'FNP') {
+                $businessType = 'FAC';
             }
 
             $query = QuoteScheduleHeader::where([
@@ -7640,6 +7647,53 @@ class PipelineController
                 'message' => 'An error occurred while updating contacts.',
                 'error' => config('app.debug') ? $e->getMessage() : null
             ], 500);
+        }
+    }
+
+    public function getSelectedBdRein(Request $request)
+    {
+        try {
+            $opportunityId = $request->opportunity_id;
+
+            if (!$opportunityId) {
+                return [
+                    'success' => false,
+                    'message' => 'Opportunity ID is required',
+                    'data' => []
+                ];
+            }
+
+            $reins = DB::table('bd_fac_reinsurers')
+                ->where('opportunity_id', $opportunityId)
+                ->select([
+                    'opportunity_id',
+                    'reinsurer_name',
+                    'share_amount',
+                    'written_share',
+                    'brokerage_rate',
+                    'reinsurer_id',
+                    'email',
+                    'status',
+                ])
+                ->get();
+
+            return [
+                'success' => true,
+                'data' => $reins,
+                'count' => $reins->count()
+            ];
+        } catch (\Illuminate\Database\QueryException $e) {
+            return [
+                'success' => false,
+                'message' => 'Database error occurred',
+                'error' => config('app.debug') ? $e->getMessage() : 'Please contact support'
+            ];
+        } catch (\Exception $e) {
+            return [
+                'success' => false,
+                'message' => 'An error occurred while fetching reinsurers',
+                'error' => config('app.debug') ? $e->getMessage() : 'Please contact support'
+            ];
         }
     }
 }

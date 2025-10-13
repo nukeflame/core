@@ -170,8 +170,8 @@
 
         @include('Bd_views.intermediaries.partials.modals.fac_email_modal')
         @include('Bd_views.intermediaries.partials.modals.lead_modal')
-        {{-- @include('Bd_views.intermediaries.partials.modals.proposal_modal')
-        @include('Bd_views.intermediaries.partials.modals.negotiation_modal') --}}
+        @include('Bd_views.intermediaries.partials.modals.proposal_modal')
+        {{--   @include('Bd_views.intermediaries.partials.modals.negotiation_modal') --}}
     </div>
 @endsection
 
@@ -417,21 +417,22 @@
                         scheduleHeaders: "{{ route('schedule.headers.get') }}",
                         slipDocuments: "{{ route('schedule.get_stage_documents') }}",
                         getBdTerms: "{{ route('get.bd_terms') }}",
+                        getSelectedReinsurers: "{{ route('get.selected_bd_reinsurers') }}",
                     },
                     stageFlow: {
                         lead: {
                             next: "proposal",
-                            button: "Move to Proposal",
+                            button: "Update Lead",
                             class: "btn-proposal",
                             altNext: "lost",
                             modalId: "leadModal",
                         },
                         proposal: {
                             next: "negotiation",
-                            button: "Move to Negotiation",
+                            button: "Update Proposal",
                             class: "btn-negotiation",
                             altNext: "lost",
-                            modalId: "leadModal",
+                            modalId: "proposalModal",
                         },
                         negotiation: {
                             next: "won",
@@ -870,7 +871,10 @@
                         class: _original.class,
                         class_group: _original.class_group,
                         category_type: _original.category_type,
-                        sum_insured_type: _original.sum_insured_type
+                        sum_insured_type: _original.sum_insured_type,
+                        risk_type: _original.risk_type,
+                        cedant: _original.cedant,
+                        last_updated: _original.last_updated,
                     };
 
                     window.currentDealInfo = dealInfo;
@@ -882,7 +886,6 @@
                     if (!stageInfo) {
                         throw new Error(`Invalid stage: ${this.currentStage}`);
                     }
-
 
                     const nextStage = stageInfo.next;
                     const modalId = stageInfo.modalId;
@@ -962,20 +965,12 @@
 
             deletePipeline(dealId, insuredName) {
                 this.showLoading();
-
-                console.log($dealId)
-
+                // console.log($dealId)
             }
 
             openStageModal(stage, modalId, dealId, dealInfo = null) {
                 try {
                     this.currentDealId = dealId;
-                    // let modalId = stage + "Modal";
-                    // if (stage === 'negotiation') {
-                    //     modalId = modalId
-                    // }
-                    console.log(modalId)
-
                     const $modal = $(`#${modalId}`);
 
                     if ($modal.length === 0) {
@@ -991,18 +986,21 @@
                         classGroup: dealInfo ? dealInfo.class_group : null,
                         stage: stage,
                         categoryType: dealInfo ? dealInfo.category_type : null,
-                        sumInsuredType: dealInfo?.sum_insured_type
+                        sumInsuredType: dealInfo?.sum_insured_type,
+                        riskType: dealInfo?.risk_type,
                     };
 
+                    if (this.currentStage === 'lead') {
+                        this.loadScheduleHeaders(data);
+                        this.loadSlipDocuments(data);
+                        this.loadBdTerms(data)
+                    } else if (this.currentStage === 'proposal') {
+                        this.loadSlipDocuments(data);
+                        this.loadSelectedReinsurers(data);
+                        this.loadScheduleHeaders(data);
+                    }
 
-
-                    this.loadScheduleHeaders(data);
-                    this.loadSlipDocuments(data);
                     this.populateModalData(modalId, dealId, stage, dealInfo);
-                    this.loadBdTerms(data)
-
-                    // console.log(stage)
-
 
                     $modal.modal('show');
                     $modal.addClass('slide-in');
@@ -1044,6 +1042,7 @@
                     } else {
                         $slipTitle = 'Facultative Slip';
                     }
+
                     $modal.find('.slip-title').text($slipTitle);
 
                     $modal.find('.insured-name-display').text(dealInfo.insured_name || '');
@@ -1061,6 +1060,24 @@
                     $modal.find('#totalReinsurerShare').val(dealInfo.written_share || '0.00');
                     $modal.find('#classCodeValue').val(dealInfo.class || '');
                     $modal.find('#classGroupCodeValue').val(dealInfo.class_group || '');
+
+                    const $riskType = $modal.find('#riskType');
+                    if ($riskType.length > 0) {
+                        $riskType.val(dealInfo?.risk_type || '')
+                    }
+
+                    const $cedantName = $modal.find('#cedantName');
+                    if ($cedantName.length > 0) {
+                        $cedantName.text(dealInfo?.cedant?.name || '')
+                    }
+
+
+                    const $lastContactDate = $modal.find('#lastContactDate');
+                    if ($lastContactDate.length > 0) {
+                        $lastContactDate.val(dealInfo?.last_updated || '')
+                    }
+
+
                 } catch (error) {
                     this.handleError("Error populating modal data", error);
                 }
@@ -1096,6 +1113,336 @@
                         this.showError('Failed to load schedule headers');
                     }
                 });
+            }
+
+            loadSelectedReinsurers(data) {
+                if (!data.dealId || !data.class || !data.classGroup) {
+                    return;
+                }
+
+                const $modal = $(`#${data.modalId}`);
+                const $table = $modal.find('#propReinsurersTable');
+
+                if (!$.fn.DataTable.isDataTable($table)) {
+                    this.showTableLoading($table);
+                }
+
+                $.ajax({
+                    url: this.config.routes.getSelectedReinsurers,
+                    method: 'GET',
+                    data: {
+                        opportunity_id: data.opportunityId,
+                    },
+                    success: (response) => {
+                        const tableData = (response.success && response.data) ? response.data : [];
+                        this.renderReinsurersTable(tableData, $table, data);
+                    },
+                    error: (xhr, status, error) => {
+                        this.handleError('Error loading selected reinsurers', {
+                            xhr,
+                            status,
+                            error
+                        });
+                        this.showError('Failed to load selected reinsurers');
+                        this.renderReinsurersTable([], $table, data);
+                    }
+                })
+            }
+
+            renderReinsurersTable(reinsurers, $table, data) {
+                if (!$table || $table.length === 0) {
+                    console.error('Table element not found');
+                    return;
+                }
+
+                if ($.fn.DataTable.isDataTable($table)) {
+                    $table.DataTable().destroy();
+                }
+
+                $table.find('tbody').empty();
+
+                const tableData = this.transformReinsurerData(reinsurers);
+                const totals = this.calculateTotals(tableData);
+
+                const dataTable = $table.DataTable({
+                    data: tableData,
+                    columns: this.getReinsurerColumns(),
+                    paging: false,
+                    searching: false,
+                    info: false,
+                    ordering: true,
+                    order: [
+                        [1, 'desc']
+                    ],
+                    language: {
+                        emptyTable: "No reinsurers selected"
+                    },
+                    drawCallback: () => {
+                        this.initializeReinsurerActions($table);
+                    },
+                    footerCallback: () => {
+                        this.updateTableFooter($table, totals.totalShare);
+                    }
+                });
+
+                this.updateShareWarning($table, totals.totalShare);
+                this.reinsurerDataTable = dataTable;
+            }
+
+            transformReinsurerData(reinsurers) {
+                return reinsurers.map((reinsurer) => {
+                    return {
+                        id: reinsurer.reinsurer_id,
+                        name: reinsurer.reinsurer_name,
+                        written_share: parseFloat(reinsurer.written_share || 0).toFixed(2),
+                        commission: parseFloat(reinsurer.brokerage_rate || 0).toFixed(2),
+                        status: reinsurer.status,
+                        contact: reinsurer.email || '-',
+                        action: ''
+                    };
+                });
+            }
+
+            calculateTotals(tableData) {
+                const totalShare = tableData.reduce((sum, r) => sum + parseFloat(r.written_share), 0);
+                const totalCommission = tableData.reduce((sum, r) => sum + parseFloat(r.commission), 0);
+
+                return {
+                    totalShare,
+                    totalCommission
+                };
+            }
+
+            getReinsurerColumns() {
+                return [{
+                        data: 'name',
+                        title: 'Reinsurer',
+                        render: (data, type, row) => {
+                            return `
+                            <div class="d-flex align-items-center">
+                                <div class="avatar avatar-sm me-2 bg-light">
+                                    <span class="avatar-initial rounded-circle bg-label-primary">
+                                        ${data.charAt(0).toUpperCase()}
+                                    </span>
+                                </div>
+                                <div>
+                                    <strong>${data}</strong>
+                                    ${row.status ? `<br><small class="text-muted">${row.status}</small>` : ''}
+                                </div>
+                            </div>
+                        `;
+                        }
+                    },
+                    {
+                        data: 'written_share',
+                        title: 'Written Share (%)',
+                        className: 'text-center',
+                        render: (data) => {
+                            const percentage = parseFloat(data);
+                            const badgeClass = this.getShareBadgeClass(percentage);
+                            return `<span class="badge ${badgeClass}">${data}%</span>`;
+                        }
+                    },
+                    {
+                        data: 'action',
+                        title: 'Action',
+                        orderable: false,
+                        searchable: false,
+                        className: 'text-center',
+                        render: (data, type, row) => {
+                            return `
+                    <div class="btn-group" role="group">
+                        <button type="button"
+                                class="btn btn-sm btn-outline-primary edit-reinsurer-btn"
+                                data-reinsurer-id="${row.id}"
+                                data-written-share="${row.written_share}"
+                                title="Edit">
+                            <i class="bx bx-edit"></i>
+                        </button>
+                        <button type="button"
+                                class="btn btn-sm btn-outline-danger remove-reinsurer-btn"
+                                data-reinsurer-id="${row.id}"
+                                title="Remove">
+                            <i class="bx bx-trash"></i>
+                        </button>
+                    </div>
+                `;
+                        }
+                    }
+                ];
+            }
+
+
+            getShareBadgeClass(percentage) {
+                if (percentage >= 50) return 'bg-success';
+                if (percentage >= 25) return 'bg-primary';
+                return 'bg-info';
+            }
+
+            showTableLoading($table) {
+                const $tbody = $table.find('tbody');
+                $tbody.html(`
+        <tr>
+            <td colspan="3" class="text-center py-4">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p class="mt-2 text-muted">Loading reinsurers...</p>
+            </td>
+        </tr>
+    `);
+            }
+            updateTableFooter($table, totalShare) {
+                if ($table.find('tfoot').length === 0) {
+                    $table.append(`
+            <tfoot class="table-light">
+                <tr>
+                    <th class="text-end">Total:</th>
+                    <th class="text-center">
+                        <strong class="total-share-display">${totalShare.toFixed(2)}%</strong>
+                    </th>
+                    <th></th>
+                </tr>
+            </tfoot>
+        `);
+                } else {
+                    $table.find('.total-share-display').text(`${totalShare.toFixed(2)}%`);
+                }
+            }
+
+            updateShareWarning($table, totalShare) {
+                const $container = $table.closest('.reinsurer-selection-panel, .section-content');
+                $container.find('.share-warning').remove();
+
+                if (Math.abs(totalShare - 100) > 0.01) {
+                    const remaining = (100 - totalShare).toFixed(2);
+                    const warningHtml = `
+            <div class="alert alert-warning mt-3 share-warning" role="alert">
+                <i class="bx bx-error me-2"></i>
+                <strong>Warning:</strong> Total share is ${totalShare.toFixed(2)}%.
+                It should equal 100%.
+                <strong>Remaining: ${remaining}%</strong>
+            </div>
+        `;
+                    $table.after(warningHtml);
+                }
+            }
+
+            initializeReinsurerActions($table) {
+                $table.off('click', '.edit-reinsurer-btn');
+                $table.off('click', '.remove-reinsurer-btn');
+
+                $table.on('click', '.edit-reinsurer-btn', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+
+                    const reinsurerData = {
+                        id: $(e.currentTarget).data('reinsurer-id'),
+                        written_share: $(e.currentTarget).data('written-share')
+                    };
+
+                    this.handleEditReinsurer(reinsurerData, $table);
+                });
+
+                $table.on('click', '.remove-reinsurer-btn', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+
+                    const reinsurerId = $(e.currentTarget).data('reinsurer-id');
+                    this.handleRemoveReinsurer(reinsurerId, $table);
+                });
+            }
+
+            handleEditReinsurer(reinsurerData, $table) {
+                Swal.fire({
+                    title: 'Edit Written Share',
+                    input: 'number',
+                    inputLabel: 'Written Share (%)',
+                    inputValue: reinsurerData.written_share,
+                    inputAttributes: {
+                        min: 0.01,
+                        max: 100,
+                        step: 0.01
+                    },
+                    showCancelButton: true,
+                    confirmButtonText: 'Update',
+                    cancelButtonText: 'Cancel',
+                    inputValidator: (value) => {
+                        if (!value || parseFloat(value) <= 0 || parseFloat(value) > 100) {
+                            return 'Please enter a valid share between 0.01 and 100';
+                        }
+                    }
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        this.updateReinsurerShare(reinsurerData.id, result.value, $table);
+                    }
+                });
+            }
+
+            handleRemoveReinsurer(reinsurerId, $table) {
+                Swal.fire({
+                    title: 'Remove Reinsurer?',
+                    text: 'Are you sure you want to remove this reinsurer?',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#d33',
+                    cancelButtonColor: '#3085d6',
+                    confirmButtonText: 'Yes, remove',
+                    cancelButtonText: 'Cancel'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        this.removeReinsurer(reinsurerId, $table);
+                    }
+                });
+            }
+
+            updateReinsurerShare(reinsurerId, newShare, $table) {
+                const dataTable = $table.DataTable();
+                const rowData = dataTable.rows().data().toArray();
+
+                const updatedData = rowData.map(row => {
+                    if (row.id === reinsurerId) {
+                        return {
+                            ...row,
+                            written_share: parseFloat(newShare).toFixed(2)
+                        };
+                    }
+                    return row;
+                });
+
+                dataTable.clear();
+                dataTable.rows.add(updatedData);
+                dataTable.draw();
+
+                const totalShare = updatedData.reduce((sum, r) => sum + parseFloat(r.written_share), 0);
+                this.updateShareWarning($table, totalShare);
+
+                if (typeof toastr !== 'undefined') {
+                    toastr.success('Reinsurer share updated successfully');
+                }
+            }
+
+            removeReinsurer(reinsurerId, $table) {
+                const dataTable = $table.DataTable();
+                const rowData = dataTable.rows().data().toArray();
+
+                const updatedData = rowData.filter(row => row.id !== reinsurerId);
+
+                dataTable.clear();
+                dataTable.rows.add(updatedData);
+                dataTable.draw();
+
+                const totalShare = updatedData.reduce((sum, r) => sum + parseFloat(r.written_share), 0);
+                this.updateShareWarning($table, totalShare);
+
+                const $counterBadge = $('#reinsurerCount');
+                if ($counterBadge.length) {
+                    $counterBadge.text(updatedData.length);
+                }
+
+                if (typeof toastr !== 'undefined') {
+                    toastr.success('Reinsurer removed successfully');
+                }
             }
 
             loadBdTerms(data) {
@@ -1215,6 +1562,7 @@
                     container.html('<p class="text-muted text-center my-4">Invalid headers data.</p>');
                     return;
                 }
+
 
                 const excludedTerms = [
                     'Premium',
@@ -2076,3 +2424,77 @@
         });
     </script>
 @endpush
+
+{{--
+ //{{-- $.ajax({
+                //     url: "{{ route('pipeline.delete') }}", // Update with your actual route
+                //     method: 'DELETE',
+                //     data: {
+                //         deal_id: dealId
+                //     },
+                //     success: (response) => {
+                //         this.hideLoading();
+
+                //         if (response.success) {
+                //             Swal.fire({
+                //                 title: 'Deleted!',
+                //                 text: `Pipeline for ${insuredName} has been deleted successfully.`,
+                //                 icon: 'success',
+                //                 confirmButtonColor: '#3085d6',
+                //                 confirmButtonText: 'OK',
+                //                 customClass: {
+                //                     confirmButton: 'btn btn-primary'
+                //                 },
+                //                 buttonsStyling: false
+                //             }).then(() => {
+                //                 this.reloadAllTables();
+                //                 this.loadChartData();
+                //             });
+                //         } else {
+                //             Swal.fire({
+                //                 title: 'Error!',
+                //                 text: response.message || 'Failed to delete pipeline.',
+                //                 icon: 'error',
+                //                 confirmButtonColor: '#d33',
+                //                 confirmButtonText: 'OK',
+                //                 customClass: {
+                //                     confirmButton: 'btn btn-danger'
+                //                 },
+                //                 buttonsStyling: false
+                //             });
+                //         }
+                //     },
+                //     error: (xhr, status, error) => {
+                //         this.hideLoading();
+
+                //         let errorMessage = 'An error occurred while deleting the pipeline.';
+
+                //         if (xhr.responseJSON && xhr.responseJSON.message) {
+                //             errorMessage = xhr.responseJSON.message;
+                //         } else if (xhr.status === 404) {
+                //             errorMessage = 'Pipeline not found.';
+                //         } else if (xhr.status === 403) {
+                //             errorMessage = 'You do not have permission to delete this pipeline.';
+                //         } else if (xhr.status === 500) {
+                //             errorMessage = 'Server error occurred. Please try again later.';
+                //         }
+
+                //         Swal.fire({
+                //             title: 'Deletion Failed',
+                //             text: errorMessage,
+                //             icon: 'error',
+                //             confirmButtonColor: '#d33',
+                //             confirmButtonText: 'OK',
+                //             customClass: {
+                //                 confirmButton: 'btn btn-danger'
+                //             },
+                //             buttonsStyling: false
+                //         });
+
+                //         this.handleError('Error deleting pipeline', {
+                //             xhr,
+                //             status,
+                //             error
+                //         });
+                //     }
+                // }); --}}

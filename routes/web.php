@@ -122,6 +122,7 @@ Route::middleware(['auth', 'check.first.login'])->group(function () {
     Route::post('bd/notification/send', [PipelineController::class, 'sendBDNotification'])->name('bd.notification.send');
     Route::get('get/bd_terms', [PipelineController::class, 'getBdTerms'])->name('get.bd_terms');
     Route::post('bd/contacts/update', [PipelineController::class, 'updateReinContacts'])->name('rein.contacts.update');
+    Route::get('bd/selected_reinsurers', [PipelineController::class, 'getSelectedBdRein'])->name('get.selected_bd_reinsurers');
 
     //update category type
     // Route::get('pipelines_activityq1', [PipelineController::class, 'pipeline_activity_q1'])->name('pipeline.activity.q1');

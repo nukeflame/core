@@ -136,8 +136,7 @@
                                     {{-- Lead Name --}}
                                     <x-OnboardingInputDiv id="leadNameDiv">
                                         <x-Input name="lead_name" id="lead_name" req="required" inputLabel="Lead Name"
-                                            value="{{ old('lead_name', $prospect->lead_name ?? '') }}"
-                                            oninput="this.value = this.value.replace(/\b\w/g, char => char.toUpperCase());" />
+                                            value="{{ old('lead_name', $prospect->lead_name ?? '') }}" />
                                         <div id="lead_name_results" class="dropdown-menu"
                                             style="display: none; max-width: 500px; width: 100%;"></div>
                                         <div class="error-message" id="lead_name_error"></div>
@@ -224,8 +223,7 @@
                                     <div class="row contactsContainers" data-counter="0">
                                         <x-OnboardingInputDiv>
                                             <x-Input name="contact_name[]" id="contact_name-0" class="contact_name-0"
-                                                placeholder="Enter name" inputLabel="Contact Full Name" req="required"
-                                                oninput="this.value = this.value.toUpperCase();" />
+                                                placeholder="Enter name" inputLabel="Contact Full Name" req="required" />
                                             <div id="full_name_results_0" class="dropdown-menu full-name-results"
                                                 style="display: none; max-width: 500px; width: 100%;"></div>
                                             <div class="error-message" id="full_name_error_0"></div>
@@ -304,9 +302,7 @@
                                         <label class="form-label required">Insured Name <i
                                                 style="color:red;">*</i></label>
                                         <input type="text" class="form-inputs section  fac_section"
-                                            name="insured_name" id="insured_name"
-                                            oninput="this.value = this.value.replace(/\b\w/g, char => char.toUpperCase());"
-                                            required />
+                                            name="insured_name" id="insured_name" required />
                                         <div id="insured_name_results" class="dropdown-menu"
                                             style="display: none; max-width: 500px; width: 100%;">
                                         </div>
@@ -384,7 +380,7 @@
 
                                 <div class="row row-cols-12 mb-2">
                                     <div class="col-sm-3">
-                                        <label for="apply_eml">Apply EML</label>
+                                        <label class="form-label" for="apply_eml">Apply EML</label>
                                         <div class="cover-card">
                                             <select name="apply_eml" class="form-inputs section select2" id="apply_eml"
                                                 required>

@@ -282,7 +282,8 @@
                     <i class="bi bi-pencil-square"></i>
                     Update Category Type
                 </h5>
-                <button type="button" class="btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                    aria-label="Close"></button>
             </div>
             <form action="{{ route('update.category_type') }}" method="POST" enctype="multipart/form-data"
                 id="updateCategoryForm">
