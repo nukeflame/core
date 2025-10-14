@@ -587,34 +587,33 @@
                     },
                     timeout: 60000,
                     success: function(response) {
-                        console.log(response)
-                        // if (response.success) {
-                        //     resetProposalModal();
+                        // console.log(response)
+                        if (response.success) {
+                            resetProposalModal();
 
-                        //     Swal.fire({
-                        //         icon: "success",
-                        //         title: "Proposal Sent Successfully!",
-                        //         text: "Your proposal has been submitted",
-                        //         showConfirmButton: true,
-                        //     }).then(() => {
-                        //         $modal.modal("hide");
+                            Swal.fire({
+                                icon: "success",
+                                title: "Proposal Sent Successfully!",
+                                text: "Your proposal has been submitted",
+                                showConfirmButton: true,
+                            }).then(() => {
+                                $modal.modal("hide");
 
-                        //         if (typeof pipelineManager !== 'undefined' &&
-                        //             typeof pipelineManager.reloadAllTables ===
-                        //             'function') {
-                        //             pipelineManager.reloadAllTables();
-                        //         }
+                                if (typeof pipelineManager !== 'undefined' &&
+                                    typeof pipelineManager.reloadAllTables ===
+                                    'function') {
+                                    pipelineManager.reloadAllTables();
+                                }
 
-                        //         // Reload chart if needed
-                        //         if (typeof pipelineManager !== 'undefined' &&
-                        //             typeof pipelineManager.loadChartData === 'function'
-                        //         ) {
-                        //             pipelineManager.loadChartData();
-                        //         }
-                        //     });
-                        // } else {
-                        //     throw new Error(response.message || "Submission failed");
-                        // }
+                                if (typeof pipelineManager !== 'undefined' &&
+                                    typeof pipelineManager.loadChartData === 'function'
+                                ) {
+                                    pipelineManager.loadChartData();
+                                }
+                            });
+                        } else {
+                            throw new Error(response.message || "Submission failed");
+                        }
                     },
                     error: function(xhr, status, error) {
                         let errorMessage =

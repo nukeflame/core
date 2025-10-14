@@ -171,7 +171,8 @@
         @include('Bd_views.intermediaries.partials.modals.fac_email_modal')
         @include('Bd_views.intermediaries.partials.modals.lead_modal')
         @include('Bd_views.intermediaries.partials.modals.proposal_modal')
-        {{--   @include('Bd_views.intermediaries.partials.modals.negotiation_modal') --}}
+        @include('Bd_views.intermediaries.partials.modals.negotiation_modal')
+        @include('Bd_views.intermediaries.partials.modals.final_stage_modal')
     </div>
 @endsection
 
@@ -213,12 +214,12 @@
         }
 
         .status-lost {
-            background-color: #453d3f;
+            background-color: #d70206;
             color: #fff;
         }
 
         .status-final {
-            background-color: #59922b;
+            background-color: #d17905;
             color: #fff;
         }
 
@@ -465,15 +466,21 @@
                             modalId: "proposalModal",
                         },
                         negotiation: {
-                            next: "won",
+                            next: "final_stage",
                             button: "Update Negotiation",
                             class: "btn-won",
                             altNext: "lost",
                             modalId: "negotiationModal",
                         },
+                        final_stage: {
+                            next: 'won',
+                            button: "Update Status",
+                            class: "btn-final",
+                            modalId: "finalStageModal",
+                        },
                         won: {
-                            next: "final",
-                            button: "Move to Final",
+                            next: null,
+                            button: "Deal Complete",
                             class: "btn-final",
                             modalId: "wonModal",
                         },
@@ -482,12 +489,6 @@
                             button: "Deal Closed",
                             class: "btn-lost",
                             modalId: "lostModal",
-                        },
-                        final: {
-                            next: null,
-                            button: "Deal Complete",
-                            class: "btn-final",
-                            modalId: "finalModal",
                         },
                     },
                     columnConfig: [{
@@ -1112,6 +1113,8 @@
                     this.loadSlipDocuments(data);
                     this.loadScheduleHeaders(data);
                     this.populateModalData(modalId, dealId, this.currentStage, dealInfo);
+
+                    console.log(modalId)
 
                     $modal.modal('show');
                     $modal.addClass('slide-in');

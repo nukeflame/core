@@ -11,17 +11,17 @@ final class Stage extends Enum
     const LEAD        = 'lead';
     const PROPOSAL    = 'proposal';
     const NEGOTIATION = 'negotiation';
+    const FINAL_STAGE = 'final_stage';
     const WON         = 'won';
     const LOST        = 'lost';
-    const FINAL_STAGE = 'final_stage';
 
     private static array $stages = [
         self::LEAD        => '1',
         self::PROPOSAL    => '2',
         self::NEGOTIATION => '3',
-        self::WON         => '4',
-        self::LOST        => '5',
-        self::FINAL_STAGE => '6',
+        self::FINAL_STAGE => '4',
+        self::WON         => '5',
+        self::LOST        => '6',
     ];
 
     public function getStage(): string

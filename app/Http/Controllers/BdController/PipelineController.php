@@ -3152,15 +3152,21 @@ class PipelineController
                 'modalId' => "proposalModal",
             ],
             'negotiation' => [
-                'next' => "won",
+                'next' => "final_stage",
                 'button' => "Update Negotiation",
                 'class' => "btn-won",
                 'altNext' => "lost",
                 'modalId' => "negotiationModal",
             ],
+            'final_stage' => [
+                'next' => 'won',
+                'button' => "Update Status",
+                'class' => "btn-final",
+                'modalId' => "finalStageModal",
+            ],
             'won' => [
-                'next' => "final_stage",
-                'button' => "Move to Final",
+                'next' => null,
+                'button' => "Deal Complete",
                 'class' => "btn-won",
                 'modalId' => "wonModal",
             ],
@@ -3170,15 +3176,11 @@ class PipelineController
                 'class' => "btn-lost",
                 'modalId' => "lostModal",
             ],
-            'final_stage' => [
-                'next' => null,
-                'button' => "Deal Complete",
-                'class' => "btn-final",
-                'modalId' => "finalModal",
-            ],
         ];
 
         $stageInfo = $stageFlow[$currentStage] ?? null;
+
+        logger()->debug($currentStage);
 
         if (!$stageInfo) {
             return '';
@@ -5467,6 +5469,19 @@ class PipelineController
                         'updated_at'        => now(),
                         'stage'             => 3,
                         'status'            => Stage::NEGOTIATION
+                    ];
+
+                    $facultativeFiles = json_decode($request->input('facultative_files'), true);
+                    $uploadedFiles = [];
+                    $uploadResults = [];
+                    break;
+
+                case Stage::NEGOTIATION:
+                    $updateData = [
+                        'stage_updated_at'  => now(),
+                        'updated_at'        => now(),
+                        'stage'             => 4,
+                        'status'            => Stage::FINAL_STAGE
                     ];
 
                     logger()->debug($updateData);
