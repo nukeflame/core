@@ -3180,8 +3180,6 @@ class PipelineController
 
         $stageInfo = $stageFlow[$currentStage] ?? null;
 
-        logger()->debug($currentStage);
-
         if (!$stageInfo) {
             return '';
         }
@@ -3302,8 +3300,6 @@ class PipelineController
         $last_updated     = Carbon::parse($opp->updated_at)->format('Y-m-d');
         $sum_insured_type = TypeOfSumInsured::where(['sum_insured_code' => $opp->sum_insured_type, 'status' => 'A'])->first(['sum_insured_name']);
 
-        // logger()->debug(json_encode($last_updated, JSON_PRETTY_PRINT));
-
         return [
             'opportunity_id'    => $opp->opportunity_id,
             'created_at'        => $opp->created_at,
@@ -3331,32 +3327,55 @@ class PipelineController
         $id = (int) $opp->id;
         $escapedId = htmlspecialchars((string) $id, ENT_QUOTES, 'UTF-8');
         $stage = (int) $opp->stage;
-        $currentStage =  Str::title($opp->status);
+        $currentStage = Str::title($opp->status);
 
         $btnActions = '';
-        if ($stage > 1) {
-            $btnActions .= "<button class='btn btn-primary btn-sm me-1 mail-btn' data-current_stage='{$currentStage}'
-                              data-opportunity_id='{$escapedId}'
-                              title='Send Email'>
-                          <i class='bi bi-send'></i>
-                       </button>";
-            $btnActions .= "<button class='btn btn-info btn-sm me-1 edit-pipeline'
-                              data-opportunity-id='{$escapedId}'
-                              title='Edit'>
-                          <i class='bx bx-edit'></i>
-                       </button>";
+        if ($stage > 1 && $stage <= 4) {
+            $btnActions .= "
+                <button class='btn btn-primary btn-sm me-1 mail-btn'
+                        data-current_stage='{$currentStage}'
+                        data-opportunity_id='{$escapedId}'
+                        title='Send Email'>
+                    <i class='bi bi-send'></i>
+                </button>
+            ";
+
+            $btnActions .= "
+                <button class='btn btn-info btn-sm me-1 edit-pipeline'
+                        data-opportunity-id='{$escapedId}'
+                        title='Edit'>
+                    <i class='bx bx-edit'></i>
+                </button>
+            ";
+        }
+        if ($stage >= 5) {
+            $btnActions .= "
+                <button class='btn btn-success btn-sm me-1 handover-btn'
+                        data-opportunity-id='{$escapedId}'
+                        title='Handover Opportunity'>
+                    <i class='bx bx-transfer'></i>
+                </button>
+            ";
+        }
+
+
+        if ($stage === 1) {
+            $btnActions .= "
+                <button class='btn btn-sm btn-danger del_opp_sales'
+                        data-opp_id='{$escapedId}'
+                        title='Delete'>
+                    <i class='bx bx-trash'></i>
+                </button>
+            ";
         }
 
         return "
-        <div class='btn-group'>
-            {$btnActions}
-            <button class='btn btn-sm btn-danger del_opp_sales'
-                    data-opp_id='{$escapedId}'>
-                <i class='bx bx-trash'></i>
-            </button>
-        </div>
-    ";
+            <div class='btn-group'>
+                {$btnActions}
+            </div>
+        ";
     }
+
 
     public function getPipelineChartData(Request $request)
     {
@@ -5335,7 +5354,6 @@ class PipelineController
                     //     foreach ($request->file('facultative_files') as $file) {
                     //         $originalName = $file->getClientOriginalName();
                     //         // $path = $file->store('facultative-documents', 'public');
-                    //         logger()->debug($originalName);
                     //     }
                     // }
 
@@ -5368,8 +5386,6 @@ class PipelineController
                     //                 $originalExtension = $file->getClientOriginalExtension();
                     //                 $fileSize = $file->getSize();
                     //                 $originalName = $file->getClientOriginalName();
-
-                    //                 logger()->debug($originalName);
 
 
                     //                 // // Generate unique filename
@@ -5470,10 +5486,6 @@ class PipelineController
                         'stage'             => 3,
                         'status'            => Stage::NEGOTIATION
                     ];
-
-                    $facultativeFiles = json_decode($request->input('facultative_files'), true);
-                    $uploadedFiles = [];
-                    $uploadResults = [];
                     break;
 
                 case Stage::NEGOTIATION:
@@ -5484,11 +5496,15 @@ class PipelineController
                         'status'            => Stage::FINAL_STAGE
                     ];
 
-                    logger()->debug($updateData);
+                    break;
 
-                    $facultativeFiles = json_decode($request->input('facultative_files'), true);
-                    $uploadedFiles = [];
-                    $uploadResults = [];
+                case Stage::FINAL_STAGE:
+                    $updateData = [
+                        'stage_updated_at'  => now(),
+                        'updated_at'        => now(),
+                        'stage'             => 6,
+                        'status'            => Stage::LOST
+                    ];
                     break;
 
                 default:
