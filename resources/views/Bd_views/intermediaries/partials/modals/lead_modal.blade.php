@@ -6,7 +6,13 @@
             <form id="leadForm" action="{{ route('update.opp.status') }}" novalidate>
                 <input type="hidden" class="opportunity_id" id="leadOpportunityId" name="opportunity_id" />
                 <input type="hidden" id="specialConditionsContent" name="specialConditionsContent" />
-                <input type="hidden" id="currentStage" name="current_stage" />
+                <input type="hidden" id="leadCurrentStage" class="current_stage" name="current_stage" />
+                <input type="hidden" name="class_code" class="class_code" id="leadClassCode">
+                <input type="hidden" name="class_group_code" class="class_group_code" id="leadClassGroupCode">
+                <input type="hidden" name="reinsurers_data" class="reinsurers_data" id="reinsurersData">
+                <input type="hidden" name="retained_share" id="retainedShareValue">
+                <input type="hidden" name="total_placed_shares" id="totalPlacedShares">
+                <input type="hidden" name="total_unplaced_shares" class="reinsurers_data" id="totalUnplacedShares">
 
                 <div class="modal-body fac-slip-container">
                     <div class="fac-slip-header">
@@ -132,9 +138,6 @@
                                         </div>
                                     </div>
                                 </div>
-
-                                <input type="hidden" name="class_code" id="classCodeValue">
-                                <input type="hidden" name="class_group_code" id="classGroupCodeValue">
                             </div>
                         </div>
 
@@ -165,9 +168,9 @@
                                         <div class="col-md-3">
                                             <div class="form-group">
                                                 <label class="form-label">Total Written Share (%)</label>
-                                                <input type="number" class="form-inputs" id="totalReinsurerShare"
-                                                    name="total_reinsurer_share" placeholder="0.00" step="0.01"
-                                                    min="0.01" max="100">
+                                                <input type="number" class="form-inputs total_reinsurer_share"
+                                                    id="leadTotalReinsurerShare" name="total_reinsurer_share"
+                                                    placeholder="0.00" step="0.01" min="0.01" max="100">
                                             </div>
                                         </div>
                                         <div class="col-md-2">
@@ -211,11 +214,6 @@
                                     </div>
 
                                 </div>
-
-                                <input type="hidden" name="reinsurers_data" id="reinsurersData">
-                                <input type="hidden" name="retained_share" id="retainedShareValue">
-                                <input type="hidden" name="total_placed_shares" id="totalPlacedShares">
-                                <input type="hidden" name="total_unplaced_shares" id="totalUnplacedShares">
                             </div>
                         </div>
 
@@ -1657,7 +1655,7 @@
                 updateSharesDisplay();
             });
 
-            $("#totalReinsurerShare").on("input", function() {
+            $("#leadTotalReinsurerShare").on("input", function() {
                 const value = parseFloat($(this).val());
 
                 if (value > 100) {
@@ -1715,7 +1713,7 @@
 
             function updateSharesDisplay() {
                 let totalPlacedShares = 0;
-                let totalReinsurerShare = parseFloat($("#totalReinsurerShare").val()) || 0;
+                let leadTotalReinsurerShare = parseFloat($("#leadTotalReinsurerShare").val()) || 0;
 
                 table.rows().every(function() {
                     const row = $(this.node());
@@ -1723,7 +1721,7 @@
                     totalPlacedShares += writtenShare;
                 });
 
-                const totalUnplacedShares = totalReinsurerShare - totalPlacedShares;
+                const totalUnplacedShares = leadTotalReinsurerShare - totalPlacedShares;
 
                 let sharesDisplay = $(".total-shares-display");
                 if (sharesDisplay.length === 0) {
@@ -1767,9 +1765,9 @@
                 }
 
                 const placedValueClass =
-                    totalPlacedShares === totalReinsurerShare ?
+                    totalPlacedShares === leadTotalReinsurerShare ?
                     "text-success" :
-                    totalPlacedShares > totalReinsurerShare ?
+                    totalPlacedShares > leadTotalReinsurerShare ?
                     "text-danger" :
                     "text-primary";
                 sharesDisplay
@@ -1791,15 +1789,15 @@
                     .text(`${totalUnplacedShares.toFixed(2)}%`);
 
                 let progressWidth = 0;
-                if (totalReinsurerShare > 0) {
-                    progressWidth = (totalPlacedShares / totalReinsurerShare) * 100;
+                if (leadTotalReinsurerShare > 0) {
+                    progressWidth = (totalPlacedShares / leadTotalReinsurerShare) * 100;
                     progressWidth = Math.min(progressWidth, 100);
                 }
 
                 const progressClass =
-                    totalPlacedShares === totalReinsurerShare ?
+                    totalPlacedShares === leadTotalReinsurerShare ?
                     "bg-success" :
-                    totalPlacedShares > totalReinsurerShare ?
+                    totalPlacedShares > leadTotalReinsurerShare ?
                     "bg-danger" :
                     "bg-primary";
                 sharesDisplay
@@ -2270,7 +2268,7 @@
             }
 
             function validateSharesMatch() {
-                const totalWrittenShare = parseFloat($("#totalReinsurerShare").val()) || 0;
+                const totalWrittenShare = parseFloat($("#leadTotalReinsurerShare").val()) || 0;
 
                 let totalPlacedShares = 0;
                 table.rows().every(function() {
@@ -3088,7 +3086,7 @@
             }
 
             function toggleTotalWrittenShareField() {
-                const $totalWrittenShareInput = $("#totalReinsurerShare");
+                const $totalWrittenShareInput = $("#leadTotalReinsurerShare");
                 const reinsurerCount = selectedReinsurers.size;
 
                 if (reinsurerCount > 0) {
@@ -3122,14 +3120,14 @@
 
                 $("#availableReinsurers").val(null).trigger("change");
 
-                $("#totalReinsurerShare").val("");
+                $("#leadTotalReinsurerShare").val("");
                 $("#reinsurerShare").val("");
                 $("#retainedShareValue").val("");
                 $("#totalPlacedShares").val("");
                 $("#totalUnplacedShares").val("");
 
-                $("#totalReinsurerShare").prop("disabled", false);
-                $("#totalReinsurerShare").css({
+                $("#leadTotalReinsurerShare").prop("disabled", false);
+                $("#leadTotalReinsurerShare").css({
                     "background-color": "",
                     "cursor": "",
                     "opacity": ""
@@ -3140,8 +3138,8 @@
                 $("#leadOpportunityId").val("");
                 $("#reinsurersData").val("");
                 $("#specialConditionsContent").val("");
-                $("#classCodeValue").val("");
-                $("#classGroupCodeValue").val("");
+                $("#leadClassCode").val("");
+                $("#leadClassGroupCode").val("");
 
                 $(".slip-display").text("");
                 $(".created_at-display").text("");

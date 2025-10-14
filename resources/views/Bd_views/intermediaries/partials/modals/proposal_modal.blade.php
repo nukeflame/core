@@ -4,8 +4,12 @@
     <div class="modal-dialog modal-dialog-centered modal-xl" role="document">
         <div class="modal-content">
             <form id="proposalForm" action="{{ route('update.opp.status') }}" novalidate>
-                <input type="hidden" id="opportunityNegId" name="opportunityNegId" />
-                <input type="hidden" id="currentNegStage" name="current_stage" />
+                <input type="hidden" class="opportunity_id" id="propOpportunityId" name="opportunity_id" />
+                <input type="hidden" class="current_stage" id="propCurrentStage" name="current_stage" />
+                <input type="hidden" name="class_code" class="class_code" id="propClassCode">
+                <input type="hidden" name="class_group_code" class="class_group_code" id="propClassGroupCode">
+                <input type="hidden" name="total_placed_shares" id="propTotalPlacedShares">
+                <input type="hidden" name="total_unplaced_shares" class="reinsurers_data" id="propTotalUnplacedShares">
 
                 <div class="modal-body fac-slip-container">
                     <div class="fac-slip-header">
@@ -95,8 +99,8 @@
                                     <div class="col-md-6">
                                         <div class="form-group">
                                             <label class="form-label">Risk Type</label>
-                                            <input type="text" class="form-inputs" name="risk_type" id="riskType"
-                                                readonly />
+                                            <input type="text" class="form-inputs" name="risk_type"
+                                                id="riskType" readonly />
                                         </div>
                                     </div>
                                     <div class="col-md-6">
@@ -282,13 +286,90 @@
                 },
             };
 
-            let proposal = [];
-            let reinsurers = [];
-            let cedantShare = 20;
-            let totalPlaced = 80;
+            let proposalState = {
+                reinsurers: [],
+                totalShare: 0,
+                isInitialized: false
+            };
 
             const $modal = $("#proposalModal");
-            const $table = $modal.find('#propReinsurersTable');
+            const $form = $("#proposalForm");
+            const $table = $("#propReinsurersTable");
+            let reinsurerDataTable = null;
+
+            function initializeReinsurerTable() {
+                if (reinsurerDataTable) {
+                    try {
+                        reinsurerDataTable.destroy();
+                    } catch (e) {
+                        console.warn('Failed to destroy existing table:', e);
+                    }
+                }
+
+                reinsurerDataTable = $table.DataTable({
+                    data: proposalState.reinsurers,
+                    columns: [{
+                            data: 'name',
+                            title: 'Reinsurer',
+                            render: function(data, type, row) {
+                                return `
+                            <div class="d-flex align-items-center">
+                                <div>
+                                    <div class="fw-medium">${data}</div>
+                                    <small class="text-muted">${row.email || row.contact || ''}</small>
+                                </div>
+                            </div>
+                        `;
+                            }
+                        },
+                        {
+                            data: 'written_share',
+                            title: 'Written Share (%)',
+                            className: 'text-center',
+                            render: function(data, type, row) {
+                                const percentage = parseFloat(data || 0);
+                                const badgeClass = percentage >= 50 ? 'bg-success' :
+                                    percentage >= 25 ? 'bg-primary' : 'bg-info';
+                                return `<span class="badge ${badgeClass}">${percentage.toFixed(2)}%</span>`;
+                            }
+                        },
+                        {
+                            data: null,
+                            title: 'Action',
+                            orderable: false,
+                            className: 'text-center',
+                            render: function(data, type, row, meta) {
+                                return `
+                            <button type="button"
+                                    class="btn btn-sm btn-primary edit-reinsurer-btn"
+                                    data-index="${meta.row}"
+                                    title="Edit Share">
+                                <i class="bx bx-edit"></i>
+                            </button>
+                            <button type="button"
+                                    class="btn btn-sm btn-danger remove-reinsurer-btn"
+                                    data-index="${meta.row}"
+                                    title="Remove">
+                                <i class="bx bx-trash"></i>
+                            </button>
+                        `;
+                            }
+                        }
+                    ],
+                    paging: false,
+                    searching: false,
+                    info: false,
+                    ordering: false,
+                    language: {
+                        emptyTable: "No reinsurers selected. Click '+' to add reinsurers."
+                    },
+                    drawCallback: function() {
+                        attachReinsurerActionHandlers();
+                    }
+                });
+
+                updateTotalShare();
+            }
 
             $table.DataTable({
                 data: [],
@@ -325,95 +406,23 @@
                 validateField($(this));
             });
 
-            function validateField($field) {
-                const fieldName = $field.attr("name") || $field.attr("id");
-                const fieldValue = $field.val().trim();
-                const isRequired =
-                    $field.prop("required") ||
-                    VALIDATION_CONFIG.REQUIRED_FIELDS.includes(fieldName);
-
-                $field.removeClass("is-invalid");
-                $field.siblings(".invalid-feedback").remove();
-                let isValid = true;
-                let errorMessage = "";
-
-                if (isRequired && !fieldValue) {
-                    isValid = false;
-                    errorMessage = "This field is required";
-                } else if (fieldValue) {
-                    const validation = getFieldValidation($field);
-                    if (validation && !validation.isValid) {
-                        isValid = false;
-                        errorMessage = validation.message;
-                    }
+            function validateReinsurerSelection() {
+                if (proposalState.reinsurers.length < VALIDATION_CONFIG.MIN_REINSURERS) {
+                    return {
+                        isValid: false,
+                        message: 'Please add at least one reinsurer'
+                    };
                 }
 
-                if (isValid && fieldValue) {
-                    $field.addClass("is-v");
-                } else if (!isValid) {
-                    $field.addClass("is-invalid");
-                    $field.after(`<div class="invalid-feedback">${errorMessage}</div>`);
+                if (Math.abs(proposalState.totalShare - 100) > 0.01) {
+                    return {
+                        isValid: false,
+                        message: `Total reinsurer share must equal 100% (current: ${proposalState.totalShare.toFixed(2)}%)`
+                    };
                 }
-
-                return isValid;
-            }
-
-
-            function getFieldValidation($field) {
-                const fieldName = $field.attr("name") || $field.attr("id");
-                const fieldValue = $field.val();
-                const numericValue = parseFloat(fieldValue.replace(/,/g, ""));
-
-                // if (
-                //     $field.closest(".currency-input").length ||
-                //     fieldName.includes("premium") ||
-                //     fieldName.includes("sum_insured")
-                // ) {
-                //     if (
-                //         !FIELD_VALIDATORS.currency.pattern.test(fieldValue.replace(/,/g, ""))
-                //     ) {
-                //         return {
-                //             isValid: false,
-                //             message: FIELD_VALIDATORS.currency.message,
-                //         };
-                //     }
-                //     if (numericValue <= 0) {
-                //         return {
-                //             isValid: false,
-                //             message: "Amount must be greater than 0",
-                //         };
-                //     }
-                // }
-
-                // if (fieldName.includes("rate") || fieldName.includes("Share")) {
-                //     if (!FIELD_VALIDATORS.percentage.pattern.test(fieldValue)) {
-                //         return {
-                //             isValid: false,
-                //             message: FIELD_VALIDATORS.percentage.message,
-                //         };
-                //     }
-                //     if (
-                //         numericValue < FIELD_VALIDATORS.percentage.min ||
-                //         numericValue > FIELD_VALIDATORS.percentage.max
-                //     ) {
-                //         return {
-                //             isValid: false,
-                //             message: `Percentage must be between ${FIELD_VALIDATORS.percentage.min} and ${FIELD_VALIDATORS.percentage.max}`,
-                //         };
-                //     }
-                // }
-
-                // if ($field.attr("type") === "email" || fieldName.includes("email")) {
-                //     if (!FIELD_VALIDATORS.email.pattern.test(fieldValue)) {
-                //         return {
-                //             isValid: false,
-                //             message: FIELD_VALIDATORS.email.message,
-                //         };
-                //     }
-                // }
 
                 return {
-                    isValid: true,
+                    isValid: true
                 };
             }
 
@@ -421,7 +430,7 @@
                 let isFormValid = true;
                 const errors = [];
 
-                $("#proposalForm .form-inputs").each(function() {
+                $form.find(".form-inputs[required], .form-inputs").each(function() {
                     if (!validateField($(this))) {
                         isFormValid = false;
                         const fieldLabel = $(this)
@@ -434,37 +443,40 @@
                     }
                 });
 
-                // if (!validateReinsurerSelection()) {
-                //     isFormValid = false;
-                //     errors.push("<b>Reinsurer Selection:</b> Please add at least one reinsurer");
-                // }
-
-                const allUploadedFiles = pipelineManager.getAllUploadedFiles();
-                let fileNames = Object.values(allUploadedFiles).flatMap(innerArray =>
-                    Object.values(innerArray).map(fileObj => fileObj.fileName)
-                );
-
-                const requiredFiles = $('#proposalForm input[type="file"][required]');
-                const missingFiles = [];
-
-                requiredFiles.each(function() {
-                    const fileName = $(this).attr('name');
-                    const isFileUploaded = fileNames.includes(fileName);
-
-                    if (!isFileUploaded) {
-                        const fieldLabel = $(this)
-                            .closest(".form-group")
-                            .find("label")
-                            .text()
-                            .replace("*", "")
-                            .trim();
-                        missingFiles.push(fieldLabel || fileName);
-                    }
-                });
-
-                if (missingFiles.length > 0) {
+                const reinsurerValidation = validateReinsurerSelection();
+                if (!reinsurerValidation.isValid) {
                     isFormValid = false;
-                    errors.push(`<b>Required Files:</b> Please upload: ${missingFiles.join(', ')}`);
+                    errors.push(`<b>Reinsurer Selection:</b> ${reinsurerValidation.message}`);
+                }
+
+                if (typeof pipelineManager !== 'undefined' &&
+                    typeof pipelineManager.getAllUploadedFiles === 'function') {
+
+                    const allUploadedFiles = pipelineManager.getAllUploadedFiles();
+                    const fileNames = Object.values(allUploadedFiles || {}).flatMap(innerArray =>
+                        Object.values(innerArray || {}).map(fileObj => fileObj?.fileName)
+                    ).filter(Boolean);
+
+                    const requiredFiles = $form.find('input[type="file"][required]');
+                    const missingFiles = [];
+
+                    requiredFiles.each(function() {
+                        const fileName = $(this).attr('name');
+                        if (!fileNames.includes(fileName)) {
+                            const fieldLabel = $(this)
+                                .closest(".form-group")
+                                .find("label")
+                                .text()
+                                .replace("*", "")
+                                .trim();
+                            missingFiles.push(fieldLabel || fileName);
+                        }
+                    });
+
+                    if (missingFiles.length > 0) {
+                        isFormValid = false;
+                        errors.push(`<b>Required Files:</b> Please upload: ${missingFiles.join(', ')}`);
+                    }
                 }
 
                 return {
@@ -475,7 +487,7 @@
 
             function prepareFormData() {
                 const formData = new FormData();
-                const $form = $("#proposalForm");
+                // formData.append('_update', true);
 
                 $form.find("input:not([type='file']), select, textarea").each(function() {
                     const $element = $(this);
@@ -491,53 +503,49 @@
                     } else {
                         const value = $element.val();
                         if (value !== null && value !== "") {
-                            formData.append(name, value);
+                            const cleanValue = (name?.includes('sum_insured') || name?.includes(
+                                    'premium')) ?
+                                value.replace(/,/g, '') :
+                                value;
+                            formData.append(name, cleanValue);
                         }
                     }
                 });
 
-                // const allUploadedFiles = pipelineManager.getAllUploadedFiles()
+                if (typeof pipelineManager !== 'undefined' &&
+                    typeof pipelineManager.getAllUploadedFiles === 'function') {
 
-                // Object.entries(allUploadedFiles).forEach(([fieldId, files]) => {
-                //     files.forEach((file) => {
-                //         formData.append('facultative_files[]', file);
-                //     });
-                // });
+                    const allUploadedFiles = pipelineManager.getAllUploadedFiles();
+                    Object.entries(allUploadedFiles || {}).forEach(([fieldId, files]) => {
+                        if (Array.isArray(files)) {
+                            files.forEach((file) => {
+                                if (file instanceof File) {
+                                    formData.append('facultative_files[]', file);
+                                }
+                            });
+                        }
+                    });
+                }
 
-                // const reinsurersData = [];
-                // let totalPlacedShares = 0;
-
-                // $("#reinsurersTable tbody tr").each(function() {
-                //     const $row = $(this);
-                //     const writtenShare = parseFloat($row.attr("data-written-share")) || 0;
-                //     totalPlacedShares += writtenShare;
-
-                //     reinsurersData.push({
-                //         id: $row.data("reinsurer-id"),
-                //         written_share: writtenShare,
-                //     });
-                // });
-
-                // formData.append("reinsurers_data", JSON.stringify(reinsurersData));
-                // formData.append("total_placed_shares", totalPlacedShares.toFixed(2));
-                // formData.append("total_unplaced_shares", (100 - totalPlacedShares).toFixed(2));
+                // Add reinsurer data
+                formData.append("reinsurers_data", JSON.stringify(proposalState.reinsurers));
+                formData.append("total_placed_shares", proposalState.totalShare.toFixed(2));
+                formData.append("total_unplaced_shares", (100 - proposalState.totalShare).toFixed(2));
 
                 return formData;
             }
 
-            $('#proposalForm').on('submit', function(e) {
+            $form.on('submit', function(e) {
                 e.preventDefault();
 
-                const $proposalForm = $("#proposalForm");
-                const $submitBtn = $proposalForm.find("button[type='submit']");
-
+                const $submitBtn = $form.find("button[type='submit']");
                 const originalBtnContent = $submitBtn.html();
-                // const validation = validateProposalForm();
 
+                // const validation = validateProposalForm();
                 // if (!validation.isValid) {
-                //     let errorHtml = '<ul class="m-0 p-0">';
+                //     let errorHtml = '<ul class="text-start mb-0">';
                 //     validation.errors.forEach((error) => {
-                //         errorHtml += `<li class="m-0 p-0" style="text-align: start;">${error}</li>`;
+                //         errorHtml += `<li class="mb-1">${error}</li>`;
                 //     });
                 //     errorHtml += "</ul>";
 
@@ -548,7 +556,8 @@
                 //         confirmButtonColor: "#dc3545",
                 //     });
 
-                //     const $firstError = $proposalForm.find(".is-invalid").first();
+                //     // Scroll to first error
+                //     const $firstError = $form.find(".is-invalid").first();
                 //     if ($firstError.length) {
                 //         $firstError[0].scrollIntoView({
                 //             behavior: "smooth",
@@ -561,13 +570,13 @@
                 // }
 
                 $submitBtn
-                    .html('<i class="bx bx-loader-alt bx-spin me-1"></i> Sending...')
+                    .html('<i class="bx bx-loader-alt bx-spin me-1"></i> Sending Proposal...')
                     .prop("disabled", true);
 
                 const formData = prepareFormData();
 
                 $.ajax({
-                    url: $proposalForm.attr("action"),
+                    url: $form.attr("action"),
                     method: "POST",
                     data: formData,
                     processData: false,
@@ -576,22 +585,31 @@
                         "X-Requested-With": "XMLHttpRequest",
                         "X-CSRF-TOKEN": $('meta[name="csrf-token"]').attr("content"),
                     },
-                    timeout: 30000,
+                    timeout: 60000,
                     success: function(response) {
                         console.log(response)
                         // if (response.success) {
-                        //     // resetLeadModal();
+                        //     resetProposalModal();
+
                         //     Swal.fire({
                         //         icon: "success",
-                        //         title: "Lead Saved Successfully!",
-                        //         text: response.message ||
-                        //             "Your lead has been submitted",
+                        //         title: "Proposal Sent Successfully!",
+                        //         text: "Your proposal has been submitted",
                         //         showConfirmButton: true,
-                        //     }).then((result) => {
-                        //         if (result.isConfirmed) {
-                        //             handleSendBDNotification(response);
-                        //         } else {
-                        //             $("#leadModal").modal("hide");
+                        //     }).then(() => {
+                        //         $modal.modal("hide");
+
+                        //         if (typeof pipelineManager !== 'undefined' &&
+                        //             typeof pipelineManager.reloadAllTables ===
+                        //             'function') {
+                        //             pipelineManager.reloadAllTables();
+                        //         }
+
+                        //         // Reload chart if needed
+                        //         if (typeof pipelineManager !== 'undefined' &&
+                        //             typeof pipelineManager.loadChartData === 'function'
+                        //         ) {
+                        //             pipelineManager.loadChartData();
                         //         }
                         //     });
                         // } else {
@@ -600,11 +618,15 @@
                     },
                     error: function(xhr, status, error) {
                         let errorMessage =
-                            "An unexpected error occurred while sending the lead.";
+                            "An unexpected error occurred while sending the proposal.";
 
                         if (xhr.status === 422 && xhr.responseJSON?.errors) {
                             const serverErrors = xhr.responseJSON.errors;
-                            errorMessage = Object.values(serverErrors).flat().join("<br>");
+                            errorMessage = '<ul class="text-start mb-0">';
+                            Object.values(serverErrors).flat().forEach(err => {
+                                errorMessage += `<li>${err}</li>`;
+                            });
+                            errorMessage += '</ul>';
                         } else if (xhr.responseJSON?.message) {
                             errorMessage = xhr.responseJSON.message;
                         } else if (status === "timeout") {
@@ -633,6 +655,447 @@
                     },
                 });
             });
+
+            function addReinsurer() {
+                const $select = $('#propAvailableReinsurers');
+                const $shareInput = $('#reinsurerNegShare');
+
+                const selectedReinsurerId = $select.val();
+                const selectedShare = parseFloat($shareInput.val());
+
+                // Validation
+                if (!selectedReinsurerId) {
+                    showValidationError('Please select a reinsurer');
+                    $select.focus();
+                    return;
+                }
+
+                if (!selectedShare || selectedShare <= 0 || selectedShare > 100) {
+                    showValidationError('Please enter a valid share between 0.01 and 100');
+                    $shareInput.focus();
+                    return;
+                }
+
+                // Check if already added
+                const existingIndex = proposalState.reinsurers.findIndex(
+                    r => r.id == selectedReinsurerId
+                );
+
+                if (existingIndex !== -1) {
+                    showValidationError('This reinsurer has already been added');
+                    return;
+                }
+
+                // Check total share
+                const newTotal = proposalState.totalShare + selectedShare;
+                if (newTotal > 100) {
+                    showValidationError(
+                        `Cannot add ${selectedShare}%. Total would exceed 100% (current: ${proposalState.totalShare.toFixed(2)}%)`
+                    );
+                    return;
+                }
+
+                // Get reinsurer details from select2
+                const selectedOption = $select.find('option:selected');
+                const reinsurerData = selectedOption.data('reinsurer') || {};
+
+                // Add to state
+                const newReinsurer = {
+                    id: selectedReinsurerId,
+                    name: selectedOption.text() || reinsurerData.name || 'Unknown',
+                    email: reinsurerData.email || '',
+                    contact: reinsurerData.contact || '',
+                    written_share: selectedShare.toFixed(2),
+                    country: reinsurerData.country || ''
+                };
+
+                proposalState.reinsurers.push(newReinsurer);
+
+                // Update table
+                reinsurerDataTable.clear();
+                reinsurerDataTable.rows.add(proposalState.reinsurers);
+                reinsurerDataTable.draw();
+
+                // Update counter and total
+                updateReinsurerCount();
+                updateTotalShare();
+
+                // Reset inputs
+                $select.val(null).trigger('change');
+                $shareInput.val('');
+
+                showSuccessToast('Reinsurer added successfully');
+            }
+
+            function editReinsurer(index) {
+                const reinsurer = proposalState.reinsurers[index];
+                if (!reinsurer) return;
+
+                Swal.fire({
+                    title: 'Edit Written Share',
+                    html: `
+                <div class="form-group text-start">
+                    <label class="form-label fw-semibold mb-2">${reinsurer.name}</label>
+                    <div class="input-group">
+                        <input type="number"
+                               id="editShareInput"
+                               class="form-control"
+                               value="${reinsurer.written_share}"
+                               min="0.01"
+                               max="100"
+                               step="0.01"
+                               placeholder="Enter share percentage">
+                        <span class="input-group-text">%</span>
+                    </div>
+                    <small class="text-muted mt-1 d-block">
+                        Current total: ${proposalState.totalShare.toFixed(2)}%
+                    </small>
+                </div>
+            `,
+                    showCancelButton: true,
+                    confirmButtonText: 'Update',
+                    cancelButtonText: 'Cancel',
+                    preConfirm: () => {
+                        const newShare = parseFloat(document.getElementById('editShareInput').value);
+
+                        if (!newShare || newShare <= 0 || newShare > 100) {
+                            Swal.showValidationMessage(
+                                'Please enter a valid percentage between 0.01 and 100');
+                            return false;
+                        }
+
+                        // Calculate new total (excluding current reinsurer's share)
+                        const otherSharesTotal = proposalState.totalShare - parseFloat(reinsurer
+                            .written_share);
+                        const newTotal = otherSharesTotal + newShare;
+
+                        if (newTotal > 100) {
+                            Swal.showValidationMessage(
+                                `Total would exceed 100%. Maximum allowed: ${(100 - otherSharesTotal).toFixed(2)}%`
+                            );
+                            return false;
+                        }
+
+                        return newShare;
+                    }
+                }).then((result) => {
+                    if (result.isConfirmed && result.value) {
+                        proposalState.reinsurers[index].written_share = result.value.toFixed(2);
+
+                        reinsurerDataTable.clear();
+                        reinsurerDataTable.rows.add(proposalState.reinsurers);
+                        reinsurerDataTable.draw();
+
+                        updateTotalShare();
+                        showSuccessToast('Share updated successfully');
+                    }
+                });
+
+                // Focus on input when modal opens
+                setTimeout(() => {
+                    const input = document.getElementById('editShareInput');
+                    if (input) {
+                        input.focus();
+                        input.select();
+                    }
+                }, 100);
+            }
+
+            function removeReinsurer(index) {
+                const reinsurer = proposalState.reinsurers[index];
+                if (!reinsurer) return;
+
+                Swal.fire({
+                    title: 'Remove Reinsurer?',
+                    html: `Are you sure you want to remove <strong>${reinsurer.name}</strong>?`,
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#d33',
+                    cancelButtonColor: '#3085d6',
+                    confirmButtonText: 'Yes, remove',
+                    cancelButtonText: 'Cancel'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        proposalState.reinsurers.splice(index, 1);
+
+                        reinsurerDataTable.clear();
+                        reinsurerDataTable.rows.add(proposalState.reinsurers);
+                        reinsurerDataTable.draw();
+
+                        updateReinsurerCount();
+                        updateTotalShare();
+
+                        showSuccessToast('Reinsurer removed successfully');
+                    }
+                });
+            }
+
+            function attachReinsurerActionHandlers() {
+                $table.off('click', '.edit-reinsurer-btn');
+                $table.off('click', '.remove-reinsurer-btn');
+
+                $table.on('click', '.edit-reinsurer-btn', function(e) {
+                    e.preventDefault();
+                    const index = $(this).data('index');
+                    editReinsurer(index);
+                });
+
+                $table.on('click', '.remove-reinsurer-btn', function(e) {
+                    e.preventDefault();
+                    const index = $(this).data('index');
+                    removeReinsurer(index);
+                });
+            }
+
+            function updateReinsurerCount() {
+                $('#reinsurerCount').text(proposalState.reinsurers.length);
+            }
+
+            function updateTotalShare() {
+                proposalState.totalShare = proposalState.reinsurers.reduce(
+                    (sum, r) => sum + parseFloat(r.written_share || 0),
+                    0
+                );
+
+                $('#totalNegReinsurerShare').val(proposalState.totalShare.toFixed(2));
+
+                // Show warning if not 100%
+                const $warning = $('.share-warning');
+                $warning.remove();
+
+                if (Math.abs(proposalState.totalShare - 100) > 0.01 && proposalState.reinsurers.length > 0) {
+                    const remaining = (100 - proposalState.totalShare).toFixed(2);
+                    const warningHtml = `
+                <div class="alert alert-warning share-warning mt-2" role="alert">
+                    <i class="bx bx-error me-2"></i>
+                    <strong>Warning:</strong> Total share is ${proposalState.totalShare.toFixed(2)}%.
+                    Remaining: <strong>${remaining}%</strong>
+                </div>
+            `;
+                    $table.closest('.table-responsive').after(warningHtml);
+                }
+            }
+
+            function populateReinsurersDropdown(reinsurers) {
+                const $select = $('#propAvailableReinsurers');
+
+                $select.empty().append('<option value="">Search and select reinsurer...</option>');
+
+                if (Array.isArray(reinsurers) && reinsurers.length > 0) {
+                    reinsurers.forEach(reinsurer => {
+                        const optionText = reinsurer.name +
+                            (reinsurer.country ? ` (${reinsurer.country})` : '');
+
+                        const $option = $('<option></option>')
+                            .val(reinsurer.id)
+                            .text(optionText)
+                            .data('reinsurer', reinsurer);
+
+                        $select.append($option);
+                    });
+                }
+            }
+
+            $('#propAvailableReinsurers').select2({
+                placeholder: 'Search and select reinsurer...',
+                allowClear: true,
+                width: '100%',
+                dropdownParent: $('#proposalModal'),
+                matcher: function(params, data) {
+                    if ($.trim(params.term) === '') {
+                        return data;
+                    }
+
+                    const searchTerm = params.term.toLowerCase();
+                    const text = data.text.toLowerCase();
+
+                    if (text.indexOf(searchTerm) > -1) {
+                        return data;
+                    }
+
+                    return null;
+                }
+            });
+
+            $('#addNegReinsurer').on('click', function(e) {
+                e.preventDefault();
+                addReinsurer();
+            });
+
+            $('#reinsurerNegShare').on('keypress', function(e) {
+                if (e.which === 13) {
+                    e.preventDefault();
+                    addReinsurer();
+                }
+            });
+
+            function resetProposalModal() {
+                // Reset form
+                $form[0].reset();
+                $form.find('.is-invalid').removeClass('is-invalid');
+                $form.find('.invalid-feedback').remove();
+
+                // Reset reinsurers
+                proposalState.reinsurers = [];
+                proposalState.totalShare = 0;
+
+                if (reinsurerDataTable) {
+                    reinsurerDataTable.clear().draw();
+                }
+
+                updateReinsurerCount();
+                updateTotalShare();
+
+                // Reset select2
+                $('#propAvailableReinsurers').val(null).trigger('change');
+                $('#reinsurerNegShare').val('');
+
+                // Remove warnings
+                $('.share-warning').remove();
+            }
+
+            function validateField($field) {
+                const fieldName = $field.attr("name") || $field.attr("id");
+                const fieldValue = $field.val()?.trim() || '';
+                const isRequired = $field.prop("required") ||
+                    VALIDATION_CONFIG.REQUIRED_FIELDS.includes(fieldName);
+
+                $field.removeClass("is-invalid is-valid");
+                $field.siblings(".invalid-feedback").remove();
+
+                let isValid = true;
+                let errorMessage = "";
+
+                if (isRequired && !fieldValue) {
+                    isValid = false;
+                    errorMessage = "This field is required";
+                } else if (fieldValue) {
+                    const validation = getFieldValidation($field);
+                    if (validation && !validation.isValid) {
+                        isValid = false;
+                        errorMessage = validation.message;
+                    }
+                }
+
+                if (isValid && fieldValue) {
+                    $field.addClass("is-valid");
+                } else if (!isValid) {
+                    $field.addClass("is-invalid");
+                    $field.after(`<div class="invalid-feedback d-block">${errorMessage}</div>`);
+                }
+
+                return isValid;
+            }
+
+            function getFieldValidation($field) {
+                const fieldName = $field.attr("name") || $field.attr("id");
+                const fieldValue = $field.val();
+                const numericValue = parseFloat(fieldValue?.replace(/,/g, "") || 0);
+
+                // Currency validation
+                if ($field.closest(".currency-input").length ||
+                    fieldName?.includes("premium") ||
+                    fieldName?.includes("sum_insured")) {
+
+                    const cleanValue = fieldValue?.replace(/,/g, "") || "";
+
+                    if (!FIELD_VALIDATORS.currency.pattern.test(cleanValue)) {
+                        return {
+                            isValid: false,
+                            message: FIELD_VALIDATORS.currency.message,
+                        };
+                    }
+                    if (numericValue <= 0) {
+                        return {
+                            isValid: false,
+                            message: "Amount must be greater than 0",
+                        };
+                    }
+                }
+
+                // Percentage validation
+                if (fieldName?.includes("rate") || fieldName?.includes("Share")) {
+                    if (!FIELD_VALIDATORS.percentage.pattern.test(fieldValue)) {
+                        return {
+                            isValid: false,
+                            message: FIELD_VALIDATORS.percentage.message,
+                        };
+                    }
+                    if (numericValue < FIELD_VALIDATORS.percentage.min ||
+                        numericValue > FIELD_VALIDATORS.percentage.max) {
+                        return {
+                            isValid: false,
+                            message: `Percentage must be between ${FIELD_VALIDATORS.percentage.min} and ${FIELD_VALIDATORS.percentage.max}`,
+                        };
+                    }
+                }
+
+                // Email validation
+                if ($field.attr("type") === "email" || fieldName?.includes("email")) {
+                    if (!FIELD_VALIDATORS.email.pattern.test(fieldValue)) {
+                        return {
+                            isValid: false,
+                            message: FIELD_VALIDATORS.email.message,
+                        };
+                    }
+                }
+
+                return {
+                    isValid: true
+                };
+            }
+
+            $form.on("input blur", ".form-inputs", function() {
+                validateField($(this));
+            });
+
+            $modal.on('shown.bs.modal', function() {
+                if (!proposalState.isInitialized) {
+                    // initializeReinsurerTable();
+                    proposalState.isInitialized = true;
+                }
+
+                // Load available reinsurers
+                loadAvailableReinsurers();
+            });
+
+            $modal.on('hidden.bs.modal', function() {
+                resetProposalModal();
+            });
+
+            function loadAvailableReinsurers() {
+                // Check if we need to load reinsurers from server
+                if ($('#propAvailableReinsurers option').length <= 1) {
+                    //{{-- $.ajax({
+                    //     url: '/api/reinsurers', // Update with your actual endpoint
+                    //     method: 'GET',
+                    //     success: function(response) {
+                    //         if (response.success && Array.isArray(response.data)) {
+                    //             populateReinsurersDropdown(response.data);
+                    //         }
+                    //     },
+                    //     error: function(xhr, status, error) {
+                    //         console.error('Failed to load reinsurers:', error);
+                    //     }
+                    // }); --}}
+                }
+            }
+
+            function showValidationError(message) {
+                if (typeof toastr !== 'undefined') {
+                    toastr.error(message);
+                } else {
+                    alert(message);
+                }
+            }
+
+            function showSuccessToast(message) {
+                if (typeof toastr !== 'undefined') {
+                    toastr.success(message);
+                }
+            }
+
+            // initializeReinsurerTable();
         });
     </script>
 @endpush

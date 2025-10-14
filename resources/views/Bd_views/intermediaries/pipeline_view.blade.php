@@ -198,7 +198,7 @@
         }
 
         .status-negotiation {
-            background-color: #f05b4f;
+            background-color: #ff9800;
             color: white;
         }
 
@@ -208,7 +208,7 @@
         }
 
         .status-won {
-            background-color: #d17905;
+            background-color: #59922b;
             color: #fff;
         }
 
@@ -271,32 +271,33 @@
 
         .btn-lead {
             background: #2196f3;
-            color: white;
+            color: #fff;
         }
 
         .btn-proposal {
             background: #ff9800;
-            color: white;
+            color: #fff;
         }
 
         .btn-negotiation {
             background: #9c27b0;
-            color: white;
+            color: #fff;
         }
 
         .btn-won {
-            background: #4caf50;
-            color: white;
+            background: #453d3f;
+            color: #fff;
+            /* 4caf50 */
         }
 
         .btn-lost {
             background: #f44336;
-            color: white;
+            color: #fff;
         }
 
         .btn-final {
             background: #8bc34a;
-            color: white;
+            color: #fff;
         }
 
         .capitalize {
@@ -395,6 +396,35 @@
                 opacity: 1;
             }
         }
+
+        .swal-on-modal {
+            z-index: 9999 !important;
+        }
+
+        .swal2-container {
+            z-index: 9999 !important;
+        }
+
+        .swal2-container.swal2-shown {
+            z-index: 9999 !important;
+        }
+
+        .swal2-container .swal2-popup {
+            z-index: 10000 !important;
+        }
+
+        .mod-popup {
+            background: rgba(0, 0, 0, .4);
+        }
+
+        .mod-popup .modal-title {
+            font-size: 1.15rem;
+            padding: 2rem 2rem .5rem;
+        }
+
+        .flex-direction-column {
+            flex-direction: column !important;
+        }
     </style>
 @endsection
 
@@ -436,7 +466,7 @@
                         },
                         negotiation: {
                             next: "won",
-                            button: "Mark as Won",
+                            button: "Update Negotiation",
                             class: "btn-won",
                             altNext: "lost",
                             modalId: "negotiationModal",
@@ -688,25 +718,42 @@
             }
 
             updateChartData(data) {
-                // if (this.chartInstance) {
-                //     this.chartInstance.update({
-                //         labels: ['Quarter One', 'Quarter Two', 'Quarter Three', 'Quarter Four'],
-                //         series: [data]
-                //     });
-                // }
+                if (!this.chartInstance) {
+                    console.warn('Chart instance not initialized');
+                    return;
+                }
 
-                // if (this.chartInstance) {
-                //     this.chartInstance.update({
-                //         labels: ['Quarter One', 'Quarter Two', 'Quarter Three', 'Quarter Four'],
-                //         series: [data]
-                //     });
-                // }
+                try {
+                    // Validate data
+                    if (!Array.isArray(data) || data.length !== 4) {
+                        console.warn('Invalid chart data, using zeros');
+                        data = [0, 0, 0, 0];
+                    }
+
+                    this.chartInstance.update({
+                        labels: ['Quarter One', 'Quarter Two', 'Quarter Three', 'Quarter Four'],
+                        series: [data]
+                    });
+
+                    console.log('Chart updated successfully with data:', data);
+                } catch (error) {
+                    this.handleError('Failed to update chart', error);
+                    // Fallback to empty chart
+                    this.chartInstance.update({
+                        labels: ['Quarter One', 'Quarter Two', 'Quarter Three', 'Quarter Four'],
+                        series: [
+                            [0, 0, 0, 0]
+                        ]
+                    });
+                }
+
             }
 
             initializeDataTables() {
                 const tables = $('.pipeline-table');
 
                 if (tables.length === 0) {
+                    console.warn('No pipeline tables found');
                     return;
                 }
 
@@ -716,8 +763,11 @@
                     const quarter = $table.data('quarter');
 
                     try {
+                        // Safely destroy existing instance
                         if ($.fn.DataTable.isDataTable($table)) {
-                            $table.DataTable().destroy();
+                            const existingTable = $table.DataTable();
+                            existingTable.destroy();
+                            $table.empty(); // Clear table content
                         }
 
                         const dataTable = $table.DataTable({
@@ -730,11 +780,12 @@
                                     d.quarter = quarter;
                                 },
                                 error: (xhr, error, code) => {
-                                    this.handleError(`DataTable AJAX error for ${tableId}`, {
+                                    console.error(`DataTable error for ${tableId}:`, {
                                         status: xhr.status,
-                                        responseText: xhr.responseText,
-                                        error: error
+                                        error: error,
+                                        response: xhr.responseText
                                     });
+                                    this.handleAjaxError(xhr, tableId);
                                 }
                             },
                             columns: this.config.columnConfig,
@@ -746,17 +797,8 @@
                             language: {
                                 processing: this.getLoadingHTML(),
                                 emptyTable: "No pipeline records found",
-                                info: "Showing _START_ to _END_ of _TOTAL_ records",
-                                infoEmpty: "No pipeline available",
-                                infoFiltered: "(filtered from _MAX_ total records)",
-                                lengthMenu: "Show _MENU_ records per page",
-                                search: "Search pipeline:",
-                                paginate: {
-                                    first: "First",
-                                    last: "Last",
-                                    next: "Next",
-                                    previous: "Previous"
-                                }
+                                loadingRecords: "Loading...",
+                                zeroRecords: "No matching records found"
                             },
                             drawCallback: () => {
                                 this.initializeActionHandlers();
@@ -765,10 +807,77 @@
                         });
 
                         this.dataTables.set(tableId, dataTable);
+                        console.log(`DataTable ${tableId} initialized successfully`);
+
                     } catch (error) {
                         this.handleError(`Error initializing DataTable for ${tableId}`, error);
                     }
                 });
+                // const tables = $('.pipeline-table');
+
+                // if (tables.length === 0) {
+                //     return;
+                // }
+
+                // tables.each((index, table) => {
+                //     const $table = $(table);
+                //     const tableId = $table.attr('id');
+                //     const quarter = $table.data('quarter');
+
+                //     try {
+                //         if ($.fn.DataTable.isDataTable($table)) {
+                //             $table.DataTable().destroy();
+                //         }
+
+                //         const dataTable = $table.DataTable({
+                //             processing: true,
+                //             serverSide: true,
+                //             ajax: {
+                //                 url: this.config.routes.pipelineData,
+                //                 data: (d) => {
+                //                     d.pipeline_id = $('#pip_year_select').val();
+                //                     d.quarter = quarter;
+                //                 },
+                //                 error: (xhr, error, code) => {
+                //                     this.handleError(`DataTable AJAX error for ${tableId}`, {
+                //                         status: xhr.status,
+                //                         responseText: xhr.responseText,
+                //                         error: error
+                //                     });
+                //                 }
+                //             },
+                //             columns: this.config.columnConfig,
+                //             order: [
+                //                 [0, 'desc']
+                //             ],
+                //             pageLength: 25,
+                //             responsive: true,
+                //             language: {
+                //                 processing: this.getLoadingHTML(),
+                //                 emptyTable: "No pipeline records found",
+                //                 info: "Showing _START_ to _END_ of _TOTAL_ records",
+                //                 infoEmpty: "No pipeline available",
+                //                 infoFiltered: "(filtered from _MAX_ total records)",
+                //                 lengthMenu: "Show _MENU_ records per page",
+                //                 search: "Search pipeline:",
+                //                 paginate: {
+                //                     first: "First",
+                //                     last: "Last",
+                //                     next: "Next",
+                //                     previous: "Previous"
+                //                 }
+                //             },
+                //             drawCallback: () => {
+                //                 this.initializeActionHandlers();
+                //                 $table.addClass('fade-in');
+                //             }
+                //         });
+
+                //         this.dataTables.set(tableId, dataTable);
+                //     } catch (error) {
+                //         this.handleError(`Error initializing DataTable for ${tableId}`, error);
+                //     }
+                // });
             }
 
             getLoadingHTML() {
@@ -1002,7 +1111,7 @@
 
                     this.loadSlipDocuments(data);
                     this.loadScheduleHeaders(data);
-                    this.populateModalData(modalId, dealId, stage, dealInfo);
+                    this.populateModalData(modalId, dealId, this.currentStage, dealInfo);
 
                     $modal.modal('show');
                     $modal.addClass('slide-in');
@@ -1016,7 +1125,6 @@
             populateModalData(modalId, dealId, stage, dealInfo = null) {
                 try {
                     const $modal = $(`#${modalId}`);
-
                     if (!dealInfo) {
                         return;
                     }
@@ -1054,14 +1162,14 @@
                     $modal.find('.sum_insured_type').text(`(${dealInfo.sum_insured_type})` || '');
 
                     $modal.find('.opportunity_id').val(dealInfo.id);
-                    $modal.find('#currentStage').val(stage);
+                    $modal.find('.current_stage').val(stage);
 
                     $modal.find('.total_sum_insured').val(dealInfo.total_sum_insured || '0.00');
                     $modal.find('.premium').val(dealInfo.premium || '0.00');
                     $modal.find('.brokerage_rate').val(dealInfo.brokerage_rate || '0.00');
-                    $modal.find('#totalReinsurerShare').val(dealInfo.written_share || '0.00');
-                    $modal.find('#classCodeValue').val(dealInfo.class || '');
-                    $modal.find('#classGroupCodeValue').val(dealInfo.class_group || '');
+                    $modal.find('.total_reinsurer_share').val(dealInfo.written_share || '0.00');
+                    $modal.find('.class_code').val(dealInfo.class || '');
+                    $modal.find('.class_group_code').val(dealInfo.class_group || '');
 
                     const $riskType = $modal.find('#riskType');
                     if ($riskType.length > 0) {
@@ -1346,55 +1454,77 @@
                     this.handleRemoveReinsurer(reinsurerId, $table);
                 });
             }
+
             handleEditReinsurer(reinsurerData, $table) {
-                Swal.fire({
-                    title: 'Edit Written Share',
-                    input: 'number',
-                    inputLabel: 'Written Share (%)',
-                    inputValue: reinsurerData.written_share,
-                    inputAttributes: {
-                        min: '0.01',
-                        max: '100',
-                        step: '0.01',
-                        autocomplete: 'off'
-                    },
-                    showCancelButton: true,
-                    confirmButtonText: 'Update',
-                    cancelButtonText: 'Cancel',
-                    // Fix z-index to appear above Bootstrap modal
-                    customClass: {
-                        container: 'swal-on-modal'
-                    },
-                    didOpen: () => {
-                        // Ensure SweetAlert2 is above the modal backdrop
-                        const swalContainer = document.querySelector('.swal2-container');
-                        if (swalContainer) {
-                            swalContainer.style.zIndex = '9999';
-                        }
+                if ($('#editReinsurerShareModal').length === 0) {
+                    const modalHtml = `
+                        <div class="modal fade mod-popup effect-scale" id="editReinsurerShareModal" tabindex="-1" data-bs-backdrop="static">
+                            <div class="modal-dialog modal-dialog-centered">
+                                <div class="modal-content">
+                                    <div class="modal-body pt-2 pb-3">
+                                        <h5 class="modal-title w-100 text-center">Edit Written Share</h5>
+                                        <div class="form-group d-flex flex-direction-column justify-content-center align-items-center">
+                                            <label for="editShareInput" class="form-label text-muted mb-3" style="margin-left: -24px;">Written Share (%)</label>
+                                            <input
+                                                type="number"
+                                                class="form-control"
+                                                id="editShareInput"
+                                                min="0.01"
+                                                max="100"
+                                                step="0.01"
+                                                placeholder="50.00"
+                                                style="width: 150px; font-size: 15px;"
+                                            >
+                                            <div class="invalid-feedback" id="shareInputError"></div>
+                                        </div>
+                                    </div>
+                                    <div class="p-3 m-3 modal-footer border-0 justify-content-center">
+                                        <button type="button" class="btn btn-success px-4" id="confirmShareUpdate">Update</button>
+                                        <button type="button" class="btn btn-light px-4" data-bs-dismiss="modal">Cancel</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    $('body').append(modalHtml);
+                }
 
-                        const input = Swal.getInput();
-                        if (input) {
-                            input.focus();
-                            input.select();
-                        }
-                    },
-                    inputValidator: (value) => {
-                        const numValue = parseFloat(value);
+                $('#editShareInput').val(reinsurerData.written_share);
+                $('#editShareInput').removeClass('is-invalid');
+                $('#shareInputError').text('');
 
-                        if (value === '' || value === null || isNaN(numValue)) {
-                            return 'Please enter a value';
-                        }
+                const editModal = new bootstrap.Modal(document.getElementById('editReinsurerShareModal'));
+                editModal.show();
 
-                        if (numValue <= 0 || numValue > 100) {
-                            return 'Please enter a valid share between 0.01 and 100';
-                        }
+                $('#confirmShareUpdate').off('click').on('click', () => {
+                    const value = $('#editShareInput').val();
+                    const numValue = parseFloat(value);
+
+                    if (value === '' || isNaN(numValue)) {
+                        $('#editShareInput').addClass('is-invalid');
+                        $('#shareInputError').text('Please enter a value');
+                        return;
                     }
-                }).then((result) => {
-                    if (result.isConfirmed && result.value) {
-                        this.updateReinsurerShare(reinsurerData.id, result.value, $table);
+
+                    if (numValue <= 0 || numValue > 100) {
+                        $('#editShareInput').addClass('is-invalid');
+                        $('#shareInputError').text('Please enter a valid share between 0.01 and 100');
+                        return;
                     }
+
+                    editModal.hide();
+                    this.updateReinsurerShare(reinsurerData.id, value, $table);
+                });
+
+                $('#editReinsurerShareModal').on('shown.bs.modal', function() {
+                    $('#editShareInput').focus().select();
+                });
+
+                $('#editReinsurerShareModal').on('hidden.bs.modal', function() {
+                    $('#confirmShareUpdate').off('click');
                 });
             }
+
             handleRemoveReinsurer(reinsurerId, $table) {
                 Swal.fire({
                     title: 'Remove Reinsurer?',
@@ -1790,6 +1920,7 @@
             }
 
             initializeFileUploads() {
+
                 $('.file-upload-area').off('.fileUpload');
                 $('.file-input').off('.fileUpload');
 
@@ -1850,7 +1981,6 @@
                     });
                 });
             }
-
 
             handleFileSelection(files, $uploadArea, $previewContainer) {
                 if (!files || files.length === 0) {
@@ -1994,10 +2124,7 @@
 
             viewFile(fieldId, fileId) {
                 try {
-                    let fileToView = null;
-                    if (this.uploadedFiles[fieldId] && Array.isArray(this.uploadedFiles[fieldId])) {
-                        fileToView = this.uploadedFiles[fieldId].find(f => f.fileId === fileId);
-                    }
+                    const fileToView = this.uploadedFiles[fieldId]?.find(f => f.fileId === fileId);
 
                     if (!fileToView) {
                         this.showToast('error', 'File not found');
@@ -2005,25 +2132,65 @@
                     }
 
                     const fileExtension = fileToView.name.split('.').pop().toLowerCase();
+                    const fileUrl = URL.createObjectURL(fileToView);
+
+                    // Store URL for cleanup
+                    if (!this.activeFileUrls) {
+                        this.activeFileUrls = new Set();
+                    }
+                    this.activeFileUrls.add(fileUrl);
+
                     const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg'];
                     const pdfExtensions = ['pdf'];
                     const textExtensions = ['txt', 'csv', 'json', 'xml', 'log'];
-
-                    const fileUrl = URL.createObjectURL(fileToView);
 
                     if (imageExtensions.includes(fileExtension)) {
                         this.showImageModal(fileToView.name, fileUrl);
                     } else if (pdfExtensions.includes(fileExtension)) {
                         window.open(fileUrl, '_blank');
+                        // Revoke after short delay to allow window to open
+                        setTimeout(() => this.revokeFileUrl(fileUrl), 1000);
                     } else if (textExtensions.includes(fileExtension)) {
                         this.showTextFileModal(fileToView, fileUrl);
                     } else {
                         this.downloadFile(fileToView.name, fileUrl);
+                        setTimeout(() => this.revokeFileUrl(fileUrl), 1000);
                     }
 
                 } catch (error) {
                     this.handleError('Error viewing file', error);
                 }
+                // try {
+                //     let fileToView = null;
+                //     if (this.uploadedFiles[fieldId] && Array.isArray(this.uploadedFiles[fieldId])) {
+                //         fileToView = this.uploadedFiles[fieldId].find(f => f.fileId === fileId);
+                //     }
+
+                //     if (!fileToView) {
+                //         this.showToast('error', 'File not found');
+                //         return;
+                //     }
+
+                //     const fileExtension = fileToView.name.split('.').pop().toLowerCase();
+                //     const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg'];
+                //     const pdfExtensions = ['pdf'];
+                //     const textExtensions = ['txt', 'csv', 'json', 'xml', 'log'];
+
+                //     const fileUrl = URL.createObjectURL(fileToView);
+
+                //     if (imageExtensions.includes(fileExtension)) {
+                //         this.showImageModal(fileToView.name, fileUrl);
+                //     } else if (pdfExtensions.includes(fileExtension)) {
+                //         window.open(fileUrl, '_blank');
+                //     } else if (textExtensions.includes(fileExtension)) {
+                //         this.showTextFileModal(fileToView, fileUrl);
+                //     } else {
+                //         this.downloadFile(fileToView.name, fileUrl);
+                //     }
+
+                // } catch (error) {
+                //     this.handleError('Error viewing file', error);
+                // }
             }
 
             showToast(type, message) {
@@ -2032,12 +2199,23 @@
                 }
             }
 
+            revokeFileUrl(url) {
+                try {
+                    URL.revokeObjectURL(url);
+                    if (this.activeFileUrls) {
+                        this.activeFileUrls.delete(url);
+                    }
+                } catch (error) {
+                    console.warn('Failed to revoke URL:', error);
+                }
+            }
 
             showImageModal(fileName, fileUrl) {
                 $('#leadModal').modal('hide');
 
                 const modalHtml = `
-                    <div class="modal fade effect-scale md-wrapper" id="fileViewModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false" role="dialog" aria-hidden="true">
+                    <div class="modal fade effect-scale md-wrapper" id="fileViewModal"
+                        tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
                         <div class="modal-dialog modal-lg modal-dialog-centered">
                             <div class="modal-content">
                                 <div class="modal-header">
@@ -2051,7 +2229,7 @@
                                     <a href="${fileUrl}" download="${fileName}" class="btn btn-primary">
                                         <i class="bx bx-download me-1"></i> Download
                                     </a>
-                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Close</button>
                                 </div>
                             </div>
                         </div>
@@ -2059,17 +2237,53 @@
                 `;
 
                 $('#fileViewModal').remove();
-
                 $('body').append(modalHtml);
+
                 const modal = new bootstrap.Modal(document.getElementById('fileViewModal'));
 
-                $('#fileViewModal').on('hidden.bs.modal', function() {
-                    URL.revokeObjectURL(fileUrl);
-                    $(this).remove();
+                $('#fileViewModal').on('hidden.bs.modal', () => {
+                    this.revokeFileUrl(fileUrl);
+                    $('#fileViewModal').remove();
                     $('#leadModal').modal('show');
                 });
 
                 modal.show();
+                // $('#leadModal').modal('hide');
+
+                // const modalHtml = `
+            //     <div class="modal fade effect-scale md-wrapper" id="fileViewModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false" role="dialog" aria-hidden="true">
+            //         <div class="modal-dialog modal-lg modal-dialog-centered">
+            //             <div class="modal-content">
+            //                 <div class="modal-header">
+            //                     <h5 class="modal-title text-truncate" style="max-height: 200px; line-height: 18px;">${fileName}</h5>
+            //                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            //                 </div>
+            //                 <div class="modal-body text-center">
+            //                     <img src="${fileUrl}" class="img-fluid" alt="${fileName}">
+            //                 </div>
+            //                 <div class="modal-footer">
+            //                     <a href="${fileUrl}" download="${fileName}" class="btn btn-primary">
+            //                         <i class="bx bx-download me-1"></i> Download
+            //                     </a>
+            //                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            //                 </div>
+            //             </div>
+            //         </div>
+            //     </div>
+            // `;
+
+                // $('#fileViewModal').remove();
+
+                // $('body').append(modalHtml);
+                // const modal = new bootstrap.Modal(document.getElementById('fileViewModal'));
+
+                // $('#fileViewModal').on('hidden.bs.modal', function() {
+                //     URL.revokeObjectURL(fileUrl);
+                //     $(this).remove();
+                //     $('#leadModal').modal('show');
+                // });
+
+                // modal.show();
             }
 
             showTextFileModal(file, fileUrl) {

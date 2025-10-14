@@ -3153,7 +3153,7 @@ class PipelineController
             ],
             'negotiation' => [
                 'next' => "won",
-                'button' => "Mark as Won",
+                'button' => "Update Negotiation",
                 'class' => "btn-won",
                 'altNext' => "lost",
                 'modalId' => "negotiationModal",
@@ -5180,8 +5180,6 @@ class PipelineController
     {
         DB::beginTransaction();
 
-        // logger()->debug($request->all());
-
         try {
             $term = null;
             $opportunityId = $request->opportunity_id;
@@ -5228,7 +5226,7 @@ class PipelineController
                     ])->first();
                 }
 
-                // DB::commit();
+                DB::commit();
 
                 return response()->json([
                     'success' => true,
@@ -5240,7 +5238,7 @@ class PipelineController
                 ]);
             }
 
-            $stage = $request->current_stage;
+            $stage                  = $request->current_stage;
             $total_sum_insured      = (float) str_replace(',', '', $request->total_sum_insured ?? 0);
             $premium                = (float) str_replace(',', '', $request->premium ?? 0);
             $brokerage_rate         = (float) str_replace(',', '', $request->brokerage_rate ?? 0);
@@ -5251,9 +5249,9 @@ class PipelineController
 
             $updateData = [];
             $reinsurers = json_decode($reinsurers_data, true);
+            $reinsurer_ids = [];
 
             if (!empty($reinsurers) && is_array($reinsurers)) {
-                $reinsurer_ids = [];
                 foreach ($reinsurers as $index => $rein) {
                     try {
                         $reinsurerId = $rein['id'] ?? null;
@@ -5311,7 +5309,7 @@ class PipelineController
             }
 
             switch ($stage) {
-                case Stage::PROPOSAL:
+                case Stage::LEAD:
                     $updateData = [
                         'total_sum_insured' => $total_sum_insured,
                         'premium'           => $premium,
@@ -5461,6 +5459,23 @@ class PipelineController
                     // }
 
                     break;
+
+                case Stage::PROPOSAL:
+                    $updateData = [
+                        'stage_updated_at'  => now(),
+                        // 'unplaced_share'    => 0,
+                        'updated_at'        => now(),
+                        'stage'             => 3,
+                        'status'            => Stage::NEGOTIATION
+                    ];
+
+                    logger()->debug($updateData);
+
+                    $facultativeFiles = json_decode($request->input('facultative_files'), true);
+                    $uploadedFiles = [];
+                    $uploadResults = [];
+                    break;
+
                 default:
                     break;
             }
@@ -5510,7 +5525,7 @@ class PipelineController
                 ->get(['email', 'telephone', 'partner_number', 'name']);
             $rensuersSubject = 'Dear {recipient}';
 
-            // DB::commit();
+            DB::commit();
 
             return response()->json([
                 'success' => true,
