@@ -36,6 +36,8 @@ return [
         'client_secret' => env('AZURE_CLIENT_SECRET'),
         'tenant_id' => env('AZURE_TENANT_ID'),
         'redirect_uri' => env('AZURE_REDIRECT_URI'),
+        'webhook_url' => env('AZURE_WEBHOOK_URL'),
+        'webhook_client_state' => env('AZURE_WEBHOOK_CLIENT_STATE'),
     ],
 
     'google' => [

@@ -6,6 +6,7 @@ use App\Helpers\PkceHelper;
 use Illuminate\Support\Facades\Http;
 use Carbon\Carbon;
 use Exception;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Redis;
@@ -4086,5 +4087,219 @@ class OutlookService
         $availableStates = ['Available', 'AvailableIdle'];
 
         return in_array($availability, $availableStates);
+    }
+
+    private function makeGraphRequest(
+        string $method,
+        string $url,
+        string $accessToken,
+        ?array $data = null
+    ): Response {
+        $attempt = 0;
+
+        return Http::withToken($accessToken)
+            ->timeout(30)
+            ->retry(3, function ($exception, $request) use (&$attempt) {
+                $attempt++;
+
+                if (!$exception->response) {
+                    return $attempt < 3;
+                }
+
+                $status = $exception->response->status();
+
+                // Rate limiting
+                if ($status === 429) {
+                    $retryAfter = (int) ($exception->response->header('Retry-After') ?? 60);
+                    logger()->warning('Rate limited, retrying', [
+                        'retry_after' => $retryAfter,
+                        'attempt' => $attempt
+                    ]);
+                    sleep(min($retryAfter, 120)); // Max 2 minutes wait
+                    return true;
+                }
+
+                // Server errors
+                if ($status >= 500 && $status < 600) {
+                    $backoff = min(pow(2, $attempt) * 10, 60);
+                    logger()->warning('Server error, retrying', [
+                        'status' => $status,
+                        'attempt' => $attempt,
+                        'backoff' => $backoff
+                    ]);
+                    sleep($backoff);
+                    return $attempt < 3;
+                }
+
+                return false;
+            }, function ($exception, $request) {
+                // Log all retry attempts
+                if ($exception->response) {
+                    logger()->warning('Graph API request failed', [
+                        'status' => $exception->response->status(),
+                        'url' => $request->url(),
+                        'error' => $exception->response->json()
+                    ]);
+                }
+            })
+            ->{strtolower($method)}($url, $data ?? []);
+    }
+
+
+    public function createSubscription($user, array $options = []): array
+    {
+        try {
+            $this->auth = $user;
+
+            $webhookUrl = $options['webhook_url'] ?? config('services.azure.webhook_url');
+            $clientState = $options['client_state'] ?? config('services.azure.webhook_client_state');
+
+            if (empty($webhookUrl)) {
+                throw new Exception('Webhook URL is not configured. Set AZURE_WEBHOOK_URL in your .env file');
+            }
+
+            if (empty($clientState)) {
+                throw new Exception('Webhook client state is not configured. Set AZURE_WEBHOOK_CLIENT_STATE in your .env file');
+            }
+
+            if (!filter_var($webhookUrl, FILTER_VALIDATE_URL)) {
+                throw new Exception('Invalid webhook URL format');
+            }
+
+            if (!str_starts_with($webhookUrl, 'https://')) {
+                throw new Exception('Webhook URL must use HTTPS protocol');
+            }
+
+            $expirationDateTime = Carbon::now()
+                ->addHours($options['expiration_hours'] ?? 71)
+                ->toIso8601String();
+
+            $resource = $options['resource'] ?? 'me/mailFolders/inbox/messages';
+            $changeType = $options['change_type'] ?? 'created,updated';
+
+            $payload = [
+                'changeType' => $changeType,
+                'notificationUrl' => $webhookUrl,
+                'resource' => $resource,
+                'expirationDateTime' => $expirationDateTime,
+                'clientState' => $clientState
+            ];
+
+            if (!empty($options['lifecycle_notification_url'])) {
+                $payload['lifecycleNotificationUrl'] = $options['lifecycle_notification_url'];
+            }
+
+            $startTime = microtime(true);
+
+            $response = $this->makeRequest('POST', '/subscriptions', [
+                'json' => $payload
+            ]);
+
+            $processingTime = round((microtime(true) - $startTime) * 1000, 2);
+
+            // // Save subscription to database for tracking
+            // $subscriptionData = [
+            //     'subscription_id' => $response['id'],
+            //     'user_id' => $user->id,
+            //     'user_email' => $user->email,
+            //     'resource' => $response['resource'],
+            //     'change_type' => $response['changeType'],
+            //     'notification_url' => $response['notificationUrl'],
+            //     'client_state' => $clientState,
+            //     'expiration_date' => Carbon::parse($response['expirationDateTime']),
+            //     'created_at' => now(),
+            //     'updated_at' => now(),
+            //     'status' => 'active'
+            // ];
+
+            // DB::table('graph_subscriptions')->insert($subscriptionData);
+
+            logger()->debug('Graph subscription response', ['response' => $response]);
+
+            return [
+                'success' => true,
+                // 'subscription_id' => $response['id'],
+                // 'resource' => $response['resource'],
+                // 'change_type' => $response['changeType'],
+                // 'notification_url' => $response['notificationUrl'],
+                // 'expiration_date' => $response['expirationDateTime'],
+                // 'expires_in_hours' => Carbon::parse($response['expirationDateTime'])->diffInHours(now()),
+                // 'creator_id' => $response['creatorId'] ?? null,
+                // 'processing_time_ms' => $processingTime,
+                'message' => 'Subscription created successfully'
+            ];
+        } catch (Exception $e) {
+            logger()->error('Failed to create Microsoft Graph subscription', [
+                'user_email' => $user->email ?? 'unknown',
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return [
+                'success' => false,
+                'error' => $e->getMessage(),
+                'error_code' => $this->getErrorCode($e),
+                'subscription_id' => null
+            ];
+        }
+    }
+
+    /**
+     * Renew existing subscription
+     */
+    public function renewSubscription(string $subscriptionId, $user): array
+    {
+        $this->auth = $user;
+        $accessToken = $this->getValidToken();
+
+        // $expirationDateTime = Carbon::now()->addHours(71)->toIso8601String();
+
+        // $response = $this->makeGraphRequest(
+        //     'PATCH',
+        //     self::GRAPH_API_BASE . "/subscriptions/{$subscriptionId}",
+        //     $accessToken,
+        //     ['expirationDateTime' => $expirationDateTime]
+        // );
+
+        // $subscription = $response->json();
+
+        logger()->info('Subscription renewed', [
+            'user_id' => $user,
+            'accessToken' => $accessToken,
+            'subscription_id' => $subscriptionId,
+            // 'expires_at' => $subscription['expirationDateTime']
+        ]);
+
+        return [];
+    }
+
+    /**
+     * Delete subscription
+     */
+    public function deleteSubscription(string $subscriptionId, int $userId): bool
+    {
+        try {
+            //     $accessToken = $this->getValidToken($userId);
+
+            //     $this->makeGraphRequest(
+            //         'DELETE',
+            //         self::GRAPH_API_BASE . "/subscriptions/{$subscriptionId}",
+            //         $accessToken
+            //     );
+
+            //     logger()->info('Subscription deleted', [
+            //         'user_id' => $userId,
+            //         'subscription_id' => $subscriptionId
+            //     ]);
+
+            return true;
+        } catch (\Exception $e) {
+            //     logger()->warning('Failed to delete subscription', [
+            //         'subscription_id' => $subscriptionId,
+            //         'error' => $e->getMessage()
+            //     ]);
+
+            return false;
+        }
     }
 }

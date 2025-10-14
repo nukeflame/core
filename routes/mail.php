@@ -4,34 +4,6 @@ namespace App\Http\Controllers;
 
 use Illuminate\Support\Facades\Route;
 
-// Route::group(
-//     ['middleware' => ['auth', 'check.first.login']],
-//     function () {
-//         Route::prefix('/auth/outlook')->group(function () {
-//             Route::get('callback', [OutlookOAuthController::class, 'callback'])
-//                 ->name('admin.outlook.callback');
-//             Route::post('connect', [OutlookOAuthController::class, 'connect'])
-//                 ->name('admin.outlook.connect');
-//             Route::get('/status', [OutlookOAuthController::class, 'status'])->name('admin.outlook.status');
-//             Route::delete('/disconnect', [OutlookOAuthController::class, 'disconnect'])->name('admin.outlook.disconnect');
-//             // Route::post('refresh', [OutlookOAuthController::class, 'refreshToken'])
-//             //     ->name('outlook.refresh);
-//             // Route::post('revoke', [OutlookOAuthController::class, 'revoke'])
-//             //     ->name('outlook.revoke');
-//         });
-//         Route::prefix('/auth/google')->group(function () {
-//             Route::get('callback', [GoogleOAuthController::class, 'callback'])
-//                 ->name('oauth.google.callback');
-
-//             Route::post('refresh', [GoogleOAuthController::class, 'refreshToken'])
-//                 ->name('oauth.google.refresh');
-
-//             Route::post('revoke', [GoogleOAuthController::class, 'revoke'])
-//                 ->name('oauth.google.revoke');
-//         });
-//     }
-// );
-
 Route::group(['prefix' => 'emails', 'middleware' => ['auth', 'check.first.login']], function () {
     Route::post('/fetch_emails', [MailController::class, 'fetchEmails'])->name('admin.emails.fetch');
     Route::post('/claims/send-reinsurer-email', [MailController::class, 'sendClaimReinsurerEmail'])->name('emails.send_claim_reinsurer_email');
@@ -74,12 +46,8 @@ Route::group(
         });
 
         Route::get('/contacts/get', [MailController::class, 'getContacts'])->name('contacts.get');
-
-
         // Route::get('mail/settings', [MailController::class, 'settings'])->name('admin.email.settings');
-
         // Route::get('mail/folder/{folder}', [MailController::class, 'getFolder'])->name('admin.folder');
-
     }
 );
 

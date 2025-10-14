@@ -1,9 +1,10 @@
 <?php
 
 use App\Http\Controllers\BudgetController;
+use App\Http\Controllers\MicrosoftWebhookController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
-use Laravel\Passport\Passport;
+
 
 /*
 |--------------------------------------------------------------------------
@@ -22,3 +23,21 @@ Route::middleware('auth:api')->get('/user', function (Request $request) {
 
 //
 Route::post('/budgets', [BudgetController::class, 'budgets']);
+
+// Route::match(
+//     ['get', 'post'],
+//     '/webhooks/graph/notifications',
+//     [MicrosoftWebhookController::class, 'handleNotification']
+// )
+//     ->name('graph.webhook');
+// GET for validation
+Route::get(
+    '/webhooks/graph/notifications',
+    [MicrosoftWebhookController::class, 'handleNotification']
+);
+
+// POST for notifications
+Route::post(
+    '/webhooks/graph/notifications',
+    [MicrosoftWebhookController::class, 'handleNotification']
+);

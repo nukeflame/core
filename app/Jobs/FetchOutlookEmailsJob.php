@@ -53,25 +53,8 @@ class FetchOutlookEmailsJob implements ShouldQueue
     public function handle(OutlookService $outlookService): void
     {
         try {
-            Log::info('Starting Outlook email fetch job', [
-                'options' => $this->emailOptions,
-                'has_token' => !empty($this->token)
-            ]);
-
-
             $result = $outlookService->fetchEmails($this->emailOptions);
-
-            Log::info('Outlook email fetch job completed successfully', [
-                'result' => $result
-            ]);
         } catch (\Exception $e) {
-            Log::error('Outlook email fetch job failed', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-                'options' => $this->emailOptions,
-                'has_token' => !empty($this->token)
-            ]);
-
             throw $e;
         }
     }

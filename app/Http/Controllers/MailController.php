@@ -38,20 +38,24 @@ class MailController extends Controller
         $this->batchId = Str::uuid()->toString();
     }
 
-    public function index(Request $request): View
+    public function index(Request $request)
     {
         try {
             $requestData = $this->validateIndexRequest($request);
 
-            $data = $this->mailService->getMailData(
+            $query = $this->mailService->getMailData(
                 $requestData['folder'],
                 $requestData['search'],
                 $requestData['limit']
             );
 
-            // logger()->debug($requestData);
+            // $this->applyFilters($query, $request);
+            // // Apply sorting
+            // $sortBy = $request->input('sort', 'received_at');
+            // $order = $request->input('order', 'desc');
+            // $query->orderBy($sortBy, $order);
 
-            return view('mail.index', array_merge($data, [
+            return view('mail.index', array_merge($query, [
                 'folder' => $requestData['folder'],
                 'user' => Auth::user()
             ]));
@@ -60,6 +64,80 @@ class MailController extends Controller
             return view('mail.index', $this->getEmptyMailData($requestData['folder']));
         }
     }
+
+    /**
+     * Apply filters to query
+     */
+    // private function applyFilters($query, Request $request): void
+    // {
+    //     $filter = $request->input('filter', 'all');
+
+    //     switch ($filter) {
+    //         case 'unread':
+    //             $query->unread();
+    //             break;
+    //         case 'read':
+    //             $query->read();
+    //             break;
+    //         case 'important':
+    //             $query->important();
+    //             break;
+    //         case 'attachments':
+    //             $query->withAttachments();
+    //             break;
+    //     }
+
+    //     if ($from = $request->input('from')) {
+    //         $query->fromSender($from);
+    //     }
+
+    //     if ($dateFrom = $request->input('date_from')) {
+    //         $query->where('received_at', '>=', $dateFrom);
+    //     }
+
+    //     if ($dateTo = $request->input('date_to')) {
+    //         $query->where('received_at', '<=', $dateTo);
+    //     }
+    // }
+
+    /**
+     * Trigger manual email sync
+     */
+    // public function sync(Request $request): JsonResponse
+    // {
+    //     $validator = Validator::make($request->all(), [
+    //         'type' => 'string|in:delta,full'
+    //     ]);
+
+    //     if ($validator->fails()) {
+    //         return response()->json([
+    //             'message' => 'Validation failed',
+    //             'errors' => $validator->errors()
+    //         ], 422);
+    //     }
+
+    //     $userId = $request->user()->id;
+    //     $syncType = $request->input('type', 'delta');
+
+    //     // Check if sync is already running
+    //     $syncState = EmailSyncState::where('user_id', $userId)->first();
+
+    //     if ($syncState && $syncState->is_locked) {
+    //         return response()->json([
+    //             'message' => 'Sync already in progress',
+    //             'status' => 'locked'
+    //         ], 409);
+    //     }
+
+    //     // Dispatch sync job
+    //     SyncUserEmails::dispatch($userId, $syncType);
+
+    //     return response()->json([
+    //         'message' => 'Sync initiated successfully',
+    //         'status' => 'processing',
+    //         'type' => $syncType
+    //     ], 202);
+    // }
 
     public function fetchEmails(Request $request)
     {
@@ -272,28 +350,30 @@ class MailController extends Controller
 
     public function checkNew(): JsonResponse
     {
-        try {
-            $outlookStatus = app(OutlookOAuthController::class)->status();
-            $status = json_decode($outlookStatus->getContent(), true);
-            $accessOutlook = $status['connected'] ?? false;
+        logger()->debug(['checkNew' => 'loaded']);
+        return response()->json(['newEmails' => 0, 'success' => true]);
+        // try {
+        //     $outlookStatus = app(OutlookOAuthController::class)->status();
+        //     $status = json_decode($outlookStatus->getContent(), true);
+        //     $accessOutlook = $status['connected'] ?? false;
 
-            if (!$accessOutlook) {
-                return response()->json([
-                    'success' => false,
-                    'message' => $status['error'] ?? $status['message']
-                ]);
-            }
+        //     if (!$accessOutlook) {
+        //         return response()->json([
+        //             'success' => false,
+        //             'message' => $status['error'] ?? $status['message']
+        //         ]);
+        //     }
 
-            $newEmails = $this->mailService->getNewEmail();
+        //     $newEmails = $this->mailService->getNewEmail();
 
-            logger()->debug($newEmails);
+        //     logger()->debug($newEmails);
 
-            return response()->json(['newEmails' => 0, 'success' => true]);
-        } catch (\Exception $e) {
-            // logger()->debug($e);
+        //     return response()->json(['newEmails' => 0, 'success' => true]);
+        // } catch (\Exception $e) {
+        //     // logger()->debug($e);
 
-            return response()->json(['newEmails' => 0, 'success' => false]);
-        }
+        //     return response()->json(['newEmails' => 0, 'success' => false]);
+        // }
     }
 
     public function downloadAttachment(string $emailId, string $attachmentId)

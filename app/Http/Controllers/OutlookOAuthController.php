@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\SyncUserEmails;
+use App\Models\EmailSyncState;
 use App\Services\OutlookService;
 use Exception;
 use Illuminate\Http\JsonResponse;
@@ -59,6 +61,14 @@ class OutlookOAuthController extends Controller
             $userProfile = $this->outlookService->getUserProfile($user);
             $cacheKey = "outlook_profile_{$userProfile['user']['email']}";
             Cache::forget($cacheKey);
+
+            EmailSyncState::firstOrCreate(
+                ['user_id' => $request->user()->id],
+                ['status' => 'active']
+            );
+
+            SyncUserEmails::dispatch($request->user()->id, 'full')
+                ->delay(now()->addSeconds(5));
 
             return redirect()->route('mail.index', ['outlook_connected' => 'true'])->with([
                 'success' => 'Outlook connected successfully.',
