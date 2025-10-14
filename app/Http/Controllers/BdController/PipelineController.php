@@ -2143,12 +2143,20 @@ class PipelineController
 
     public function prospectAddToPipeline(Request $request)
     {
+        $stage = 0;
+        if ($request->has('revert_to_sales')) {
+            $stage = 0;
+            // DB::table('pipeline_opportunities')->where('opportunity_id', $request->prospect)->delete();
+        } else {
+            $stage = 1;
+        }
+
         $year = DB::table('pipeline_opportunities')->where('opportunity_id', $request->prospect)->first()->pip_year;
         $pip_id = DB::table('pipelines')->where('id', $year)->first()->id;
         $update = DB::table('pipeline_opportunities')->where('opportunity_id', $request->prospect)
             ->update([
                 'pipeline_id' => $pip_id,
-                'stage' => 1,
+                'stage' => $stage,
             ]);
         if ($update) {
             return ['status' => 1, 'message' => "Successfully added"];
@@ -3327,6 +3335,7 @@ class PipelineController
         $id = (int) $opp->id;
         $escapedId = htmlspecialchars((string) $id, ENT_QUOTES, 'UTF-8');
         $stage = (int) $opp->stage;
+        $opportunity_id = $opp->opportunity_id;
         $currentStage = Str::title($opp->status);
 
         $btnActions = '';
@@ -3334,7 +3343,7 @@ class PipelineController
             $btnActions .= "
                 <button class='btn btn-primary btn-sm me-1 mail-btn'
                         data-current_stage='{$currentStage}'
-                        data-opportunity_id='{$escapedId}'
+                        data-opportunity_id='{$opportunity_id}'
                         title='Send Email'>
                     <i class='bi bi-send'></i>
                 </button>
@@ -3342,27 +3351,27 @@ class PipelineController
 
             $btnActions .= "
                 <button class='btn btn-info btn-sm me-1 edit-pipeline'
-                        data-opportunity-id='{$escapedId}'
+                        data-opportunity-id='{$opportunity_id}'
                         title='Edit'>
                     <i class='bx bx-edit'></i>
                 </button>
             ";
         }
-        if ($stage >= 5) {
+
+        if ($stage === 5) {
             $btnActions .= "
                 <button class='btn btn-success btn-sm me-1 handover-btn'
-                        data-opportunity-id='{$escapedId}'
+                        data-opportunity-id='{$opportunity_id}'
                         title='Handover Opportunity'>
                     <i class='bx bx-transfer'></i>
                 </button>
             ";
         }
 
-
         if ($stage === 1) {
             $btnActions .= "
                 <button class='btn btn-sm btn-danger del_opp_sales'
-                        data-opp_id='{$escapedId}'
+                        data-opp_id='{$escapedId}' data-opportunity_id='{$opportunity_id}'
                         title='Delete'>
                     <i class='bx bx-trash'></i>
                 </button>

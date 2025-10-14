@@ -1033,16 +1033,15 @@
             handleDelPipeline(button) {
                 try {
                     const buttonData = $(button).data();
-
-                    if (!buttonData.deal_id) {
-                        throw new Error('Deal ID not found');
+                    if (!buttonData.opp_id) {
+                        throw new Error('Opportunity ID not found');
                     }
 
                     const $row = $(button).closest("tr");
                     const $table = $row.closest("table");
                     const tableId = $table.attr("id");
 
-                    let insuredName = 'this pipeline';
+                    let insuredName = '';
                     if (this.dataTables.has(tableId)) {
                         const dataTable = this.dataTables.get(tableId);
                         const rowData = dataTable.row($row).data();
@@ -1052,8 +1051,8 @@
                     }
 
                     Swal.fire({
-                        title: 'Delete Pipeline?',
-                        html: `Are you sure you want to delete the pipeline for <strong>${insuredName}</strong>?<br><br>This action cannot be undone.`,
+                        title: 'Remove from Sales?',
+                        html: `Are you sure you want to delete this from sales.`,
                         icon: 'warning',
                         showCancelButton: true,
                         confirmButtonColor: '#d33',
@@ -1063,13 +1062,14 @@
                         reverseButtons: true,
                         focusCancel: true,
                         customClass: {
-                            confirmButton: 'btn btn-danger me-2',
-                            cancelButton: 'btn btn-secondary'
+                            cancelButton: 'btn btn-sm btn-light me-2',
+                            confirmButton: 'btn btn-danger btn-sm',
+
                         },
                         buttonsStyling: false
                     }).then((result) => {
                         if (result.isConfirmed) {
-                            this.deletePipeline(buttonData.deal_id, insuredName);
+                            this.deletePipeline(buttonData.opportunity_id, insuredName);
                         }
                     });
                 } catch (error) {
@@ -1078,8 +1078,34 @@
             }
 
             deletePipeline(dealId, insuredName) {
-                this.showLoading();
-                // console.log($dealId)
+                $.ajax({
+                    type: 'POST',
+                    url: "{!! route('prospect.add.pipeline') !!}",
+                    data: {
+                        'prospect': dealId,
+                        'revert_to_sales': true
+                    },
+                    headers: {
+                        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                    },
+                    success: function(response) {
+                        console.log(response)
+                        // if (response.status == 1) {
+                        //     toastr.success(response.message, {
+                        //         timeOut: 5000
+                        //     });
+                        // }
+
+                        // $('#opportunities_table').DataTable().ajax.reload();
+                    },
+                    error: function(jqXHR, textStatus, errorThrown) {
+                        Swal.fire({
+                            title: "Error",
+                            text: textStatus,
+                            icon: "error"
+                        });
+                    }
+                });
             }
 
             openStageModal(stage, modalId, dealId, dealInfo = null) {
@@ -1113,8 +1139,6 @@
                     this.loadSlipDocuments(data);
                     this.loadScheduleHeaders(data);
                     this.populateModalData(modalId, dealId, this.currentStage, dealInfo);
-
-                    console.log(modalId)
 
                     $modal.modal('show');
                     $modal.addClass('slide-in');
@@ -2647,7 +2671,6 @@
 
                 } catch (error) {
                     this.handleError("Error handling stage action", error);
-                    this.hideLoading();
                 }
             }
 
