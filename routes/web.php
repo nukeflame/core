@@ -7,6 +7,7 @@ use App\Http\Controllers\BdController\LeadsOnboardingController;
 use App\Http\Controllers\BdController\PipelineController;
 use App\Http\Controllers\BdController\TenderController;
 use App\Http\Controllers\GoogleOAuthController;
+use App\Http\Controllers\MicrosoftWebhookController;
 use App\Http\Controllers\OutlookOAuthController;
 use App\Http\Controllers\SearchController;
 use Illuminate\Support\Facades\Route;
@@ -246,6 +247,7 @@ Route::middleware(['auth', 'check.first.login'])->group(function () {
 });
 
 Route::get('/auth/outlook/callback', [OutlookOAuthController::class, 'callback'])->name('admin.outlook.callback');
+
 // end auth middleware group
 
 require __DIR__ . '/auth.php';

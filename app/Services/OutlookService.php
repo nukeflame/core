@@ -39,6 +39,12 @@ class OutlookService
         'User.Export.All',
         'User.ManageIdentities.All',
 
+        //calls
+        // "CallRecords.Read.All",
+        // "Calls.AccessMedia.All",
+        // "Calls.Initiate",
+        // "Calls.JoinGroupCall.All",
+
         // Mail permissions
         'Mail.Read',
         'Mail.ReadWrite',
@@ -691,15 +697,16 @@ class OutlookService
      */
     private function logRequestError(string $method, string $endpoint, Exception $exception, float $responseTime, string $requestId): void
     {
-        logger()->error('API request failed', [
-            'request_id' => $requestId,
-            'method' => $method,
-            'endpoint' => $endpoint,
-            'error' => $exception->getMessage(),
-            'response_time_ms' => $responseTime,
-            'user' => $this->auth->email ?? 'unknown',
-            'exception_class' => get_class($exception)
-        ]);
+        logger()->error($exception->getMessage());
+        // logger()->error('API request failed', [
+        //     'request_id' => $requestId,
+        //     'method' => $method,
+        //     'endpoint' => $endpoint,
+        //     'error' => $exception->getMessage(),
+        //     'response_time_ms' => $responseTime,
+        //     'user' => $this->auth->email ?? 'unknown',
+        //     'exception_class' => get_class($exception)
+        // ]);
     }
 
     /**
@@ -4089,67 +4096,11 @@ class OutlookService
         return in_array($availability, $availableStates);
     }
 
-    private function makeGraphRequest(
-        string $method,
-        string $url,
-        string $accessToken,
-        ?array $data = null
-    ): Response {
-        $attempt = 0;
-
-        return Http::withToken($accessToken)
-            ->timeout(30)
-            ->retry(3, function ($exception, $request) use (&$attempt) {
-                $attempt++;
-
-                if (!$exception->response) {
-                    return $attempt < 3;
-                }
-
-                $status = $exception->response->status();
-
-                // Rate limiting
-                if ($status === 429) {
-                    $retryAfter = (int) ($exception->response->header('Retry-After') ?? 60);
-                    logger()->warning('Rate limited, retrying', [
-                        'retry_after' => $retryAfter,
-                        'attempt' => $attempt
-                    ]);
-                    sleep(min($retryAfter, 120)); // Max 2 minutes wait
-                    return true;
-                }
-
-                // Server errors
-                if ($status >= 500 && $status < 600) {
-                    $backoff = min(pow(2, $attempt) * 10, 60);
-                    logger()->warning('Server error, retrying', [
-                        'status' => $status,
-                        'attempt' => $attempt,
-                        'backoff' => $backoff
-                    ]);
-                    sleep($backoff);
-                    return $attempt < 3;
-                }
-
-                return false;
-            }, function ($exception, $request) {
-                // Log all retry attempts
-                if ($exception->response) {
-                    logger()->warning('Graph API request failed', [
-                        'status' => $exception->response->status(),
-                        'url' => $request->url(),
-                        'error' => $exception->response->json()
-                    ]);
-                }
-            })
-            ->{strtolower($method)}($url, $data ?? []);
-    }
-
-
     public function createSubscription($user, array $options = []): array
     {
         try {
             $this->auth = $user;
+            $token = $this->getValidToken();
 
             $webhookUrl = $options['webhook_url'] ?? config('services.azure.webhook_url');
             $clientState = $options['client_state'] ?? config('services.azure.webhook_client_state');
@@ -4170,32 +4121,64 @@ class OutlookService
                 throw new Exception('Webhook URL must use HTTPS protocol');
             }
 
-            $expirationDateTime = Carbon::now()
-                ->addHours($options['expiration_hours'] ?? 71)
-                ->toIso8601String();
+            $response = $this->makeRequest('GET', '/subscriptions');
+            logger()->debug(json_encode(['response' => $response], JSON_PRETTY_PRINT));
 
-            $resource = $options['resource'] ?? 'me/mailFolders/inbox/messages';
-            $changeType = $options['change_type'] ?? 'created,updated';
+            // $res = $this->makeRequest('DELETE', '/subscriptions/a8ee978c-bdf5-4cd0-bab8-a3e01a673d96');
 
-            $payload = [
-                'changeType' => $changeType,
-                'notificationUrl' => $webhookUrl,
-                'resource' => $resource,
-                'expirationDateTime' => $expirationDateTime,
-                'clientState' => $clientState
-            ];
+            // $payload = [
+            //     'changeType' => 'created,updated',
+            //     'notificationUrl' => 'https://8206f015783e.ngrok-free.app/api/',
+            //     'resource' => "/me/messages",
+            //     'expirationDateTime' => now()->addDays(2)->toIso8601String(),
+            //     'clientState' => $clientState
+            // ];
 
-            if (!empty($options['lifecycle_notification_url'])) {
-                $payload['lifecycleNotificationUrl'] = $options['lifecycle_notification_url'];
-            }
+            // $res = $this->makeRequest('POST', '/subscriptions', ['json' => $payload]);
+            // logger()->debug(json_encode(['response' => $res], JSON_PRETTY_PRINT));
 
-            $startTime = microtime(true);
 
-            $response = $this->makeRequest('POST', '/subscriptions', [
-                'json' => $payload
-            ]);
+            // https: //default6ef11b21a3f4462fbfd47e7b026274.fa.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/daf036d902a74097aaddc6b05ec52dc2/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=IKJA11q81_BCZMCc893qwUix2y3kc_K2YxsrkjI5SRM
 
-            $processingTime = round((microtime(true) - $startTime) * 1000, 2);
+            // if ($response->successful()) {
+            //     $subscription = $response->json();
+
+            //     logger()->debug($subscription);
+            // }
+
+            // // Handle error
+            // $error = $response->json();
+
+
+            // logger()->debug('Graph subscription response', ['accessToken' => $accessToken]);
+
+
+            // $expirationDateTime = Carbon::now()
+            //     ->addHours($options['expiration_hours'] ?? 71)
+            //     ->toIso8601String();
+
+            // $resource = $options['resource'] ?? 'me/mailFolders/inbox/messages';
+            // $changeType = $options['change_type'] ?? 'created,updated';
+
+            // $payload = [
+            //     'changeType' => $changeType,
+            //     'notificationUrl' => $webhookUrl,
+            //     'resource' => $resource,
+            //     'expirationDateTime' => $expirationDateTime,
+            //     'clientState' => $clientState
+            // ];
+
+            // if (!empty($options['lifecycle_notification_url'])) {
+            //     $payload['lifecycleNotificationUrl'] = $options['lifecycle_notification_url'];
+            // }
+
+            // $startTime = microtime(true);
+
+            // $response = $this->makeRequest('POST', '/subscriptions', [
+            //     'json' => $payload
+            // ]);
+
+            // $processingTime = round((microtime(true) - $startTime) * 1000, 2);
 
             // // Save subscription to database for tracking
             // $subscriptionData = [
@@ -4214,7 +4197,6 @@ class OutlookService
 
             // DB::table('graph_subscriptions')->insert($subscriptionData);
 
-            logger()->debug('Graph subscription response', ['response' => $response]);
 
             return [
                 'success' => true,
@@ -4229,16 +4211,11 @@ class OutlookService
                 'message' => 'Subscription created successfully'
             ];
         } catch (Exception $e) {
-            logger()->error('Failed to create Microsoft Graph subscription', [
-                'user_email' => $user->email ?? 'unknown',
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-
+            logger($e);
             return [
                 'success' => false,
-                'error' => $e->getMessage(),
-                'error_code' => $this->getErrorCode($e),
+                // 'error' => $e->getMessage(),
+                // 'error_code' => $this->getErrorCode($e),
                 'subscription_id' => null
             ];
         }
@@ -4302,4 +4279,464 @@ class OutlookService
             return false;
         }
     }
+
+    /**
+     * Fetch messages using Delta Query with pagination support
+     */
+    public function getDeltaMessages($user, ?string $deltaLink = null): array
+    {
+        try {
+            $this->auth = $user;
+            $token = $this->getValidToken();
+
+            if (!$token) {
+                throw new Exception('No valid authentication token available. Please re-authenticate.');
+            }
+
+            if ($deltaLink) {
+                $url = $deltaLink;
+            } else {
+                $queryParams = [
+                    '$select' => 'id,subject,bodyPreview,from,toRecipients,ccRecipients,isRead,isDraft,hasAttachments,importance,categories,receivedDateTime,sentDateTime,webLink,conversationId,internetMessageId,changeKey,parentFolderId',
+                    '$expand' => 'parentFolder($select=displayName)',
+                    '$top' => 100
+                ];
+                $url = '/me/mailFolders/inbox/messages/delta?' . http_build_query($queryParams, '', '&', PHP_QUERY_RFC3986);
+            }
+
+            $allMessages = [];
+            $nextLink = $url;
+            $requestCount = 0;
+            $maxRequests = 50;
+            $maxMessagesPerSync = 100; //config('mail.max_emails_per_sync', 1000);
+
+            $startTime = microtime(true);
+
+            do {
+                $requestCount++;
+
+                if ($requestCount > $maxRequests) {
+                    break;
+                }
+
+                $response = $this->makeRequest('GET', $nextLink);
+
+                if (!is_array($response)) {
+                    throw new Exception('Invalid response from Microsoft Graph API');
+                }
+
+                $messages = $response['value'] ?? [];
+
+                if (!empty($messages)) {
+                    $allMessages = array_merge($allMessages, $messages);
+                }
+
+                $nextLink = $response['@odata.nextLink'] ?? null;
+                $deltaLinkFromResponse = $response['@odata.deltaLink'] ?? null;
+
+                if (count($allMessages) >= $maxMessagesPerSync) {
+                    break;
+                }
+
+                if ($nextLink && $requestCount > 1) {
+                    usleep(100000);
+                }
+            } while ($nextLink !== null);
+
+            $processingTime = round((microtime(true) - $startTime) * 1000, 2);
+            $changeStats = $this->classifyDeltaChanges($allMessages);
+
+            return [
+                'success' => true,
+                'value' => $allMessages,
+                'count' => count($allMessages),
+                'change_stats' => $changeStats,
+                '@odata.deltaLink' => $deltaLinkFromResponse ?? null,
+                '@odata.nextLink' => $nextLink,
+                'has_more' => $nextLink !== null,
+                'is_complete' => $deltaLinkFromResponse !== null,
+                'metadata' => [
+                    'requests_made' => $requestCount,
+                    'processing_time_ms' => $processingTime,
+                    'max_limit_reached' => count($allMessages) >= $maxMessagesPerSync,
+                    'synced_at' => now()->toIso8601String()
+                ]
+            ];
+        } catch (Exception $e) {
+            return [
+                'success' => false,
+                'error' => $e->getMessage(),
+                'error_code' => $this->getErrorCode($e),
+                'value' => [],
+                'count' => 0,
+                '@odata.deltaLink' => null,
+                '@odata.nextLink' => null
+            ];
+        }
+    }
+
+    private function classifyDeltaChanges(array $messages): array
+    {
+        $stats = [
+            'total' => count($messages),
+            'new_messages' => 0,
+            'updated_messages' => 0,
+            'deleted_messages' => 0,
+            'read_status_changes' => 0,
+            'categorized' => 0,
+            'with_attachments' => 0
+        ];
+
+        foreach ($messages as $message) {
+            if (isset($message['@removed'])) {
+                $stats['deleted_messages']++;
+                continue;
+            }
+
+            if (!empty($message['changeKey'])) {
+                $stats['updated_messages']++;
+            } else {
+                $stats['new_messages']++;
+            }
+
+            if (isset($message['isRead'])) {
+                $stats['read_status_changes']++;
+            }
+
+            if (!empty($message['categories'])) {
+                $stats['categorized']++;
+            }
+
+            if (!empty($message['hasAttachments'])) {
+                $stats['with_attachments']++;
+            }
+        }
+
+        return $stats;
+    }
+
+
+
+    /**
+     * Create a new subscription for Microsoft Graph notifications
+     * Fixed version with proper validation and error handling
+     */
+    // public function createSubscription($user, array $options = []): array
+    // {
+    //     try {
+    //         $this->auth = $user;
+    //         $token = $this->getValidToken();
+
+    //         if (!$token) {
+    //             throw new Exception('No valid authentication token available');
+    //         }
+
+    //         // Get configuration
+    //         $webhookUrl = $options['webhook_url'] ?? config('services.azure.webhook_url');
+    //         $clientState = $options['client_state'] ?? config('services.azure.webhook_client_state', Str::random(32));
+
+    //         // Validate webhook URL
+    //         if (empty($webhookUrl)) {
+    //             throw new Exception('Webhook URL is required. Set AZURE_WEBHOOK_URL in your .env file');
+    //         }
+
+    //         if (!filter_var($webhookUrl, FILTER_VALIDATE_URL)) {
+    //             throw new Exception('Invalid webhook URL format');
+    //         }
+
+    //         if (!str_starts_with($webhookUrl, 'https://')) {
+    //             throw new Exception('Webhook URL must use HTTPS protocol');
+    //         }
+
+    //         // Verify user has mailbox access
+    //         try {
+    //             $userInfo = $this->makeRequest('GET', '/me');
+    //             logger()->info('Creating subscription for user', [
+    //                 'user_id' => $userInfo['id'] ?? 'unknown',
+    //                 'email' => $userInfo['mail'] ?? $userInfo['userPrincipalName'] ?? 'unknown'
+    //             ]);
+    //         } catch (Exception $e) {
+    //             throw new Exception('Failed to verify user access: ' . $e->getMessage());
+    //         }
+
+    //         // Calculate expiration (max 4230 minutes for mail resources = ~3 days)
+    //         $expirationHours = min($options['expiration_hours'] ?? 71, 71);
+    //         $expirationDateTime = now()
+    //             ->addHours($expirationHours)
+    //             ->setTimezone('UTC')
+    //             ->format('Y-m-d\TH:i:s.v\Z'); // RFC3339 format
+
+    //         // Define resource - MUST be one of the supported resources
+    //         $resource = $options['resource'] ?? 'me/mailFolders/inbox/messages';
+
+    //         // Validate resource format
+    //         $validResources = [
+    //             'me/mailFolders/inbox/messages',
+    //             'me/messages',
+    //             'me/mailFolders/{folderId}/messages',
+    //             'users/{userId}/messages',
+    //             'users/{userId}/mailFolders/{folderId}/messages'
+    //         ];
+
+    //         // If custom resource provided, validate it
+    //         if (isset($options['resource']) && !$this->isValidResource($options['resource'])) {
+    //             throw new Exception('Invalid resource format. Must be a valid Microsoft Graph mail resource');
+    //         }
+
+    //         // Build subscription payload
+    //         $payload = [
+    //             'changeType' => $options['change_type'] ?? 'created,updated',
+    //             'notificationUrl' => $webhookUrl,
+    //             'resource' => $resource,
+    //             'expirationDateTime' => $expirationDateTime,
+    //             'clientState' => $clientState
+    //         ];
+
+    //         // Add lifecycle notification URL if provided
+    //         if (!empty($options['lifecycle_notification_url'])) {
+    //             $payload['lifecycleNotificationUrl'] = $options['lifecycle_notification_url'];
+    //         }
+
+    //         logger()->info('Creating Graph API subscription', [
+    //             'user_email' => $user->email,
+    //             'resource' => $resource,
+    //             'notification_url' => $webhookUrl,
+    //             'expiration' => $expirationDateTime
+    //         ]);
+
+    //         $startTime = microtime(true);
+
+    //         // Create subscription
+    //         $response = $this->makeRequest('POST', '/subscriptions', [
+    //             'json' => $payload
+    //         ]);
+
+    //         $processingTime = round((microtime(true) - $startTime) * 1000, 2);
+
+    //         // Save subscription to database
+    //         $subscriptionData = [
+    //             'subscription_id' => $response['id'],
+    //             'user_id' => $user->id,
+    //             'user_email' => $user->email,
+    //             'resource' => $response['resource'],
+    //             'change_type' => $response['changeType'],
+    //             'notification_url' => $response['notificationUrl'],
+    //             'client_state' => $clientState,
+    //             'expiration_date' => Carbon::parse($response['expirationDateTime'])->setTimezone(config('app.timezone')),
+    //             'creator_id' => $response['creatorId'] ?? null,
+    //             'status' => 'active',
+    //             'created_at' => now(),
+    //             'updated_at' => now()
+    //         ];
+
+    //         DB::table('graph_subscriptions')->updateOrInsert(
+    //             [
+    //                 'subscription_id' => $response['id'],
+    //                 'user_email' => $user->email
+    //             ],
+    //             $subscriptionData
+    //         );
+
+    //         logger()->info('Subscription created successfully', [
+    //             'subscription_id' => $response['id'],
+    //             'user_email' => $user->email,
+    //             'expires_at' => $response['expirationDateTime'],
+    //             'processing_time_ms' => $processingTime
+    //         ]);
+
+    //         return [
+    //             'success' => true,
+    //             'subscription_id' => $response['id'],
+    //             'resource' => $response['resource'],
+    //             'change_type' => $response['changeType'],
+    //             'notification_url' => $response['notificationUrl'],
+    //             'expiration_date' => $response['expirationDateTime'],
+    //             'expires_in_hours' => Carbon::parse($response['expirationDateTime'])->diffInHours(now()),
+    //             'creator_id' => $response['creatorId'] ?? null,
+    //             'client_state' => $clientState,
+    //             'processing_time_ms' => $processingTime,
+    //             'message' => 'Subscription created successfully'
+    //         ];
+    //     } catch (Exception $e) {
+    //         logger()->error('Failed to create subscription', [
+    //             'user_email' => $user->email ?? 'unknown',
+    //             'error' => $e->getMessage(),
+    //             'trace' => $e->getTraceAsString()
+    //         ]);
+
+    //         return [
+    //             'success' => false,
+    //             'error' => $e->getMessage(),
+    //             'error_code' => $this->getErrorCode($e),
+    //             'subscription_id' => null
+    //         ];
+    //     }
+    // }
+
+    /**
+     * Validate resource format for subscriptions
+     * Helper method for resource validation
+     */
+    // private function isValidResource(string $resource): bool
+    // {
+    //     $validPatterns = [
+    //         '/^me\/mailFolders\/[a-zA-Z0-9]+\/messages$/',
+    //         '/^me\/messages$/',
+    //         '/^users\/[a-zA-Z0-9@._-]+\/messages$/',
+    //         '/^users\/[a-zA-Z0-9@._-]+\/mailFolders\/[a-zA-Z0-9]+\/messages$/',
+    //         '/^me\/mailFolders\/inbox\/messages$/',
+    //         '/^me\/contacts$/',
+    //         '/^me\/events$/',
+    //         '/^me\/drive\/root$/'
+    //     ];
+
+    //     foreach ($validPatterns as $pattern) {
+    //         if (preg_match($pattern, $resource)) {
+    //             return true;
+    //         }
+    //     }
+
+    //     return false;
+    // }
+
+    /**
+     * Get all active subscriptions for a user
+     */
+    // public function getSubscriptions($user): array
+    // {
+    //     try {
+    //         $this->auth = $user;
+
+    //         $response = $this->makeRequest('GET', '/subscriptions');
+
+    //         $subscriptions = $response['value'] ?? [];
+
+    //         logger()->info('Retrieved subscriptions', [
+    //             'user_email' => $user->email,
+    //             'count' => count($subscriptions)
+    //         ]);
+
+    //         return [
+    //             'success' => true,
+    //             'subscriptions' => $subscriptions,
+    //             'count' => count($subscriptions)
+    //         ];
+    //     } catch (Exception $e) {
+    //         logger()->error('Failed to get subscriptions', [
+    //             'user_email' => $user->email ?? 'unknown',
+    //             'error' => $e->getMessage()
+    //         ]);
+
+    //         return [
+    //             'success' => false,
+    //             'error' => $e->getMessage(),
+    //             'subscriptions' => [],
+    //             'count' => 0
+    //         ];
+    //     }
+    // }
+
+    /**
+     * Update/Renew subscription expiration
+     */
+    // public function renewSubscription(string $subscriptionId, $user, array $options = []): array
+    // {
+    //     try {
+    //         $this->auth = $user;
+
+    //         // Calculate new expiration (max 71 hours for mail)
+    //         $expirationHours = min($options['expiration_hours'] ?? 71, 71);
+    //         $expirationDateTime = now()
+    //             ->addHours($expirationHours)
+    //             ->setTimezone('UTC')
+    //             ->format('Y-m-d\TH:i:s.v\Z');
+
+    //         $payload = [
+    //             'expirationDateTime' => $expirationDateTime
+    //         ];
+
+    //         $response = $this->makeRequest('PATCH', "/subscriptions/{$subscriptionId}", [
+    //             'json' => $payload
+    //         ]);
+
+    //         // Update database
+    //         DB::table('graph_subscriptions')
+    //             ->where('subscription_id', $subscriptionId)
+    //             ->where('user_email', $user->email)
+    //             ->update([
+    //                 'expiration_date' => Carbon::parse($response['expirationDateTime'])->setTimezone(config('app.timezone')),
+    //                 'updated_at' => now()
+    //             ]);
+
+    //         logger()->info('Subscription renewed', [
+    //             'subscription_id' => $subscriptionId,
+    //             'user_email' => $user->email,
+    //             'new_expiration' => $response['expirationDateTime']
+    //         ]);
+
+    //         return [
+    //             'success' => true,
+    //             'subscription_id' => $response['id'],
+    //             'expiration_date' => $response['expirationDateTime'],
+    //             'expires_in_hours' => Carbon::parse($response['expirationDateTime'])->diffInHours(now()),
+    //             'message' => 'Subscription renewed successfully'
+    //         ];
+    //     } catch (Exception $e) {
+    //         logger()->error('Failed to renew subscription', [
+    //             'subscription_id' => $subscriptionId,
+    //             'user_email' => $user->email ?? 'unknown',
+    //             'error' => $e->getMessage()
+    //         ]);
+
+    //         return [
+    //             'success' => false,
+    //             'error' => $e->getMessage(),
+    //             'subscription_id' => $subscriptionId
+    //         ];
+    //     }
+    // }
+
+    /**
+     * Delete subscription
+     */
+    // public function deleteSubscription(string $subscriptionId, $user): array
+    // {
+    //     try {
+    //         $this->auth = $user;
+
+    //         $this->makeRequest('DELETE', "/subscriptions/{$subscriptionId}");
+
+    //         // Update database
+    //         DB::table('graph_subscriptions')
+    //             ->where('subscription_id', $subscriptionId)
+    //             ->where('user_email', $user->email)
+    //             ->update([
+    //                 'status' => 'deleted',
+    //                 'updated_at' => now()
+    //             ]);
+
+    //         logger()->info('Subscription deleted', [
+    //             'subscription_id' => $subscriptionId,
+    //             'user_email' => $user->email
+    //         ]);
+
+    //         return [
+    //             'success' => true,
+    //             'subscription_id' => $subscriptionId,
+    //             'message' => 'Subscription deleted successfully'
+    //         ];
+    //     } catch (Exception $e) {
+    //         logger()->error('Failed to delete subscription', [
+    //             'subscription_id' => $subscriptionId,
+    //             'user_email' => $user->email ?? 'unknown',
+    //             'error' => $e->getMessage()
+    //         ]);
+
+    //         return [
+    //             'success' => false,
+    //             'error' => $e->getMessage(),
+    //             'subscription_id' => $subscriptionId
+    //         ];
+    //     }
+    // }
 }

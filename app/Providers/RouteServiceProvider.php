@@ -24,8 +24,10 @@ class RouteServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // $this->configureRateLimiting();
+
         RateLimiter::for('api', function (Request $request) {
-            return Limit::perMinute(60)->by($request->user()?->id ?: $request->ip());
+            return Limit::perMinute(100)->by($request->user()?->id ?: $request->ip());
         });
 
         $this->routes(function () {
@@ -35,6 +37,31 @@ class RouteServiceProvider extends ServiceProvider
 
             Route::middleware('web')
                 ->group(base_path('routes/web.php'));
+        });
+    }
+
+    /**
+     * Bootstrap services
+     */
+    protected function configureRateLimiting()
+    {
+        RateLimiter::for('api', function ($request) {
+            return Limit::perMinute(60)->by($request->user()?->id ?: $request->ip());
+        });
+
+        RateLimiter::for('webhook', function ($request) {
+            return Limit::perMinute(100)->by($request->ip());
+        });
+
+        RateLimiter::for('email-list', function ($request) {
+            return Limit::perMinute(30)->by($request->user()->id);
+        });
+
+        RateLimiter::for('email-sync', function ($request) {
+            return [
+                Limit::perMinute(2)->by($request->user()->id),
+                Limit::perHour(10)->by($request->user()->id)
+            ];
         });
     }
 }

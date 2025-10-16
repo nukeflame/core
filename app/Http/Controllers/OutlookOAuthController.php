@@ -97,12 +97,6 @@ class OutlookOAuthController extends Controller
         $error = $request->get('error');
         $errorDescription = $request->get('error_description');
 
-        logger()->warning('Azure OAuth error: ' . json_encode([
-            'error' => $error,
-            'description' => $errorDescription,
-            'request_data' => $request->all()
-        ], JSON_PRETTY_PRINT));
-
         $errorMessages = [
             'access_denied' => 'User denied access to the application',
             'invalid_request' => 'Invalid request parameters',
@@ -340,7 +334,15 @@ class OutlookOAuthController extends Controller
 
     public function sync()
     {
-        // $result = $this->outlookService->syncEmails();
-        return response()->json(['synced' => []]);
+        $auth = Auth::user();
+        if ($auth) {
+            // $result = $this->outlookService->syncEmails();
+            SyncUserEmails::dispatch($auth->id, 'full');
+            // ->delay(now()->addSeconds(5));
+
+            return response()->json(['success' => true, 'synced' => []]);
+        }
+
+        return response()->json(['success' => false, 'synced' => []]);
     }
 }

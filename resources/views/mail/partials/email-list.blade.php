@@ -1,31 +1,39 @@
 <div class="total-mails border">
-    <!-- Header -->
     <div class="p-3 d-flex align-items-center border-bottom">
         <div class="me-3">
             <input class="form-check-input mailc-checkbox" type="checkbox" id="checkAll" value="">
         </div>
         <div class="flex-fill">
-            <h6 class="fw-semibold mb-0" style="line-height: 0px;">{{ ucfirst($folder) }} ({{ $emails->count() }})</h6>
+            <h6 class="fw-semibold mb-0" style="line-height: 0px;">
+                {{ ucfirst($folder) }}
+                @if ($emails->count() > 0)
+                    ({{ $emails->count() }})
+                @endif
+            </h6>
         </div>
         <button class="btn btn-icon btn-light me-1 d-lg-none d-block total-mails-close">
             <i class="ri-close-line"></i>
         </button>
-        <div class="dropdown">
-            <button class="btn btn-icon btn-light btn-wave" type="button" data-bs-toggle="dropdown"
-                aria-expanded="false">
-                <i class="ti ti-dots-vertical"></i>
+        <div class="d-flex">
+            <button class="btn btn-icon btn-light btn-wave me-1" type="button" title="Sync Emails" id="syncEmailsBtn">
+                <i class="ti ti-refresh"></i>
             </button>
-            <ul class="dropdown-menu">
-                <li><a class="dropdown-item" href="#" data-action="recent">Recent</a></li>
-                <li><a class="dropdown-item" href="#" data-action="unread">Unread</a></li>
-                <li><a class="dropdown-item" href="#" data-action="mark-all-read">Mark All Read</a></li>
-                <li><a class="dropdown-item" href="#" data-action="spam">Move to Spam</a></li>
-                <li><a class="dropdown-item" href="#" data-action="delete-all">Delete All</a></li>
-            </ul>
+            <div class="dropdown">
+                <button class="btn btn-icon btn-light btn-wave" type="button" data-bs-toggle="dropdown"
+                    aria-expanded="false" title="More Options">
+                    <i class="ti ti-dots-vertical"></i>
+                </button>
+                <ul class="dropdown-menu">
+                    <li><a class="dropdown-item" href="#" data-action="recent">Recent</a></li>
+                    <li><a class="dropdown-item" href="#" data-action="unread">Unread</a></li>
+                    <li><a class="dropdown-item" href="#" data-action="mark-all-read">Mark All Read</a></li>
+                    <li><a class="dropdown-item" href="#" data-action="spam">Move to Spam</a></li>
+                    <li><a class="dropdown-item" href="#" data-action="delete-all">Delete All</a></li>
+                </ul>
+            </div>
         </div>
     </div>
 
-    <!-- Search -->
     <div class="p-3 border-bottom">
         <div class="input-group">
             <input type="text" class="form-control bg-light border-0" placeholder="Search Email" id="emailSearch">
@@ -35,7 +43,6 @@
         </div>
     </div>
 
-    <!-- Email Messages -->
     <div class="mail-messages" id="mail-messages">
         @if ($emails->count() > 0)
             <ul class="list-unstyled mb-0 mail-messages-container customScrollBar">
@@ -73,7 +80,6 @@
     @endif --}}
 </div>
 
-<!-- Loading Overlay -->
 <div class="email-list-loading d-none">
     <div class="d-flex justify-content-center align-items-center h-100">
         <div class="spinner-border text-primary" role="status">

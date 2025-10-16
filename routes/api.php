@@ -24,20 +24,10 @@ Route::middleware('auth:api')->get('/user', function (Request $request) {
 //
 Route::post('/budgets', [BudgetController::class, 'budgets']);
 
-// Route::match(
-//     ['get', 'post'],
-//     '/webhooks/graph/notifications',
-//     [MicrosoftWebhookController::class, 'handleNotification']
-// )
-//     ->name('graph.webhook');
-// GET for validation
-Route::get(
-    '/webhooks/graph/notifications',
-    [MicrosoftWebhookController::class, 'handleNotification']
-);
 
-// POST for notifications
-Route::post(
-    '/webhooks/graph/notifications',
-    [MicrosoftWebhookController::class, 'handleNotification']
-);
+Route::post('/subscriptionNotification', [MicrosoftWebhookController::class, 'handleNotification'])
+    ->name('graph.webhook.post');
+// ->middleware(['throttle:webhook']);
+
+Route::get('/subscriptionNotification', [MicrosoftWebhookController::class, 'handleNotification'])
+    ->name('graph.webhook.get');

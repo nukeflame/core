@@ -12,31 +12,116 @@ class MicrosoftWebhookController extends Controller
 {
     public function handleNotification(Request $request)
     {
-        if ($request->isMethod('post') && $request->has('validationToken')) {
-            $validationToken = $request->query('validationToken');
+        logger()->debug(json_encode($request->all(), JSON_PRETTY_PRINT));
 
-            logger()->info('Webhook validation request received', [
-                'token_length' => strlen($validationToken),
-                'ip' => $request->ip()
-            ]);
-
-            return response($validationToken, 200)
-                ->header('Content-Type', 'text/plain');
+        if ($request->query('validationToken')) {
+            $token = $request->query('validationToken');
+            logger()->debug($token);
+            return response($token, 200)->header('Content-Type', 'text/plain');
         }
 
-        if ($request->isMethod('post')) {
-            return $this->handleNotificationPost($request);
+        $data = $request->all();
+
+        if (isset($data['value']) && is_array($data['value'])) {
+            foreach ($data['value'] as $notification) {
+                $expectedClientState = config('services.azure.client_state');
+
+                if (($notification['clientState'] ?? '') !== $expectedClientState) {
+                    continue;
+                }
+
+                logger()->info('Valid notification received', [
+                    'subscriptionId' => $notification['subscriptionId'],
+                    'changeType' => $notification['changeType'],
+                    'resource' => $notification['resource']
+                ]);
+            }
         }
 
-        // Invalid request
-        return response()->json(['error' => 'Invalid request'], 400);
+        return response()->json(['status' => 'ok'], 200);
+
+        // if ($request->query('validationToken')) {
+        //     $token = $request->query('validationToken');
+        //     logger()->info('Validation token received', ['token' => $token]);
+        //     return response($token, 200)->header('Content-Type', 'text/plain');
+        // }
+
+        // // Parse notification data
+        // try {
+        //     $data = $request->all();
+        //     logger()->info('Notification data', ['data' => $data]);
+
+        //     // Check for 'value' array (standard Graph notification format)
+        //     if (isset($data['value']) && is_array($data['value'])) {
+        //         foreach ($data['value'] as $notification) {
+        //             logger()->info('Processing notification', [
+        //                 'subscriptionId' => $notification['subscriptionId'] ?? 'unknown',
+        //                 'changeType' => $notification['changeType'] ?? 'unknown',
+        //                 'resource' => $notification['resource'] ?? 'unknown',
+        //                 'clientState' => $notification['clientState'] ?? 'none'
+        //             ]);
+        //         }
+        //     }
+
+        //     return response()->json(['status' => 'ok'], 200);
+        // } catch (\Exception $e) {
+        //     logger()->error('Webhook processing error', [
+        //         'error' => $e->getMessage(),
+        //         'trace' => $e->getTraceAsString()
+        //     ]);
+
+        //     // Still return 200 to acknowledge receipt
+        //     return response()->json(['status' => 'error'], 200);
+        // }
     }
-
     /**
      * Handle actual notifications
      */
     private function handleNotificationPost(Request $request)
     {
+        // if ($request->has('validationToken')) {
+        //     return response($request->input('validationToken'), 200)->header('Content-Type', 'text/plain');
+        // }
+
+        // $notifications = $request->input('value', []);
+
+        // logger()->warning(json_encode($notifications, JSON_PRETTY_PRINT));
+
+        // foreach ($notifications as $notification) {
+        //     // if ($notification['clientState'] !== config('services.azure.webhook_client_state')) {
+        //     //     logger()->warning('Invalid client state in webhook', [
+        //     //         'notification' => $notification,
+        //     //     ]);
+        //     //     continue;
+        //     // }
+
+        //     // // Extract user from subscription or resource
+        //     // $userId = $this->extractUserId($notification);
+
+        //     // if ($userId) {
+        //     //     SyncUserEmails::dispatch($userId);
+        //     // }
+        // }
+
+        // if ($request->isMethod('post') && $request->has('validationToken')) {
+        //     $validationToken = $request->query('validationToken');
+
+        //     logger()->info('Webhook validation request received', [
+        //         'token_length' => strlen($validationToken),
+        //         'ip' => $request->ip()
+        //     ]);
+
+        //     return response($validationToken, 200)
+        //         ->header('Content-Type', 'text/plain');
+        // }
+
+        // if ($request->isMethod('post')) {
+        //     return $this->handleNotificationPost($request);
+        // }
+
+        // // Invalid request
+        // return response()->json(['error' => 'Invalid request'], 400);
+
         try {
             $notifications = $request->input('value', []);
             $clientState = config('services.azure.webhook_client_state');

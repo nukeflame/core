@@ -152,7 +152,9 @@ class MailApp {
             this.handleEmailAction(action, $(e.currentTarget));
         });
 
-        $("#syncEmailsBtn").on("click", () => {
+        $("#syncEmailsBtn").on("click", (e) => {
+            e.preventDefault();
+
             this.syncEmails();
         });
 
@@ -408,12 +410,14 @@ class MailApp {
                 dataType: "json",
             });
 
-            if (result.synced) {
-                this.showSuccess("Emails synced successfully!");
-                this.refreshEmailList();
-            } else {
-                this.showError("Failed to sync emails");
-            }
+            console.log(result);
+
+            // if (result.synced) {
+            //     this.showSuccess("Emails synced successfully!");
+            //     this.refreshEmailList();
+            // } else {
+            //     this.showError("Failed to sync emails");
+            // }
         } catch (error) {
             this.showError("Network error occurred");
             console.error("Sync error:", error);
@@ -798,7 +802,7 @@ class MailApp {
             Notification.requestPermission();
         }
 
-        this.checkForNewEmails();
+        // this.checkForNewEmails();
     }
 
     async checkForNewEmails() {
@@ -811,7 +815,7 @@ class MailApp {
                 dataType: "json",
             });
 
-            console.log(result);
+            // console.log(result);
             if (result.newEmails > 0) {
                 this.showNewEmailNotification(result.newEmails);
                 this.refreshEmailList();
