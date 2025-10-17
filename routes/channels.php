@@ -18,12 +18,15 @@ Broadcast::channel('App.Models.User.{id}', function ($user, $id) {
 });
 
 //
-Broadcast::channel('approval_notification.created.{userID}', function ($user, $userID) {
-    // return (int) $user->id === (int) $userID;
-
-    return  true;
+Broadcast::channel('approval_notification.created.{userID}', function ($user, $userId) {
+    return (int) $user->id === (int) $userId;
 });
 
 Broadcast::channel('messages', function ($user) {
     return  true;
+});
+
+
+Broadcast::channel('email-sync.{userId}', function ($user, $userId) {
+    return (int) $user->id === (int) $userId;
 });

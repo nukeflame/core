@@ -766,6 +766,7 @@ class OutlookService
             'Accept' => 'application/json',
             'User-Agent' => 'Laravel-OutlookService/2.0',
             'X-Request-ID' => $requestId,
+            'Prefer' => 'odata.maxpagesize=200'
             // 'Prefer' => 'return=representation', // Get full objects in responses
         ]);
 
@@ -1313,11 +1314,11 @@ class OutlookService
             logger()->error('Failed to create draft: ' . $e->getMessage());
             return null;
         }
-    }
 
-    /**
-     * Search messages
-     */
+        /**
+         * Search messages
+         */
+    }
     public function searchMessages(string $query, array $options = []): array
     {
         $top = min($options['limit'] ?? 25, 100);
@@ -4100,7 +4101,6 @@ class OutlookService
     {
         try {
             $this->auth = $user;
-            $token = $this->getValidToken();
 
             $webhookUrl = $options['webhook_url'] ?? config('services.azure.webhook_url');
             $clientState = $options['client_state'] ?? config('services.azure.webhook_client_state');
@@ -4124,18 +4124,18 @@ class OutlookService
             $response = $this->makeRequest('GET', '/subscriptions');
             logger()->debug(json_encode(['response' => $response], JSON_PRETTY_PRINT));
 
-            // $res = $this->makeRequest('DELETE', '/subscriptions/a8ee978c-bdf5-4cd0-bab8-a3e01a673d96');
+            $expirationDateTime = Carbon::now()->addHours(71)->toIso8601String();
 
-            // $payload = [
-            //     'changeType' => 'created,updated',
-            //     'notificationUrl' => 'https://8206f015783e.ngrok-free.app/api/',
-            //     'resource' => "/me/messages",
-            //     'expirationDateTime' => now()->addDays(2)->toIso8601String(),
-            //     'clientState' => $clientState
-            // ];
+            $payload = [
+                'changeType' => 'created,updated',
+                'notificationUrl' => 'https://8206f015783e.ngrok-free.app/api/',
+                'resource' => 'me/mailFolders/inbox/messages',
+                'expirationDateTime' => now()->addDays(2)->toIso8601String(),
+                'clientState' => $clientState
+            ];
 
-            // $res = $this->makeRequest('POST', '/subscriptions', ['json' => $payload]);
-            // logger()->debug(json_encode(['response' => $res], JSON_PRETTY_PRINT));
+            $res = $this->makeRequest('POST', '/subscriptions', ['json' => $payload]);
+            logger()->debug(json_encode(['response' => $res], JSON_PRETTY_PRINT));
 
 
             // https: //default6ef11b21a3f4462fbfd47e7b026274.fa.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/daf036d902a74097aaddc6b05ec52dc2/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=IKJA11q81_BCZMCc893qwUix2y3kc_K2YxsrkjI5SRM
@@ -4227,55 +4227,27 @@ class OutlookService
     public function renewSubscription(string $subscriptionId, $user): array
     {
         $this->auth = $user;
-        $accessToken = $this->getValidToken();
+        $expirationDateTime = Carbon::now()->addHours(71)->toIso8601String();
 
-        // $expirationDateTime = Carbon::now()->addHours(71)->toIso8601String();
+        $response = $this->makeRequest('PATCH', '/subscriptions/{$subscriptionId}', ['expirationDateTime' => $expirationDateTime]);
 
-        // $response = $this->makeGraphRequest(
-        //     'PATCH',
-        //     self::GRAPH_API_BASE . "/subscriptions/{$subscriptionId}",
-        //     $accessToken,
-        //     ['expirationDateTime' => $expirationDateTime]
-        // );
-
-        // $subscription = $response->json();
-
-        logger()->info('Subscription renewed', [
-            'user_id' => $user,
-            'accessToken' => $accessToken,
-            'subscription_id' => $subscriptionId,
-            // 'expires_at' => $subscription['expirationDateTime']
-        ]);
-
+        $subscription = $response;
+        // logger
         return [];
     }
 
     /**
      * Delete subscription
      */
-    public function deleteSubscription(string $subscriptionId, int $userId): bool
+    public function deleteSubscription(string $subscriptionId, $user): bool
     {
         try {
-            //     $accessToken = $this->getValidToken($userId);
+            $this->auth = $user;
 
-            //     $this->makeGraphRequest(
-            //         'DELETE',
-            //         self::GRAPH_API_BASE . "/subscriptions/{$subscriptionId}",
-            //         $accessToken
-            //     );
-
-            //     logger()->info('Subscription deleted', [
-            //         'user_id' => $userId,
-            //         'subscription_id' => $subscriptionId
-            //     ]);
+            $this->makeRequest('DELETE', '/subscriptions/{$subscriptionId}');
 
             return true;
         } catch (\Exception $e) {
-            //     logger()->warning('Failed to delete subscription', [
-            //         'subscription_id' => $subscriptionId,
-            //         'error' => $e->getMessage()
-            //     ]);
-
             return false;
         }
     }
@@ -4297,9 +4269,8 @@ class OutlookService
                 $url = $deltaLink;
             } else {
                 $queryParams = [
-                    '$select' => 'id,subject,bodyPreview,from,toRecipients,ccRecipients,isRead,isDraft,hasAttachments,importance,categories,receivedDateTime,sentDateTime,webLink,conversationId,internetMessageId,changeKey,parentFolderId',
-                    '$expand' => 'parentFolder($select=displayName)',
-                    '$top' => 100
+                    '$select' => 'id,subject,bodyPreview,from,toRecipients,ccRecipients,isRead,isDraft,hasAttachments,importance,categories,receivedDateTime,sentDateTime,conversationId,changeKey,parentFolderId',
+                    '$top' => 100,
                 ];
                 $url = '/me/mailFolders/inbox/messages/delta?' . http_build_query($queryParams, '', '&', PHP_QUERY_RFC3986);
             }
@@ -4308,7 +4279,7 @@ class OutlookService
             $nextLink = $url;
             $requestCount = 0;
             $maxRequests = 50;
-            $maxMessagesPerSync = 100; //config('mail.max_emails_per_sync', 1000);
+            $maxMessagesPerSync = 10000;
 
             $startTime = microtime(true);
 
@@ -4320,6 +4291,7 @@ class OutlookService
                 }
 
                 $response = $this->makeRequest('GET', $nextLink);
+
 
                 if (!is_array($response)) {
                     throw new Exception('Invalid response from Microsoft Graph API');
@@ -4339,10 +4311,18 @@ class OutlookService
                 }
 
                 if ($nextLink && $requestCount > 1) {
-                    usleep(100000);
+                    usleep(200000);
                 }
             } while ($nextLink !== null);
 
+            if (!empty($allMessages)) {
+                $allMessages = $this->enrichMessagesWithFolderNames($allMessages);
+                // logger()->debug(json_encode(count($allMessages), JSON_PRETTY_PRINT));
+                // foreach ($allMessages as $d) {
+                //     $filtered = Arr::except($d, ['body', 'bodyPreview']);
+                //     logger()->debug(json_encode($filtered, JSON_PRETTY_PRINT));
+                // }
+            }
             $processingTime = round((microtime(true) - $startTime) * 1000, 2);
             $changeStats = $this->classifyDeltaChanges($allMessages);
 
@@ -4374,6 +4354,85 @@ class OutlookService
             ];
         }
     }
+
+    /**
+     * Enrich messages with parent folder display names
+     *
+     * @param array $messages
+     * @return array
+     */
+    private function enrichMessagesWithFolderNames(array $messages): array
+    {
+        $uniqueFolderIds = array_unique(array_filter(array_column($messages, 'parentFolderId')));
+
+        if (empty($uniqueFolderIds)) {
+            return $messages;
+        }
+
+        $folderMap = $this->getFolderNames($uniqueFolderIds);
+
+        foreach ($messages as &$message) {
+            $folderId = $message['parentFolderId'] ?? null;
+
+            if ($folderId && isset($folderMap[$folderId])) {
+                $folderInfo = $folderMap[$folderId];
+                $message['parentFolder'] = [
+                    'name' => $folderInfo['displayName'] ?? 'Unknown',
+                    'unread' => $folderInfo['unreadItemCount'] ?? 0,
+                    'total' => $folderInfo['totalItemCount'] ?? 0
+                ];
+            } else {
+                $message['parentFolder'] = [
+                    'name' => 'Unknown',
+                    'unread' => 0,
+                    'total' => 0
+                ];
+            }
+        }
+        unset($message);
+
+        return $messages;
+    }
+
+    /**
+     * Fetch folder display names for given folder IDs
+     *
+     * @param array $folderIds
+     * @return array Map of folderId => displayName
+     */
+    private function getFolderNames(array $folderIds): array
+    {
+        $folderMap = [];
+        foreach ($folderIds as $folderId) {
+            try {
+                $res = $this->makeRequest('GET', "/me/mailFolders/{$folderId}?\$select=displayName,unreadItemCount,totalItemCount");
+
+                $folderMap[$folderId] = [
+                    'displayName' => $res['displayName'] ?? 'Unknown',
+                    'unreadItemCount' => $res['unreadItemCount'] ?? 0,
+                    'totalItemCount' => $res['totalItemCount'] ?? 0
+                ];
+            } catch (Exception $e) {
+                logger()->warning('Failed to fetch folder details', [
+                    'folder_id' => $folderId,
+                    'error' => $e->getMessage()
+                ]);
+
+                $folderMap[$folderId] = [
+                    'displayName' => 'Unknown',
+                    'unreadItemCount' => 0,
+                    'totalItemCount' => 0
+                ];
+            }
+
+            if (count($folderIds) > 5) {
+                usleep(50000);
+            }
+        }
+
+        return $folderMap;
+    }
+
 
     private function classifyDeltaChanges(array $messages): array
     {

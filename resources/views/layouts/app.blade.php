@@ -61,7 +61,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-1CFC6BYDBW"></script>
+    {{-- <script async src="https://www.googletagmanager.com/gtag/js?id=G-1CFC6BYDBW"></script>
     <script>
         window.dataLayer = window.dataLayer || [];
 
@@ -70,7 +70,7 @@
         }
         gtag('js', new Date());
         gtag('config', 'G-1CFC6BYDBW');
-    </script>
+    </script> --}}
 
     <!-- Custom css  -->
     <link href="{{ asset('css/custom.css') }}" rel="stylesheet" />
@@ -513,9 +513,7 @@
     <script src="https://unpkg.com/quill-better-table@1.2.10/dist/quill-better-table.js"></script>
 
     <script>
-        // Realtime implemention
         window.Pusher = Pusher;
-        // Initialize Laravel Echo
         window.Echo = new Echo({
             broadcaster: "reverb",
             key: "{{ env('VITE_REVERB_APP_KEY') }}",
@@ -531,6 +529,7 @@
                 },
             },
             // enabledTransports: ["ws", "wss"],
+            // disableStats: true,
         });
 
         function setActiveSidebar() {
@@ -707,7 +706,7 @@
                 $(".empty-item1").addClass('d-none');
             }
 
-            Echo.private(channelName).listen(approvalEvent, (data) => {
+            window.Echo.private(channelName).listen(approvalEvent, (data) => {
                 showNotification(data);
                 addNotificationToDropdown(data);
             });

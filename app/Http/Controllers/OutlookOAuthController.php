@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Redis;
+use Illuminate\Support\Facades\Validator;
 
 class OutlookOAuthController extends Controller
 {
@@ -332,17 +333,38 @@ class OutlookOAuthController extends Controller
         }
     }
 
-    public function sync()
+    public function sync(Request $request)
     {
-        $auth = Auth::user();
-        if ($auth) {
-            // $result = $this->outlookService->syncEmails();
-            SyncUserEmails::dispatch($auth->id, 'full');
-            // ->delay(now()->addSeconds(5));
+        $validator = Validator::make($request->all(), [
+            'type' => 'string|in:delta,full'
+        ]);
 
-            return response()->json(['success' => true, 'synced' => []]);
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => 'Validation failed',
+                'errors' => $validator->errors()
+            ], 422);
         }
 
-        return response()->json(['success' => false, 'synced' => []]);
+        $userId = $request->user()->id;
+        $syncType = $request->input('type', 'delta');
+
+        $syncState = EmailSyncState::where('user_id', $userId)->first();
+
+        if ($syncState && $syncState->is_locked) {
+            return response()->json([
+                'message' => 'Sync already in progress',
+                'status' => 'locked'
+            ], 409);
+        }
+
+        // Dispatch sync job
+        SyncUserEmails::dispatch($userId, $syncType);
+
+        return response()->json([
+            'message' => 'Sync initiated successfully',
+            'status' => 'processing',
+            'type' => $syncType
+        ], 202);
     }
 }
