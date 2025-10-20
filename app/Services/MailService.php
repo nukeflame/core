@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Jobs\SendEmailJob;
+use App\Jobs\SendOutlookEmailJob;
 use App\Jobs\SyncOutlookJob;
 use Carbon\Carbon;
 use Exception;
@@ -12,11 +13,13 @@ use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
+use App\Services\S3AttachmentHandler;
 
 class MailService
 {
     private $auth;
     protected string $batchId;
+    protected $s3Handler;
 
     public function __construct(
         private OutlookService $outlookService,
@@ -24,6 +27,7 @@ class MailService
     ) {
         $this->auth = Auth::user() ?? null;
         $this->batchId = Str::uuid()->toString();
+        $this->s3Handler = new S3AttachmentHandler();
     }
 
     public function getMailData(string $folder = 'inbox', ?string $search = null, int $limit = 50): array
@@ -134,119 +138,147 @@ class MailService
             return false;
         }
 
-        if (empty($data['to']) || empty($data['subject']) || empty($data['body'])) {
+        if (empty($data['contacts']) || empty($data['subject']) || empty($data['message'])) {
             return false;
         }
 
         try {
-            $allEmails = array_merge(
-                $data['to'] ?? [],
-                $data['cc'] ?? [],
-                $data['bcc'] ?? []
-            );
+            $recipientNames = ContactNameMappingService::getRecipientNames($data['customer'], $data['allRecipients']);
 
-            $recipientNames = ContactNameMappingService::getRecipientNames(null, $allEmails);
-            $attachments = [];
+            $attachmentsData = [];
+            if ($data['attachments'] && count($data['attachments']) > 0) {
 
-            // if ($request->hasFile('attachments')) {
-            //     foreach ($request->file('attachments') as $index => $file) {
-            //         try {
-            //             $filename = time() . '_' . $index . '_' . $file->getClientOriginalName();
-            //             $path = $file->storeAs('claim_attachments/' . $claim->claim_no, $filename, 'public');
+                $s3Files = collect($data['attachments'])->toArray();
 
-            //             $attachments[] = [
-            //                 'name' => $file->getClientOriginalName(),
-            //                 'path' => storage_path('app/public/' . $path),
-            //                 'size' => $file->getSize(),
-            //                 'mime_type' => $file->getMimeType()
-            //             ];
-            //         } catch (Exception $e) {
-            //             logger()->error('Failed to process attachment', [
-            //                 'index' => $index,
-            //                 'filename' => $file->getClientOriginalName(),
-            //                 'error' => $e->getMessage()
-            //             ]);
-            //             throw new Exception("Failed to process attachment: " . $file->getClientOriginalName() . ". Error: " . $e->getMessage());
-            //         }
-            //     }
-            // }
+                $result = $this->s3Handler->prepareAttachmentsFromS3($s3Files);
 
-            $recipients = array_unique($data['to']);
+                if (!$result['success']) {
+                    logger()->error([
+                        'message' => 'Failed to download attachments from S3',
+                    ]);
+                    return false;
+                }
 
-            if (empty($recipients)) {
-                return false;
+                $attachmentsData = $result['attachments'];
+                $tempFiles = $result['temp_files'];
             }
 
             $successCount = 0;
             $failedCount = 0;
 
-            foreach ($recipients as $index => $recipient) {
+            foreach ($data['allRecipients'] as $index => $recipient) {
                 try {
                     $jobId = $this->batchId . '-' . ($index + 1);
-                    $recipientEmail = is_array($recipient) ? $recipient : [$recipient];
+                    $recipientEmail = explode(',', $recipient) ?? [];
+
                     $recipientName = $recipientNames[$recipient] ?? 'Sir/Madam';
+                    $personalizedMessage = $this->formatMessageForHtml($data['message'], $recipientName);
+                    $rawMessage = $this->formatRawMessageForHtml($data['message']);
 
-                    $personalizedMessage = $this->formatMessageForHtml($data['body'], $recipientName);
-
-                    $emailData = [
-                        'subject' => $data['subject'],
-                        'message' => $personalizedMessage,
-                        'priority' => $data['priority'] ?? 'normal',
-                        'attachments' => $attachments,
-                        'senderName' => $this->auth->name,
-                        'senderEmail' => $this->auth->email,
+                    $dataPayload = [
+                        'subject'       => $data['subject'],
+                        'priority'      => $data['priority'] ?? 'normal',
+                        'category'      => $data['category'],
+                        'reference'     => $data['reference'],
+                        'attachments'   => $attachmentsData,
+                        'tempFiles'     => $tempFiles,
+                        'senderName'    => $this->auth->name,
+                        'senderEmail'   => $this->auth->email,
                         'recipientName' => $recipientName,
-                        'to' => $recipientEmail,
-                        'cc' => $data['cc'] ?? [],
-                        'bcc' => $data['bcc'] ?? [],
-                        'replyToId' => $data['reply_to_id'] ?? null,
+                        'to'            => $recipientEmail,
+                        'cc'            => $data['ccEmail'] ?? [],
+                        'bcc'           => $data['bccEmail'] ?? [],
                     ];
 
-                    SendEmailJob::dispatch($emailData, $this->auth->id, $jobId)
-                        ->delay(now()->addSeconds($index * 2));
+                    if ($data['replyToId']) {
+                        $dataPayload['replyToId'] = $data['replyToId'];
+                        $dataPayload['replyMessage'] = $rawMessage ?? '';
+                    } else {
+                        $dataPayload['message'] = $personalizedMessage;
+                    }
+
+                    SendOutlookEmailJob::dispatch($dataPayload, $this->auth->id, $jobId);
 
                     $successCount++;
                 } catch (\Exception $e) {
                     $failedCount++;
-                    logger()->error("Failed to dispatch email job", [
+                    logger()->error("Failed to dispatch email job for batch {$this->batchId}", [
                         'index' => $index,
-                        'recipient' => $recipient,
-                        'error' => $e->getMessage(),
-                        'trace' => $e->getTraceAsString()
+                        'error' => $e->getMessage()
                     ]);
                 }
             }
 
-            return $successCount > 0;
+            return true;
         } catch (\Exception $e) {
             logger()->error('Email send failed with exception', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
+
+            if (isset($tempFiles)) {
+                $this->s3Handler->cleanupTempFiles($tempFiles);
+            }
             return false;
         }
     }
 
     private function formatMessageForHtml($message, $recipientName = 'Sir/Madam')
     {
-        if (empty($message)) {
-            return '';
+        $personalizedMessage = str_replace(
+            ['{recipient_name}', '{recipient}'],
+            $recipientName,
+            $message
+        );
+
+        $html = nl2br(htmlspecialchars($personalizedMessage, ENT_QUOTES, 'UTF-8'));
+
+        $html = str_replace("\n\n", "</p><p>", $html);
+        $html = "<p>" . $html . "</p>";
+
+        $html = preg_replace('/<p>\s*<\/p>/', '', $html);
+
+        $html = preg_replace('/<p>(\d+\..*?)<\/p>/', '<li>$1</li>', $html);
+        $html = preg_replace('/(<li>.*<\/li>)/s', '<ol>$1</ol>', $html);
+
+        $html = preg_replace('/<p>[-•*]\s*(.*?)<\/p>/', '<li>$1</li>', $html);
+        $html = preg_replace('/(<li>(?:(?!<ol>).)*<\/li>)/s', '<ul>$1</ul>', $html);
+
+        $html = preg_replace('/<p>\s*<\/p>/', '', $html);
+
+        if (!preg_match('/^<p>\s*(Dear|Hello|Hi|Greetings)/i', $html)) {
+            $greeting = ContactNameMappingService::getAppropriateGreeting($recipientName);
+            $html = "<p>" . $greeting . "</p>" . $html;
         }
 
-        $personalizedMessage = str_replace('{recipient_name}', $recipientName, $message);
-
-        if (preg_match('/<[^>]+>/', $personalizedMessage)) {
-            return $personalizedMessage;
+        if (!preg_match('/(Best regards|Sincerely|Kind regards|Yours faithfully)/i', $html)) {
+            $html .= "<p>Best regards,<br>" . auth()->user()->name . "</p>";
         }
 
-        $html = htmlspecialchars($personalizedMessage, ENT_QUOTES, 'UTF-8');
-        $html = nl2br($html);
-        $html = '<p>' . str_replace("\n\n", '</p><p>', $html) . '</p>';
+        return $html;
+    }
+
+    private function formatRawMessageForHtml($message)
+    {
+        $html = nl2br(htmlspecialchars($message, ENT_QUOTES, 'UTF-8'));
+
+        $html = str_replace("\n\n", "</p><p>", $html);
+
+        $html = "<p>" . $html . "</p>";
+
+        $html = preg_replace('/<p>\s*<\/p>/', '', $html);
+
+        $html = preg_replace('/<p>(\d+\..*?)<\/p>/', '<li>$1</li>', $html);
+        $html = preg_replace('/(<li>.*<\/li>)/s', '<ol>$1</ol>', $html);
+
+        $html = preg_replace('/<p>[-•*]\s*(.*?)<\/p>/', '<li>$1</li>', $html);
+        $html = preg_replace('/(<li>(?:(?!<ol>).)*<\/li>)/s', '<ul>$1</ul>', $html);
 
         $html = preg_replace('/<p>\s*<\/p>/', '', $html);
 
         return $html;
     }
+
 
 
     public function replyToEmail(string $id, array $data): bool

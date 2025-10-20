@@ -1,4 +1,4 @@
-<div id="bdComposeFormDiv">
+<div id="bdComposeFormDiv" class="customScrollBar">
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h2 class="mb-0" id="composeTitle">Compose New Email</h2>
         <button type="button" class="btn btn-outline-secondary btn-sm" id="clearFormBtn" style="display: none;">
@@ -6,7 +6,6 @@
         </button>
     </div>
 
-    <!-- Recipients Row -->
     <div class="row">
         <div class="col-md-12 mb-3">
             <label for="toEmail" class="form-label">To: <span class="text-danger">*</span></label>
@@ -21,6 +20,7 @@
             <div class="invalid-feedback"></div>
         </div>
     </div>
+
     <div class="row mb-3">
         <div class="col-md-6">
             <label for="ccEmail" class="form-label">CC:</label>
@@ -39,8 +39,7 @@
     <div class="row mb-3">
         <div class="col-md-8">
             <label for="subject" class="form-label">Subject: <span class="text-danger">*</span></label>
-            <input type="text" class="form-inputs" id="subject" name="subject" placeholder="Subject"
-                {{-- value="{{ is_array($claimSubject) ? implode(' ', $claimSubject) : $claimSubject }}" --}} required>
+            <input type="text" class="form-inputs subject" id="subject" name="subject" placeholder="Subject">
             <div class="invalid-feedback"></div>
         </div>
         <div class="col-md-4">
@@ -125,147 +124,17 @@
                 </div>
             </div>
 
-            <textarea class="form-inputs resize-none @error('message') is-invalid @enderror" id="message" name="message"
-                rows="10" required placeholder="Reply message...">{{ $defaultBdMessage ?? '' }}</textarea>
+            <textarea class="form-inputs message resize-none @error('message') is-invalid @enderror" id="message"
+                name="message" rows="15" placeholder="Enter Message..."></textarea>
             <div class="invalid-feedback"></div>
         </div>
     </div>
 
-    <div class="row" id="attachedBdFiles">
-        {{-- <div class="col-12">
-            <label for="message" class="form-label fw-bold">
-                Attached Files:
-            </label>
-            <div id="attachedFilesList" class="attached-files-container compose_attachement">
-                <div class="row">
-                    <!-- Claim Notice -->
-                    <div class="col-md-4">
-                        <a href="#" id="claimNoticeLink" target="_blank" rel="noopener noreferrer">
-                            <div class="file-item d-flex align-items-center mb-2">
-                                <div class="file-icon me-3">
-                                    <i class="bx bx-file"></i>
-                                </div>
-                                <div class="file-info flex-grow-1">
-                                    <h6 class="mb-1">
-                                        {{-- Claim_Notice_{{ $ClaimRegister->intimation_no }} --
-                                    </h6>
-                                    <div class="file-meta">
-                                        PDF Document
-                                    </div>
-                                </div>
-                            </div>
-                        </a>
-                    </div>
-
-                    <div class="col-md-4">
-                        <a href="#" id="debitNoteLink" target="_blank" rel="noopener noreferrer">
-                            <div class="file-item d-flex align-items-center mb-2">
-                                <div class="file-icon me-3">
-                                    <i class="bx bx-file"></i>
-                                </div>
-                                <div class="file-info flex-grow-1">
-                                    <h6 class="mb-1">
-                                        {{-- Debit_Note_{{ $ClaimRegister->intimation_no }} --
-                                    </h6>
-                                    <div class="file-meta">
-                                        PDF Document
-                                    </div>
-                                </div>
-                            </div>
-                        </a>
-                    </div>
-
-                    {{-- @if (isset($claimDocuments) && count($claimDocuments) > 0)
-                            @foreach ($claimDocuments as $doc)
-                                <div class="col-md-4">
-                                    <a href="{{ $doc->file_path ?? '#' }}" target="_blank" rel="noopener noreferrer">
-                                        <div class="file-item d-flex align-items-center mb-2">
-                                            <div class="file-icon me-3">
-                                                @php
-                                                    $mimeType = $doc->mime_type ?? '';
-                                                    $fileExtension = pathinfo($doc->file ?? '', PATHINFO_EXTENSION);
-                                                @endphp
-                                                @if (str_contains($mimeType, 'pdf') || strtolower($fileExtension) === 'pdf')
-                                                    <i class="bx bx-file-pdf text-danger"></i>
-                                                @elseif(str_contains($mimeType, 'word') ||
-                                                        str_contains($mimeType, 'document') ||
-                                                        in_array(strtolower($fileExtension), ['doc', 'docx']))
-                                                    <i class="bx bx-file-doc text-primary"></i>
-                                                @elseif(str_contains($mimeType, 'image') ||
-                                                        in_array(strtolower($fileExtension), ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp']))
-                                                    <i class="bx bx-image text-success"></i>
-                                                @elseif(str_contains($mimeType, 'sheet') ||
-                                                        str_contains($mimeType, 'excel') ||
-                                                        in_array(strtolower($fileExtension), ['xls', 'xlsx']))
-                                                    <i class="bx bx-file-excel text-success"></i>
-                                                @elseif(str_contains($mimeType, 'text') || strtolower($fileExtension) === 'txt')
-                                                    <i class="bx bx-file-txt text-info"></i>
-                                                @else
-                                                    <i class="bx bx-file"></i>
-                                                @endif
-                                            </div>
-                                            <div class="file-info flex-grow-1">
-                                                <h6 class="mb-1">
-                                                    {{ $doc->file ?? 'Document' }}
-                                                </h6>
-                                                <div class="file-meta">
-                                                    @php
-                                                        $displayType = 'Document';
-                                                        if (str_contains($mimeType, 'pdf')) {
-                                                            $displayType = 'PDF Document';
-                                                        } elseif (str_contains($mimeType, 'image')) {
-                                                            $displayType = 'Image File';
-                                                        } elseif (
-                                                            str_contains($mimeType, 'word') ||
-                                                            str_contains($mimeType, 'document')
-                                                        ) {
-                                                            $displayType = 'Word Document';
-                                                        } elseif (
-                                                            str_contains($mimeType, 'sheet') ||
-                                                            str_contains($mimeType, 'excel')
-                                                        ) {
-                                                            $displayType = 'Excel Document';
-                                                        } elseif (str_contains($mimeType, 'text')) {
-                                                            $displayType = 'Text Document';
-                                                        } elseif ($fileExtension) {
-                                                            $displayType = strtoupper($fileExtension) . ' Document';
-                                                        }
-                                                    @endphp
-                                                    {{ $displayType }}
-                                                    @if (isset($doc->file_size))
-                                                        • {{ number_format($doc->file_size / 1024, 1) }} KB
-                                                    @endif
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </a>
-                                </div>
-                            @endforeach
-                        @endif
-
-                        @if (!$claimDocuments || count($claimDocuments) == 0)
-                            <div class="col-md-12">
-                                <div id="additionalFilesMessage" class="text-center py-2">
-                                    <small class="text-muted">
-                                        <i class="fas fa-info-circle me-1"></i>
-                                        No additional claim documents attached.
-                                    </small>
-                                </div>
-                            </div>
-                        @endif --
-                </div>
-            </div>
-
-            <div class="mt-2 compose_attachement">
-                <small class="text-muted">
-                    <i class="fas fa-info-circle me-1"></i>
-                    <span id="fileCount">
-                        {{ 2 + ($filesAttached && count($filesAttached) > 0 ? count($filesAttached) : 0) }}
-                        files attached
-                    </span>
-                </small>
-            </div>
-        </div> --}}
+    <div id="attachedFilesList">
+        <label for="message" class="form-label fw-bold">
+            Attached Files:
+        </label>
+        <div class="row"></div>
     </div>
 </div>
 
@@ -286,7 +155,7 @@
         margin: 1rem 0;
         border: 1px solid #dee2e6;
         border-radius: 6px;
-        max-height: 300px;
+        max-height: 700px;
         overflow-y: auto;
         transition: all 0.3s ease;
     }
@@ -398,6 +267,10 @@
         font-size: 14px;
         font-weight: 600;
         color: #333;
+        max-width: 260px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
     .file-meta {
@@ -437,5 +310,13 @@
     .select2-container .select2-search--inline .select2-search__field {
         margin-block-start: 7px !important;
         font-size: 14px;
+    }
+
+    #bdComposeFormDiv {
+        height: 990px;
+        overflow-x: hidden;
+        overflow-y: auto;
+        margin-right: -8px;
+        padding-right: 14px;
     }
 </style>

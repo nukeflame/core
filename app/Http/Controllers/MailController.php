@@ -4,8 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\SendClaimReinsurerRequest;
 use App\Jobs\SendOutlookEmailJob;
+use App\Jobs\SyncUserEmails;
 use App\Models\ClaimRegister;
 use App\Models\Customer;
+use App\Models\EmailSyncState;
 use App\Models\User;
 use App\Services\ContactNameMappingService;
 use App\Services\OutlookService;
@@ -169,6 +171,23 @@ class MailController extends Controller
                     'message' => $status['error'] ?? $status['message']
                 ]);
             }
+
+            if ($forceRefresh) {
+                $userId = $request->user()->id;
+                $syncType = $request->input('type', 'delta');
+
+                $syncState = EmailSyncState::where('user_id', $userId)->first();
+
+                if ($syncState && $syncState->is_locked || $syncState->is_syncing) {
+                    return response()->json([
+                        'message' => 'Sync already in progress',
+                        'status' => 'locked'
+                    ], 409);
+                }
+
+                SyncUserEmails::dispatch($userId, $syncType);
+            }
+
 
             $emails = $this->mailService->getEmails($folder, $limit);
 
@@ -667,9 +686,8 @@ class MailController extends Controller
 
     public function sendClaimReinsurerEmail(SendClaimReinsurerRequest $request)
     {
+        DB::beginTransaction();
         try {
-            DB::beginTransaction();
-
             $claim = ClaimRegister::where('claim_no', $request->claim_no)->firstOrFail();
             $customer = $claim->customer ?? Customer::find($request->customer_id);
             $allEmails = array_merge(

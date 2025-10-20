@@ -373,8 +373,8 @@
                 this.currentFolder = 'inbox';
                 this.isLoading = false;
 
-                // this.handleSearch = this.debounce(this.filterMessages.bind(this), 500);
-                // this.handleFilterChange = this.handleFilterChange.bind(this);
+                this.handleSearch = this.debounce(this.filterMessages.bind(this), 500);
+                this.handleFilterChange = this.handleFilterChange.bind(this);
 
                 this.initialize();
             }
@@ -393,26 +393,37 @@
             }
 
             bindEventListeners() {
+                $('#searchTerm').off('input').on('input', this.handleSearch);
+                $('#filterPriority, #filterCategory').off('change').on('change', this.handleFilterChange);
+
                 $('#emailTabs button').on('shown.bs.tab', (e) => {
-                    if (e.target.id === 'replies-tab') {
+                    const targetId = e.target.id;
+                    if (targetId === 'replies-tab') {
+                        $("#resetMailForm").show();
                         this.loadMessages();
                     }
                 });
 
-                // $('#searchTerm').on('input', this.handleSearch);
-                // $('#filterPriority, #filterCategory').on('change', this.handleFilterChange);
+                $(document).on('click', '.page-link', (e) => {
+                    e.preventDefault();
+                    const page = $(e.target).data('page');
+                    if (page) this.changePage(page);
+                });
+
+                $('#searchTerm').on('input', this.handleSearch);
+                $('#filterPriority, #filterCategory').on('change', this.handleFilterChange);
                 $('#filterFolder').on('change', (e) => {
                     this.currentFolder = $(e.target).val();
                     this.loadMessages();
                 });
 
-                // $('#refreshEmailsBtn').on('click', () => this.refreshData());
-                // $('#checkConnectionBtn').on('click', () => this.checkConnection());
+                $('#refreshEmailsBtn').on('click', () => this.refreshData());
+                $('#checkConnectionBtn').on('click', () => this.checkConnection());
                 $('#connectOutlookBtn').on('click', () => this.redirectToMail());
-                // $('#fetchMoreBtn').on('click', () => this.fetchMoreEmails());
-                // $('#clearFiltersBtn').on('click', () => this.clearFilters());
-                // $('#saveDraftBtn').on('click', () => this.saveDraft());
-                // $('#newEmailBtn, #newEmailInstead').on('click', () => this.handleNewEmail());
+                $('#fetchMoreBtn').on('click', () => this.fetchMoreEmails());
+                $('#clearFiltersBtn').on('click', () => this.clearFilters());
+                $('#saveDraftBtn').on('click', () => this.saveDraft());
+                $('#newEmailBtn, #newEmailInstead').on('click', () => this.handleNewEmail());
             }
 
             async checkConnection() {
@@ -502,7 +513,6 @@
                     const emailData = response.data;
 
                     if (!emailData || !Array.isArray(emailData)) {
-                        console.warn('No email data available');
                         this.allMessages = [];
                         this.filteredMessages = [];
                         this.updateResultsInfo();
@@ -515,7 +525,6 @@
                             try {
                                 return this.transformOutlookMessage(email);
                             } catch (err) {
-                                console.error('Failed to transform email:', email, err);
                                 return null;
                             }
                         })
@@ -530,8 +539,6 @@
                     this.renderPagination();
 
                 } catch (error) {
-                    console.error('Outlook fetch failed:', error);
-
                     let errorMessage = 'Failed to load emails';
                     if (error.status === 401) {
                         errorMessage = 'Session expired. Please login again.';
@@ -843,34 +850,34 @@
                 ].filter(Boolean).join('');
 
                 return `
-                <div class="settlement-card ${!message.isRead ? 'message-unread' : ''}"
-                    data-message-id="${message.id}"
-                    ondblclick="emailManager.handleReply('${message.id}')">
-                    <div class="settlement-card__content">
-                        <div class="settlement-card__main">
-                            <div class="settlement-card__badges">${badges}</div>
-                            <h3 class="settlement-card__title">${message.subject}</h3>
-                            <p class="settlement-card__from">
-                                From: <span class="settlement-card__from-email">${message.fromName || message.from}</span>
-                                ${message.fromName && message.from !== message.fromName ?
-                                    `<span class="text-muted">&lt;${message.from}&gt;</span>` : ''}
-                            </p>
-                            <p class="settlement-card__description">${message.preview}</p>
-                        </div>
-                        <div class="settlement-card__sidebar">
-                            <p class="settlement-card__timestamp">${message.date}</p>
-                            <button class="reply-button" onclick="event.stopPropagation(); emailManager.handleReply('${message.id}')">
-                                <svg class="reply-button__icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
-                                    viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                                    stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M20 18v-2a4 4 0 0 0-4-4H4"></path>
-                                    <path d="m9 17-5-5 5-5"></path>
-                                </svg>
-                            </button>
+                    <div class="settlement-card ${!message.isRead ? 'message-unread' : ''}"
+                        data-message-id="${message.id}"
+                        ondblclick="emailManager.handleReply('${message.id}')">
+                        <div class="settlement-card__content">
+                            <div class="settlement-card__main">
+                                <div class="settlement-card__badges">${badges}</div>
+                                <h3 class="settlement-card__title">${message.subject}</h3>
+                                <p class="settlement-card__from">
+                                    From: <span class="settlement-card__from-email">${message.fromName || message.from}</span>
+                                    ${message.fromName && message.from !== message.fromName ?
+                                        `<span class="text-muted">&lt;${message.from}&gt;</span>` : ''}
+                                </p>
+                                <p class="settlement-card__description">${message.preview}</p>
+                            </div>
+                            <div class="settlement-card__sidebar">
+                                <p class="settlement-card__timestamp">${message.date}</p>
+                                <button class="reply-button" onclick="event.stopPropagation(); emailManager.handleReply('${message.id}')">
+                                    <svg class="reply-button__icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                        stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M20 18v-2a4 4 0 0 0-4-4H4"></path>
+                                        <path d="m9 17-5-5 5-5"></path>
+                                    </svg>
+                                </button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            `;
+                `;
             }
 
             renderPagination() {
@@ -886,28 +893,28 @@
                 let paginationHtml = '';
 
                 paginationHtml += `
-                <li class="page-item ${this.currentPage === 1 ? 'disabled' : ''}">
-                    <a class="page-link" href="#" onclick="emailManager.changePage(${this.currentPage - 1})">&laquo;</a>
-                </li>
-            `;
+                    <li class="page-item ${this.currentPage === 1 ? 'disabled' : ''}">
+                        <a class="page-link" href="#" onclick="emailManager.changePage(${this.currentPage - 1})">&laquo;</a>
+                    </li>
+                `;
 
                 for (let i = 1; i <= totalPages; i++) {
                     if (i === 1 || i === totalPages || (i >= this.currentPage - 2 && i <= this.currentPage + 2)) {
                         paginationHtml += `
-                <li class="page-item ${i === this.currentPage ? 'active' : ''}">
-                    <a class="page-link" href="#" onclick="emailManager.changePage(${i})">${i}</a>
-                </li>
-            `;
+                            <li class="page-item ${i === this.currentPage ? 'active' : ''}">
+                                <a class="page-link" href="#" onclick="emailManager.changePage(${i})">${i}</a>
+                            </li>
+                        `;
                     } else if (i === this.currentPage - 3 || i === this.currentPage + 3) {
                         paginationHtml += '<li class="page-item disabled"><span class="page-link">...</span></li>';
                     }
                 }
 
                 paginationHtml += `
-                <li class="page-item ${this.currentPage === totalPages ? 'disabled' : ''}">
-                    <a class="page-link" href="#" onclick="emailManager.changePage(${this.currentPage + 1})">&raquo;</a>
-                </li>
-            `;
+                    <li class="page-item ${this.currentPage === totalPages ? 'disabled' : ''}">
+                        <a class="page-link" href="#" onclick="emailManager.changePage(${this.currentPage + 1})">&raquo;</a>
+                    </li>
+                `;
 
                 $('#paginationList').html(paginationHtml);
                 $('#paginationContainer').removeClass('d-none');
@@ -925,20 +932,19 @@
             handleReply(messageId) {
                 const message = this.allMessages.find(m => String(m.id) === String(messageId));
                 if (!message) {
-                    console.error('Message not found:', messageId);
                     this.showToast('error', 'Message not found');
                     return;
                 }
 
                 try {
                     $('#to').val(message.from);
-                    $('#subject').val(message.subject.startsWith('Re:') ? message.subject : `Re: ${message.subject}`);
+                    $('#subject').val(message.subject.startsWith('Re:') ? message.subject : `Re: ${message.subject}`)
+                        .attr('disabled', true);
                     $('#category').val(message.category);
 
                     $('#toggleEmailBodyBtn').css('display', 'block').html(
                         '<i class="bx bx-chevron-up me-1"></i>Hide Original Email');
-                    $('#emailBody').removeClass('hidden');
-                    $('#message').attr('rows', 5).val('');
+                    $('#message').attr('rows', 15).val('');
 
                     $('#emailBody #originalFrom').text(`${message.fromName} <${message.from}>`);
                     $('#emailBody #originalSent').text(message.date);
@@ -961,6 +967,7 @@
                     const preview = subject.length > 50 ? subject.substring(0, 50) + '...' : subject;
                     this.showToast('success', `Replying to: ${preview}`);
 
+                    $('#attachedFilesList').find('.row').empty();
                 } catch (error) {
                     console.error('Reply setup failed:', error);
                     this.showToast('error', 'Failed to setup reply');
@@ -991,13 +998,12 @@
                         '<span class="spinner-border spinner-border-sm me-1"></span> Refreshing...');
 
                     await this.loadMessages(true);
-                    this.showToast('success', 'Messages refreshed successfully!');
-
+                    // this.showToast('success', 'Messages refreshed successfully!');
                 } catch (error) {
                     console.error('Refresh failed:', error);
                     this.showToast('error', 'Failed to refresh messages');
                 } finally {
-                    $btn.prop('disabled', false).html(originalHtml);
+                    // $btn.prop('disabled', false).html(originalHtml);
                 }
             }
 
@@ -1009,7 +1015,7 @@
                     $btn.prop('disabled', true).html(
                         '<span class="spinner-border spinner-border-sm me-1"></span> Fetching...');
 
-                    this.showToast('info', 'Fetch more functionality needs backend implementation');
+                    this.showToast('info', 'Fetching More');
 
                 } catch (error) {
                     console.error('Fetch more failed:', error);
@@ -1037,8 +1043,13 @@
             }
 
             showLoadingState() {
-                $('#loadingSpinner').show();
-                $('#messagesContainer').html($('#loadingSpinner').parent().html());
+                const $container = $('#messagesContainer');
+                const $spinner = $('#loadingSpinner');
+
+                if ($spinner.is(':visible')) return;
+
+                $spinner.show();
+                $container.html($('#loadingSpinner').parent().html());
             }
 
             hideLoadingState() {
@@ -1059,30 +1070,73 @@
                 $('#paginationContainer').addClass('d-none');
             }
 
-            // showToast(type, message) {
-            //     if (typeof toastr !== 'undefined') {
-            //         toastr[type](message);
-            //     } else {
-            //         console.log(`${type.toUpperCase()}: ${message}`);
-            //     }
-            // }
+            showToast(type, message) {
+                if (typeof toastr !== 'undefined') {
+                    toastr[type](message);
+                } else {
+                    // console.log(`${type.toUpperCase()}: ${message}`);
+                }
+            }
 
-            // debounce(func, wait) {
-            //     let timeout;
-            //     return function executedFunction(...args) {
-            //         const later = () => {
-            //             clearTimeout(timeout);
-            //             func.apply(this, args);
-            //         };
-            //         clearTimeout(timeout);
-            //         timeout = setTimeout(later, wait);
-            //     };
-            // }
+            debounce(func, wait) {
+                let timeout;
+                return function executedFunction(...args) {
+                    const later = () => {
+                        clearTimeout(timeout);
+                        func.apply(this, args);
+                    };
+                    clearTimeout(timeout);
+                    timeout = setTimeout(later, wait);
+                };
+            }
+        }
+
+        function initializeEmailSync() {
+            const userId = {{ auth()->id() }};
+
+            const tryConnect = (attempts = 0) => {
+                if (attempts > 50) {
+                    return;
+                }
+
+                if (typeof window.Echo !== 'undefined' && window.Echo) {
+                    try {
+                        const channel = window.Echo.private(`email-sync.${userId}`);
+                        const $btn = $('#refreshEmailsBtn');
+                        const originalHtml = $btn.html();
+
+                        channel.listen('.sync.progress', (data) => {
+                            $btn.prop('disabled', true).html(
+                                '<span class="spinner-border spinner-border-sm me-1"></span> Refreshing...');
+                        });
+
+                        channel.listen('.sync.completed', (data) => {
+                            console.log('completed')
+                            $btn.prop('disabled', false).html(originalHtml);
+                            window.emailManager.showToast('success', 'Messages refreshed successfully!');
+                        });
+
+                        channel.listen('.sync.failed', (data) => {
+                            $btn.prop('disabled', false).html(originalHtml);
+                            window.emailManager.showToast('error', 'Failed to refresh messages');
+                        });
+                    } catch (error) {
+                        console.error('Echo subscription error:', error);
+                    }
+                } else {
+                    setTimeout(() => tryConnect(attempts + 1), 100);
+                }
+            };
+
+            tryConnect();
         }
 
         $(document).ready(function() {
             window.emailManager = new EmailManager();
-            // this.emailManager.hideLoadingState()
+
+            initializeEmailSync()
+
+            setTimeout(initializeEmailSync, 500);
 
         });
 

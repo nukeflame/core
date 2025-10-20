@@ -32,6 +32,9 @@ class SyncUserEmails implements ShouldQueue
     protected int $totalUpdated = 0;
     protected int $totalDeleted = 0;
 
+    protected $toUpsert = [];
+    protected $toDelete = [];
+
     public function __construct(int $userId)
     {
         $this->userId = $userId;
@@ -51,6 +54,7 @@ class SyncUserEmails implements ShouldQueue
         try {
             $syncState->update([
                 'is_syncing' => true,
+                'is_locked' => true,
                 'sync_attempts' => $syncState->sync_attempts + 1,
                 'last_attempt_at' => now()
             ]);
@@ -67,6 +71,7 @@ class SyncUserEmails implements ShouldQueue
             // Mark sync as complete
             $syncState->update([
                 'is_syncing' => false,
+                'is_locked' => false,
                 'last_synced_at' => now(),
                 'sync_attempts' => 0,
                 'last_error' => null
@@ -111,6 +116,7 @@ class SyncUserEmails implements ShouldQueue
         } catch (\Exception $e) {
             $syncState->update([
                 'is_syncing' => false,
+                'is_locked' => false,
                 'last_error' => $e->getMessage()
             ]);
 
@@ -167,6 +173,23 @@ class SyncUserEmails implements ShouldQueue
 
     protected function processMessagesInBatches(array $messages, User $user): void
     {
+        $allIncomingUids = [];
+        foreach ($messages as $message) {
+            if (isset($message['id']) && !isset($message['@removed'])) {
+                $allIncomingUids[] = $message['id'];
+            }
+        }
+
+        if (!empty($allIncomingUids)) {
+            $deleted = DB::table('fetched_emails')
+                ->where('user_email', $user->email)
+                ->where('folder', 'inbox')
+                ->whereNotIn('uid', $allIncomingUids)
+                ->delete();
+
+            $this->totalDeleted += $deleted;
+        }
+
         $batchSize = 50;
         $chunks = array_chunk($messages, $batchSize);
 
@@ -179,21 +202,15 @@ class SyncUserEmails implements ShouldQueue
 
     protected function processBatch(array $messages, User $user): void
     {
-        $toInsert = [];
-        $deletedCount = 0;
+        $this->toUpsert = [];
+        $this->toDelete = [];
 
         foreach ($messages as $message) {
             $this->totalProcessed++;
 
             if (isset($message['@removed'])) {
-                $deleted = DB::table('fetched_emails')
-                    ->where('user_id', $user->id)
-                    ->where('uid', $message['id'])
-                    ->delete();
-
-                if ($deleted) {
-                    $this->totalDeleted++;
-                    $deletedCount++;
+                if (isset($message['id'])) {
+                    $this->toDelete[] = $message['id'];
                 }
                 continue;
             }
@@ -203,31 +220,41 @@ class SyncUserEmails implements ShouldQueue
                 continue;
             }
 
-            $toInsert[] = $this->prepareEmailData($message, $user);
+            $this->toUpsert[] = $this->prepareEmailData($message, $user);
         }
 
-        if (!empty($toInsert)) {
-            $existingIds = DB::table('fetched_emails')
+        $incomingUids = array_column($this->toUpsert, 'uid');
+
+        if (!empty($this->toDelete)) {
+            $deleted = DB::table('fetched_emails')
                 ->where('user_id', $user->id)
-                ->whereIn('uid', array_column($toInsert, 'uid'))
+                ->where('folder', 'inbox')
+                ->whereIn('uid', $this->toDelete)
+                ->delete();
+
+            $this->totalDeleted += $deleted;
+        }
+
+        if (!empty($this->toUpsert)) {
+            $existingUids = DB::table('fetched_emails')
+                ->where('user_email', $user->email)
+                ->whereIn('uid', $incomingUids)
                 ->pluck('uid')
                 ->toArray();
 
-            $insertedCount = count(array_diff(array_column($toInsert, 'uid'), $existingIds));
-            $updatedCount = count($existingIds);
-
-            $this->totalInserted += $insertedCount;
-            $this->totalUpdated += $updatedCount;
+            $insertCount = count($incomingUids) - count($existingUids);
+            $updateCount = count($existingUids);
 
             DB::table('fetched_emails')->upsert(
-                $toInsert,
+                $this->toUpsert,
                 ['user_id', 'uid'],
                 [
+                    'message_id',
                     'user_email',
                     'subject',
                     'body_preview',
-                    'updated_at',
                     'date_received',
+                    'conversation_id',
                     'from_email',
                     'from_name',
                     'is_read',
@@ -239,9 +266,13 @@ class SyncUserEmails implements ShouldQueue
                     'body_text',
                     'body_html',
                     'folder',
-                    'importance'
+                    'importance',
+                    'updated_at'
                 ]
             );
+
+            $this->totalInserted += $insertCount;
+            $this->totalUpdated += $updateCount;
         }
     }
 
@@ -258,7 +289,7 @@ class SyncUserEmails implements ShouldQueue
         $sentDateTime = $this->parseDateTime($message['sentDateTime'] ?? null);
 
         $bodyContent = $message['body']['content'] ?? '';
-        $folderName = Str::lower($message['parentFolder']['name']) ?? 'inbox';
+        $folderName = Str::lower($message['parentFolderId']['displayName'] ?? 'inbox');
 
         return [
             'user_id'         => $user->id,
@@ -407,7 +438,7 @@ class SyncUserEmails implements ShouldQueue
     public function failed(\Throwable $exception)
     {
         EmailSyncState::where('user_id', $this->userId)
-            ->update(['is_syncing' => false]);
+            ->update(['is_syncing' => false, 'is_locked' => false]);
 
         $this->broadcastFailure($exception->getMessage());
 

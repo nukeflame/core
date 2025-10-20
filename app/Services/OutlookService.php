@@ -2206,15 +2206,18 @@ class OutlookService
             }
 
             $messageId = $draftResponse['message_id'];
+            $conversationId = $draftResponse['conversation_id'];
             $sendResponse = $this->sendDraftMessage($messageId);
 
             if ($sendResponse['success']) {
                 return [
                     'success' => true,
                     'message_id' => $messageId,
+                    'conversation_id' => $conversationId,
                     'message' => 'Email sent successfully'
                 ];
             }
+
             return ['success' => false];
         } catch (Exception $e) {
             logger()->error('Failed to send email with message ID', [
@@ -2242,7 +2245,7 @@ class OutlookService
                     'contentType' => $emailData['bodyType'] ?? 'HTML',
                     'content' => $emailData['body']
                 ],
-                'toRecipients' => $this->formatRecipients($emailData['to'])
+                'toRecipients' => $this->formatRecipients($emailData['to']),
             ];
 
             if (!empty($emailData['cc'])) {
@@ -2270,7 +2273,7 @@ class OutlookService
             return [
                 'success' => true,
                 'message_id' => $response['id'],
-                'conversation_id' => $response['conversationId'] ?? null
+                'conversation_id' => $response['conversationId']
             ];
         } catch (Exception $e) {
             logger()->error('Failed to create draft message', [
@@ -4269,7 +4272,7 @@ class OutlookService
                 $url = $deltaLink;
             } else {
                 $queryParams = [
-                    '$select' => 'id,subject,bodyPreview,from,toRecipients,ccRecipients,isRead,isDraft,hasAttachments,importance,categories,receivedDateTime,sentDateTime,conversationId,changeKey,parentFolderId',
+                    '$select' => 'id,subject,bodyPreview,from,toRecipients,ccRecipients,isRead,isDraft,hasAttachments,importance,categories,receivedDateTime,sentDateTime,conversationId,changeKey,parentFolderId,internetMessageHeaders',
                     '$top' => 100,
                 ];
                 $url = '/me/mailFolders/inbox/messages/delta?' . http_build_query($queryParams, '', '&', PHP_QUERY_RFC3986);

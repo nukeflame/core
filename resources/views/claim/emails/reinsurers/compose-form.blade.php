@@ -684,7 +684,7 @@
                         formData.append('reply_context', JSON.stringify(replyState.originalMessage));
                     }
 
-                    toastr.success('Draft saved successfully!');
+                    // toastr.success('Draft saved successfully!');
 
                     //  TODO: Implement actual API call
                     //{{-- $.ajax({

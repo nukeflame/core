@@ -11,12 +11,13 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\DB;
+use App\Services\S3AttachmentHandler;
 
 class SendOutlookEmailJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public $timeout = 300; // 5 minutes
+    public $timeout = 300;
     public $tries = 3;
     public $maxExceptions = 2;
     public $backoff = [30, 60, 120]; // Retry after 30s, 1m, 2m
@@ -26,50 +27,53 @@ class SendOutlookEmailJob implements ShouldQueue
     protected ?string $jobId;
     protected ?int $emailLogId;
     protected $emailRecordId;
-
+    protected $s3Handler;
 
     public function __construct(array $emailData, int $userId, ?string $jobId = null)
     {
         $this->emailData = $emailData;
         $this->userId = $userId;
         $this->jobId = $jobId;
-        // $this->emailRecordId = $emailRecordId;
-        // $this->onQueue('emails'); // Use dedicated email queue
+        $this->s3Handler = new S3AttachmentHandler();
     }
 
     public function handle(OutlookService $outlookService): void
     {
         try {
             $user = User::findOrFail($this->userId);
-            $emailPayload = $this->prepareEmailPayload();
+            $payload = $this->prepareEmailPayload();
 
-            $this->emailLogId = $this->createEmailLog($user, 'processing');
+            $this->emailLogId = $this->createEmailLog($user, 'running');
 
             if (!$outlookService->isTokenValid($user->email)) {
                 throw new Exception('Invalid or expired Outlook token for user: ' . $user->email);
             }
 
-            if (!empty($this->emailData['replyToId'])) {
-                $result = $this->sendReply($user, $outlookService, $emailPayload);
+            if (isset($this->emailData['replyToId']) && !empty($this->emailData['replyToId'])) {
+                logger()->debug(json_encode(['emailData' => $this->emailData], JSON_PRETTY_PRINT));
+
+                // $result = $this->sendReply($user, $outlookService, $payload);
             } else {
-                $result = $outlookService->sendEmail($user, $emailPayload);
+                $result = $this->sendNewMessage($user, $outlookService, $payload);
             }
 
-            // logger()->info(['result' => $result]);
             if ($result['success']) {
-                // $this->updateEmailLog('sent', [
-                //     'message_id' => $result['message_id'],
-                //     'conversation_id' => $result['conversation_id'] ?? null,
-                //     'sent_at' => $result['sent_at'] ?? now()->toISOString()
-                // ]);
+                $this->updateEmailLog('success', [
+                    'message_id' => $result['message_id'],
+                    'conversation_id' => $result['conversation_id'] ?? null,
+                    'sent_at' => $result['sent_at'] ?? now()->toISOString()
+                ]);
 
-                // Dispatch follow-up jobs if needed
-                // $this->dispatchFollowUpJobs($result);
+                $this->dispatchFollowUpJobs($result);
             } else {
                 throw new Exception($result['error'] ?? 'Unknown error occurred while sending email');
             }
         } catch (Exception $e) {
-            // $this->updateEmailLog('failed', ['error' => $e->getMessage()]);
+            $this->updateEmailLog('failed', ['error' => $e->getMessage()]);
+
+            if (isset($this->emailData['tempFiles'])) {
+                $this->s3Handler->cleanupTempFiles($this->emailData['tempFiles']);
+            }
 
             logger()->error('Email send job failed', [
                 'job_id' => $this->jobId,
@@ -79,7 +83,7 @@ class SendOutlookEmailJob implements ShouldQueue
                 'max_tries' => $this->tries
             ]);
 
-            throw $e; // Re-throw to trigger retry mechanism
+            throw $e;
         }
     }
 
@@ -88,27 +92,42 @@ class SendOutlookEmailJob implements ShouldQueue
      */
     private function prepareEmailPayload(): array
     {
-        return [
+        $result = [
             'subject' => $this->emailData['subject'],
             'body' => $this->buildEmailBody(),
             'bodyType' => 'HTML',
             'to' => $this->emailData['to'],
             'cc' => $this->emailData['cc'],
             'bcc' => $this->emailData['bcc'],
-            'attachments' => $this->emailData['attachments'] ?? [],
+            'attachments' => $this->emailData['attachments'],
             'priority' => $this->emailData['priority'] ?? 'normal',
             'customHeaders' => $this->buildCustomHeaders(),
-            'replyToId' => $this->emailData['replyToId'] ?? null,
-            'conversationId' => $this->emailData['conversationId'] ?? null
         ];
+
+
+        if (isset($data['replyToId'])) {
+            $result['replyToId'] = $this->emailData['replyToId'];
+            $result['conversationId'] = $this->emailData['conversationId'];
+        }
+
+        return $result;
     }
 
+    /**
+     * Send a reply to existing message
+     */
+    private function sendNewMessage($user, $outlookService, array $emailPayload): array
+    {
+        return $outlookService->sendEmail($user, $emailPayload);
+    }
 
     /**
      * Send a reply to existing message
      */
     private function sendReply(User $user, OutlookService $outlookService, array $emailPayload): array
     {
+        logger()->debug(json_encode(['sendReply' => 'sending'], JSON_PRETTY_PRINT));
+
         $replyData = [
             // 'toRecipients' => [
             //     ['address' => $this->emailData['to']],
@@ -129,12 +148,12 @@ class SendOutlookEmailJob implements ShouldQueue
     {
         $headers = [
             [
-                'name' => 'X-Claim-Number',
-                'value' => $this->emailData['claim']->claim_no
+                'name' => 'X-Email-Category',
+                'value' => $this->emailData['category']
             ],
             [
-                'name' => 'X-Email-Category',
-                'value' => $this->emailData['category'] ?? 'claim'
+                'name' => 'X-Email-Reference',
+                'value' => $this->emailData['reference']
             ],
             [
                 'name' => 'X-System-Generated',
@@ -164,9 +183,7 @@ class SendOutlookEmailJob implements ShouldQueue
      */
     private function buildEmailBody(): string
     {
-        // $claim = $this->emailData['claim'];
         $message = $this->emailData['message'];
-        // $companyName = config('app.name', 'Acentria International Reinsurance Brokers Limited');
 
         return "
             <!DOCTYPE html>
@@ -182,14 +199,13 @@ class SendOutlookEmailJob implements ShouldQueue
             </html>";
     }
 
-
     public function failed(Exception $exception): void
     {
-        // $this->updateEmailLog('failed', [
-        //     'error' => $exception->getMessage(),
-        //     'failed_at' => now()->toISOString(),
-        //     'attempts' => $this->attempts()
-        // ]);
+        $this->updateEmailLog('failed', [
+            'error' => $exception->getMessage(),
+            'failed_at' => now()->toISOString(),
+            'attempts' => $this->attempts()
+        ]);
 
         logger()->error('Email send job permanently failed', [
             'job_id' => $this->jobId,
@@ -198,27 +214,21 @@ class SendOutlookEmailJob implements ShouldQueue
             'attempts' => $this->attempts()
         ]);
 
-        // Optionally notify administrators or user about permanent failure
+        // notify administrators or user about permanent failure
         // NotifyEmailFailureJob::dispatch($this->userId, $this->emailData, $exception->getMessage());
     }
 
     private function createEmailLog(User $user, string $status): int
     {
-        // return DB::table('email_logs')->insertGetId([
-        //     'user_id' => $user->id,
-        //     'user_email' => $user->email,
-        //     'job_id' => $this->jobId,
-        //     'subject' => $this->emailData['subject'] ?? 'N/A',
-        //     'to_recipients' => json_encode($this->emailData['to']),
-        //     'cc_recipients' => json_encode($this->emailData['cc'] ?? []),
-        //     'bcc_recipients' => json_encode($this->emailData['bcc'] ?? []),
-        //     'body_preview' => substr(strip_tags($this->emailData['body'] ?? ''), 0, 200),
-        //     'priority' => $this->emailData['priority'] ?? 'normal',
-        //     'status' => $status,
-        //     'created_at' => now(),
-        //     'updated_at' => now()
-        // ]);
-        return 0;
+        return DB::table('email_sync_logs')->insertGetId([
+            'user_id' => $user->id,
+            'folder' =>  'sent',
+            'status' => $status,
+            'started_at' => now(),
+            'created_at' => now(),
+            'updated_at' => now(),
+            'options' => json_encode(['jobId' => $this->jobId]),
+        ]);
     }
 
     private function updateEmailLog(string $status, array $additionalData = []): void
@@ -227,20 +237,32 @@ class SendOutlookEmailJob implements ShouldQueue
 
         $updateData = array_merge([
             'status' => $status,
-            'updated_at' => now()
-        ], $additionalData);
+            'completed_at' => now(),
+            'updated_at' => now(),
+            'options' => json_encode($additionalData)
+        ]);
 
-        // DB::table('email_logs')
-        //     ->where('id', $this->emailLogId)
-        //     ->update($updateData);
+        DB::table('email_sync_logs')
+            ->where('id', $this->emailLogId)
+            ->update($updateData);
     }
 
     private function dispatchFollowUpJobs(array $result): void
     {
-        // Example: Schedule email tracking job
-        // if (!empty($result['message_id'])) {
-        //     TrackEmailDeliveryJob::dispatch($result['message_id'], $this->userId)
-        //         ->delay(now()->addMinutes(5));
-        // }
+        if (!empty($result['message_id'])) {
+            $user = User::findOrFail($this->userId);
+
+            DB::table('fetched_emails')->insert([
+                'uid'             => $result['message_id'],
+                'user_email'      => $user->email,
+                'user_id'         => $user->id,
+                'message_id'      => $result['message_id'],
+                'conversation_id' => $result['conversation_id'],
+                'system_category' => $this->emailData['category'],
+                'system_ref_no'   => $this->emailData['reference'],
+                'date_received'   => now(),
+                'created_at'      => now(),
+            ]);
+        }
     }
 }

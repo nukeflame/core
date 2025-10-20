@@ -651,7 +651,6 @@
                     });
 
                     this.loadChartData();
-
                 } catch (error) {
                     this.handleError('Chart initialization failed', error);
                     this.showChartError();
@@ -720,12 +719,10 @@
 
             updateChartData(data) {
                 if (!this.chartInstance) {
-                    console.warn('Chart instance not initialized');
                     return;
                 }
 
                 try {
-                    // Validate data
                     if (!Array.isArray(data) || data.length !== 4) {
                         console.warn('Invalid chart data, using zeros');
                         data = [0, 0, 0, 0];
@@ -736,7 +733,6 @@
                         series: [data]
                     });
 
-                    console.log('Chart updated successfully with data:', data);
                 } catch (error) {
                     this.handleError('Failed to update chart', error);
                     // Fallback to empty chart
@@ -764,11 +760,10 @@
                     const quarter = $table.data('quarter');
 
                     try {
-                        // Safely destroy existing instance
                         if ($.fn.DataTable.isDataTable($table)) {
                             const existingTable = $table.DataTable();
                             existingTable.destroy();
-                            $table.empty(); // Clear table content
+                            $table.empty();
                         }
 
                         const dataTable = $table.DataTable({
@@ -808,8 +803,6 @@
                         });
 
                         this.dataTables.set(tableId, dataTable);
-                        console.log(`DataTable ${tableId} initialized successfully`);
-
                     } catch (error) {
                         this.handleError(`Error initializing DataTable for ${tableId}`, error);
                     }
@@ -1089,14 +1082,14 @@
                         'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
                     },
                     success: function(response) {
-                        console.log(response)
-                        // if (response.status == 1) {
-                        //     toastr.success(response.message, {
-                        //         timeOut: 5000
-                        //     });
-                        // }
+                        // console.log(response)
+                        if (response.status == 1) {
+                            toastr.success(response.message, {
+                                timeOut: 5000
+                            });
+                        }
 
-                        // $('#opportunities_table').DataTable().ajax.reload();
+                        $('#opportunities_table').DataTable().ajax.reload();
                     },
                     error: function(jqXHR, textStatus, errorThrown) {
                         Swal.fire({
@@ -2161,10 +2154,10 @@
                     const fileExtension = fileToView.name.split('.').pop().toLowerCase();
                     const fileUrl = URL.createObjectURL(fileToView);
 
-                    // Store URL for cleanup
                     if (!this.activeFileUrls) {
                         this.activeFileUrls = new Set();
                     }
+
                     this.activeFileUrls.add(fileUrl);
 
                     const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg'];
@@ -2174,8 +2167,8 @@
                     if (imageExtensions.includes(fileExtension)) {
                         this.showImageModal(fileToView.name, fileUrl);
                     } else if (pdfExtensions.includes(fileExtension)) {
+                        console.log(fileUrl)
                         window.open(fileUrl, '_blank');
-                        // Revoke after short delay to allow window to open
                         setTimeout(() => this.revokeFileUrl(fileUrl), 1000);
                     } else if (textExtensions.includes(fileExtension)) {
                         this.showTextFileModal(fileToView, fileUrl);
@@ -2187,37 +2180,6 @@
                 } catch (error) {
                     this.handleError('Error viewing file', error);
                 }
-                // try {
-                //     let fileToView = null;
-                //     if (this.uploadedFiles[fieldId] && Array.isArray(this.uploadedFiles[fieldId])) {
-                //         fileToView = this.uploadedFiles[fieldId].find(f => f.fileId === fileId);
-                //     }
-
-                //     if (!fileToView) {
-                //         this.showToast('error', 'File not found');
-                //         return;
-                //     }
-
-                //     const fileExtension = fileToView.name.split('.').pop().toLowerCase();
-                //     const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg'];
-                //     const pdfExtensions = ['pdf'];
-                //     const textExtensions = ['txt', 'csv', 'json', 'xml', 'log'];
-
-                //     const fileUrl = URL.createObjectURL(fileToView);
-
-                //     if (imageExtensions.includes(fileExtension)) {
-                //         this.showImageModal(fileToView.name, fileUrl);
-                //     } else if (pdfExtensions.includes(fileExtension)) {
-                //         window.open(fileUrl, '_blank');
-                //     } else if (textExtensions.includes(fileExtension)) {
-                //         this.showTextFileModal(fileToView, fileUrl);
-                //     } else {
-                //         this.downloadFile(fileToView.name, fileUrl);
-                //     }
-
-                // } catch (error) {
-                //     this.handleError('Error viewing file', error);
-                // }
             }
 
             showToast(type, message) {
@@ -2275,42 +2237,6 @@
                 });
 
                 modal.show();
-                // $('#leadModal').modal('hide');
-
-                // const modalHtml = `
-            //     <div class="modal fade effect-scale md-wrapper" id="fileViewModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false" role="dialog" aria-hidden="true">
-            //         <div class="modal-dialog modal-lg modal-dialog-centered">
-            //             <div class="modal-content">
-            //                 <div class="modal-header">
-            //                     <h5 class="modal-title text-truncate" style="max-height: 200px; line-height: 18px;">${fileName}</h5>
-            //                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            //                 </div>
-            //                 <div class="modal-body text-center">
-            //                     <img src="${fileUrl}" class="img-fluid" alt="${fileName}">
-            //                 </div>
-            //                 <div class="modal-footer">
-            //                     <a href="${fileUrl}" download="${fileName}" class="btn btn-primary">
-            //                         <i class="bx bx-download me-1"></i> Download
-            //                     </a>
-            //                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-            //                 </div>
-            //             </div>
-            //         </div>
-            //     </div>
-            // `;
-
-                // $('#fileViewModal').remove();
-
-                // $('body').append(modalHtml);
-                // const modal = new bootstrap.Modal(document.getElementById('fileViewModal'));
-
-                // $('#fileViewModal').on('hidden.bs.modal', function() {
-                //     URL.revokeObjectURL(fileUrl);
-                //     $(this).remove();
-                //     $('#leadModal').modal('show');
-                // });
-
-                // modal.show();
             }
 
             showTextFileModal(file, fileUrl) {
@@ -2618,6 +2544,7 @@
                             console.error(`Error destroying DataTable ${tableId}:`, error);
                         }
                     });
+
                     this.dataTables.clear();
 
                     this.removeEscapeKeyListener();
@@ -2693,10 +2620,22 @@
                             const data = {
                                 partners: response.data.partners,
                                 contacts: response.data.contacts,
-                                bdEmailTitle: currentStage
+                                template: response.data.reinsurersTemplates,
+                                attachedFiles: response.data.attachedFiles,
+                                bdEmailTitle: currentStage,
+                                opportunityId: opportunityId,
+                                customerId: response.data.customerId,
                             };
+
                             this.prepareBDEmailModal(opportunityId, data);
 
+                        } else {
+                            Swal.fire({
+                                icon: "error",
+                                title: "Failed",
+                                html: `An error occurred!`,
+                                confirmButtonColor: "#dc3545",
+                            });
                         }
                         this.hideLoading();
                     },
@@ -2704,7 +2643,7 @@
                         this.hideLoading();
                         Swal.fire({
                             icon: "error",
-                            title: "Submission Failed",
+                            title: "Failed",
                             html: `An error occurred: <b>${error}</b>`,
                             confirmButtonColor: "#dc3545",
                         });
@@ -2721,8 +2660,21 @@
                         return;
                     }
 
+                    const stageTitle = data.bdEmailTitle.toLowerCase();
+
                     $bdMailModal.find('.modal-bd-title').text(`- ${data.bdEmailTitle}`);
-                    $bdMailModal.find('#category').val(data.bdEmailTitle.toLowerCase()).trigger('change');
+                    $bdMailModal.find('#category').val(stageTitle).trigger('change');
+
+                    const template = data.template[stageTitle];
+
+                    $bdNotificationForm.find(".subject").val(template.subject);
+                    $bdNotificationForm.find(".message").val(template.message);
+                    $bdNotificationForm.find(".category_templates").val(JSON.stringify(data.template));
+
+                    $bdNotificationForm.find(".opportunity_id").val(data.opportunityId);
+                    $bdNotificationForm.find(".customer_id").val(data.customerId);
+
+                    this.populateAttachedFiles(data.attachedFiles);
 
                     const $contactsSelect = $bdNotificationForm.find('#toContacts');
                     const $bccEmailSelect = $bdNotificationForm.find('#bccEmail');
@@ -2800,6 +2752,170 @@
                     console.error('Error in prepareBDEmailModal:', error);
                 }
             }
+
+            populateAttachedFiles(filesArray, containerId = 'attachedFilesList') {
+                const $container = $(`#${containerId}`);
+
+                if ($container.length === 0) {
+                    return;
+                }
+
+                const $rowContainer = $container.find('.row').first();
+                if ($rowContainer.length === 0) {
+                    return;
+                }
+
+                $rowContainer.empty();
+
+                if (!filesArray || filesArray.length === 0) {
+                    this.addNoFilesMessage($rowContainer);
+                    this.updateFileCount(0);
+                    return;
+                }
+
+                $('#additionalFilesMessage').remove();
+
+                $.each(filesArray, (index, file) => {
+                    const $fileElement = this.createFileElement(file);
+                    $rowContainer.append($fileElement);
+                });
+
+                this.updateFileCount(filesArray.length);
+            }
+
+            createFileElement(file) {
+                const fileUrl = file.s3_url;
+                const fileName = file.original_name;
+                const mimeType = file.mimetype;
+                const fileSize = file.file_size;
+
+                const fileInfo = this.getFileIconAndType(mimeType, fileName);
+
+                const $col = $('<div>', {
+                    class: 'col-md-4'
+                });
+
+                const $link = $('<a>', {
+                    href: fileUrl,
+                    target: '_blank',
+                    rel: 'noopener noreferrer'
+                });
+
+                const $fileItem = $('<div>', {
+                    class: 'file-item d-flex align-items-center mb-2'
+                });
+
+                const $fileIcon = $('<div>', {
+                    class: 'file-icon me-3'
+                }).html(`<i class="bx ${fileInfo.icon}"></i>`);
+
+                const $fileInfoDiv = $('<div>', {
+                    class: 'file-info flex-grow-1'
+                });
+
+                const $fileName = $('<h6>', {
+                    class: 'mb-1',
+                    text: fileName
+                });
+
+                const fileSizeText = fileSize ? '• ' + this.formatFileSize(fileSize) : '';
+                const $fileMeta = $('<div>', {
+                    class: 'file-meta',
+                    html: fileInfo.displayType + ' ' + fileSizeText
+                });
+
+                $fileInfoDiv.append($fileName).append($fileMeta);
+                $fileItem.append($fileIcon).append($fileInfoDiv);
+                $link.append($fileItem);
+                $col.append($link);
+
+                return $col;
+            }
+
+            getFileIconAndType(mimeType, fileName) {
+                const fileExtension = fileName.split('.').pop().toLowerCase();
+
+                if (mimeType.includes('pdf') || fileExtension === 'pdf') {
+                    return {
+                        icon: 'bx-file text-danger',
+                        displayType: 'PDF Document'
+                    };
+                }
+
+                if (mimeType.includes('word') ||
+                    mimeType.includes('document') || ['doc', 'docx'].includes(fileExtension)) {
+                    return {
+                        icon: 'bx-file text-primary',
+                        displayType: 'Word Document'
+                    };
+                }
+
+                if (mimeType.includes('image') || ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'].includes(
+                        fileExtension)) {
+                    return {
+                        icon: 'bx-image text-success',
+                        displayType: 'Image File'
+                    };
+                }
+
+                if (mimeType.includes('sheet') ||
+                    mimeType.includes('excel') || ['xls', 'xlsx'].includes(fileExtension)) {
+                    return {
+                        icon: 'bx-file text-success',
+                        displayType: 'Excel Document'
+                    };
+                }
+
+                if (mimeType.includes('text') || fileExtension === 'txt') {
+                    return {
+                        icon: 'bx-file text-info',
+                        displayType: 'Text Document'
+                    };
+                }
+
+                return {
+                    icon: 'bx-file',
+                    displayType: fileExtension ? `${fileExtension.toUpperCase()} Document` : 'Document'
+                };
+            }
+
+            formatFileSize(bytes) {
+                const numBytes = typeof bytes === 'string' ? parseInt(bytes) : bytes;
+
+                if (numBytes < 1024) {
+                    return `${numBytes} B`;
+                } else if (numBytes < 1024 * 1024) {
+                    return `${(numBytes / 1024).toFixed(1)} KB`;
+                } else {
+                    return `${(numBytes / (1024 * 1024)).toFixed(1)} MB`;
+                }
+            }
+
+            addNoFilesMessage($container) {
+                if ($('#additionalFilesMessage').length > 0) return;
+
+                const $col = $('<div>', {
+                    class: 'col-md-12'
+                });
+
+                const $message = $('<div>', {
+                    id: 'additionalFilesMessage',
+                    class: 'text-center py-2'
+                }).html(`
+                    <small class="text-muted">
+                        <i class="fas fa-info-circle me-1"></i>
+                        No additional claim documents attached.
+                    </small>
+                `);
+
+                $col.append($message);
+                $container.append($col);
+            }
+
+            updateFileCount(dynamicCount, staticCount = 2) {
+                const totalCount = staticCount + dynamicCount;
+                $('#fileCount').text(`${totalCount} files attached`);
+            }
         }
 
         let pipelineManager;
@@ -2829,77 +2945,3 @@
         });
     </script>
 @endpush
-
-{{--
- //{{-- $.ajax({
-                //     url: "{{ route('pipeline.delete') }}", // Update with your actual route
-                //     method: 'DELETE',
-                //     data: {
-                //         deal_id: dealId
-                //     },
-                //     success: (response) => {
-                //         this.hideLoading();
-
-                //         if (response.success) {
-                //             Swal.fire({
-                //                 title: 'Deleted!',
-                //                 text: `Pipeline for ${insuredName} has been deleted successfully.`,
-                //                 icon: 'success',
-                //                 confirmButtonColor: '#3085d6',
-                //                 confirmButtonText: 'OK',
-                //                 customClass: {
-                //                     confirmButton: 'btn btn-primary'
-                //                 },
-                //                 buttonsStyling: false
-                //             }).then(() => {
-                //                 this.reloadAllTables();
-                //                 this.loadChartData();
-                //             });
-                //         } else {
-                //             Swal.fire({
-                //                 title: 'Error!',
-                //                 text: response.message || 'Failed to delete pipeline.',
-                //                 icon: 'error',
-                //                 confirmButtonColor: '#d33',
-                //                 confirmButtonText: 'OK',
-                //                 customClass: {
-                //                     confirmButton: 'btn btn-danger'
-                //                 },
-                //                 buttonsStyling: false
-                //             });
-                //         }
-                //     },
-                //     error: (xhr, status, error) => {
-                //         this.hideLoading();
-
-                //         let errorMessage = 'An error occurred while deleting the pipeline.';
-
-                //         if (xhr.responseJSON && xhr.responseJSON.message) {
-                //             errorMessage = xhr.responseJSON.message;
-                //         } else if (xhr.status === 404) {
-                //             errorMessage = 'Pipeline not found.';
-                //         } else if (xhr.status === 403) {
-                //             errorMessage = 'You do not have permission to delete this pipeline.';
-                //         } else if (xhr.status === 500) {
-                //             errorMessage = 'Server error occurred. Please try again later.';
-                //         }
-
-                //         Swal.fire({
-                //             title: 'Deletion Failed',
-                //             text: errorMessage,
-                //             icon: 'error',
-                //             confirmButtonColor: '#d33',
-                //             confirmButtonText: 'OK',
-                //             customClass: {
-                //                 confirmButton: 'btn btn-danger'
-                //             },
-                //             buttonsStyling: false
-                //         });
-
-                //         this.handleError('Error deleting pipeline', {
-                //             xhr,
-                //             status,
-                //             error
-                //         });
-                //     }
-                // }); --}}

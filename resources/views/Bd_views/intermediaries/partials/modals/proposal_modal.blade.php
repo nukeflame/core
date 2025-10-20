@@ -527,7 +527,6 @@
                     });
                 }
 
-                // Add reinsurer data
                 formData.append("reinsurers_data", JSON.stringify(proposalState.reinsurers));
                 formData.append("total_placed_shares", proposalState.totalShare.toFixed(2));
                 formData.append("total_unplaced_shares", (100 - proposalState.totalShare).toFixed(2));
@@ -710,16 +709,13 @@
 
                 proposalState.reinsurers.push(newReinsurer);
 
-                // Update table
                 reinsurerDataTable.clear();
                 reinsurerDataTable.rows.add(proposalState.reinsurers);
                 reinsurerDataTable.draw();
 
-                // Update counter and total
                 updateReinsurerCount();
                 updateTotalShare();
 
-                // Reset inputs
                 $select.val(null).trigger('change');
                 $shareInput.val('');
 
@@ -733,24 +729,24 @@
                 Swal.fire({
                     title: 'Edit Written Share',
                     html: `
-                <div class="form-group text-start">
-                    <label class="form-label fw-semibold mb-2">${reinsurer.name}</label>
-                    <div class="input-group">
-                        <input type="number"
-                               id="editShareInput"
-                               class="form-control"
-                               value="${reinsurer.written_share}"
-                               min="0.01"
-                               max="100"
-                               step="0.01"
-                               placeholder="Enter share percentage">
-                        <span class="input-group-text">%</span>
-                    </div>
-                    <small class="text-muted mt-1 d-block">
-                        Current total: ${proposalState.totalShare.toFixed(2)}%
-                    </small>
-                </div>
-            `,
+                        <div class="form-group text-start">
+                            <label class="form-label fw-semibold mb-2">${reinsurer.name}</label>
+                            <div class="input-group">
+                                <input type="number"
+                                    id="editShareInput"
+                                    class="form-control"
+                                    value="${reinsurer.written_share}"
+                                    min="0.01"
+                                    max="100"
+                                    step="0.01"
+                                    placeholder="Enter share percentage">
+                                <span class="input-group-text">%</span>
+                            </div>
+                            <small class="text-muted mt-1 d-block">
+                                Current total: ${proposalState.totalShare.toFixed(2)}%
+                            </small>
+                        </div>
+                    `,
                     showCancelButton: true,
                     confirmButtonText: 'Update',
                     cancelButtonText: 'Cancel',

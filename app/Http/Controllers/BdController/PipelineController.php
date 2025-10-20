@@ -69,12 +69,21 @@ use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\Bd\SalesReportExport;
 use App\Exports\Bd\PipelineReportExport;
 use App\Exports\Bd\ReinsurersDeclinedExport;
+use App\Http\Requests\SendBDEmailRequest;
 use App\Models\BdFacReinsurer;
+use App\Services\MailService;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Str;
 
 class PipelineController
 {
+    protected $mailService;
+
+    public function __construct(MailService $mailService)
+    {
+        $this->mailService = $mailService;
+    }
+
     public function index(Request $request)
     {
         $string = $request->qstring;
@@ -519,7 +528,6 @@ class PipelineController
             $pipelines = DB::table('pipelines')->orderBy('year', 'asc');
             $pipeYear = DB::table('pipelines')->where('year', $currentyear);
             $emailFrom = Company::where('company_id', 1)->first()->email ?? '';
-            $defaultBdMessage  = 'Dear {recipient}';
             $filesAttached = [];
 
             $pip = $request->get('pipeline', $pipeYear->first()->id ?? null);
@@ -529,7 +537,7 @@ class PipelineController
             $pip = null;
         }
 
-        return view('Bd_views.intermediaries.pipeline_view', compact('pipelines', 'emailFrom', 'pip', 'defaultBdMessage', 'filesAttached'));
+        return view('Bd_views.intermediaries.pipeline_view', compact('pipelines', 'emailFrom', 'pip', 'filesAttached'));
     }
 
     public function treaty_pipeline_view(Request $request)
@@ -3208,7 +3216,7 @@ class PipelineController
             }
         } else {
             $opportunity_id = $opp->opportunity_id;
-            return "<button data-opportunity_id='{$opportunity_id}' class='stage-btn status-lost update_category_action' style='opacity: 1; cursor: pointer;'><i class='bx bx-pencil'></i> Update Category</button>";
+            return "<button data-opportunity_id='{$opportunity_id}' class='stage-btn status-negotiation update_category_action' style='opacity: 1; cursor: pointer;'><i class='bx bx-pencil'></i> Update Category</button>";
         }
 
         return '';
@@ -3350,10 +3358,10 @@ class PipelineController
             ";
 
             $btnActions .= "
-                <button class='btn btn-info btn-sm me-1 edit-pipeline'
+                <button class='btn btn-info btn-sm me-1 revert-pipeline'
                         data-opportunity-id='{$opportunity_id}'
-                        title='Edit'>
-                    <i class='bx bx-edit'></i>
+                        title='Revert'>
+                    <i class='bx bx-reset'></i>
                 </button>
             ";
         }
@@ -5209,7 +5217,6 @@ class PipelineController
     public function updateLeadStatus(Request $request)
     {
         DB::beginTransaction();
-
         try {
             $term = null;
             $opportunityId = $request->opportunity_id;
@@ -5355,135 +5362,145 @@ class PipelineController
                         'status'            => Stage::PROPOSAL
                     ];
 
-                    $facultativeFiles = json_decode($request->input('facultative_files'), true);
-                    $uploadedFiles = [];
-                    $uploadResults = [];
+                    if ($request->hasFile('facultative_files')) {
+                        try {
+                            $prospectDetails = DB::table('pipeline_opportunities as po')
+                                ->leftJoin('customers as c', function ($join) {
+                                    $join->on(DB::raw("NULLIF(po.customer_id, '')::INTEGER"), '=', 'c.customer_id');
+                                })
+                                ->leftJoin('classes as cl', 'po.classcode', '=', 'cl.class_code')
+                                ->where('po.opportunity_id', $opportunityId)
+                                ->select([
+                                    'c.name as client_name',
+                                    'po.opportunity_id as policy_number',
+                                    'cl.class_name as policy_type',
+                                    'po.effective_date'
+                                ])
+                                ->first();
 
-                    // if ($request->hasFile('facultative_files')) {
-                    //     foreach ($request->file('facultative_files') as $file) {
-                    //         $originalName = $file->getClientOriginalName();
-                    //         // $path = $file->store('facultative-documents', 'public');
-                    //     }
-                    // }
+                            // $clientName = $this->sanitizeFileName($prospectDetails->client_name ?? 'Unknown_Client');
+                            $policyNumber = $prospectDetails->policy_number ?? 'NO_POLICY';
+                            $policyType = $this->sanitizeFileName($prospectDetails->policy_type ?? 'Unknown_Type');
+                            $effectiveDate = $prospectDetails->effective_date
+                                ? Carbon::parse($prospectDetails->effective_date)->format('Ymd')
+                                : Carbon::now()->format('Ymd');
 
-                    // if ($facultativeFiles) {
-                    //     try {
-                    //         foreach ($facultativeFiles as $docTypeId => $files) {
-                    //             foreach ($files as $fileData) {
-                    //                 $fileId = $fileData['fileId'] ?? null;
-                    //                 $fileName = $fileData['fileName'] ?? null;
+                            $uploadedFiles = [];
+                            $uploadResults = [];
+                            $version = 1;
 
-                    //                 if (!$fileId || !$fileName) {
-                    //                     logger("Missing fileId or fileName in facultative_files");
-                    //                     continue;
-                    //                 }
+                            foreach ($request->file('facultative_files') as $index => $file) {
+                                if (!$file->isValid()) {
+                                    logger("Invalid file at index {$index}: " . $file->getErrorMessage());
+                                    continue;
+                                }
 
-                    //                 if (!$request->hasFile($fileId)) {
-                    //                     logger("File not found in request: $fileId");
-                    //                     continue;
-                    //                 }
+                                $mimetype = $file->getClientMimeType();
+                                $originalExtension = $file->getClientOriginalExtension();
+                                $fileSize = $file->getSize();
+                                $originalName = $file->getClientOriginalName();
 
-                    //                 $file = $request->file($fileId);
+                                $documentType = $request->input("facultative_document_types.{$index}", 'Uknown');
+                                $documentType = Str::studly($this->sanitizeFileName($documentType));
 
-                    //                 if (!$file->isValid()) {
-                    //                     logger("Invalid file: $fileId - " . $file->getErrorMessage());
-                    //                     continue;
-                    //                 }
+                                // Format: [PolicyNumber]_[PolicyType]_[EffectiveDate]_[DocumentType]_[Version].[ext]
+                                $uniqueFilename = sprintf(
+                                    '%s_%s_%s_%s_v%s.%s',
+                                    $policyNumber,
+                                    $policyType,
+                                    $effectiveDate,
+                                    $documentType,
+                                    str_pad($version, 3, '0', STR_PAD_LEFT),
+                                    $originalExtension
+                                );
 
-                    //                 // Get file details
-                    //                 $mimetype = $file->getClientMimeType();
-                    //                 $originalExtension = $file->getClientOriginalExtension();
-                    //                 $fileSize = $file->getSize();
-                    //                 $originalName = $file->getClientOriginalName();
+                                // Define S3 path structure
+                                $uploadsPath = sprintf(
+                                    'facultative-files/%s/%s/%s',
+                                    $policyNumber,
+                                    $effectiveDate,
+                                    date('Y/m/d')
+                                );
+                                $s3FilePath = $uploadsPath . '/' . $uniqueFilename;
 
+                                // Upload to S3
+                                $uploaded = Storage::disk('s3')->putFileAs(
+                                    $uploadsPath,
+                                    $file,
+                                    $uniqueFilename,
+                                    ['visibility' => 'public']
+                                );
 
-                    //                 // // Generate unique filename
-                    //                 // $uniqueFilename = time() . '_' . mt_rand() . '_' . $fileName . '.' . $originalExtension;
+                                if (!$uploaded) {
+                                    throw new \Exception("Failed to upload file: {$originalName}");
+                                }
 
-                    //                 // // Define S3 path structure
-                    //                 // $uploadsPath = 'facultative-files/' . $docTypeId . '/' . date('Y/m/d');
-                    //                 // $s3FilePath = $uploadsPath . '/' . $uniqueFilename;
+                                // Verify file exists in S3
+                                if (!Storage::disk('s3')->exists($s3FilePath)) {
+                                    throw new \Exception("Failed to verify file in S3: {$s3FilePath}");
+                                }
 
-                    //                 // // Upload to S3
-                    //                 // $uploaded = Storage::disk('s3')->putFileAs(
-                    //                 //     $uploadsPath,
-                    //                 //     $file,
-                    //                 //     $uniqueFilename,
-                    //                 //     ['visibility' => 'public']
-                    //                 // );
+                                $uploadedFiles[] = $s3FilePath;
 
-                    //                 // if (!$uploaded) {
-                    //                 //     throw new \Exception("Failed to upload file: $fileName");
-                    //                 // }
+                                // Get S3 URL
+                                $s3Url = Storage::disk('s3')->url($s3FilePath);
 
-                    //                 // // Verify file exists in S3
-                    //                 // if (!Storage::disk('s3')->exists($s3FilePath)) {
-                    //                 //     throw new \Exception("Failed to verify file in S3: $s3FilePath");
-                    //                 // }
+                                $prospectDocId = DB::table('prospect_docs')->insertGetId([
+                                    'description' => $documentType,
+                                    'prospect_id' => $opportunityId,
+                                    'prospect_status' => $stage,
+                                    'document_type_id' => $request->input("facultative_document_type_ids.{$index}"),
+                                    'mimetype' => $mimetype,
+                                    'file' => $uniqueFilename,
+                                    's3_path' => $s3FilePath,
+                                    's3_url' => $s3Url,
+                                    'file_size' => $fileSize,
+                                    'original_name' => $originalName,
+                                    'bus_type' => $request->input('bus_type'),
+                                    'version' => $version,
+                                    'created_at' => now(),
+                                    'updated_at' => now(),
+                                ]);
 
-                    //                 // // Track uploaded files for potential rollback
-                    //                 // $uploadedFiles[] = $s3FilePath;
+                                $uploadResults[] = [
+                                    'doc_id' => $prospectDocId,
+                                    'file_name' => $uniqueFilename,
+                                    's3_path' => $s3FilePath,
+                                    's3_url' => $s3Url,
+                                    'original_name' => $originalName,
+                                    'document_type' => $documentType,
+                                    'version' => $version
+                                ];
 
-                    //                 // logger("File uploaded successfully to S3: $s3FilePath");
+                                $version++;
+                            }
 
-                    //                 // // Get S3 URL
-                    //                 // $s3Url = Storage::disk('s3')->url($s3FilePath);
+                            DB::commit();
+                        } catch (\Aws\S3\Exception\S3Exception $e) {
+                            DB::rollBack();
+                            logger("S3 Exception: " . $e->getMessage());
 
-                    //                 // // Insert into database
-                    //                 // $prospectDocId = DB::table('prospect_docs')->insertGetId([
-                    //                 //     'description' => $fileName,
-                    //                 //     'prospect_id' => $request->input('lead_id') ?? $request->input('prospect_id'),
-                    //                 //     'prospect_status' => $request->input('stage_cycle') ?? $request->input('prospect_status'),
-                    //                 //     'document_type_id' => $docTypeId,
-                    //                 //     'file_identifier' => $fileId,
-                    //                 //     'mimetype' => $mimetype,
-                    //                 //     'file' => $uniqueFilename,
-                    //                 //     's3_path' => $s3FilePath,
-                    //                 //     's3_url' => $s3Url,
-                    //                 //     'file_size' => $fileSize,
-                    //                 //     'original_name' => $originalName,
-                    //                 //     'bus_type' => $request->input('bus_type'),
-                    //                 //     'created_at' => now(),
-                    //                 //     'updated_at' => now(),
-                    //                 // ]);
+                            $this->cleanupS3Files($uploadedFiles);
 
-                    //                 // logger("Database record created with ID: $prospectDocId for file: $uniqueFilename");
+                            return response()->json([
+                                'success' => false,
+                                'message' => 'Failed to upload files to S3',
+                                'error' => config('app.debug') ? $e->getMessage() : 'Storage error occurred'
+                            ], 500);
+                        } catch (\Exception $e) {
+                            DB::rollBack();
 
-                    //                 // // Store result for response
-                    //                 // $uploadResults[] = [
-                    //                 //     'doc_id' => $prospectDocId,
-                    //                 //     'file_id' => $fileId,
-                    //                 //     'file_name' => $fileName,
-                    //                 //     's3_path' => $s3FilePath,
-                    //                 //     's3_url' => $s3Url,
-                    //                 //     'document_type_id' => $docTypeId
-                    //                 // ];
-                    //             }
-                    //         }
+                            logger("Upload process failed: " . $e->getMessage());
 
-                    //         DB::commit();
+                            $this->cleanupS3Files($uploadedFiles);
 
-                    //         // // Log the request to S3
-                    //         // $this->logRequestToS3($request, $uploadResults);
-
-                    //         // return response()->json([
-                    //         //     'success' => true,
-                    //         //     'message' => 'All facultative files uploaded successfully',
-                    //         //     'count' => count($uploadResults),
-                    //         //     'files' => $uploadResults
-                    //         // ], 200);
-                    //     } catch (\Aws\S3\Exception\S3Exception $e) {
-                    //         DB::rollBack();
-                    //         logger("S3 Exception: " . $e->getMessage());
-
-                    //         // $this->cleanupS3Files($uploadedFiles);
-                    //     } catch (\Exception $e) {
-                    //         DB::rollBack();
-                    //         logger("Upload process failed: " . $e->getMessage());
-
-                    //         // $this->cleanupS3Files($uploadedFiles);
-                    //     }
-                    // }
+                            return response()->json([
+                                'success' => false,
+                                'message' => 'An error occurred while uploading files',
+                                'error' => config('app.debug') ? $e->getMessage() : 'Please contact support'
+                            ], 500);
+                        }
+                    }
 
                     break;
 
@@ -5597,6 +5614,33 @@ class PipelineController
         }
     }
 
+    private function sanitizeFileName($filename)
+    {
+        if (empty($filename)) {
+            return 'Unknown';
+        }
+
+        $sanitized = preg_replace('/[^a-zA-Z0-9\s\-_]/', '', $filename);
+        $sanitized = preg_replace('/\s+/', ' ', $sanitized);
+        $sanitized = str_replace(' ', '_', trim($sanitized));
+        $sanitized = substr($sanitized, 0, 50);
+
+        return $sanitized ?: 'Unknown';
+    }
+
+    private function cleanupS3Files(array $filePaths)
+    {
+        foreach ($filePaths as $filePath) {
+            try {
+                if (Storage::disk('s3')->exists($filePath)) {
+                    Storage::disk('s3')->delete($filePath);
+                }
+            } catch (\Exception $e) {
+                logger()->error($e);
+            }
+        }
+    }
+
     public function convertHtmlToRaw($htmlContent)
     {
         $htmlContent = str_ireplace(
@@ -5610,316 +5654,86 @@ class PipelineController
         $rawText = preg_replace('/\s+/', ' ', trim($rawText));
     }
 
-    public function sendBDNotification(Request $request)
+    public function sendBDNotification(SendBDEmailRequest $request)
     {
-        return [];
-    }
+        DB::beginTransaction();
+        try {
+            $emailData = [
+                'opportunity_id' => $request->input('opportunity_id'),
+                'to_email' => $request->input('to_email'),
+                'contacts' => $request->input('contacts', []),
+                'cc_email' => $request->input('cc_email', []),
+                'bcc_email' => $request->input('bcc_email', []),
+                'subject' => $request->input('subject'),
+                'priority' => $request->input('priority', 'normal'),
+                'category' => $request->input('category'),
+                'reference' => $request->input('reference'),
+                'message' => $request->input('message'),
+                'customer_id' => $request->input('customer_id'),
+                'is_reply' => $request->input('is_reply', 0),
+            ];
 
-    public function stageNotThreeOrFour($request, $uploadsPath, $document_name, $checkbox_docs, $quote_reinsurer_Ids, $leadId, $stage_cycle)
-    {
-        switch ($request->bus_type) {
-            case 'TRT':
-                if (is_array($checkbox_docs) && !empty($checkbox_docs)) {
-                    foreach ($checkbox_docs as $doc) {
-                        $prospect_doc_id = DB::table('prospect_docs')->insertGetId([
-                            'description' => $doc['name'],
-                            'prospect_id' => $leadId,
-                            'prospect_status' => $stage_cycle,
-                            'type_of_treaty_doc' => $doc['source'],
-                            'bus_type' => 'TRT',
-                            'created_at' => now(),
-                        ]);
-                    }
-                }
-                break;
-        }
+            // logger()->debug($request->all());
 
-        if (!is_null($document_name)) {
-            foreach ($document_name as $index => $name) {
+            $attached_files = DB::table('prospect_docs')->where('prospect_id', $emailData['opportunity_id'])->get([
+                's3_url',
+                'original_name',
+                'file',
+                'mimetype',
+                'file_size'
+            ]);
 
-                if (!isset($name) || !isset($request->document_file[$index])) {
-                    continue;
-                }
+            $customer = Customer::where('customer_id', $request->customer_id)->first();
 
-                $file = $request->document_file[$index];
+            $toEmails = is_array($emailData['to_email'])
+                ? $emailData['to_email']
+                : explode(',', $emailData['to_email']);
 
-                if (!$file->isValid()) {
-                    continue; // Skip invalid files
-                }
+            $contacts = $emailData['contacts'] ?? [];
+            $cc_email = $emailData['cc_email'] ?? [];
+            $bcc_email = $emailData['bcc_email'] ?? [];
+            $allRecipients = array_merge($toEmails, $cc_email, $bcc_email, $contacts);
+            $allRecipients = array_map('trim', array_unique($allRecipients));
 
-                $mimetype = $file->getClientMimeType();
-                $fileContent = file_get_contents($file);
-                $encodedFileContent = base64_encode($fileContent);
+            $toRecipients = array_merge($toEmails, $contacts);
 
-                $originalNameWithoutExtension = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
+            $data = [
+                'customer' => $customer,
+                'subject' => $emailData['subject'],
+                'message' => $emailData['message'],
+                'ccEmail' => $emailData['cc_email'],
+                'bccEmail' => $emailData['bcc_email'],
+                'contacts' => $emailData['contacts'],
+                'priority' => $emailData['priority'],
+                'category' => $emailData['category'],
+                'reference' => $emailData['reference'],
+                'replyToId' => $emailData['is_reply'],
+                'allRecipients' => $allRecipients,
+                'attachments' => $attached_files,
+                'toEmails' => $toEmails,
+                'toRecipients' => $toRecipients
+            ];
 
-                $Filename = mt_rand() . '_' . $originalNameWithoutExtension . '.' . $file->getClientOriginalExtension();
+            $result = $this->mailService->sendEmail($data);
 
-                $S3FilePath = $uploadsPath . '/' . $Filename;
-
-                try {
-                    Storage::disk('s3')->put($S3FilePath, $fileContent, [
-                        'visibility' => 'public',
-                    ]);
-
-                    if (!Storage::disk('s3')->exists($S3FilePath)) {
-                        logger("Failed.ConcurrentModificationException: Failed to verify file in S3: $S3FilePath");
-                        return response()->json(['error' => 'Failed to save file to S3.'], 500);
-                    }
-
-                    logger("File uploaded successfully to S3: $S3FilePath");
-                } catch (Exception $e) {
-                    logger("S3 upload error for $S3FilePath: " . $e->getMessage());
-                    return response()->json(['error' => 'S3 upload error: ' . $e->getMessage()], 500);
-                }
-                $prospect_doc_id = DB::table('prospect_docs')->insertGetId([
-                    'description' => $name,
-                    'prospect_id' => $leadId,
-                    'prospect_status' => $stage_cycle,
-                    'mimetype' => $mimetype,
-                    'file' => $Filename,
-                    'bus_type' => $request->bus_type,
-                    'created_at' => now(),
-                ]);
+            DB::commit();
+            if ($result) {
+                return response()->json([
+                    'message' => 'Email sent successfully'
+                ], 200);
+            } else {
+                return response()->json([
+                    'message' => 'Error occured',
+                    'errors' => 'An error occured while sending email'
+                ], 422);
             }
-        }
-    }
-
-    public function stageEqualThreeOrFour($request, $uploadsPath, $document_name, $quote_reinsurer_Ids, $leadId, $stage_cycle)
-    {
-
-        if (!is_null($request->reinsurers)) {
-            foreach ($request->reinsurers as $reinsurerIndex => $reinsurer) {
-                if (!empty($reinsurer['documents'])) {
-                    foreach ($reinsurer['documents'] as $docIndex => $doc) {
-                        if (!isset($doc['title']) || !isset($doc['file'])) {
-                            continue;
-                        }
-                        $name = $doc['title'];
-                        $file = $doc['file'];
-
-
-
-                        // Skip if file is null or invalid
-                        if (is_null($file) || !$file->isValid()) {
-                            continue;
-                        }
-
-                        $mimetype = $file->getClientMimeType();
-                        $fileContent = file_get_contents($file);
-                        $encodedFileContent = base64_encode($fileContent);
-
-                        $originalNameWithoutExtension = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
-                        $Filename = mt_rand() . '_' . $originalNameWithoutExtension . '.' . $file->getClientOriginalExtension();
-
-                        $S3FilePath = $uploadsPath . '/' . $Filename;
-
-                        try {
-                            // Upload file to S3
-                            Storage::disk('s3')->put($S3FilePath, $fileContent, [
-                                'visibility' => 'public',
-                            ]);
-
-                            // Verify the file was uploaded
-                            if (!Storage::disk('s3')->exists($S3FilePath)) {
-                                return response()->json(['error' => 'Failed to save file to S3.'], 500);
-                            }
-                        } catch (\Exception $e) {
-                            return response()->json(['error' => 'S3 upload error: ' . $e->getMessage()], 500);
-                        }
-
-
-                        $prospect_doc_id = DB::table('prospect_docs')->insertGetId([
-                            'description' => $name,
-                            'prospect_id' => $leadId,
-                            'prospect_status' => $stage_cycle,
-                            'mimetype' => $mimetype,
-                            'file' => $Filename,
-                            'bus_type' => $request->bus_type,
-                            'created_at' => now(),
-
-                        ]);
-                    }
-                }
-            }
-        }
-    }
-
-    public function stageNotThree($request, $uploadsPath, $document_name, $checkbox_docs, $quote_reinsurer_Ids, $leadId, $stage_cycle)
-    {
-        switch ($request->bus_type) {
-            case 'TRT':
-                if (is_array($checkbox_docs) && !empty($checkbox_docs)) {
-                    foreach ($checkbox_docs as $doc) {
-                        $prospect_doc_id = DB::table('prospect_docs')->insertGetId([
-                            'description' => $doc['name'],
-                            'prospect_id' => $leadId,
-                            'prospect_status' => $stage_cycle,
-                            'type_of_treaty_doc' => $doc['source'],
-                            'bus_type' => 'TRT',
-                            'required_doc_from_cedant' => true,
-                            'created_at' => now(),
-                        ]);
-                    }
-                } else {
-                    if (!is_null($document_name)) {
-                        foreach ($document_name as $index => $name) {
-                            if (!isset($name) || !isset($request->document_file[$index])) {
-                                continue;
-                            }
-
-                            $file = $request->document_file[$index];
-
-                            if (!$file->isValid()) {
-                                continue; // Skip invalid files
-                            }
-
-                            $mimetype = $file->getClientMimeType();
-                            $fileContent = file_get_contents($file);
-                            $encodedFileContent = base64_encode($fileContent);
-
-                            $originalNameWithoutExtension = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
-
-                            $Filename = mt_rand() . '_' . $originalNameWithoutExtension . '.' . $file->getClientOriginalExtension();
-
-                            $S3FilePath = $uploadsPath . '/' . $Filename;
-
-                            try {
-                                // Upload file to S3
-                                Storage::disk('s3')->put($S3FilePath, $fileContent, [
-                                    'visibility' => 'public',
-                                ]);
-
-                                // Verify the file was uploaded
-                                if (!Storage::disk('s3')->exists($S3FilePath)) {
-                                    return response()->json(['error' => 'Failed to save file to S3.'], 500);
-                                }
-                            } catch (\Exception $e) {
-                                return response()->json(['error' => 'S3 upload error: ' . $e->getMessage()], 500);
-                            }
-                            $prospect_doc_id = DB::table('prospect_docs')->insertGetId([
-                                'description' => $name,
-                                'prospect_id' => $leadId,
-                                'prospect_status' => $stage_cycle,
-                                'mimetype' => $mimetype,
-                                'file' => $Filename,
-                                'bus_type' => $request->bus_type,
-                                'created_at' => now(),
-                            ]);
-                        }
-                    }
-                }
-
-
-                break;
-            case 'FAC':
-                if (!is_null($document_name)) {
-                    foreach ($document_name as $index => $name) {
-                        if (!isset($name) || !isset($request->document_file[$index])) {
-                            continue;
-                        }
-
-                        $file = $request->document_file[$index];
-
-                        if (!$file->isValid()) {
-                            continue; // Skip invalid files
-                        }
-
-                        $mimetype = $file->getClientMimeType();
-                        $fileContent = file_get_contents($file);
-                        $encodedFileContent = base64_encode($fileContent);
-
-                        $originalNameWithoutExtension = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
-
-                        $Filename = mt_rand() . '_' . $originalNameWithoutExtension . '.' . $file->getClientOriginalExtension();
-
-                        $S3FilePath = $uploadsPath . '/' . $Filename;
-
-                        try {
-                            // Upload file to S3
-                            Storage::disk('s3')->put($S3FilePath, $fileContent, [
-                                'visibility' => 'public',
-                            ]);
-
-                            // Verify the file was uploaded
-                            if (!Storage::disk('s3')->exists($S3FilePath)) {
-                                return response()->json(['error' => 'Failed to save file to S3.'], 500);
-                            }
-                        } catch (\Exception $e) {
-                            return response()->json(['error' => 'S3 upload error: ' . $e->getMessage()], 500);
-                        }
-
-                        $prospect_doc_id = DB::table('prospect_docs')->insertGetId([
-                            'description' => $name,
-                            'prospect_id' => $leadId,
-                            'prospect_status' => $stage_cycle,
-                            'mimetype' => $mimetype,
-                            'file' => $Filename,
-                            'bus_type' => $request->bus_type,
-                            'created_at' => now(),
-                        ]);
-                    }
-                }
-                break;
-        }
-    }
-
-    public function stageEqualThree($request, $uploadsPath, $document_name, $quote_reinsurer_Ids, $leadId, $stage_cycle)
-    {
-
-        if (!is_null($request->reinsurers)) {
-            foreach ($request->reinsurers as $reinsurerIndex => $reinsurer) {
-                $reinsurer_id = $reinsurer['reinsurer_id'] ?? null;
-
-                if (!empty($reinsurer['documents'])) {
-                    foreach ($reinsurer['documents'] as $docIndex => $doc) {
-                        if (!isset($doc['title']) || !isset($doc['file'])) {
-                            continue;
-                        }
-                        $name = $doc['title'];
-                        $file = $doc['file'];
-
-                        // Skip if file is null or invalid
-                        if (is_null($file) || !$file->isValid()) {
-                            continue;
-                        }
-
-                        $mimetype = $file->getClientMimeType();
-                        $fileContent = file_get_contents($file);
-                        $encodedFileContent = base64_encode($fileContent);
-
-                        $originalNameWithoutExtension = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
-                        $Filename = mt_rand() . '_' . $originalNameWithoutExtension . '.' . $file->getClientOriginalExtension();
-
-                        // Move file to the desired location
-                        $S3FilePath = $uploadsPath . '/' . $Filename;
-
-                        try {
-                            // Upload file to S3
-                            Storage::disk('s3')->put($S3FilePath, $fileContent, [
-                                'visibility' => 'public',
-                            ]);
-
-                            // Verify the file was uploaded
-                            if (!Storage::disk('s3')->exists($S3FilePath)) {
-                                return response()->json(['error' => 'Failed to save file to S3.'], 500);
-                            }
-                        } catch (\Exception $e) {
-                            return response()->json(['error' => 'S3 upload error: ' . $e->getMessage()], 500);
-                        }
-
-
-                        $prospect_doc_id = DB::table('prospect_docs')->insertGetId([
-                            'description' => $name,
-                            'prospect_id' => $leadId,
-                            'prospect_status' => $stage_cycle,
-                            'mimetype' => $mimetype,
-                            'file' => $Filename,
-                            'quote_reinsurer_id' => $reinsurer_id,
-                        ]);
-                    }
-                }
-            }
+        } catch (Exception $e) {
+            DB::rollBack();
+            logger()->error('Failed to send bd email notification email');
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to send bd notification: '
+            ], 500);
         }
     }
 
@@ -7757,6 +7571,7 @@ class PipelineController
 
     public function getBdEmailData(Request $request)
     {
+        DB::beginTransaction();
         try {
             $oppId = $request->opportunity_id;
             if (!$oppId) {
@@ -7768,11 +7583,13 @@ class PipelineController
             }
 
             $opp = DB::table('pipeline_opportunities')
-                ->where('id', $oppId)
+                ->where('opportunity_id', $oppId)
                 ->select([
                     'opportunity_id',
+                    'customer_id'
                 ])
                 ->first();
+
             $opportunityId = $opp->opportunity_id;
 
             $reinsurerIds = DB::table('bd_fac_reinsurers')
@@ -7785,7 +7602,19 @@ class PipelineController
                 ->select(['email', 'telephone', 'partner_number', 'name'])
                 ->get();
 
-            $rensuersSubject = 'Dear {recipient}';
+            $templates = DB::table('bd_email_templates')
+                ->where('is_active', true)
+                ->orderBy('sort_order')
+                ->get();
+
+            $reinsurersTemplates = $templates->keyBy('template_key')
+                ->map(fn($template) => [
+                    'subject' => $template->subject,
+                    'message' => $template->message,
+                ])
+                ->toArray();
+
+
             $reinContacts = DB::table('bd_reinsurers_contacts')
                 ->where('opportunity_id', $opportunityId)
                 ->get();
@@ -7815,24 +7644,38 @@ class PipelineController
                 ];
             });
 
+            $customer = Customer::where('customer_id', $opp->customer_id)->select(['customer_id'])->first();
+
+            $customerId = $customer->customer_id ?? null;
+            $prospectDocs = DB::table('prospect_docs')->where([
+                'prospect_id' => $opportunityId,
+            ])
+                ->select(['s3_url', 'original_name', 'file', 'mimetype'])
+                ->get();
+
             $data = [
                 'partners'        => $partners,
                 'contacts'        => $contacts,
-                'attachedFiles'   => [],
-                'rensuersSubject' => $rensuersSubject,
+                'attachedFiles'   => $prospectDocs,
+                'customerId'      => $customerId,
+                'reinsurersTemplates' => $reinsurersTemplates,
             ];
 
+            DB::commit();
             return [
                 'success' => true,
                 'data' => $data,
             ];
         } catch (\Illuminate\Database\QueryException $e) {
+            DB::rollback();
             return [
                 'success' => false,
                 'message' => 'Database error occurred',
                 'error' => config('app.debug') ? $e->getMessage() : 'Please contact support'
             ];
         } catch (\Exception $e) {
+            logger($e);
+            DB::rollback();
             return [
                 'success' => false,
                 'message' => 'An error occurred while fetching reinsurers',

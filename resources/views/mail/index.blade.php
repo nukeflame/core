@@ -238,7 +238,7 @@
                         });
 
                     } catch (error) {
-                        console.error('❌ Error subscribing to email sync channel:', error);
+                        console.error('Error subscribing to email sync channel:', error);
                     }
                 } else {
                     setTimeout(initializeEmailSync, 100);

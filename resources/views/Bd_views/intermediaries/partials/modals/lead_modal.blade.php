@@ -361,7 +361,6 @@
                     </div>
                 </div>
 
-                <!-- Department Emails Section -->
                 <div class="mb-4">
                     <div class="department-header rounded mb-3">
                         <h6 class="mb-0 fw-medium">
@@ -384,7 +383,7 @@
     </div>
 </div>
 
-<!-- Text Editor -->
+<!-- Breakdown Text Editor -->
 <div class="modal fade breakdown-modal effect-scale md-wrapper" id="breakdownModal" tabindex="-1"
     data-bs-backdrop="static" data-bs-keyboard="false" aria-labelledby="breakdownModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-xl">
@@ -2113,6 +2112,10 @@
                 validateField($(this));
             });
 
+            $("#proposalForm").on("change", "#availableReinsurers", function() {
+                validateReinsurerSelection();
+            });
+
             function validateField($field) {
                 const fieldName = $field.attr("name") || $field.attr("id");
                 const fieldValue = $field.val().trim();
@@ -2319,6 +2322,16 @@
                 return true;
             }
 
+            function calculateTotalShares() {
+                let total = 0;
+                $("#reinsurersTable tbody tr").each(function() {
+                    const shareText = $(this).find("td:nth-child(2) strong").text();
+                    const shareValue = parseFloat(shareText.replace("%", "")) || 0;
+                    total += shareValue;
+                });
+                return total;
+            }
+
             function validateReinsurerSelection() {
                 const reinsurerCount = selectedReinsurers.size;
                 const $reinsurerSection = $("#reinsurer-info");
@@ -2330,6 +2343,19 @@
                         <div class="alert alert-danger reinsurer-validation-error mt-2">
                             <i class="bx bx-error-circle me-2"></i>
                             At least ${VALIDATION_CONFIG.MIN_REINSURERS} reinsurer must be selected
+                        </div>
+                    `;
+                    $reinsurerSection.append(errorHtml);
+                    return false;
+                }
+
+                const totalShares = calculateTotalShares();
+
+                if (totalShares === 0) {
+                    const errorHtml = `
+                        <div class="alert alert-danger reinsurer-validation-error mt-2">
+                            <i class="bx bx-error-circle me-2"></i>
+                            Total reinsurer shares cannot be 0%
                         </div>
                     `;
                     $reinsurerSection.append(errorHtml);
@@ -2396,7 +2422,7 @@
                     timeout: 30000,
                     success: function(response) {
                         if (response.success) {
-                            // resetLeadModal();
+                            resetLeadModal();
                             Swal.fire({
                                 icon: "success",
                                 title: "Lead Saved Successfully!",
@@ -2404,6 +2430,18 @@
                                 showConfirmButton: true,
                             }).then((result) => {
                                 if (result.isConfirmed) {
+                                    if (typeof pipelineManager !== 'undefined' &&
+                                        typeof pipelineManager.reloadAllTables ===
+                                        'function') {
+                                        pipelineManager.reloadAllTables();
+                                    }
+
+                                    if (typeof pipelineManager !== 'undefined' &&
+                                        typeof pipelineManager.loadChartData === 'function'
+                                    ) {
+                                        pipelineManager.loadChartData();
+                                    }
+
                                     handleSendBDNotification(response);
                                 } else {
                                     $("#leadModal").modal("hide");
@@ -2475,7 +2513,6 @@
                     const $bdNotificationForm = $("#bdNotificationForm");
 
                     if (!data || !data.bdEmailTitle) {
-                        console.error('Missing required data:', data);
                         return;
                     }
 
@@ -2584,10 +2621,17 @@
                 });
 
                 const allUploadedFiles = pipelineManager.getAllUploadedFiles()
-
-                Object.entries(allUploadedFiles).forEach(([fieldId, files]) => {
-                    files.forEach((file) => {
+                Object.entries(allUploadedFiles).forEach(([fieldId, filesData]) => {
+                    filesData.forEach((file, index) => {
                         formData.append('facultative_files[]', file);
+
+                        const docType = file.fileName || 'additionalDocuments';
+                        formData.append('facultative_document_types[]', docType);
+
+                        const docTypeId = file.fileId || null;
+                        if (docTypeId) {
+                            formData.append('facultative_document_type_ids[]', docTypeId);
+                        }
                     });
                 });
 
@@ -2611,6 +2655,7 @@
 
                 return formData;
             }
+
             class BreakdownEditor {
                 constructor() {
                     this.quill = null;
@@ -3021,7 +3066,7 @@
                     formData.append("_update", true);
                     formData.append("opportunity_id", $("#leadOpportunityId").val() || "");
                     formData.append("_token", $('meta[name="csrf-token"]').attr("content"));
-                    console.log($("#leadOpportunityId").val())
+
                     $.ajax({
                         url: "{{ route('update.opp.status') }}",
                         method: "POST",
