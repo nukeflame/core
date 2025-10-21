@@ -605,7 +605,9 @@
                         bodyHtml: outlookMsg.body_html || '',
                         toList: formattedList,
                         messageId: outlookMsg.uid || outlookMsg.id || '',
-                        folder: outlookMsg.folder || 'inbox'
+                        folder: outlookMsg.folder || 'inbox',
+                        systemCategory: outlookMsg.system_category,
+                        systemReference: outlookMsg.system_ref_no,
                     };
                 } catch (error) {
                     console.error('Message transformation failed:', error, outlookMsg);
@@ -939,7 +941,7 @@
                 try {
                     $('#to').val(message.from);
                     $('#subject').val(message.subject.startsWith('Re:') ? message.subject : `Re: ${message.subject}`)
-                        .attr('disabled', true);
+                        .attr('readonly', true);
                     $('#category').val(message.category);
 
                     $('#toggleEmailBodyBtn').css('display', 'block').html(
@@ -954,18 +956,28 @@
                     $('#originalContent #threadMessages').contents().find('body').html(message.bodyHtml);
 
                     $('#isReply').val('1');
-                    $('#replyToId').val(message.messageId);
-                    $('#originalMessageId').val(message.conversationId);
                     $('#composeTitle').text('Reply to Message');
                     $('#newEmailInstead').removeClass('d-none');
 
-                    $('.compose_attachement').hide();
+                    const c = $('#category').val() || 'proposal';
+                    const category = c.toUpperCase().substring(0, 3)
+                    const year = new Date().getFullYear();
+                    const random = Math.floor(Math.random() * 1000000).toString().padStart(6, '0');
+                    const reference = `${category}-${year}-${random}`;
 
+                    $('#bdComposeFormDiv #reference').val(reference);
+
+                    $('.compose_attachement').hide();
                     $('#compose-tab').tab('show');
 
                     const subject = message.subject || '';
                     const preview = subject.length > 50 ? subject.substring(0, 50) + '...' : subject;
-                    this.showToast('success', `Replying to: ${preview}`);
+                    // this.showToast('success', `Replying to: ${preview}`);
+
+                    $('#bdNotificationForm').append(
+                        `<input type="hidden" name="message_id" value="${message.messageId}">`);
+                    $('#bdNotificationForm').append(
+                        `<input type="hidden" name="conversation_id" value="${message.conversationId}">`);
 
                     $('#attachedFilesList').find('.row').empty();
                 } catch (error) {

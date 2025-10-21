@@ -309,27 +309,6 @@
             padding-left: .3em !important;
         }
 
-        #loading-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.5);
-            z-index: 9999;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .overlay-content {
-            background: white;
-            padding: 2rem;
-            border-radius: 0.5rem;
-            text-align: center;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        }
-
         .pipeline-table thead th {
             background-color: #f8f9fa;
             border-bottom: 2px solid #dee2e6;

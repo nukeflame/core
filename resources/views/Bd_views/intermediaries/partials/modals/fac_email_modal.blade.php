@@ -16,7 +16,7 @@
                 @csrf
                 <input type="hidden" name="category_templates" class="category_templates" id="categoryTemplates">
                 <input type="hidden" name="opportunity_id" class="opportunity_id">
-                <input type="hidden" name="is_reply" class="is_reply" value="0">
+                <input type="hidden" name="is_reply" class="is_reply" id="isReply" value="0">
                 <input type="hidden" name="customer_id" class="customer_id">
 
                 <div class="modal-body pb-0">
@@ -426,11 +426,10 @@
                     processData: false,
                     contentType: false,
                     success: (response) => {
-                        console.log(response)
-                        // toastr.success(response.message || 'Email sent successfully!');
-                        // $(CONFIG.selectors.confirmModal).modal('hide');
-                        // $(CONFIG.selectors.modal).modal('hide');
-                        // resetForm();
+                        toastr.success(response.message || 'Email sent successfully!');
+                        $(CONFIG.selectors.confirmModal).modal('hide');
+                        $(CONFIG.selectors.modal).modal('hide');
+                        resetForm();
                     },
                     error: (xhr) => {
                         console.error('Email send failed:', xhr);
@@ -473,7 +472,7 @@
                 $val = $originalSubject.val().startsWith('Re: ') ? $originalSubject.val().substring(4).trim() :
                     $originalSubject.val()
 
-                $originalSubject.val($val).attr('disabled', false);
+                $originalSubject.val($val).attr('readonly', false);
 
                 const templates = $("#categoryTemplates").val();
                 const category = $(CONFIG.selectors.category);

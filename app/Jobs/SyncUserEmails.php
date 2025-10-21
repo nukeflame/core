@@ -52,52 +52,50 @@ class SyncUserEmails implements ShouldQueue
         }
 
         try {
-            $syncState->update([
-                'is_syncing' => true,
-                'is_locked' => true,
-                'sync_attempts' => $syncState->sync_attempts + 1,
-                'last_attempt_at' => now()
-            ]);
+            // $syncState->update([
+            //     'is_syncing' => true,
+            //     'is_locked' => true,
+            //     'sync_attempts' => $syncState->sync_attempts + 1,
+            //     'last_attempt_at' => now()
+            // ]);
 
-            $this->broadcastProgress('Started', 0, 0);
+            // $this->broadcastProgress('Started', 0, 0);
 
             $user = User::find($this->userId);
-            if (!$user) {
-                throw new \Exception("User not found: {$this->userId}");
-            }
+            // if (!$user) {
+            //     throw new \Exception("User not found: {$this->userId}");
+            // }
 
-            $this->syncMessagesWithPagination($graphService, $user, $syncState);
+            // $this->syncMessagesWithPagination($graphService, $user, $syncState);
 
-            // Mark sync as complete
-            $syncState->update([
-                'is_syncing' => false,
-                'is_locked' => false,
-                'last_synced_at' => now(),
-                'sync_attempts' => 0,
-                'last_error' => null
-            ]);
+            // $syncState->update([
+            //     'is_syncing' => false,
+            //     'is_locked' => false,
+            //     'last_synced_at' => now(),
+            //     'sync_attempts' => 0,
+            //     'last_error' => null
+            // ]);
 
-            $this->broadcastCompletion();
-
+            // $this->broadcastCompletion();
 
             // Renew subscription if needed
             // if ($syncState->needsSubscriptionRenewal()) {
-            //     // if ($syncState->subscription_id) {
-            //     //     $subscription = $graphService->renewSubscription(
-            //     //         $syncState->subscription_id,
-            //     //         $user
-            //     //     );
-            //     // } else {
-            //     $subscription = $graphService->createSubscription($user);
-            //     // }
+            // if ($syncState->subscription_id) {
+            //     $subscription = $graphService->renewSubscription(
+            //         $syncState->subscription_id,
+            //         $user
+            //     );
+            // } else {
+            $subscription = $graphService->createSubscription($user);
+            // }
 
-            //     // logger()->debug(['subscription' => $subscription]);
+            logger()->debug(['subscription' => $subscription]);
 
 
-            //     // $syncState->update([
-            //     //     'subscription_id' => $subscription['subscription_id'],
-            //     //     'subscription_expires_at' => Carbon::parse($subscription['expiration_date'])
-            //     // ]);
+            // $syncState->update([
+            //     'subscription_id' => $subscription['subscription_id'],
+            //     'subscription_expires_at' => Carbon::parse($subscription['expiration_date'])
+            // ]);
             // }
 
             // $result = $graphService->getDeltaMessages($user, $syncState->delta_token);
@@ -183,7 +181,6 @@ class SyncUserEmails implements ShouldQueue
         if (!empty($allIncomingUids)) {
             $deleted = DB::table('fetched_emails')
                 ->where('user_email', $user->email)
-                ->where('folder', 'inbox')
                 ->whereNotIn('uid', $allIncomingUids)
                 ->delete();
 
@@ -228,7 +225,6 @@ class SyncUserEmails implements ShouldQueue
         if (!empty($this->toDelete)) {
             $deleted = DB::table('fetched_emails')
                 ->where('user_id', $user->id)
-                ->where('folder', 'inbox')
                 ->whereIn('uid', $this->toDelete)
                 ->delete();
 

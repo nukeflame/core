@@ -132,6 +132,127 @@ class MailService
         return $this->storageService->getStoredEmail($id);
     }
 
+    // public function sendEmail(array $data): bool
+    // {
+    //     if (!$this->auth) {
+    //         return false;
+    //     }
+
+    //     if (empty($data['contacts']) || empty($data['subject']) || empty($data['message'])) {
+    //         return false;
+    //     }
+
+    //     try {
+    //         $recipientNames = ContactNameMappingService::getRecipientNames($data['customer'], $data['allRecipients']);
+
+    //         $attachmentsData = [];
+    //         $tempFiles = [];
+    //         if ($data['attachments'] && count($data['attachments']) > 0) {
+    //             $s3Files = collect($data['attachments'])->toArray();
+    //             $result = $this->s3Handler->prepareAttachmentsFromS3($s3Files);
+
+    //             if (!$result['success']) {
+    //                 logger()->error([
+    //                     'message' => 'Failed to download attachments from S3',
+    //                 ]);
+    //                 return false;
+    //             }
+
+    //             $attachmentsData = $result['attachments'];
+    //             $tempFiles = $result['temp_files'];
+    //         }
+
+    //         $successCount = 0;
+    //         $failedCount = 0;
+
+    //         $dataPayload = [
+    //             'subject'       => $data['subject'],
+    //             'priority'      => $data['priority'] ?? 'normal',
+    //             'category'      => $data['category'],
+    //             'reference'     => $data['reference'],
+    //             'attachments'   => $attachmentsData,
+    //             'tempFiles'     => $tempFiles,
+    //             'senderName'    => $this->auth->name,
+    //             'senderEmail'   => $this->auth->email,
+    //             'cc'            => $data['ccEmail'] ?? [],
+    //             'bcc'           => $data['bccEmail'] ?? [],
+    //         ];
+
+    //         if ($data['replyToId']) {
+    //             $dataPayload['replyToId'] = $data['replyToId'];
+    //             $dataPayload['replyMessage'] = $rawMessage ?? '';
+    //             $dataPayload['messageId'] = $data['messageId'];
+    //             $dataPayload['to'] = $data['allRecipients'];
+    //             $dataPayload['conversationId'] = $data['conversationId'];
+    //             $jobId = $this->batchId . '-';
+
+    //             SendOutlookEmailJob::dispatch($dataPayload, $this->auth->id, $jobId);
+    //         }
+
+    //         foreach ($data['allRecipients'] as $index => $recipient) {
+    //             try {
+    //                 $jobId = $this->batchId . '-' . ($index + 1);
+
+    //                 if (is_array($recipient)) {
+    //                     $recipientEmail = $recipient;
+    //                 } elseif (is_string($recipient)) {
+    //                     $recipientEmail = strpos($recipient, ',') !== false
+    //                         ? explode(',', $recipient)
+    //                         : [$recipient];
+    //                 } else {
+    //                     $recipientEmail = [$recipient];
+    //                 }
+
+    //                 $recipientEmail = array_map('trim', $recipientEmail);
+
+    //                 $recipientName = $recipientNames[$recipient] ?? 'Sir/Madam';
+    //                 $personalizedMessage = $this->formatMessageForHtml($data['message'], $recipientName);
+    //                 $rawMessage = $this->formatRawMessageForHtml($data['message']);
+
+    //                 $dataPayload = [
+    //                     'subject'       => $data['subject'],
+    //                     'priority'      => $data['priority'] ?? 'normal',
+    //                     'category'      => $data['category'],
+    //                     'reference'     => $data['reference'],
+    //                     'attachments'   => $attachmentsData,
+    //                     'tempFiles'     => $tempFiles,
+    //                     'senderName'    => $this->auth->name,
+    //                     'senderEmail'   => $this->auth->email,
+    //                     'recipientName' => $recipientName,
+    //                     'to'            => $recipientEmail,
+    //                     'cc'            => $data['ccEmail'] ?? [],
+    //                     'bcc'           => $data['bccEmail'] ?? [],
+    //                 ];
+
+    //                 if (!$data['replyToId']) {
+    //                     $dataPayload['message'] = $personalizedMessage;
+    //                     SendOutlookEmailJob::dispatch($dataPayload, $this->auth->id, $jobId);
+    //                 }
+
+    //                 $successCount++;
+    //             } catch (\Exception $e) {
+    //                 $failedCount++;
+    //                 logger()->error("Failed to dispatch email job for batch {$this->batchId}", [
+    //                     'index' => $index,
+    //                     'error' => $e->getMessage()
+    //                 ]);
+    //             }
+    //         }
+
+    //         return true;
+    //     } catch (\Exception $e) {
+    //         logger()->error('Email send failed with exception', [
+    //             'error' => $e->getMessage(),
+    //             'trace' => $e->getTraceAsString()
+    //         ]);
+
+    //         if (!empty($tempFiles)) {
+    //             $this->s3Handler->cleanupTempFiles($tempFiles);
+    //         }
+    //         return false;
+    //     }
+    // }
+
     public function sendEmail(array $data): bool
     {
         if (!$this->auth) {
@@ -146,10 +267,9 @@ class MailService
             $recipientNames = ContactNameMappingService::getRecipientNames($data['customer'], $data['allRecipients']);
 
             $attachmentsData = [];
+            $tempFiles = [];
             if ($data['attachments'] && count($data['attachments']) > 0) {
-
                 $s3Files = collect($data['attachments'])->toArray();
-
                 $result = $this->s3Handler->prepareAttachmentsFromS3($s3Files);
 
                 if (!$result['success']) {
@@ -166,17 +286,57 @@ class MailService
             $successCount = 0;
             $failedCount = 0;
 
+            if ($data['replyToId']) {
+                $rawMessage = $this->formatRawMessageForHtml($data['message']);
+
+                $dataPayload = [
+                    'subject'       => $data['subject'],
+                    'priority'      => $data['priority'] ?? 'normal',
+                    'category'      => $data['category'],
+                    'reference'     => $data['reference'],
+                    'attachments'   => $attachmentsData,
+                    'tempFiles'     => $tempFiles,
+                    'senderName'    => $this->auth->name,
+                    'senderEmail'   => $this->auth->email,
+                    'cc'            => $data['ccEmail'] ?? [],
+                    'bcc'           => $data['bccEmail'] ?? [],
+                    'replyToId'     => $data['replyToId'],
+                    'replyMessage'  => $rawMessage,
+                    'messageId'     => $data['messageId'],
+                    'to'            => $data['allRecipients'],
+                    'conversationId' => $data['conversationId'],
+                ];
+
+                $jobId = $this->batchId . '-reply';
+                SendOutlookEmailJob::dispatch($dataPayload, $this->auth->id, $jobId);
+                return true;
+            }
+
             foreach ($data['allRecipients'] as $index => $recipient) {
                 try {
                     $jobId = $this->batchId . '-' . ($index + 1);
-                    $recipientEmail = explode(',', $recipient) ?? [];
 
-                    $recipientName = $recipientNames[$recipient] ?? 'Sir/Madam';
+                    // Normalize recipient to array format
+                    if (is_array($recipient)) {
+                        $recipientEmail = $recipient;
+                        $recipientKey = implode(',', $recipient);
+                    } elseif (is_string($recipient)) {
+                        $recipientEmail = strpos($recipient, ',') !== false
+                            ? array_map('trim', explode(',', $recipient))
+                            : [$recipient];
+                        $recipientKey = $recipient;
+                    } else {
+                        $recipientEmail = [$recipient];
+                        $recipientKey = $recipient;
+                    }
+
+                    // Get recipient name for personalization
+                    $recipientName = $recipientNames[$recipientKey] ?? 'Sir/Madam';
                     $personalizedMessage = $this->formatMessageForHtml($data['message'], $recipientName);
-                    $rawMessage = $this->formatRawMessageForHtml($data['message']);
 
                     $dataPayload = [
                         'subject'       => $data['subject'],
+                        'message'       => $personalizedMessage,
                         'priority'      => $data['priority'] ?? 'normal',
                         'category'      => $data['category'],
                         'reference'     => $data['reference'],
@@ -190,33 +350,27 @@ class MailService
                         'bcc'           => $data['bccEmail'] ?? [],
                     ];
 
-                    if ($data['replyToId']) {
-                        $dataPayload['replyToId'] = $data['replyToId'];
-                        $dataPayload['replyMessage'] = $rawMessage ?? '';
-                    } else {
-                        $dataPayload['message'] = $personalizedMessage;
-                    }
-
                     SendOutlookEmailJob::dispatch($dataPayload, $this->auth->id, $jobId);
-
                     $successCount++;
                 } catch (\Exception $e) {
                     $failedCount++;
                     logger()->error("Failed to dispatch email job for batch {$this->batchId}", [
                         'index' => $index,
+                        'recipient' => $recipient,
                         'error' => $e->getMessage()
                     ]);
                 }
             }
 
-            return true;
+            return $successCount > 0;
         } catch (\Exception $e) {
             logger()->error('Email send failed with exception', [
+                'batch' => $this->batchId,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
 
-            if (isset($tempFiles)) {
+            if (!empty($tempFiles)) {
                 $this->s3Handler->cleanupTempFiles($tempFiles);
             }
             return false;
@@ -278,8 +432,6 @@ class MailService
 
         return $html;
     }
-
-
 
     public function replyToEmail(string $id, array $data): bool
     {

@@ -2408,76 +2408,96 @@ class OutlookService
      * @param array $replyData Reply content and options
      * @return array Result with success status and details
      */
-    public function sendReply($auth, string $originalMessageId, array $replyData): array
+    // public function sendReply($auth, string $originalMessageId, array $replyData): array
+    // {
+    //     // try {
+    //     //     $this->auth = $auth;
+    //     //     $originalMessage = $this->getMessageDetails($originalMessageId);
+
+    //     //     if (empty($originalMessage)) {
+    //     //         throw new Exception('Original message not found');
+    //     //     }
+
+    //     //     // Validate reply permissions
+    //     //     $canReply = $this->canReplyToMessage($originalMessageId);
+    //     //     if (!$canReply['can_reply']) {
+    //     //         throw new Exception($canReply['reason']);
+    //     //     }
+
+    //     //     // Build reply message
+    //     //     $replyMessage = $this->buildReplyMessage($replyData, $originalMessage, 'reply');
+
+    //     //     logger()->info('Sending reply', [
+    //     //         'original_message_id' => $originalMessageId,
+    //     //         'conversation_id' => $originalMessage['conversationId'],
+    //     //         'original_subject' => $originalMessage['subject'],
+    //     //         'user' => $auth->email
+    //     //     ]);
+
+    //     //     $startTime = microtime(true);
+
+    //     //     // Send reply using Microsoft Graph
+    //     //     $this->makeRequest('POST', "/me/messages/{$originalMessageId}/reply", [
+    //     //         'json' => $replyMessage
+    //     //     ]);
+
+    //     //     $responseTime = round((microtime(true) - $startTime) * 1000, 2);
+
+    //     //     // Get conversation details for response
+    //     //     $conversationMessages = $this->getConversationMessages($originalMessage['conversationId']);
+
+    //     //     logger()->info('Reply sent successfully', [
+    //     //         'original_message_id' => $originalMessageId,
+    //     //         'conversation_id' => $originalMessage['conversationId'],
+    //     //         'response_time_ms' => $responseTime,
+    //     //         'user' => $auth->email
+    //     //     ]);
+
+    //     //     return [
+    //     //         'success' => true,
+    //     //         'original_message_id' => $originalMessageId,
+    //     //         'conversation_id' => $originalMessage['conversationId'],
+    //     //         'replied_to' => [
+    //     //             'sender' => $originalMessage['from']['emailAddress']['address'] ?? 'Unknown'
+    //     //         ],
+    //     //         'conversation_message_count' => $conversationMessages['count'] ?? 0,
+    //     //         'response_time_ms' => $responseTime,
+    //     //         'message' => 'Reply sent successfully'
+    //     //     ];
+    //     // } catch (Exception $e) {
+    //     //     logger()->error('Failed to send reply', [
+    //     //         'original_message_id' => $originalMessageId,
+    //     //         'error' => $e->getMessage(),
+    //     //         'user' => $auth->email ?? 'unknown'
+    //     //     ]);
+
+    //     //     return [
+    //     //         'success' => false,
+    //     //         'error' => $e->getMessage(),
+    //     //         'original_message_id' => $originalMessageId,
+    //     //         'error_code' => $this->getErrorCode($e)
+    //     //     ];
+    //     // }
+    //     return [];
+    // }
+
+    public function sendReply($auth, $originalMessageId, array $emailPayload, $replyData = []): array
     {
-        // try {
-        //     $this->auth = $auth;
-        //     $originalMessage = $this->getMessageDetails($originalMessageId);
+        $this->auth = $auth;
+        $originalMessage = $this->getMessageDetails($originalMessageId);
 
-        //     if (empty($originalMessage)) {
-        //         throw new Exception('Original message not found');
-        //     }
+        $replyPayload = [
+            'subject' => $emailPayload['subject'],
+            'body' => $replyData['body'],
+            'bodyType' => $replyData['bodyType'],
+            'to' => $emailPayload['to'],
+            'cc' => $emailPayload['cc'] ?? [],
+            'bcc' => $emailPayload['bcc'] ?? [],
+            'attachments' => $replyData['attachments'] ?? [],
+            'priority' => $emailPayload['priority'] ?? 'normal',
+            'conversationId' => $emailPayload['conversationId'] ?? null
+        ];
 
-        //     // Validate reply permissions
-        //     $canReply = $this->canReplyToMessage($originalMessageId);
-        //     if (!$canReply['can_reply']) {
-        //         throw new Exception($canReply['reason']);
-        //     }
-
-        //     // Build reply message
-        //     $replyMessage = $this->buildReplyMessage($replyData, $originalMessage, 'reply');
-
-        //     logger()->info('Sending reply', [
-        //         'original_message_id' => $originalMessageId,
-        //         'conversation_id' => $originalMessage['conversationId'],
-        //         'original_subject' => $originalMessage['subject'],
-        //         'user' => $auth->email
-        //     ]);
-
-        //     $startTime = microtime(true);
-
-        //     // Send reply using Microsoft Graph
-        //     $this->makeRequest('POST', "/me/messages/{$originalMessageId}/reply", [
-        //         'json' => $replyMessage
-        //     ]);
-
-        //     $responseTime = round((microtime(true) - $startTime) * 1000, 2);
-
-        //     // Get conversation details for response
-        //     $conversationMessages = $this->getConversationMessages($originalMessage['conversationId']);
-
-        //     logger()->info('Reply sent successfully', [
-        //         'original_message_id' => $originalMessageId,
-        //         'conversation_id' => $originalMessage['conversationId'],
-        //         'response_time_ms' => $responseTime,
-        //         'user' => $auth->email
-        //     ]);
-
-        //     return [
-        //         'success' => true,
-        //         'original_message_id' => $originalMessageId,
-        //         'conversation_id' => $originalMessage['conversationId'],
-        //         'replied_to' => [
-        //             'sender' => $originalMessage['from']['emailAddress']['address'] ?? 'Unknown'
-        //         ],
-        //         'conversation_message_count' => $conversationMessages['count'] ?? 0,
-        //         'response_time_ms' => $responseTime,
-        //         'message' => 'Reply sent successfully'
-        //     ];
-        // } catch (Exception $e) {
-        //     logger()->error('Failed to send reply', [
-        //         'original_message_id' => $originalMessageId,
-        //         'error' => $e->getMessage(),
-        //         'user' => $auth->email ?? 'unknown'
-        //     ]);
-
-        //     return [
-        //         'success' => false,
-        //         'error' => $e->getMessage(),
-        //         'original_message_id' => $originalMessageId,
-        //         'error_code' => $this->getErrorCode($e)
-        //     ];
-        // }
         return [];
     }
 
@@ -2519,7 +2539,7 @@ class OutlookService
 
             return [
                 'success' => true,
-                'original_message_id' => $originalMessageId,
+                'message_id' => $originalMessageId,
                 'conversation_id' => $originalMessage['conversationId'],
                 'replied_to' => [
                     'sender' => $originalMessage['from']['emailAddress']['address'] ?? 'Unknown',
@@ -4125,7 +4145,7 @@ class OutlookService
             }
 
             $response = $this->makeRequest('GET', '/subscriptions');
-            logger()->debug(json_encode(['response' => $response], JSON_PRETTY_PRINT));
+            // logger()->debug(json_encode(['response' => $response], JSON_PRETTY_PRINT));
 
             $expirationDateTime = Carbon::now()->addHours(71)->toIso8601String();
 
@@ -4138,7 +4158,7 @@ class OutlookService
             ];
 
             $res = $this->makeRequest('POST', '/subscriptions', ['json' => $payload]);
-            logger()->debug(json_encode(['response' => $res], JSON_PRETTY_PRINT));
+            // logger()->debug(json_encode(['response' => $res], JSON_PRETTY_PRINT));
 
 
             // https: //default6ef11b21a3f4462fbfd47e7b026274.fa.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/daf036d902a74097aaddc6b05ec52dc2/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=IKJA11q81_BCZMCc893qwUix2y3kc_K2YxsrkjI5SRM
@@ -4320,7 +4340,7 @@ class OutlookService
 
             if (!empty($allMessages)) {
                 $allMessages = $this->enrichMessagesWithFolderNames($allMessages);
-                // logger()->debug(json_encode(count($allMessages), JSON_PRETTY_PRINT));
+                // logger()->debug(json_encode($allMessages[0], JSON_PRETTY_PRINT));
                 // foreach ($allMessages as $d) {
                 //     $filtered = Arr::except($d, ['body', 'bodyPreview']);
                 //     logger()->debug(json_encode($filtered, JSON_PRETTY_PRINT));
@@ -4435,7 +4455,6 @@ class OutlookService
 
         return $folderMap;
     }
-
 
     private function classifyDeltaChanges(array $messages): array
     {

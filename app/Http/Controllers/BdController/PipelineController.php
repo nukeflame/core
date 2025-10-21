@@ -3349,6 +3349,15 @@ class PipelineController
         $btnActions = '';
         if ($stage > 1 && $stage <= 4) {
             $btnActions .= "
+                <button class='btn btn-dark btn-sm me-1 preview-pdf-btn'
+                        data-current_stage='{$currentStage}'
+                        data-opportunity_id='{$opportunity_id}'
+                        title='Preview PDF'>
+                    <i class='bx bx-file'></i>
+                </button>
+            ";
+
+            $btnActions .= "
                 <button class='btn btn-primary btn-sm me-1 mail-btn'
                         data-current_stage='{$currentStage}'
                         data-opportunity_id='{$opportunity_id}'
@@ -5671,17 +5680,24 @@ class PipelineController
                 'message' => $request->input('message'),
                 'customer_id' => $request->input('customer_id'),
                 'is_reply' => $request->input('is_reply', 0),
+                'conversation_id' => $request->input('conversation_id'),
+                'message_id' => $request->input('message_id'),
             ];
 
             // logger()->debug($request->all());
+            $attached_files = [];
+            if (!$emailData['is_reply']) {
+                $attached_files = DB::table('prospect_docs')->where('prospect_id', $emailData['opportunity_id'])->get([
+                    's3_url',
+                    'original_name',
+                    'file',
+                    'mimetype',
+                    'file_size'
+                ]);
+            } else {
+                $attached_files = [];
+            }
 
-            $attached_files = DB::table('prospect_docs')->where('prospect_id', $emailData['opportunity_id'])->get([
-                's3_url',
-                'original_name',
-                'file',
-                'mimetype',
-                'file_size'
-            ]);
 
             $customer = Customer::where('customer_id', $request->customer_id)->first();
 
@@ -5711,10 +5727,12 @@ class PipelineController
                 'allRecipients' => $allRecipients,
                 'attachments' => $attached_files,
                 'toEmails' => $toEmails,
-                'toRecipients' => $toRecipients
+                'toRecipients' => $toRecipients,
+                'messageId' => $emailData['message_id'],
+                'conversationId' => $emailData['conversation_id']
             ];
 
-            $result = $this->mailService->sendEmail($data);
+            $result =  $this->mailService->sendEmail($data);
 
             DB::commit();
             if ($result) {

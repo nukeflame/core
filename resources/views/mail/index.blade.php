@@ -76,21 +76,12 @@
     </div>
 
     <!-- Sync Progress Widget -->
-    <div class="sync-progress-container" id="syncProgressWidget">
-        <div class="d-flex justify-content-between align-items-center mb-2">
-            <h6 class="mb-0">Email Sync Progress</h6>
-            <button type="button" class="btn-close btn-sm"
-                onclick="document.getElementById('syncProgressWidget').classList.remove('active')"></button>
-        </div>
-        <p class="text-muted small mb-2" id="syncStatus">Syncing emails...</p>
-        <div class="progress">
-            <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" id="syncProgressBar"
-                style="width: 0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
-                0%
+    <div class="loading-overlay d-none">
+        <div class="overlay-content">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
             </div>
-        </div>
-        <div class="mt-2 text-center small text-muted">
-            <span id="processedCount">0</span> / <span id="totalCount">0</span> emails
+            <p class="mt-3 mb-0 loader-txt">Syncing Emails...</p>
         </div>
     </div>
 @endsection
@@ -120,103 +111,27 @@
             const userId = {{ auth()->id() }};
 
             let syncStartTime = null;
-            let syncWidget = $('#syncProgressWidget');
-            let progressBar = $('#syncProgressBar');
+            const $btnLoader = $(".loading-overlay");
 
             function updateSyncProgress(data, eventType) {
                 switch (eventType) {
                     case 'progress':
-                        syncWidget.addClass('active');
-
-                        if (!syncStartTime) {
-                            syncStartTime = new Date();
-                        }
-
-                        const displayPercentage = Math.max(10, data.percentage);
-
-                        progressBar.css('width', displayPercentage + '%');
-                        progressBar.text(displayPercentage + '%');
-                        progressBar.attr('aria-valuenow', displayPercentage);
-
-                        $('#syncStatus').text(`${data.status} - Batch #${data.batch_number}`);
-
-                        $('#processedCount').text(data.processed);
-                        $('#totalCount').text(data.total);
-
-                        progressBar.removeClass('bg-success bg-warning bg-danger bg-info');
-                        if (data.percentage === 100) {
-                            progressBar.addClass('bg-success');
-                            progressBar.removeClass('progress-bar-animated');
-                        } else if (data.percentage > 50) {
-                            progressBar.addClass('bg-info');
-                        } else {
-                            progressBar.addClass('bg-primary');
-                        }
+                        $btnLoader.removeClass("d-none");
                         break;
 
                     case 'completed':
-                        progressBar.css('width', '100%');
-                        progressBar.text('100%');
-                        progressBar.attr('aria-valuenow', 100);
-                        progressBar.removeClass('progress-bar-animated bg-primary bg-info');
-                        progressBar.addClass('bg-success');
-
-                        $('#syncStatus').text('Sync Completed Successfully!');
-
-                        $('#insertedCount').text(data.total_inserted);
-                        $('#updatedCount').text(data.total_updated);
-                        $('#deletedCount').text(data.total_deleted);
-                        $('#processedCount').text(data.total_processed);
-                        $('#totalCount').text(data.total_processed);
-
-                        let duration = '';
-                        if (syncStartTime) {
-                            const endTime = new Date();
-                            const durationMs = endTime - syncStartTime;
-                            const seconds = Math.floor(durationMs / 1000);
-                            duration = seconds > 0 ? ` in ${seconds}s` : '';
-                        }
-
+                        $btnLoader.addClass("d-none");
                         setTimeout(() => {
-                            syncWidget.removeClass('active');
-                            syncStartTime = null;
-
-                            progressBar.css('width', '0%');
-                            progressBar.text('0%');
-                            progressBar.attr('aria-valuenow', 0);
-                            progressBar.addClass('progress-bar-animated');
-
                             window.location.reload();
 
                         }, 2000);
-
-                        if (typeof mailApp.refreshEmailList === 'function') {
-                            setTimeout(() => {
-                                mailApp.refreshEmailList();
-                            }, 1000);
-                        }
                         break;
 
                     case 'failed':
-                        progressBar.removeClass('bg-primary bg-info bg-success progress-bar-animated');
-                        progressBar.addClass('bg-danger');
-
-                        $('#syncStatus').html(`<span class="text-danger">Sync Failed</span>`);
-
-                        setTimeout(() => {
-                            syncWidget.removeClass('active');
-                            syncStartTime = null;
-
-                            progressBar.css('width', '0%');
-                            progressBar.text('0%');
-                            progressBar.attr('aria-valuenow', 0);
-                            progressBar.removeClass('bg-danger');
-                            progressBar.addClass('bg-primary progress-bar-animated');
-                        }, 3000);
+                        $btnLoader.addClass("d-none");
                         break;
 
                     default:
-                        console.warn('Unknown sync event type:', eventType, data);
                 }
             }
 
@@ -244,6 +159,7 @@
                     setTimeout(initializeEmailSync, 100);
                 }
             }
+
             setTimeout(initializeEmailSync, 500);
         });
     </script>

@@ -398,7 +398,8 @@ class MailApp {
 
     async syncEmails() {
         try {
-            this.showLoading("email-list");
+            const $btnLoader = $(".loading-overlay");
+            $btnLoader.removeClass("d-none");
 
             const result = await $.ajax({
                 url: this.config.routes.outlookSync,
@@ -410,19 +411,12 @@ class MailApp {
                 dataType: "json",
             });
 
-            console.log(result);
-
-            // if (result.synced) {
-            //     this.showSuccess("Emails synced successfully!");
-            //     this.refreshEmailList();
-            // } else {
-            //     this.showError("Failed to sync emails");
-            // }
+            if (result.synced) {
+                this.refreshEmailList();
+            }
         } catch (error) {
             this.showError("Network error occurred");
             console.error("Sync error:", error);
-        } finally {
-            this.hideLoading("email-list");
         }
     }
 
@@ -650,7 +644,7 @@ class MailApp {
 
     async loadFolder(folder) {
         try {
-            this.showLoading("email-list");
+            this.showLoading();
 
             const html = await $.ajax({
                 url: `/mail/folder/${folder}`,
@@ -838,17 +832,25 @@ class MailApp {
         this.showInfo(`${count} new email${count > 1 ? "s" : ""} received`);
     }
 
-    showLoading(target) {
-        const $element = target instanceof jQuery ? target : $(target);
-        if ($element.length) {
-            $element.addClass("loading");
+    // showLoading(target) {
+    //     const $element = target instanceof jQuery ? target : $(target);
+    //     if ($element.length) {
+    //         $element.addClass("loading");
 
-            let $overlay = $element.find(".loading-overlay");
-            if (!$overlay.length) {
-                $overlay = this.createLoadingOverlay();
-                $element.append($overlay);
-            }
-        }
+    //         let $overlay = $element.find(".loading-overlay");
+    //         if (!$overlay.length) {
+    //             $overlay = this.createLoadingOverlay();
+    //             $element.append($overlay);
+    //         }
+    //     }
+    // }
+
+    showLoading() {
+        $("#email-loading-overlay").removeClass("d-none");
+    }
+
+    hideLoading() {
+        $("#email-loading-overlay").addClass("d-none");
     }
 
     showLoadingForEmail($emailItem) {
@@ -863,13 +865,13 @@ class MailApp {
         }
     }
 
-    hideLoading(target) {
-        const $element = target instanceof jQuery ? target : $(target);
-        if ($element.length) {
-            $element.removeClass("loading");
-            $element.find(".loading-overlay").remove();
-        }
-    }
+    // hideLoading(target) {
+    //     const $element = target instanceof jQuery ? target : $(target);
+    //     if ($element.length) {
+    //         $element.removeClass("loading");
+    //         $element.find(".loading-overlay").remove();
+    //     }
+    // }
 
     createLoadingOverlay() {
         return $(

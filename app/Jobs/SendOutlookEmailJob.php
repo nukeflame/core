@@ -49,10 +49,8 @@ class SendOutlookEmailJob implements ShouldQueue
                 throw new Exception('Invalid or expired Outlook token for user: ' . $user->email);
             }
 
-            if (isset($this->emailData['replyToId']) && !empty($this->emailData['replyToId'])) {
-                logger()->debug(json_encode(['emailData' => $this->emailData], JSON_PRETTY_PRINT));
-
-                // $result = $this->sendReply($user, $outlookService, $payload);
+            if (isset($this->emailData['replyToId']) && $this->emailData['replyToId']) {
+                $result = $this->sendReply($user, $outlookService, $payload);
             } else {
                 $result = $this->sendNewMessage($user, $outlookService, $payload);
             }
@@ -69,9 +67,9 @@ class SendOutlookEmailJob implements ShouldQueue
                 throw new Exception($result['error'] ?? 'Unknown error occurred while sending email');
             }
         } catch (Exception $e) {
-            $this->updateEmailLog('failed', ['error' => $e->getMessage()]);
+            // $this->updateEmailLog('failed', ['error' => $e->getMessage()]);
 
-            if (isset($this->emailData['tempFiles'])) {
+            if (!empty($this->emailData['tempFiles'])) {
                 $this->s3Handler->cleanupTempFiles($this->emailData['tempFiles']);
             }
 
@@ -104,9 +102,9 @@ class SendOutlookEmailJob implements ShouldQueue
             'customHeaders' => $this->buildCustomHeaders(),
         ];
 
-
         if (isset($data['replyToId'])) {
             $result['replyToId'] = $this->emailData['replyToId'];
+            $result['messageId'] = $this->emailData['messageId'];
             $result['conversationId'] = $this->emailData['conversationId'];
         }
 
@@ -116,7 +114,7 @@ class SendOutlookEmailJob implements ShouldQueue
     /**
      * Send a reply to existing message
      */
-    private function sendNewMessage($user, $outlookService, array $emailPayload): array
+    private function sendNewMessage($user, $outlookService, $emailPayload): array
     {
         return $outlookService->sendEmail($user, $emailPayload);
     }
@@ -124,21 +122,15 @@ class SendOutlookEmailJob implements ShouldQueue
     /**
      * Send a reply to existing message
      */
-    private function sendReply(User $user, OutlookService $outlookService, array $emailPayload): array
+    private function sendReply($user, $outlookService, $emailPayload): array
     {
-        logger()->debug(json_encode(['sendReply' => 'sending'], JSON_PRETTY_PRINT));
-
         $replyData = [
-            // 'toRecipients' => [
-            //     ['address' => $this->emailData['to']],
-            // ],
-            // 'subject' => $emailPayload['subject'],
             'body' => $this->emailData['replyMessage'],
             'bodyType' => $emailPayload['bodyType'],
             'attachments' => $emailPayload['attachments'] ?? [],
         ];
 
-        return $outlookService->sendReplyAll($user, $this->emailData['replyToId'], $replyData);
+        return $outlookService->sendReplyAll($user, $this->emailData['messageId'], $replyData);
     }
 
     /**
@@ -183,7 +175,7 @@ class SendOutlookEmailJob implements ShouldQueue
      */
     private function buildEmailBody(): string
     {
-        $message = $this->emailData['message'];
+        $message = $this->emailData['message'] ?? $this->emailData['replyMessage'] ?? null;
 
         return "
             <!DOCTYPE html>
@@ -222,7 +214,6 @@ class SendOutlookEmailJob implements ShouldQueue
     {
         return DB::table('email_sync_logs')->insertGetId([
             'user_id' => $user->id,
-            'folder' =>  'sent',
             'status' => $status,
             'started_at' => now(),
             'created_at' => now(),
@@ -249,20 +240,43 @@ class SendOutlookEmailJob implements ShouldQueue
 
     private function dispatchFollowUpJobs(array $result): void
     {
-        if (!empty($result['message_id'])) {
-            $user = User::findOrFail($this->userId);
+        // if (!empty($result['message_id'])) {
 
-            DB::table('fetched_emails')->insert([
-                'uid'             => $result['message_id'],
-                'user_email'      => $user->email,
-                'user_id'         => $user->id,
-                'message_id'      => $result['message_id'],
-                'conversation_id' => $result['conversation_id'],
-                'system_category' => $this->emailData['category'],
-                'system_ref_no'   => $this->emailData['reference'],
-                'date_received'   => now(),
-                'created_at'      => now(),
-            ]);
-        }
+        //     $alreadyProcessed = DB::table('fetched_emails')
+        //         ->where('message_id', $result['message_id'])
+        //         ->exists();
+
+        //     if ($alreadyProcessed) {
+        //         return;
+        //     }
+
+        //     $toRecipients = $this->emailData['toRecipients'] ?? [];
+
+        //     if (!empty($toRecipients)) {
+        //         $matchingUsers = User::whereIn('email', $toRecipients)->get();
+
+        //         // foreach ($matchingUsers as $recipientUser) {
+        //         //     // $exists = DB::table('fetched_emails')
+        //         //     //     ->where('message_id', $result['message_id'])
+        //         //     //     ->where('user_id', $recipientUser->id)
+        //         //     //     ->exists();
+
+        //         //     // if (!$exists) {
+        //         //     //     DB::table('fetched_emails')->insert([
+        //         //     //         'uid' => $result['message_id'],
+        //         //     //         'user_email' => $recipientUser->email,
+        //         //     //         'user_id' => $recipientUser->id,
+        //         //     //         'folder' => 'inbox',
+        //         //     //         'message_id' => $result['message_id'],
+        //         //     //         'conversation_id' => $result['conversation_id'],
+        //         //     //         'system_category' => $this->emailData['category'],
+        //         //     //         'system_ref_no' => $this->emailData['reference'],
+        //         //     //         'date_received' => now(),
+        //         //     //         'created_at' => now(),
+        //         //     //     ]);
+        //         //     // }
+        //         // }
+        //     }
+        // }
     }
 }

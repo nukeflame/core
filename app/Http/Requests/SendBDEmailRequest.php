@@ -43,8 +43,10 @@ class SendBDEmailRequest extends FormRequest
 
         if ($this->input('is_reply') === true || $this->input('is_reply') === '1') {
             $rules['message_id'] = 'required|string';
+            $rules['conversation_id'] = 'required|string';
         } else {
             $rules['message_id'] = 'nullable|string';
+            $rules['conversation_id'] = 'nullable|string';
         }
 
         return $rules;
@@ -61,6 +63,7 @@ class SendBDEmailRequest extends FormRequest
             'bcc_email.*.email' => 'Each BCC contact must be a valid email address',
             'priority.in' => 'Priority must be one of: low, normal, high',
             'message_id.required' => 'Message ID is required when replying to an email',
+            'conversation_id.required' => 'Conversation Message ID is required when replying to an email',
             'attachments.*.max' => 'Each attachment must not exceed 4MB',
         ];
     }
