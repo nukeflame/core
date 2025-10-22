@@ -1,5 +1,6 @@
 <?php
 
+use App\Events\ReverbTest;
 use App\Http\Controllers\BdController\BdScheduleController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ProfileController;
