@@ -250,5 +250,34 @@ Route::middleware(['auth', 'check.first.login'])->group(function () {
 Route::get('/auth/outlook/callback', [OutlookOAuthController::class, 'callback'])->name('admin.outlook.callback');
 
 // end auth middleware group
+Route::get('/reverb-health', function () {
+    try {
+        // Try to connect to Reverb port
+        $connection = @fsockopen('127.0.0.1', 8080, $errno, $errstr, 1);
+
+        if ($connection) {
+            fclose($connection);
+            return response()->json([
+                'status' => 'healthy',
+                'reverb' => 'running',
+                'port' => 8080,
+                'timestamp' => now()
+            ]);
+        }
+
+        return response()->json([
+            'status' => 'unhealthy',
+            'reverb' => 'not accessible',
+            'error' => $errstr,
+            'timestamp' => now()
+        ], 503);
+    } catch (\Exception $e) {
+        return response()->json([
+            'status' => 'error',
+            'message' => $e->getMessage(),
+            'timestamp' => now()
+        ], 500);
+    }
+});
 
 require __DIR__ . '/auth.php';
