@@ -94,22 +94,9 @@ class ImportPipelineData extends Command
                 $this->error(" - Row {$failure->row()}: {$failure->errors()[0]}");
             }
 
-            logger()->error('Pipeline import validation failed', [
-                'exception' => $e->getMessage(),
-                'failures' => $e->failures(),
-                'file' => $filePath
-            ]);
-
             return self::FAILURE;
         } catch (Throwable $e) {
             $this->error('Import failed: ' . $e->getMessage());
-
-            logger()->error('Pipeline import failed', [
-                'exception' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-                'file' => $filePath
-            ]);
-
             return self::FAILURE;
         }
     }

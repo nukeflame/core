@@ -12,11 +12,8 @@ class MicrosoftWebhookController extends Controller
 {
     public function handleNotification(Request $request)
     {
-        logger()->debug(json_encode('Connecting validation', JSON_PRETTY_PRINT));
-
         if ($request->query('validationToken')) {
             $token = $request->query('validationToken');
-            logger()->debug($token);
             return response($token, 200)->header('Content-Type', 'text/plain');
         }
 
@@ -31,12 +28,6 @@ class MicrosoftWebhookController extends Controller
                 if (($notification['clientState'] ?? '') !== $expectedClientState) {
                     continue;
                 }
-
-                logger()->info('Valid notification received', [
-                    'subscriptionId' => $notification['subscriptionId'],
-                    'changeType' => $notification['changeType'],
-                    'resource' => $notification['resource']
-                ]);
             }
         }
 
@@ -44,34 +35,21 @@ class MicrosoftWebhookController extends Controller
 
         // if ($request->query('validationToken')) {
         //     $token = $request->query('validationToken');
-        //     logger()->info('Validation token received', ['token' => $token]);
         //     return response($token, 200)->header('Content-Type', 'text/plain');
         // }
 
         // // Parse notification data
         // try {
         //     $data = $request->all();
-        //     logger()->info('Notification data', ['data' => $data]);
 
         //     // Check for 'value' array (standard Graph notification format)
         //     if (isset($data['value']) && is_array($data['value'])) {
         //         foreach ($data['value'] as $notification) {
-        //             logger()->info('Processing notification', [
-        //                 'subscriptionId' => $notification['subscriptionId'] ?? 'unknown',
-        //                 'changeType' => $notification['changeType'] ?? 'unknown',
-        //                 'resource' => $notification['resource'] ?? 'unknown',
-        //                 'clientState' => $notification['clientState'] ?? 'none'
-        //             ]);
         //         }
         //     }
 
         //     return response()->json(['status' => 'ok'], 200);
         // } catch (\Exception $e) {
-        //     logger()->error('Webhook processing error', [
-        //         'error' => $e->getMessage(),
-        //         'trace' => $e->getTraceAsString()
-        //     ]);
-
         //     // Still return 200 to acknowledge receipt
         //     return response()->json(['status' => 'error'], 200);
         // }
@@ -87,11 +65,8 @@ class MicrosoftWebhookController extends Controller
 
         // $notifications = $request->input('value', []);
 
-        // logger()->warning(json_encode($notifications, JSON_PRETTY_PRINT));
-
         // foreach ($notifications as $notification) {
         //     // if ($notification['clientState'] !== config('services.azure.webhook_client_state')) {
-        //     //     logger()->warning('Invalid client state in webhook', [
         //     //         'notification' => $notification,
         //     //     ]);
         //     //     continue;
@@ -108,11 +83,6 @@ class MicrosoftWebhookController extends Controller
         // if ($request->isMethod('post') && $request->has('validationToken')) {
         //     $validationToken = $request->query('validationToken');
 
-        //     logger()->info('Webhook validation request received', [
-        //         'token_length' => strlen($validationToken),
-        //         'ip' => $request->ip()
-        //     ]);
-
         //     return response($validationToken, 200)
         //         ->header('Content-Type', 'text/plain');
         // }
@@ -128,20 +98,12 @@ class MicrosoftWebhookController extends Controller
             $notifications = $request->input('value', []);
             $clientState = config('services.azure.webhook_client_state');
 
-            logger()->info('Received Graph webhook notifications', [
-                'count' => count($notifications)
-            ]);
-
             foreach ($notifications as $notification) {
                 // Verify client state
                 if (
                     isset($notification['clientState']) &&
                     $notification['clientState'] !== $clientState
                 ) {
-                    logger()->warning('Invalid client state', [
-                        'expected' => $clientState,
-                        'received' => $notification['clientState']
-                    ]);
                     continue;
                 }
 
@@ -152,10 +114,6 @@ class MicrosoftWebhookController extends Controller
             // Microsoft expects 202 Accepted
             return response()->json(['status' => 'accepted'], 202);
         } catch (\Exception $e) {
-            logger()->error('Failed to process webhook', [
-                'error' => $e->getMessage()
-            ]);
-
             // Still return 202 to prevent retries
             return response()->json(['status' => 'error'], 202);
         }
@@ -166,13 +124,6 @@ class MicrosoftWebhookController extends Controller
      */
     private function processNotification(array $notification)
     {
-        // Your notification processing logic here
-        logger()->info('Processing notification', [
-            'subscription_id' => $notification['subscriptionId'] ?? null,
-            'resource' => $notification['resource'] ?? null,
-            'change_type' => $notification['changeType'] ?? null
-        ]);
-
         // Store in database, trigger events, etc.
     }
 
@@ -181,8 +132,6 @@ class MicrosoftWebhookController extends Controller
      */
     // public function handleNotification(Request $request)
     // {
-    //     logger()->debug(['$request->validationToken' => $request->has('validationToken')]);
-
     //     if ($request->has('validationToken')) {
     //         return response()->json($request->input('validationToken'), 200)
     //             ->header('Content-Type', 'text/plain');
@@ -198,27 +147,15 @@ class MicrosoftWebhookController extends Controller
     //     // // $notifications = $request->input('value', []);
 
     //     // if (empty($notifications)) {
-    //     //     logger()->warning('Webhook received with no notifications');
     //     //     return response()->json(['status' => 'no_content'], 200);
     //     // }
-
-    //     // logger()->info('Webhook notifications received', [
-    //     //     'count' => count($notifications),
-    //     //     'ip' => $request->ip()
-    //     // ]);
 
     //     // // foreach ($notifications as $notification) {
     //     // //     try {
     //     // //         $this->processNotification($notification, $request->ip());
     //     // //     } catch (\Exception $e) {
-    //     // //         logger()->error('Failed to process webhook notification', [
-    //     // //             'notification' => $notification,
-    //     // //             'error' => $e->getMessage()
-    //     // //         ]);
     //     // //     }
     //     // // }
-
-    //     // // logger()->debug(['webhook' => $request->all()]);
 
     //     // return response()->json(['status' => 'accepted'], 202);
     // }
@@ -232,10 +169,6 @@ class MicrosoftWebhookController extends Controller
     //         config('services.microsoft.webhook_client_state');
 
     //     if (!$isValid) {
-    //         logger()->warning('Invalid client state in webhook', [
-    //             'notification' => $notification,
-    //             'ip' => $sourceIp
-    //         ]);
     //     }
 
     //     $userId = $this->extractUserId($notification);
@@ -257,11 +190,6 @@ class MicrosoftWebhookController extends Controller
     //     if ($isValid && $userId) {
     //         // SyncUserEmails::dispatch($userId, 'webhook')
     //         //     ->delay(now()->addSeconds(5)); // Small delay to batch changes
-
-    //         logger()->info('Sync job dispatched from webhook', [
-    //             'user_id' => $userId,
-    //             'change_type' => $notification['changeType'] ?? 'unknown'
-    //         ]);
     //     }
     // }
 

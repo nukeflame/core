@@ -131,8 +131,6 @@ class ClaimNotificationController extends Controller
 
             $customersWithCovers = $groupedCustomers->values();
 
-            logger()->debug(json_encode($customersWithCovers, JSON_PRETTY_PRINT));
-
             return response()->json([
                 'success' => true,
                 'data' => $customersWithCovers
@@ -360,7 +358,6 @@ class ClaimNotificationController extends Controller
 
             return response()->json($response, 201);
         } catch (\Exception $e) {
-            logger($e);
             DB::rollback();
 
             return response()->json([
@@ -1007,14 +1004,12 @@ class ClaimNotificationController extends Controller
                 'recieved_date',
                 function ($data) {
                     $clm = ClaimNtfAckDocs::where(['doc_id' => $data?->doc_id])->first();
-                    // logger($data);
                     return '';
                 }
             )
             ->addColumn('action', function ($data) use ($actionable) {
                 $btn = "";
                 $fileUrl = $data->file ? asset('uploads/claim_ntf_attachments/' . $data->file) : '';
-                // logger($fileUrl);
                 if ($actionable) {
                     $btn .= " <button class='btn btn-primary btn-sm view-document p-0 m-0 px-3' data-document-id='{$data->id}' data-filename='{$data->file}' data-url='{$fileUrl}'><i class='bi bi-send'></i> View</button>";
                     // $btn .= " <button class='btn btn-outline-primary btn-sm edit-attachment' data-data='{$data}' data-id='{$data->id}'
@@ -1370,8 +1365,6 @@ class ClaimNotificationController extends Controller
                 'message' => 'Documents uploaded successfully',
             ]);
         } catch (ValidationException $e) {
-            logger($e);
-
             DB::rollBack();
             return response()->json([
                 'status' => 'error',
@@ -1379,8 +1372,6 @@ class ClaimNotificationController extends Controller
                 'errors' => $e->errors()
             ], 422);
         } catch (\Exception $e) {
-            logger($e);
-
             DB::rollBack();
 
             return response()->json([
@@ -1729,7 +1720,6 @@ class ClaimNotificationController extends Controller
                 'message' => 'Claim notification has been queued for sending',
             ]);
         } catch (\Exception $e) {
-            logger($e);
             DB::rollBack();
             return response()->json([
                 'success' => false,
@@ -1817,13 +1807,6 @@ class ClaimNotificationController extends Controller
             ]);
         } catch (\Exception $e) {
             DB::rollback();
-
-            logger('Error deleting claim notification', [
-                'intimation_no' => $request->intimation_no ?? 'unknown',
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-
             return response()->json([
                 'success' => false,
                 'message' => 'An error occurred while deleting the claim notification.'
@@ -1873,10 +1856,6 @@ class ClaimNotificationController extends Controller
                     $deletedCount++;
                 } catch (\Exception $e) {
                     $errors[] = "Error deleting claim {$intimationNo}: " . $e->getMessage();
-                    logger('Bulk delete error for claim', [
-                        'intimation_no' => $intimationNo,
-                        'error' => $e->getMessage()
-                    ]);
                 }
             }
 
@@ -1898,11 +1877,6 @@ class ClaimNotificationController extends Controller
             return response()->json($response);
         } catch (\Exception $e) {
             DB::rollback();
-
-            logger('Error in bulk delete claims', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
 
             return response()->json([
                 'success' => false,
@@ -1933,10 +1907,6 @@ class ClaimNotificationController extends Controller
 
             DB::table('claim_status_logs')->where('intimation_no', $intimationNo)->delete();
         } catch (\Exception $e) {
-            logger('Error deleting related claim data', [
-                'intimation_no' => $intimationNo,
-                'error' => $e->getMessage()
-            ]);
             throw $e;
         }
     }
@@ -2083,11 +2053,6 @@ class ClaimNotificationController extends Controller
                 ]
             ]);
         } catch (\Exception $e) {
-            logger('Dashboard stats error', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to load dashboard statistics',

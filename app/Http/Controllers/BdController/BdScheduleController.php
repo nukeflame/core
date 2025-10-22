@@ -72,9 +72,9 @@ class BdScheduleController extends Controller
     {
 
         $id = $request->id;
-        $bus_type = $request->business_type; 
+        $bus_type = $request->business_type;
         // dd($request->all());
-        
+
         try {
             DB::beginTransaction();
 
@@ -115,31 +115,29 @@ class BdScheduleController extends Controller
                     ->where('data_determinant', $request->data_determinant ?? '')
                     ->where('class', $request->class ?? '')
                     ->where('class_group', $request->class_group ?? '')
-                    ->where('business_type', $request->business_type ) 
+                    ->where('business_type', $request->business_type)
                     ->exists();
-                    // dd($exists);
-                   
-                    
+                // dd($exists);
+
+
 
                 if ($exists) {
                     Session::flash('error', 'Schedule header with the same details already exists');
                     return redirect()->back()->with('error', 'Schedule header with the same details already exists');
-                }
-                else
-                {
+                } else {
                     // dd($request->all());
-                QuoteScheduleHeader::create([
-                    'name' => $request->name,
-                    'position' => $request->position,
-                    'amount_field' => $request->amount_field,
-                    'sum_insured_type' => $request->sum_insured_type ?? '',
-                    'data_determinant' => $request->data_determinant ?? '',
-                    'class' => $request->class ?? '',
-                    'class_group' => $request->class_group ?? '',
-                    'business_type' => $request->business_type, 
-                    'created_at' => Carbon::now(),
-                ]);
-            }
+                    QuoteScheduleHeader::create([
+                        'name' => $request->name,
+                        'position' => $request->position,
+                        'amount_field' => $request->amount_field,
+                        'sum_insured_type' => $request->sum_insured_type ?? '',
+                        'data_determinant' => $request->data_determinant ?? '',
+                        'class' => $request->class ?? '',
+                        'class_group' => $request->class_group ?? '',
+                        'business_type' => $request->business_type,
+                        'created_at' => Carbon::now(),
+                    ]);
+                }
             }
 
 
@@ -155,7 +153,6 @@ class BdScheduleController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
             Session::flash('error', 'An error occurred while saving the schedule header');
-            logger('Insert failed: ' . $e->getMessage());
             return redirect()->back()->with('error', 'Failed to save schedule header');
         }
     }
@@ -249,8 +246,6 @@ class BdScheduleController extends Controller
     }
     public function bd_schedule_slip_template(Request $request)
     {
-        // logger($request->trans_type);
-
         $wording = BdScheduleData::where('type_of_bus', $request->treaty_type)->first();
         $classes = ReinsClass::where('status', 'A')->get();
         $trans_type = 'NEW';
@@ -427,7 +422,6 @@ class BdScheduleController extends Controller
                     'created_by' => Auth::user()->user_name,
                     // 'updated_by' => Auth::user()->user_name,
                 ]);
-
             }
 
             DB::commit();
@@ -436,7 +430,6 @@ class BdScheduleController extends Controller
         } catch (\Exception $e) {
             DB::rollback();
             Session::flash('error', 'Failed to save template');
-            logger('Insert failed: ' . $e->getMessage());
             return redirect()->back()->with('error', 'Failed to save template');
         }
     }
@@ -609,14 +602,11 @@ class BdScheduleController extends Controller
                     'types_of_bus'
                 )
             );
-
-
         } else {
             return view(
                 'Bd_views.DocTypes.stage_doc_add_form',
                 compact('Documents', 'types_of_bus')
             );
-
         }
     }
     public function bd_stage_doc_add(Request $request)
@@ -648,7 +638,6 @@ class BdScheduleController extends Controller
                     'type_of_bus' => json_encode($request->type_of_bus),
                     'updated_at' => now(),
                 ]);
-
             } else {
 
                 StageDocument::create([
@@ -659,7 +648,6 @@ class BdScheduleController extends Controller
                     'type_of_bus' => json_encode($request->type_of_bus),
                     'created_at' => now(),
                 ]);
-
             }
 
 
@@ -669,7 +657,6 @@ class BdScheduleController extends Controller
                 Session::flash('success', 'Lead status  information updated successfully');
             } else {
                 Session::flash('success', 'Lead status information saved successfully');
-
             }
 
             return redirect()->route('stage.doc.info');
@@ -680,7 +667,6 @@ class BdScheduleController extends Controller
             Session::flash('error', 'An error occurred while saving the stage document');
             return redirect()->back()->with('error', 'Failed to save stage document');
         }
-
     }
     public function bd_stage_doc_data()
     {
@@ -716,17 +702,13 @@ class BdScheduleController extends Controller
             ->addColumn('edit', function ($fn) {
 
                 return '<a href="#" class="text-white update_stage_doc_type btn btn-sm btn-success rounded-pill" title="Update stage docs" data-id="' . $fn->id . '"> <i class="bx bx-refresh"></i>Edit</a>';
-
             })
             ->addColumn('delete', function ($fn) {
 
                 return '<a href="#" class="text-white delete btn btn-sm btn-danger rounded-pill" title="Delete stage doc" data-id="' . $fn->id . '"> <i class="bx bx-trash"></i>Delete</a>';
-
             })
             ->rawColumns(['edit', 'delete'])
             ->make(true);
-
-
     }
     public function delete_stage_doc(Request $request)
     {
@@ -764,13 +746,10 @@ class BdScheduleController extends Controller
                     'Documents',
                 )
             );
-
-
         } else {
             return view(
                 'Bd_views.DocTypes.doc_type_add_form'
             );
-
         }
     }
     public function bd_doc_type_add(Request $request)
@@ -801,7 +780,6 @@ class BdScheduleController extends Controller
                     'bus_type' => $request->bus_type ?? '',
                     'updated_at' => now(),
                 ]);
-
             } else {
 
 
@@ -842,9 +820,6 @@ class BdScheduleController extends Controller
                     'file_name' => $Filename,
                     'created_at' => now(),
                 ]);
-
-
-
             }
 
 
@@ -854,7 +829,6 @@ class BdScheduleController extends Controller
                 Session::flash('success', 'bd  doc updated successfully');
             } else {
                 Session::flash('success', 'bd doc saved successfully');
-
             }
 
             return redirect()->route('doc.type.info');
@@ -865,7 +839,6 @@ class BdScheduleController extends Controller
             Session::flash('error', 'An error occurred while saving the  document');
             return redirect()->back()->with('error', 'Failed to save document');
         }
-
     }
     public function bd_doc_type_data()
     {
@@ -874,17 +847,13 @@ class BdScheduleController extends Controller
             ->addColumn('edit', function ($fn) {
 
                 return '<a href="#" class="text-white update_doc_type btn btn-sm btn-success rounded-pill" title="Update stage docs" data-id="' . $fn->id . '"> <i class="bx bx-refresh"></i>Edit</a>';
-
             })
             ->addColumn('delete', function ($fn) {
 
                 return '<a href="#" class="text-white delete btn btn-sm btn-danger rounded-pill" title="Delete  doc type" data-id="' . $fn->id . '"> <i class="bx bx-trash"></i>Delete</a>';
-
             })
             ->rawColumns(['edit', 'delete'])
             ->make(true);
-
-
     }
     public function delete_doc_type(Request $request)
     {
@@ -923,13 +892,10 @@ class BdScheduleController extends Controller
                     'OperationChecklist',
                 )
             );
-
-
         } else {
             return view(
                 'Bd_views.TreatyOperationChecklist.treaty_operation_add_form'
             );
-
         }
     }
     public function operationchecklist_add(Request $request)
@@ -954,17 +920,13 @@ class BdScheduleController extends Controller
                     'name' => $request->name,
                     'updated_at' => now(),
                 ]);
-
             } else {
 
                 OperationChecklist::create([
-                    'name' => $request->name,                  
-                   'created_by' => Auth::user()->user_name,
+                    'name' => $request->name,
+                    'created_by' => Auth::user()->user_name,
                     'created_at' => now(),
                 ]);
-
-
-
             }
 
 
@@ -974,7 +936,6 @@ class BdScheduleController extends Controller
                 Session::flash('success', 'bd treaty operation updated successfully');
             } else {
                 Session::flash('success', 'bd operation saved successfully');
-
             }
 
             return redirect()->route('operationchecklist.info');
@@ -985,7 +946,6 @@ class BdScheduleController extends Controller
             Session::flash('error', 'An error occurred while saving');
             return redirect()->back()->with('error', 'Failed to save');
         }
-
     }
     public function operationchecklist_data()
     {
@@ -994,17 +954,13 @@ class BdScheduleController extends Controller
             ->addColumn('edit', function ($fn) {
 
                 return '<a href="#" class="text-white update_doc_type btn btn-sm btn-success rounded-pill" title="Update stage docs" data-id="' . $fn->id . '"> <i class="bx bx-refresh"></i>Edit</a>';
-
             })
             ->addColumn('delete', function ($fn) {
 
                 return '<a href="#" class="text-white delete btn btn-sm btn-danger rounded-pill" title="Delete  doc type" data-id="' . $fn->id . '"> <i class="bx bx-trash"></i>Delete</a>';
-
             })
             ->rawColumns(['edit', 'delete'])
             ->make(true);
-
-
     }
     public function delete_operationchecklist(Request $request)
     {
@@ -1022,5 +978,4 @@ class BdScheduleController extends Controller
             return redirect()->back()->with('error', 'Failed to delete operation checklist');
         }
     }
-
 }

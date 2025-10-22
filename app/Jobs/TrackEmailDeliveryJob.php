@@ -34,10 +34,6 @@ class TrackEmailDeliveryJob implements ShouldQueue
             $user = User::findOrFail($this->userId);
 
             if (!$outlookService->isTokenValid($user->email)) {
-                logger()->warning('Cannot track email - invalid token', [
-                    'message_id' => $this->messageId,
-                    'user_id' => $this->userId
-                ]);
                 return;
             }
 
@@ -51,18 +47,8 @@ class TrackEmailDeliveryJob implements ShouldQueue
                 //         'tracked_at' => now(),
                 //         'message_details' => json_encode($messageDetails)
                 //     ]);
-
-                logger()->info('Email delivery tracked successfully', [
-                    'message_id' => $this->messageId,
-                    'user_id' => $this->userId
-                ]);
             }
         } catch (\Exception $e) {
-            logger()->error('Failed to track email delivery', [
-                'message_id' => $this->messageId,
-                'user_id' => $this->userId,
-                'error' => $e->getMessage()
-            ]);
             throw $e;
         }
     }

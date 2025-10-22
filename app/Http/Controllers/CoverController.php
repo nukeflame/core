@@ -117,8 +117,6 @@ class CoverController extends Controller
                 }
 
                 $old_endt_trans = CoverRegister::where('endorsement_no', $endorsement_no)->first();
-                // logger()->info('Old endorsement transaction found', ['old_endt_trans' => $old_endt_trans]);
-
                 if ($old_endt_trans) {
                     if (!in_array($old_endt_trans?->transaction_type, ['NEW', 'REN']) && $trans_type == 'EDIT') {
                         return back()->with('error', 'You can only edit New covers or Renewals');
@@ -138,7 +136,6 @@ class CoverController extends Controller
                     $premtypes = CoverPremtype::with('premiumType')->where('endorsement_no', $old_endt_trans->endorsement_no)->get();
                     $renewal_date = Carbon::parse($old_endt_trans->cover_to)->addDay()->format('Y-m-d');
                 } else {
-                    logger()->warning('No old endorsement transaction found', ['endorsement_no' => $endorsement_no]);
                     $renewal_date = '';
                     $coverreinprops = collect();
                     $premtypes = collect();
@@ -159,7 +156,6 @@ class CoverController extends Controller
                 ->first();
 
             if (!$customer) {
-                logger()->error('Customer not found', ['customer_id' => $request->customer_id]);
                 return back()->with('error', 'Customer not found');
             }
 
@@ -176,7 +172,6 @@ class CoverController extends Controller
                 ->first();
 
             if (!$countries) {
-                logger()->warning('Country not found for ISO code', ['country_iso' => $customer->country_iso]);
                 $countries = (object)['country_iso' => $customer->country_iso, 'country_name' => 'Unknown'];
             }
 
@@ -251,12 +246,6 @@ class CoverController extends Controller
                 'staff' => $allActiveStaff
             ]);
         } catch (\Exception $e) {
-            logger()->error('CoverForm method error', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-                'request_data' => $request->all()
-            ]);
-
             return back()->withErros(['An error occurred while loading the cover form']);
         }
     }

@@ -44,30 +44,18 @@ class SendRenewalNotices extends Command
 
             foreach ($policies as $policy) {
                 try {
-                    // Mail::to($policy->client_email)
-                    //     ->send(new RenewalNoticeMail($policy));
-
                     $policy->update([
                         'last_notice_sent' => Carbon::now(),
                         'notice_status' => 'sent'
                     ]);
 
                     $this->info("Notice sent for policy #{$policy->policy_number}");
-                    // logger("Renewal notice sent", [
-                    //     'policy_number' => $policy->policy_number,
-                    //     'client_email' => $policy->client_email
-                    // ]);
                 } catch (\Exception $e) {
                     $this->error("Failed to send notice for policy #{$policy->policy_number}");
-                    // logger("Failed to send renewal notice", [
-                    //     'policy_number' => $policy->policy_number,
-                    //     'error' => $e->getMessage()
-                    // ]);
                 }
             }
         } catch (\Exception $e) {
             $this->error("Job failed: {$e->getMessage()}");
-            logger("Renewal notice job failed", ['error' => $e->getMessage()]);
         }
     }
 }

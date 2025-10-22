@@ -423,7 +423,6 @@ class BudgetController extends Controller
 
     public function budgets(Request $request)
     {
-        // logger(json_encode($request->all(), JSON_PRETTY_PRINT));
         return response()->json(['success' => true]);
     }
 
@@ -683,7 +682,6 @@ class BudgetController extends Controller
             ]);
         }
 
-        logger($request->all());
         return response()->json([
             'success' => true,
             'rows' => 12
@@ -830,8 +828,6 @@ class BudgetController extends Controller
     public function getImportProgress($jobId)
     {
         $progressData = Cache::get("import_job_{$jobId}_status");
-
-        logger($progressData);
 
         if (!$progressData) {
             return response()->json([

@@ -95,7 +95,6 @@ class SendReinsurerEmailJob implements ShouldQueue
             //     unlink($filepath);
             // }
         } catch (\Exception $e) {
-            logger($e);
             throw $e;
         }
     }
@@ -276,7 +275,6 @@ class SendReinsurerEmailJob implements ShouldQueue
 
             return ['filename' => $filename, 'filepath' => $tempFile];
         } catch (\Exception $e) {
-            logger($e);
         }
     }
 
@@ -409,7 +407,6 @@ class SendReinsurerEmailJob implements ShouldQueue
 
             return ['filename' => $filename, 'filepath' => $tempFile];
         } catch (\Exception $e) {
-            logger($e);
             throw ($e);
         }
     }
@@ -420,6 +417,6 @@ class SendReinsurerEmailJob implements ShouldQueue
      */
     public function failed(\Throwable $exception): void
     {
-        logger($exception->getMessage());
+        throw ($exception);
     }
 }

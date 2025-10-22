@@ -152,9 +152,6 @@ class MailService
     //             $result = $this->s3Handler->prepareAttachmentsFromS3($s3Files);
 
     //             if (!$result['success']) {
-    //                 logger()->error([
-    //                     'message' => 'Failed to download attachments from S3',
-    //                 ]);
     //                 return false;
     //             }
 
@@ -232,19 +229,11 @@ class MailService
     //                 $successCount++;
     //             } catch (\Exception $e) {
     //                 $failedCount++;
-    //                 logger()->error("Failed to dispatch email job for batch {$this->batchId}", [
-    //                     'index' => $index,
-    //                     'error' => $e->getMessage()
-    //                 ]);
     //             }
     //         }
 
     //         return true;
     //     } catch (\Exception $e) {
-    //         logger()->error('Email send failed with exception', [
-    //             'error' => $e->getMessage(),
-    //             'trace' => $e->getTraceAsString()
-    //         ]);
 
     //         if (!empty($tempFiles)) {
     //             $this->s3Handler->cleanupTempFiles($tempFiles);
@@ -273,9 +262,6 @@ class MailService
                 $result = $this->s3Handler->prepareAttachmentsFromS3($s3Files);
 
                 if (!$result['success']) {
-                    logger()->error([
-                        'message' => 'Failed to download attachments from S3',
-                    ]);
                     return false;
                 }
 
@@ -354,22 +340,11 @@ class MailService
                     $successCount++;
                 } catch (\Exception $e) {
                     $failedCount++;
-                    logger()->error("Failed to dispatch email job for batch {$this->batchId}", [
-                        'index' => $index,
-                        'recipient' => $recipient,
-                        'error' => $e->getMessage()
-                    ]);
                 }
             }
 
             return $successCount > 0;
         } catch (\Exception $e) {
-            logger()->error('Email send failed with exception', [
-                'batch' => $this->batchId,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-
             if (!empty($tempFiles)) {
                 $this->s3Handler->cleanupTempFiles($tempFiles);
             }
@@ -521,13 +496,7 @@ class MailService
         }
     }
 
-    private function handleUserSyncError(object $user, Exception $e, ?int $syncLogId): void
-    {
-        logger()->error('User email sync failed', [
-            'error' => $e->getMessage(),
-            'trace' => $e->getTraceAsString()
-        ]);
-    }
+    private function handleUserSyncError(object $user, Exception $e, ?int $syncLogId): void {}
 
     public function downloadAttachment(string $emailId, string $attachmentId)
     {

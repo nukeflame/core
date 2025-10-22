@@ -94,12 +94,11 @@ class ReinsurerFacultativeMail extends Mailable
                     ->withMime('application/pdf');
                 $data[] = $attach2;
             } catch (\Exception $e) {
-                logger()->error('Attachment error: ' . $e->getMessage());
+                throw ($e);
             }
 
             return $data;
         } catch (Exception $e) {
-            logger()->error($e);
             return [];
         }
     }

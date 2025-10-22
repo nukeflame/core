@@ -1,6 +1,6 @@
 #!/bin/bash
 # Laravel Reverb Production Health Monitor
-# Author: pk305
+# Author: @pk305
 # Description: Checks Supervisor, Nginx, Reverb port, logs, and memory usage
 
 set -euo pipefail

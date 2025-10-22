@@ -191,8 +191,6 @@ class PermissionController extends Controller
                     continue;
                 }
 
-                // logger(json_encode($role->load('users'), JSON_PRETTY_PRINT));
-
                 $role->syncPermissions($permissionIds);
 
                 foreach ($role->users as $user) {
@@ -209,7 +207,6 @@ class PermissionController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
 
-            logger()->info($e);
             return response()->json([
                 'status' => 'error',
                 'message' => 'Failed to assign permissions. Please try again.',

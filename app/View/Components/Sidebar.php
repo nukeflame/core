@@ -45,8 +45,6 @@ class Sidebar extends Component
     {
         $result = [];
 
-        // logger(['permissios' => $this->user->permissions]);
-
         foreach ($menuItems as $category) {
             if (
                 isset($category['visibility_check']) &&

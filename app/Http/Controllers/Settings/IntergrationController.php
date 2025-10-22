@@ -285,8 +285,6 @@ class IntergrationController extends Controller
             // $newPid = trim(Process::run("echo $!")->output());
             // sleep(1);
             // $checkNewProcess = Process::run("ps -p {$newPid}");
-            // logger(['dd' => $newPid]);
-
             // if ($checkNewProcess->successful() && str_contains($checkNewProcess->output(), $newPid)) {
             //     return [
             //         'success' => true,

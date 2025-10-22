@@ -62,7 +62,6 @@ class MailController extends Controller
                 'user' => Auth::user()
             ]));
         } catch (\Exception $e) {
-            logger()->error('Mail index failed', ['error' => $e->getMessage(), 'user' => Auth::id()]);
             return view('mail.index', $this->getEmptyMailData($requestData['folder']));
         }
     }
@@ -216,8 +215,6 @@ class MailController extends Controller
 
             return view('mail.partials.email-list', compact('emails', 'folder'));
         } catch (\Exception $e) {
-            logger()->error('Folder load failed', ['folder' => $folder, 'error' => $e->getMessage()]);
-
             return response()->json(['error' => 'Failed to load folder'], 500);
         }
     }
@@ -235,7 +232,6 @@ class MailController extends Controller
 
             return response()->json($email);
         } catch (\Exception $e) {
-            logger()->error('Email show failed', ['id' => $id, 'error' => $e->getMessage()]);
             return response()->json(['error' => 'Failed to load email'], 500);
         }
     }
@@ -281,8 +277,6 @@ class MailController extends Controller
                 'message' => $result ? 'Email sent successfully' : 'Failed to send email'
             ]);
         } catch (\Exception $e) {
-            logger()->error('Email send failed', ['error' => $e->getMessage(), 'user' => Auth::id()]);
-
             return response()->json([
                 'success' => false,
                 'message' => 'An error occurred while sending the email'
@@ -302,8 +296,6 @@ class MailController extends Controller
                 'message' => $result ? 'Reply sent successfully' : 'Failed to send reply'
             ]);
         } catch (\Exception $e) {
-            logger()->error('Email reply failed', ['id' => $id, 'error' => $e->getMessage()]);
-
             return response()->json([
                 'success' => false,
                 'message' => 'An error occurred while sending the reply'
@@ -369,7 +361,6 @@ class MailController extends Controller
 
     public function checkNew(): JsonResponse
     {
-        logger()->debug(['checkNew' => 'loaded']);
         return response()->json(['newEmails' => 0, 'success' => true]);
         // try {
         //     $outlookStatus = app(OutlookOAuthController::class)->status();
@@ -384,13 +375,8 @@ class MailController extends Controller
         //     }
 
         //     $newEmails = $this->mailService->getNewEmail();
-
-        //     logger()->debug($newEmails);
-
         //     return response()->json(['newEmails' => 0, 'success' => true]);
         // } catch (\Exception $e) {
-        //     // logger()->debug($e);
-
         //     return response()->json(['newEmails' => 0, 'success' => false]);
         // }
     }
@@ -400,12 +386,6 @@ class MailController extends Controller
         try {
             return $this->mailService->downloadAttachment($emailId, $attachmentId);
         } catch (\Exception $e) {
-            logger()->error('Attachment download failed', [
-                'email_id' => $emailId,
-                'attachment_id' => $attachmentId,
-                'error' => $e->getMessage()
-            ]);
-
             abort(500, 'Failed to download attachment');
         }
     }
@@ -415,11 +395,6 @@ class MailController extends Controller
         try {
             return $this->mailService->downloadAllAttachments($emailId);
         } catch (\Exception $e) {
-            logger()->error('All attachments download failed', [
-                'email_id' => $emailId,
-                'error' => $e->getMessage()
-            ]);
-
             abort(500, 'Failed to create zip file');
         }
     }
@@ -467,11 +442,6 @@ class MailController extends Controller
             $result = $action();
             return response()->json(['success' => $result]);
         } catch (\Exception $e) {
-            logger()->error("Email {$actionName} failed", [
-                'id' => $emailId,
-                'error' => $e->getMessage()
-            ]);
-
             return response()->json(['success' => false], 500);
         }
     }
@@ -517,8 +487,6 @@ class MailController extends Controller
                 'message' => 'Contacts loaded successfully'
             ]);
         } catch (\Exception $e) {
-            logger()->error('Error loading contacts: ' . $e->getMessage());
-
             return response()->json([
                 'success' => true,
                 'data' => $this->getFallbackContacts(),
@@ -598,7 +566,6 @@ class MailController extends Controller
 
             return $uniqueContacts;
         } catch (\Exception $e) {
-            logger()->error('Error in loadContacts: ' . $e->getMessage());
             return $this->getFallbackContacts();
         }
     }
@@ -662,7 +629,6 @@ class MailController extends Controller
         $filepath = storage_path('app/public/' . $filep);
 
         if (!$filepath) {
-            logger()->error("File not found");
             abort(404, 'File not found');
         }
 
@@ -679,7 +645,6 @@ class MailController extends Controller
                 'Content-Disposition' => 'inline; filename="' . basename($filepath) . '"'
             ]);
         } catch (\Exception $e) {
-            logger()->error("Error retrieving file: " . $e->getMessage());
             abort(500, 'Error retrieving file');
         }
     }
@@ -713,11 +678,6 @@ class MailController extends Controller
                             'mime_type' => $file->getMimeType()
                         ];
                     } catch (Exception $e) {
-                        logger()->error('Failed to process attachment', [
-                            'index' => $index,
-                            'filename' => $file->getClientOriginalName(),
-                            'error' => $e->getMessage()
-                        ]);
                         throw new Exception("Failed to process attachment: " . $file->getClientOriginalName() . ". Error: " . $e->getMessage());
                     }
                 }
@@ -780,10 +740,6 @@ class MailController extends Controller
                     $successCount++;
                 } catch (\Exception $e) {
                     $failedCount++;
-                    logger()->error("Failed to dispatch email job for batch {$this->batchId}", [
-                        'index' => $index,
-                        'error' => $e->getMessage()
-                    ]);
                 }
             }
 
@@ -801,23 +757,12 @@ class MailController extends Controller
             ]);
         } catch (ModelNotFoundException $e) {
             DB::rollBack();
-            logger()->error('Claim not found', [
-                'claim_no' => $request->claim_no,
-                'error' => $e->getMessage()
-            ]);
-
             return response()->json([
                 'success' => false,
                 'message' => 'Claim not found: ' . $request->claim_no
             ], 404);
         } catch (Exception $e) {
             DB::rollBack();
-            logger()->error('Failed to send claim notification email', [
-                'claim_no' => $request->claim_no ?? 'N/A',
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to send claim notification: ' . $e->getMessage()

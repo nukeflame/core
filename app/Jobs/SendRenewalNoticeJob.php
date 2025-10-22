@@ -49,7 +49,6 @@ class SendRenewalNoticeJob implements ShouldQueue
                 'notice_status' => 'Sent'
             ]);
         } catch (\Exception $e) {
-            logger($e);
         }
     }
 }

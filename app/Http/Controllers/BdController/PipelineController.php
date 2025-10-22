@@ -5312,7 +5312,6 @@ class PipelineController
                             ->first();
 
                         if (!$customer) {
-                            logger()->warning("Customer not found for ID: {$reinsurerId}");
                             continue;
                         }
 
@@ -5348,7 +5347,6 @@ class PipelineController
 
                         $reinsurer_ids[] = $reinsurerId;
                     } catch (\Exception $e) {
-                        logger()->error("Error processing reinsurer at index {$index}: " . $e->getMessage());
                         continue;
                     }
                 }
@@ -5400,7 +5398,6 @@ class PipelineController
 
                             foreach ($request->file('facultative_files') as $index => $file) {
                                 if (!$file->isValid()) {
-                                    logger("Invalid file at index {$index}: " . $file->getErrorMessage());
                                     continue;
                                 }
 
@@ -5487,8 +5484,6 @@ class PipelineController
                             DB::commit();
                         } catch (\Aws\S3\Exception\S3Exception $e) {
                             DB::rollBack();
-                            logger("S3 Exception: " . $e->getMessage());
-
                             $this->cleanupS3Files($uploadedFiles);
 
                             return response()->json([
@@ -5498,9 +5493,6 @@ class PipelineController
                             ], 500);
                         } catch (\Exception $e) {
                             DB::rollBack();
-
-                            logger("Upload process failed: " . $e->getMessage());
-
                             $this->cleanupS3Files($uploadedFiles);
 
                             return response()->json([
@@ -5552,7 +5544,6 @@ class PipelineController
                     ->update($updateData);
 
                 if (!$updated) {
-                    logger()->warning("No rows updated for opportunity: {$prospect->opportunity_id}");
                 }
             }
 
@@ -5610,11 +5601,6 @@ class PipelineController
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
-            logger()->error("Error updating lead status: " . $e->getMessage(), [
-                'opportunity_id' => $opportunityId ?? null,
-                'trace' => $e->getTraceAsString()
-            ]);
-
             return response()->json([
                 'success' => false,
                 'message' => 'An error occurred while updating lead status',
@@ -5645,7 +5631,6 @@ class PipelineController
                     Storage::disk('s3')->delete($filePath);
                 }
             } catch (\Exception $e) {
-                logger()->error($e);
             }
         }
     }
@@ -5684,7 +5669,6 @@ class PipelineController
                 'message_id' => $request->input('message_id'),
             ];
 
-            // logger()->debug($request->all());
             $attached_files = [];
             if (!$emailData['is_reply']) {
                 $attached_files = DB::table('prospect_docs')->where('prospect_id', $emailData['opportunity_id'])->get([
@@ -5747,7 +5731,6 @@ class PipelineController
             }
         } catch (Exception $e) {
             DB::rollBack();
-            logger()->error('Failed to send bd email notification email');
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to send bd notification: '
@@ -7526,12 +7509,6 @@ class PipelineController
             ], 200);
         } catch (\Exception $e) {
             DB::rollBack();
-
-            logger()->error('Error updating reinsurer contacts: ' . $e->getMessage(), [
-                'trace' => $e->getTraceAsString(),
-                'opportunity_id' => $request->opportunity_id ?? null,
-            ]);
-
             return response()->json([
                 'success' => false,
                 'message' => 'An error occurred while updating contacts.',
@@ -7692,7 +7669,6 @@ class PipelineController
                 'error' => config('app.debug') ? $e->getMessage() : 'Please contact support'
             ];
         } catch (\Exception $e) {
-            logger($e);
             DB::rollback();
             return [
                 'success' => false,

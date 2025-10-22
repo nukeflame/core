@@ -56,8 +56,6 @@ class SendClaimReplyJob implements ShouldQueue
             // $result = $outlookService->sendReply($this->originalMessageId, $replyData);
             $result = $outlookService->sendReplyAll($auth, $this->originalMessageId, $replyData);
 
-            logger()->info(['dd' => $auth]);
-
             if ($result['success']) {
                 $this->handleSuccessfulReply($result);
             } else {

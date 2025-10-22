@@ -62,10 +62,6 @@ class ProductionReportController extends Controller
         //     ->where('productions.company_id', $company->id)debit_types
         //     ->whereBetween('productions.transaction_date', [$dateRange['start_date'], $dateRange['end_date']]);
 
-
-        // logger(json_encode($query, JSON_PRETTY_PRINT));
-
-
         // // Apply business class filter if specified
         // if ($businessClass != 'all') {
         //     $query->where('productions.business_class_id', $businessClass);

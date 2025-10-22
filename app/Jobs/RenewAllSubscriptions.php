@@ -33,7 +33,5 @@ class RenewAllSubscriptions implements ShouldQueue
         foreach ($states as $state) {
             SyncUserEmails::dispatch($state->user_id);
         }
-
-        logger()->info('Renewed subscriptions', ['count' => $states->count()]);
     }
 }

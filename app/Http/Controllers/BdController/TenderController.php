@@ -40,14 +40,11 @@ class TenderController extends Controller
                 'prospect_id' => $prospect_id,
                 'cedant' => $cedant,
             ]);
-
         } else {
             $tender_ids = TenderApproval::whereJsonContains('approver_id', [(string) auth()->id()])
                 ->where('status', '0')
                 ->pluck('tender_id')
                 ->toArray();
-
-            logger($tender_ids); // Log the array of tender IDs for debugging
 
             $tenders = Tender::whereIn('id', $tender_ids)->paginate(10);
 
@@ -55,11 +52,7 @@ class TenderController extends Controller
                 'tenders' => $tenders,
                 'approver_review' => 1
             ]);
-
         }
-
-
-
     }
 
     public function AddTender(Request $request)
@@ -106,7 +99,6 @@ class TenderController extends Controller
             $message = 'Tender number exists!';
             return response(compact('message', 'status'));
         }
-
     }
 
     public function editTender(Request $request)
@@ -140,8 +132,6 @@ class TenderController extends Controller
         $process = 'add-proposal';
 
         return redirect()->route('tender.tenderdetails')->with("success", "Editing Successfull");
-
-
     }
 
     public function TenderDetails(Request $request)
@@ -238,8 +228,6 @@ class TenderController extends Controller
         } catch (\Throwable $th) {
             dd($th);
         }
-
-
     }
 
     public function AddTenderToc(Request $request)
@@ -295,7 +283,6 @@ class TenderController extends Controller
         } catch (\Throwable $th) {
             dd($th);
         }
-
     }
 
     public function AddTenderTocItem(Request $request)
@@ -360,8 +347,6 @@ class TenderController extends Controller
             DB::rollback();
             throw $th; // Uncomment to see the actual error message
         }
-
-
     }
 
     public function viewDocument($id)
@@ -369,7 +354,6 @@ class TenderController extends Controller
 
         $document = DB::table('tender_doc_param')->where('doc_id', $id)->first();
         return response()->file(public_path('uploads/' . $document->base64));
-
     }
 
     public function listTenderDocsParam(Request $request)
@@ -389,7 +373,6 @@ class TenderController extends Controller
         return view('Bd_views.tenders.tender_doc_param', [
             'tenderDocs' => $tenderDocs,
         ]);
-
     }
 
     public function getSubcatDoc(Request $request)
@@ -415,7 +398,6 @@ class TenderController extends Controller
             return ['status' => 1, 'docid' => $docid];
         }
         return ['status' => 0];
-
     }
 
     public function previewDoc(Request $request)
@@ -479,7 +461,6 @@ class TenderController extends Controller
                     $status = 200;
                     $message = "Tender document uploaded successfully !";
                     return response(compact('status', 'message'));
-
                 } else if ($request->tenderStatus == 'U') {
 
                     $tender = TenderDocParam::where('tender_doc_id', $request->tenderdocId)->first();
@@ -513,15 +494,12 @@ class TenderController extends Controller
                     return response(compact('status', 'message'));
                 }
             }
-
         } catch (\Throwable $th) {
 
             $status = 400;
             $message = "Invalid file uploaded !";
             return response(compact('status', 'message'));
-
         }
-
     }
 
     public function viewDocumentDetails($docId)
@@ -707,8 +685,8 @@ class TenderController extends Controller
             DB::table('tender_toc')
                 ->where('tender_no', $validated['tender_no'])
                 ->where('toc_no', $validated['toc_no'])->update([
-                        'toc_description' => $validated['toc_head'],
-                    ]);
+                    'toc_description' => $validated['toc_head'],
+                ]);
 
             return response()->json([
                 'status' => 200,
@@ -831,7 +809,6 @@ class TenderController extends Controller
                 'status' => 200,
                 'message' => 'Email is being processed and will be sent shortly.'
             ]);
-
         } catch (\Exception $e) {
             return response()->json([
                 'status' => 500,
@@ -841,7 +818,7 @@ class TenderController extends Controller
     }
 
 
-    // search_tender emails 
+    // search_tender emails
     public function search(Request $request)
     {
         $customer_id = $request->customer_id;
@@ -909,11 +886,11 @@ class TenderController extends Controller
 
     public function submitForApproval(Request $request)
     {
-       
+
 
         try {
             $validated = $request->validate([
-              
+
                 'tender_id' => 'required|exists:tenders,id',
                 'tender_no' => 'required',
                 'stage_id' => 'required',
@@ -1097,8 +1074,4 @@ class TenderController extends Controller
             return response("Error: " . $e->getMessage(), 500);
         }
     }
-
-
-
-
 }

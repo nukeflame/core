@@ -67,11 +67,5 @@ class SendWelcomeEmail implements ShouldQueue
      * @param  \Throwable  $exception
      * @return void
      */
-    public function failed(\Throwable $exception)
-    {
-        logger()->error('Failed to send welcome email to user: ' . $this->user->email, [
-            'user_id' => $this->user->id,
-            'error' => $exception->getMessage()
-        ]);
-    }
+    public function failed(\Throwable $exception) {}
 }

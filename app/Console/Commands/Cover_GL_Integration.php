@@ -233,8 +233,6 @@ class Cover_GL_Integration extends Command
                         } else {
                             $errors = $response->json('errors');
 
-                            // logger($errors);
-
                             if (is_array($errors)) {
                                 $formattedErrors = collect($errors)
                                     ->map(function ($messages, $field) {
@@ -259,7 +257,6 @@ class Cover_GL_Integration extends Command
             }
             $this->info("All debits have been processed");
         } catch (\Exception $e) {
-            // logger($e);
             $this->error("Error processing debits: " . $e->getMessage());
         }
     }

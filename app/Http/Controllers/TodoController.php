@@ -19,9 +19,6 @@ class TodoController extends Controller
         // Todo::where('user_id', Auth::id())->delete();
 
         // $todos = $request->input('todos', []);
-
-        logger($request->all());
-
         // foreach ($todos as $todoData) {
         //     Todo::create([
         //         'text' => $todoData['text'],
@@ -39,9 +36,6 @@ class TodoController extends Controller
             'text' => 'required|string|max:255',
         ]);
 
-        logger($request->all());
-
-
         $todo = Todo::create([
             'text' => $request->text,
             'completed' => false,
@@ -56,8 +50,6 @@ class TodoController extends Controller
         if ($todo->user_id !== Auth::id()) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
-
-        logger($request->all());
 
         $todo->update([
             'completed' => $request->completed,

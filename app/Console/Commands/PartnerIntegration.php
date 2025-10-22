@@ -124,10 +124,6 @@ class PartnerIntegration extends Command
 
                                 if ($dryRun) {
                                     $this->info("DRY RUN: Would send API request for Customer ID {$customer->customer_id}");
-                                    logger()->info('Partner Integration Dry Run', [
-                                        'customer_id' => $customer->customer_id,
-                                        'payload' => $requestPayload
-                                    ]);
                                     $successfulUpdate = true;
                                     break;
                                 }
@@ -173,10 +169,6 @@ class PartnerIntegration extends Command
                                     ]);
 
                                     $this->info("Customer ID {$customer->customer_id} processed successfully. Partner Number: {$partner_number}");
-                                    logger()->info('Partner Integration Success', [
-                                        'customer_id' => $customer->customer_id,
-                                        'partner_number' => $partner_number
-                                    ]);
 
                                     $successfulUpdate = true;
                                     break;
@@ -186,14 +178,6 @@ class PartnerIntegration extends Command
                                     $errors = $response->json('errors') ?? 'No error details provided';
 
                                     $formattedErrors = $this->formatApiErrors($errors, $statusCode, $responseBody);
-
-                                    logger()->error('Partner Integration API Error', [
-                                        'customer_id' => $customer->customer_id,
-                                        'status_code' => $statusCode,
-                                        'errors' => $formattedErrors,
-                                        'response_body' => $responseBody,
-                                        'request_payload' => $requestPayload
-                                    ]);
 
                                     $this->warn("API error for Customer ID {$customer->customer_id} with channel type {$channel_typeRec->code}: {$formattedErrors}");
                                 }
@@ -215,11 +199,6 @@ class PartnerIntegration extends Command
                         } catch (\Exception $e) {
                             $errorMessage = "Exception processing Customer ID {$customer->customer_id}: " . $e->getMessage();
                             $this->error($errorMessage);
-                            logger()->error('Partner Integration Exception', [
-                                'customer_id' => $customer->customer_id,
-                                'error' => $e->getMessage(),
-                                'trace' => $e->getTraceAsString()
-                            ]);
 
                             if (!$dryRun) {
                                 Customer::where('customer_id', $customer->customer_id)->update([
@@ -245,10 +224,6 @@ class PartnerIntegration extends Command
             return $errorCount > 0 ? Command::FAILURE : Command::SUCCESS;
         } catch (\Exception $e) {
             $this->error("Critical error processing customers: " . $e->getMessage());
-            logger()->error('Partner Integration Critical Error', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
             return Command::FAILURE;
         }
     }

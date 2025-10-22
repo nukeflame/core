@@ -391,10 +391,6 @@ class ClaimController extends Controller
                 $results = $this->mailService->getMailData($folder, $search, $limit);
                 $allEmails = [...$allEmails, ...$results['emails']];
             } catch (\Exception $e) {
-                logger()->error("Mail index failed for folder: {$folder}", [
-                    'error' => $e->getMessage(),
-                    'folder' => $folder
-                ]);
             }
         }
 
@@ -796,7 +792,6 @@ class ClaimController extends Controller
                 'errors' => $e->errors()
             ], 422);
         } catch (\Exception $e) {
-            logger($e);
             DB::rollback();
             return response()->json([
                 'status' => $e->getCode(),
@@ -815,7 +810,6 @@ class ClaimController extends Controller
         $debit = CoverDebit::query()->where('endorsement_no', $endorsement_no)->first();
 
         $ClaimRegister = ClaimNtfRegister::where(['cover_no' => $cover_no, 'endorsement_no' => $endorsement_no])->first();
-        // logger(['$ClaimRegister' => $ClaimRegister]);
 
         return datatables::of($query)
             ->addColumn('id', function ($data) {
@@ -1360,7 +1354,6 @@ class ClaimController extends Controller
                 'message' => 'Claim notification has been queued for sending',
             ]);
         } catch (\Exception $e) {
-            logger($e);
             DB::rollBack();
             return response()->json([
                 'success' => false,

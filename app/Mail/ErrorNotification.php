@@ -47,7 +47,6 @@ class ErrorNotification extends Mailable
                 $requestData = request()->all();
             } catch (\Exception $e) {
                 $requestData = ['error' => 'Unable to retrieve request data: ' . $e->getMessage()];
-                logger()->warning('Failed to get request data for error notification: ' . $e->getMessage());
             }
 
             try {
@@ -57,7 +56,6 @@ class ErrorNotification extends Mailable
                 ] : null;
             } catch (\Exception $e) {
                 $user = ['error' => 'Unable to retrieve user data: ' . $e->getMessage()];
-                logger()->warning('Failed to get user data for error notification: ' . $e->getMessage());
             }
 
             return $this->subject("[{$environment}] Application Error: {$exceptionClass}")
@@ -78,8 +76,6 @@ class ErrorNotification extends Mailable
                     'sqlQuery' => $sqlQuery,
                 ]);
         } catch (\Exception $e) {
-            logger()->error('Error building error notification email: ' . $e->getMessage());
-
             // Fallback to a very basic email if something goes wrong
             // return $this->subject('Application Error (Fallback Notification)')
             //     ->to(config('app.admin_emails', 'pknuek@gmail.com'))

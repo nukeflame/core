@@ -295,9 +295,6 @@ class PrintoutController extends Controller
             //     return $this->generateWordDocument($data);
             // }
 
-            // logger()->debug(json_encode($formattedActivities, JSON_PRETTY_PRINT));
-
-
             return $this->generatePdfDocument($data);
         } catch (ValidationException $e) {
             return response()->json([
@@ -306,12 +303,6 @@ class PrintoutController extends Controller
                 'errors' => $e->errors(),
             ], 422);
         } catch (\Exception $e) {
-            logger()->error('QuotationCoverSlip Error', [
-                'message' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-                'request' => $request->all()
-            ]);
-
             return response()->json([
                 'status' => 500,
                 'message' => 'An error occurred while generating the document.',
@@ -1505,8 +1496,6 @@ class PrintoutController extends Controller
                 'subject_title' => $subject_title,
                 'documented' => $documented
             ];
-
-            // logger(json_encode($claim, JSON_PRETTY_PRINT));
 
             $dompdf = Pdf::loadView(
                 $view_name,

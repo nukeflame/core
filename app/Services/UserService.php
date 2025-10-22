@@ -51,11 +51,6 @@ class UserService
 
                 return $this->buildSuccessResponse($userWithRelations, $temporaryPassword, $role, $department);
             } catch (Exception $e) {
-                logger()->error('UserService createUser failed', [
-                    'error' => $e->getMessage(),
-                    'trace' => $e->getTraceAsString(),
-                ]);
-
                 throw $e;
             }
         });
@@ -225,10 +220,6 @@ class UserService
 
             $this->logActivity($user, 'user_created', $message);
         } catch (Exception $e) {
-            logger()->warning('Failed to log user creation activity', [
-                'user_id' => $user->id,
-                'error' => $e->getMessage()
-            ]);
         }
     }
 
@@ -253,10 +244,6 @@ class UserService
         try {
             SendWelcomeEmail::dispatch($user, $temporaryPassword);
         } catch (Exception $e) {
-            logger()->error('Failed to dispatch welcome email', [
-                'user_id' => $user->id,
-                'error' => $e->getMessage()
-            ]);
         }
     }
 

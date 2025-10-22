@@ -253,13 +253,6 @@ class SendClaimReinNotificationJob implements ShouldQueue
      */
     private function handleFailedSend(Exception $exception): void
     {
-        logger()->error('Failed to send claim reinsurer notification email', [
-            'recipient' => $this->recipient,
-            'claim_no' => $this->emailData['claim']->claim_no ?? 'N/A',
-            'error' => $exception->getMessage(),
-            'attempt' => $this->attempts(),
-            'trace' => $exception->getTraceAsString()
-        ]);
         $this->updateEmailStatus('failed', $exception->getMessage());
     }
 
@@ -268,13 +261,6 @@ class SendClaimReinNotificationJob implements ShouldQueue
      */
     public function failed(Exception $exception): void
     {
-        logger()->error('Claim reinsurer notification email job failed permanently', [
-            'recipient' => $this->recipient,
-            'claim_no' => $this->emailData['claim']->claim_no ?? 'N/A',
-            'error' => $exception->getMessage(),
-            'attempts' => $this->attempts()
-        ]);
-
         $this->updateEmailStatus('permanently_failed', $exception->getMessage());
     }
 
@@ -308,12 +294,6 @@ class SendClaimReinNotificationJob implements ShouldQueue
                 //     ->update($updateData);
             }
         } catch (Exception $e) {
-            logger()->warning('Failed to update email status', [
-                'recipient' => $this->recipient,
-                'status' => $status,
-                'error' => $e->getMessage(),
-                'email_record_id' => $this->emailRecordId
-            ]);
         }
     }
 
@@ -323,13 +303,6 @@ class SendClaimReinNotificationJob implements ShouldQueue
     //  */
     // public function failed(Exception $exception): void
     // {
-    //     logger()->error('Claim reinsurer notification email job failed permanently', [
-    //         'recipient' => $this->recipient,
-    //         'claim_no' => $this->emailData['claim']->claim_no ?? 'N/A',
-    //         'error' => $exception->getMessage(),
-    //         'attempts' => $this->attempts()
-    //     ]);
-
     //     // Update email status to permanently failed
     //     $this->updateEmailStatus('permanently_failed', $exception->getMessage());
     // }
@@ -351,11 +324,6 @@ class SendClaimReinNotificationJob implements ShouldQueue
     //                 'updated_at' => now()
     //             ]);
     //     } catch (Exception $e) {
-    //         logger()->warning('Failed to update email status', [
-    //             'recipient' => $this->recipient,
-    //             'status' => $status,
-    //             'error' => $e->getMessage()
-    //         ]);
     //     }
     // }
 }

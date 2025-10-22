@@ -44,6 +44,10 @@ return [
             'client_options' => [
                 // Guzzle client options: https://docs.guzzlephp.org/en/stable/request-options.html
             ],
+            'curl_options' => [
+                CURLOPT_CONNECTTIMEOUT => 5,
+                CURLOPT_TIMEOUT => 10
+            ]
         ],
 
         'pusher' => [
@@ -62,6 +66,10 @@ return [
             'client_options' => [
                 // Guzzle client options: https://docs.guzzlephp.org/en/stable/request-options.html
             ],
+            'curl_options' => [
+                CURLOPT_CONNECTTIMEOUT => 5,
+                CURLOPT_TIMEOUT => 10
+            ]
         ],
 
         'ably' => [

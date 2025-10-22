@@ -155,13 +155,6 @@ abstract class BaseRepository extends Repository implements CacheableInterface
         return abs($number1 - $number2) <= $epsilon;
     }
 
-    public function prettyPrint($data)
-    {
-        if ($data) {
-            return logger(json_encode($data, JSON_PRETTY_PRINT));
-        }
-    }
-
     public function parseNumber($number)
     {
         if (is_string($number)) {

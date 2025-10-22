@@ -109,10 +109,6 @@ class CoverReportController extends Controller
     {
         $query = CoverRegister::query();
         // $rein = CoverRegister::with(['reinsurers']);
-
-
-        // logger(['rein' => $rein->get()]);
-
         // Apply filters based on request parameters
         if ($request->has('cedant') && !empty($request->cedant)) {
             $query->where('cedant', 'like', '%' . $request->cedant . '%');
@@ -178,7 +174,6 @@ class CoverReportController extends Controller
         $length = $request->length ?? 10;
         $data = $query->skip($start)->take($length)->get();
 
-        // logger(json_encode($data, JSON_PRETTY_PRINT));
         $columnMapping = [
             'cover_no',
             'cover_title',
@@ -200,8 +195,6 @@ class CoverReportController extends Controller
             return $this->transformToNewColumnNames($item, $columnMapping);
         });
 
-        // logger(json_encode(['data' => $data], JSON_PRETTY_PRINT));
-
         return response()->json([
             'draw' => intval($request->draw),
             'recordsTotal' => $totalData,
@@ -216,8 +209,6 @@ class CoverReportController extends Controller
     private function transformToNewColumnNames($item, $columnMapping)
     {
         $transformed = [];
-
-        // logger(['item' => $item->toArray()]);
         foreach ($columnMapping as $title) {
             switch ($title) {
                 case 'cover_no':
@@ -321,9 +312,6 @@ class CoverReportController extends Controller
     private function buildReinsurerColumn($item)
     {
         $reinsurers = $item->reinsurers ?? collect();
-
-        // logger(['item' => $item->toArray()]);
-
         if ($reinsurers->count() <= 1) {
             // Single reinsurer - show name directly
             $reinsurer = $reinsurers->first();
@@ -342,9 +330,6 @@ class CoverReportController extends Controller
     {
         $type = $request->get('type');
         $data = [];
-
-        // logger($type);
-
         // switch ($type) {
         //     case 'cedant':
         //         $data = CoverRegister::distinct()

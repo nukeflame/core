@@ -178,11 +178,6 @@ class ClaimNotificationService
                             'mime' => $file->mime_type
                         ]);
                     } else {
-                        logger()->warning('File not found for attachment', [
-                            'file_id' => $file->id,
-                            'path' => $file->path,
-                            'claim_id' => $claim->id
-                        ]);
                     }
                 }
             }

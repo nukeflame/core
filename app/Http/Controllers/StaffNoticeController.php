@@ -197,8 +197,6 @@ class StaffNoticeController extends Controller
             $perPage = $request->get('per_page', 20);
             $notices = $query->paginate($perPage);
 
-            logger($notices->items());
-
             return response()->json([
                 'success' => true,
                 'data' => $notices->items(),

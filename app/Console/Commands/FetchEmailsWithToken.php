@@ -103,12 +103,6 @@ class FetchEmailsWithToken extends Command
             if ($this->option('debug')) {
                 $this->error('Stack trace: ' . $e->getTraceAsString());
             }
-
-            logger()->error('Outlook email fetch with token failed', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-
             return Command::FAILURE;
         }
     }

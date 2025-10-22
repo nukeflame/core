@@ -81,10 +81,6 @@ class FetchGoogleEmails extends Command
             return Command::SUCCESS;
         } catch (\Exception $e) {
             $this->error('Error: ' . $e->getMessage());
-            logger()->error('Google email fetch failed', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
             return Command::FAILURE;
         }
     }
@@ -217,13 +213,6 @@ class FetchGoogleEmails extends Command
             $this->info('Successfully connected to Gmail IMAP server');
         } catch (\Exception $e) {
             $this->error('IMAP Connection failed: ' . $e->getMessage());
-
-            logger()->error('Gmail IMAP connection details', [
-                'user' => $userEmail,
-                'token_preview' => substr($accessToken, 0, 20) . '...',
-                'error' => $e->getMessage()
-            ]);
-
             throw $e;
         }
     }

@@ -98,12 +98,6 @@ class ContactNameMappingService
                 }
             }
         } catch (Exception $e) {
-            logger()->error('Error in contact name mapping', [
-                'error' => $e->getMessage(),
-                'customer_id' => $customer->id ?? null,
-                'emails_count' => count($allEmails)
-            ]);
-
             foreach ($allEmails as $email) {
                 if (!isset($emailToNameMap[$email])) {
                     $emailToNameMap[$email] = 'Sir/Madam';
@@ -229,10 +223,6 @@ class ContactNameMappingService
                 }
             }
         } catch (Exception $e) {
-            logger()->debug('Failed to extract name from email', [
-                'email' => $email,
-                'error' => $e->getMessage()
-            ]);
         }
 
         return 'Sir/Madam';

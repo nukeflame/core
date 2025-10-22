@@ -57,8 +57,6 @@ class ClaimNotificationMail extends Mailable
      */
     public function content(): Content
     {
-        // logger($this->emailData['message']);
-
         return new Content(
             view: 'emails.claims.claim-notification',
             text: 'emails.claims.claim-notification-text',

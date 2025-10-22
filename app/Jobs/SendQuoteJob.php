@@ -43,7 +43,6 @@ class SendQuoteJob implements ShouldQueue
             $pdfFilename = $this->pdfFilename;
 
             if (!Storage::disk('s3')->exists($fullPdfPath)) {
-                // logger("PDF not found in S3: $fullPdfPath");
                 return;
             }
             $pdfContent = Storage::disk('s3')->get($fullPdfPath);
@@ -55,7 +54,6 @@ class SendQuoteJob implements ShouldQueue
 
                 // Attach main PDF
                 $pdfFilename = preg_replace('/_\d+/', '', $pdfFilename);
-                // logger('file name: ' . $pdfFilename);
                 $message->attachData($pdfContent, $pdfFilename, [
                     'mime' => $pdfMimeType,
                 ]);
@@ -63,7 +61,6 @@ class SendQuoteJob implements ShouldQueue
                 // Attach additional file if it exists
                 foreach ($this->additionalFilePath as $index => $addFilePath) {
                     if (!$addFilePath) {
-                        // logger('error in file path');
                         continue;
                     }
 
@@ -78,7 +75,6 @@ class SendQuoteJob implements ShouldQueue
                             'mime' => $fileMimeType,
                         ]);
                     } else {
-                        // logger("Additional file not found in S3: $fullAdditionalFilePath");
                     }
                 }
             });

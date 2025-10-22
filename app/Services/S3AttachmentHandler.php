@@ -35,10 +35,6 @@ class S3AttachmentHandler
         } catch (Exception $e) {
             $this->cleanupTempFiles($tempFiles);
 
-            logger()->error('Failed to prepare attachments from S3', [
-                'error' => $e->getMessage()
-            ]);
-
             return [
                 'success' => false,
                 'error' => $e->getMessage(),
@@ -64,12 +60,6 @@ class S3AttachmentHandler
                 return $this->downloadFromStorage($s3Url, $fileName, $mimeType);
             }
         } catch (Exception $e) {
-            logger()->error('Failed to download file from S3', [
-                'file' => $fileName ?? 'unknown',
-                's3_url' => $s3Url ?? 'unknown',
-                'error' => $e->getMessage()
-            ]);
-
             return null;
         }
     }
@@ -81,7 +71,6 @@ class S3AttachmentHandler
     {
         try {
             if (!Storage::disk('s3')->exists($s3Path)) {
-                logger()->error('File not found in S3', ['path' => $s3Path]);
                 return null;
             }
 
@@ -102,11 +91,6 @@ class S3AttachmentHandler
                 'size' => filesize($tempPath)
             ];
         } catch (Exception $e) {
-            logger()->error('Failed to download from S3 storage', [
-                's3_path' => $s3Path,
-                'error' => $e->getMessage()
-            ]);
-
             return null;
         }
     }
@@ -120,10 +104,6 @@ class S3AttachmentHandler
             $response = Http::timeout(60)->get($url);
 
             if (!$response->successful()) {
-                logger()->error('Failed to download file from URL', [
-                    'url' => $url,
-                    'status' => $response->status()
-                ]);
                 return null;
             }
 
@@ -142,11 +122,6 @@ class S3AttachmentHandler
                 'size' => filesize($tempPath)
             ];
         } catch (Exception $e) {
-            logger()->error('Failed to download from URL', [
-                'url' => $url,
-                'error' => $e->getMessage()
-            ]);
-
             return null;
         }
     }
@@ -161,11 +136,6 @@ class S3AttachmentHandler
 
             return $this->downloadFromUrl($url, $fileName, $mimeType);
         } catch (Exception $e) {
-            logger()->error('Failed to create presigned URL', [
-                's3_path' => $s3Path,
-                'error' => $e->getMessage()
-            ]);
-
             return null;
         }
     }
@@ -180,10 +150,6 @@ class S3AttachmentHandler
                 try {
                     unlink($path);
                 } catch (Exception $e) {
-                    logger()->warning('Failed to cleanup temp file', [
-                        'path' => $path,
-                        'error' => $e->getMessage()
-                    ]);
                 }
             }
         }

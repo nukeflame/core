@@ -445,8 +445,6 @@ class ApprovalsController extends Controller
                             $query->where('notification_type', 'claim');
                         })
                         ->get();
-
-                    // logger(json_encode($approvals, JSON_PRETTY_PRINT));
                     break;
 
                 case 'treaty':

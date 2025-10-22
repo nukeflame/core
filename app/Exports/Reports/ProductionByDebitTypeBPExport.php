@@ -44,8 +44,6 @@ class ProductionByDebitTypeBPExport implements FromCollection, WithHeadings, Wit
      */
     public function collection(): Collection
     {
-        // logger(json_encode($data, JSON_PRETTY_PRINT));
-
         // In a real application, this should come from a repository or service
         return $this->getReportData();
     }

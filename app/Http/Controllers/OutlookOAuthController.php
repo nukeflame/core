@@ -77,11 +77,6 @@ class OutlookOAuthController extends Controller
                 'user' => $userProfile
             ]);
         } catch (\Exception $e) {
-            logger()->error('Azure callback error: ' . $e->getMessage(), [
-                'request_data' => $request->all(),
-                'trace' => $e->getTraceAsString()
-            ]);
-
             return redirect()->route('mail.index')->withErrors([
                 'errors' => 'Failed to complete connection',
                 'message' => 'Failed to process authentication callback',
@@ -155,12 +150,6 @@ class OutlookOAuthController extends Controller
                 'message' => 'Redirect to Microsoft for authentication'
             ]);
         } catch (Exception $e) {
-            logger()->error('Outlook connection failed', [
-                'user_id' => Auth::id(),
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to initiate connection. Please try again.',
@@ -234,11 +223,6 @@ class OutlookOAuthController extends Controller
                 'last_updated' => $connection->updated_at
             ]);
         } catch (Exception $e) {
-            logger()->error('Outlook status check failed: ' . json_encode([
-                'user_id' => $user->id,
-                'error' => $e->getMessage()
-            ], JSON_PRETTY_PRINT));
-
             return response()->json([
                 'connected' => false,
                 'error' => 'Failed to check connection status'
@@ -269,12 +253,6 @@ class OutlookOAuthController extends Controller
             if ($deleted) {
                 $cacheKey = "outlook_profile_{$user->email}";
                 Cache::forget($cacheKey);
-
-                logger()->info('Outlook disconnected', [
-                    'user_id' => $user->id,
-                    'email' => $user->email
-                ]);
-
                 return response()->json([
                     'success' => true,
                     'message' => 'Successfully disconnected from Outlook'
@@ -286,11 +264,6 @@ class OutlookOAuthController extends Controller
                 ]);
             }
         } catch (Exception $e) {
-            logger()->error('Outlook disconnect failed', [
-                'user_id' => Auth::id(),
-                'error' => $e->getMessage()
-            ]);
-
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to disconnect'
@@ -320,11 +293,6 @@ class OutlookOAuthController extends Controller
                 'data' => $testResult
             ]);
         } catch (Exception $e) {
-            logger()->error('Outlook connection test failed', [
-                'user_id' => Auth::id(),
-                'error' => $e->getMessage()
-            ]);
-
             return response()->json([
                 'success' => false,
                 'message' => 'Connection test failed',

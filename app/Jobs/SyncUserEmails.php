@@ -90,8 +90,6 @@ class SyncUserEmails implements ShouldQueue
             //     $subscription = $graphService->createSubscription($user);
             //     // }
 
-            //     // logger()->debug(['subscription' => $subscription]);
-
 
             //     // $syncState->update([
             //     //     'subscription_id' => $subscription['subscription_id'],
@@ -214,7 +212,6 @@ class SyncUserEmails implements ShouldQueue
             }
 
             if (!isset($message['id'])) {
-                logger()->warning('Message missing ID', ['user_id' => $user->id]);
                 continue;
             }
 
@@ -323,11 +320,6 @@ class SyncUserEmails implements ShouldQueue
         try {
             return Carbon::parse($dateTime);
         } catch (\Exception $e) {
-            logger()->warning('Failed to parse datetime', [
-                'user_id' => $this->userId,
-                'datetime' => $dateTime,
-                'error' => $e->getMessage()
-            ]);
             return null;
         }
     }
@@ -438,11 +430,5 @@ class SyncUserEmails implements ShouldQueue
             ->update(['is_syncing' => false, 'is_locked' => false]);
 
         $this->broadcastFailure($exception->getMessage());
-
-        logger()->error('Email sync job failed permanently', [
-            'user_id' => $this->userId,
-            'error' => $exception->getMessage(),
-            'trace' => $exception->getTraceAsString()
-        ]);
     }
 }

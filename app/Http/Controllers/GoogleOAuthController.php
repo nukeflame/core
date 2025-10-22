@@ -80,11 +80,6 @@ class GoogleOAuthController extends Controller
             // Return success response
             return $this->successResponse($userEmail, $tokenData);
         } catch (\Exception $e) {
-            logger()->error('Google OAuth callback error: ' . $e->getMessage(), [
-                'exception' => $e,
-                'request_data' => $request->all()
-            ]);
-
             return response()->json([
                 'error' => 'Authentication failed',
                 'message' => $e->getMessage()
@@ -232,8 +227,6 @@ class GoogleOAuthController extends Controller
                 'expires_at' => $updatedTokenData['expires_at']
             ]);
         } catch (\Exception $e) {
-            logger()->error('Google token refresh error: ' . $e->getMessage());
-
             return response()->json([
                 'error' => 'Token refresh failed',
                 'message' => $e->getMessage()
@@ -308,8 +301,6 @@ class GoogleOAuthController extends Controller
                 'message' => 'Tokens revoked and cleaned up'
             ]);
         } catch (\Exception $e) {
-            logger()->error('Google token revocation error: ' . $e->getMessage());
-
             return response()->json([
                 'error' => 'Token revocation failed',
                 'message' => $e->getMessage()

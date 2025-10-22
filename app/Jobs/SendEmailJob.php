@@ -61,14 +61,6 @@ class SendEmailJob implements ShouldQueue
                 throw new Exception($result['error'] ?? 'Unknown error occurred while sending email');
             }
         } catch (Exception $e) {
-            logger()->error('Email send job failed', [
-                'job_id' => $this->jobId,
-                'user_id' => $this->userId,
-                'error' => $e->getMessage(),
-                'attempt' => $this->attempts(),
-                'max_tries' => $this->tries
-            ]);
-
             throw $e;
         }
     }

@@ -688,7 +688,6 @@ class PermissionsSeeder extends Seeder
             DB::commit();
         } catch (\Exception $e) {
             DB::rollBack();
-            logger()->error('Permission Truncate Error: ' . $e->getMessage());
             throw $e;
         } finally {
             DB::statement('SET session_replication_role = origin;');
@@ -720,7 +719,6 @@ class PermissionsSeeder extends Seeder
             DB::commit();
         } catch (\Exception $e) {
             DB::rollBack();
-            logger()->error('Deep Clean Permissions Error: ' . $e->getMessage());
             throw $e;
         }
     }

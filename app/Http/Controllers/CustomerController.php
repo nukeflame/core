@@ -220,9 +220,6 @@ class CustomerController extends Controller
         $countries = Country::select(['country_iso', 'country_name'])->get();
         $partnersId = PartnerIdentification::select(['identification_type', 'issued_by', 'issue_date', 'description'])->get();
 
-        logger(json_encode($customer->load('contacts'), JSON_PRETTY_PRINT));
-
-
         return view('customer.customer_edit_form', [
             'type_of_cust' => $customerTypes,
             'countries' => $countries,
@@ -238,10 +235,6 @@ class CustomerController extends Controller
         // $customerTypes = CustomerTypes::select(['type_id', 'type_name', 'code'])->get();
         // $countries = Country::select(['country_iso', 'country_name'])->get();
         // $partnersId = PartnerIdentification::select(['identification_type', 'issued_by', 'issue_date', 'description'])->get();
-
-        // logger(json_encode($customer, JSON_PRETTY_PRINT));
-
-
         // return view('customer.customer_edit_form', [
         //     'type_of_cust' => $customerTypes,
         //     'countries' => $countries,

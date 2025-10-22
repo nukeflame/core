@@ -43,9 +43,6 @@ class UserController extends Controller
         // $auth = User::where('id', auth()->id)->departments();
         $roles = [];
 
-        // logger($auth);
-
-
         return view('users.users_info', [
             'departments' => $departments,
             'roles' => []
@@ -322,9 +319,6 @@ class UserController extends Controller
             }
 
             $hasPermission = false;
-
-            // logger()->info(['ss' => $currentUser->hasRole(['admin', 'super_admin'])]);
-
             // if ($currentUser->hasRole(['admin', 'super_admin'])) {
             //     $hasPermission = true;
             // }
@@ -356,11 +350,6 @@ class UserController extends Controller
             $currentUserRoles = $currentUser->roles->pluck('name')->toArray();
 
             if (in_array('super_admin', $targetUserRoles) && !in_array('super_admin', $currentUserRoles)) {
-                logger()->warning('Non-super-admin tried to delete super admin', [
-                    'current_user' => $currentUser->id,
-                    'target_user' => $userToDelete->id
-                ]);
-
                 return response()->json([
                     'success' => false,
                     'message' => 'You cannot delete super admin accounts'

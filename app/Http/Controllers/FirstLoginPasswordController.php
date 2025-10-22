@@ -28,10 +28,6 @@ class FirstLoginPasswordController extends Controller
 
         $email = $request->email ?? '';
         // $storedToken = $request->cookie('reset_token');
-
-        // logger('Stored Token: ' . $storedToken);
-        // logger('$token: ' . $token);
-
         // if (!$storedToken || !Hash::check($email . $token, $storedToken)) {
         //     return redirect()->route('login')
         //         ->withErrors(['email' => 'Invalid password reset link.']);

@@ -33,7 +33,6 @@ class ProductionByDebitTypeFSExport implements FromArray, WithTitle, WithStyles,
      */
     public function __construct($getIncomeData, int $year, int $quarter)
     {
-        // logger($year);
         $this->year = $year;
         $this->quarter = 0;
         $this->sumQuarters = 1;

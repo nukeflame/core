@@ -62,12 +62,7 @@ class ClearCedantDataJob implements ShouldQueue
             }
 
             $covers->forceDelete();
-            // logger()->info("Successfully cleared cedant data for customer ID: {$this->customerId}");
         } catch (\Exception $e) {
-            logger()->error("Failed to clear cedant data for customer ID: {$this->customerId}", [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
             throw $e;
         }
     }

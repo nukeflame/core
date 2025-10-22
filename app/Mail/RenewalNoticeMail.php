@@ -88,14 +88,12 @@ class RenewalNoticeMail extends Mailable
                         $data[] = $attachment;
                     }
                 } catch (\Exception $e) {
-                    logger()->error($e);
                     continue;
                 }
             }
 
             return $data;
         } catch (\Exception $e) {
-            logger()->error($e);
             return [];
         }
     }

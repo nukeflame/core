@@ -73,14 +73,6 @@ class SendOutlookEmailJob implements ShouldQueue
                 $this->s3Handler->cleanupTempFiles($this->emailData['tempFiles']);
             }
 
-            logger()->error('Email send job failed', [
-                'job_id' => $this->jobId,
-                'user_id' => $this->userId,
-                'error' => $e->getMessage(),
-                'attempt' => $this->attempts(),
-                'max_tries' => $this->tries
-            ]);
-
             throw $e;
         }
     }
@@ -198,14 +190,6 @@ class SendOutlookEmailJob implements ShouldQueue
             'failed_at' => now()->toISOString(),
             'attempts' => $this->attempts()
         ]);
-
-        logger()->error('Email send job permanently failed', [
-            'job_id' => $this->jobId,
-            'user_id' => $this->userId,
-            'error' => $exception->getMessage(),
-            'attempts' => $this->attempts()
-        ]);
-
         // notify administrators or user about permanent failure
         // NotifyEmailFailureJob::dispatch($this->userId, $this->emailData, $exception->getMessage());
     }

@@ -411,6 +411,8 @@ class MailApp {
                 dataType: "json",
             });
 
+            console.log("Synching Emails intitated!!");
+
             if (result.synced) {
                 this.refreshEmailList();
             }

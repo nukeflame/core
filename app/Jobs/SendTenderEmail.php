@@ -34,7 +34,6 @@ class SendTenderEmail implements ShouldQueue
         $this->pdfFilename = $pdfFilename;
         $this->mainEmail = $mainEmail;
         $this->ccEmail = $ccEmail;
-
     }
 
     public function handle()
@@ -44,7 +43,6 @@ class SendTenderEmail implements ShouldQueue
             $pdfFilename = $this->pdfFilename;
 
             if (!Storage::disk('s3')->exists($fullPdfPath)) {
-                // logger("PDF not found in S3: $fullPdfPath");
                 return;
             }
             // Fetch content and MIME type of the DOMPDF PDF from S3
@@ -90,8 +88,6 @@ class SendTenderEmail implements ShouldQueue
                     'mime' => 'application/pdf',
                 ]);
             });
-
-
         } catch (\Exception $e) {
             // Log error or handle failure
             \Log::error('Failed to send tender email: ' . $e->getMessage());

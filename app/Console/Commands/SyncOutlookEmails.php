@@ -132,13 +132,6 @@ class SyncOutlookEmails extends Command
         if ($this->option('debug')) {
             $this->error('Stack trace: ' . $e->getTraceAsString());
         }
-
-        // logger()->error('Outlook sync failed', [
-        //     'error' => $e->getMessage(),
-        //     'trace' => $e->getTraceAsString(),
-        //     'options' => $this->options()
-        // ]);
-
         return Command::FAILURE;
     }
 
@@ -287,15 +280,6 @@ class SyncOutlookEmails extends Command
         if ($syncLogId) {
             $this->completeSyncLog($syncLogId, 'failed', 0, $e->getMessage());
         }
-
-        // 'f05b4f'
-
-        // logger()->error('User email sync failed', [
-        //     'user_id' => $user->user_id,
-        //     'email' => $user->email,
-        //     'error' => $e->getMessage(),
-        //     'trace' => $e->getTraceAsString()
-        // ]);
     }
 
     private function validateAndRefreshToken(object $user): bool
@@ -402,12 +386,6 @@ class SyncOutlookEmails extends Command
                 if ($this->option('debug')) {
                     $this->error("Token refresh failed with response: " . json_encode($errorResponse, JSON_PRETTY_PRINT));
                 }
-
-                // logger()->error('Token refresh failed', [
-                //     'user_id' => $user->user_id,
-                //     'response_status' => $response->status(),
-                //     'response_body' => $errorResponse,
-                // ]);
 
                 throw new Exception('Token refresh failed: ' . ($errorResponse['error_description'] ?? 'Unknown error'));
             }

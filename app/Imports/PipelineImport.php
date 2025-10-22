@@ -125,7 +125,6 @@ class PipelineImport implements ToModel, WithHeadingRow, WithBatchInserts, WithC
                                     $prospectData['pip_year'] = null;
                                 }
                             } else {
-                                logger()->info(json_encode(['year' => $year, 'value' => $value], JSON_PRETTY_PRINT));
                                 $this->addError("Invalid year format: $year");
                                 $prospectData['pip_year'] = null;
                             }
@@ -142,7 +141,6 @@ class PipelineImport implements ToModel, WithHeadingRow, WithBatchInserts, WithC
                             $countries = DB::table('countries')
                                 ->where('country_name', $value)
                                 ->first(['country_iso']);
-                            logger()->info(json_encode(['country' => $countries], JSON_PRETTY_PRINT));
 
                             if ($countries) {
                                 $prospectData['country_code'] = $countries->country_iso;
@@ -169,7 +167,6 @@ class PipelineImport implements ToModel, WithHeadingRow, WithBatchInserts, WithC
 
                     case 'contact_full_name':
 
-                        // logger()->info(json_encode(['name' => $value], JSON_PRETTY_PRINT));
                         // $prospectData['contact_name'] = $value;
                         $contact_name = array_map('trim', explode(',', $value));
                         $prospectData['contact_name'] = DB::raw("'" . json_encode($contact_name) . "'::jsonb");
@@ -392,13 +389,6 @@ class PipelineImport implements ToModel, WithHeadingRow, WithBatchInserts, WithC
             return null;
         } catch (Throwable $e) {
             $this->addError("Row processing error: {$e->getMessage()}");
-            logger()->error(json_encode([
-                "Pipeline import error" => [
-                    'exception' => $e->getMessage(),
-                    'trace' => $e->getTraceAsString(),
-                    'row' => $row
-                ]
-            ], JSON_PRETTY_PRINT));
             return null;
         }
     }

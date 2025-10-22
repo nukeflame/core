@@ -377,11 +377,6 @@ class OutlookService
 
             return $isValid;
         } catch (Exception $e) {
-            logger()->error('Token validation failed: ' . json_encode([
-                'email' => $userEmail,
-                'error' => $e->getMessage()
-            ], JSON_PRETTY_PRINT));
-
             return false;
         }
     }
@@ -443,10 +438,6 @@ class OutlookService
                 'tenant_id' => $this->config['tenant_id']
             ];
         } catch (Exception $e) {
-            logger()->error('Failed to decrypt token', [
-                'email' => $user->email,
-                'error' => $e->getMessage()
-            ]);
             return null;
         }
     }
@@ -472,10 +463,6 @@ class OutlookService
             ]);
 
             if (!$response->successful()) {
-                logger()->error('Token refresh failed', [
-                    'status' => $response->status(),
-                    'body' => $response->body()
-                ]);
                 return false;
             }
 
@@ -498,7 +485,6 @@ class OutlookService
 
             return true;
         } catch (Exception $e) {
-            logger()->error('Token refresh error: ' . $e->getMessage());
             return false;
         }
     }
@@ -533,10 +519,6 @@ class OutlookService
                 ]
             );
         } catch (Exception $e) {
-            logger()->error('Failed to save OAuth token', [
-                'error' => $e->getMessage(),
-                'email' => auth()->user()->email ?? 'unknown'
-            ]);
             throw $e;
         }
     }
@@ -567,10 +549,6 @@ class OutlookService
             ]);
 
             if (!$response->successful()) {
-                logger()->error('Token exchange failed', [
-                    'status' => $response->status(),
-                    'body' => $response->body()
-                ]);
                 throw new Exception('Failed to exchange authorization code for access token');
             }
 
@@ -595,9 +573,6 @@ class OutlookService
                 'user_email' => $user->email
             ];
         } catch (Exception $e) {
-            logger()->error('Access token exchange failed', [
-                'error' => $e->getMessage()
-            ]);
             return [];
         }
     }
@@ -645,11 +620,6 @@ class OutlookService
                 'scopes_requested' => count($this->requiredScopes)
             ];
         } catch (Exception $e) {
-            logger()->error('Failed to generate authorization URL', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-
             throw new Exception('Failed to generate authorization URL: ' . $e->getMessage());
         }
     }
@@ -695,19 +665,7 @@ class OutlookService
     /**
      * Log request error
      */
-    private function logRequestError(string $method, string $endpoint, Exception $exception, float $responseTime, string $requestId): void
-    {
-        logger()->error($exception->getMessage());
-        // logger()->error('API request failed', [
-        //     'request_id' => $requestId,
-        //     'method' => $method,
-        //     'endpoint' => $endpoint,
-        //     'error' => $exception->getMessage(),
-        //     'response_time_ms' => $responseTime,
-        //     'user' => $this->auth->email ?? 'unknown',
-        //     'exception_class' => get_class($exception)
-        // ]);
-    }
+    private function logRequestError(string $method, string $endpoint, Exception $exception, float $responseTime, string $requestId): void {}
 
     /**
      * Build complete request URL from endpoint
@@ -743,18 +701,10 @@ class OutlookService
             ->connectTimeout(30)
             ->retry(3, 1000, function ($exception, $request) use ($requestId) {
                 if ($exception instanceof \Illuminate\Http\Client\ConnectionException) {
-                    logger()->warning('HTTP connection failed, retrying', [
-                        'request_id' => $requestId,
-                        'error' => $exception->getMessage()
-                    ]);
                     return true;
                 }
 
                 if (isset($exception->response) && $exception->response->status() >= 500) {
-                    logger()->warning('Server error, retrying', [
-                        'request_id' => $requestId,
-                        'status' => $exception->response->status()
-                    ]);
                     return true;
                 }
 
@@ -983,13 +933,6 @@ class OutlookService
                 break;
 
             default:
-                logger()->warning('Unexpected HTTP status code', [
-                    'request_id' => $requestId,
-                    'status_code' => $statusCode,
-                    'method' => $method,
-                    'url' => $url,
-                    'response_time_ms' => $responseTime
-                ]);
         }
     }
 
@@ -999,13 +942,6 @@ class OutlookService
     private function handleBadRequestError($response, string $requestId): void
     {
         $errorData = $this->parseErrorResponse($response->body());
-
-        logger()->error('Bad Request error', [
-            'request_id' => $requestId,
-            'error_code' => $errorData['code'] ?? 'unknown',
-            'error_message' => $errorData['message'] ?? 'unknown'
-        ]);
-
         $message = $errorData['message'] ?? 'Bad request. Please check your request parameters.';
         throw new Exception("Bad Request: {$message}");
     }
@@ -1016,13 +952,6 @@ class OutlookService
     private function handleUnauthorizedError($response, string $requestId): void
     {
         $errorData = $this->parseErrorResponse($response->body());
-
-        logger()->error('Unauthorized error - token may be invalid', [
-            'request_id' => $requestId,
-            'error_code' => $errorData['code'] ?? 'unknown',
-            'user' => $this->auth->email ?? 'unknown'
-        ]);
-
         // Clear potentially invalid token
         $this->token = null;
 
@@ -1035,13 +964,6 @@ class OutlookService
     private function handleForbiddenError($response, string $requestId): void
     {
         $errorData = $this->parseErrorResponse($response->body());
-
-        logger()->error('Forbidden error - insufficient permissions', [
-            'request_id' => $requestId,
-            'error_code' => $errorData['code'] ?? 'unknown',
-            'user' => $this->auth->email ?? 'unknown'
-        ]);
-
         $message = $errorData['message'] ?? 'Insufficient permissions for this operation.';
         throw new Exception("Forbidden: {$message}");
     }
@@ -1051,12 +973,6 @@ class OutlookService
      */
     private function handleNotFoundError($response, string $url, string $requestId): void
     {
-        logger()->warning('Resource not found', [
-            'request_id' => $requestId,
-            'url' => $url,
-            'user' => $this->auth->email ?? 'unknown'
-        ]);
-
         throw new Exception("Requested resource not found.");
     }
 
@@ -1066,11 +982,6 @@ class OutlookService
     private function handleConflictError($response, string $requestId): void
     {
         $errorData = $this->parseErrorResponse($response->body());
-
-        logger()->warning('Conflict error', [
-            'request_id' => $requestId,
-            'error_code' => $errorData['code'] ?? 'unknown'
-        ]);
 
         $message = $errorData['message'] ?? 'Conflict with current state of the resource.';
         throw new Exception("Conflict: {$message}");
@@ -1082,13 +993,6 @@ class OutlookService
     private function handleRateLimitError($response, string $requestId): void
     {
         $retryAfter = $response->header('Retry-After') ?? '60';
-
-        logger()->warning('Rate limit exceeded', [
-            'request_id' => $requestId,
-            'retry_after' => $retryAfter,
-            'user' => $this->auth->email ?? 'unknown'
-        ]);
-
         throw new Exception("Rate limit exceeded. Please wait {$retryAfter} seconds before trying again.");
     }
 
@@ -1097,12 +1001,6 @@ class OutlookService
      */
     private function handleServerError($response, int $statusCode, string $requestId): void
     {
-        logger()->error('Microsoft server error', [
-            'request_id' => $requestId,
-            'status_code' => $statusCode,
-            'user' => $this->auth->email ?? 'unknown'
-        ]);
-
         throw new Exception("Microsoft server error (HTTP {$statusCode}). Please try again later.");
     }
 
@@ -1201,7 +1099,6 @@ class OutlookService
                 return base64_encode($response->body());
             }
         } catch (Exception $e) {
-            logger()->info('Profile photo not available: ' . $e->getMessage());
         }
         return null;
     }
@@ -1259,7 +1156,6 @@ class OutlookService
                 ];
             }
         } catch (Exception $e) {
-            logger()->error('Failed to download attachment: ' . $e->getMessage());
         }
         return null;
     }
@@ -1275,7 +1171,6 @@ class OutlookService
             ]);
             return true;
         } catch (Exception $e) {
-            logger()->error('Failed to move message: ' . $e->getMessage());
             return false;
         }
     }
@@ -1289,7 +1184,6 @@ class OutlookService
             $this->makeRequest('DELETE', "/me/messages/{$messageId}");
             return true;
         } catch (Exception $e) {
-            logger()->error('Failed to delete message: ' . $e->getMessage());
             return false;
         }
     }
@@ -1311,7 +1205,6 @@ class OutlookService
 
             return $this->makeRequest('POST', '/me/messages', ['json' => $message]);
         } catch (Exception $e) {
-            logger()->error('Failed to create draft: ' . $e->getMessage());
             return null;
         }
 
@@ -1407,7 +1300,6 @@ class OutlookService
 
             return $this->makeRequest('POST', '/me/events', ['json' => $event]);
         } catch (Exception $e) {
-            logger()->error('Failed to create calendar event: ' . $e->getMessage());
             return null;
         }
     }
@@ -1484,7 +1376,6 @@ class OutlookService
                 'last_checked' => now()->toISOString()
             ];
         } catch (Exception $e) {
-            logger()->error('Failed to get usage stats: ' . $e->getMessage());
             return [
                 'inbox_count' => 0,
                 'unread_count' => 0,
@@ -1514,7 +1405,6 @@ class OutlookService
 
             return true;
         } catch (Exception $e) {
-            logger()->error('Failed to revoke authentication: ' . $e->getMessage());
             return false;
         }
     }
@@ -1854,7 +1744,7 @@ class OutlookService
                     ]
                 );
             } catch (\Exception $e) {
-                logger()->info("Failed to save attachment {$attachment['name']}: " . $e->getMessage());
+                throw ($e);
             }
         }
     }
@@ -1899,7 +1789,6 @@ class OutlookService
     //             );
     //         }
     //     } catch (\Exception $e) {
-    //         logger()->info("Failed to save profile picture for {$senderEmail}: " . $e->getMessage());
     //     }
     // }
 
@@ -2070,13 +1959,6 @@ class OutlookService
 
             return $this->sendEmailWithMessageId($auth, $emailData);
         } catch (Exception $e) {
-            logger()->error('Failed to send email via Outlook API', [
-                'error' => $e->getMessage(),
-                'user' => $auth->email ?? 'unknown',
-                'subject' => $emailData['subject'] ?? 'N/A',
-                'trace' => $e->getTraceAsString()
-            ]);
-
             return [
                 'success' => false,
                 'error' => $e->getMessage(),
@@ -2220,11 +2102,6 @@ class OutlookService
 
             return ['success' => false];
         } catch (Exception $e) {
-            logger()->error('Failed to send email with message ID', [
-                'error' => $e->getMessage(),
-                'subject' => $emailData['subject'] ?? 'N/A'
-            ]);
-
             return [
                 'success' => false,
                 'error' => $e->getMessage(),
@@ -2276,11 +2153,6 @@ class OutlookService
                 'conversation_id' => $response['conversationId']
             ];
         } catch (Exception $e) {
-            logger()->error('Failed to create draft message', [
-                'error' => $e->getMessage(),
-                'subject' => $emailData['subject'] ?? 'N/A'
-            ]);
-
             return [
                 'success' => false,
                 'error' => $e->getMessage(),
@@ -2302,10 +2174,6 @@ class OutlookService
                 'message' => 'Draft message sent successfully'
             ];
         } catch (Exception $e) {
-            logger()->error('Failed to send draft message: ' . json_encode([
-                'message_id' => $messageId,
-                'error' => $e->getMessage()
-            ], JSON_PRETTY_PRINT));
             return [
                 'success' => false,
                 'error' => $e->getMessage()
@@ -2390,11 +2258,6 @@ class OutlookService
                 'attachments' => $response['attachments'] ?? []
             ];
         } catch (Exception $e) {
-            logger()->error(json_encode([
-                'message_id' => $messageId,
-                'error' => $e->getMessage(),
-                'user' => $this->auth->email ?? 'unknown'
-            ], JSON_PRETTY_PRINT));
             return [];
         }
     }
@@ -2426,14 +2289,6 @@ class OutlookService
 
     //     //     // Build reply message
     //     //     $replyMessage = $this->buildReplyMessage($replyData, $originalMessage, 'reply');
-
-    //     //     logger()->info('Sending reply', [
-    //     //         'original_message_id' => $originalMessageId,
-    //     //         'conversation_id' => $originalMessage['conversationId'],
-    //     //         'original_subject' => $originalMessage['subject'],
-    //     //         'user' => $auth->email
-    //     //     ]);
-
     //     //     $startTime = microtime(true);
 
     //     //     // Send reply using Microsoft Graph
@@ -2445,13 +2300,6 @@ class OutlookService
 
     //     //     // Get conversation details for response
     //     //     $conversationMessages = $this->getConversationMessages($originalMessage['conversationId']);
-
-    //     //     logger()->info('Reply sent successfully', [
-    //     //         'original_message_id' => $originalMessageId,
-    //     //         'conversation_id' => $originalMessage['conversationId'],
-    //     //         'response_time_ms' => $responseTime,
-    //     //         'user' => $auth->email
-    //     //     ]);
 
     //     //     return [
     //     //         'success' => true,
@@ -2465,12 +2313,6 @@ class OutlookService
     //     //         'message' => 'Reply sent successfully'
     //     //     ];
     //     // } catch (Exception $e) {
-    //     //     logger()->error('Failed to send reply', [
-    //     //         'original_message_id' => $originalMessageId,
-    //     //         'error' => $e->getMessage(),
-    //     //         'user' => $auth->email ?? 'unknown'
-    //     //     ]);
-
     //     //     return [
     //     //         'success' => false,
     //     //         'error' => $e->getMessage(),
@@ -2551,12 +2393,6 @@ class OutlookService
                 'message' => 'Reply all sent successfully'
             ];
         } catch (Exception $e) {
-            logger()->error('Failed to send reply all', [
-                'original_message_id' => $originalMessageId,
-                'error' => $e->getMessage(),
-                'user' => $auth->email ?? 'unknown'
-            ]);
-
             return [
                 'success' => false,
                 'error' => $e->getMessage(),
@@ -2631,12 +2467,6 @@ class OutlookService
                 'folder' => $message['parentFolderId'] ?? null
             ];
         } catch (Exception $e) {
-            logger()->error('Failed to check reply permissions', [
-                'message_id' => $messageId,
-                'error' => $e->getMessage(),
-                'user' => $this->auth->email ?? 'unknown'
-            ]);
-
             return [
                 'can_reply' => false,
                 'reason' => 'Error checking message: ' . $e->getMessage(),
@@ -2696,11 +2526,6 @@ class OutlookService
                 ];
             }
         } catch (Exception $e) {
-            // If date parsing fails, allow reply
-            logger()->warning('Failed to parse message date for age check', [
-                'received_date' => $receivedDateTime,
-                'error' => $e->getMessage()
-            ]);
         }
 
         return ['can_reply' => true];
@@ -2906,12 +2731,6 @@ class OutlookService
                 ];
             }
         } catch (Exception $e) {
-            logger()->error('Failed to get reply recipients preview', [
-                'message_id' => $messageId,
-                'reply_type' => $replyType,
-                'error' => $e->getMessage()
-            ]);
-
             return [
                 'success' => false,
                 'error' => $e->getMessage(),
@@ -2941,11 +2760,6 @@ class OutlookService
                 'count' => count($response['value'] ?? [])
             ];
         } catch (Exception $e) {
-            logger()->error('Failed to get conversation messages', [
-                'conversation_id' => $conversationId,
-                'error' => $e->getMessage()
-            ]);
-
             return [
                 'success' => false,
                 'error' => $e->getMessage(),
@@ -3062,23 +2876,8 @@ class OutlookService
             $this->makeRequest('PATCH', "/me/messages/{$messageId}", [
                 'json' => $updateData
             ]);
-
-            logger()->info('Message categories and flags updated', [
-                'message_id' => $messageId,
-                'categories' => $categories,
-                'has_flag' => !empty($flagData),
-                'user' => $this->auth->email ?? 'unknown'
-            ]);
-
             return true;
         } catch (Exception $e) {
-            logger()->error('Failed to set message categories', [
-                'message_id' => $messageId,
-                'categories' => $categories,
-                'error' => $e->getMessage(),
-                'user' => $this->auth->email ?? 'unknown'
-            ]);
-
             return false;
         }
     }
@@ -3106,12 +2905,6 @@ class OutlookService
 
             return true;
         } catch (Exception $e) {
-            logger()->error('Failed to mark message', [
-                'message_id' => $messageId,
-                'is_read' => $isRead,
-                'error' => $e->getMessage(),
-                'user' => $this->auth->email ?? 'unknown'
-            ]);
             return false;
         }
     }
@@ -3134,16 +2927,6 @@ class OutlookService
             $orderBy = $options['orderBy'] ?? 'displayName';
             $select = $options['select'] ?? $this->getDefaultContactSelectFields();
             $search = $options['search'] ?? null;
-
-            logger()->info('Fetching contacts', [
-                'folder' => $folder,
-                'limit' => $top,
-                'skip' => $skip,
-                'has_filter' => !empty($filter),
-                'has_search' => !empty($search),
-                'user' => $this->auth->email ?? 'unknown'
-            ]);
-
             // Build query parameters
             $query = [
                 '$top' => $top,
@@ -3179,15 +2962,6 @@ class OutlookService
 
             // Generate contact insights
             $insights = $this->generateContactInsights($processedContacts);
-
-            logger()->info('Contacts fetched successfully', [
-                'folder' => $folder,
-                'contact_count' => count($processedContacts),
-                'has_more' => !empty($response['@odata.nextLink']),
-                'processing_time_ms' => $processingTime,
-                'user' => $this->auth->email ?? 'unknown'
-            ]);
-
             return [
                 'success' => true,
                 'contacts' => $processedContacts,
@@ -3199,12 +2973,6 @@ class OutlookService
                 'retrieved_at' => now()->toISOString()
             ];
         } catch (Exception $e) {
-            logger()->error('Failed to get contacts', [
-                'error' => $e->getMessage(),
-                'folder' => $options['folder'] ?? 'contacts',
-                'user' => $this->auth->email ?? 'unknown'
-            ]);
-
             return [
                 'success' => false,
                 'error' => $e->getMessage(),
@@ -3633,11 +3401,6 @@ class OutlookService
                 'retrieved_at' => now()->toISOString(),
             ];
         } catch (Exception $e) {
-            logger()->error('Failed to get all users', [
-                'error' => $e->getMessage(),
-                'user'  => $this->auth->email ?? 'unknown',
-            ]);
-
             return [
                 'success' => false,
                 'error'   => $e->getMessage(),
@@ -3827,23 +3590,12 @@ class OutlookService
                         usleep(200000); // 0.2 second
                     }
                 } catch (Exception $e) {
-                    logger()->warning('Batch presence request failed', [
-                        'batch_index' => $batchIndex,
-                        'batch_size' => count($batch),
-                        'error' => $e->getMessage()
-                    ]);
                     continue;
                 }
             }
 
             return $allPresenceData;
         } catch (Exception $e) {
-            logger()->error('Failed to get bulk user presence', [
-                'user_count' => count($userIds),
-                'error' => $e->getMessage(),
-                'user' => $this->auth->email ?? 'unknown'
-            ]);
-
             return [];
         }
     }
@@ -3885,21 +3637,10 @@ class OutlookService
                     if ($batchResponse['status'] === 200 && isset($batchResponse['body'])) {
                         $presenceInfo = $this->enrichPresenceData($batchResponse['body'], $includeDetails);
                         $presenceData[$userId] = $presenceInfo;
-                    } else {
-                        // Log failed individual request but don't fail the whole batch
-                        logger()->debug('Individual presence request failed', [
-                            'user_id' => $userId,
-                            'status' => $batchResponse['status'],
-                            'batch_index' => $batchIndex
-                        ]);
                     }
                 }
             }
         } catch (Exception $e) {
-            logger()->warning('Batch presence processing failed', [
-                'batch_index' => $batchIndex,
-                'error' => $e->getMessage()
-            ]);
             throw $e;
         }
 
@@ -4145,7 +3886,6 @@ class OutlookService
             }
 
             $response = $this->makeRequest('GET', '/subscriptions');
-            logger()->debug(json_encode(['response' => $response], JSON_PRETTY_PRINT));
 
             $expirationDateTime = Carbon::now()->addHours(71)->toIso8601String();
 
@@ -4158,23 +3898,16 @@ class OutlookService
             ];
 
             $response = $this->makeRequest('POST', '/subscriptions', ['json' => $payload]);
-            logger()->debug(json_encode(['response' => $response], JSON_PRETTY_PRINT));
-
 
             // https: //default6ef11b21a3f4462fbfd47e7b026274.fa.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/daf036d902a74097aaddc6b05ec52dc2/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=IKJA11q81_BCZMCc893qwUix2y3kc_K2YxsrkjI5SRM
 
             // if ($response->successful()) {
             //     $subscription = $response->json();
 
-            //     logger()->debug($subscription);
             // }
 
             // // Handle error
             // $error = $response->json();
-
-
-            // logger()->debug('Graph subscription response', ['accessToken' => $accessToken]);
-
 
             // $expirationDateTime = Carbon::now()
             //     ->addHours($options['expiration_hours'] ?? 71)
@@ -4234,7 +3967,6 @@ class OutlookService
                 'message' => 'Subscription created successfully'
             ];
         } catch (Exception $e) {
-            logger($e);
             return [
                 'success' => false,
                 // 'error' => $e->getMessage(),
@@ -4255,7 +3987,6 @@ class OutlookService
         $response = $this->makeRequest('PATCH', '/subscriptions/{$subscriptionId}', ['expirationDateTime' => $expirationDateTime]);
 
         $subscription = $response;
-        // logger
         return [];
     }
 
@@ -4340,10 +4071,8 @@ class OutlookService
 
             if (!empty($allMessages)) {
                 $allMessages = $this->enrichMessagesWithFolderNames($allMessages);
-                // logger()->debug(json_encode($allMessages[0], JSON_PRETTY_PRINT));
                 // foreach ($allMessages as $d) {
                 //     $filtered = Arr::except($d, ['body', 'bodyPreview']);
-                //     logger()->debug(json_encode($filtered, JSON_PRETTY_PRINT));
                 // }
             }
             $processingTime = round((microtime(true) - $startTime) * 1000, 2);
@@ -4436,11 +4165,6 @@ class OutlookService
                     'totalItemCount' => $res['totalItemCount'] ?? 0
                 ];
             } catch (Exception $e) {
-                logger()->warning('Failed to fetch folder details', [
-                    'folder_id' => $folderId,
-                    'error' => $e->getMessage()
-                ]);
-
                 $folderMap[$folderId] = [
                     'displayName' => 'Unknown',
                     'unreadItemCount' => 0,
@@ -4530,10 +4254,6 @@ class OutlookService
     //         // Verify user has mailbox access
     //         try {
     //             $userInfo = $this->makeRequest('GET', '/me');
-    //             logger()->info('Creating subscription for user', [
-    //                 'user_id' => $userInfo['id'] ?? 'unknown',
-    //                 'email' => $userInfo['mail'] ?? $userInfo['userPrincipalName'] ?? 'unknown'
-    //             ]);
     //         } catch (Exception $e) {
     //             throw new Exception('Failed to verify user access: ' . $e->getMessage());
     //         }
@@ -4576,13 +4296,6 @@ class OutlookService
     //             $payload['lifecycleNotificationUrl'] = $options['lifecycle_notification_url'];
     //         }
 
-    //         logger()->info('Creating Graph API subscription', [
-    //             'user_email' => $user->email,
-    //             'resource' => $resource,
-    //             'notification_url' => $webhookUrl,
-    //             'expiration' => $expirationDateTime
-    //         ]);
-
     //         $startTime = microtime(true);
 
     //         // Create subscription
@@ -4616,13 +4329,6 @@ class OutlookService
     //             $subscriptionData
     //         );
 
-    //         logger()->info('Subscription created successfully', [
-    //             'subscription_id' => $response['id'],
-    //             'user_email' => $user->email,
-    //             'expires_at' => $response['expirationDateTime'],
-    //             'processing_time_ms' => $processingTime
-    //         ]);
-
     //         return [
     //             'success' => true,
     //             'subscription_id' => $response['id'],
@@ -4637,12 +4343,6 @@ class OutlookService
     //             'message' => 'Subscription created successfully'
     //         ];
     //     } catch (Exception $e) {
-    //         logger()->error('Failed to create subscription', [
-    //             'user_email' => $user->email ?? 'unknown',
-    //             'error' => $e->getMessage(),
-    //             'trace' => $e->getTraceAsString()
-    //         ]);
-
     //         return [
     //             'success' => false,
     //             'error' => $e->getMessage(),
@@ -4690,22 +4390,12 @@ class OutlookService
 
     //         $subscriptions = $response['value'] ?? [];
 
-    //         logger()->info('Retrieved subscriptions', [
-    //             'user_email' => $user->email,
-    //             'count' => count($subscriptions)
-    //         ]);
-
     //         return [
     //             'success' => true,
     //             'subscriptions' => $subscriptions,
     //             'count' => count($subscriptions)
     //         ];
     //     } catch (Exception $e) {
-    //         logger()->error('Failed to get subscriptions', [
-    //             'user_email' => $user->email ?? 'unknown',
-    //             'error' => $e->getMessage()
-    //         ]);
-
     //         return [
     //             'success' => false,
     //             'error' => $e->getMessage(),
@@ -4746,13 +4436,6 @@ class OutlookService
     //                 'expiration_date' => Carbon::parse($response['expirationDateTime'])->setTimezone(config('app.timezone')),
     //                 'updated_at' => now()
     //             ]);
-
-    //         logger()->info('Subscription renewed', [
-    //             'subscription_id' => $subscriptionId,
-    //             'user_email' => $user->email,
-    //             'new_expiration' => $response['expirationDateTime']
-    //         ]);
-
     //         return [
     //             'success' => true,
     //             'subscription_id' => $response['id'],
@@ -4761,12 +4444,6 @@ class OutlookService
     //             'message' => 'Subscription renewed successfully'
     //         ];
     //     } catch (Exception $e) {
-    //         logger()->error('Failed to renew subscription', [
-    //             'subscription_id' => $subscriptionId,
-    //             'user_email' => $user->email ?? 'unknown',
-    //             'error' => $e->getMessage()
-    //         ]);
-
     //         return [
     //             'success' => false,
     //             'error' => $e->getMessage(),
@@ -4794,23 +4471,12 @@ class OutlookService
     //                 'updated_at' => now()
     //             ]);
 
-    //         logger()->info('Subscription deleted', [
-    //             'subscription_id' => $subscriptionId,
-    //             'user_email' => $user->email
-    //         ]);
-
     //         return [
     //             'success' => true,
     //             'subscription_id' => $subscriptionId,
     //             'message' => 'Subscription deleted successfully'
     //         ];
     //     } catch (Exception $e) {
-    //         logger()->error('Failed to delete subscription', [
-    //             'subscription_id' => $subscriptionId,
-    //             'user_email' => $user->email ?? 'unknown',
-    //             'error' => $e->getMessage()
-    //         ]);
-
     //         return [
     //             'success' => false,
     //             'error' => $e->getMessage(),
