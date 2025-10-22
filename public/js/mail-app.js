@@ -417,6 +417,9 @@ class MailApp {
         } catch (error) {
             this.showError("Network error occurred");
             console.error("Sync error:", error);
+        } finally {
+            const $btnLoader = $(".loading-overlay");
+            $btnLoader.addClass("d-none");
         }
     }
 

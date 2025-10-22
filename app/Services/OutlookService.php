@@ -4145,20 +4145,20 @@ class OutlookService
             }
 
             $response = $this->makeRequest('GET', '/subscriptions');
-            // logger()->debug(json_encode(['response' => $response], JSON_PRETTY_PRINT));
+            logger()->debug(json_encode(['response' => $response], JSON_PRETTY_PRINT));
 
             $expirationDateTime = Carbon::now()->addHours(71)->toIso8601String();
 
             $payload = [
                 'changeType' => 'created,updated',
-                'notificationUrl' => 'https://8206f015783e.ngrok-free.app/api/',
+                'notificationUrl' => 'https://42c8abc000c8.ngrok-free.app/api/webhook/subscriptionNotification',
                 'resource' => 'me/mailFolders/inbox/messages',
                 'expirationDateTime' => now()->addDays(2)->toIso8601String(),
                 'clientState' => $clientState
             ];
 
-            $res = $this->makeRequest('POST', '/subscriptions', ['json' => $payload]);
-            // logger()->debug(json_encode(['response' => $res], JSON_PRETTY_PRINT));
+            $response = $this->makeRequest('POST', '/subscriptions', ['json' => $payload]);
+            logger()->debug(json_encode(['response' => $response], JSON_PRETTY_PRINT));
 
 
             // https: //default6ef11b21a3f4462fbfd47e7b026274.fa.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/daf036d902a74097aaddc6b05ec52dc2/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=IKJA11q81_BCZMCc893qwUix2y3kc_K2YxsrkjI5SRM
@@ -4495,8 +4495,6 @@ class OutlookService
 
         return $stats;
     }
-
-
 
     /**
      * Create a new subscription for Microsoft Graph notifications

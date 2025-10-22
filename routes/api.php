@@ -25,9 +25,9 @@ Route::middleware('auth:api')->get('/user', function (Request $request) {
 Route::post('/budgets', [BudgetController::class, 'budgets']);
 
 
-Route::post('/subscriptionNotification', [MicrosoftWebhookController::class, 'handleNotification'])
+Route::post('webhook/subscriptionNotification', [MicrosoftWebhookController::class, 'handleNotification'])
     ->name('graph.webhook.post');
 // ->middleware(['throttle:webhook']);
 
-Route::get('/subscriptionNotification', [MicrosoftWebhookController::class, 'handleNotification'])
+Route::get('webhook/subscriptionNotification', [MicrosoftWebhookController::class, 'handleNotification'])
     ->name('graph.webhook.get');

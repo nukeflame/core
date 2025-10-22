@@ -12,13 +12,15 @@ class MicrosoftWebhookController extends Controller
 {
     public function handleNotification(Request $request)
     {
-        logger()->debug(json_encode($request->all(), JSON_PRETTY_PRINT));
+        logger()->debug(json_encode('Connecting validation', JSON_PRETTY_PRINT));
 
         if ($request->query('validationToken')) {
             $token = $request->query('validationToken');
             logger()->debug($token);
             return response($token, 200)->header('Content-Type', 'text/plain');
         }
+
+
 
         $data = $request->all();
 

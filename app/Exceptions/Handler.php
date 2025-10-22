@@ -33,81 +33,81 @@ class Handler extends ExceptionHandler
      */
     public function register(): void
     {
-        // $this->reportable(function (Exception $e) {
-        //     if (
-        //         static::$sendingErrorNotification ||
-        //         $e instanceof \Exception &&
-        //         strpos($e->getFile(), 'ErrorNotification.php') !== false
-        //     ) {
-        //         return;
-        //     }
+        $this->reportable(function (Exception $e) {
+            if (
+                static::$sendingErrorNotification ||
+                $e instanceof \Exception &&
+                strpos($e->getFile(), 'ErrorNotification.php') !== false
+            ) {
+                return;
+            }
 
-        //     // Skip email for certain exception types if needed
-        //     if (
-        //         $e instanceof \Illuminate\Validation\ValidationException ||
-        //         // $e instanceof \Illuminate\Session\TokenMismatchException ||
-        //         $e instanceof \Symfony\Component\HttpKernel\Exception\NotFoundHttpException ||
-        //         $e instanceof \Spatie\Permission\Exceptions\PermissionDoesNotExist
-        //     ) {
-        //         return;
-        //     }
+            // Skip email for certain exception types if needed
+            if (
+                $e instanceof \Illuminate\Validation\ValidationException ||
+                // $e instanceof \Illuminate\Session\TokenMismatchException ||
+                $e instanceof \Symfony\Component\HttpKernel\Exception\NotFoundHttpException ||
+                $e instanceof \Spatie\Permission\Exceptions\PermissionDoesNotExist
+            ) {
+                return;
+            }
 
 
-        //     try {
-        //         static::$sendingErrorNotification = true;
+            try {
+                static::$sendingErrorNotification = true;
 
-        //         if (env("MAIL_ERROR_NOTIFICATIONS", false)) {
-        //             if ($this->hasInternetConnection()) {
-        //                 Mail::queue(new ErrorNotification($e));
-        //             }
-        //         }
+                if (env("MAIL_ERROR_NOTIFICATIONS", false)) {
+                    if ($this->hasInternetConnection()) {
+                        Mail::queue(new ErrorNotification($e));
+                    }
+                }
 
-        //         static::$sendingErrorNotification = false;
-        //     } catch (\Exception $mailException) {
-        //         static::$sendingErrorNotification = false;
-        //     }
-        // });
+                static::$sendingErrorNotification = false;
+            } catch (\Exception $mailException) {
+                static::$sendingErrorNotification = false;
+            }
+        });
 
-        // $this->renderable(function (Exception $e, $request) {
+        $this->renderable(function (Exception $e, $request) {
 
-        //     if ($e instanceof AuthenticationException) {
-        //         return $request->expectsJson()
-        //             ? response()->json(['message' => 'Unauthenticated'], 401)
-        //             : redirect()->guest(route('login'));
-        //     }
+            if ($e instanceof AuthenticationException) {
+                return $request->expectsJson()
+                    ? response()->json(['message' => 'Unauthenticated'], 401)
+                    : redirect()->guest(route('login'));
+            }
 
-        //     if ($e instanceof TokenMismatchException) {
-        //         $request->session()->flush();
+            if ($e instanceof TokenMismatchException) {
+                $request->session()->flush();
 
-        //         return $request->expectsJson()
-        //             ? response()->json(['message' => 'CSRF token mismatch'], 419)
-        //             : redirect()->route('login')->with('message', 'Your session has expired. Please log in again.');
-        //     }
+                return $request->expectsJson()
+                    ? response()->json(['message' => 'CSRF token mismatch'], 419)
+                    : redirect()->route('login')->with('message', 'Your session has expired. Please log in again.');
+            }
 
-        //     if ($e instanceof \Symfony\Component\HttpKernel\Exception\NotFoundHttpException) {
-        //         return $request->expectsJson()
-        //             ? response()->json(['message' => 'Not Found'], 404)
-        //             : response()->view('errors.404', [], 404);
-        //     }
+            if ($e instanceof \Symfony\Component\HttpKernel\Exception\NotFoundHttpException) {
+                return $request->expectsJson()
+                    ? response()->json(['message' => 'Not Found'], 404)
+                    : response()->view('errors.404', [], 404);
+            }
 
-        //     if ($e instanceof \Spatie\Permission\Exceptions\PermissionDoesNotExist) {
-        //         return redirect()->back()->withErrors(['error' => 'Permission does not exist.']);
-        //     }
+            if ($e instanceof \Spatie\Permission\Exceptions\PermissionDoesNotExist) {
+                return redirect()->back()->withErrors(['error' => 'Permission does not exist.']);
+            }
 
-        //     if ($request->expectsJson()) {
-        //         return response()->json([
-        //             'message' => 'Server Error',
-        //             'error' => app()->environment('production') ? 'An unexpected error occurred' : $e->getMessage(),
-        //             'code' => $e->getCode() ?: Response::HTTP_INTERNAL_SERVER_ERROR,
-        //         ], Response::HTTP_INTERNAL_SERVER_ERROR);
-        //     }
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'message' => 'Server Error',
+                    'error' => app()->environment('production') ? 'An unexpected error occurred' : $e->getMessage(),
+                    'code' => $e->getCode() ?: Response::HTTP_INTERNAL_SERVER_ERROR,
+                ], Response::HTTP_INTERNAL_SERVER_ERROR);
+            }
 
-        //     if ($e instanceof \Illuminate\Validation\ValidationException) {
-        //         return;
-        //     }
+            if ($e instanceof \Illuminate\Validation\ValidationException) {
+                return;
+            }
 
-        //     return response()->view('errors.500', ['exception' => $e], Response::HTTP_INTERNAL_SERVER_ERROR);
-        // });
+            return response()->view('errors.500', ['exception' => $e], Response::HTTP_INTERNAL_SERVER_ERROR);
+        });
     }
 
     /**

@@ -164,7 +164,7 @@
                 <div class="spinner-border text-primary" role="status">
                     <span class="visually-hidden">Loading...</span>
                 </div>
-                <p class="mt-2">Processing request...</p>
+                <p class="mt-3 mb-0">Processing request...</p>
             </div>
         </div>
 
@@ -894,6 +894,7 @@
                 $('.del_opp_sales').off('click.pipeline');
                 $('.update_category_action').off('click.pipeline');
                 $('.mail-btn').off('click.pipeline');
+                $('.preview-pdf-btn').off('click.pipeline');
 
                 $('.stage_btn_action').on('click.pipeline', (e) => {
                     e.preventDefault();
@@ -913,6 +914,11 @@
                 $('.mail-btn').on('click.pipeline', (e) => {
                     e.preventDefault();
                     this.handleSendBDNotification(e.currentTarget);
+                });
+
+                $('.preview-pdf-btn').on('click.pipeline', (e) => {
+                    e.preventDefault();
+                    this.handlePdfPreview(e.currentTarget);
                 });
             }
 
@@ -1953,7 +1959,6 @@
                         e.target.value = '';
                     });
 
-                    // Drag and drop handlers
                     $uploadArea.on('dragover.fileUpload dragenter.fileUpload', (e) => {
                         e.preventDefault();
                         e.stopPropagation();
@@ -2576,6 +2581,60 @@
                     this.loadBdEssentials(opportunityId, currentStage)
 
                 } catch (error) {
+                    this.handleError("Error handling stage action", error);
+                }
+            }
+
+            handlePdfPreview(button) {
+                try {
+                    this.showLoading();
+
+                    const buttonData = $(button).data();
+                    this.currentDealId = buttonData.opportunity_id;
+
+                    if (!this.currentDealId) {
+                        throw new Error('Deal ID not found in button data');
+                    }
+
+                    const opportunityId = this.currentDealId;
+                    const currentStage = buttonData.current_stage;
+                    const printout_flag = 1;
+
+                    const url = "{{ route('docs.quotationCoverSlip') }}";
+                    const form = $('<form>', {
+                        method: 'POST',
+                        action: url,
+                        target: '_blank'
+                    });
+
+                    form.append($('<input>', {
+                        type: 'hidden',
+                        name: '_token',
+                        value: $('meta[name="csrf-token"]').attr('content')
+                    }));
+
+                    form.append($('<input>', {
+                        type: 'hidden',
+                        name: 'opportunity_id',
+                        value: opportunityId
+                    }));
+
+                    form.append($('<input>', {
+                        type: 'hidden',
+                        name: 'current_stage',
+                        value: currentStage
+                    }));
+
+                    form.append($('<input>', {
+                        type: 'hidden',
+                        name: 'printout_flag',
+                        value: printout_flag
+                    }));
+
+                    form.appendTo('body').submit().remove();
+                    this.hideLoading();
+                } catch (error) {
+                    this.hideLoading();
                     this.handleError("Error handling stage action", error);
                 }
             }
