@@ -5,7 +5,7 @@ echo ""
 
 # Check Supervisor status
 echo "1. Supervisor Status:"
-sudo supervisorctl status reverb
+sudo supervisorctl status reinsurance-reverb
 echo ""
 
 # Check if port is listening

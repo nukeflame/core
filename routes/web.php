@@ -249,7 +249,6 @@ Route::middleware(['auth', 'check.first.login'])->group(function () {
 
 Route::get('/auth/outlook/callback', [OutlookOAuthController::class, 'callback'])->name('admin.outlook.callback');
 
-// end auth middleware group
 Route::get('/reverb-health', function () {
     try {
         // Try to connect to Reverb port
