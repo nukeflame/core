@@ -13,6 +13,7 @@
                 <input type="hidden" name="retained_share" id="retainedShareValue">
                 <input type="hidden" name="total_placed_shares" id="totalPlacedShares">
                 <input type="hidden" name="total_unplaced_shares" class="reinsurers_data" id="totalUnplacedShares">
+                <input type="hidden" class="cedant_id" id="lead_cedant_id" name="cedant_id" />
 
                 <div class="modal-body fac-slip-container">
                     <div class="fac-slip-header">
@@ -1475,7 +1476,6 @@
             $("#availableReinsurers").select2({
                 placeholder: "Search and select reinsurer...",
                 allowClear: true,
-                minimumInputLength: 0,
                 width: "100%",
                 dropdownParent: $("#leadModal"),
                 ajax: {
@@ -1487,6 +1487,7 @@
                         return {
                             q: params.term || "",
                             page: params.page || 1,
+                            cedantId: $("#lead_cedant_id").val()
                         };
                     },
                     processResults: function(data, params) {
@@ -1500,7 +1501,7 @@
                     },
                     cache: true,
                     error: function(xhr, status, error) {
-                        console.error("AJAX Error:", error);
+                        console.log(error);
                     },
                 },
                 templateResult: function(reinsurer) {
@@ -1876,8 +1877,10 @@
                     },
                     success: function(response) {
                         if (response.success) {
-                            reinsurerName = response?.data?.reinsurer?.name;
+                            let reinsurerName = response?.data?.reinsurer?.name;
+
                             populateContactsModal(response.data, reinsurerName);
+
                             $("#leadModal").modal("hide");
                             $("#contactsModal").modal("show");
                         } else {
@@ -1983,7 +1986,8 @@
             }
 
             $("#contactsModal").on("hidden.bs.modal", function() {
-                $("#leadModal").modal("show");
+                // const $this = this
+                // $("#leadModal").modal("show");
             });
 
             $(document).on("click", "#submitContactModal", function() {
@@ -2108,7 +2112,7 @@
                 });
             });
 
-            $("#leadForm").on("input blur", ".form-inputs", function() {
+            $("#leadForm").on("input", ".form-inputs", function() {
                 validateField($(this));
             });
 

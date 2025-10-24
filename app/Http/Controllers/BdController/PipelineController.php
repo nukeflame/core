@@ -72,16 +72,19 @@ use App\Exports\Bd\ReinsurersDeclinedExport;
 use App\Http\Requests\SendBDEmailRequest;
 use App\Models\BdFacReinsurer;
 use App\Services\MailService;
+use App\Services\S3AttachmentHandler;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Str;
 
 class PipelineController
 {
     protected $mailService;
+    protected $s3Handler;
 
     public function __construct(MailService $mailService)
     {
         $this->mailService = $mailService;
+        $this->s3Handler = new S3AttachmentHandler();
     }
 
     public function index(Request $request)
@@ -1201,6 +1204,99 @@ class PipelineController
         }
     }
 
+    public function getPipelineCedContacts($cedantID,  Request $request)
+    {
+        $validated = $request->validate([
+            'cedant_id' => 'required|integer|exists:customers,customer_id',
+            'opportunity_id' => 'required'
+        ]);
+
+        $cedantID = $validated['cedant_id'];
+        $opportunityId = $validated['opportunity_id'];
+
+        try {
+            $cedant = DB::table('customers')->where('customer_id', $cedantID)->first();
+
+            if (!$cedant) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Cedant not found'
+                ], 404);
+            }
+
+            $primaryContact = DB::table('customer_contacts')->where('customer_id', $cedantID)
+                ->where('is_primary', true)
+                ->first();
+
+            if (!$primaryContact) {
+                $primaryContact = DB::table('customer_contacts')->where('customer_id', $cedantID)
+                    ->orderBy('created_at', 'asc')
+                    ->first();
+            }
+
+            $departmentContacts = DB::table('customer_contacts')->where('customer_id', $cedantID)
+                ->where('is_primary', false)
+                ->orderBy('customer_id')
+                ->orderBy('contact_name')
+                ->get();
+
+
+            $country = DB::table('countries')->where('country_iso', $cedant?->country_iso)
+                ->first();
+
+            $cedContacts = DB::table('bd_cedant_contacts')
+                ->where('opportunity_id', $opportunityId)
+                ->get();
+
+            $cedContactsMap = $cedContacts->keyBy('customer_contact_id')->map(function ($q) {
+                return (bool) $q->is_cc_email;
+            });
+
+            $responseData = [
+                'cedant' => [
+                    'id' => $cedant->customer_id,
+                    'name' => $cedant->name,
+                    'email' => $cedant->email,
+                    'country' => $country?->country_name
+                ],
+                'primary_contact' => $primaryContact ? [
+                    'id' => $primaryContact->id,
+                    'name' => $primaryContact->contact_name,
+                    'email' => $primaryContact->contact_email,
+                    'phone' => $primaryContact->contact_mobile_no,
+                    'department' => 'Reinsurance'
+                ] : null,
+                'department_contacts' => $departmentContacts->map(function ($contact) use ($cedContactsMap) {
+                    $ccEmail = false;
+                    if ($cedContactsMap->has($contact->id)) {
+                        $ccEmail = $cedContactsMap->get($contact->id);
+                    }
+
+                    return [
+                        'id' => $contact->id,
+                        'name' => $contact->contact_name,
+                        'email' => $contact->contact_email,
+                        'phone' => $contact->contact_mobile_no,
+                        'department' => $contact->department ?? 'Reinsurance',
+                        'cc_email' => $ccEmail,
+                        'created_at' => Carbon::parse($contact->created_at)->format('Y-m-d H:i:s')
+                    ];
+                })
+            ];
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Contacts fetched successfully',
+                'data' => $responseData
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while fetching contacts'
+            ], 500);
+        }
+    }
+
     public function treaty_pipeline_create_opportunity(Request $request)
     {
         $mes = '';
@@ -2151,21 +2247,39 @@ class PipelineController
 
     public function prospectAddToPipeline(Request $request)
     {
-        $stage = 0;
         if ($request->has('revert_to_sales')) {
-            $stage = 0;
-            // DB::table('pipeline_opportunities')->where('opportunity_id', $request->prospect)->delete();
+            $update = DB::table('pipeline_opportunities')->where('opportunity_id', $request->prospect)->update(['pipeline_id' => null]);
+
+            $tempFiles = DB::table('prospect_docs')
+                ->where('prospect_id', $request->prospect)
+                ->get();
+
+            $facReinsurers = DB::table('bd_fac_reinsurers')->where('opportunity_id', $request->prospect);
+
+            if ($facReinsurers->get()->count() > 0) {
+                DB::table('bd_fac_reinsurers')->where('opportunity_id', $request->prospect)->delete();
+            }
+
+            if ($tempFiles->count() > 0) {
+                foreach ($tempFiles as $temp) {
+                    $this->s3Handler->deleteFromBothStorages($temp->s3_url, $temp->s3_path);
+                }
+
+                DB::table('prospect_docs')
+                    ->where('prospect_id', $request->prospect)
+                    ->delete();
+            }
         } else {
             $stage = 1;
+            $year = DB::table('pipeline_opportunities')->where('opportunity_id', $request->prospect)->first()->pip_year;
+            $pip_id = DB::table('pipelines')->where('id', $year)->first()->id;
+            $update = DB::table('pipeline_opportunities')->where('opportunity_id', $request->prospect)
+                ->update([
+                    'pipeline_id' => $pip_id,
+                    'stage' => $stage,
+                ]);
         }
 
-        $year = DB::table('pipeline_opportunities')->where('opportunity_id', $request->prospect)->first()->pip_year;
-        $pip_id = DB::table('pipelines')->where('id', $year)->first()->id;
-        $update = DB::table('pipeline_opportunities')->where('opportunity_id', $request->prospect)
-            ->update([
-                'pipeline_id' => $pip_id,
-                'stage' => $stage,
-            ]);
         if ($update) {
             return ['status' => 1, 'message' => "Successfully added"];
         } else {
@@ -3369,6 +3483,7 @@ class PipelineController
             $btnActions .= "
                 <button class='btn btn-info btn-sm me-1 revert-pipeline'
                         data-opportunity-id='{$opportunity_id}'
+                        data-current_stage='{$currentStage}'
                         title='Revert'>
                     <i class='bx bx-reset'></i>
                 </button>
@@ -3666,15 +3781,13 @@ class PipelineController
         $search = $request->get('q', '');
         $page = $request->get('page', 1);
         $perPage = 200;
+        $cedantId = $request->get('cedantId', '');
 
         try {
-            $reinsurers = $this->getReinsurersData($search, $page, $perPage);
+            $reinsurers = $this->getReinsurersData($search, $page, $perPage, $cedantId);
             $countryIsos = collect($reinsurers['data'])->pluck('country_iso')->unique()->filter();
 
-            $countries = DB::table('countries')
-                ->whereIn('country_iso', $countryIsos)
-                ->pluck('country_name', 'country_iso');
-
+            $countries = DB::table('countries')->whereIn('country_iso', $countryIsos)->pluck('country_name', 'country_iso');
             $results = collect($reinsurers['data'])->map(function ($reinsurer) use ($countries) {
                 return [
                     'id' => $reinsurer['customer_id'],
@@ -3699,11 +3812,17 @@ class PipelineController
                 'results' => [],
                 'pagination' => ['more' => false],
                 'error' => 'Failed to fetch reinsurers'
-            ], 500);
+            ]);
         }
+
+        return response()->json([
+            'results' => [],
+            'pagination' => ['more' => false],
+            'error' => 'Failed to fetch reinsurers'
+        ]);
     }
 
-    private function getReinsurersData(?string $search, int $page, int $perPage): array
+    private function getReinsurersData(?string $search, int $page, int $perPage, string $cedantId): array
     {
         $page = max(1, $page);
         $perPage = min(max(1, $perPage), 100);
@@ -3724,6 +3843,7 @@ class PipelineController
                 ) as contacts
             ')
             ->leftJoin('customer_contacts', 'customers.customer_id', '=', 'customer_contacts.customer_id')
+            ->whereNot('customers.customer_id', $cedantId)
             ->when(
                 $search,
                 fn($q) =>
@@ -6007,18 +6127,11 @@ class PipelineController
             ->where('pipeline_opportunities.opportunity_id', $opportunityID)
             ->first();
 
-
-
-
-
         $class = Classes::where('class_code', $opportunity->classcode)->first();
-
-
         $company = Company::first();
         $stgcomentData = StageComment::where('prospect_id', $opportunityID)
             ->orderByDesc('id')
             ->first();
-
 
         if (($stage == 3 && $stageType == 2) || ($stage == 3 && $stageType == 1)) {
             $view_path = 'printouts.';
@@ -6060,11 +6173,8 @@ class PipelineController
             $pdf->set_option('isRemoteEnabled', true);
             $pdf->render();
 
-            // Save the PDF file
             try {
                 Storage::disk('s3')->put($pdfPath, $pdf->output());
-
-                // Check if the PDF was saved in S3
                 if (!Storage::disk('s3')->exists($pdfPath)) {
                     return response()->json(['error' => 'Failed to save PDF to S3.'], 500);
                 }
@@ -6076,11 +6186,9 @@ class PipelineController
             $fileName = [];
 
             if ($request->hasFile('document_file_email_attachment')) {
-
                 $pdfFolderPath = 'uploads';
 
                 foreach ($request->document_file_email_attachment as $index => $file) {
-
                     $uploadedFile = $request->file('document_file_email_attachment')[$index];
                     $document_file_email_attachment_name = $request->document_name_email_attachment[$index] ?? 'unknown';
 
@@ -6103,7 +6211,6 @@ class PipelineController
                     }
                 }
             }
-
 
             $CedantCCEmails = [];
             if (!empty($reinsurerCCEmail) && is_array($reinsurerCCEmail)) {
@@ -7521,7 +7628,6 @@ class PipelineController
     {
         try {
             $opportunityId = $request->opportunity_id;
-
             if (!$opportunityId) {
                 return [
                     'success' => false,
@@ -7675,6 +7781,88 @@ class PipelineController
                 'message' => 'An error occurred while fetching reinsurers',
                 'error' => config('app.debug') ? $e->getMessage() : 'Please contact support'
             ];
+        }
+    }
+
+    public function revertProspect(Request $request)
+    {
+        $validated = $request->validate([
+            'prospect_id' => 'required|string|exists:pipeline_opportunities,opportunity_id',
+            'revert_to_sales' => 'required|string',
+        ]);
+
+        DB::beginTransaction();
+        try {
+            $pipeline = DB::table('pipeline_opportunities')
+                ->where('opportunity_id', $validated['prospect_id'])
+                ->first();
+
+            if (!$pipeline) {
+                return response()->json([
+                    'status' => 0,
+                    'message' => 'Opportunity not found.'
+                ], 404);
+            }
+
+            $opportunityId = $pipeline->opportunity_id;
+            $stages = Stage::getAllStages();
+            $currentStage = Stage::fromStageValue($pipeline->stage);
+
+            $stageKeys = array_column($stages, 'key');
+            $currentIndex = array_search($currentStage, $stageKeys);
+
+            if ($currentIndex === false || $currentIndex === 0) {
+                return response()->json([
+                    'status' => 0,
+                    'message' => 'This opportunity cannot be reverted further.'
+                ], 400);
+            }
+
+            $previousStage = $stages[$currentIndex - 1];
+
+            DB::table('pipeline_opportunities')
+                ->where('opportunity_id', $validated['prospect_id'])
+                ->update([
+                    'stage' => $previousStage['value'],
+                    'category_type' => $previousStage['value'],
+                    'status' => $previousStage['key'],
+                    'reverted_to_pipeline' => 'YES',
+                    'updated_at' => now()
+                ]);
+
+            $tempFiles = DB::table('prospect_docs')
+                ->where('prospect_id', $opportunityId)
+                ->get();
+
+            if ($tempFiles->count() > 0) {
+                foreach ($tempFiles as $temp) {
+                    $this->s3Handler->deleteFromBothStorages($temp->s3_url, $temp->s3_path);
+                }
+
+                DB::table('prospect_docs')
+                    ->where('prospect_id',)
+                    ->delete();
+            }
+
+            // DB::table('bd_fac_reinsurers')->where('opportunity_id', $opportunityId)->delete();
+
+            DB::commit();
+
+            return response()->json([
+                'status' => 1,
+                'message' => sprintf(
+                    '%s reverted successfully.',
+                    $pipeline->insured_name ?? 'Opportunity'
+                ),
+                'new_stage' => $previousStage['key']
+            ]);
+        } catch (\Exception $ex) {
+            DB::rollBack();
+
+            return response()->json([
+                'status' => 0,
+                'message' => 'Failed to revert prospect stage. Please try again later.'
+            ], 500);
         }
     }
 }

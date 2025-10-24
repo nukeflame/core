@@ -133,11 +133,13 @@ Route::middleware(['auth', 'check.first.login'])->group(function () {
     Route::post('/reinsurers/{reinsurerID}/contacts', [PipelineController::class, 'getPipelineReinContacts'])->name('pipeline.getPipelineReinContacts');
     Route::post('/schedule-headers', [PipelineController::class, 'getHeaders'])
         ->name('schedule.headers.get');
+    Route::post('/cedant/{cedantID}/contacts', [PipelineController::class, 'getPipelineCedContacts'])->name('pipeline.getPipelineCedContacts');
 
     Route::get('pipelines_activityq1_treaty', [PipelineController::class, 'pipeline_activity_q1_treaty'])->name('pipeline.activity.q1.treaty');
     Route::get('pipelines_activityq2_treaty', [PipelineController::class, 'pipeline_activity_q2_treaty'])->name('pipeline.activity.q2.treaty');
     Route::get('pipelines_activityq3_treaty', [PipelineController::class, 'pipeline_activity_q3_treaty'])->name('pipeline.activity.q3.treaty');
     Route::get('pipelines_activityq4_treaty', [PipelineController::class, 'pipeline_activity_q4_treaty'])->name('pipeline.activity.q4.treaty');
+    Route::post('prospect-revert', [PipelineController::class, 'revertProspect'])->name('prospect.revert');
 
     Route::get('Report_data', [PipelineController::class, 'Report_data'])->name('report.data');
     Route::get('decline_Report_data', [PipelineController::class, 'decline_report_data'])->name('decline.report.data');

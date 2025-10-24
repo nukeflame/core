@@ -182,6 +182,11 @@
             border: none !important;
         }
 
+        .vx-f {
+            font-size: 20px;
+            vertical-align: -5px;
+        }
+
         .status-badge {
             padding: 0.25rem 0.5rem;
             border-radius: 0.375rem;
@@ -435,6 +440,7 @@
                             button: "Update Lead",
                             class: "btn-proposal",
                             altNext: "lost",
+                            previous: null,
                             modalId: "leadModal",
                         },
                         proposal: {
@@ -442,6 +448,7 @@
                             button: "Update Proposal",
                             class: "btn-negotiation",
                             altNext: "lost",
+                            previous: "lead",
                             modalId: "proposalModal",
                         },
                         negotiation: {
@@ -449,24 +456,28 @@
                             button: "Update Negotiation",
                             class: "btn-won",
                             altNext: "lost",
+                            previous: "proposal",
                             modalId: "negotiationModal",
                         },
                         final_stage: {
                             next: 'won',
                             button: "Update Status",
                             class: "btn-final",
+                            previous: "negotiation",
                             modalId: "finalStageModal",
                         },
                         won: {
                             next: null,
                             button: "Deal Complete",
                             class: "btn-final",
+                            previous: null,
                             modalId: "wonModal",
                         },
                         lost: {
                             next: null,
                             button: "Deal Closed",
                             class: "btn-lost",
+                            previous: null,
                             modalId: "lostModal",
                         },
                     },
@@ -714,7 +725,6 @@
 
                 } catch (error) {
                     this.handleError('Failed to update chart', error);
-                    // Fallback to empty chart
                     this.chartInstance.update({
                         labels: ['Quarter One', 'Quarter Two', 'Quarter Three', 'Quarter Four'],
                         series: [
@@ -895,6 +905,7 @@
                 $('.update_category_action').off('click.pipeline');
                 $('.mail-btn').off('click.pipeline');
                 $('.preview-pdf-btn').off('click.pipeline');
+                $('.revert-pipeline').off('click.pipeline');
 
                 $('.stage_btn_action').on('click.pipeline', (e) => {
                     e.preventDefault();
@@ -916,9 +927,9 @@
                     this.handleSendBDNotification(e.currentTarget);
                 });
 
-                $('.preview-pdf-btn').on('click.pipeline', (e) => {
+                $('.revert-pipeline').on('click.pipeline', (e) => {
                     e.preventDefault();
-                    this.handlePdfPreview(e.currentTarget);
+                    this.handleRevertPipeline(e.currentTarget);
                 });
             }
 
@@ -1055,6 +1066,91 @@
                 }
             }
 
+            handleRevertPipeline(button) {
+                try {
+                    const buttonData = $(button).data();
+                    const opportunityId = buttonData.opportunityId;
+                    if (!opportunityId) {
+                        throw new Error('Opportunity ID not found');
+                    }
+
+                    const $row = $(button).closest("tr");
+                    const $table = $row.closest("table");
+                    const tableId = $table.attr("id");
+
+                    let insuredName = '';
+                    if (this.dataTables.has(tableId)) {
+                        const dataTable = this.dataTables.get(tableId);
+                        const rowData = dataTable.row($row).data();
+                        if (rowData && rowData.insured_name) {
+                            insuredName = rowData.insured_name;
+                        }
+                    }
+
+                    const currentStage = buttonData.current_stage ? buttonData.current_stage.toLowerCase() : '';
+                    const stage = this.config.stageFlow[currentStage]
+
+                    const revertStage = stage.previous ? this.capitalize(stage.previous) : null
+
+                    Swal.fire({
+                        title: 'Revert Pipeline Stage?',
+                        html: `
+                            <p>
+                                Are you sure you want to revert <strong>${insuredName || 'this opportunity'}</strong>
+                                back to a previous pipeline stage <strong>${revertStage}?</strong>
+                            </p>
+                            <p class="text-muted mb-0">This action will update its current sales stage accordingly.</p>
+                        `,
+                        icon: 'question',
+                        showCancelButton: true,
+                        confirmButtonColor: '#3085d6',
+                        cancelButtonColor: '#6c757d',
+                        confirmButtonText: 'Yes, revert it',
+                        cancelButtonText: 'Cancel',
+                        reverseButtons: true,
+                        focusCancel: true,
+                        customClass: {
+                            cancelButton: 'btn btn-sm btn-light me-2',
+                            confirmButton: 'btn btn-primary btn-sm',
+                        },
+                        buttonsStyling: false
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            this.revertPipeline(opportunityId, insuredName);
+                        }
+                    });
+                } catch (error) {
+                    this.handleError('Error handling pipeline revert', error);
+                }
+            }
+
+            revertPipeline(dealId, insuredName) {
+                $.ajax({
+                    type: 'POST',
+                    url: "{{ route('prospect.revert') }}",
+                    data: {
+                        'prospect_id': dealId,
+                        'revert_to_sales': 1
+                    },
+                    headers: {
+                        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                    },
+                    success: (response) => {
+                        if (response.status == 1) {
+                            toastr.success(response.message);
+                            this.reloadAllTables();
+                        }
+                    },
+                    error: (jqXHR, textStatus, errorThrown) => {
+                        Swal.fire({
+                            title: "Error",
+                            text: textStatus,
+                            icon: "error"
+                        });
+                    }
+                });
+            }
+
             deletePipeline(dealId, insuredName) {
                 $.ajax({
                     type: 'POST',
@@ -1066,17 +1162,13 @@
                     headers: {
                         'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
                     },
-                    success: function(response) {
-                        // console.log(response)
+                    success: (response) => {
                         if (response.status == 1) {
-                            toastr.success(response.message, {
-                                timeOut: 5000
-                            });
+                            toastr.success(response.message);
+                            this.reloadAllTables();
                         }
-
-                        $('#opportunities_table').DataTable().ajax.reload();
                     },
-                    error: function(jqXHR, textStatus, errorThrown) {
+                    error: (jqXHR, textStatus, errorThrown) => {
                         Swal.fire({
                             title: "Error",
                             text: textStatus,
@@ -1168,6 +1260,7 @@
 
                     $modal.find('.opportunity_id').val(dealInfo.id);
                     $modal.find('.current_stage').val(stage);
+                    $modal.find('.cedant_id').val(dealInfo.cedant.customer_id);
 
                     $modal.find('.total_sum_insured').val(dealInfo.total_sum_insured || '0.00');
                     $modal.find('.premium').val(dealInfo.premium || '0.00');
@@ -1190,6 +1283,15 @@
                     if ($lastContactDate.length > 0) {
                         $lastContactDate.val(dealInfo?.last_updated || '')
                     }
+
+                    const $cedant = $modal.find('.add_cedant_contacts');
+                    if ($cedant.length > 0) {
+                        $cedant.attr('data-cedant-id', dealInfo.cedant.customer_id)
+                        $cedant.attr('data-cedant-name', dealInfo.cedant.name)
+                        $cedant.attr('data-opportunity-id', dealInfo.id)
+                    }
+
+                    $("#reinSelectionPlacement").hide();
                 } catch (error) {
                     this.handleError("Error populating modal data", error);
                 }
@@ -1264,7 +1366,6 @@
 
             renderReinsurersTable(reinsurers, $table, data) {
                 if (!$table || $table.length === 0) {
-                    console.error('Table element not found');
                     return;
                 }
 
@@ -1333,25 +1434,34 @@
                         title: 'Reinsurer',
                         render: (data, type, row) => {
                             return `
-                            <div class="d-flex flex-start">
-                                <div>
-                                    <div class="fw-medium">${data}</div>
-                                    <small class="text-muted">(${
-                                    row.contact
-                                    })</small>
+                                <div class="d-flex flex-start">
+                                    <div>
+                                        <div class="fw-medium">${data}</div>
+                                        <small class="text-muted">(${row.contact})</small>
+                                    </div>
                                 </div>
-                            </div>
-                        `;
+                            `;
                         }
                     },
                     {
                         data: 'written_share',
                         title: 'Written Share (%)',
                         className: 'text-left',
-                        render: (data) => {
+                        render: (data, type, row) => {
                             const percentage = parseFloat(data);
                             const badgeClass = this.getShareBadgeClass(percentage);
-                            return `<span class="badge ${badgeClass}">${data}%</span>`;
+                            return `
+                                <span>
+                                    <span class="badge bg-success">${data}%</span>
+                                    <span class="badge bg-secondary edit-reinsurer-btn"
+                                        data-reinsurer-id="${row.id}"
+                                        data-written-share="${row.written_share}"
+                                        style="margin-right: 0.25rem; cursor: pointer;"
+                                        title="Edit Written Share">
+                                        <i class="bx bx-edit"></i>
+                                    </span>
+                                </span>
+                            `;
                         }
                     },
                     {
@@ -1363,14 +1473,17 @@
                         render: (data, type, row) => {
                             return `
                                 <div>
-                                    <button type="button" class="btn btn-primary btn-sm edit-reinsurer-btn"
-                                    data-reinsurer-id="${row.id}" data-written-share="${row.written_share}"
-                                    title="Edit Written Share"><i class="bx bx-edit"></i>
+                                    <button type="button" class="btn btn-primary btn-sm contact-reinsurer-btn"
+                                        data-reinsurer-id="${row.id}"
+                                        title="Contacts">
+                                        <i class="bx bx-book"></i>
                                     </button>
-                                    <button type="button" class="btn btn-danger btn-sm remove-reinsurer-btn"
-                                            data-reinsurer-id="${row.id}"
-                                            title="Remove">
-                                        <i class="bx bx-trash"></i>
+                                    <button type="button" class="btn btn-danger btn-sm decline-reinsurer-btn"
+                                        data-reinsurer-id="${row.id}"
+                                        data-reinsurer-name="${row.name}"
+                                        style="padding: 3px!important; margin-right: 0.25rem;"
+                                        title="Decline">
+                                        <i class="bx bx-x vx-f"></i>
                                     </button>
                                 </div>
                             `;
@@ -1437,7 +1550,8 @@
 
             initializeReinsurerActions($table) {
                 $table.off('click', '.edit-reinsurer-btn');
-                $table.off('click', '.remove-reinsurer-btn');
+                $table.off('click', '.decline-reinsurer-btn');
+                $table.off('click', '.contact-reinsurer-btn');
 
                 $table.on('click', '.edit-reinsurer-btn', (e) => {
                     e.preventDefault();
@@ -1451,13 +1565,96 @@
                     this.handleEditReinsurer(reinsurerData, $table);
                 });
 
-                $table.on('click', '.remove-reinsurer-btn', (e) => {
+                $table.on('click', '.decline-reinsurer-btn', (e) => {
                     e.preventDefault();
                     e.stopPropagation();
 
-                    const reinsurerId = $(e.currentTarget).data('reinsurer-id');
-                    this.handleRemoveReinsurer(reinsurerId, $table);
+                    const reinsurerData = {
+                        id: $(e.currentTarget).data('reinsurer-id'),
+                        reinsurerName: $(e.currentTarget).data('reinsurer-name')
+                    };
+
+                    console.log(reinsurerData)
+
+                    this.handleDeclineReinsurer(reinsurerData, $table);
                 });
+
+                $table.on('click', '.contact-reinsurer-btn', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+
+                    // const reinsurerData = {
+                    //     id: $(e.currentTarget).data('reinsurer-id'),
+                    //     written_share: $(e.currentTarget).data('written-share')
+                    // };
+
+                    // this.handleContactReinsurers(reinsurerData, $table);
+                });
+            }
+
+            handleDeclineReinsurer(reinsurerData, $table) {
+                if ($('#declineReinsurerModal').length === 0) {
+                    const modalHtml = `
+                        <div class="modal fade mod-popup effect-scale" id="declineReinsurerModal" tabindex="-1" data-bs-backdrop="static">
+                            <div class="modal-dialog modal-dialog-centered">
+                                <div class="modal-content">
+                                    <div class="modal-body pt-2 pb-3">
+                                        <h5 class="modal-title w-100 text-center">Decline Reinsurer</h5>
+                                        <small class="text-center w-100 text-muted align-items-center d-flex justify-content-center">(${reinsurerData.reinsurerName})</small>
+                                        <div class="form-group d-flex flex-column justify-content-center align-items-center">
+                                            <label for="reinDecTxt" class="form-label text-muted mb-3">Decline Reason</label>
+                                            <textarea
+                                                class="form-control"
+                                                id="reinDecTxt"
+                                                placeholder="Enter reason for declining"
+                                                rows="4"
+                                                style="width: 100%; font-size: 15px; resize: none;"
+                                            ></textarea>
+                                            <div class="invalid-feedback" id="declineReasonError"></div>
+                                        </div>
+                                    </div>
+                                    <div class="p-3 m-3 modal-footer border-0 justify-content-center">
+                                        <button type="button" class="btn btn-danger px-4" id="confirmDecline">Decline</button>
+                                        <button type="button" class="btn btn-light px-4" data-bs-dismiss="modal">Cancel</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    $('body').append(modalHtml);
+                }
+
+                $('#reinDecTxt').val('').removeClass('is-invalid');
+                $('#declineReasonError').text('');
+
+                $('#declineReinsurerModal').modal('show');
+
+
+                $('#confirmDecline').off('click').on('click', function() {
+                    const declineReason = $('#reinDecTxt').val().trim();
+                    const $textarea = $('#reinDecTxt');
+                    const $error = $('#declineReasonError');
+
+                    // Validation
+                    if (!declineReason) {
+                        $textarea.addClass('is-invalid');
+                        $error.text('Please provide a reason for declining');
+                        return;
+                    }
+
+                    // Your decline logic here
+                    // e.g., send AJAX request with reinsurerData.id and declineReason
+
+                    $('#declineReinsurerModal').modal('hide');
+                });
+
+                // $('#editReinsurerShareModal').on('shown.bs.modal', function() {
+                //     $('#editShareInput').focus().select();
+                // });
+
+                // $('#editReinsurerShareModal').on('hidden.bs.modal', function() {
+                //     $('#confirmShareUpdate').off('click');
+                // });
             }
 
             handleEditReinsurer(reinsurerData, $table) {

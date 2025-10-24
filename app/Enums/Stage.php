@@ -38,25 +38,21 @@ final class Stage extends Enum
     {
         return [
             'value' => $this->getStage(),
-            'key' => $this->getKeyV(),
+            'key' => $this->getKeyValue(),
         ];
     }
 
     public static function fromKeyValue(string $key)
     {
-        if (self::hasValue($key)) {
-            return new static($key);
-        }
-
-        return null;
+        return self::hasValue($key) ? new static($key) : null;
     }
 
     public static function getAllStages(): array
     {
-        return array_map(function ($value) {
-            $stage = new static($value);
-            return $stage->toArray();
-        }, self::getValues());
+        return array_map(fn($key) => [
+            'key'   => $key,
+            'value' => self::$stages[$key],
+        ], array_keys(self::$stages));
     }
 
     public static function getStageByKey(string $key): ?string
@@ -67,11 +63,6 @@ final class Stage extends Enum
     public static function fromStageValue(string $stageValue): ?string
     {
         $key = array_search($stageValue, self::$stages, true);
-
-        if ($key !== false) {
-            return $key;
-        }
-
-        return null;
+        return $key !== false ? $key : null;
     }
 }

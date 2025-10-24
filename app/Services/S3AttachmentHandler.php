@@ -150,6 +150,7 @@ class S3AttachmentHandler
                 try {
                     unlink($path);
                 } catch (Exception $e) {
+                    throw ($e);
                 }
             }
         }
@@ -190,5 +191,227 @@ class S3AttachmentHandler
         ];
 
         return $mimeMap[$mimeType] ?? 'bin';
+    }
+
+    /**
+     * Delete a single file from S3
+     *
+     * @param string $s3Path The S3 path/key of the file to delete
+     * @return bool True if deleted successfully, false otherwise
+     */
+    public function deleteFromS3(string $s3Path): bool
+    {
+        try {
+            if (!Storage::disk('s3')->exists($s3Path)) {
+                return false;
+            }
+
+            $deleted = Storage::disk('s3')->delete($s3Path);
+
+            return $deleted;
+        } catch (Exception $e) {
+            return false;
+        }
+    }
+
+    /**
+     * Delete multiple files from S3
+     *
+     * @param array $s3Paths Array of S3 paths/keys to delete
+     * @return array Results with 'success' count, 'failed' count, and 'details'
+     */
+    public function deleteMultipleFromS3(array $s3Paths): array
+    {
+        $results = [
+            'success' => 0,
+            'failed' => 0,
+            'details' => []
+        ];
+
+        foreach ($s3Paths as $path) {
+            $deleted = $this->deleteFromS3($path);
+
+            if ($deleted) {
+                $results['success']++;
+                $results['details'][$path] = 'deleted';
+            } else {
+                $results['failed']++;
+                $results['details'][$path] = 'failed';
+            }
+        }
+
+        return $results;
+    }
+
+    /**
+     * Delete multiple files from S3 in a single operation (more efficient)
+     *
+     * @param array $s3Paths Array of S3 paths/keys to delete
+     * @return bool True if all files deleted successfully
+     */
+    public function bulkDeleteFromS3(array $s3Paths): bool
+    {
+        try {
+            if (empty($s3Paths)) {
+                return true;
+            }
+
+            $existingPaths = array_filter($s3Paths, function ($path) {
+                return Storage::disk('s3')->exists($path);
+            });
+
+            if (empty($existingPaths)) {
+                return true;
+            }
+
+            $deleted = Storage::disk('s3')->delete($existingPaths);
+
+            return $deleted;
+        } catch (Exception $e) {
+            return false;
+        }
+    }
+
+    /**
+     * Delete all files in a directory from S3
+     *
+     * @param string $directory The S3 directory path
+     * @param bool $deleteDirectory Whether to delete the directory itself
+     * @return array Results with file count and success status
+     */
+    public function deleteDirectoryFromS3(string $directory, bool $deleteDirectory = false): array
+    {
+        try {
+            $files = Storage::disk('s3')->allFiles($directory);
+
+            if (empty($files)) {
+                return [
+                    'success' => true,
+                    'files_deleted' => 0,
+                    'directory' => $directory
+                ];
+            }
+
+            $deleted = Storage::disk('s3')->delete($files);
+
+            if ($deleteDirectory) {
+                Storage::disk('s3')->deleteDirectory($directory);
+            }
+
+            return [
+                'success' => $deleted,
+                'files_deleted' => count($files),
+                'directory' => $directory,
+                'directory_deleted' => $deleteDirectory
+            ];
+        } catch (Exception $e) {
+            return [
+                'success' => false,
+                'error' => $e->getMessage(),
+                'directory' => $directory
+            ];
+        }
+    }
+
+    /**
+     * Delete file from S3 and local temp storage if exists
+     *
+     * @param string $s3Path S3 path of the file
+     * @param string|null $localPath Optional local temp file path
+     * @return array Results with S3 and local deletion status
+     */
+    public function deleteFromBothStorages(string $s3Path, ?string $localPath = null): array
+    {
+        $results = [
+            's3_deleted' => false,
+            'local_deleted' => false
+        ];
+
+        $results['s3_deleted'] = $this->deleteFromS3($s3Path);
+
+        if ($localPath && file_exists($localPath)) {
+            try {
+                unlink($localPath);
+                $results['local_deleted'] = true;
+            } catch (Exception $e) {
+                throw ($e);
+            }
+        }
+
+        return $results;
+    }
+
+    /**
+     * Soft delete - move file to archive/trash folder in S3
+     *
+     * @param string $s3Path Current S3 path
+     * @param string $archivePrefix Prefix for archived files (default: 'trash/')
+     * @return array Results with success status and new path
+     */
+    public function softDeleteFromS3(string $s3Path, string $archivePrefix = 'trash/'): array
+    {
+        try {
+            if (!Storage::disk('s3')->exists($s3Path)) {
+                return [
+                    'success' => false,
+                    'error' => 'File not found'
+                ];
+            }
+
+            $fileName = basename($s3Path);
+            $timestamp = now()->format('Y-m-d_His');
+            $newPath = $archivePrefix . $timestamp . '_' . $fileName;
+
+            $moved = Storage::disk('s3')->move($s3Path, $newPath);
+
+            return [
+                'success' => $moved,
+                'original_path' => $s3Path,
+                'archive_path' => $newPath
+            ];
+        } catch (Exception $e) {
+            return [
+                'success' => false,
+                'error' => $e->getMessage()
+            ];
+        }
+    }
+
+    /**
+     * Delete files older than specified days
+     *
+     * @param string $directory S3 directory to clean
+     * @param int $days Delete files older than this many days
+     * @return array Results with deletion statistics
+     */
+    public function deleteOldFilesFromS3(string $directory, int $days = 30): array
+    {
+        try {
+            $files = Storage::disk('s3')->allFiles($directory);
+            $cutoffTime = now()->subDays($days)->timestamp;
+            $deletedFiles = [];
+
+            foreach ($files as $file) {
+                $lastModified = Storage::disk('s3')->lastModified($file);
+
+                if ($lastModified < $cutoffTime) {
+                    if ($this->deleteFromS3($file)) {
+                        $deletedFiles[] = $file;
+                    }
+                }
+            }
+
+            return [
+                'success' => true,
+                'total_files' => count($files),
+                'deleted_count' => count($deletedFiles),
+                'deleted_files' => $deletedFiles
+            ];
+        } catch (Exception $e) {
+            return [
+                'success' => false,
+                'error' => $e->getMessage()
+            ];
+        }
     }
 }
