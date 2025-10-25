@@ -2240,7 +2240,7 @@
                 );
 
                 const requiredFiles = $('#leadForm input[type="file"][required]');
-                const missingFiles = [];
+                let missingFiles = [];
 
                 requiredFiles.each(function() {
                     const fileName = $(this).attr('name');
@@ -2268,11 +2268,7 @@
                 };
             }
 
-            function toCamelCase(str) {
-                return str
-                    .toLowerCase()
-                    .replace(/[^a-zA-Z0-9]+(.)/g, (_, chr) => chr.toUpperCase());
-            }
+
 
             function validateSharesMatch() {
                 const totalWrittenShare = parseFloat($("#leadTotalReinsurerShare").val()) || 0;
@@ -2762,22 +2758,6 @@
                     this.modal = new bootstrap.Modal(
                         document.getElementById("breakdownModal")
                     );
-                }
-
-                toCamelCase(str) {
-                    let words = str
-                        .replace(/['"]/g, '')
-                        .toLowerCase()
-                        .split(/\s+/);
-
-                    return words
-                        .map((word, index) => {
-                            if (index === 0) {
-                                return word;
-                            }
-                            return word.charAt(0).toUpperCase() + word.slice(1);
-                        })
-                        .join('');
                 }
 
                 cleanupEditor() {

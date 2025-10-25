@@ -329,15 +329,44 @@ class PipelineController
                     'doc_types.id',
                     'doc_types.doc_type',
                     'doc_types.checkbox_doc',
-                    'stage_documents.mandatory'
+                    'doc_types.file_name',
+                    'doc_types.description',
+                    'doc_types.mimetype',
+                    'stage_documents.mandatory',
                 )->get();
 
             case 3:
+                return $baseQuery->select(
+                    'doc_types.id',
+                    'doc_types.doc_type',
+                    'doc_types.checkbox_doc',
+                    'doc_types.file_name',
+                    'doc_types.description',
+                    'doc_types.mimetype',
+                    'stage_documents.mandatory',
+                    'stage_documents.stage'
+                )->get();
+
             case 4:
                 return $baseQuery->select(
                     'doc_types.id',
                     'doc_types.doc_type',
                     'doc_types.checkbox_doc',
+                    'doc_types.file_name',
+                    'doc_types.description',
+                    'doc_types.mimetype',
+                    'stage_documents.mandatory',
+                    'stage_documents.stage'
+                )->get();
+
+            case 4:
+                return $baseQuery->select(
+                    'doc_types.id',
+                    'doc_types.doc_type',
+                    'doc_types.checkbox_doc',
+                    'doc_types.file_name',
+                    'doc_types.description',
+                    'doc_types.mimetype',
                     'stage_documents.mandatory',
                     'stage_documents.stage'
                 )->get();
@@ -348,6 +377,9 @@ class PipelineController
                     'doc_types.doc_type',
                     'doc_types.checkbox_doc',
                     'doc_types.file_name',
+                    'doc_types.file_name',
+                    'doc_types.description',
+                    'doc_types.mimetype',
                     'stage_documents.mandatory'
                 )->get();
         }
@@ -5529,7 +5561,6 @@ class PipelineController
                                 $documentType = $request->input("facultative_document_types.{$index}", 'Uknown');
                                 $documentType = Str::studly($this->sanitizeFileName($documentType));
 
-                                // Format: [PolicyNumber]_[PolicyType]_[EffectiveDate]_[DocumentType]_[Version].[ext]
                                 $uniqueFilename = sprintf(
                                     '%s_%s_%s_%s_v%s.%s',
                                     $policyNumber,
@@ -5540,7 +5571,6 @@ class PipelineController
                                     $originalExtension
                                 );
 
-                                // Define S3 path structure
                                 $uploadsPath = sprintf(
                                     'facultative-files/%s/%s/%s',
                                     $policyNumber,
@@ -5549,7 +5579,6 @@ class PipelineController
                                 );
                                 $s3FilePath = $uploadsPath . '/' . $uniqueFilename;
 
-                                // Upload to S3
                                 $uploaded = Storage::disk('s3')->putFileAs(
                                     $uploadsPath,
                                     $file,
@@ -5561,14 +5590,12 @@ class PipelineController
                                     throw new \Exception("Failed to upload file: {$originalName}");
                                 }
 
-                                // Verify file exists in S3
                                 if (!Storage::disk('s3')->exists($s3FilePath)) {
                                     throw new \Exception("Failed to verify file in S3: {$s3FilePath}");
                                 }
 
                                 $uploadedFiles[] = $s3FilePath;
 
-                                // Get S3 URL
                                 $s3Url = Storage::disk('s3')->url($s3FilePath);
 
                                 $prospectDocId = DB::table('prospect_docs')->insertGetId([
@@ -5720,6 +5747,7 @@ class PipelineController
                 'message' => "{$stageTitle} updated successfully"
             ]);
         } catch (\Exception $e) {
+            logger($e);
             DB::rollBack();
             return response()->json([
                 'success' => false,

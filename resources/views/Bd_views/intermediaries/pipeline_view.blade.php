@@ -931,6 +931,11 @@
                     e.preventDefault();
                     this.handleRevertPipeline(e.currentTarget);
                 });
+
+                $('.preview-pdf-btn').on('click.pipeline', (e) => {
+                    e.preventDefault();
+                    this.handlePdfPreview(e.currentTarget);
+                });
             }
 
             handleStageAction(button) {
@@ -1269,17 +1274,17 @@
                     $modal.find('.class_code').val(dealInfo.class || '');
                     $modal.find('.class_group_code').val(dealInfo.class_group || '');
 
-                    const $riskType = $modal.find('#riskType');
+                    const $riskType = $modal.find('.risk_type');
                     if ($riskType.length > 0) {
                         $riskType.val(dealInfo?.risk_type || '')
                     }
 
-                    const $cedantName = $modal.find('#cedantName');
+                    const $cedantName = $modal.find('.cedant_name');
                     if ($cedantName.length > 0) {
                         $cedantName.text(dealInfo?.cedant?.name || '')
                     }
 
-                    const $lastContactDate = $modal.find('#lastContactDate');
+                    const $lastContactDate = $modal.find('.last_contact_date');
                     if ($lastContactDate.length > 0) {
                         $lastContactDate.val(dealInfo?.last_updated || '')
                     }
@@ -1348,9 +1353,14 @@
                         opportunity_id: data.opportunityId,
                     },
                     success: (response) => {
-                        $modal.find('#reinsurerCount').text(response.count ?? 0);
-                        const reinsurers = (response.success && response.data) ? response.data : [];
-                        this.renderReinsurersTable(reinsurers, $table, data);
+                        if (response.success) {
+                            $modal.find('#reinsurerCount').text(response.count ?? 0);
+                            const reinsurers = response.data.length > 0 ? response.data : [];
+
+                            $modal.find('.selected_reinsurers').val(JSON.stringify(reinsurers));
+                            this.renderReinsurersTable(reinsurers, $table, data);
+                        }
+
                     },
                     error: (xhr, status, error) => {
                         this.handleError('Error loading selected reinsurers', {
@@ -1455,6 +1465,7 @@
                                     <span class="badge bg-success">${data}%</span>
                                     <span class="badge bg-secondary edit-reinsurer-btn"
                                         data-reinsurer-id="${row.id}"
+                                        data-reinsurer-name="${row.name}"
                                         data-written-share="${row.written_share}"
                                         style="margin-right: 0.25rem; cursor: pointer;"
                                         title="Edit Written Share">
@@ -1559,6 +1570,7 @@
 
                     const reinsurerData = {
                         id: $(e.currentTarget).data('reinsurer-id'),
+                        reinsurerName: $(e.currentTarget).data('reinsurer-name'),
                         written_share: $(e.currentTarget).data('written-share')
                     };
 
@@ -1573,8 +1585,6 @@
                         id: $(e.currentTarget).data('reinsurer-id'),
                         reinsurerName: $(e.currentTarget).data('reinsurer-name')
                     };
-
-                    console.log(reinsurerData)
 
                     this.handleDeclineReinsurer(reinsurerData, $table);
                 });
@@ -1665,6 +1675,7 @@
                                 <div class="modal-content">
                                     <div class="modal-body pt-2 pb-3">
                                         <h5 class="modal-title w-100 text-center">Edit Written Share</h5>
+                                        <small class="text-center w-100 text-muted align-items-center d-flex justify-content-center">(${reinsurerData.reinsurerName})</small>
                                         <div class="form-group d-flex flex-direction-column justify-content-center align-items-center">
                                             <label for="editShareInput" class="form-label text-muted mb-3" style="margin-left: -24px;">Written Share (%)</label>
                                             <input
@@ -2021,7 +2032,6 @@
                 }
 
                 let docs = res.docs;
-
                 docs.push({
                     name: 'Additional Documents',
                     id: Math.floor(Math.random() * 10000),
@@ -2042,7 +2052,7 @@
                     file_name: doc.file_name,
                     required: doc.mandatory === 'Y',
                     icon: doc.icon ?? 'bx-file-blank',
-                    accepts: doc.accepts ?? '.pdf,.doc,.docx,.jpg,.jpeg,.png',
+                    accepts: doc.mimetype ?? '.pdf,.doc,.docx,.jpg,.jpeg,.png',
                     description: doc.description ?? '',
                     max_size: doc.max_size ?? 10485760,
                     multiple: doc.multiple ?? true
@@ -2348,7 +2358,6 @@
                     if (imageExtensions.includes(fileExtension)) {
                         this.showImageModal(fileToView.name, fileUrl);
                     } else if (pdfExtensions.includes(fileExtension)) {
-                        console.log(fileUrl)
                         window.open(fileUrl, '_blank');
                         setTimeout(() => this.revokeFileUrl(fileUrl), 1000);
                     } else if (textExtensions.includes(fileExtension)) {
