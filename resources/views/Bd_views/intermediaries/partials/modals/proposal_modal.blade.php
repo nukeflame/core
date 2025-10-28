@@ -262,9 +262,248 @@
     </div>
 </div>
 
+<!-- PDF Preview Modal -->
+<div class="modal fade effect-scale md-wrapper" id="previewPdfModal" data-bs-backdrop="static"
+    data-bs-keyboard="false" aria-labelledby="staticpreviewPdfModal" aria-hidden="true" role="dialog">
+    <div class="modal-dialog modal-dialog-centered modal-xl" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="staticpreviewPdfModal">
+                    <i class="bi bi-file-earmark-pdf"></i>
+                    PDF Documents
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                    aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-0">
+                <form id="previewPdfForm">
+                    <input type="hidden" name="opportunity_id" class="opportunity_id" id="pdf_opportunity_id" />
+                    <input type="hidden" name="current_stage" class="current_stage" id="pdf_current_stage" />
+                    <input type="hidden" name="previous_stage" class="previous_stage" id="pdf_previous_stage" />
+                </form>
+
+                <!-- Stage Tabs -->
+                <ul class="nav nav-tabs nav-fill border-bottom" id="pdfStageTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="lead-tab" data-bs-toggle="tab"
+                            data-bs-target="#lead-stage" type="button" role="tab" aria-controls="lead-stage"
+                            aria-selected="true">
+                            <i class="bi bi-person-check me-1"></i>
+                            Lead
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="proposal-tab" data-bs-toggle="tab"
+                            data-bs-target="#proposal-stage" type="button" role="tab"
+                            aria-controls="proposal-stage" aria-selected="false">
+                            <i class="bi bi-file-text me-1"></i>
+                            Proposal
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="negotiation-tab" data-bs-toggle="tab"
+                            data-bs-target="#negotiation-stage" type="button" role="tab"
+                            aria-controls="negotiation-stage" aria-selected="false">
+                            <i class="bi bi-chat-left-dots me-1"></i>
+                            Negotiation
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="close-won-tab" data-bs-toggle="tab"
+                            data-bs-target="#close-won-stage" type="button" role="tab"
+                            aria-controls="close-won-stage" aria-selected="false">
+                            <i class="bi bi-trophy me-1"></i>
+                            Close/Won
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="final-tab" data-bs-toggle="tab" data-bs-target="#final-stage"
+                            type="button" role="tab" aria-controls="final-stage" aria-selected="false">
+                            <i class="bi bi-check-circle me-1"></i>
+                            Final
+                        </button>
+                    </li>
+                </ul>
+
+                <!-- Stage Content -->
+                <div class="tab-content pdf-section-box customScrollBar" id="pdfStageContent">
+                    <!-- Lead Stage -->
+                    <div class="tab-pane fade show active" id="lead-stage" role="tabpanel"
+                        aria-labelledby="lead-tab">
+                        <div class="pdf-list-container p-4" style="min-height: 400px;">
+                            <div class="text-center py-5" id="lead-loading">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                                <p class="mt-2 text-muted">Loading PDFs...</p>
+                            </div>
+                            <div id="lead-pdf-list" class="d-none">
+                                <!-- PDF list will be populated here -->
+                            </div>
+                            <div class="text-center py-5 d-none" id="lead-no-pdf">
+                                <i class="bi bi-file-earmark-x text-muted" style="font-size: 3rem;"></i>
+                                <p class="mt-2 text-muted">No PDFs available for this stage</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Proposal Stage -->
+                    <div class="tab-pane fade" id="proposal-stage" role="tabpanel" aria-labelledby="proposal-tab">
+                        <div class="pdf-list-container p-4" style="min-height: 400px;">
+                            <div class="text-center py-5" id="proposal-loading">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                                <p class="mt-2 text-muted">Loading PDFs...</p>
+                            </div>
+                            <div id="proposal-pdf-list" class="d-none">
+                                <!-- PDF list will be populated here -->
+                            </div>
+                            <div class="text-center py-5 d-none" id="proposal-no-pdf">
+                                <i class="bi bi-file-earmark-x text-muted" style="font-size: 3rem;"></i>
+                                <p class="mt-2 text-muted">No PDFs available for this stage</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Negotiation Stage -->
+                    <div class="tab-pane fade" id="negotiation-stage" role="tabpanel"
+                        aria-labelledby="negotiation-tab">
+                        <div class="pdf-list-container p-4" style="min-height: 400px;">
+                            <div class="text-center py-5" id="negotiation-loading">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                                <p class="mt-2 text-muted">Loading PDFs...</p>
+                            </div>
+                            <div id="negotiation-pdf-list" class="d-none">
+                                <!-- PDF list will be populated here -->
+                            </div>
+                            <div class="text-center py-5 d-none" id="negotiation-no-pdf">
+                                <i class="bi bi-file-earmark-x text-muted" style="font-size: 3rem;"></i>
+                                <p class="mt-2 text-muted">No PDFs available for this stage</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Close/Won Stage -->
+                    <div class="tab-pane fade" id="close-won-stage" role="tabpanel" aria-labelledby="close-won-tab">
+                        <div class="pdf-list-container p-4" style="min-height: 400px;">
+                            <div class="text-center py-5" id="close-won-loading">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                                <p class="mt-2 text-muted">Loading PDFs...</p>
+                            </div>
+                            <div id="close-won-pdf-list" class="d-none">
+                                <!-- PDF list will be populated here -->
+                            </div>
+                            <div class="text-center py-5 d-none" id="close-won-no-pdf">
+                                <i class="bi bi-file-earmark-x text-muted" style="font-size: 3rem;"></i>
+                                <p class="mt-2 text-muted">No PDFs available for this stage</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Final Stage -->
+                    <div class="tab-pane fade" id="final-stage" role="tabpanel" aria-labelledby="final-tab">
+                        <div class="pdf-list-container p-4" style="min-height: 400px;">
+                            <div class="text-center py-5" id="final-loading">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                                <p class="mt-2 text-muted">Loading PDFs...</p>
+                            </div>
+                            <div id="final-pdf-list" class="d-none">
+                                <!-- PDF list will be populated here -->
+                            </div>
+                            <div class="text-center py-5 d-none" id="final-no-pdf">
+                                <i class="bi bi-file-earmark-x text-muted" style="font-size: 3rem;"></i>
+                                <p class="mt-2 text-muted">No PDFs available for this stage</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer bg-light">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="bi bi-x-circle me-1"></i> Close
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<style>
+    .pdf-item {
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 16px;
+        margin-bottom: 12px;
+        transition: all 0.2s ease;
+        background: white;
+    }
+
+    .pdf-item:hover {
+        border-color: #0d6efd;
+        box-shadow: 0 2px 8px rgba(13, 110, 253, 0.15);
+        /* transform: translateY(-2px); */
+    }
+
+    .pdf-item-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 8px;
+    }
+
+    .pdf-item-title {
+        font-weight: 600;
+        color: #212529;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .pdf-item-meta {
+        font-size: 0.875rem;
+        color: #6c757d;
+        margin-bottom: 12px;
+    }
+
+    .pdf-item-actions {
+        display: flex;
+        gap: 8px;
+    }
+
+    .badge-reinsurer {
+        background-color: #0dcaf0;
+    }
+
+    .badge-cedant {
+        background-color: #198754;
+    }
+
+    .badge-general {
+        background-color: #6c757d;
+    }
+
+    .pdf-section-box {
+        padding-top: 0px;
+        height: 80vh;
+        overflow-x: hidden;
+        overflow-y: auto;
+    }
+</style>
+
 @push('script')
     <script>
         $(document).ready(function() {
+            let currentStage = 'lead';
+            let pdfUrls = {};
+
             let proposalState = {
                 reinsurers: [],
                 totalShare: 0,
@@ -493,91 +732,90 @@
                     return false;
                 }
 
-                // $submitBtn
-                //     .html('<i class="bx bx-loader-alt bx-spin me-1"></i> Sending Proposal...')
-                //     .prop("disabled", true);
+                $submitBtn
+                    .html('<i class="bx bx-loader-alt bx-spin me-1"></i> Sending Proposal...')
+                    .prop("disabled", true);
 
-                // const formData = prepareFormData();
+                const formData = prepareFormData();
 
-                console.log(`validation`, validation)
-                // $.ajax({
-                //     url: $form.attr("action"),
-                //     method: "POST",
-                //     data: formData,
-                //     processData: false,
-                //     contentType: false,
-                //     headers: {
-                //         "X-Requested-With": "XMLHttpRequest",
-                //         "X-CSRF-TOKEN": $('meta[name="csrf-token"]').attr("content"),
-                //     },
-                //     timeout: 60000,
-                //     success: function(response) {
-                //         if (response.success) {
-                //             resetProposalModal();
+                $.ajax({
+                    url: $form.attr("action"),
+                    method: "POST",
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    headers: {
+                        "X-Requested-With": "XMLHttpRequest",
+                        "X-CSRF-TOKEN": $('meta[name="csrf-token"]').attr("content"),
+                    },
+                    timeout: 60000,
+                    success: function(response) {
+                        if (response.success) {
+                            resetProposalModal();
 
-                //             Swal.fire({
-                //                 icon: "success",
-                //                 title: "Proposal Sent Successfully!",
-                //                 text: response.message ||
-                //                     "Your proposal has been submitted",
-                //                 showConfirmButton: true,
-                //             }).then(() => {
-                //                 $modal.modal("hide");
+                            Swal.fire({
+                                icon: "success",
+                                title: "Proposal Sent Successfully!",
+                                text: response.message ||
+                                    "Your proposal has been submitted",
+                                showConfirmButton: true,
+                            }).then(() => {
+                                $modal.modal("hide");
 
-                //                 if (typeof pipelineManager !== 'undefined' &&
-                //                     typeof pipelineManager.reloadAllTables ===
-                //                     'function') {
-                //                     pipelineManager.reloadAllTables();
-                //                 }
+                                if (typeof pipelineManager !== 'undefined' &&
+                                    typeof pipelineManager.reloadAllTables ===
+                                    'function') {
+                                    pipelineManager.reloadAllTables();
+                                }
 
-                //                 if (typeof pipelineManager !== 'undefined' &&
-                //                     typeof pipelineManager.loadChartData === 'function'
-                //                 ) {
-                //                     pipelineManager.loadChartData();
-                //                 }
-                //             });
-                //         } else {
-                //             throw new Error(response.message || "Submission failed");
-                //         }
-                //     },
-                //     error: function(xhr, status, error) {
-                //         let errorMessage =
-                //             "An unexpected error occurred while sending the proposal.";
+                                if (typeof pipelineManager !== 'undefined' &&
+                                    typeof pipelineManager.loadChartData === 'function'
+                                ) {
+                                    pipelineManager.loadChartData();
+                                }
+                            });
+                        } else {
+                            throw new Error(response.message || "Submission failed");
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        let errorMessage =
+                            "An unexpected error occurred while sending the proposal.";
 
-                //         if (xhr.status === 422 && xhr.responseJSON?.errors) {
-                //             const serverErrors = xhr.responseJSON.errors;
-                //             errorMessage = '<ul class="text-start mb-0">';
-                //             Object.values(serverErrors).flat().forEach(err => {
-                //                 errorMessage += `<li>${err}</li>`;
-                //             });
-                //             errorMessage += '</ul>';
-                //         } else if (xhr.responseJSON?.message) {
-                //             errorMessage = xhr.responseJSON.message;
-                //         } else if (status === "timeout") {
-                //             errorMessage =
-                //                 "Request timed out. Please check your connection and try again.";
-                //         } else if (xhr.status === 0) {
-                //             errorMessage =
-                //                 "Network error. Please check your internet connection.";
-                //         } else if (xhr.status === 404) {
-                //             errorMessage =
-                //                 "The submission endpoint was not found. Please contact support.";
-                //         } else if (xhr.status === 500) {
-                //             errorMessage =
-                //                 "Server error occurred. Please try again later or contact support.";
-                //         }
+                        if (xhr.status === 422 && xhr.responseJSON?.errors) {
+                            const serverErrors = xhr.responseJSON.errors;
+                            errorMessage = '<ul class="text-start mb-0">';
+                            Object.values(serverErrors).flat().forEach(err => {
+                                errorMessage += `<li>${err}</li>`;
+                            });
+                            errorMessage += '</ul>';
+                        } else if (xhr.responseJSON?.message) {
+                            errorMessage = xhr.responseJSON.message;
+                        } else if (status === "timeout") {
+                            errorMessage =
+                                "Request timed out. Please check your connection and try again.";
+                        } else if (xhr.status === 0) {
+                            errorMessage =
+                                "Network error. Please check your internet connection.";
+                        } else if (xhr.status === 404) {
+                            errorMessage =
+                                "The submission endpoint was not found. Please contact support.";
+                        } else if (xhr.status === 500) {
+                            errorMessage =
+                                "Server error occurred. Please try again later or contact support.";
+                        }
 
-                //         Swal.fire({
-                //             icon: "error",
-                //             title: "Submission Failed",
-                //             html: errorMessage,
-                //             confirmButtonColor: "#dc3545",
-                //         });
-                //     },
-                //     complete: function() {
-                //         $submitBtn.html(originalBtnContent).prop("disabled", false);
-                //     },
-                // });
+                        Swal.fire({
+                            icon: "error",
+                            title: "Submission Failed",
+                            html: errorMessage,
+                            confirmButtonColor: "#dc3545",
+                        });
+                    },
+                    complete: function() {
+                        $submitBtn.html(originalBtnContent).prop("disabled", false);
+                    },
+                });
             });
 
             $form.find('.form-inputs').on('blur', function() {
@@ -637,6 +875,214 @@
                 $('#reinsurerCount').text('0');
                 $('#totalNegReinsurerShare').val('0.00');
             }
+
+            $('#previewPdfModal').on('show.bs.modal', function() {
+                const currentStage = $('#pdf_current_stage').val();
+                const previousStage = $('#pdf_previous_stage').val();
+                const opportunityId = $('#pdf_opportunity_id').val();
+
+                $('#lead-loading').addClass('d-none');
+                $('#proposal-loading').addClass('d-none');
+                $('#negotiation-loading').addClass('d-none');
+                $('#close-won-loading').addClass('d-none');
+                $('#final-loading').addClass('d-none');
+                $('#lead-tab').tab('show');
+
+                const data = {
+                    currentStage,
+                    previousStage,
+                    opportunityId
+                }
+
+                fetchPdfUrls(data);
+            });
+
+            $('#previewPdfModal').on('hidden.bs.modal', function() {
+                $('[id$="-pdf-viewer"]').attr('src', '').addClass('d-none');
+                $('[id$="-loading"]').removeClass('d-none');
+                $('[id$="-no-pdf"]').addClass('d-none');
+                pdfUrls = {};
+            });
+
+            $('#pdfStageTabs button[data-bs-toggle="tab"]').on('shown.bs.tab', function(e) {
+                const currentStage = $(e.target).attr('id').replace('-tab', '');
+                const previousStage = $('#pdf_previous_stage').val();
+                const opportunityId = $('#pdf_opportunity_id').val();
+
+                const data = {
+                    currentStage,
+                    previousStage: currentStage,
+                    opportunityId
+                }
+
+                fetchPdfUrls(data);
+            });
+
+            $('#downloadPdfBtn').on('click', function() {
+                if (pdfUrls[currentStage]) {
+                    window.open(pdfUrls[currentStage], '_blank');
+                }
+            });
+
+            function fetchPdfUrls(data) {
+                const currentStage = data.currentStage
+                const previousStage = data.previousStage
+                const $listContainer = $(`#${previousStage}-pdf-list`);
+                const $loadingDiv = $(`#${previousStage}-loading`);
+                const $noPdfDiv = $(`#${previousStage}-no-pdf`);
+                const $tabDiv = $(`#${previousStage}-tab`);
+
+                const opportunityId = data.opportunityId
+
+                $loadingDiv.removeClass('d-none');
+                $listContainer.addClass('d-none');
+                $noPdfDiv.addClass('d-none');
+                $tabDiv.tab('show');
+
+                $.ajax({
+                        url: `opportunities/${opportunityId}/pdfs`,
+                        method: 'GET',
+                        data: {
+                            stage: previousStage
+                        },
+                        dataType: 'json'
+                    })
+                    .done(function(data) {
+                        $loadingDiv.addClass('d-none');
+
+                        if (data.pdfs && data.pdfs.length > 0) {
+                            renderPDFList($listContainer, data.pdfs);
+                            $listContainer.removeClass('d-none');
+                        } else {
+                            $noPdfDiv.removeClass('d-none');
+                        }
+                    })
+                    .fail(function(xhr, status, error) {
+                        console.error('Error loading PDFs:', error);
+                        $loadingDiv.addClass('d-none');
+                        $noPdfDiv.removeClass('d-none');
+                    });
+            }
+
+            function renderPDFList($container, pdfs) {
+                $container.empty();
+
+                const groupedPDFs = {
+                    reinsurer: $.grep(pdfs, function(pdf) {
+                        return pdf.type === 'reinsurer';
+                    }),
+                    cedant: $.grep(pdfs, function(pdf) {
+                        return pdf.type === 'cedant';
+                    }),
+                    general: $.grep(pdfs, function(pdf) {
+                        return !pdf.type || pdf.type === 'general';
+                    })
+                };
+
+                if (groupedPDFs.reinsurer.length > 0) {
+                    $container.append(
+                        '<h6 class="mb-3 fw-600"><i class="bi bi-building me-2"></i>Reinsurer Documents</h6>');
+                    $.each(groupedPDFs.reinsurer, function(index, pdf) {
+                        $container.append(createPDFItem(pdf, 'reinsurer'));
+                    });
+                }
+
+                if (groupedPDFs.cedant.length > 0) {
+                    $container.append(
+                        '<h6 class="mb-3 mt-4 fw-600"><i class="bi bi-briefcase me-2"></i>Cedant Documents</h6>'
+                    );
+                    $.each(groupedPDFs.cedant, function(index, pdf) {
+                        $container.append(createPDFItem(pdf, 'cedant'));
+                    });
+                }
+
+                if (groupedPDFs.general.length > 0) {
+                    $container.append(
+                        '<h6 class="mb-3 mt-4 fw-700"><i class="bi bi-file-earmark-pdf me-2"></i>General Documents</h6>'
+                    );
+                    $.each(groupedPDFs.general, function(index, pdf) {
+                        $container.append(createPDFItem(pdf, 'general'));
+                    });
+                }
+            }
+
+            function createPDFItem(pdf, type) {
+                const badgeClass = type === 'reinsurer' ? 'badge-reinsurer' :
+                    type === 'cedant' ? 'badge-cedant' : 'badge-general';
+                const badgeText = type.charAt(0).toUpperCase() + type.slice(1);
+
+                const uploadDate = (function() {
+                    if (!pdf.upload_date) return 'N/A';
+                    const d = new Date(pdf.upload_date);
+                    if (isNaN(d)) return 'N/A';
+                    const day = ('0' + d.getDate()).slice(-2);
+                    const month = ('0' + (d.getMonth() + 1)).slice(-2);
+                    const year = d.getFullYear();
+                    return `${day}/${month}/${year}`;
+                })();
+                const fileSize = pdf.file_size ? formatFileSize(pdf.file_size) : '';
+
+                return `
+                    <div class="pdf-item">
+                        <div class="pdf-item-header">
+                            <h6 class="pdf-item-title">
+                                <i class="bi bi-file-earmark-pdf text-danger"></i>
+                                ${pdf.name || 'Untitled Document'}
+                            </h6>
+                            <span class="badge ${badgeClass}">${badgeText}</span>
+                        </div>
+                        <div class="pdf-item-meta">
+                            ${pdf.description ? `<div class="mb-1">${pdf.description}</div>` : ''}
+                            <div>
+                                <i class="bi bi-calendar3 me-1"></i> ${uploadDate}
+                                ${fileSize ? `<span class="ms-3"><i class="bi bi-file-earmark me-1"></i>${fileSize}</span>` : ''}
+                            </div>
+                        </div>
+                        <div class="pdf-item-actions">
+                            <button class="btn btn-sm btn-primary open-pdf-btn" data-pdf-url="${pdf.url}" data-pdf-name="${pdf.name}">
+                                <i class="bi bi-box-arrow-up-right me-1"></i> Open in New Tab
+                            </button>
+                            <button class="btn btn-sm btn-outline-primary download-pdf-btn">
+                                <i class="bi bi-download me-1"></i> Download
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }
+
+            $(document).on('click', '.open-pdf-btn', function(e) {
+                e.preventDefault();
+                const pdfUrl = $(this).data('pdf-url');
+
+                if (pdfUrl) {
+                    window.open(pdfUrl, '_blank');
+                }
+            });
+
+            $(document).on('click', '.download-pdf-btn', function(e) {
+                e.preventDefault();
+                const pdfUrl = $(this).data('pdf-url');
+                const filename = $(this).data('pdf-name');
+                if (pdfUrl) {
+                    console.log(pdfUrl)
+                    // const link = document.createElement('a');
+                    // link.href = pdfUrl;
+                    // link.download = filename || 'document.pdf';
+                    // document.body.appendChild(link);
+                    // link.click();
+                    // document.body.removeChild(link);
+                }
+            });
+
+
+            function formatFileSize(bytes) {
+                if (bytes === 0) return '0 Bytes';
+                const k = 1024;
+                const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+            }
+
         });
     </script>
 @endpush

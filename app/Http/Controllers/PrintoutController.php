@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\Stage;
 use App\Models\ApprovalSourceLink;
 use App\Models\ApprovalsTracker;
 use App\Models\Classes;
@@ -40,6 +41,7 @@ use App\Models\SystemProcessAction;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\Response;
+use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -52,6 +54,7 @@ use PhpOffice\PhpWord\Style\Cell;
 use PhpOffice\PhpWord\Style\Font;
 use PhpOffice\PhpWord\Style\Paragraph;
 use PhpOffice\PhpWord\Shared\Converter;
+
 
 
 class PrintoutController extends Controller
@@ -246,44 +249,50 @@ class PrintoutController extends Controller
         }
     }
 
-    public function QuotationCoverSlip(Request $request)
+    public function bdCoverSlip(Request $request)
     {
         try {
             $request->validate([
                 'opportunity_id' => 'required',
                 'printout_flag' => 'required|boolean',
+                'current_stage' => 'required|string',
             ]);
 
-            // $formattedActivities = $this->fetchOpportunityData($request->opp_id);
+            $opportunityId = $request->opportunity_id;
+            $currentStage = 'lead'; //Str::lower($request->current_stage) ?? null;
 
-            // if ($formattedActivities->isEmpty()) {
-            //     return response()->json([
-            //         'status' => 404,
-            //         'message' => 'Opportunity not found.',
-            //     ], 404);
-            // }
+            $formattedActivities = $this->fetchOpportunityData($opportunityId);
 
-            // // Get company information
-            // $company = Company::first();
-            // if (!$company) {
-            //     throw new \Exception('Company information not found.');
-            // }
+            if ($formattedActivities->isEmpty()) {
+                return response()->json([
+                    'status' => 404,
+                    'message' => 'Opportunity not found.',
+                ], 404);
+            }
 
-            // // Prepare share data
-            // $shares = $this->prepareShareData($request);
+            $cedant = $formattedActivities;
 
+            $company = Company::first();
+            if (!$company) {
+                throw new \Exception('Company information not found.');
+            }
+
+            $reinsurers = $this->prepareReinData($opportunityId);
             // // Build consolidated request data
             // $requestData = $this->buildRequestData($request, $formattedActivities, $shares);
 
             // // Prepare customer collection
             // $customers = $this->prepareCustomerCollection($requestData);
 
+            // logger()->debug(json_encode($cedant, JSON_PRETTY_PRINT));
             // // Final data structure
             $data = [
-                'currentStage' => 'Proposal',
-                'opportunityId' => '293',
-                // 'company' => $company,
-                // 'customers' => $customers,
+                'currentStage' => $currentStage,
+                'opportunityId' => $opportunityId,
+                'reinsurers' => $reinsurers,
+                'company' => $company,
+                'cedant' => $cedant,
+                'currency' => 'KES',
                 // 'shares' => $requestData['shares'],
                 // 'unplaced' => $requestData['unplaced'],
                 // 'updated_written_share_total' => $requestData['updated_written_share_total'],
@@ -297,18 +306,110 @@ class PrintoutController extends Controller
 
             return $this->generatePdfDocument($data);
         } catch (ValidationException $e) {
+            logger($e);
+
             return response()->json([
                 'status' => 422,
                 'message' => 'Validation failed.',
                 'errors' => $e->errors(),
             ], 422);
         } catch (\Exception $e) {
+            logger($e);
             return response()->json([
                 'status' => 500,
                 'message' => 'An error occurred while generating the document.',
                 'error' => config('app.debug') ? $e->getMessage() : 'Internal server error',
             ], 500);
         }
+    }
+
+    private function prepareReinData($opportunityId)
+    {
+        $reinsurers = DB::table('bd_fac_reinsurers as bfr')
+            ->leftJoin('customers as c', 'bfr.reinsurer_id', '=', 'c.customer_id')
+            ->select([
+                'bfr.id',
+                'bfr.reinsurer_id',
+                'bfr.opportunity_id',
+                'bfr.share_amount',
+                'bfr.email as bfr_email',
+                DB::raw("COALESCE(c.name, bfr.reinsurer_name, 'N/A') AS reinsurer_name"),
+                'c.email as customer_email',
+                'c.postal_address',
+                'c.city',
+                'c.street',
+                // 'c.location',
+                'c.country_iso',
+                'c.telephone'
+            ])
+            ->where('bfr.opportunity_id', $opportunityId)
+            ->get();
+
+        return $reinsurers->map(function ($q) {
+            return [
+                'id' => $q->id,
+                'reinsurer_id' => $q->reinsurer_id,
+                'opportunity_id' => $q->opportunity_id,
+                'name' => $q->reinsurer_name,
+                'email' => $q->customer_email ?? $q->bfr_email,
+                'address' => $q->postal_address,
+                'city' => $q->city,
+                'location' => null, //$q->location,
+                'country' => $q->country_iso,
+                'phone' => $q->telephone,
+                'share_amount' => $q->share_amount,
+            ];
+        });
+    }
+    private function fetchOpportunityData($opportunityId)
+    {
+        $activities = DB::table('pipeline_opportunities as po')
+            ->leftJoin('customers as c', function ($join) {
+                $join->on(DB::raw("NULLIF(po.customer_id, '')::INTEGER"), '=', 'c.customer_id');
+            })
+            ->leftJoin('lead_status as ls', 'po.stage', '=', 'ls.id')
+            ->leftJoin('reins_division as rd', 'po.divisions', '=', 'rd.division_code')
+            ->leftJoin('classes as cl', 'po.classcode', '=', 'cl.class_code')
+            ->leftJoin('business_types as bt', 'po.type_of_bus', '=', 'bt.bus_type_id')
+            ->selectRaw('DISTINCT ON (po.opportunity_id) po.*,
+            COALESCE(c.name, \'N/A\') AS customer_name,
+            ls.status_name as stage,
+            rd.division_name as division_name,
+            po.cede_premium as cedant_premium,
+            po.rein_premium as reinsurer_premium,
+            cl.class_name as class_name,
+            bt.bus_type_name as type_of_bus')
+            ->where('po.opportunity_id', $opportunityId)
+            ->get();
+
+        return $activities->map(function ($d) {
+            return [
+                'customer_id' => $d->customer_id ?? 'N/A',
+                'customer_name' => $d->customer_name ?? 'N/A',
+                'opportunity_id' => $d->opportunity_id,
+                'effective_date' => $d->effective_date,
+                'closing_date' => $d->closing_date,
+                'insured_name' => $d->insured_name,
+                'type_of_bus' => $d->type_of_bus,
+                'currency_code' => $d->currency_code,
+                'contact_name' => $this->safeJsonDecode($d->contact_name ?? '[]'),
+                'email' => $this->safeJsonDecode($d->email ?? '[]'),
+                'phone' => $this->safeJsonDecode($d->phone ?? '[]'),
+                'telephone' => $this->safeJsonDecode($d->telephone ?? '[]'),
+                'class_name' => $d->class_name,
+                'stageType' => $d->category_type ?? null,
+            ];
+        });
+    }
+
+    private function safeJsonDecode($json, $default = [])
+    {
+        if (empty($json)) {
+            return $default;
+        }
+
+        $decoded = json_decode($json, true);
+        return $decoded !== null ? $decoded : $default;
     }
 
     private function generatePdfDocument($data)
@@ -1727,5 +1828,105 @@ class PrintoutController extends Controller
         } catch (\Exception $e) {
             return ['An internal error occured'];
         }
+    }
+
+    public function getOppPdfData(Request $request, $opppId)
+    {
+        $prospectDocs = DB::table('prospect_docs')
+            ->where('prospect_id', $opppId)
+            ->get()
+            ->map(function ($doc) {
+                return [
+                    'id' => $doc->id,
+                    'name' => $doc->file,
+                    'url' => $doc->s3_url,
+                    'mime_type' => $doc->mimetype,
+                    'type' => 'general',
+                    'description' => $doc->description ?? '',
+                    'upload_date' => $doc->created_at,
+                    'file_size' => $doc->file_size ?? 0
+                ];
+            })
+            ->values()
+            ->all();
+
+        $opportunityId = $opppId;
+        $stage = $request->stage;
+        $baseData = [];
+        $allPdfs = [];
+
+        switch ($stage) {
+            case 'lead':
+                $baseData = [
+                    // [
+                    //     'id' => 1,
+                    //     'name' => 'Initial Risk Assessment Report.pdf',
+                    //     'url' => 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+                    //     'type' => 'reinsurer',
+                    //     'description' => 'Preliminary risk evaluation and exposure analysis',
+                    //     'upload_date' => '2024-10-15T10:30:00',
+                    //     'file_size' => 2458000
+                    // ],
+                    // [
+                    //     'id' => 2,
+                    //     'name' => 'Client Portfolio Overview.pdf',
+                    //     'url' => 'https://www.africau.edu/images/default/sample.pdf',
+                    //     'type' => 'cedant',
+                    //     'description' => 'Current insurance portfolio and coverage details',
+                    //     'upload_date' => '2024-10-16T14:20:00',
+                    //     'file_size' => 1856000
+                    // ],
+                    // [
+                    //     'id' => 3,
+                    //     'name' => 'Market Analysis Q4 2024.pdf',
+                    //     'url' => 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+                    //     'type' => 'general',
+                    //     'description' => 'Industry trends and market conditions report',
+                    //     'upload_date' => '2024-10-18T09:15:00',
+                    //     'file_size' => 3245000
+                    // ],
+                    // [
+                    //     'id' => 4,
+                    //     'name' => 'Initial Risk Assessment Report.pdf',
+                    //     'url' => 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+                    //     'type' => 'reinsurer',
+                    //     'description' => 'Preliminary risk evaluation and exposure analysis',
+                    //     'upload_date' => '2024-10-15T10:30:00',
+                    //     'file_size' => 2458000
+                    // ],
+                    // [
+                    //     'id' => 5,
+                    //     'name' => 'Client Portfolio Overview.pdf',
+                    //     'url' => 'https://www.africau.edu/images/default/sample.pdf',
+                    //     'type' => 'cedant',
+                    //     'description' => 'Current insurance portfolio and coverage details',
+                    //     'upload_date' => '2024-10-16T14:20:00',
+                    //     'file_size' => 1856000
+                    // ],
+                    // [
+                    //     'id' => 6,
+                    //     'name' => 'Market Analysis Q4 2024.pdf',
+                    //     'url' => 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+                    //     'type' => 'general',
+                    //     'description' => 'Industry trends and market conditions report',
+                    //     'upload_date' => '2024-10-18T09:15:00',
+                    //     'file_size' => 3245000
+                    // ]
+                ];
+                $allPdfs = array_merge($prospectDocs, $baseData);
+
+                break;
+
+            default:
+                $baseData = [];
+                $allPdfs = [];
+                break;
+        }
+
+        return response()->json([
+            'pdfs' => $allPdfs,
+            'opportunity_id' => $opportunityId,
+            'stage' => $stage
+        ]);
     }
 }

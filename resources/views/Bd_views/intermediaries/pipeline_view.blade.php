@@ -2806,7 +2806,7 @@
                     const currentStage = buttonData.current_stage;
                     const printout_flag = 1;
 
-                    const url = "{{ route('docs.quotationCoverSlip') }}";
+                    const url = "{{ route('docs.bdCoverSlip') }}";
                     const form = $('<form>', {
                         method: 'POST',
                         action: url,
@@ -2843,6 +2843,35 @@
                     this.hideLoading();
                     this.handleError("Error handling stage action", error);
                 }
+
+                // try {
+                //     this.showLoading();
+
+                //     const buttonData = $(button).data();
+                //     this.currentDealId = buttonData.opportunity_id;
+
+                //     if (!this.currentDealId) {
+                //         throw new Error('Deal ID not found in button data');
+                //     }
+
+                //     const opportunityId = this.currentDealId;
+                //     const stage = buttonData.current_stage;
+                //     const printout_flag = 1;
+
+                //     const $form = $("#previewPdfForm")
+                //     const $s = stage.toLowerCase() || '';
+                //     const currentStage = this.config.stageFlow[$s];
+                //     console.log(currentStage.previous)
+                //     $form.find("#pdf_opportunity_id").val(opportunityId)
+                //     $form.find("#pdf_current_stage").val($s)
+                //     $form.find("#pdf_previous_stage").val(currentStage.previous)
+                //     $("#previewPdfModal").modal('show')
+
+                //     this.hideLoading();
+                // } catch (error) {
+                //     this.hideLoading();
+                //     this.handleError("Error handling stage action", error);
+                // }
             }
 
             loadBdEssentials(opportunityId, currentStage) {

@@ -10,6 +10,7 @@ use App\Http\Controllers\BdController\TenderController;
 use App\Http\Controllers\GoogleOAuthController;
 use App\Http\Controllers\MicrosoftWebhookController;
 use App\Http\Controllers\OutlookOAuthController;
+use App\Http\Controllers\PrintoutController;
 use App\Http\Controllers\SearchController;
 use Illuminate\Support\Facades\Route;
 use PHPJasper\PHPJasper;
@@ -154,6 +155,7 @@ Route::middleware(['auth', 'check.first.login'])->group(function () {
     Route::post('stage/documents', [PipelineController::class, 'stageDocuments'])->name('schedule.get_stage_documents');
     Route::get('cfac-offer', [PipelineController::class, 'facultativeOffer'])->name('get-fac-data');
     Route::post('edit-data', [PipelineController::class, 'editData'])->name('get-edit-data');
+    Route::get('/opportunities/{opportunityId}/pdfs', [PrintoutController::class, 'getOppPdfData'])->name('get_opp_data');
 
     // Route::get('search-prospect-fullnames', [PipelineController::class, 'search_prospect_fullnames'])->name('search-prospect-fullnames');
     Route::post('check_user_exists', [PipelineController::class, 'confirmUserExists'])->name('check_user_exists');

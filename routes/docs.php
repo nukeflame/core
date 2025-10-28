@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('docs')->middleware(['auth', 'check.first.login'])->name('docs.')->group(function () {
     Route::get('coverslip', [PrintoutController::class, 'coverSlip'])->name('coverslip');
     Route::get('endorsementslip', [PrintoutController::class, 'endorsementNoticeSlip'])->name('endorsementslip');
-    Route::post('quotationcoverslip', [PrintoutController::class, 'QuotationCoverSlip'])->name('quotationCoverSlip');
+    Route::post('bd-coverslip', [PrintoutController::class, 'bdCoverSlip'])->name('bdCoverSlip');
     Route::post('TreatyBdPrintout', [PrintoutController::class, 'TreatyBdPrintout'])->name('treatyBdPrintout');
 
     // Route::post('store', 'PrintoutController@store');
@@ -60,9 +60,8 @@ Route::prefix('docs-setup')->middleware(['auth', 'check.first.login'])->name('do
 
 
     // Route::get('slip', [PrintoutSetupController::class, 'slip'])->name('slip');
-    Route::get('/tenders/docsparam', [TenderController::class,'listTenderDocsParam'])->name('tender.docsparam');
-    Route::post('/tenders/doc_add', [TenderController::class,'AddTenderDocParam'])->name('tender.doc_add');
-    Route::get('/tender-document-details/{docId}', [TenderController::class,'viewDocumentDetails'])->name('tender.document.details');
-    Route::any('save/documents',[PipelineController::class,'saveTenderDocs'])->name('saveTenderDocs');
-    
+    Route::get('/tenders/docsparam', [TenderController::class, 'listTenderDocsParam'])->name('tender.docsparam');
+    Route::post('/tenders/doc_add', [TenderController::class, 'AddTenderDocParam'])->name('tender.doc_add');
+    Route::get('/tender-document-details/{docId}', [TenderController::class, 'viewDocumentDetails'])->name('tender.document.details');
+    Route::any('save/documents', [PipelineController::class, 'saveTenderDocs'])->name('saveTenderDocs');
 });

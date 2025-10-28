@@ -7,29 +7,33 @@
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <title>@yield('title', config('app.name'))</title>
     <style>
-        @page {
-            margin-top: 140px;
-            margin-bottom: 100px;
-            margin-left: 5%;
-            margin-right: 5%;
-        }
-
-        body {
+        /* header {
+            position: fixed;
+            top: -6.85rem;
+            right: 0;
+            width: 100%;
+            background: #fff;
+            padding: 10px;
+            text-align: right;
+            height: 80px;
+            z-index: 1000;
             font-size: 10.5pt;
             line-height: 14pt;
-            margin: 0;
-            padding: 0;
-        }
-
+            display: block;
+        } */
         header {
             position: fixed;
-            left: 0px;
-            right: 0px;
-            top: 0px;
-            height: 130px;
-            margin-top: -140px;
+            top: -6.85rem;
+            right: 0;
+            width: 100%;
             background: #fff;
+            padding: 10px;
+            text-align: right;
+            height: 80px;
             z-index: 1000;
+            font-size: 10.5pt;
+            line-height: 14pt;
+            display: block;
         }
 
         header.header-default {
@@ -46,31 +50,12 @@
             line-height: 14pt;
         }
 
-        footer {
-            position: fixed;
-            left: 0px;
-            right: 0px;
-            bottom: 0px;
-            height: 80px;
-            margin-bottom: -100px;
-            text-align: center;
-            font-size: 7pt;
-            font-weight: 500;
-            font-style: italic;
-            background: #fff;
-        }
-
-        .footer-content {
-            border-top: 1px solid #000;
-            padding-top: 8px;
-        }
-
-        .page-number::after {
-            content: counter(page);
-        }
-
         p {
             margin: 0;
+        }
+
+        table {
+            /* border-collapse: collapse; */
         }
 
         th {
@@ -129,7 +114,51 @@
             text-transform: uppercase;
         }
 
+        /*
+        @page {
+            padding-bottom: 0px;
+            size: A4;
+            /* margin-top: 20pt;
+            margin-left: 5%;
+            margin-right: 5%;
+            margin-bottom: 1ch;
+            margin-top: 8.5rem;
+        } */
+
+        @page {
+            padding-bottom: 0px;
+            size: A4;
+            margin-left: 5%;
+            margin-right: 5%;
+            margin-bottom: 1ch;
+            margin-top: 8.5rem;
+        }
+
+        @page :first {
+            margin-top: 8.5rem;
+        }
+
         @media print {
+            header {
+                position: fixed;
+                top: 0;
+                right: 0;
+                width: 100%;
+                background: #fff;
+                padding: 10px;
+                text-align: right;
+                height: 80px;
+                z-index: 1000;
+                font-size: 10.5pt;
+                line-height: 14pt;
+            }
+
+            body {
+                margin-top: 80px;
+                font-size: 10.5pt;
+                line-height: 14pt;
+            }
+
             .page-break {
                 page-break-before: always;
             }
@@ -143,9 +172,11 @@
             display: none;
         }
 
-        .company-info p {
-            font-size: 10.5pt;
-            line-height: 14pt;
+        .company-info {
+            p {
+                font-size: 10.5pt;
+                line-height: 14pt;
+            }
         }
 
         #cover-s {
@@ -174,6 +205,7 @@
 
         #slip-details tr td.s-l {
             width: 40% !important;
+
         }
 
         #slip-details tr td.s-r {
@@ -184,6 +216,7 @@
         .reinsurer-details,
         #credit-details,
         table {
+            /* border: 1px solid black; */
             border-collapse: collapse;
         }
 
@@ -341,6 +374,33 @@
             font-size: 10pt !important;
         }
 
+        .company-info {
+            p {
+                font-size: 10.5pt;
+                line-height: 14pt;
+            }
+        }
+
+        .footer {
+            position: fixed;
+            bottom: -10px;
+            left: 0px;
+            right: 0px;
+            height: 20px;
+            border-top: 1px solid #000;
+            text-align: center;
+            padding-top: 5px;
+            font-size: 7pt;
+            display: block;
+            margin-top: 10px;
+            font-weight: 500;
+            font-style: italic;
+        }
+
+        .page-number::after {
+            content: counter(page);
+        }
+
         .clearfix::after {
             content: "";
             clear: both;
@@ -361,42 +421,16 @@
         .first-page {
             page-break-before: avoid;
         }
-
-        .row-table {
-            width: 100%;
-            display: table;
-            table-layout: fixed;
-            position: relative;
-            top: 39px;
-            height: 112px;
-        }
-
-
-        .logo {
-            display: table-cell;
-            width: 50%;
-            vertical-align: top;
-            text-align: left;
-        }
-
-        .company-info {
-            display: table-cell;
-            width: 50%;
-            vertical-align: top;
-            text-align: right;
-        }
-
-        .brand-logo {}
     </style>
 </head>
 
 <body class="pdf_wrapper">
     @if (!isset($disableAutoHeader))
         <header class="logo-header">
-            <div class="row-table">
+            <div class="row">
                 <div class="logo">
-                    <img class="brand-logo" src="data:image/png;base64,<?php echo base64_encode(file_get_contents(base_path('public/logo.png'))); ?>" alt=""
-                        style="width: 230px; height: auto;" />
+                    <img align="left" src="data:image/png;base64,<?php echo base64_encode(file_get_contents(base_path('public/logo.png'))); ?>" alt=""
+                        style="width: 230px; height: auto;">
                 </div>
                 <div class="company-info">
                     <p>{{ $company->company_name }}</p>
@@ -405,24 +439,16 @@
                     <p>Email: {{ $company->email }}</p>
                 </div>
             </div>
-            <hr
-                style="padding:0px; border-top: .5pt solid #ddd; margin: 10pt 1pt; margin-left: 5.5pt; position: relative;" />
+            <hr style="padding:0px; border-top: .5pt solid #ddd; margin: 10pt 1pt; margin-left: 5.5pt;" />
         </header>
     @endif
-
-    @if (!isset($disableAutoFooter))
-        <footer>
-            <div class="footer-content">
-                <span>&copy; {{ date('Y') }} Acentriagroup. All rights reserved. | Page No: <span
-                        class="page-number"></span></span>
-            </div>
-        </footer>
-    @endif
-
-    <main>
-        @yield('content')
-    </main>
-
+    @yield('content')
+    {{-- @if (!isset($disableAutoFooter))
+        <div class="footer">
+            <span>&copy; {{ date('Y') }} Acentriagroup. All rights reserved. | Page No: <span
+                    class="page-number"></span></span>
+        </div>
+    @endif --}}
     @stack('script')
 </body>
 
