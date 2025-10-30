@@ -2442,7 +2442,9 @@
                                         pipelineManager.loadChartData();
                                     }
 
-                                    handleSendBDNotification(response);
+                                    $("#leadModal").modal("hide");
+
+                                    // handleSendBDNotification(response);
                                 } else {
                                     $("#leadModal").modal("hide");
                                 }

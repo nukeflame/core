@@ -103,13 +103,13 @@
                             showConfirmButton: false
                         }).then(() => {
                             console.log(response)
-                            // $('#finalStageModal').modal('hide');
-                            // $form[0].reset();
+                            $('#finalStageModal').modal('hide');
+                            $form[0].reset();
 
-                            // // Reload page or update UI as needed
-                            // if (typeof location !== 'undefined') {
-                            //     location.reload();
-                            // }
+                            // Reload page or update UI as needed
+                            if (typeof location !== 'undefined') {
+                                location.reload();
+                            }
                         });
                     },
                     error: function(xhr) {

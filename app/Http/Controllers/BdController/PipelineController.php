@@ -70,6 +70,7 @@ use App\Exports\Bd\SalesReportExport;
 use App\Exports\Bd\PipelineReportExport;
 use App\Exports\Bd\ReinsurersDeclinedExport;
 use App\Http\Requests\SendBDEmailRequest;
+use App\Jobs\GenerateBdCoverSlipJob;
 use App\Models\BdFacReinsurer;
 use App\Services\MailService;
 use App\Services\S3AttachmentHandler;
@@ -5673,11 +5674,12 @@ class PipelineController
                     break;
 
                 case Stage::FINAL_STAGE:
+                    // logger()->debug($request->all());
                     $updateData = [
                         'stage_updated_at'  => now(),
                         'updated_at'        => now(),
-                        'stage'             => 6,
-                        'status'            => Stage::LOST
+                        'stage'             => 5,
+                        'status'            => Stage::WON
                     ];
                     break;
 
@@ -5728,6 +5730,14 @@ class PipelineController
                 ->whereIn('customer_id', $reinsurer_ids)
                 ->get(['email', 'telephone', 'partner_number', 'name']);
             $rensuersSubject = 'Dear {recipient}';
+
+            $requestData = [
+                'opportunity_id' => $opportunityId,
+                'current_stage' => $stage,
+                'printout_flag' => false,
+            ];
+
+            GenerateBdCoverSlipJob::dispatch($requestData, auth()->id());
 
             DB::commit();
 
@@ -7867,12 +7877,17 @@ class PipelineController
                     $this->s3Handler->deleteFromBothStorages($temp->s3_url, $temp->s3_path);
                 }
 
-                DB::table('prospect_docs')
-                    ->where('prospect_id',)
-                    ->delete();
+                DB::table('prospect_docs')->where('prospect_id', $opportunityId)->delete();
             }
 
-            // DB::table('bd_fac_reinsurers')->where('opportunity_id', $opportunityId)->delete();
+            switch ($previousStage['value']) {
+                case '1':
+                    DB::table('bd_fac_reinsurers')->where('opportunity_id', $opportunityId)->delete();
+                    break;
+
+                default:
+                    break;
+            }
 
             DB::commit();
 

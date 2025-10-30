@@ -269,8 +269,8 @@
         <div class="modal-content">
             <div class="modal-header bg-primary text-white">
                 <h5 class="modal-title" id="staticpreviewPdfModal">
-                    <i class="bi bi-file-earmark-pdf"></i>
-                    PDF Documents
+                    <i class="bi bi-files"></i>
+                    Document Preview
                 </h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
                     aria-label="Close"></button>
@@ -433,7 +433,6 @@
         </div>
     </div>
 </div>
-
 
 <style>
     .pdf-item {

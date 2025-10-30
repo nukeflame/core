@@ -22,7 +22,6 @@
             page-break-before: avoid;
         }
 
-
         #fac-header {
             width: 100%;
             text-align: center;
@@ -60,10 +59,22 @@
     </style>
 
     @if ($currentStage === 'lead')
-        @foreach ($reinsurers as $index => $reinsurer)
-            @php
-                logger()->debug(json_encode($reinsurer, JSON_PRETTY_PRINT));
-            @endphp
+        @php
+            $filteredReinsurer = null;
+
+            if (isset($reinsurerId) && !empty($reinsurerId)) {
+                foreach ($reinsurers as $reinsurer) {
+                    if (isset($reinsurer['id']) && $reinsurer['reinsurer_id'] == $reinsurerId) {
+                        $filteredReinsurer = $reinsurer;
+                        break;
+                    }
+                }
+            }
+
+            $reinsurersToDisplay = $filteredReinsurer ? [$filteredReinsurer] : $reinsurers;
+        @endphp
+
+        @foreach ($reinsurersToDisplay as $index => $reinsurer)
             <div class="fac-page{{ $index === 0 ? ' first-page' : '' }}">
                 <div style="width:100%; margin-top: 0px; padding:0px; font-size: 10pt; font-family: 'Open Sans';"
                     class="debit-reinsurer-page">
@@ -114,244 +125,204 @@
                             </td>
                         </tr>
                     </table>
-                    {{--
-                    <div class="main-content" style="margin-top: 20px;">
-                        <table style="width: 100%;">
+                    <div style="width:100%; margin-top: 0px; padding:0px; font-size: 9pt; font-family: 'Open Sans';">
+                        <table id="fac-header">
                             <tr>
-                                <td>Reinsurer: <strong>{{ $reinsurer->name }}</strong></td>
-                            </tr>
-                            <tr>
-                                <td>Share: {{ $reinsurer->share ?? 'N/A' }}%</td>
-                            </tr>
-                        </table>
-                    </div> --}}
-                </div>
-            </div>
-        @endforeach
-    @endif
-
-
-
-    {{-- <div class="fac-page">
-        <div style="width:100%; margin-top: 0px; padding:0px; font-size: 9pt; font-family: 'Open Sans';">
-            <table id="fac-header">
-                <tr>
-                    <td class="text-center">
-                        <div class="hr-line-btm uppercase"></div>
-                        <b> FACULTATIVE PLACEMENT - FIRE INDUSTRIAL - KENYA TEA DEVELOPMENT AUTHORITY (KTDA) </b>
-                        <div class="hr-line-btm"></div>
-                    </td>
-                </tr>
-            </table>
-            <table id="slip-details" style="width: 100%; margin-top: 15px; padding:0px;">
-                <tr>
-                    <td valign="top" style="width: 100%;">
-                        <table style="width:100%;">
-                            <tr>
-                                <td class="opensans-9 s-l bold" style="width: 30%;"><strong> Our Reference:</strong></td>
-                                <td class="opensans-9 s-r" style="width: 70%;">233</td>
-                            </tr>
-                            <tr>
-                                <td class="opensans-9 s-l bold" style="width: 30%;"><strong>Cedant Name:</strong></td>
-                                <td class="opensans-9 s-r" style="width: 70%;">APA INSURANCE</td>
-                            </tr>
-                            <tr>
-                                <td class="opensans-9 s-l bold" style="width: 30%;"><strong>Insured Name:</strong></td>
-                                <td class="opensans-9 s-r" style="width: 70%;">KENYA TEA DEVELOPMENT AUTHORITY (KTDA)</td>
-                            </tr>
-                            <tr>
-                                <td class="opensans-9 s-l bold" style="width: 30%;"><strong>Insurance Group: </strong>
+                                <td class="text-center">
+                                    <div class="hr-line-btm uppercase"></div>
+                                    <b> FACULTATIVE PLACEMENT - {{ strtoupper($opportunity['class_name']) }} -
+                                        {{ strtoupper($opportunity['insured_name']) }}</b>
+                                    </b>
+                                    <div class="hr-line-btm"></div>
                                 </td>
-                                <td class="opensans-9 s-r" style="width: 70%;">Facultative Proportional</td>
                             </tr>
+                        </table>
+                        <table id="slip-details" style="width: 100%; margin-top: 15px; padding:0px;">
                             <tr>
-                                <td class="opensans-9 s-l bold" style="width: 30%;"><strong>Class Of Business:</strong>
+                                <td valign="top" style="width: 100%;">
+                                    <table style="width:100%;">
+                                        <tr>
+                                            <td class="opensans-9 s-l bold" style="width: 30%;"><strong> Our
+                                                    Reference:</strong></td>
+                                            <td class="opensans-9 s-r" style="width: 70%;">{{ $reference_no }}</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="opensans-9 s-l bold" style="width: 30%;"><strong>Cedant
+                                                    Name:</strong></td>
+                                            <td class="opensans-9 s-r" style="width: 70%;">
+                                                {{ $opportunity['customer_name'] }}</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="opensans-9 s-l bold" style="width: 30%;"><strong>Insured
+                                                    Name:</strong></td>
+                                            <td class="opensans-9 s-r" style="width: 70%;">
+                                                {{ ucwords(strtolower($opportunity['insured_name'])) }}
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td class="opensans-9 s-l bold" style="width: 30%;"><strong>Insurance Group:
+                                                </strong>
+                                            </td>
+                                            <td class="opensans-9 s-r" style="width: 70%;">
+                                                {{ $opportunity['type_of_bus'] }}</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="opensans-9 s-l bold" style="width: 30%;"><strong>Class Of
+                                                    Business:</strong>
+                                            </td>
+                                            <td class="opensans-9 s-r" style="width: 70%;">
+                                                {{ ucwords(strtolower($opportunity['class_name'])) }}</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="opensans-9 s-l bold" style="width: 30%;"><strong>Period Of
+                                                    Cover:</strong></td>
+                                            <td class="opensans-9 s-r" style="width: 70%;">
+                                                {{ !empty($opportunity['effective_date']) && !empty($opportunity['closing_date']) ? date('d M, Y', strtotime($opportunity['effective_date'])) . ' To ' . date('d M, Y', strtotime($opportunity['closing_date'])) : 'TBA' }}
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td class="opensans-9 s-l bold" style="width: 30%;"><strong>Total Sum
+                                                    Insured
+                                                    (100%)
+                                                    :</strong></td>
+                                            <td class="opensans-9 s-r" style="width: 70%;">
+                                                {{ $opportunity['currency_code'] }}
+                                                {{ number_format($opportunity['sum_insured']) }}</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="opensans-9 s-l bold" style="width: 30%;"><strong>Premium (100%):
+                                                </strong></td>
+                                            <td class="opensans-9 s-r" style="width: 70%;">
+                                                {{ $opportunity['currency_code'] }}
+                                                {{ number_format($opportunity['cedant_premium']) }}</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="opensans-9 s-l bold" style="width: 30%;"><strong>Cedant
+                                                    Commission Rate ({{ number_format($opportunity['commission_rate']) }}%)
+                                                    :</strong> </td>
+                                            <td class="opensans-9 s-r" style="width: 70%;">
+                                                {{ $opportunity['commission_rate'] }}
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td class="opensans-9 s-l bold" style="width: 30%;"><strong>Placed
+                                                    With:</strong> </td>
+                                            <td class="opensans-9 s-r" style="width: 70%;">{{ $reinsurer['name'] }}</td>
+                                        </tr>
+                                    </table>
                                 </td>
-                                <td class="opensans-9 s-r" style="width: 70%;">Fire Industrial</td>
-                            </tr>
-                            <tr>
-                                <td class="opensans-9 s-l bold" style="width: 30%;"><strong>Period Of Cover:</strong></td>
-                                <td class="opensans-9 s-r" style="width: 70%;">12 Sep, 2025 To 12 Sep, 2026</td>
-                            </tr>
-                            <tr>
-                                <td class="opensans-9 s-l bold" style="width: 30%;"><strong>Total Sum Insured
-                                        (100%):</strong></td>
-                                <td class="opensans-9 s-r" style="width: 70%;">KES 3,000,000,000.00</td>
-                            </tr>
-                            <tr>
-                                <td class="opensans-9 s-l bold" style="width: 30%;"><strong>Premium (100%): </strong></td>
-                                <td class="opensans-9 s-r" style="width: 70%;">KES 9,000,000.00</td>
-                            </tr>
-                            <tr>
-                                <td class="opensans-9 s-l bold" style="width: 30%;"><strong>Cedant Commission Rate
-                                        (%):</strong> </td>
-                                <td class="opensans-9 s-r" style="width: 70%;">30.00%</td>
-                            </tr>
-                            <tr>
-                                <td class="opensans-9 s-l bold" style="width: 30%;"><strong>Placed With:</strong> </td>
-                                <td class="opensans-9 s-r" style="width: 70%;">Munich Re, Swiss Re, Hannover Re, Africa
-                                    Re,
-                                    Continental Re</td>
                             </tr>
                         </table>
-                    </td>
-                </tr>
-            </table>
-            <div class="main-content">
-                <div class="content-row">
-                    <div class="content-cell" style="width: 100%;">
-                        @php
-                            $reinsurerData = [
-                                [
-                                    'name' => 'Munich Re',
-                                    'written_share' => 25.0,
-                                    'signed_share' => 25.0,
-                                    'sum_insured' => 750000000.0,
-                                    'premium' => 2250000.0,
-                                ],
-                                [
-                                    'name' => 'Swiss Re',
-                                    'written_share' => 20.0,
-                                    'signed_share' => 20.0,
-                                    'sum_insured' => 600000000.0,
-                                    'premium' => 1800000.0,
-                                ],
-                                [
-                                    'name' => 'Hannover Re',
-                                    'written_share' => 15.0,
-                                    'signed_share' => 15.0,
-                                    'sum_insured' => 450000000.0,
-                                    'premium' => 1350000.0,
-                                ],
-                                [
-                                    'name' => 'Africa Re',
-                                    'written_share' => 20.0,
-                                    'signed_share' => 20.0,
-                                    'sum_insured' => 600000000.0,
-                                    'premium' => 1800000.0,
-                                ],
-                                [
-                                    'name' => 'Continental Reinsurance',
-                                    'written_share' => 10.0,
-                                    'signed_share' => 10.0,
-                                    'sum_insured' => 300000000.0,
-                                    'premium' => 900000.0,
-                                ],
-                                [
-                                    'name' => 'Kenya Re',
-                                    'written_share' => 10.0,
-                                    'signed_share' => 10.0,
-                                    'sum_insured' => 300000000.0,
-                                    'premium' => 900000.0,
-                                ],
-                            ];
+                        <div class="main-content">
+                            <div class="content-row">
+                                <div class="content-cell" style="width: 100%;">
+                                    @php
+                                        // Calculate reinsurer-specific amounts based on written share
+                                        $writtenShareDecimal = $reinsurer['written_share'] / 100;
+                                        $reinsurerSumInsured = $opportunity['sum_insured'] * $writtenShareDecimal;
+                                        $reinsurerPremium = $opportunity['cedant_premium'] * $writtenShareDecimal;
 
-                            $totalWrittenShare = 0;
-                            $totalSignedShare = 0;
-                            $totalSumInsured = 0;
-                            $totalPremium = 0;
+                                        $reinsurerData = [
+                                            [
+                                                'name' => $reinsurer['name'],
+                                                'written_share' => $reinsurer['written_share'],
+                                                'sum_insured' => $reinsurerSumInsured,
+                                                'premium' => $reinsurerPremium,
+                                            ],
+                                        ];
 
-                            foreach ($reinsurerData as $reinsurer) {
-                                $totalWrittenShare += $reinsurer['written_share'];
-                                $totalSignedShare += $reinsurer['signed_share'];
-                                $totalSumInsured += $reinsurer['sum_insured'];
-                                $totalPremium += $reinsurer['premium'];
-                            }
-                        @endphp
+                                        // Calculate totals (single reinsurer, so totals = reinsurer amounts)
+                                        $totalWrittenShare = $reinsurer['written_share'];
+                                        $totalSumInsured = $reinsurerSumInsured;
+                                        $totalPremium = $reinsurerPremium;
+                                    @endphp
 
-                        <table style="width: 100%; border-collapse: collapse;">
-                            <thead style="background-color: transparent;">
-                                <tr>
-                                    <td colspan="4" style="padding: 0; background-color: transparent;">
-                                        <hr
-                                            style="width: 100%; border: none; height: 1px; background-color: #000; opacity: 0.5; margin: 1px 0;">
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <th
-                                        style="text-align: left; font-weight: 600; white-space: nowrap; border: none; background-color: transparent; padding: 5px;">
-                                        Reinsurer
-                                    </th>
-                                    <th
-                                        style="text-align: center; font-weight: 600; border: none; background-color: transparent; padding: 5px;">
-                                        Written Share (%)
-                                    </th>
-                                    <th
-                                        style="text-align: right; font-weight: 600; border: none; background-color: transparent; padding: 5px;">
-                                        Total Sum Insured (KES)
-                                    </th>
-                                    <th
-                                        style="text-align: right; font-weight: 600; border: none; background-color: transparent; padding: 5px;">
-                                        Premium (KES)
-                                    </th>
-                                </tr>
-                                <tr>
-                                    <td colspan="4" style="padding: 0; background-color: transparent;">
-                                        <hr
-                                            style="width: 100%; border: none; height: 1px; background-color: #000; opacity: 0.5; margin: 1px 0;">
-                                    </td>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach ($reinsurerData as $reinsurer)
-                                    <tr>
-                                        <td style="text-align: left; padding: 5px; border: none;">
-                                            {{ $reinsurer['name'] }}
-                                        </td>
-                                        <td style="text-align: center; padding: 5px; border: none;">
-                                            {{ number_format($reinsurer['written_share'], 2) }}%
-                                        </td>
-                                        <td style="text-align: right; padding: 5px; border: none;">
-                                            {{ number_format($reinsurer['sum_insured'], 2) }}
-                                        </td>
-                                        <td style="text-align: right; padding: 5px; border: none;">
-                                            {{ number_format($reinsurer['premium'], 2) }}
-                                        </td>
-                                    </tr>
-                                @endforeach
-                                <tr>
-                                    <td colspan="4" style="padding: 0; background-color: transparent;">
-                                        <hr
-                                            style="width: 100%; border: none; height: 1px; background-color: #000; opacity: 0.5; margin: 10px 0 5px 0;">
-                                    </td>
-                                </tr>
-                                <tr style="font-weight: 600;">
-                                    <td style="text-align: left; padding: 5px; border: none;">
-                                        <strong>TOTAL</strong>
-                                    </td>
-                                    <td style="text-align: center; padding: 5px; border: none;">
-                                        <strong>{{ number_format($totalWrittenShare, 2) }}%</strong>
-                                    </td>
-                                    <td style="text-align: right; padding: 5px; border: none;">
-                                        <strong>{{ number_format($totalSumInsured, 2) }}</strong>
-                                    </td>
-                                    <td style="text-align: right; padding: 5px; border: none;">
-                                        <strong>{{ number_format($totalPremium, 2) }}</strong>
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td colspan="4" style="padding: 0; background-color: transparent;">
-                                        <hr
-                                            style="width: 100%; border: none; height: 1px; background-color: #000; opacity: 0.5; margin: 1px 0;">
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
+                                    <table style="width: 100%; border-collapse: collapse;">
+                                        <thead style="background-color: transparent;">
+                                            <tr>
+                                                <td colspan="4" style="padding: 0; background-color: transparent;">
+                                                    <hr
+                                                        style="width: 100%; border: none; height: 1px; background-color: #000; opacity: 0.5; margin: 1px 0;">
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <th
+                                                    style="text-align: left; font-weight: 600; white-space: nowrap; border: none; background-color: transparent; padding: 5px;">
+                                                    Reinsurer
+                                                </th>
+                                                <th
+                                                    style="text-align: center; font-weight: 600; border: none; background-color: transparent; padding: 5px;">
+                                                    Written Share (%)
+                                                </th>
+                                                <th
+                                                    style="text-align: right; font-weight: 600; border: none; background-color: transparent; padding: 5px;">
+                                                    Total Sum Insured ({{ $currency ?? 'KES' }})
+                                                </th>
+                                                <th
+                                                    style="text-align: right; font-weight: 600; border: none; background-color: transparent; padding: 5px;">
+                                                    Premium ({{ $currency ?? 'KES' }})
+                                                </th>
+                                            </tr>
+                                            <tr>
+                                                <td colspan="4" style="padding: 0; background-color: transparent;">
+                                                    <hr
+                                                        style="width: 100%; border: none; height: 1px; background-color: #000; opacity: 0.5; margin: 1px 0;">
+                                                </td>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach ($reinsurerData as $data)
+                                                <tr>
+                                                    <td style="text-align: left; padding: 5px; border: none;">
+                                                        {{ $data['name'] }}
+                                                    </td>
+                                                    <td style="text-align: center; padding: 5px; border: none;">
+                                                        {{ number_format($data['written_share'], 2) }}%
+                                                    </td>
+                                                    <td style="text-align: right; padding: 5px; border: none;">
+                                                        {{ number_format($data['sum_insured'], 2) }}
+                                                    </td>
+                                                    <td style="text-align: right; padding: 5px; border: none;">
+                                                        {{ number_format($data['premium'], 2) }}
+                                                    </td>
+                                                </tr>
+                                            @endforeach
+                                            <tr>
+                                                <td colspan="4" style="padding: 0; background-color: transparent;">
+                                                    <hr
+                                                        style="width: 100%; border: none; height: 1px; background-color: #000; opacity: 0.5; margin: 10px 0 5px 0;">
+                                                </td>
+                                            </tr>
+                                            <tr style="font-weight: 600;">
+                                                <td style="text-align: left; padding: 5px; border: none;">
+                                                    <strong>TOTAL</strong>
+                                                </td>
+                                                <td style="text-align: center; padding: 5px; border: none;">
+                                                    <strong>{{ number_format($totalWrittenShare, 2) }}%</strong>
+                                                </td>
+                                                <td style="text-align: right; padding: 5px; border: none;">
+                                                    <strong>{{ number_format($totalSumInsured, 2) }}</strong>
+                                                </td>
+                                                <td style="text-align: right; padding: 5px; border: none;">
+                                                    <strong>{{ number_format($totalPremium, 2) }}</strong>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td colspan="4" style="padding: 0; background-color: transparent;">
+                                                    <hr
+                                                        style="width: 100%; border: none; height: 1px; background-color: #000; opacity: 0.5; margin: 1px 0;">
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
-            <table id="slip-details" style="width: 100%; margin-top: 15px; padding:0px;">
-                <tr>
-                    <td valign="top" style="width: 100%;">
-                        <table style="width:100%;">
-                            <tr>
-                                <td class="opensans-9 s-l bold" style="width: 30%;"><strong>Unplaced Share:</strong> </td>
-                                <td class="opensans-9 s-r" style="width: 70%;">30%</td>
-                            </tr>
-                        </table>
-                    </td>
-                </tr>
-            </table>
-        </div>
-    </div> --}}
+        @endforeach
+    @else
+        {!! $currentStage !!}
+    @endif
 @endsection

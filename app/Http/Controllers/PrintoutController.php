@@ -55,8 +55,6 @@ use PhpOffice\PhpWord\Style\Font;
 use PhpOffice\PhpWord\Style\Paragraph;
 use PhpOffice\PhpWord\Shared\Converter;
 
-
-
 class PrintoutController extends Controller
 {
     public function coverSlip(Request $request)
@@ -256,21 +254,26 @@ class PrintoutController extends Controller
                 'opportunity_id' => 'required',
                 'printout_flag' => 'required|boolean',
                 'current_stage' => 'required|string',
+                'reinsurer_id' => 'string|nullable',
             ]);
+
+            // logger()->debug($request->all());
 
             $opportunityId = $request->opportunity_id;
             $currentStage = 'lead'; //Str::lower($request->current_stage) ?? null;
-
+            $currency = 'KES';
             $formattedActivities = $this->fetchOpportunityData($opportunityId);
+            $reinsurerId = $request->reinsurer_id;
 
-            if ($formattedActivities->isEmpty()) {
+            if (!$formattedActivities) {
                 return response()->json([
                     'status' => 404,
                     'message' => 'Opportunity not found.',
                 ], 404);
             }
 
-            $cedant = $formattedActivities;
+            $opportunity = $formattedActivities;
+            $referenceNo = 'FAC/' . str_pad($opportunity['customer_id'], 6, '0', STR_PAD_LEFT) . '/' . date('Y');
 
             $company = Company::first();
             if (!$company) {
@@ -278,36 +281,22 @@ class PrintoutController extends Controller
             }
 
             $reinsurers = $this->prepareReinData($opportunityId);
-            // // Build consolidated request data
             // $requestData = $this->buildRequestData($request, $formattedActivities, $shares);
-
-            // // Prepare customer collection
             // $customers = $this->prepareCustomerCollection($requestData);
-
-            // logger()->debug(json_encode($cedant, JSON_PRETTY_PRINT));
-            // // Final data structure
             $data = [
                 'currentStage' => $currentStage,
                 'opportunityId' => $opportunityId,
                 'reinsurers' => $reinsurers,
                 'company' => $company,
-                'cedant' => $cedant,
-                'currency' => 'KES',
-                // 'shares' => $requestData['shares'],
-                // 'unplaced' => $requestData['unplaced'],
-                // 'updated_written_share_total' => $requestData['updated_written_share_total'],
-                // 'stage' => $requestData['stage'],
+                'opportunity' => $opportunity,
+                'currency' => $currency,
+                'reference_no' => $referenceNo,
+                'reinsurerId' => $reinsurerId
             ];
-
-            // // Generate document based on format
-            // if ($request->printout_flag == 1) {
-            //     return $this->generateWordDocument($data);
-            // }
 
             return $this->generatePdfDocument($data);
         } catch (ValidationException $e) {
             logger($e);
-
             return response()->json([
                 'status' => 422,
                 'message' => 'Validation failed.',
@@ -332,13 +321,13 @@ class PrintoutController extends Controller
                 'bfr.reinsurer_id',
                 'bfr.opportunity_id',
                 'bfr.share_amount',
+                'bfr.written_share',
                 'bfr.email as bfr_email',
                 DB::raw("COALESCE(c.name, bfr.reinsurer_name, 'N/A') AS reinsurer_name"),
                 'c.email as customer_email',
                 'c.postal_address',
                 'c.city',
                 'c.street',
-                // 'c.location',
                 'c.country_iso',
                 'c.telephone'
             ])
@@ -354,16 +343,18 @@ class PrintoutController extends Controller
                 'email' => $q->customer_email ?? $q->bfr_email,
                 'address' => $q->postal_address,
                 'city' => $q->city,
-                'location' => null, //$q->location,
+                'location' => null,
+                'written_share' => $q->written_share,
                 'country' => $q->country_iso,
                 'phone' => $q->telephone,
                 'share_amount' => $q->share_amount,
             ];
         });
     }
+
     private function fetchOpportunityData($opportunityId)
     {
-        $activities = DB::table('pipeline_opportunities as po')
+        $activity = DB::table('pipeline_opportunities as po')
             ->leftJoin('customers as c', function ($join) {
                 $join->on(DB::raw("NULLIF(po.customer_id, '')::INTEGER"), '=', 'c.customer_id');
             })
@@ -372,34 +363,44 @@ class PrintoutController extends Controller
             ->leftJoin('classes as cl', 'po.classcode', '=', 'cl.class_code')
             ->leftJoin('business_types as bt', 'po.type_of_bus', '=', 'bt.bus_type_id')
             ->selectRaw('DISTINCT ON (po.opportunity_id) po.*,
-            COALESCE(c.name, \'N/A\') AS customer_name,
-            ls.status_name as stage,
-            rd.division_name as division_name,
-            po.cede_premium as cedant_premium,
-            po.rein_premium as reinsurer_premium,
-            cl.class_name as class_name,
-            bt.bus_type_name as type_of_bus')
+                COALESCE(c.name, \'N/A\') AS customer_name,
+                ls.status_name as stage,
+                rd.division_name as division_name,
+                po.cede_premium as cedant_premium,
+                po.rein_premium as reinsurer_premium,
+                cl.class_name as class_name,
+                po.total_sum_insured as sum_insured,
+                po.comm_rate as commission_rate,
+                bt.bus_type_name as type_of_bus')
             ->where('po.opportunity_id', $opportunityId)
-            ->get();
+            ->first();
 
-        return $activities->map(function ($d) {
-            return [
-                'customer_id' => $d->customer_id ?? 'N/A',
-                'customer_name' => $d->customer_name ?? 'N/A',
-                'opportunity_id' => $d->opportunity_id,
-                'effective_date' => $d->effective_date,
-                'closing_date' => $d->closing_date,
-                'insured_name' => $d->insured_name,
-                'type_of_bus' => $d->type_of_bus,
-                'currency_code' => $d->currency_code,
-                'contact_name' => $this->safeJsonDecode($d->contact_name ?? '[]'),
-                'email' => $this->safeJsonDecode($d->email ?? '[]'),
-                'phone' => $this->safeJsonDecode($d->phone ?? '[]'),
-                'telephone' => $this->safeJsonDecode($d->telephone ?? '[]'),
-                'class_name' => $d->class_name,
-                'stageType' => $d->category_type ?? null,
-            ];
-        });
+        if (!$activity) {
+            return null;
+        }
+
+        return [
+            'customer_id'       => $activity->customer_id ?? 'N/A',
+            'customer_name'     => $activity->customer_name ?? 'N/A',
+            'opportunity_id'    => $activity->opportunity_id,
+            'effective_date'    => $activity->effective_date,
+            'closing_date'      => $activity->closing_date,
+            'insured_name'      => $activity->insured_name,
+            'commission_rate'   => $activity->commission_rate,
+            'type_of_bus'       => $activity->type_of_bus,
+            'sum_insured'       => $activity->sum_insured,
+            'currency_code'     => $activity->currency_code,
+            'contact_name'      => $this->safeJsonDecode($activity->contact_name ?? '[]'),
+            'email'             => $this->safeJsonDecode($activity->email ?? '[]'),
+            'phone'             => $this->safeJsonDecode($activity->phone ?? '[]'),
+            'telephone'         => $this->safeJsonDecode($activity->telephone ?? '[]'),
+            'class_name'        => $activity->class_name,
+            'stage'             => $activity->stage ?? null,
+            'stageType'         => $activity->category_type ?? null,
+            'division_name'     => $activity->division_name ?? null,
+            'cedant_premium'    => $activity->cedant_premium,
+            'reinsurer_premium' => $activity->reinsurer_premium ?? null,
+        ];
     }
 
     private function safeJsonDecode($json, $default = [])
@@ -428,9 +429,8 @@ class PrintoutController extends Controller
 
         $stageName = str_replace(' ', '_', $data['currentStage']);
         $filename = sprintf(
-            'Facultative_Cover_Slip_%s_Opp_%s_%s.pdf',
+            'Fac_Cover_Slip_%s_Opp_%s.pdf',
             $stageName,
-            $data['opportunityId'],
             date('Ymd')
         );
 
@@ -439,14 +439,11 @@ class PrintoutController extends Controller
 
     public function TreatyBdPrintout(Request $request)
     {
-        // dd($request->all());
         try {
             $user = [
                 'firstname' => auth()->user()->firstname ?? '',
                 'lastname' => auth()->user()->lastname ?? ''
             ];
-
-
 
             $activities = DB::table('pipeline_opportunities as po')
                 ->leftJoin('customers as c', function ($join) {
@@ -1841,7 +1838,7 @@ class PrintoutController extends Controller
                     'name' => $doc->file,
                     'url' => $doc->s3_url,
                     'mime_type' => $doc->mimetype,
-                    'type' => 'general',
+                    'type' => $doc->type,
                     'description' => $doc->description ?? '',
                     'upload_date' => $doc->created_at,
                     'file_size' => $doc->file_size ?? 0
@@ -1857,64 +1854,8 @@ class PrintoutController extends Controller
 
         switch ($stage) {
             case 'lead':
-                $baseData = [
-                    // [
-                    //     'id' => 1,
-                    //     'name' => 'Initial Risk Assessment Report.pdf',
-                    //     'url' => 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
-                    //     'type' => 'reinsurer',
-                    //     'description' => 'Preliminary risk evaluation and exposure analysis',
-                    //     'upload_date' => '2024-10-15T10:30:00',
-                    //     'file_size' => 2458000
-                    // ],
-                    // [
-                    //     'id' => 2,
-                    //     'name' => 'Client Portfolio Overview.pdf',
-                    //     'url' => 'https://www.africau.edu/images/default/sample.pdf',
-                    //     'type' => 'cedant',
-                    //     'description' => 'Current insurance portfolio and coverage details',
-                    //     'upload_date' => '2024-10-16T14:20:00',
-                    //     'file_size' => 1856000
-                    // ],
-                    // [
-                    //     'id' => 3,
-                    //     'name' => 'Market Analysis Q4 2024.pdf',
-                    //     'url' => 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
-                    //     'type' => 'general',
-                    //     'description' => 'Industry trends and market conditions report',
-                    //     'upload_date' => '2024-10-18T09:15:00',
-                    //     'file_size' => 3245000
-                    // ],
-                    // [
-                    //     'id' => 4,
-                    //     'name' => 'Initial Risk Assessment Report.pdf',
-                    //     'url' => 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
-                    //     'type' => 'reinsurer',
-                    //     'description' => 'Preliminary risk evaluation and exposure analysis',
-                    //     'upload_date' => '2024-10-15T10:30:00',
-                    //     'file_size' => 2458000
-                    // ],
-                    // [
-                    //     'id' => 5,
-                    //     'name' => 'Client Portfolio Overview.pdf',
-                    //     'url' => 'https://www.africau.edu/images/default/sample.pdf',
-                    //     'type' => 'cedant',
-                    //     'description' => 'Current insurance portfolio and coverage details',
-                    //     'upload_date' => '2024-10-16T14:20:00',
-                    //     'file_size' => 1856000
-                    // ],
-                    // [
-                    //     'id' => 6,
-                    //     'name' => 'Market Analysis Q4 2024.pdf',
-                    //     'url' => 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
-                    //     'type' => 'general',
-                    //     'description' => 'Industry trends and market conditions report',
-                    //     'upload_date' => '2024-10-18T09:15:00',
-                    //     'file_size' => 3245000
-                    // ]
-                ];
+                $baseData = [];
                 $allPdfs = array_merge($prospectDocs, $baseData);
-
                 break;
 
             default:
