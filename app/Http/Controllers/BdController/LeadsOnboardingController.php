@@ -491,7 +491,54 @@ class LeadsOnboardingController
 
     public function treaty_listing()
     {
-        return view('Bd_views.Treaty.leads_listing');
+        $kpis = $this->getTreatyKPIs();
+        return view('Bd_views.Treaty.leads_listing', compact('kpis'));
+    }
+
+    /**
+     * Get Treaty Pipeline KPIs
+     */
+    public function getTreatyKPIs()
+    {
+        $query = DB::table('pipeline_opportunities')
+            ->whereIn('type_of_bus', ['TPR', 'TNP']);
+
+        // Total Pipeline Value
+        $totalValue = $query->sum('cede_premium') ?? 0;
+
+        // Weighted Value (probability-adjusted)
+        $opportunities = $query->get();
+        $weightedValue = $opportunities->sum(function ($opp) {
+            $probability = $opp->probability ?? 0;
+            $premium = $opp->cede_premium ?? 0;
+            return ($probability / 100) * $premium;
+        });
+
+        // Active Treaties Count
+        $activeCount = $query->whereNotNull('status')
+            ->where('status', '!=', 'closed')
+            ->count();
+
+        // Average Probability
+        $avgProbability = $query->avg('probability') ?? 0;
+
+        // Stage Counts
+        $stageCounts = [
+            'all' => $query->count(),
+            'qualification' => $query->where('stage', 1)->count(),
+            'proposal' => $query->where('stage', 2)->count(),
+            'due_diligence' => $query->where('stage', 3)->count(),
+            'negotiation' => $query->where('stage', 4)->count(),
+            'approval' => $query->where('stage', 5)->count(),
+        ];
+
+        return [
+            'total_value' => $totalValue,
+            'weighted_value' => $weightedValue,
+            'active_count' => $activeCount,
+            'avg_probability' => round($avgProbability, 0),
+            'stage_counts' => $stageCounts,
+        ];
     }
 
     public function get_leads()
@@ -753,72 +800,125 @@ class LeadsOnboardingController
 
     public function treaty_leads_get(Request $request)
     {
-
         $currentYear = Carbon::now()->format('Y');
 
-        $data = DB::table('pipeline_opportunities')
-            // ->where('prequalification', '=', 'N')
-            // ->where('pip_year', '>=', $currentYear)
-            ->whereIn('type_of_bus', ['TPR', 'TNP'])
-            // ->orderBy('created_at', 'desc')
-            ->get();
+        // Base query
+        $query = DB::table('pipeline_opportunities')
+            ->whereIn('type_of_bus', ['TPR', 'TNP']);
 
+        // Apply stage filter if provided
+        if ($request->filled('stage') && $request->stage !== 'all') {
+            $stageMap = [
+                'qualification' => 1,
+                'proposal' => 2,
+                'due-diligence' => 3,
+                'negotiation' => 4,
+                'approval' => 5,
+            ];
 
+            if (isset($stageMap[$request->stage])) {
+                $query->where('stage', $stageMap[$request->stage]);
+            }
+        }
+
+        // Apply search filter if provided
+        if ($request->filled('search_query')) {
+            $searchTerm = $request->search_query;
+            $query->where(function($q) use ($searchTerm) {
+                $q->where('opportunity_id', 'like', "%{$searchTerm}%")
+                  ->orWhere('insured_name', 'like', "%{$searchTerm}%")
+                  ->orWhere('type_of_bus', 'like', "%{$searchTerm}%");
+            });
+        }
+
+        $data = $query->orderBy('created_at', 'desc');
 
         return Datatables::of($data)
-            // ->editColumn('client_type', function ($lead) {
-            //     if ($lead->client_type == 'C') {
-            //         return "CORPORATE";
-            //     } else {
-            //         return "INDIVIDUAL";
-            //     }
-            // })
-            ->editColumn('client_category', function ($lead) {
+            ->addColumn('opportunity_id', function ($lead) {
+                return $lead->opportunity_id;
+            })
+            ->addColumn('insured_name', function ($lead) {
+                return $lead->insured_name ?? 'N/A';
+            })
+            ->addColumn('client_category', function ($lead) {
                 if ((string) $lead->client_category === 'O') {
                     return 'Organic growth';
                 } else {
                     return "New";
                 }
             })
-            // ->editColumn('insurance_class', function ($lead) {
-            //     $class = DB::table('reinsclasses')->where('class_code', $lead->insurance_class)->first();
-            //    // dd($class);
-            //     return $class;
-
-            // })
-            ->editColumn('name', function ($lead) {
-                $div = DB::table('customers')
+            ->addColumn('client_name', function ($lead) {
+                $customer = DB::table('customers')
                     ->where('customer_id', (int) $lead->customer_id)
                     ->first();
-                return $div ? $div->name : 'N/A'; // Return customer name or 'N/A' if not found
+                return $customer ? $customer->name : 'N/A';
             })
-
-            ->editColumn('class', function ($lead) {
-                $div = DB::table('classes')
+            ->addColumn('class', function ($lead) {
+                $class = DB::table('classes')
                     ->where('class_code', (int) $lead->classcode)
                     ->first();
-                return $div ? $div->class_name : 'N/A'; // Return customer name or 'N/A' if not found
+                return $class ? $class->class_name : 'N/A';
             })
-
-            ->editColumn('divisions', function ($lead) {
-                $div = DB::table('reins_division')->where('division_code', $lead->divisions)->first();
+            ->addColumn('divisions', function ($lead) {
+                $div = DB::table('reins_division')
+                    ->where('division_code', $lead->divisions)
+                    ->first();
                 return $div ? $div->division_name : 'N/A';
             })
-            ->addColumn('action', function ($lead) use ($request) {
+            ->addColumn('type_of_bus', function ($lead) {
+                return $lead->type_of_bus;
+            })
+            ->addColumn('stage', function ($lead) {
+                return $lead->stage ?? 1;
+            })
+            ->addColumn('probability', function ($lead) {
+                return $lead->probability ?? 0;
+            })
+            ->addColumn('priority', function ($lead) {
+                return $lead->priority ?? 'medium';
+            })
+            ->addColumn('next_action', function ($lead) {
+                return $lead->next_action ?? 'Follow up';
+            })
+            ->addColumn('fac_date_offered', function ($lead) {
+                return $lead->cede_premium ?? 0;
+            })
+            ->addColumn('effective_date', function ($lead) {
+                return $lead->effective_date ?? '';
+            })
+            ->addColumn('closing_date', function ($lead) {
+                return $lead->closing_date ?? '';
+            })
+            ->addColumn('action', function ($lead) {
+                $url = route('treaty.leads.onboarding', [
+                    'prospect' => $lead->opportunity_id,
+                    'trans_type' => 'EDIT'
+                ]);
 
-                $url = route('treaty.leads.onboarding', ['prospect' => $lead->opportunity_id, 'trans_type' => 'EDIT']);
-                $handover = route('lead.handover', ['prospect' => $lead->opportunity_id]);
-                $btn_handover = '<a href="' . $handover . '"><button class="btn btn-outline-success"><i class="fa fa-arrow->right"></i>handover</button></a>';
-                $btn_edit = '<a href="' . $url . '"><span class="btn btn-info btn-sm rounded-pill"><i class="bx bx-edit"></i>  Edit prospect</span></a>';
-                $btn_submited = '<span class="btn btn-dark btn-sm rounded-pill">Submitted To sales</span></a>';
+                $btn_edit = '<a href="' . $url . '" class="btn btn-info btn-sm rounded-pill">
+                            <i class="bx bx-edit"></i> Edit
+                        </a>';
+                $btn_submitted = '<span class="btn btn-success btn-sm rounded-pill">
+                            Submitted To Sales
+                        </span>';
+
                 if (is_null($lead->pipeline_id)) {
                     return $btn_edit;
                 } else {
-                    return $btn_submited;
+                    return $btn_submitted;
                 }
             })
             ->rawColumns(['action'])
             ->make(true);
+    }
+
+    /**
+     * Get Treaty KPIs via API endpoint
+     */
+    public function getTreatyKPIsApi(Request $request)
+    {
+        $kpis = $this->getTreatyKPIs();
+        return response()->json($kpis);
     }
 
     public function prequalifications_get(Request $request)

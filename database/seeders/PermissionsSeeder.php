@@ -252,7 +252,6 @@ class PermissionsSeeder extends Seeder
             'app.claims.export'
         ];
 
-
         $analyticsPermissions = [
             'app.analytics.data.collect',
             'app.analytics.data.analyze',

@@ -208,6 +208,7 @@ Route::middleware(['auth', 'check.first.login'])->group(function () {
     Route::get('treaty_leads_listing', [LeadsOnboardingController::class, 'treaty_listing'])->name('treaty.leads.listing');
     Route::get('treaty_leads_onboarding', [LeadsOnboardingController::class, 'treaty_index'])->name('treaty.leads.onboarding');
     Route::get('treaty_leads_get', [LeadsOnboardingController::class, 'treaty_leads_get'])->name('treaty.leads.get');
+    Route::get('treaty_leads_kpis', [LeadsOnboardingController::class, 'getTreatyKPIsApi'])->name('treaty.leads.kpis');
     Route::post('treaty_pipelines_create_opportunity', [PipelineController::class, 'treaty_pipeline_create_opportunity'])->name('treaty.pipeline.create.opportunity');
     Route::get('reinsurers_declined', [PipelineController::class, 'reinsurers_declined'])->name('reinsurer.declined');
     Route::get('decline_report', [PipelineController::class, 'decline_report'])->name('decline.report');

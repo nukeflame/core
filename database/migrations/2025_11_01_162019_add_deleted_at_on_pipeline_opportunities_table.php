@@ -11,8 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('bd_fac_reinsurers', function (Blueprint $table) {
-            //
+        Schema::table('pipeline_opportunities', function (Blueprint $table) {
+            $table->timestamp('deleted_at')->nullable();
+            $table->text('description')->nullable();
         });
     }
 
@@ -21,8 +22,8 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('bd_fac_reinsurers', function (Blueprint $table) {
-            //
+        Schema::table('pipeline_opportunities', function (Blueprint $table) {
+            $table->dropColumn(['deleted_at', 'description']);
         });
     }
 };
