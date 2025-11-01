@@ -1,0 +1,323 @@
+/**
+ * Pipeline View Styles
+ * Extracted from pipeline_view.blade.php
+ *
+ * @description Styles for the Sales Management Pipeline View
+ * @version 1.0.0
+ */
+
+/* ============================================================================
+   CSS Custom Properties (Variables)
+   ========================================================================== */
+:root {
+    /* Colors - Status Badges */
+    --status-proposal-bg: #f05b4f;
+    --status-negotiation-bg: #ff9800;
+    --status-lead-bg: #453d3f;
+    --status-won-bg: #59922b;
+    --status-lost-bg: #d70206;
+    --status-final-bg: #d17905;
+    --status-quotation-bg: #f3e5f5;
+    --status-quotation-text: #7b1fa2;
+    --status-fac-offer-bg: #cce7ff;
+    --status-fac-offer-text: #0056b3;
+
+    /* Colors - Stage Buttons */
+    --btn-lead-bg: #2196f3;
+    --btn-proposal-bg: #ff9800;
+    --btn-negotiation-bg: #9c27b0;
+    --btn-won-bg: #453d3f;
+    --btn-lost-bg: #f44336;
+    --btn-final-bg: #8bc34a;
+
+    /* Colors - General */
+    --currency-color: #27ae60;
+    --table-header-bg: #f8f9fa;
+    --table-border: #dee2e6;
+    --table-hover-bg: rgba(0, 123, 255, 0.05);
+
+    /* Spacing */
+    --badge-padding: 0.25rem 0.5rem;
+    --badge-min-width: 4.375rem;
+    --stage-btn-min-width: 8.75rem;
+
+    /* Typography */
+    --badge-font-size: 0.75rem;
+    --badge-font-weight: 500;
+
+    /* Borders */
+    --badge-border-radius: 0.375rem;
+    --stage-btn-border-radius: 0.3125rem;
+
+    /* Z-index */
+    --z-swal: 9999;
+    --z-swal-popup: 10000;
+    --z-table-header: 10;
+
+    /* Animations */
+    --animation-duration: 0.3s;
+}
+
+/* ============================================================================
+   Base Utility Classes
+   ========================================================================== */
+.border-none {
+    border: none;
+}
+
+.vx-f {
+    font-size: 1.25rem;
+    vertical-align: -0.3125rem;
+}
+
+.capitalize {
+    text-transform: capitalize;
+}
+
+.pl-1 {
+    padding-left: 0.3em;
+}
+
+.flex-direction-column {
+    flex-direction: column;
+}
+
+/* ============================================================================
+   Status Badges
+   ========================================================================== */
+.status-badge {
+    padding: var(--badge-padding);
+    border-radius: var(--badge-border-radius);
+    font-size: var(--badge-font-size);
+    font-weight: var(--badge-font-weight);
+    text-transform: uppercase;
+    display: inline-block;
+    min-width: var(--badge-min-width);
+    text-align: center;
+}
+
+.status-proposal {
+    background-color: var(--status-proposal-bg);
+    color: white;
+}
+
+.status-negotiation {
+    background-color: var(--status-negotiation-bg);
+    color: white;
+}
+
+.status-lead {
+    background-color: var(--status-lead-bg);
+    color: #fff;
+}
+
+.status-won {
+    background-color: var(--status-won-bg);
+    color: #fff;
+}
+
+.status-lost {
+    background-color: var(--status-lost-bg);
+    color: #fff;
+}
+
+.status-final {
+    background-color: var(--status-final-bg);
+    color: #fff;
+}
+
+.status-badge.quotation {
+    background-color: var(--status-quotation-bg);
+    color: var(--status-quotation-text);
+}
+
+.status-badge.facultative.offer {
+    background-color: var(--status-fac-offer-bg);
+    color: var(--status-fac-offer-text);
+}
+
+/* ============================================================================
+   Currency Formatting
+   ========================================================================== */
+.currency {
+    font-weight: 600;
+    color: var(--currency-color);
+}
+
+/* ============================================================================
+   Stage Buttons
+   ========================================================================== */
+.stage-buttons {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.stage-btn {
+    padding: 0.3125rem 0.9375rem;
+    border: none;
+    border-radius: var(--stage-btn-border-radius);
+    font-size: inherit;
+    cursor: pointer;
+    transition: all var(--animation-duration) ease;
+    font-weight: 600;
+    text-transform: capitalize;
+    letter-spacing: 0.03125rem;
+    min-width: var(--stage-btn-min-width);
+    position: relative;
+    overflow: hidden;
+}
+
+.stage-btn:hover {
+    transform: translateY(-0.0625rem);
+    box-shadow: 0 0.25rem 0.625rem rgba(0, 0, 0, 0.15);
+}
+
+.stage-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.btn-lead {
+    background: var(--btn-lead-bg);
+    color: #fff;
+}
+
+.btn-proposal {
+    background: var(--btn-proposal-bg);
+    color: #fff;
+}
+
+.btn-negotiation {
+    background: var(--btn-negotiation-bg);
+    color: #fff;
+}
+
+.btn-won {
+    background: var(--btn-won-bg);
+    color: #fff;
+}
+
+.btn-lost {
+    background: var(--btn-lost-bg);
+    color: #fff;
+}
+
+.btn-final {
+    background: var(--btn-final-bg);
+    color: #fff;
+}
+
+/* ============================================================================
+   Pipeline Table Styles
+   ========================================================================== */
+.pipeline-table thead th {
+    background-color: var(--table-header-bg);
+    border-bottom: 0.125rem solid var(--table-border);
+    font-weight: 600;
+    position: sticky;
+    top: 0;
+    z-index: var(--z-table-header);
+}
+
+.pipeline-table tbody tr:hover {
+    background-color: var(--table-hover-bg);
+}
+
+/* ============================================================================
+   Chart Styles
+   ========================================================================== */
+.chart-container {
+    height: 18.75rem; /* 300px */
+}
+
+.ct-chart-ranking {
+    min-height: 18.75rem;
+}
+
+#chart-loading,
+#chart-error {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 18.75rem;
+    width: 100%;
+}
+
+/* ============================================================================
+   Animation Classes
+   ========================================================================== */
+.fade-in {
+    animation: fadeIn var(--animation-duration) ease-in;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+.slide-in {
+    animation: slideIn var(--animation-duration) ease-out;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateY(-0.625rem);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+/* ============================================================================
+   SweetAlert Overlay Fixes
+   ========================================================================== */
+.swal-on-modal {
+    z-index: var(--z-swal);
+}
+
+.swal2-container {
+    z-index: var(--z-swal);
+}
+
+.swal2-container.swal2-shown {
+    z-index: var(--z-swal);
+}
+
+.swal2-container .swal2-popup {
+    z-index: var(--z-swal-popup);
+}
+
+/* ============================================================================
+   Modal Popup Styles
+   ========================================================================== */
+.mod-popup {
+    background: rgba(0, 0, 0, 0.4);
+}
+
+.mod-popup .modal-title {
+    font-size: 1.15rem;
+    padding: 2rem 2rem 0.5rem;
+}
+
+/* ============================================================================
+   Responsive Styles
+   ========================================================================== */
+@media (max-width: 768px) {
+    .stage-btn {
+        min-width: 7.5rem;
+        padding: 0.25rem 0.75rem;
+    }
+
+    .status-badge {
+        min-width: 3.75rem;
+        font-size: 0.7rem;
+    }
+}

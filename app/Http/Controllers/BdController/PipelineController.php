@@ -360,7 +360,7 @@ class PipelineController
                     'stage_documents.stage'
                 )->get();
 
-            case 4:
+            case 5:
                 return $baseQuery->select(
                     'doc_types.id',
                     'doc_types.doc_type',
@@ -377,7 +377,6 @@ class PipelineController
                     'doc_types.id',
                     'doc_types.doc_type',
                     'doc_types.checkbox_doc',
-                    'doc_types.file_name',
                     'doc_types.file_name',
                     'doc_types.description',
                     'doc_types.mimetype',
@@ -3055,7 +3054,7 @@ class PipelineController
                     'approval_status' => $this->formatApprovalStatus($opp->handed_over),
                     'stage_actions' => $this->formatStageActions($opp),
                     'action' => $this->getActionButtons($opp),
-                    '_original' => $this->formatOriginalData($opp),
+                    '_original'  => $this->formatOriginalData($opp),
                 ];
             });
 
@@ -3449,9 +3448,10 @@ class PipelineController
 
     private function formatOriginalData($opp)
     {
-        $insured_email = collect(json_decode($opp->email))->first();
-        $insured_phone = collect(json_decode($opp->phone))->first();
-        $contact_name = collect(json_decode($opp->contact_name))->first();
+
+        $insured_email = collect($opp->email)->first();
+        $insured_phone = collect($opp->phone)->first();
+        $contact_name = collect($opp->contact_name)->first();
         $type_of_business = $opp->type_of_bus;
         $cedant = DB::table('customers')->where('customer_id', $opp->customer_id)->first(['name', 'customer_id']);
         $risk_class = DB::table('classes')->where('class_group_code', $opp->class_group)->first(['class_name', 'class_code']);
@@ -3459,7 +3459,7 @@ class PipelineController
         $class            = $opp->classcode;
         $class_group      = $opp->class_group;
         $category_type    = $opp->category_type;
-        $risk_type        = $risk_class->class_name;
+        $risk_type        = $risk_class?->class_name ?? 'N/A';
         $last_updated     = Carbon::parse($opp->updated_at)->format('Y-m-d');
         $sum_insured_type = TypeOfSumInsured::where(['sum_insured_code' => $opp->sum_insured_type, 'status' => 'A'])->first(['sum_insured_name']);
 
@@ -3477,7 +3477,7 @@ class PipelineController
             'cedant'            => $cedant,
             'last_updated'      => $last_updated,
             'category_type'     => $category_type,
-            'sum_insured_type'  => Str::title($sum_insured_type->sum_insured_name),
+            'sum_insured_type'  => $sum_insured_type ? Str::title($sum_insured_type->sum_insured_name) : 'N/A',
             'total_sum_insured' => number_format((float) $opp->total_sum_insured),
             'premium'           => number_format((float) $opp->cede_premium),
             'brokerage_rate'    => number_format((float) $opp->reins_comm_rate, 2),
