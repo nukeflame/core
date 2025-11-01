@@ -7908,4 +7908,22 @@ class PipelineController
             ], 500);
         }
     }
+
+    public function declineReinsurer(Request $request)
+    {
+        DB::beginTransaction();
+        try {
+
+            return response()->json([
+                'status' => 1,
+            ]);
+        } catch (\Exception $ex) {
+            DB::rollBack();
+
+            return response()->json([
+                'status' => 0,
+                'message' => 'Failed to revert prospect stage. Please try again later.'
+            ], 500);
+        }
+    }
 }

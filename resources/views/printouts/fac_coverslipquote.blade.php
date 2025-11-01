@@ -217,7 +217,6 @@
                             <div class="content-row">
                                 <div class="content-cell" style="width: 100%;">
                                     @php
-                                        // Calculate reinsurer-specific amounts based on written share
                                         $writtenShareDecimal = $reinsurer['written_share'] / 100;
                                         $reinsurerSumInsured = $opportunity['sum_insured'] * $writtenShareDecimal;
                                         $reinsurerPremium = $opportunity['cedant_premium'] * $writtenShareDecimal;
@@ -231,7 +230,6 @@
                                             ],
                                         ];
 
-                                        // Calculate totals (single reinsurer, so totals = reinsurer amounts)
                                         $totalWrittenShare = $reinsurer['written_share'];
                                         $totalSumInsured = $reinsurerSumInsured;
                                         $totalPremium = $reinsurerPremium;

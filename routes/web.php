@@ -151,6 +151,7 @@ Route::middleware(['auth', 'check.first.login'])->group(function () {
     Route::get('search-prospect-fullnames', [PipelineController::class, 'search_prospect_fullnames'])->name('search-prospect-fullnames');
     Route::get('search-insured-names', [PipelineController::class, 'search_insured_names'])->name('search-insured-names');
     Route::get('search-lead-names', [PipelineController::class, 'search_lead_names'])->name('search-lead-names');
+    Route::post('reinsurer/decline', [PipelineController::class, 'declineReinsurer'])->name('reinsurer.decline');
 
     Route::post('stage/documents', [PipelineController::class, 'stageDocuments'])->name('schedule.get_stage_documents');
     Route::get('cfac-offer', [PipelineController::class, 'facultativeOffer'])->name('get-fac-data');

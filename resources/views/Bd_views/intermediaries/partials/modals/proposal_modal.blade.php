@@ -201,7 +201,6 @@
                                         </div>
                                     </div>
                                 </div>
-
                                 <div class="selected-reinsurers-section">
                                     <h6 class="mb-3">
                                         <i class="bi bi-people-fill me-1"></i>Selected Reinsurers
@@ -220,6 +219,40 @@
                                             </thead>
                                             <tbody></tbody>
                                         </table>
+                                    </div>
+                                </div>
+                                <div class="total-shares-display mt-3 d-block">
+                                    <div class="row g-3">
+                                        <div class="col-md-6">
+                                            <div class="shares-card placed-shares">
+                                                <div class="shares-icon">
+                                                    <i class="bx bx-check-circle"></i>
+                                                </div>
+                                                <div class="shares-info">
+                                                    <span class="shares-label">Placed Shares</span>
+                                                    <span class="shares-value placed-value">0.00%</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="shares-card unplaced-shares">
+                                                <div class="shares-icon">
+                                                    <i class="bx bx-time-five"></i>
+                                                </div>
+                                                <div class="shares-info">
+                                                    <span class="shares-label">Unplaced Shares</span>
+                                                    <span class="shares-value unplaced-value">100.00%</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="shares-progress mt-2">
+                                        <div class="progress" style="height: 8px;">
+                                            <div class="progress-bar bg-success placed-progress" role="progressbar"
+                                                style="width: 0%" aria-valuenow="0" aria-valuemin="0"
+                                                aria-valuemax="100">
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>

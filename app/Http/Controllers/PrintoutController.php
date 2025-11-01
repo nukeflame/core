@@ -254,10 +254,8 @@ class PrintoutController extends Controller
                 'opportunity_id' => 'required',
                 'printout_flag' => 'required|boolean',
                 'current_stage' => 'required|string',
-                'reinsurer_id' => 'string|nullable',
+                'reinsurer_id' => 'nullable',
             ]);
-
-            // logger()->debug($request->all());
 
             $opportunityId = $request->opportunity_id;
             $currentStage = 'lead'; //Str::lower($request->current_stage) ?? null;

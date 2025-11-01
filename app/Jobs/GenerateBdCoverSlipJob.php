@@ -119,22 +119,20 @@ class GenerateBdCoverSlipJob implements ShouldQueue
 
     private function processRequest($request): void
     {
-        logger()->debug($request->all());
+        $controller = new PrintoutController();
+        $response = $controller->bdCoverSlip($request);
 
-        // Uncomment when ready to process
-        // $controller = new PrintoutController();
-        // $response = $controller->bdCoverSlip($request);
+        $pdfContent = $response->getContent();
+        $statusCode = $response->getStatusCode();
 
-        // $pdfContent = $response->getContent();
-        // $statusCode = $response->getStatusCode();
+        if ($statusCode !== 200) {
+            throw new \Exception("Failed to generate PDF. Status code: {$statusCode}");
+        }
 
-        // if ($statusCode !== 200) {
-        //     throw new \Exception("Failed to generate PDF. Status code: {$statusCode}");
-        // }
+        $filename = $this->generateFilename();
+        $s3File = $this->storeInS3($pdfContent, $filename);
 
-        // $filename = $this->generateFilename();
-        // $s3File = $this->storeInS3($pdfContent, $filename);
-        // $this->saveDocumentRecord($s3File['s3_url'], $filename, $pdfContent);
+        $this->saveDocumentRecord($s3File['s3_url'], $filename, $pdfContent);
     }
 
     /**

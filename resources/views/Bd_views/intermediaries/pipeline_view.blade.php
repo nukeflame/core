@@ -432,6 +432,7 @@
                         scheduleHeaders: "{{ route('schedule.headers.get') }}",
                         slipDocuments: "{{ route('schedule.get_stage_documents') }}",
                         getBdTerms: "{{ route('get.bd_terms') }}",
+                        declineReinsurer: "{{ route('reinsurer.decline') }}",
                         getSelectedReinsurers: "{{ route('get.selected_bd_reinsurers') }}",
                     },
                     stageFlow: {
@@ -1403,13 +1404,9 @@
                     },
                     drawCallback: () => {
                         this.initializeReinsurerActions($table);
-                    },
-                    footerCallback: () => {
-                        this.updateTableFooter($table, totals.totalShare);
                     }
                 });
 
-                this.updateShareWarning($table, totals.totalShare);
                 this.reinsurerDataTable = dataTable;
             }
 
@@ -1418,7 +1415,8 @@
                     return {
                         id: reinsurer.reinsurer_id,
                         name: reinsurer.reinsurer_name,
-                        written_share: parseFloat(reinsurer.written_share || 0).toFixed(2),
+                        written_share: parseFloat(0).toFixed(2),
+                        previous_written_share: parseFloat(reinsurer.written_share || 0).toFixed(2),
                         commission: parseFloat(reinsurer.brokerage_rate || 0).toFixed(2),
                         status: reinsurer.status,
                         country: reinsurer.country,
@@ -1466,6 +1464,7 @@
                                     <span class="badge bg-secondary edit-reinsurer-btn"
                                         data-reinsurer-id="${row.id}"
                                         data-reinsurer-name="${row.name}"
+                                        data-previous-written-share="${row.previous_written_share}"
                                         data-written-share="${row.written_share}"
                                         style="margin-right: 0.25rem; cursor: pointer;"
                                         title="Edit Written Share">
@@ -1523,42 +1522,6 @@
                 `);
             }
 
-            updateTableFooter($table, totalShare) {
-                if ($table.find('tfoot').length === 0) {
-                    $table.append(`
-                        <tfoot class="table-light">
-                            <tr>
-                                <th class="text-end">Total:</th>
-                                <th class="text-center">
-                                    <div class="total-share-display fw-medium">${totalShare.toFixed(2)}%</div>
-                                </th>
-                                <th></th>
-                            </tr>
-                        </tfoot>
-                    `);
-                } else {
-                    $table.find('.total-share-display').text(`${totalShare.toFixed(2)}%`);
-                }
-            }
-
-            updateShareWarning($table, totalShare) {
-                const $container = $table.closest('.reinsurer-selection-panel, .section-content');
-                $container.find('.share-warning').remove();
-
-                if (Math.abs(totalShare - 100) > 0.01) {
-                    const remaining = (100 - totalShare).toFixed(2);
-                    const warningHtml = `
-                        <div class="alert alert-warning mt-3 share-warning" role="alert">
-                            <i class="bx bx-error me-2"></i>
-                            <strong>Warning:</strong> Total share is ${totalShare.toFixed(2)}%.
-                            It should equal 100%.
-                            <strong>Remaining: ${remaining}%</strong>
-                        </div>
-                    `;
-                    $table.after(warningHtml);
-                }
-            }
-
             initializeReinsurerActions($table) {
                 $table.off('click', '.edit-reinsurer-btn');
                 $table.off('click', '.decline-reinsurer-btn');
@@ -1571,7 +1534,8 @@
                     const reinsurerData = {
                         id: $(e.currentTarget).data('reinsurer-id'),
                         reinsurerName: $(e.currentTarget).data('reinsurer-name'),
-                        written_share: $(e.currentTarget).data('written-share')
+                        written_share: $(e.currentTarget).data('written-share'),
+                        previous_written_share: $(e.currentTarget).data('previous-written-share')
                     };
 
                     this.handleEditReinsurer(reinsurerData, $table);
@@ -1640,23 +1604,54 @@
                 $('#declineReinsurerModal').modal('show');
 
 
-                $('#confirmDecline').off('click').on('click', function() {
+                $('#confirmDecline').off('click').on('click', () => {
                     const declineReason = $('#reinDecTxt').val().trim();
                     const $textarea = $('#reinDecTxt');
                     const $error = $('#declineReasonError');
 
-                    // Validation
                     if (!declineReason) {
                         $textarea.addClass('is-invalid');
                         $error.text('Please provide a reason for declining');
                         return;
                     }
 
-                    // Your decline logic here
-                    // e.g., send AJAX request with reinsurerData.id and declineReason
+                    const data = {
+                        reinsurerId: reinsurerData.id,
+                        opportunityId: $('#proposalModal').find(".opportunity_id").val()
+                    }
 
-                    $('#declineReinsurerModal').modal('hide');
+                    console.log(data)
+                    $.ajax({
+                        url: this.config.routes.declineReinsurer,
+                        method: 'POST',
+                        data: {
+                            reinsurerId: data.reinsurerId,
+                            opportunityId: data.opportunityId,
+                            declineReason: declineReason
+                        },
+                        success: (response) => {
+                            console.log(response)
+                            // if (response.success) {
+                            //     this.showSuccess('Reinsurer declined successfully');
+                            //     this.refreshReinsurerList?.(); // Refresh UI if you have this
+                            // } else {
+                            //     this.showError(response.message || 'Unable to decline reinsurer');
+                            // }
+                        },
+                        error: (xhr, status, error) => {
+                            this.handleError('Error declining reinsurer', {
+                                xhr,
+                                status,
+                                error
+                            });
+                            this.showError('Failed to decline reinsurer');
+                        },
+                        complete: () => {
+                            $('#declineReinsurerModal').modal('hide');
+                        }
+                    });
                 });
+
 
                 // $('#editReinsurerShareModal').on('shown.bs.modal', function() {
                 //     $('#editShareInput').focus().select();
@@ -1702,7 +1697,7 @@
                     $('body').append(modalHtml);
                 }
 
-                $('#editShareInput').val(reinsurerData.written_share);
+                $('#editShareInput').val(reinsurerData.previous_written_share);
                 $('#editShareInput').removeClass('is-invalid');
                 $('#shareInputError').text('');
 
@@ -1725,8 +1720,9 @@
                         return;
                     }
 
-                    editModal.hide();
                     this.updateReinsurerShare(reinsurerData.id, value, $table);
+                    editModal.hide();
+
                 });
 
                 $('#editReinsurerShareModal').on('shown.bs.modal', function() {
@@ -1774,11 +1770,13 @@
                 dataTable.draw();
 
                 const totalShare = updatedData.reduce((sum, r) => sum + parseFloat(r.written_share), 0);
-                this.updateShareWarning($table, totalShare);
+                this.updatePlacedShare(totalShare)
 
-                if (typeof toastr !== 'undefined') {
-                    toastr.success('Reinsurer share updated successfully');
-                }
+                toastr.success('Reinsurer share updated successfully');
+            }
+
+            updatePlacedShare(totalShare) {
+                console.log(`totalShare`, totalShare)
             }
 
             removeReinsurer(reinsurerId, $table) {
@@ -1792,7 +1790,6 @@
                 dataTable.draw();
 
                 const totalShare = updatedData.reduce((sum, r) => sum + parseFloat(r.written_share), 0);
-                this.updateShareWarning($table, totalShare);
 
                 const $counterBadge = $('#reinsurerCount');
                 if ($counterBadge.length) {
@@ -1846,8 +1843,6 @@
 
                         $(`#${title}`).val(plainText);
                         $(`#${title}Content`).val(content);
-
-
                     }
                 }
             }
@@ -2866,7 +2861,7 @@
                     const printout_flag = 1;
 
                     const $form = $("#previewPdfForm")
-                    const $s = stage.toLowerCase() || '';
+                    const $s = stage.toLowerCase();
                     const currentStage = this.config.stageFlow[$s];
 
                     $form.find("#pdf_opportunity_id").val(opportunityId)
@@ -2941,11 +2936,12 @@
                     }
 
                     const stageTitle = data.bdEmailTitle.toLowerCase();
+                    const stage = this.config.stageFlow[stageTitle];
 
                     $bdMailModal.find('.modal-bd-title').text(`- ${data.bdEmailTitle}`);
-                    $bdMailModal.find('#category').val(stageTitle).trigger('change');
+                    $bdMailModal.find('#category').val(stage.previous).trigger('change');
 
-                    const template = data.template[stageTitle];
+                    const template = data.template[stage.previous];
 
                     $bdNotificationForm.find(".subject").val(template.subject);
                     $bdNotificationForm.find(".message").val(template.message);
