@@ -7913,16 +7913,175 @@ class PipelineController
     {
         DB::beginTransaction();
         try {
+            $validated = $request->validate([
+                'reinsurerId' => 'required|integer',
+                'opportunityId' => 'required|integer',
+                'declineReason' => 'required|string|max:500'
+            ]);
+
+            // Check if already declined
+            $existing = ReinsurersDeclined::where([
+                'customer_id' => $validated['reinsurerId'],
+                'opportunity_id' => $validated['opportunityId']
+            ])->first();
+
+            if ($existing) {
+                // Update existing record
+                $existing->update([
+                    'reason' => $validated['declineReason'],
+                    'decline_unchecked_count' => ($existing->decline_unchecked_count ?? 0) + 1
+                ]);
+            } else {
+                // Create new declined record
+                ReinsurersDeclined::create([
+                    'customer_id' => $validated['reinsurerId'],
+                    'opportunity_id' => $validated['opportunityId'],
+                    'reason' => $validated['declineReason'],
+                    'decline_unchecked_count' => 1
+                ]);
+            }
+
+            // Update BdFacReinsurer to mark as declined
+            BdFacReinsurer::where([
+                'customer_id' => $validated['reinsurerId'],
+                'opportunity_id' => $validated['opportunityId']
+            ])->update([
+                'is_declined' => true,
+                'decline_reason' => $validated['declineReason']
+            ]);
+
+            DB::commit();
 
             return response()->json([
                 'status' => 1,
+                'message' => 'Reinsurer declined successfully'
             ]);
         } catch (\Exception $ex) {
             DB::rollBack();
+            Log::error('Error declining reinsurer: ' . $ex->getMessage());
 
             return response()->json([
                 'status' => 0,
-                'message' => 'Failed to revert prospect stage. Please try again later.'
+                'message' => 'Failed to decline reinsurer. Please try again later.'
+            ], 500);
+        }
+    }
+
+    public function updateReinsurerShare(Request $request)
+    {
+        DB::beginTransaction();
+        try {
+            $validated = $request->validate([
+                'reinsurer_id' => 'required|integer',
+                'opportunity_id' => 'required|integer',
+                'written_share' => 'required|numeric|min:0.01|max:100'
+            ]);
+
+            // Update the reinsurer share in BdFacReinsurer table
+            $reinsurer = BdFacReinsurer::where([
+                'customer_id' => $validated['reinsurer_id'],
+                'opportunity_id' => $validated['opportunity_id']
+            ])->first();
+
+            if (!$reinsurer) {
+                return response()->json([
+                    'status' => 0,
+                    'message' => 'Reinsurer not found'
+                ], 404);
+            }
+
+            $reinsurer->update([
+                'written_share' => $validated['written_share']
+            ]);
+
+            DB::commit();
+
+            return response()->json([
+                'status' => 1,
+                'message' => 'Reinsurer share updated successfully',
+                'data' => [
+                    'written_share' => $validated['written_share']
+                ]
+            ]);
+        } catch (\Exception $ex) {
+            DB::rollBack();
+            Log::error('Error updating reinsurer share: ' . $ex->getMessage());
+
+            return response()->json([
+                'status' => 0,
+                'message' => 'Failed to update reinsurer share. Please try again later.'
+            ], 500);
+        }
+    }
+
+    public function getCustomerContactInfo(Request $request)
+    {
+        try {
+            $customerId = $request->customer_id;
+            $opportunityId = $request->opportunity_id;
+
+            if (!$customerId) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Customer ID is required'
+                ], 400);
+            }
+
+            $customer = DB::select("
+                SELECT
+                    c.*,
+                    ARRAY_AGG(DISTINCT ct.type_id) AS type_ids,
+                    (
+                        SELECT json_agg(
+                            json_build_object(
+                                'contact_id', cc.contact_id,
+                                'contact_name', cc.contact_name,
+                                'contact_email', cc.contact_email,
+                                'contact_mobile_no', cc.contact_mobile_no,
+                                'contact_position', cc.contact_position,
+                                'main_contact_person', cc.main_contact_person,
+                                'department', cc.department
+                            )
+                        )
+                        FROM customer_contacts cc
+                        WHERE cc.customer_id = c.customer_id
+                    ) AS contact_persons
+                FROM customers c
+                LEFT JOIN customer_types ct
+                    ON c.customer_type::jsonb @> to_jsonb(ct.type_id::text)
+                WHERE c.customer_id = ?
+                GROUP BY c.customer_id
+                ORDER BY c.name
+            ", [$customerId]);
+
+            if (empty($customer)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Customer not found'
+                ], 404);
+            }
+
+            logger()->debug(json_encode($customer, JSON_PRETTY_PRINT));
+
+            $customerData = []; // $customer[0];
+            // $customerData->contact_persons = json_decode($customerData->contact_persons, true) ?? [];
+            // $customerData->type_ids = json_decode($customerData->type_ids, true) ?? [];
+
+            // $contacts = $customerData->contact_persons;
+            $primaryContact = []; //= collect($contacts)->firstWhere('main_contact_person', 1);
+            $departmentContacts = []; // collect($contacts)->where('main_contact_person', '!=', 1)->values()->all();
+
+            return response()->json([
+                'success' => true,
+                'customer' => $customerData,
+                'primary_contact' => $primaryContact,
+                'department_contacts' => $departmentContacts
+            ]);
+        } catch (\Exception $ex) {
+            logger($ex);
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to retrieve contact information'
             ], 500);
         }
     }

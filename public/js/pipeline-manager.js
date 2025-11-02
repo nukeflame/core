@@ -1115,6 +1115,17 @@ class PipelineManager {
                     const badgeClass = this.getShareBadgeClass(percentage);
                     // XSS Protection: Numeric values are safe, but ID and name need escaping
                     const escapedName = this.escapeHtml(row.name);
+                    const isDeclined = row.is_declined === true || row.is_declined === 1;
+
+                    if (isDeclined) {
+                        return `
+                            <span>
+                                <span class="badge bg-secondary text-decoration-line-through">${data}%</span>
+                                <span class="badge bg-danger ms-1">Declined</span>
+                            </span>
+                        `;
+                    }
+
                     return `
                         <span>
                             <span class="badge bg-success">${data}%</span>
@@ -1140,6 +1151,21 @@ class PipelineManager {
                 render: (data, type, row) => {
                     // XSS Protection: Escape reinsurer name
                     const escapedName = this.escapeHtml(row.name);
+                    const isDeclined = row.is_declined === true || row.is_declined === 1;
+
+                    if (isDeclined) {
+                        return `
+                            <div>
+                                <button type="button" class="btn btn-primary btn-sm contact-reinsurer-btn"
+                                    data-reinsurer-id="${row.id}"
+                                    title="Contacts">
+                                    <i class="bx bx-book"></i>
+                                </button>
+                                <span class="badge bg-danger ms-1">Declined</span>
+                            </div>
+                        `;
+                    }
+
                     return `
                         <div>
                             <button type="button" class="btn btn-primary btn-sm contact-reinsurer-btn"
@@ -1304,18 +1330,47 @@ class PipelineManager {
                     declineReason: declineReason
                 },
                 success: (response) => {
-                    if (response.success) {
-                        toastr.success('Reinsurer declined successfully');
-                        this.loadSelectedReinsurers({
-                            dealId: data.opportunityId,
-                            opportunityId: data.opportunityId,
-                            modalId: 'proposalModal'
+                    if (response.status === 1) {
+                        // Update the DataTable to mark reinsurer as declined
+                        const dataTable = $table.DataTable();
+                        const rowData = dataTable.rows().data().toArray();
+
+                        const updatedData = rowData.map(row => {
+                            if (row.id === data.reinsurerId) {
+                                return {
+                                    ...row,
+                                    is_declined: true,
+                                    decline_reason: declineReason,
+                                    status_badge: '<span class="badge bg-danger">Declined</span>'
+                                };
+                            }
+                            return row;
                         });
+
+                        dataTable.clear();
+                        dataTable.rows.add(updatedData);
+                        dataTable.draw();
+
+                        // Recalculate total share excluding declined reinsurers
+                        const totalShare = updatedData
+                            .filter(r => !r.is_declined)
+                            .reduce((sum, r) => sum + parseFloat(r.written_share || 0), 0);
+
+                        $('#totalWrittenReinsurerShare').val(totalShare.toFixed(2));
+                        this.updatePlacedShare(totalShare);
+
+                        toastr.success(response.message || 'Reinsurer declined successfully');
+                    } else {
+                        toastr.error(response.message || 'Failed to decline reinsurer');
                     }
                 },
                 error: (xhr, status, error) => {
+                    let errorMessage = 'Failed to decline reinsurer';
+                    if (xhr.responseJSON && xhr.responseJSON.message) {
+                        errorMessage = xhr.responseJSON.message;
+                    }
                     this.handleError('Error declining reinsurer', { xhr, status, error });
-                    this.showError('Failed to decline reinsurer');
+                    toastr.error(errorMessage);
                 },
                 complete: () => {
                     $('#declineReinsurerModal').modal('hide');
@@ -1434,27 +1489,63 @@ class PipelineManager {
      * @param {jQuery} $table - jQuery table element
      */
     updateReinsurerShare(reinsurerId, newShare, $table) {
-        const dataTable = $table.DataTable();
-        const rowData = dataTable.rows().data().toArray();
+        const opportunityId = $('.opportunity_id').val();
 
-        const updatedData = rowData.map(row => {
-            if (row.id === reinsurerId) {
-                return {
-                    ...row,
-                    written_share: parseFloat(newShare).toFixed(2)
-                };
+        if (!opportunityId) {
+            toastr.error('Opportunity ID not found');
+            return;
+        }
+
+        // Make API call to update in database
+        $.ajax({
+            url: '/reinsurer/update-share',
+            method: 'POST',
+            data: {
+                reinsurer_id: reinsurerId,
+                opportunity_id: opportunityId,
+                written_share: parseFloat(newShare).toFixed(2)
+            },
+            success: (response) => {
+                if (response.status === 1) {
+                    // Update DataTable
+                    const dataTable = $table.DataTable();
+                    const rowData = dataTable.rows().data().toArray();
+
+                    const updatedData = rowData.map(row => {
+                        if (row.id === reinsurerId) {
+                            return {
+                                ...row,
+                                written_share: parseFloat(newShare).toFixed(2),
+                                previous_written_share: parseFloat(newShare).toFixed(2)
+                            };
+                        }
+                        return row;
+                    });
+
+                    dataTable.clear();
+                    dataTable.rows.add(updatedData);
+                    dataTable.draw();
+
+                    const totalShare = updatedData
+                        .filter(r => !r.is_declined)
+                        .reduce((sum, r) => sum + parseFloat(r.written_share || 0), 0);
+
+                    $('#totalWrittenReinsurerShare').val(totalShare.toFixed(2));
+                    this.updatePlacedShare(totalShare);
+
+                    toastr.success(response.message || 'Reinsurer share updated successfully');
+                } else {
+                    toastr.error(response.message || 'Failed to update reinsurer share');
+                }
+            },
+            error: (xhr) => {
+                let errorMessage = 'Failed to update reinsurer share';
+                if (xhr.responseJSON && xhr.responseJSON.message) {
+                    errorMessage = xhr.responseJSON.message;
+                }
+                toastr.error(errorMessage);
             }
-            return row;
         });
-
-        dataTable.clear();
-        dataTable.rows.add(updatedData);
-        dataTable.draw();
-
-        const totalShare = updatedData.reduce((sum, r) => sum + parseFloat(r.written_share), 0);
-        this.updatePlacedShare(totalShare);
-
-        toastr.success('Reinsurer share updated successfully');
     }
 
     /**
@@ -3069,6 +3160,8 @@ let pipelineManager;
 $(document).ready(function() {
     try {
         pipelineManager = new PipelineManager();
+        // Make pipelineManager globally accessible for use in other scripts
+        window.pipelineManager = pipelineManager;
     } catch (error) {
         if (typeof toastr !== 'undefined') {
             toastr.error('Failed to initialize the application. Please refresh the page.');

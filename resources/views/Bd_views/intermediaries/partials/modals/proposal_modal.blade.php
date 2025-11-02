@@ -4,7 +4,7 @@
     <div class="modal-dialog modal-dialog-centered modal-xl" role="document">
         <div class="modal-content">
             <form id="proposalForm" action="{{ route('update.opp.status') }}" novalidate>
-                <input type="hidden" class="opportunity_id" name="opportunity_id" />
+                <input type="hidden" class="opportunity_id" name="opportunity_id" id="propOpportunityId" />
                 <input type="hidden" class="current_stage" name="current_stage" />
                 <input type="hidden" name="class_code" class="class_code">
                 <input type="hidden" name="class_group_code" class="class_group_code">
@@ -176,11 +176,14 @@
                                         </div>
                                         <div class="col-md-3">
                                             <div class="form-group">
-                                                <label class="form-label">Total Written Share (%)</label>
+                                                <label class="form-label">
+                                                    Total Written Share (%)
+                                                    <span class="required-asterisk">*</span>
+                                                </label>
                                                 <input type="number" class="form-inputs"
                                                     id="totalWrittenReinsurerShare" name="total_reinsurer_share"
-                                                    placeholder="0.00" step="0.01" min="0.01" max="100"
-                                                    readonly>
+                                                    placeholder="0.00" step="0.01" min="100" max="100"
+                                                    required readonly>
                                             </div>
                                         </div>
                                         <div class="col-md-2">
@@ -530,6 +533,65 @@
     }
 </style>
 
+<!-- Contacts Modal -->
+<div class="modal fade effect-scale md-wrapper" id="propContactsModal" tabindex="-1" data-bs-backdrop="static"
+    aria-labelledby="propContactsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="propContactsModalLabel">
+                    <i class="bx bx-building me-1"></i>
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                    aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+
+                <div class="mb-4" id="prop-primary-contacts">
+                    <h6 class="text-uppercase fw-bold text-muted mb-3">
+                        <i class="bx bx-star text-warning me-2"></i>Primary Contact
+                    </h6>
+                    <div class="card border-warning">
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <label class="form-label fw-semibold">Contact Name</label>
+                                    <input type="text" class="form-control-plaintext prop-primary-name"
+                                        value="" readonly>
+                                </div>
+                                <div class="col-md-8">
+                                    <label class="form-label fw-semibold">Primary Email</label>
+                                    <div class="input-group">
+                                        <input type="email" class="form-control-plaintext prop-primary-email"
+                                            value="" readonly>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <input type="hidden" class="prop-primary-contact_id" name="contact_id" readonly>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <div class="department-header rounded mb-3">
+                        <h6 class="mb-0 fw-medium">
+                            <i class="bx bx-user me-2"></i>Department Contacts
+                        </h6>
+                    </div>
+
+                    <div id="propDepartmentContacts"></div>
+                </div>
+            </div>
+            <div class="modal-footer bg-light">
+                <button type="button" class="btn btn-light" data-bs-dismiss="modal">
+                    <i class="bx bx-times me-2"></i>Close
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 @push('script')
     <script>
         $(document).ready(function() {
@@ -598,10 +660,10 @@
                     };
                 }
 
-                if (totalShare <= 0 || totalShare > 100) {
+                if (totalShare !== 100) {
                     return {
                         isValid: false,
-                        message: `Total share (${totalShare.toFixed(2)}%) must be between 0 and 100%`
+                        message: `Total written share must be exactly 100%. Current total is ${totalShare.toFixed(2)}%`
                     };
                 }
 
@@ -1114,6 +1176,205 @@
                 const i = Math.floor(Math.log(bytes) / Math.log(k));
                 return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
             }
+
+            // Handle cedant contacts button click
+            $(document).on('click', '.add_cedant_contacts', function(e) {
+                e.preventDefault();
+
+                const cedantName = $('.cedant_name').text();
+                const opportunityId = $('#propOpportunityId').val();
+
+                const cedantId = $(this).data('cedant-id');
+
+                console.log(cedantId)
+
+
+                if (!cedantId) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: 'Cedant information not found'
+                    });
+                    return;
+                }
+
+                const originalHtml = $(this).html();
+                $(this).html('<i class="bx bx-loader bx-spin"></i>');
+                $(this).prop('disabled', true);
+
+                $.ajax({
+                    url: '/customer/contact-info',
+                    method: 'GET',
+                    data: {
+                        customer_id: cedantId,
+                        opportunity_id: opportunityId
+                    },
+                    success: function(response) {
+                        console.log(response)
+
+                        // if (response.success) {
+                        //     populatePropContactsModal(response, cedantName);
+                        //     $('#proposalModal').modal('hide');
+                        //     $('#propContactsModal').modal('show');
+                        // } else {
+                        //     Swal.fire({
+                        //         icon: 'error',
+                        //         title: 'Error',
+                        //         text: response.message || 'Failed to fetch contacts'
+                        //     });
+                        // }
+                    },
+                    error: function(xhr) {
+                        let errorMessage = 'Failed to fetch cedant contacts';
+                        if (xhr.responseJSON && xhr.responseJSON.message) {
+                            errorMessage = xhr.responseJSON.message;
+                        }
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: errorMessage
+                        });
+                    },
+                    complete: function() {
+                        $('.add_cedant_contacts').html(originalHtml);
+                        $('.add_cedant_contacts').prop('disabled', false);
+                    }
+                });
+            });
+
+            // Handle contact-reinsurer-btn clicks in proposal modal
+            $(document).on('click', '.contact-reinsurer-btn', function(e) {
+                e.preventDefault();
+
+                const reinsurerID = $(this).data('reinsurer-id');
+                const row = $(this).closest('tr');
+                let reinsurerName = row.find('td:first').text().trim();
+                const opportunityId = $('.opportunity_id').val();
+
+                if (!reinsurerID) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: 'Reinsurer ID not found'
+                    });
+                    return;
+                }
+
+                const originalHtml = $(this).html();
+                $(this).html('<i class="bx bx-loader bx-spin"></i>');
+                $(this).prop('disabled', true);
+
+                $.ajax({
+                    url: '/customer/contact-info',
+                    method: 'GET',
+                    data: {
+                        customer_id: reinsurerID,
+                        opportunity_id: opportunityId
+                    },
+                    success: function(response) {
+                        if (response.success) {
+                            populatePropContactsModal(response, reinsurerName);
+                            $('#proposalModal').modal('hide');
+                            $('#propContactsModal').modal('show');
+                        } else {
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Error',
+                                text: response.message || 'Failed to fetch contacts'
+                            });
+                        }
+                    },
+                    error: function(xhr) {
+                        let errorMessage = 'Failed to fetch reinsurer contacts';
+                        if (xhr.responseJSON && xhr.responseJSON.message) {
+                            errorMessage = xhr.responseJSON.message;
+                        }
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: errorMessage
+                        });
+                    },
+                    complete: function() {
+                        $('.contact-reinsurer-btn').html(originalHtml);
+                        $('.contact-reinsurer-btn').prop('disabled', false);
+                    }
+                });
+            });
+
+            function populatePropContactsModal(response, customerName) {
+                $('#propContactsModalLabel').html(
+                    `<i class="bx bx-building me-1"></i>${customerName} - Contact Management`
+                );
+
+                if (response.primary_contact) {
+                    $('#prop-primary-contacts .prop-primary-name').val(
+                        response.primary_contact.contact_name || 'N/A'
+                    );
+                    $('#prop-primary-contacts .prop-primary-email').val(
+                        response.primary_contact.contact_email || 'N/A'
+                    );
+                    $('#prop-primary-contacts .prop-primary-contact_id').val(
+                        response.primary_contact.contact_id
+                    );
+                } else {
+                    $('#prop-primary-contacts .prop-primary-name').val('N/A');
+                    $('#prop-primary-contacts .prop-primary-email').val('N/A');
+                    $('#prop-primary-contacts .prop-primary-contact_id').val('');
+                }
+
+                $('#propDepartmentContacts').empty();
+
+                if (response.department_contacts && response.department_contacts.length > 0) {
+                    response.department_contacts.forEach(function(contact, index) {
+                        const contactHtml = createPropContactItemHtml(contact, index);
+                        $('#propDepartmentContacts').append(contactHtml);
+                    });
+                } else {
+                    $('#propDepartmentContacts').html(`
+                        <div class="text-center py-4">
+                            <i class="bx bx-info-circle bx-2x text-muted mb-2 fs-15"></i>
+                            <p class="text-muted">No department contacts found.</p>
+                        </div>
+                    `);
+                }
+            }
+
+            function createPropContactItemHtml(contact, index) {
+                const showLabels = index === 0;
+
+                return `
+                    <div class="contact-item rounded px-3 pb-1 mb-3" data-contact-id="${contact.contact_id || index}">
+                        <div class="row align-items-center">
+                            <div class="col-md-3">
+                                ${showLabels ? '<label class="form-label fw-semibold small">Name</label>' : ''}
+                                <input type="text" class="form-control-plaintext"
+                                    value="${contact.contact_name || 'N/A'}" readonly>
+                            </div>
+                            <div class="col-md-4">
+                                ${showLabels ? '<label class="form-label fw-semibold small">Email</label>' : ''}
+                                <input type="email" class="form-control-plaintext"
+                                    value="${contact.contact_email || 'N/A'}" readonly>
+                            </div>
+                            <div class="col-md-2">
+                                ${showLabels ? '<label class="form-label fw-semibold small">Mobile</label>' : ''}
+                                <input type="text" class="form-control-plaintext"
+                                    value="${contact.contact_mobile_no || 'N/A'}" readonly>
+                            </div>
+                            <div class="col-md-3">
+                                ${showLabels ? '<label class="form-label fw-semibold small">Position</label>' : ''}
+                                <input type="text" class="form-control-plaintext"
+                                    value="${contact.contact_position || 'N/A'}" readonly>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Handle modal close event to show proposal modal again
+            $('#propContactsModal').on('hidden.bs.modal', function() {
+                $('#proposalModal').modal('show');
+            });
 
         });
     </script>

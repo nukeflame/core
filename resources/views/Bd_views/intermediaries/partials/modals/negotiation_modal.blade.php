@@ -161,6 +161,54 @@
                                 </div>
                             </div>
                             <div class="section-content" id="reinsurer-info">
+                                <div class="reinsurer-selection-panel mb-2" id="reinSelectionPlacement">
+                                    <div class="row">
+                                        <div class="col-md-5">
+                                            <div class="form-group">
+                                                <label class="form-label">Add Reinsurer</label>
+                                                <select class="sel" id="propAvailableReinsurers"
+                                                    placeholder="Search and select reinsurer...">
+                                                    <option value="">Search and select reinsurer...</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="form-group">
+                                                <label class="form-label">
+                                                    Total Written Share (%)
+                                                    <span class="required-asterisk">*</span>
+                                                </label>
+                                                <input type="number" class="form-inputs"
+                                                    id="totalWrittenReinsurerShare" name="total_reinsurer_share"
+                                                    placeholder="0.00" step="0.01" min="100" max="100"
+                                                    required readonly>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-1">
+                                            <div class="form-group">
+                                                <label class="form-label">Written (%)</label>
+                                                <input type="number" class="form-inputs" id="reinsurerWrittenShare"
+                                                    placeholder="0.00" step="0.01" min="0.01" max="100">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-1">
+                                            <div class="form-group">
+                                                <label class="form-label">Signed (%)</label>
+                                                <input type="number" class="form-inputs" id="reinsurerSignedShare"
+                                                    placeholder="0.00" step="0.01" min="0.01" max="100">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-1">
+                                            <div class="form-group">
+                                                <label class="form-label">&nbsp;</label>
+                                                <button type="button" class="btn btn-success w-100"
+                                                    id="addNegReinsurer" style="padding: 2px 0px;">
+                                                    <i class="bx bx-plus" style="font-size: 27px;"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                                 <div class="selected-reinsurers-section">
                                     <h6 class="mb-3">
                                         <i class="bi bi-people-fill me-1"></i>Selected Reinsurers
@@ -180,6 +228,40 @@
                                             </thead>
                                             <tbody></tbody>
                                         </table>
+                                    </div>
+                                </div>
+                                <div class="total-shares-display mt-3 d-block">
+                                    <div class="row g-3">
+                                        <div class="col-md-6">
+                                            <div class="shares-card placed-shares">
+                                                <div class="shares-icon">
+                                                    <i class="bx bx-check-circle"></i>
+                                                </div>
+                                                <div class="shares-info">
+                                                    <span class="shares-label">Placed Shares</span>
+                                                    <span class="shares-value placed-value">0.00%</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="shares-card unplaced-shares">
+                                                <div class="shares-icon">
+                                                    <i class="bx bx-time-five"></i>
+                                                </div>
+                                                <div class="shares-info">
+                                                    <span class="shares-label">Unplaced Shares</span>
+                                                    <span class="shares-value unplaced-value">100.00%</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="shares-progress mt-2">
+                                        <div class="progress" style="height: 8px;">
+                                            <div class="progress-bar bg-success placed-progress" role="progressbar"
+                                                style="width: 0%" aria-valuenow="0" aria-valuemin="0"
+                                                aria-valuemax="100">
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -632,10 +714,12 @@
 
             function addReinsurer() {
                 const $select = $('#propAvailableReinsurers');
-                const $shareInput = $('#reinsurerNegShare');
+                const $writtenShareInput = $('#reinsurerWrittenShare');
+                const $signedShareInput = $('#reinsurerSignedShare');
 
                 const selectedReinsurerId = $select.val();
-                const selectedShare = parseFloat($shareInput.val());
+                const writtenShare = parseFloat($writtenShareInput.val());
+                const signedShare = parseFloat($signedShareInput.val());
 
                 // Validation
                 if (!selectedReinsurerId) {
@@ -644,9 +728,15 @@
                     return;
                 }
 
-                if (!selectedShare || selectedShare <= 0 || selectedShare > 100) {
-                    showValidationError('Please enter a valid share between 0.01 and 100');
-                    $shareInput.focus();
+                if (!writtenShare || writtenShare <= 0 || writtenShare > 100) {
+                    showValidationError('Please enter a valid written share between 0.01 and 100');
+                    $writtenShareInput.focus();
+                    return;
+                }
+
+                if (!signedShare || signedShare <= 0 || signedShare > 100) {
+                    showValidationError('Please enter a valid signed share between 0.01 and 100');
+                    $signedShareInput.focus();
                     return;
                 }
 
@@ -661,10 +751,10 @@
                 }
 
                 // Check total share
-                const newTotal = negotiationState.totalShare + selectedShare;
+                const newTotal = negotiationState.totalShare + writtenShare;
                 if (newTotal > 100) {
                     showValidationError(
-                        `Cannot add ${selectedShare}%. Total would exceed 100% (current: ${negotiationState.totalShare.toFixed(2)}%)`
+                        `Cannot add ${writtenShare}%. Total would exceed 100% (current: ${negotiationState.totalShare.toFixed(2)}%)`
                     );
                     return;
                 }
@@ -679,7 +769,8 @@
                     name: selectedOption.text() || reinsurerData.name || 'Unknown',
                     email: reinsurerData.email || '',
                     contact: reinsurerData.contact || '',
-                    written_share: selectedShare.toFixed(2),
+                    written_share: writtenShare.toFixed(2),
+                    signed_share: signedShare.toFixed(2),
                     country: reinsurerData.country || ''
                 };
 
@@ -696,7 +787,8 @@
 
                 // Reset inputs
                 $select.val(null).trigger('change');
-                $shareInput.val('');
+                $writtenShareInput.val('');
+                $signedShareInput.val('');
 
                 showSuccessToast('Reinsurer added successfully');
             }
@@ -706,23 +798,40 @@
                 if (!reinsurer) return;
 
                 Swal.fire({
-                    title: 'Edit Written Share',
+                    title: 'Edit Reinsurer Shares',
                     html: `
-                <div class="form-group text-start">
+                <div class="form-group text-start mb-3">
                     <label class="form-label fw-semibold mb-2">${reinsurer.name}</label>
-                    <div class="input-group">
-                        <input type="number"
-                               id="editShareInput"
-                               class="form-control"
-                               value="${reinsurer.written_share}"
-                               min="0.01"
-                               max="100"
-                               step="0.01"
-                               placeholder="Enter share percentage">
-                        <span class="input-group-text">%</span>
+                    <div class="mb-3">
+                        <label class="form-label">Written Share</label>
+                        <div class="input-group">
+                            <input type="number"
+                                   id="editWrittenShareInput"
+                                   class="form-control"
+                                   value="${reinsurer.written_share}"
+                                   min="0.01"
+                                   max="100"
+                                   step="0.01"
+                                   placeholder="Enter written share percentage">
+                            <span class="input-group-text">%</span>
+                        </div>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Signed Share</label>
+                        <div class="input-group">
+                            <input type="number"
+                                   id="editSignedShareInput"
+                                   class="form-control"
+                                   value="${reinsurer.signed_share || 0}"
+                                   min="0.01"
+                                   max="100"
+                                   step="0.01"
+                                   placeholder="Enter signed share percentage">
+                            <span class="input-group-text">%</span>
+                        </div>
                     </div>
                     <small class="text-muted mt-1 d-block">
-                        Current total: ${negotiationState.totalShare.toFixed(2)}%
+                        Current total written: ${negotiationState.totalShare.toFixed(2)}%
                     </small>
                 </div>
             `,
@@ -730,18 +839,25 @@
                     confirmButtonText: 'Update',
                     cancelButtonText: 'Cancel',
                     preConfirm: () => {
-                        const newShare = parseFloat(document.getElementById('editShareInput').value);
+                        const newWrittenShare = parseFloat(document.getElementById('editWrittenShareInput').value);
+                        const newSignedShare = parseFloat(document.getElementById('editSignedShareInput').value);
 
-                        if (!newShare || newShare <= 0 || newShare > 100) {
+                        if (!newWrittenShare || newWrittenShare <= 0 || newWrittenShare > 100) {
                             Swal.showValidationMessage(
-                                'Please enter a valid percentage between 0.01 and 100');
+                                'Please enter a valid written share between 0.01 and 100');
+                            return false;
+                        }
+
+                        if (!newSignedShare || newSignedShare <= 0 || newSignedShare > 100) {
+                            Swal.showValidationMessage(
+                                'Please enter a valid signed share between 0.01 and 100');
                             return false;
                         }
 
                         // Calculate new total (excluding current reinsurer's share)
                         const otherSharesTotal = negotiationState.totalShare - parseFloat(reinsurer
                             .written_share);
-                        const newTotal = otherSharesTotal + newShare;
+                        const newTotal = otherSharesTotal + newWrittenShare;
 
                         if (newTotal > 100) {
                             Swal.showValidationMessage(
@@ -750,24 +866,28 @@
                             return false;
                         }
 
-                        return newShare;
+                        return {
+                            written: newWrittenShare,
+                            signed: newSignedShare
+                        };
                     }
                 }).then((result) => {
                     if (result.isConfirmed && result.value) {
-                        negotiationState.reinsurers[index].written_share = result.value.toFixed(2);
+                        negotiationState.reinsurers[index].written_share = result.value.written.toFixed(2);
+                        negotiationState.reinsurers[index].signed_share = result.value.signed.toFixed(2);
 
                         reinsurerDataTable.clear();
                         reinsurerDataTable.rows.add(negotiationState.reinsurers);
                         reinsurerDataTable.draw();
 
                         updateTotalShare();
-                        showSuccessToast('Share updated successfully');
+                        showSuccessToast('Shares updated successfully');
                     }
                 });
 
                 // Focus on input when modal opens
                 setTimeout(() => {
-                    const input = document.getElementById('editShareInput');
+                    const input = document.getElementById('editWrittenShareInput');
                     if (input) {
                         input.focus();
                         input.select();
@@ -896,7 +1016,7 @@
                 addReinsurer();
             });
 
-            $('#reinsurerNegShare').on('keypress', function(e) {
+            $('#reinsurerWrittenShare, #reinsurerSignedShare').on('keypress', function(e) {
                 if (e.which === 13) {
                     e.preventDefault();
                     addReinsurer();
@@ -922,7 +1042,8 @@
 
                 // Reset select2
                 $('#propAvailableReinsurers').val(null).trigger('change');
-                $('#reinsurerNegShare').val('');
+                $('#reinsurerWrittenShare').val('');
+                $('#reinsurerSignedShare').val('');
 
                 // Remove warnings
                 $('.share-warning').remove();

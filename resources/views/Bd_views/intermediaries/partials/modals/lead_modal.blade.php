@@ -168,10 +168,13 @@
                                         </div>
                                         <div class="col-md-3">
                                             <div class="form-group">
-                                                <label class="form-label">Total Written Share (%)</label>
+                                                <label class="form-label">
+                                                    Total Written Share (%)
+                                                    <span class="required-asterisk">*</span>
+                                                </label>
                                                 <input type="number" class="form-inputs total_reinsurer_share"
                                                     id="leadTotalReinsurerShare" name="total_reinsurer_share"
-                                                    placeholder="0.00" step="0.01" min="0.01" max="100">
+                                                    placeholder="100.00" step="0.01" min="100" max="100" required value="100">
                                             </div>
                                         </div>
                                         <div class="col-md-2">
@@ -1541,12 +1544,7 @@
                 const writtenSharePercent = parseFloat($("#reinsurerShare").val());
 
                 if (!selectedOption.val()) {
-                    Swal.fire({
-                        icon: "warning",
-                        title: "Select Reinsurer",
-                        text: "Please select a reinsurer from the dropdown.",
-                        confirmButtonColor: "#3085d6",
-                    });
+                    toastr.warning('Select Reinsurer', 'Please select a reinsurer from the dropdown.')
                     return;
                 }
 
@@ -1642,15 +1640,11 @@
                 resetReinsurerForm();
                 toggleTotalWrittenShareField();
 
-                Swal.fire({
-                    icon: "success",
-                    title: "Reinsurer Added!",
-                    text: `${reinsurerData.name} has been successfully added with ${writtenSharePercent.toFixed(2)}% written share.`,
-                    timer: 2000,
-                    showConfirmButton: false,
-                    toast: true,
-                    position: "top-end",
-                });
+
+                toastr.success('Reinsurer Added!',
+                    `${reinsurerData.name} has been successfully added with ${writtenSharePercent.toFixed(2)}% written share.`,
+                )
+
 
                 updateSharesDisplay();
             });
@@ -1658,12 +1652,25 @@
             $("#leadTotalReinsurerShare").on("input", function() {
                 const value = parseFloat($(this).val());
 
+                // Total Written Share must be exactly 100%
                 if (value > 100) {
                     $(this).val("100");
                     Swal.fire({
                         icon: "warning",
-                        title: "Maximum Share Exceeded",
-                        text: "Total Written Share cannot exceed 100%. Value has been adjusted to 100%.",
+                        title: "Invalid Share Amount",
+                        text: "Total Written Share must be exactly 100%. Value has been adjusted to 100%.",
+                        timer: 3000,
+                        showConfirmButton: false,
+                        toast: true,
+                        position: "top-end",
+                    });
+                }
+
+                if (value < 100 && value > 0) {
+                    Swal.fire({
+                        icon: "info",
+                        title: "Total Written Share Required",
+                        text: "Total Written Share must be 100% for submission.",
                         timer: 3000,
                         showConfirmButton: false,
                         toast: true,
@@ -1672,7 +1679,7 @@
                 }
 
                 if (value < 0) {
-                    $(this).val("0");
+                    $(this).val("100");
                 }
             });
 
@@ -2120,29 +2127,86 @@
                 validateReinsurerSelection();
             });
 
+            /**
+             * Validates a single form field
+             * @param {jQuery} $field - jQuery object of the field to validate
+             * @returns {Boolean} True if field is valid, false otherwise
+             */
             function validateField($field) {
                 const fieldName = $field.attr("name") || $field.attr("id");
                 const fieldValue = $field.val().trim();
-                const isRequired =
-                    $field.prop("required") ||
-                    VALIDATION_CONFIG.REQUIRED_FIELDS.includes(fieldName);
+                const isRequired = isFieldRequired($field, fieldName);
 
-                $field.removeClass("is-invalid");
+                clearFieldValidation($field);
+
+                const validationResult = performFieldValidation($field, fieldValue, isRequired);
+
+                applyValidationResult($field, validationResult);
+
+                return validationResult.isValid;
+            }
+
+            /**
+             * Checks if a field is required
+             * @param {jQuery} $field - jQuery object of the field
+             * @param {String} fieldName - Name of the field
+             * @returns {Boolean} True if field is required
+             */
+            function isFieldRequired($field, fieldName) {
+                return $field.prop("required") || VALIDATION_CONFIG.REQUIRED_FIELDS.includes(fieldName);
+            }
+
+            /**
+             * Clears validation state from a field
+             * @param {jQuery} $field - jQuery object of the field
+             */
+            function clearFieldValidation($field) {
+                $field.removeClass("is-invalid is-v");
                 $field.siblings(".invalid-feedback").remove();
+            }
 
-                let isValid = true;
-                let errorMessage = "";
-
+            /**
+             * Performs validation logic for a field
+             * @param {jQuery} $field - jQuery object of the field
+             * @param {String} fieldValue - Trimmed field value
+             * @param {Boolean} isRequired - Whether field is required
+             * @returns {Object} Validation result with isValid and errorMessage
+             */
+            function performFieldValidation($field, fieldValue, isRequired) {
                 if (isRequired && !fieldValue) {
-                    isValid = false;
-                    errorMessage = "This field is required";
-                } else if (fieldValue) {
+                    return {
+                        isValid: false,
+                        errorMessage: "This field is required"
+                    };
+                }
+
+                if (fieldValue) {
                     const validation = getFieldValidation($field);
                     if (validation && !validation.isValid) {
-                        isValid = false;
-                        errorMessage = validation.message;
+                        return {
+                            isValid: false,
+                            errorMessage: validation.message
+                        };
                     }
                 }
+
+                return {
+                    isValid: true,
+                    errorMessage: ""
+                };
+            }
+
+            /**
+             * Applies validation result to field UI
+             * @param {jQuery} $field - jQuery object of the field
+             * @param {Object} validationResult - Validation result
+             */
+            function applyValidationResult($field, validationResult) {
+                const {
+                    isValid,
+                    errorMessage
+                } = validationResult;
+                const fieldValue = $field.val().trim();
 
                 if (isValid && fieldValue) {
                     $field.addClass("is-v");
@@ -2150,130 +2214,225 @@
                     $field.addClass("is-invalid");
                     $field.after(`<div class="invalid-feedback">${errorMessage}</div>`);
                 }
-
-                return isValid;
             }
 
+            /**
+             * Gets field-specific validation based on field type
+             * @param {jQuery} $field - jQuery object of the field
+             * @returns {Object} Validation result with isValid and message
+             */
             function getFieldValidation($field) {
                 const fieldName = $field.attr("name") || $field.attr("id");
                 const fieldValue = $field.val();
                 const numericValue = parseFloat(fieldValue.replace(/,/g, ""));
 
-                if (
-                    $field.closest(".currency-input").length ||
-                    fieldName.includes("premium") ||
-                    fieldName.includes("sum_insured")
-                ) {
-                    if (
-                        !FIELD_VALIDATORS.currency.pattern.test(fieldValue.replace(/,/g, ""))
-                    ) {
-                        return {
-                            isValid: false,
-                            message: FIELD_VALIDATORS.currency.message,
-                        };
-                    }
-                    if (numericValue <= 0) {
-                        return {
-                            isValid: false,
-                            message: "Amount must be greater than 0",
-                        };
-                    }
+                if (isCurrencyField($field, fieldName)) {
+                    return validateCurrencyField(fieldValue, numericValue);
                 }
 
-                if (fieldName.includes("rate") || fieldName.includes("Share")) {
-                    if (!FIELD_VALIDATORS.percentage.pattern.test(fieldValue)) {
-                        return {
-                            isValid: false,
-                            message: FIELD_VALIDATORS.percentage.message,
-                        };
-                    }
-                    if (
-                        numericValue < FIELD_VALIDATORS.percentage.min ||
-                        numericValue > FIELD_VALIDATORS.percentage.max
-                    ) {
-                        return {
-                            isValid: false,
-                            message: `Percentage must be between ${FIELD_VALIDATORS.percentage.min} and ${FIELD_VALIDATORS.percentage.max}`,
-                        };
-                    }
+                if (isPercentageField(fieldName)) {
+                    return validatePercentageField(fieldValue, numericValue);
                 }
 
-                if ($field.attr("type") === "email" || fieldName.includes("email")) {
-                    if (!FIELD_VALIDATORS.email.pattern.test(fieldValue)) {
-                        return {
-                            isValid: false,
-                            message: FIELD_VALIDATORS.email.message,
-                        };
-                    }
+                if (isEmailField($field, fieldName)) {
+                    return validateEmailField(fieldValue);
                 }
 
                 return {
-                    isValid: true,
+                    isValid: true
                 };
             }
 
+            /**
+             * Checks if field is a currency field
+             * @param {jQuery} $field - jQuery object of the field
+             * @param {String} fieldName - Name of the field
+             * @returns {Boolean} True if field is a currency field
+             */
+            function isCurrencyField($field, fieldName) {
+                return $field.closest(".currency-input").length ||
+                    fieldName.includes("premium") ||
+                    fieldName.includes("sum_insured");
+            }
+
+            /**
+             * Checks if field is a percentage field
+             * @param {String} fieldName - Name of the field
+             * @returns {Boolean} True if field is a percentage field
+             */
+            function isPercentageField(fieldName) {
+                return fieldName.includes("rate") || fieldName.includes("Share");
+            }
+
+            /**
+             * Checks if field is an email field
+             * @param {jQuery} $field - jQuery object of the field
+             * @param {String} fieldName - Name of the field
+             * @returns {Boolean} True if field is an email field
+             */
+            function isEmailField($field, fieldName) {
+                return $field.attr("type") === "email" || fieldName.includes("email");
+            }
+
+            /**
+             * Validates currency field
+             * @param {String} fieldValue - Field value
+             * @param {Number} numericValue - Parsed numeric value
+             * @returns {Object} Validation result
+             */
+            function validateCurrencyField(fieldValue, numericValue) {
+                if (!FIELD_VALIDATORS.currency.pattern.test(fieldValue.replace(/,/g, ""))) {
+                    return {
+                        isValid: false,
+                        message: FIELD_VALIDATORS.currency.message,
+                    };
+                }
+                if (numericValue <= 0) {
+                    return {
+                        isValid: false,
+                        message: "Amount must be greater than 0",
+                    };
+                }
+                return {
+                    isValid: true
+                };
+            }
+
+            /**
+             * Validates percentage field
+             * @param {String} fieldValue - Field value
+             * @param {Number} numericValue - Parsed numeric value
+             * @returns {Object} Validation result
+             */
+            function validatePercentageField(fieldValue, numericValue) {
+                if (!FIELD_VALIDATORS.percentage.pattern.test(fieldValue)) {
+                    return {
+                        isValid: false,
+                        message: FIELD_VALIDATORS.percentage.message,
+                    };
+                }
+                if (
+                    numericValue < FIELD_VALIDATORS.percentage.min ||
+                    numericValue > FIELD_VALIDATORS.percentage.max
+                ) {
+                    return {
+                        isValid: false,
+                        message: `Percentage must be between ${FIELD_VALIDATORS.percentage.min} and ${FIELD_VALIDATORS.percentage.max}`,
+                    };
+                }
+                return {
+                    isValid: true
+                };
+            }
+
+            /**
+             * Validates email field
+             * @param {String} fieldValue - Field value
+             * @returns {Object} Validation result
+             */
+            function validateEmailField(fieldValue) {
+                if (!FIELD_VALIDATORS.email.pattern.test(fieldValue)) {
+                    return {
+                        isValid: false,
+                        message: FIELD_VALIDATORS.email.message,
+                    };
+                }
+                return {
+                    isValid: true
+                };
+            }
+
+            /**
+             * Validates all fields in the lead form
+             * @returns {Object} Object containing validation status and errors
+             */
             function validateLeadForm() {
-                let isFormValid = true;
                 const errors = [];
 
-                $("#leadForm .form-inputs").each(function() {
-                    if (!validateField($(this))) {
-                        isFormValid = false;
-                        const fieldLabel = $(this)
-                            .closest(".form-group")
-                            .find("label")
-                            .text()
-                            .replace("*", "")
-                            .trim();
-                        errors.push(`${fieldLabel}: Please check the entered value`);
-                    }
-                });
+                const fieldErrors = validateFormFields();
+                errors.push(...fieldErrors);
 
-                if (!validateReinsurerSelection()) {
-                    isFormValid = false;
-                    errors.push("<b>Reinsurer Selection:</b> Please add at least one reinsurer");
+                // Validate Total Written Share is 100%
+                const writtenShareError = validateTotalWrittenShareIs100();
+                if (writtenShareError) {
+                    errors.push(writtenShareError);
                 }
 
-                const allUploadedFiles = pipelineManager.getAllUploadedFiles();
-                let fileNames = Object.values(allUploadedFiles).flatMap(innerArray =>
-                    Object.values(innerArray).map(fileObj => fileObj.fileName)
-                );
-
-                const requiredFiles = $('#leadForm input[type="file"][required]');
-                let missingFiles = [];
-
-                requiredFiles.each(function() {
-                    const fileName = $(this).attr('name');
-                    const isFileUploaded = fileNames.includes(fileName);
-
-                    if (!isFileUploaded) {
-                        const fieldLabel = $(this)
-                            .closest(".form-group")
-                            .find("label")
-                            .text()
-                            .replace("*", "")
-                            .trim();
-                        missingFiles.push(fieldLabel || fileName);
-                    }
-                });
-
-                if (missingFiles.length > 0) {
-                    isFormValid = false;
-                    errors.push(`<b>Required Files:</b> Please upload: ${missingFiles.join(', ')}`);
+                const reinsurerError = validateReinsurerSelectionForSubmit();
+                if (reinsurerError) {
+                    errors.push(reinsurerError);
                 }
+
+                // Validate that placed shares match total written share
+                const shareMatchError = validatePlacedSharesMatchTotal();
+                if (shareMatchError) {
+                    errors.push(shareMatchError);
+                }
+
+                const fileErrors = validateRequiredFiles();
+                errors.push(...fileErrors);
 
                 return {
-                    isValid: isFormValid,
+                    isValid: errors.length === 0,
                     errors: errors,
                 };
             }
 
+            /**
+             * Validates all form input fields
+             * @returns {Array} Array of error messages
+             */
+            function validateFormFields() {
+                const errors = [];
 
+                $("#leadForm .form-inputs").each(function() {
+                    if (!validateField($(this))) {
+                        const fieldLabel = getFieldLabel($(this));
+                        errors.push(`${fieldLabel}: Please check the entered value`);
+                    }
+                });
 
-            function validateSharesMatch() {
+                return errors;
+            }
+
+            /**
+             * Validates reinsurer selection for form submission
+             * @returns {String|null} Error message or null if valid
+             */
+            function validateReinsurerSelectionForSubmit() {
+                if (!validateReinsurerSelection()) {
+                    return "<b>Reinsurer Selection:</b> Please add at least one reinsurer";
+                }
+                return null;
+            }
+
+            /**
+             * Validates that Total Written Share is exactly 100%
+             * @returns {String|null} Error message or null if valid
+             */
+            function validateTotalWrittenShareIs100() {
                 const totalWrittenShare = parseFloat($("#leadTotalReinsurerShare").val()) || 0;
 
+                if (totalWrittenShare === 0) {
+                    return "<b>Total Written Share:</b> Please enter the total written share percentage";
+                }
+
+                if (totalWrittenShare !== 100) {
+                    return `<b>Total Written Share:</b> Must be exactly 100%. Current value is ${totalWrittenShare.toFixed(2)}%`;
+                }
+
+                return null;
+            }
+
+            /**
+             * Validates that placed shares match the total written share
+             * @returns {String|null} Error message or null if valid
+             */
+            function validatePlacedSharesMatchTotal() {
+                const totalWrittenShare = parseFloat($("#leadTotalReinsurerShare").val()) || 0;
                 let totalPlacedShares = 0;
+
+                // Calculate total placed shares from reinsurer table
                 table.rows().every(function() {
                     const row = $(this.node());
                     const writtenShare = parseFloat(row.attr("data-written-share")) || 0;
@@ -2281,45 +2440,198 @@
                 });
 
                 const totalUnplacedShares = totalWrittenShare - totalPlacedShares;
-
                 const sharesDifference = Math.abs(totalWrittenShare - totalPlacedShares);
+                const TOLERANCE = 0.01; // Allow 0.01% tolerance for floating point precision
 
-                if (sharesDifference > 0.01 || totalUnplacedShares !== 0) {
-                    Swal.fire({
-                        icon: "error",
-                        title: "Share Allocation Mismatch",
-                        html: `
-                            <div class="text-start">
-                                <p class="mb-3"><strong>The share allocation is incomplete or incorrect:</strong></p>
-                                <ul class="list-unstyled m-0 p-0">
-                                    <li class="mb-2">
-                                        <i class="bx bx-info-circle text-primary me-2"></i>
-                                        <strong>Total Written Share:</strong> ${totalWrittenShare.toFixed(2)}%
-                                    </li>
-                                    <li class="mb-2">
-                                        <i class="bx bx-check-circle ${totalPlacedShares === totalWrittenShare ? 'text-success' : 'text-danger'} me-2"></i>
-                                        <strong>Placed Shares:</strong> ${totalPlacedShares.toFixed(2)}%
-                                    </li>
-                                    <li class="mb-2">
-                                        <i class="bx bx-x-circle ${totalUnplacedShares === 0 ? 'text-success' : 'text-warning'} me-2"></i>
-                                        <strong>Unplaced Shares:</strong> ${totalUnplacedShares.toFixed(2)}%
-                                    </li>
-                                </ul>
-                                <div class="alert alert-warning mt-3 mb-0">
-                                    <i class="bx bx-error-circle me-2"></i>
-                                    Please ensure all shares are allocated and Unplaced Shares equals 0%.
-                                </div>
-                            </div>
-                        `,
-                        confirmButtonColor: "#dc3545",
-                        confirmButtonText: "Fix Allocation",
-                        width: "600px",
-                    });
-
-                    return false;
+                if (sharesDifference > TOLERANCE) {
+                    return `<b>Share Allocation Mismatch:</b> Total placed shares (${totalPlacedShares.toFixed(2)}%) must equal Total Written Share (${totalWrittenShare.toFixed(2)}%). Unplaced: ${totalUnplacedShares.toFixed(2)}%`;
                 }
 
-                return true;
+                return null;
+            }
+
+            /**
+             * Validates that all required files have been uploaded
+             * @returns {Array} Array of error messages
+             */
+            function validateRequiredFiles() {
+                const errors = [];
+
+                if (typeof pipelineManager === 'undefined' || !pipelineManager) {
+                    console.warn('pipelineManager is not defined. Skipping file validation.');
+                    return errors;
+                }
+
+                if (typeof pipelineManager.getAllUploadedFiles !== 'function') {
+                    console.warn(
+                        'pipelineManager.getAllUploadedFiles is not a function. Skipping file validation.');
+                    return errors;
+                }
+
+                const allUploadedFiles = pipelineManager.getAllUploadedFiles();
+                const uploadedFileNames = extractUploadedFileNames(allUploadedFiles);
+                const missingFiles = findMissingRequiredFiles(uploadedFileNames);
+
+                if (missingFiles.length > 0) {
+                    errors.push(`<b>Required Files:</b> Please upload: ${missingFiles.join(', ')}`);
+                }
+
+                return errors;
+            }
+
+            /**
+             * Extracts file names from uploaded files object
+             * @param {Object} uploadedFiles - Object containing uploaded files
+             * @returns {Array} Array of uploaded file names
+             */
+            function extractUploadedFileNames(uploadedFiles) {
+                return Object.values(uploadedFiles).flatMap(innerArray =>
+                    Object.values(innerArray).map(fileObj => fileObj.fileName)
+                );
+            }
+
+            /**
+             * Finds required files that haven't been uploaded
+             * @param {Array} uploadedFileNames - Array of uploaded file names
+             * @returns {Array} Array of missing file labels
+             */
+            function findMissingRequiredFiles(uploadedFileNames) {
+                const missingFiles = [];
+                const requiredFiles = $('#leadForm input[type="file"][required]');
+
+                requiredFiles.each(function() {
+                    const fileName = $(this).attr('name');
+                    const isFileUploaded = uploadedFileNames.includes(fileName);
+
+                    if (!isFileUploaded) {
+                        const fieldLabel = getFieldLabel($(this));
+                        missingFiles.push(fieldLabel || fileName);
+                    }
+                });
+
+                return missingFiles;
+            }
+
+            /**
+             * Gets the label text for a form field
+             * @param {jQuery} $field - jQuery object of the field
+             * @returns {String} Cleaned field label
+             */
+            function getFieldLabel($field) {
+                return $field
+                    .closest(".form-group")
+                    .find("label")
+                    .first()
+                    .text()
+                    .replace("*", "")
+                    .trim();
+            }
+
+            /**
+             * Validates that share allocation matches the total written share
+             * @returns {Boolean} True if shares match, false otherwise
+             */
+            function validateSharesMatch() {
+                const shareData = calculateShareAllocation();
+
+                if (isShareAllocationValid(shareData)) {
+                    return true;
+                }
+
+                displayShareAllocationError(shareData);
+                return false;
+            }
+
+            /**
+             * Calculates the current share allocation from reinsurer table
+             * @returns {Object} Object containing share allocation data
+             */
+            function calculateShareAllocation() {
+                const totalWrittenShare = parseFloat($("#leadTotalReinsurerShare").val()) || 0;
+                let totalPlacedShares = 0;
+
+                table.rows().every(function() {
+                    const row = $(this.node());
+                    const writtenShare = parseFloat(row.attr("data-written-share")) || 0;
+                    totalPlacedShares += writtenShare;
+                });
+
+                const totalUnplacedShares = totalWrittenShare - totalPlacedShares;
+                const sharesDifference = Math.abs(totalWrittenShare - totalPlacedShares);
+
+                return {
+                    totalWrittenShare,
+                    totalPlacedShares,
+                    totalUnplacedShares,
+                    sharesDifference
+                };
+            }
+
+            /**
+             * Checks if share allocation is valid
+             * @param {Object} shareData - Share allocation data
+             * @returns {Boolean} True if valid, false otherwise
+             */
+            function isShareAllocationValid(shareData) {
+                const TOLERANCE = 0.01; // Allow 0.01% tolerance for floating point precision
+                return shareData.sharesDifference <= TOLERANCE && shareData.totalUnplacedShares === 0;
+            }
+
+            /**
+             * Displays error dialog for share allocation mismatch
+             * @param {Object} shareData - Share allocation data
+             */
+            function displayShareAllocationError(shareData) {
+                const errorHtml = buildShareAllocationErrorHtml(shareData);
+
+                Swal.fire({
+                    icon: "error",
+                    title: "Share Allocation Mismatch",
+                    html: errorHtml,
+                    confirmButtonColor: "#dc3545",
+                    confirmButtonText: "Fix Allocation",
+                    width: "600px",
+                });
+            }
+
+            /**
+             * Builds HTML for share allocation error message
+             * @param {Object} shareData - Share allocation data
+             * @returns {String} HTML string for error message
+             */
+            function buildShareAllocationErrorHtml(shareData) {
+                const {
+                    totalWrittenShare,
+                    totalPlacedShares,
+                    totalUnplacedShares
+                } = shareData;
+
+                const placedIconClass = totalPlacedShares === totalWrittenShare ? 'text-success' : 'text-danger';
+                const unplacedIconClass = totalUnplacedShares === 0 ? 'text-success' : 'text-warning';
+
+                return `
+                    <div class="text-start">
+                        <p class="mb-3"><strong>The share allocation is incomplete or incorrect:</strong></p>
+                        <ul class="list-unstyled m-0 p-0">
+                            <li class="mb-2">
+                                <i class="bx bx-info-circle text-primary me-2"></i>
+                                <strong>Total Written Share:</strong> ${totalWrittenShare.toFixed(2)}%
+                            </li>
+                            <li class="mb-2">
+                                <i class="bx bx-check-circle ${placedIconClass} me-2"></i>
+                                <strong>Placed Shares:</strong> ${totalPlacedShares.toFixed(2)}%
+                            </li>
+                            <li class="mb-2">
+                                <i class="bx bx-x-circle ${unplacedIconClass} me-2"></i>
+                                <strong>Unplaced Shares:</strong> ${totalUnplacedShares.toFixed(2)}%
+                            </li>
+                        </ul>
+                        <div class="alert alert-warning mt-3 mb-0">
+                            <i class="bx bx-error-circle me-2"></i>
+                            Please ensure all shares are allocated and Unplaced Shares equals 0%.
+                        </div>
+                    </div>
+                `;
             }
 
             function calculateTotalShares() {
@@ -2443,7 +2755,6 @@
                                     }
 
                                     $("#leadModal").modal("hide");
-
                                     // handleSendBDNotification(response);
                                 } else {
                                     $("#leadModal").modal("hide");
@@ -2622,20 +2933,28 @@
                     }
                 });
 
-                const allUploadedFiles = pipelineManager.getAllUploadedFiles()
-                Object.entries(allUploadedFiles).forEach(([fieldId, filesData]) => {
-                    filesData.forEach((file, index) => {
-                        formData.append('facultative_files[]', file);
+                // Handle uploaded files if pipelineManager is available
+                if (typeof pipelineManager !== 'undefined' && pipelineManager && typeof pipelineManager
+                    .getAllUploadedFiles === 'function') {
+                    const allUploadedFiles = pipelineManager.getAllUploadedFiles();
+                    Object.entries(allUploadedFiles).forEach(([fieldId, filesData]) => {
+                        filesData.forEach((file, index) => {
+                            formData.append('facultative_files[]', file);
 
-                        const docType = file.fileName || 'additionalDocuments';
-                        formData.append('facultative_document_types[]', docType);
+                            const docType = file.fileName || 'additionalDocuments';
+                            formData.append('facultative_document_types[]', docType);
 
-                        const docTypeId = file.fileId || null;
-                        if (docTypeId) {
-                            formData.append('facultative_document_type_ids[]', docTypeId);
-                        }
+                            const docTypeId = file.fileId || null;
+                            if (docTypeId) {
+                                formData.append('facultative_document_type_ids[]', docTypeId);
+                            }
+                        });
                     });
-                });
+                } else {
+                    console.warn(
+                        'pipelineManager not available in prepareFormData(). File uploads may not be processed.'
+                    );
+                }
 
                 const reinsurersData = [];
                 let totalPlacedShares = 0;
@@ -3151,7 +3470,7 @@
 
                 $("#availableReinsurers").val(null).trigger("change");
 
-                $("#leadTotalReinsurerShare").val("");
+                $("#leadTotalReinsurerShare").val("100");
                 $("#reinsurerShare").val("");
                 $("#retainedShareValue").val("");
                 $("#totalPlacedShares").val("");
