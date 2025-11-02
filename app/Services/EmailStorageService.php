@@ -21,7 +21,35 @@ class EmailStorageService
                 $query->limit($limit);
             }
 
-            return collect($query->orderBy('date_received', 'desc')->get());
+            $emails = collect($query->orderBy('date_received', 'desc')->get());
+
+            // Transform the results to match expected structure
+            // return $emails->map(function ($email) {
+            //     return [
+            //         'id' => $email->id,
+            //         'uid' => $email->uid ?? $email->message_id,
+            //         'message_id' => $email->message_id,
+            //         'subject' => $email->subject,
+            //         'from_name' => $email->from_name,
+            //         'from_email' => $email->from_email,
+            //         'body_preview' => $email->body_preview,
+            //         'body_text' => $email->body_text ?? null,
+            //         'body_html' => $email->body_html ?? null,
+            //         'date_received' => $email->date_received,
+            //         'date_sent' => $email->date_sent ?? null,
+            //         'is_read' => (bool) $email->is_read,
+            //         'has_attachments' => (bool) ($email->has_attachments ?? false),
+            //         'folder' => $email->folder ?? 'inbox',
+            //         'importance' => $email->importance ?? 'normal',
+            //         'conversation_id' => $email->conversation_id ?? null,
+            //         'to_recipients' => $this->parseJsonRecipients($email->to_recipients ?? null),
+            //         'cc_recipients' => $this->parseJsonRecipients($email->cc_recipients ?? null),
+            //         'bcc_recipients' => $this->parseJsonRecipients($email->bcc_recipients ?? null),
+            //     ];
+            // });
+            // logger()->debug(json_encode($query['emails'][0]['body_preview'], JSON_PRETTY_PRINT));
+
+            return $emails;
         } catch (\Exception $e) {
             return collect();
         }
@@ -89,20 +117,54 @@ class EmailStorageService
         $query = DB::table('fetched_emails')
             ->where('user_email', $this->getUserEmail());
 
-        if ($folder) {
-            $query->where('folder', $folder);
+        // Handle special folder filters
+        if ($folder && $folder !== 'all') {
+            switch ($folder) {
+                case 'inbox':
+                case 'sent':
+                case 'drafts':
+                case 'spam':
+                case 'trash':
+                case 'archive':
+                    $query->where('folder', $folder);
+                    break;
+                case 'starred':
+                    $query->where('is_flagged', true);
+                    break;
+                case 'important':
+                    $query->where('importance', 'high');
+                    break;
+                default:
+                    $query->where('folder', $folder);
+                    break;
+            }
         }
 
         if ($search) {
             $query->where(function ($q) use ($search) {
                 $q->where('subject', 'like', "%{$search}%")
-                    ->orWhere('sender_name', 'like', "%{$search}%")
-                    ->orWhere('sender_email', 'like', "%{$search}%")
-                    ->orWhere('body_preview', 'like', "%{$search}%");
+                    ->orWhere('from_name', 'like', "%{$search}%")
+                    ->orWhere('from_email', 'like', "%{$search}%")
+                    ->orWhere('body_preview', 'like', "%{$search}%")
+                    ->orWhere('body_text', 'like', "%{$search}%");
             });
         }
 
         return $query;
+    }
+
+    private function parseJsonRecipients(?string $json): array
+    {
+        if (empty($json)) {
+            return [];
+        }
+
+        try {
+            $decoded = json_decode($json, true);
+            return is_array($decoded) ? $decoded : [];
+        } catch (\Exception $e) {
+            return [];
+        }
     }
 
     private function tableExists(): bool

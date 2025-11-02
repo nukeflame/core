@@ -91,10 +91,11 @@
 
     <script>
         @if (isset($email) && !empty($email))
-            window.emailData = @json($email);
+            window.emailData = @json($email)
         @else
             window.emailData = null;
         @endif
+
 
         const mailApp = new MailApp({
             routes: {
@@ -152,6 +153,11 @@
                             updateSyncProgress(data, 'failed');
                         });
 
+                        // Listen for new email events
+                        channel.listen('.email.new', (data) => {
+                            handleNewEmail(data);
+                        });
+
                     } catch (error) {
                         console.error('Error subscribing to email sync channel:', error);
                     }
@@ -161,6 +167,86 @@
             }
 
             setTimeout(initializeEmailSync, 500);
+
+            function handleNewEmail(data) {
+                console.log('New email received:', data);
+
+                // Show notification
+                if (typeof mailApp !== 'undefined' && mailApp.showNotification) {
+                    mailApp.showNotification({
+                        title: 'New Email',
+                        message: `From: ${data.email.from_name}\nSubject: ${data.email.subject}`,
+                        type: 'info'
+                    });
+                }
+
+                // Play notification sound (optional)
+                try {
+                    const audio = new Audio('/assets/sounds/notification.mp3');
+                    audio.volume = 0.5;
+                    audio.play().catch(e => console.log('Audio play failed:', e));
+                } catch (e) {
+                    console.log('Audio notification failed:', e);
+                }
+
+                // Update unread count in navigation
+                updateUnreadCount();
+
+                // If on current folder, optionally refresh the list
+                const currentFolder = '{{ $folder }}';
+                if (currentFolder === data.email.folder || currentFolder === 'all') {
+                    // Show a refresh banner instead of auto-reloading
+                    showRefreshBanner();
+                }
+            }
+
+            function showRefreshBanner() {
+                const banner = $(
+                    '<div class="alert alert-info alert-dismissible fade show" role="alert" style="position: fixed; top: 80px; left: 50%; transform: translateX(-50%); z-index: 9998; min-width: 300px;">' +
+                    '<i class="bi bi-info-circle me-2"></i>New emails available. <a href="#" class="alert-link" onclick="window.location.reload(); return false;">Refresh to view</a>' +
+                    '<button type="button" class="btn-close" data-bs-dismiss="alert"></button>' +
+                    '</div>');
+
+                $('body').append(banner);
+
+                setTimeout(() => {
+                    banner.fadeOut(() => banner.remove());
+                }, 10000);
+            }
+
+            function updateUnreadCount() {
+                // Update the unread count via AJAX
+                //{{-- fetch('{{ route('mail.check-new') }}') --}}
+                //     .then(response => response.json())
+                //     .then(data => {
+                //         if (data.success && data.unreadEmails > 0) {
+                //             // Update badge in navigation
+                //             const $inboxBadge = $('.mail-folder-link[data-folder="inbox"]').find('.badge');
+                //             if ($inboxBadge.length) {
+                //                 $inboxBadge.text(data.unreadEmails);
+                //             }
+                //         }
+                //     })
+                //     .catch(error => console.error('Failed to update unread count:', error));
+            }
+
+            // Trigger automatic sync every 5 minutes
+            setInterval(() => {
+                fetch('{{ route('mail.sync.trigger') }}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                        }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            console.log('Background sync triggered');
+                        }
+                    })
+                    .catch(error => console.log('Background sync failed:', error));
+            }, 300000); // 5 minutes
         });
     </script>
 @endpush

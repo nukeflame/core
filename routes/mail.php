@@ -26,7 +26,8 @@ Route::group(
         // Route::post('/read/{id}', [MailController::class, 'markRead'])->name('read');
         // Route::post('/unread/{id}', [MailController::class, 'markUnread'])->name('unread');
 
-        Route::get('/check-new', [MailController::class, 'checkNew'])->name('check-new');
+        Route::get('/check-new', [MailController::class, 'checkNew'])->name('mail.check-new');
+        Route::post('/sync/trigger', [MailController::class, 'triggerSync'])->name('mail.sync.trigger');
         Route::get('/inbox/id/{messageId}', [MailController::class, 'showInbox'])
             ->name('mail.inbox.show')
             ->where('messageId', '.*');

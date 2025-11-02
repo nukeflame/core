@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Events\EmailSyncCompleted;
 use App\Events\EmailSyncFailed;
 use App\Events\EmailSyncProgress;
+use App\Events\NewEmailReceived;
 use App\Models\EmailSyncState;
 use App\Models\User;
 use App\Services\OutlookService;
@@ -31,6 +32,7 @@ class SyncUserEmails implements ShouldQueue
     protected int $totalInserted = 0;
     protected int $totalUpdated = 0;
     protected int $totalDeleted = 0;
+    protected array $newEmails = [];
 
     protected $toUpsert = [];
     protected $toDelete = [];
@@ -239,6 +241,13 @@ class SyncUserEmails implements ShouldQueue
             $insertCount = count($incomingUids) - count($existingUids);
             $updateCount = count($existingUids);
 
+            // Track new emails for broadcasting
+            foreach ($this->toUpsert as $emailData) {
+                if (!in_array($emailData['uid'], $existingUids)) {
+                    $this->newEmails[] = $emailData;
+                }
+            }
+
             DB::table('fetched_emails')->upsert(
                 $this->toUpsert,
                 ['user_id', 'uid'],
@@ -267,6 +276,11 @@ class SyncUserEmails implements ShouldQueue
 
             $this->totalInserted += $insertCount;
             $this->totalUpdated += $updateCount;
+
+            // Broadcast new email events
+            foreach ($this->newEmails as $newEmail) {
+                broadcast(new NewEmailReceived($user->id, $newEmail));
+            }
         }
     }
 

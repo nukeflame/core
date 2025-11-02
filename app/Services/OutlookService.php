@@ -3867,14 +3867,10 @@ class OutlookService
             $this->auth = $user;
 
             $webhookUrl = $options['webhook_url'] ?? config('services.azure.webhook_url');
-            $clientState = $options['client_state'] ?? config('services.azure.webhook_client_state');
+            $clientState = $options['client_state'] ?? config('services.azure.webhook_client_state', 'RBAcentria-' . Str::random(16));
 
             if (empty($webhookUrl)) {
                 throw new Exception('Webhook URL is not configured. Set AZURE_WEBHOOK_URL in your .env file');
-            }
-
-            if (empty($clientState)) {
-                throw new Exception('Webhook client state is not configured. Set AZURE_WEBHOOK_CLIENT_STATE in your .env file');
             }
 
             if (!filter_var($webhookUrl, FILTER_VALIDATE_URL)) {
@@ -3885,92 +3881,66 @@ class OutlookService
                 throw new Exception('Webhook URL must use HTTPS protocol');
             }
 
-            $response = $this->makeRequest('GET', '/subscriptions');
-
+            // Microsoft Graph allows max 3 days (4230 minutes) for mail subscriptions
             $expirationDateTime = Carbon::now()->addHours(71)->toIso8601String();
+            $resource = $options['resource'] ?? 'me/messages'; // All messages across folders
+            $changeType = $options['change_type'] ?? 'created,updated';
 
             $payload = [
-                'changeType' => 'created,updated',
-                'notificationUrl' => 'https://42c8abc000c8.ngrok-free.app/api/webhook/subscriptionNotification',
-                'resource' => 'me/mailFolders/inbox/messages',
-                'expirationDateTime' => now()->addDays(2)->toIso8601String(),
+                'changeType' => $changeType,
+                'notificationUrl' => $webhookUrl,
+                'resource' => $resource,
+                'expirationDateTime' => $expirationDateTime,
                 'clientState' => $clientState
             ];
 
+            $startTime = microtime(true);
             $response = $this->makeRequest('POST', '/subscriptions', ['json' => $payload]);
+            $processingTime = round((microtime(true) - $startTime) * 1000, 2);
 
-            // https: //default6ef11b21a3f4462fbfd47e7b026274.fa.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/daf036d902a74097aaddc6b05ec52dc2/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=IKJA11q81_BCZMCc893qwUix2y3kc_K2YxsrkjI5SRM
+            // Save subscription to database
+            DB::table('graph_subscriptions')->insert([
+                'subscription_id' => $response['id'],
+                'user_id' => $user->id,
+                'user_email' => $user->email,
+                'resource' => $response['resource'],
+                'change_type' => $response['changeType'],
+                'notification_url' => $response['notificationUrl'],
+                'client_state' => $clientState,
+                'expiration_date' => Carbon::parse($response['expirationDateTime']),
+                'status' => 'active',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
 
-            // if ($response->successful()) {
-            //     $subscription = $response->json();
-
-            // }
-
-            // // Handle error
-            // $error = $response->json();
-
-            // $expirationDateTime = Carbon::now()
-            //     ->addHours($options['expiration_hours'] ?? 71)
-            //     ->toIso8601String();
-
-            // $resource = $options['resource'] ?? 'me/mailFolders/inbox/messages';
-            // $changeType = $options['change_type'] ?? 'created,updated';
-
-            // $payload = [
-            //     'changeType' => $changeType,
-            //     'notificationUrl' => $webhookUrl,
-            //     'resource' => $resource,
-            //     'expirationDateTime' => $expirationDateTime,
-            //     'clientState' => $clientState
-            // ];
-
-            // if (!empty($options['lifecycle_notification_url'])) {
-            //     $payload['lifecycleNotificationUrl'] = $options['lifecycle_notification_url'];
-            // }
-
-            // $startTime = microtime(true);
-
-            // $response = $this->makeRequest('POST', '/subscriptions', [
-            //     'json' => $payload
-            // ]);
-
-            // $processingTime = round((microtime(true) - $startTime) * 1000, 2);
-
-            // // Save subscription to database for tracking
-            // $subscriptionData = [
-            //     'subscription_id' => $response['id'],
-            //     'user_id' => $user->id,
-            //     'user_email' => $user->email,
-            //     'resource' => $response['resource'],
-            //     'change_type' => $response['changeType'],
-            //     'notification_url' => $response['notificationUrl'],
-            //     'client_state' => $clientState,
-            //     'expiration_date' => Carbon::parse($response['expirationDateTime']),
-            //     'created_at' => now(),
-            //     'updated_at' => now(),
-            //     'status' => 'active'
-            // ];
-
-            // DB::table('graph_subscriptions')->insert($subscriptionData);
-
+            // Update email sync state
+            DB::table('email_sync_states')->updateOrInsert(
+                ['user_id' => $user->id],
+                [
+                    'subscription_id' => $response['id'],
+                    'subscription_expires_at' => Carbon::parse($response['expirationDateTime']),
+                    'subscription_created_at' => now(),
+                    'updated_at' => now(),
+                ]
+            );
 
             return [
                 'success' => true,
-                // 'subscription_id' => $response['id'],
-                // 'resource' => $response['resource'],
-                // 'change_type' => $response['changeType'],
-                // 'notification_url' => $response['notificationUrl'],
-                // 'expiration_date' => $response['expirationDateTime'],
-                // 'expires_in_hours' => Carbon::parse($response['expirationDateTime'])->diffInHours(now()),
-                // 'creator_id' => $response['creatorId'] ?? null,
-                // 'processing_time_ms' => $processingTime,
+                'subscription_id' => $response['id'],
+                'resource' => $response['resource'],
+                'change_type' => $response['changeType'],
+                'notification_url' => $response['notificationUrl'],
+                'expiration_date' => $response['expirationDateTime'],
+                'expires_in_hours' => Carbon::parse($response['expirationDateTime'])->diffInHours(now()),
+                'creator_id' => $response['creatorId'] ?? null,
+                'processing_time_ms' => $processingTime,
                 'message' => 'Subscription created successfully'
             ];
         } catch (Exception $e) {
             return [
                 'success' => false,
-                // 'error' => $e->getMessage(),
-                // 'error_code' => $this->getErrorCode($e),
+                'error' => $e->getMessage(),
+                'error_code' => $this->getErrorCode($e),
                 'subscription_id' => null
             ];
         }
@@ -3981,13 +3951,50 @@ class OutlookService
      */
     public function renewSubscription(string $subscriptionId, $user): array
     {
-        $this->auth = $user;
-        $expirationDateTime = Carbon::now()->addHours(71)->toIso8601String();
+        try {
+            $this->auth = $user;
+            $expirationDateTime = Carbon::now()->addHours(71)->toIso8601String();
 
-        $response = $this->makeRequest('PATCH', '/subscriptions/{$subscriptionId}', ['expirationDateTime' => $expirationDateTime]);
+            $response = $this->makeRequest('PATCH', "/subscriptions/{$subscriptionId}", [
+                'json' => ['expirationDateTime' => $expirationDateTime]
+            ]);
 
-        $subscription = $response;
-        return [];
+            // Update database
+            DB::table('graph_subscriptions')
+                ->where('subscription_id', $subscriptionId)
+                ->update([
+                    'expiration_date' => Carbon::parse($response['expirationDateTime']),
+                    'last_renewal_at' => now(),
+                    'renewal_attempts' => 0,
+                    'status' => 'active',
+                    'updated_at' => now(),
+                ]);
+
+            DB::table('email_sync_states')
+                ->where('subscription_id', $subscriptionId)
+                ->update([
+                    'subscription_expires_at' => Carbon::parse($response['expirationDateTime']),
+                    'updated_at' => now(),
+                ]);
+
+            return [
+                'success' => true,
+                'subscription_id' => $response['id'],
+                'new_expiration_date' => $response['expirationDateTime'],
+                'message' => 'Subscription renewed successfully'
+            ];
+        } catch (Exception $e) {
+            // Mark renewal attempt
+            DB::table('graph_subscriptions')
+                ->where('subscription_id', $subscriptionId)
+                ->increment('renewal_attempts');
+
+            return [
+                'success' => false,
+                'error' => $e->getMessage(),
+                'subscription_id' => $subscriptionId
+            ];
+        }
     }
 
     /**
@@ -3998,7 +4005,23 @@ class OutlookService
         try {
             $this->auth = $user;
 
-            $this->makeRequest('DELETE', '/subscriptions/{$subscriptionId}');
+            $this->makeRequest('DELETE', "/subscriptions/{$subscriptionId}");
+
+            // Update database
+            DB::table('graph_subscriptions')
+                ->where('subscription_id', $subscriptionId)
+                ->update([
+                    'status' => 'deleted',
+                    'updated_at' => now(),
+                ]);
+
+            DB::table('email_sync_states')
+                ->where('subscription_id', $subscriptionId)
+                ->update([
+                    'subscription_id' => null,
+                    'subscription_expires_at' => null,
+                    'updated_at' => now(),
+                ]);
 
             return true;
         } catch (\Exception $e) {
@@ -4022,11 +4045,13 @@ class OutlookService
             if ($deltaLink) {
                 $url = $deltaLink;
             } else {
+                // Fetch from all messages for complete sync across folders
                 $queryParams = [
-                    '$select' => 'id,subject,bodyPreview,from,toRecipients,ccRecipients,isRead,isDraft,hasAttachments,importance,categories,receivedDateTime,sentDateTime,conversationId,changeKey,parentFolderId,internetMessageHeaders',
+                    '$select' => 'id,subject,bodyPreview,body,from,toRecipients,ccRecipients,bccRecipients,isRead,isDraft,hasAttachments,importance,categories,receivedDateTime,sentDateTime,conversationId,changeKey,parentFolderId,internetMessageHeaders,flag',
                     '$top' => 100,
                 ];
-                $url = '/me/mailFolders/inbox/messages/delta?' . http_build_query($queryParams, '', '&', PHP_QUERY_RFC3986);
+                // Use /me/messages/delta to get messages from all folders, not just inbox
+                $url = '/me/messages/delta?' . http_build_query($queryParams, '', '&', PHP_QUERY_RFC3986);
             }
 
             $allMessages = [];

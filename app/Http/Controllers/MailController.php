@@ -57,10 +57,14 @@ class MailController extends Controller
             // $order = $request->input('order', 'desc');
             // $query->orderBy($sortBy, $order);
 
+            // logger()->debug(json_encode($query['emails'][0]['body_preview'], JSON_PRETTY_PRINT));
+
             return view('mail.index', array_merge($query, [
                 'folder' => $requestData['folder'],
                 'user' => Auth::user()
             ]));
+
+            return null;
         } catch (\Exception $e) {
             return view('mail.index', $this->getEmptyMailData($requestData['folder']));
         }
@@ -361,24 +365,72 @@ class MailController extends Controller
 
     public function checkNew(): JsonResponse
     {
-        return response()->json(['newEmails' => 0, 'success' => true]);
-        // try {
-        //     $outlookStatus = app(OutlookOAuthController::class)->status();
-        //     $status = json_decode($outlookStatus->getContent(), true);
-        //     $accessOutlook = $status['connected'] ?? false;
+        try {
+            // Check for unread emails in database
+            $unreadCount = DB::table('fetched_emails')
+                ->where('user_email', auth()->user()->email)
+                ->where('is_read', false)
+                ->count();
 
-        //     if (!$accessOutlook) {
-        //         return response()->json([
-        //             'success' => false,
-        //             'message' => $status['error'] ?? $status['message']
-        //         ]);
-        //     }
+            return response()->json([
+                'success' => true,
+                'unreadEmails' => $unreadCount,
+                'newEmails' => 0 // This will be updated via WebSocket
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'unreadEmails' => 0,
+                'newEmails' => 0
+            ]);
+        }
+    }
 
-        //     $newEmails = $this->mailService->getNewEmail();
-        //     return response()->json(['newEmails' => 0, 'success' => true]);
-        // } catch (\Exception $e) {
-        //     return response()->json(['newEmails' => 0, 'success' => false]);
-        // }
+    /**
+     * Trigger email sync manually
+     */
+    public function triggerSync(Request $request): JsonResponse
+    {
+        try {
+            $userId = auth()->id();
+
+            // Check Outlook connection
+            $outlookStatus = app(OutlookOAuthController::class)->status();
+            $status = json_decode($outlookStatus->getContent(), true);
+            $accessOutlook = $status['connected'] ?? false;
+
+            if (!$accessOutlook) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $status['error'] ?? $status['message']
+                ], 400);
+            }
+
+            // Check if sync is already in progress
+            $syncState = EmailSyncState::where('user_id', $userId)->first();
+
+            if ($syncState && ($syncState->is_locked || $syncState->is_syncing)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Sync already in progress',
+                    'status' => 'locked'
+                ], 409);
+            }
+
+            // Dispatch sync job
+            SyncUserEmails::dispatch($userId);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Email sync initiated successfully',
+                'status' => 'processing'
+            ], 202);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to trigger sync: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     public function downloadAttachment(string $emailId, string $attachmentId)
