@@ -13,7 +13,7 @@ class BdFacReinsurer extends Model
 
     protected $fillable = [
         'opportunity_id',
-        'customer_id',
+        'reinsurer_id',
         'written_share',
         'is_declined',
         'decline_reason'

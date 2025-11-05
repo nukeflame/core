@@ -5,11 +5,12 @@
         <div class="modal-content">
             <form id="proposalForm" action="{{ route('update.opp.status') }}" novalidate>
                 <input type="hidden" class="opportunity_id" name="opportunity_id" id="propOpportunityId" />
+                <input type="hidden" class="cedant_id" name="cedant_id" id="propCedId" />
                 <input type="hidden" class="current_stage" name="current_stage" />
                 <input type="hidden" name="class_code" class="class_code">
                 <input type="hidden" name="class_group_code" class="class_group_code">
-                <input type="hidden" name="total_placed_shares">
-                <input type="hidden" name="total_unplaced_shares" class="reinsurers_data">
+                <input type="hidden" name="total_placed_shares" id="propPlacedShare">
+                <input type="hidden" name="total_unplaced_shares" id="propUnPlacedShare">
                 <input type="hidden" name="selected_reinsurers" class="selected_reinsurers">
 
                 <div class="modal-body fac-slip-container">
@@ -165,7 +166,7 @@
                             <div class="section-content" id="reinsurer-info">
                                 <div class="reinsurer-selection-panel mb-2" id="reinSelectionPlacement">
                                     <div class="row">
-                                        <div class="col-md-6">
+                                        <div class="col-md-9">
                                             <div class="form-group">
                                                 <label class="form-label">Add Reinsurer</label>
                                                 <select class="sel" id="propAvailableReinsurers"
@@ -174,22 +175,10 @@
                                                 </select>
                                             </div>
                                         </div>
-                                        <div class="col-md-3">
-                                            <div class="form-group">
-                                                <label class="form-label">
-                                                    Total Written Share (%)
-                                                    <span class="required-asterisk">*</span>
-                                                </label>
-                                                <input type="number" class="form-inputs"
-                                                    id="totalWrittenReinsurerShare" name="total_reinsurer_share"
-                                                    placeholder="0.00" step="0.01" min="100" max="100"
-                                                    required readonly>
-                                            </div>
-                                        </div>
                                         <div class="col-md-2">
                                             <div class="form-group">
                                                 <label class="form-label">Share (%)</label>
-                                                <input type="number" class="form-inputs" id="reinsurerNegShare"
+                                                <input type="number" class="form-inputs" id="propReinShare"
                                                     placeholder="0.00" step="0.01" min="0.01" max="100">
                                             </div>
                                         </div>
@@ -197,7 +186,7 @@
                                             <div class="form-group">
                                                 <label class="form-label">&nbsp;</label>
                                                 <button type="button" class="btn btn-success w-100"
-                                                    id="addNegReinsurer" style="padding: 2px 0px;">
+                                                    id="addPropReinsurer" style="padding: 2px 0px;">
                                                     <i class="bx bx-plus" style="font-size: 27px;"></i>
                                                 </button>
                                             </div>
@@ -597,6 +586,8 @@
         $(document).ready(function() {
             let currentStage = 'lead';
             let pdfUrls = {};
+            let bdReinsurers = [];
+            let selectedReinsurers = new Set();
 
             let proposalState = {
                 reinsurers: [],
@@ -606,6 +597,7 @@
 
             const $form = $("#proposalForm");
             const $modal = $("#proposalModal");
+            const $table = $modal.find("#propReinsurersTable");
 
             function validateField($field) {
                 const val = $field.val();
@@ -652,18 +644,10 @@
                 const reinsurers = proposalState.reinsurers || [];
                 const totalShare = proposalState.totalShare || 0;
 
-
                 if (reinsurers.length === 0) {
                     return {
                         isValid: false,
                         message: 'At least one reinsurer must be selected'
-                    };
-                }
-
-                if (totalShare !== 100) {
-                    return {
-                        isValid: false,
-                        message: `Total written share must be exactly 100%. Current total is ${totalShare.toFixed(2)}%`
                     };
                 }
 
@@ -672,6 +656,89 @@
                     message: 'Valid'
                 };
             }
+
+            function getUploadedFiles() {
+                return new Promise((resolve) => {
+                    let attempts = 0;
+                    const checkInterval = setInterval(() => {
+                        if (typeof window.pipelineManager !== 'undefined' &&
+                            typeof window.pipelineManager.getAllUploadedFiles === 'function') {
+                            clearInterval(checkInterval);
+                            const files = window.pipelineManager.getAllUploadedFiles();
+                            resolve(files);
+                            return;
+                        }
+                        attempts++;
+                        if (attempts > 30) {
+                            clearInterval(checkInterval);
+                            console.warn('PipelineManager not available after 3 seconds');
+                            resolve({});
+                        }
+                    }, 100);
+                });
+            }
+
+            function validateRequiredFiles() {
+                const errors = [];
+
+                if (typeof window.pipelineManager === 'undefined' || !window.pipelineManager) {
+                    console.warn('pipelineManager is not defined. Skipping file validation.');
+                    return errors;
+                }
+
+                if (typeof window.pipelineManager.getAllUploadedFiles !== 'function') {
+                    console.warn(
+                        'pipelineManager.getAllUploadedFiles is not a function. Skipping file validation.');
+                    return errors;
+                }
+
+                const allUploadedFiles = window.pipelineManager.getAllUploadedFiles();
+                const uploadedFileNames = extractUploadedFileNames(allUploadedFiles);
+                const missingFiles = findMissingRequiredFiles(uploadedFileNames);
+
+                if (missingFiles.length > 0) {
+                    errors.push(`<b>Required Files:</b> Please upload: ${missingFiles.join(', ')}`);
+                }
+
+                return errors;
+            }
+
+            function extractUploadedFileNames(uploadedFiles) {
+                return Object.values(uploadedFiles).flatMap(innerArray =>
+                    Object.values(innerArray).map(fileObj => fileObj.fileName)
+                );
+            }
+
+            function findMissingRequiredFiles(uploadedFileNames) {
+                const missingFiles = [];
+                const requiredFiles = $('#proposalForm input[type="file"][required]');
+
+                requiredFiles.each(function() {
+                    const fileName = $(this).attr('name');
+
+                    const isFileUploaded = uploadedFileNames.some(item =>
+                        toCamelCase(item) === toCamelCase(fileName)
+                    );
+
+                    if (!isFileUploaded) {
+                        const fieldLabel = getFieldLabel($(this));
+                        missingFiles.push(fieldLabel || fileName);
+                    }
+                });
+
+                return missingFiles;
+            }
+
+            function getFieldLabel($field) {
+                return $field
+                    .closest(".form-group")
+                    .find("label")
+                    .first()
+                    .text()
+                    .replace("*", "")
+                    .trim();
+            }
+
 
             function validateProposalForm() {
                 let isFormValid = true;
@@ -690,46 +757,23 @@
                     }
                 });
 
+                const writtenShareError = validateTotalWrittenShareIs100();
+                if (writtenShareError) {
+                    isFormValid = false;
+                    errors.push(writtenShareError);
+                }
+
                 const reinsurerValidation = validateReinsurerSelection();
                 if (!reinsurerValidation.isValid) {
                     isFormValid = false;
                     errors.push(`<b>Reinsurer Selection:</b> ${reinsurerValidation.message}`);
                 }
 
-                if (typeof pipelineManager !== 'undefined' &&
-                    typeof pipelineManager.getAllUploadedFiles === 'function') {
+                const fileErrors = validateRequiredFiles();
 
-                    const allUploadedFiles = pipelineManager.getAllUploadedFiles();
-
-                    const fileNames = Object.values(allUploadedFiles || {}).flatMap(innerArray =>
-                        Object.values(innerArray || {}).map(fileObj => fileObj?.fileName)
-                    ).filter(Boolean);
-
-                    const requiredFiles = $form.find('input[type="file"][required]');
-                    let missingFiles = [];
-
-                    requiredFiles.each(function() {
-                        const fileName = $(this).attr('name').trim();
-
-                        const isMatch = fileNames.some(item =>
-                            toCamelCase(item) === toCamelCase(fileName)
-                        );
-
-                        if (!isMatch) {
-                            const fieldLabel = $(this)
-                                .closest(".form-group")
-                                .find("label")
-                                .text()
-                                .replace("*", "")
-                                .trim();
-                            missingFiles.push(fieldLabel);
-                        }
-                    });
-
-                    if (missingFiles.length > 0) {
-                        isFormValid = false;
-                        errors.push(`<b>Required Files:</b> Please upload: ${missingFiles.join(', ')}`);
-                    }
+                if (fileErrors.length > 0) {
+                    isFormValid = false;
+                    errors.push(...fileErrors);
                 }
 
                 return {
@@ -741,6 +785,20 @@
             function toCamelCase(str) {
                 return str
                     .replace(/[^a-zA-Z0-9]+(.)/g, (_, chr) => chr.toUpperCase());
+            }
+
+            function validateTotalWrittenShareIs100() {
+                const totalWrittenShare = parseFloat($("#propPlacedShare").val()) || 0;
+
+                if (totalWrittenShare === 0) {
+                    return "<b>Total Written Share:</b> Please enter the total written share percentage";
+                }
+
+                if (totalWrittenShare !== 100) {
+                    return `<b>Total Written Share:</b> Must be exactly 100%. Current value is ${totalWrittenShare.toFixed(2)}%`;
+                }
+
+                return null;
             }
 
             function prepareFormData() {
@@ -769,19 +827,29 @@
                     }
                 });
 
-                if (typeof pipelineManager !== 'undefined' &&
-                    typeof pipelineManager.getAllUploadedFiles === 'function') {
 
-                    const allUploadedFiles = pipelineManager.getAllUploadedFiles();
-                    Object.entries(allUploadedFiles || {}).forEach(([fieldId, files]) => {
-                        if (Array.isArray(files)) {
-                            files.forEach((file) => {
-                                if (file instanceof File) {
-                                    formData.append('facultative_files[]', file);
-                                }
-                            });
-                        }
+                if (typeof window.pipelineManager !== 'undefined' && window.pipelineManager && typeof window
+                    .pipelineManager
+                    .getAllUploadedFiles === 'function') {
+                    const allUploadedFiles = window.pipelineManager.getAllUploadedFiles();
+
+                    Object.entries(allUploadedFiles).forEach(([fieldId, filesData]) => {
+                        filesData.forEach((file, index) => {
+                            formData.append('facultative_files[]', file);
+
+                            const docType = file.fileName || 'additionalDocuments';
+                            formData.append('facultative_document_types[]', docType);
+
+                            const docTypeId = file.fileId || null;
+                            if (docTypeId) {
+                                formData.append('facultative_document_type_ids[]', docTypeId);
+                            }
+                        });
                     });
+                } else {
+                    console.warn(
+                        'pipelineManager not available in prepareFormData(). File uploads may not be processed.'
+                    );
                 }
 
                 if (typeof proposalState !== 'undefined') {
@@ -800,6 +868,7 @@
                 const originalBtnContent = $submitBtn.html();
 
                 const validation = validateProposalForm();
+
                 if (!validation.isValid) {
                     let errorHtml = '<ul class="text-start mb-0">';
                     validation.errors.forEach((error) => {
@@ -912,16 +981,14 @@
                 });
             });
 
-            $form.find('.form-inputs').on('blur', function() {
-                validateField($(this));
-            });
-
             $modal.on('shown.bs.modal', function() {
+                $("#reinSelectionPlacement").hide();
+
                 if (!proposalState.isInitialized) {
                     proposalState.isInitialized = true;
 
                     try {
-                        const selectedReinsurersValue = $(".selected_reinsurers").val();
+                        selectedReinsurersValue = $(".selected_reinsurers").val();
 
                         if (selectedReinsurersValue && selectedReinsurersValue.trim() !== '') {
                             const reinsurers = JSON.parse(selectedReinsurersValue);
@@ -930,10 +997,24 @@
                             proposalState.reinsurers = [];
                         }
 
-                        proposalState.totalShare = proposalState.reinsurers.reduce((sum, reinsurer) => {
-                            const writtenShare = parseFloat(reinsurer.written_share || 0);
-                            return sum + writtenShare;
-                        }, 0);
+                        proposalState.totalShare = $("#propPlacedShare").val() || 0;
+
+                        let $tb = $table.DataTable();
+                        var hasDeclined = false;
+
+                        $tb.rows().every(function() {
+                            var rowData = this.data();
+
+                            if (rowData.is_declined === true || rowData.is_declined === 1) {
+                                hasDeclined = true;
+                                return false;
+                            }
+                        });
+
+                        if (hasDeclined) {
+                            $("#reinSelectionPlacement").show();
+                        }
+
 
                         $('#totalWrittenReinsurerShare').val(proposalState.totalShare.toFixed(2));
                         $('#reinsurerCount').text(proposalState.reinsurers.length);
@@ -1158,13 +1239,13 @@
                 const pdfUrl = $(this).data('pdf-url');
                 const filename = $(this).data('pdf-name');
                 if (pdfUrl) {
-                    console.log(pdfUrl)
-                    // const link = document.createElement('a');
-                    // link.href = pdfUrl;
-                    // link.download = filename || 'document.pdf';
-                    // document.body.appendChild(link);
-                    // link.click();
-                    // document.body.removeChild(link);
+                    // console.log(pdfUrl)
+                    const link = document.createElement('a');
+                    link.href = pdfUrl;
+                    link.download = filename || 'document.pdf';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
                 }
             });
 
@@ -1177,7 +1258,6 @@
                 return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
             }
 
-            // Handle cedant contacts button click
             $(document).on('click', '.add_cedant_contacts', function(e) {
                 e.preventDefault();
 
@@ -1185,9 +1265,6 @@
                 const opportunityId = $('#propOpportunityId').val();
 
                 const cedantId = $(this).data('cedant-id');
-
-                console.log(cedantId)
-
 
                 if (!cedantId) {
                     Swal.fire({
@@ -1242,7 +1319,6 @@
                 });
             });
 
-            // Handle contact-reinsurer-btn clicks in proposal modal
             $(document).on('click', '.contact-reinsurer-btn', function(e) {
                 e.preventDefault();
 
@@ -1371,10 +1447,313 @@
                 `;
             }
 
-            // Handle modal close event to show proposal modal again
             $('#propContactsModal').on('hidden.bs.modal', function() {
                 $('#proposalModal').modal('show');
             });
+
+            $("#propAvailableReinsurers").select2({
+                placeholder: "Search and select reinsurer...",
+                allowClear: true,
+                width: "100%",
+                dropdownParent: $("#proposalModal"),
+                minimumInputLength: 0,
+                language: {
+                    searching: function() {
+                        return "Searching reinsurers...";
+                    },
+                    noResults: function() {
+                        return "No reinsurers found";
+                    },
+                    errorLoading: function() {
+                        return "Error loading reinsurers";
+                    }
+                },
+                ajax: {
+                    url: "{{ route('pipeline.search_reinsurers') }}",
+                    method: "GET",
+                    dataType: "json",
+                    delay: 300,
+                    data: function(params) {
+                        return {
+                            q: params.term || "",
+                            page: params.page || 1,
+                            cedantId: $("#propCedId").val() || '',
+                            oppId: $("#propOpportunityId").val() || '',
+                            stage: 'proposal',
+                        };
+                    },
+                    processResults: function(data, params) {
+                        if (!data || !Array.isArray(data.results)) {
+                            return {
+                                results: [],
+                                pagination: {
+                                    more: false
+                                }
+                            };
+                        }
+
+                        bdReinsurers = data.results;
+
+                        const results = data.results.map(function(reinsurer) {
+                            return {
+                                id: reinsurer.id,
+                                text: reinsurer.name || 'Unknown Reinsurer',
+                                name: reinsurer.name || 'Unknown',
+                                email: reinsurer.email || 'N/A',
+                                country: reinsurer.country || 'N/A',
+                                rating: reinsurer.rating || 'N/A',
+                                full_data: reinsurer
+                            };
+                        });
+
+                        return {
+                            results: results,
+                            pagination: {
+                                more: data.pagination && data.pagination.more === true
+                            }
+                        };
+                    },
+                    // cache: true,
+                    error: function(xhr, status, error) {
+                        // Swal.fire({
+                        //     icon: 'error',
+                        //     title: 'Failed to Load Reinsurers',
+                        //     text: 'Unable to fetch reinsurer list. Please refresh the page.',
+                        //     confirmButtonColor: '#dc3545'
+                        // });
+                        console.error(error)
+                    }
+                },
+                templateResult: function(reinsurer) {
+                    if (reinsurer.loading) return reinsurer.text;
+                    if (!reinsurer.name) return reinsurer.text;
+
+                    const email = reinsurer.email;
+
+                    return `
+                        <div class="reinsurer-option">
+                            <div><strong>${reinsurer.name}</strong>
+                            </div>
+                            <div><small class="text-muted">${reinsurer.country} | Email: ${email}</small></div>
+                        </div>
+                    `;
+                },
+                templateSelection: function(reinsurer) {
+                    if (!reinsurer.id) return reinsurer.text;
+
+                    let option = $("#propAvailableReinsurers").find(
+                        `option[value='${reinsurer.id}']`
+                    );
+                    option.attr("data-name", reinsurer.name || "");
+                    option.attr("data-email", reinsurer.email || "");
+                    option.attr("data-country", reinsurer.country || "");
+
+                    return `${reinsurer.name} (${reinsurer.email}) - ${reinsurer.country}`;
+                },
+                escapeMarkup: function(markup) {
+                    return markup;
+                },
+            });
+
+            function initializeDataTable() {
+                return $table.DataTable({
+                    paging: false,
+                    searching: false,
+                    info: false,
+                    ordering: false,
+                    destroy: true
+                });
+            }
+
+            $("#addPropReinsurer").click(function(e) {
+                e.preventDefault();
+
+                const selectedOption = $("#propAvailableReinsurers").find("option:selected");
+                const reinsurerID = selectedOption.val();
+
+                if (!reinsurerID || reinsurerID.trim() === '') {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Please Select a Reinsurer',
+                        text: 'Choose a reinsurer from the dropdown list'
+                    });
+                    return false;
+                }
+
+                const $shareInput = $("#propReinShare");
+                const shareValue = $shareInput.val();
+                const writtenSharePercent = parseFloat(shareValue);
+
+                if (!shareValue || shareValue.trim() === '') {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Enter Written Share',
+                        text: 'Please enter a share percentage (0.01 - 100)'
+                    });
+                    $shareInput.focus();
+                    return false;
+                }
+
+                if (isNaN(writtenSharePercent)) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Invalid Share Percentage',
+                        text: 'Share must be a valid number'
+                    });
+                    $shareInput.focus();
+                    return false;
+                }
+
+                if (writtenSharePercent <= 0 || writtenSharePercent > 100) {
+                    Swal.fire({
+                        icon: "error",
+                        title: "Invalid Written Share",
+                        text: `Share must be between 0.01% and 100%. You entered: ${writtenSharePercent}%`,
+                        confirmButtonColor: "#3085d6",
+                    });
+                    $shareInput.focus();
+                    return false;
+                }
+
+                if (selectedReinsurers.has(reinsurerID)) {
+                    Swal.fire({
+                        icon: "info",
+                        title: "Already Selected",
+                        text: "This reinsurer has already been added to the list.",
+                        confirmButtonColor: "#3085d6",
+                    });
+                    return false;
+                }
+
+                const dt = initializeDataTable();
+                let currentTotalPlacedShares = 0;
+
+                dt.rows().every(function(index) {
+                    const row = $(this.node());
+                    const existingShare = parseFloat(row.attr("data-written-share")) || 0;
+                    currentTotalPlacedShares += existingShare;
+                });
+
+                if (currentTotalPlacedShares + writtenSharePercent > 100) {
+                    const remainingCapacity = 100 - currentTotalPlacedShares;
+                    Swal.fire({
+                        icon: "warning",
+                        title: "Insufficient Capacity",
+                        text: `Maximum available share is ${remainingCapacity.toFixed(2)}%. You tried to add ${writtenSharePercent}%.`,
+                        confirmButtonColor: "#f39c12",
+                    });
+                    return false;
+                }
+
+                const reinsurerData = {
+                    id: reinsurerID,
+                    name: selectedOption.data("name") || selectedOption.text(),
+                    email: selectedOption.data("email") || "N/A",
+                    country: selectedOption.data("country") || "N/A",
+                    writtenShare: writtenSharePercent
+                };
+
+                console.log('Reinsurer Data:', reinsurerData);
+
+                const rowHtml = `
+                    <tr data-reinsurer-id="${reinsurerData.id}" data-written-share="${reinsurerData.writtenShare}">
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <div>
+                                    <div class="fw-medium">${escapeHtml(reinsurerData.name)}</div>
+                                    <small class="text-muted">(${escapeHtml(reinsurerData.email)}) - ${escapeHtml(reinsurerData.country)}</small>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="text-start">
+                            <div class="share-display">
+                                <strong>${reinsurerData.writtenShare.toFixed(2)}%</strong>
+                            </div>
+                        </td>
+                        <td class="text-start">
+                            <button type="button" class="btn btn-primary btn-sm contact-reinsurer-btn"
+                                    data-reinsurer-id="${reinsurerData.id}" title="View Contacts">
+                                <i class="bx bx-book"></i>
+                            </button>
+                            <button type="button" class="btn btn-danger btn-sm remove-reinsurer"
+                                    data-reinsurer-id="${reinsurerData.id}" title="Remove">
+                                <i class="bx bx-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+
+                try {
+                    dt.row.add($(rowHtml)).draw();
+                } catch (err) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: 'Failed to add reinsurer to table'
+                    });
+                    return false;
+                }
+
+                selectedReinsurers.add(reinsurerID);
+                $('#reinsurerCount').text(selectedReinsurers.size);
+
+                // updateSharesDisplay();
+
+                // Reset form fields
+                $("#propAvailableReinsurers").val(null).trigger('change');
+                $("#propReinShare").val('');
+
+                toastr.success(
+                    `${reinsurerData.name} has been added with ${writtenSharePercent.toFixed(2)}% written share`,
+                    'Reinsurer Added!'
+                );
+            });
+
+            function updateSharesDisplay() {
+                let totalShare = 0;
+                const dt = initializeDataTable();
+
+                dt.rows().every(function() {
+                    const row = $(this.node());
+                    const share = parseFloat(row.attr("data-written-share")) || 0;
+                    totalShare += share;
+                });
+
+                const unplacedShare = 100 - totalShare;
+
+                $('.placed-value').text(totalShare.toFixed(2) + '%');
+                $('.unplaced-value').text(unplacedShare.toFixed(2) + '%');
+                $('.placed-progress').css('width', totalShare + '%');
+
+                $('#propPlacedShare').val(totalShare.toFixed(2));
+                $('#propUnPlacedShare').val(unplacedShare.toFixed(2));
+            }
+
+            function escapeHtml(text) {
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            }
+
+            $(document).on('click', '.remove-reinsurer', function(e) {
+                e.preventDefault();
+
+                const reinsurerID = $(this).data('reinsurer-id');
+                const row = $(this).closest('tr');
+
+                console.log('Removing reinsurer:', reinsurerID);
+
+                const dt = initializeDataTable();
+                dt.row(row).remove().draw();
+
+                selectedReinsurers.delete(reinsurerID);
+                $('#reinsurerCount').text(selectedReinsurers.size);
+
+                updateSharesDisplay();
+
+                console.log('✅ Reinsurer removed');
+            });
+
 
         });
     </script>

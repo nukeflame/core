@@ -1,15 +1,18 @@
-<!-- Negotiation Stage Modal -->
+<!-- Negotiation Stage Modal - FIXED VERSION -->
 <div id="negotiationModal" class="modal fade effect-scale md-wrapper" tabindex="-1" data-bs-backdrop="static"
     data-bs-keyboard="false" aria-labelledby="staticPropoalStageLabel" aria-hidden="true" role="dialog">
     <div class="modal-dialog modal-dialog-centered modal-xl" role="document">
         <div class="modal-content">
             <form id="negotiationForm" action="{{ route('update.opp.status') }}" novalidate>
-                <input type="hidden" class="opportunity_id" id="propOpportunityId" name="opportunity_id" />
-                <input type="hidden" class="current_stage" id="propCurrentStage" name="current_stage" />
-                <input type="hidden" name="class_code" class="class_code" id="propClassCode">
-                <input type="hidden" name="class_group_code" class="class_group_code" id="propClassGroupCode">
-                <input type="hidden" name="total_placed_shares" id="propTotalPlacedShares">
-                <input type="hidden" name="total_unplaced_shares" class="reinsurers_data" id="propTotalUnplacedShares">
+                <input type="hidden" class="opportunity_id" name="opportunity_id" id="negOpportunityId" />
+                <input type="hidden" class="cedant_id" name="cedant_id" id="negCedId" />
+                <input type="hidden" class="current_stage" name="current_stage" />
+                <input type="hidden" name="class_code" class="class_code">
+                <input type="hidden" name="class_group_code" class="class_group_code">
+                <input type="hidden" name="total_placed_shares" id="negPlacedShare">
+                <input type="hidden" name="total_unplaced_shares" id="negUnPlacedShare">
+                <input type="hidden" name="selected_reinsurers" class="selected_reinsurers">
+                <input type="hidden" name="reinsurers_data" class="reinsurers_data" id="negReinsurersData">
 
                 <div class="modal-body fac-slip-container">
                     <div class="fac-slip-header">
@@ -99,8 +102,7 @@
                                     <div class="col-md-6">
                                         <div class="form-group">
                                             <label class="form-label">Risk Type</label>
-                                            <input type="text" class="form-inputs" name="risk_type"
-                                                id="riskType" readonly />
+                                            <input type="text" class="form-inputs risk_type" name="risk_type" />
                                         </div>
                                     </div>
                                     <div class="col-md-6">
@@ -109,8 +111,8 @@
                                                 Last Contact Date
                                                 <span class="required-asterisk">*</span>
                                             </label>
-                                            <input type="date" class="form-inputs" name="last_contact_date"
-                                                id="lastContactDate" />
+                                            <input type="date" class="form-inputs last_contact_date"
+                                                name="last_contact_date" />
                                         </div>
                                     </div>
                                 </div>
@@ -133,15 +135,16 @@
                                         <div class="col-md-11">
                                             <div class="form-group">
                                                 <label class="form-label">Cedant</label>
-                                                <small class="form-text form-inputs" id="cedantName"></small>
+                                                <small class="form-text form-inputs cedant_name"></small>
                                             </div>
                                         </div>
                                         <div class="col-md-1">
                                             <div class="form-group">
                                                 <label class="form-label">&nbsp;</label>
-                                                <button type="button" class="btn btn-success w-100"
-                                                    id="addPropReinsurer" style="padding: 2px 0px;">
-                                                    <i class="bx bx-plus" style="font-size: 27px;"></i>
+                                                <button type="button"
+                                                    class="btn btn-primary add_cedant_contacts btn-sm w-100"
+                                                    style="padding: 2px 0px;">
+                                                    <i class="bx bx-book" style="font-size: 27px;"></i>
                                                 </button>
                                             </div>
                                         </div>
@@ -161,54 +164,6 @@
                                 </div>
                             </div>
                             <div class="section-content" id="reinsurer-info">
-                                <div class="reinsurer-selection-panel mb-2" id="reinSelectionPlacement">
-                                    <div class="row">
-                                        <div class="col-md-5">
-                                            <div class="form-group">
-                                                <label class="form-label">Add Reinsurer</label>
-                                                <select class="sel" id="propAvailableReinsurers"
-                                                    placeholder="Search and select reinsurer...">
-                                                    <option value="">Search and select reinsurer...</option>
-                                                </select>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-3">
-                                            <div class="form-group">
-                                                <label class="form-label">
-                                                    Total Written Share (%)
-                                                    <span class="required-asterisk">*</span>
-                                                </label>
-                                                <input type="number" class="form-inputs"
-                                                    id="totalWrittenReinsurerShare" name="total_reinsurer_share"
-                                                    placeholder="0.00" step="0.01" min="100" max="100"
-                                                    required readonly>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-1">
-                                            <div class="form-group">
-                                                <label class="form-label">Written (%)</label>
-                                                <input type="number" class="form-inputs" id="reinsurerWrittenShare"
-                                                    placeholder="0.00" step="0.01" min="0.01" max="100">
-                                            </div>
-                                        </div>
-                                        <div class="col-md-1">
-                                            <div class="form-group">
-                                                <label class="form-label">Signed (%)</label>
-                                                <input type="number" class="form-inputs" id="reinsurerSignedShare"
-                                                    placeholder="0.00" step="0.01" min="0.01" max="100">
-                                            </div>
-                                        </div>
-                                        <div class="col-md-1">
-                                            <div class="form-group">
-                                                <label class="form-label">&nbsp;</label>
-                                                <button type="button" class="btn btn-success w-100"
-                                                    id="addNegReinsurer" style="padding: 2px 0px;">
-                                                    <i class="bx bx-plus" style="font-size: 27px;"></i>
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
                                 <div class="selected-reinsurers-section">
                                     <h6 class="mb-3">
                                         <i class="bi bi-people-fill me-1"></i>Selected Reinsurers
@@ -339,129 +294,14 @@
 
             const $modal = $("#negotiationModal");
             const $form = $("#negotiationForm");
-            const $table = $("#negReinsurersTable");
+            const $table = $modal.find("#negReinsurersTable");
+
             let reinsurerDataTable = null;
 
-            function initializeReinsurerTable() {
-                if (reinsurerDataTable) {
-                    try {
-                        reinsurerDataTable.destroy();
-                    } catch (e) {
-                        console.warn('Failed to destroy existing table:', e);
-                    }
-                }
+            // FIX #3: Remove duplicate initialization - only initialize once in initializeReinsurerTable
+            // Don't initialize here at document ready
 
-                reinsurerDataTable = $table.DataTable({
-                    data: negotiationState.reinsurers,
-                    columns: [{
-                            data: 'name',
-                            title: 'Reinsurer',
-                            render: function(data, type, row) {
-                                return `
-                                    <div class="d-flex align-items-center">
-                                        <div>
-                                            <div class="fw-medium">${data}</div>
-                                            <small class="text-muted">${row.email || row.contact || ''}</small>
-                                        </div>
-                                    </div>
-                                `;
-                            }
-                        },
-                        {
-                            data: 'written_share',
-                            title: 'Written Share (%)',
-                            className: 'text-start',
-                            render: function(data, type, row) {
-                                const percentage = parseFloat(data || 0);
-                                const badgeClass = percentage >= 50 ? 'bg-success' :
-                                    percentage >= 25 ? 'bg-primary' : 'bg-info';
-                                return `<span class="badge ${badgeClass}">${percentage.toFixed(2)}%</span>`;
-                            }
-                        },
-                        {
-                            data: 'signed_share',
-                            title: 'Signed Share (%)',
-                            className: 'text-start',
-                            render: function(data, type, row) {
-                                const percentage = parseFloat(data || 0);
-                                const badgeClass = percentage >= 50 ? 'bg-success' :
-                                    percentage >= 25 ? 'bg-primary' : 'bg-info';
-                                return `<span class="badge ${badgeClass}">${percentage.toFixed(2)}%</span>`;
-                            }
-                        },
-                        {
-                            data: null,
-                            title: 'Action',
-                            orderable: false,
-                            className: 'text-center',
-                            render: function(data, type, row, meta) {
-                                return `
-                                    <button type="button"
-                                            class="btn btn-sm btn-primary edit-reinsurer-btn"
-                                            data-index="${meta.row}"
-                                            title="Edit Share">
-                                        <i class="bx bx-edit"></i>
-                                    </button>
-                                    <button type="button"
-                                            class="btn btn-sm btn-danger remove-reinsurer-btn"
-                                            data-index="${meta.row}"
-                                            title="Remove">
-                                        <i class="bx bx-trash"></i>
-                                    </button>
-                                `;
-                            }
-                        }
-                    ],
-                    paging: false,
-                    searching: false,
-                    info: false,
-                    ordering: false,
-                    language: {
-                        emptyTable: "No reinsurers selected. Click '+' to add reinsurers."
-                    },
-                    drawCallback: function() {
-                        attachReinsurerActionHandlers();
-                    }
-                });
-
-                updateTotalShare();
-            }
-
-            $table.DataTable({
-                data: [],
-                columns: [{
-                        data: 'name',
-                        title: 'Reinsurer'
-                    },
-                    {
-                        data: 'written_share',
-                        title: 'Written Share (%)'
-                    }, {
-                        data: 'signed_share',
-                        title: 'Signed Share (%)'
-                    },
-                    {
-                        data: 'action',
-                        title: 'Action',
-                        orderable: false
-                    }
-                ],
-                paging: false,
-                searching: false,
-                info: false,
-                language: {
-                    emptyTable: "No reinsurers have been selected yet."
-                }
-            });
-
-            $('#propAvailableReinsurers').select2({
-                placeholder: 'Search and select reinsurer...',
-                allowClear: true,
-                width: '100%',
-                dropdownParent: $('#negotiationModal')
-            });
-
-            $("#negotiationForm").on("input blur", ".form-inputs", function() {
+            $("#negotiationForm").on("input", ".form-inputs", function() {
                 validateField($(this));
             });
 
@@ -585,7 +425,7 @@
                     });
                 }
 
-                // Add reinsurer data
+                // FIX #1: Uncomment and ensure reinsurer data is added
                 formData.append("reinsurers_data", JSON.stringify(negotiationState.reinsurers));
                 formData.append("total_placed_shares", negotiationState.totalShare.toFixed(2));
                 formData.append("total_unplaced_shares", (100 - negotiationState.totalShare).toFixed(2));
@@ -599,33 +439,34 @@
                 const $submitBtn = $form.find("button[type='submit']");
                 const originalBtnContent = $submitBtn.html();
 
-                // const validation = validateNegotiationForm();
-                // if (!validation.isValid) {
-                //     let errorHtml = '<ul class="text-start mb-0">';
-                //     validation.errors.forEach((error) => {
-                //         errorHtml += `<li class="mb-1">${error}</li>`;
-                //     });
-                //     errorHtml += "</ul>";
+                // FIX #5: Re-enable validation
+                const validation = validateNegotiationForm();
+                if (!validation.isValid) {
+                    let errorHtml = '<ul class="text-start mb-0">';
+                    validation.errors.forEach((error) => {
+                        errorHtml += `<li class="mb-1">${error}</li>`;
+                    });
+                    errorHtml += "</ul>";
 
-                //     Swal.fire({
-                //         icon: "error",
-                //         title: "Validation Failed",
-                //         html: errorHtml,
-                //         confirmButtonColor: "#dc3545",
-                //     });
+                    Swal.fire({
+                        icon: "error",
+                        title: "Validation Failed",
+                        html: errorHtml,
+                        confirmButtonColor: "#dc3545",
+                    });
 
-                //     // Scroll to first error
-                //     const $firstError = $form.find(".is-invalid").first();
-                //     if ($firstError.length) {
-                //         $firstError[0].scrollIntoView({
-                //             behavior: "smooth",
-                //             block: "center",
-                //         });
-                //         setTimeout(() => $firstError.focus(), 500);
-                //     }
+                    // Scroll to first error
+                    const $firstError = $form.find(".is-invalid").first();
+                    if ($firstError.length) {
+                        $firstError[0].scrollIntoView({
+                            behavior: "smooth",
+                            block: "center",
+                        });
+                        setTimeout(() => $firstError.focus(), 500);
+                    }
 
-                //     return false;
-                // }
+                    return false;
+                }
 
                 $submitBtn
                     .html('<i class="bx bx-loader-alt bx-spin me-1"></i> Sending Negotiation...')
@@ -712,135 +553,65 @@
                 });
             });
 
-            function addReinsurer() {
-                const $select = $('#propAvailableReinsurers');
-                const $writtenShareInput = $('#reinsurerWrittenShare');
-                const $signedShareInput = $('#reinsurerSignedShare');
-
-                const selectedReinsurerId = $select.val();
-                const writtenShare = parseFloat($writtenShareInput.val());
-                const signedShare = parseFloat($signedShareInput.val());
-
-                // Validation
-                if (!selectedReinsurerId) {
-                    showValidationError('Please select a reinsurer');
-                    $select.focus();
-                    return;
-                }
-
-                if (!writtenShare || writtenShare <= 0 || writtenShare > 100) {
-                    showValidationError('Please enter a valid written share between 0.01 and 100');
-                    $writtenShareInput.focus();
-                    return;
-                }
-
-                if (!signedShare || signedShare <= 0 || signedShare > 100) {
-                    showValidationError('Please enter a valid signed share between 0.01 and 100');
-                    $signedShareInput.focus();
-                    return;
-                }
-
-                // Check if already added
-                const existingIndex = negotiationState.reinsurers.findIndex(
-                    r => r.id == selectedReinsurerId
+            // FIX #2: Update edit function to work with correct data structure
+            function editReinsurer(reinsurerId, reinsurerName, currentWrittenShare, currentSignedShare) {
+                const reinsurerIndex = negotiationState.reinsurers.findIndex(r =>
+                    r.reinsurer_id === reinsurerId || r.id === reinsurerId
                 );
 
-                if (existingIndex !== -1) {
-                    showValidationError('This reinsurer has already been added');
+                if (reinsurerIndex === -1) {
+                    showValidationError('Reinsurer not found');
                     return;
                 }
 
-                // Check total share
-                const newTotal = negotiationState.totalShare + writtenShare;
-                if (newTotal > 100) {
-                    showValidationError(
-                        `Cannot add ${writtenShare}%. Total would exceed 100% (current: ${negotiationState.totalShare.toFixed(2)}%)`
-                    );
-                    return;
-                }
-
-                // Get reinsurer details from select2
-                const selectedOption = $select.find('option:selected');
-                const reinsurerData = selectedOption.data('reinsurer') || {};
-
-                // Add to state
-                const newReinsurer = {
-                    id: selectedReinsurerId,
-                    name: selectedOption.text() || reinsurerData.name || 'Unknown',
-                    email: reinsurerData.email || '',
-                    contact: reinsurerData.contact || '',
-                    written_share: writtenShare.toFixed(2),
-                    signed_share: signedShare.toFixed(2),
-                    country: reinsurerData.country || ''
-                };
-
-                negotiationState.reinsurers.push(newReinsurer);
-
-                // Update table
-                reinsurerDataTable.clear();
-                reinsurerDataTable.rows.add(negotiationState.reinsurers);
-                reinsurerDataTable.draw();
-
-                // Update counter and total
-                updateReinsurerCount();
-                updateTotalShare();
-
-                // Reset inputs
-                $select.val(null).trigger('change');
-                $writtenShareInput.val('');
-                $signedShareInput.val('');
-
-                showSuccessToast('Reinsurer added successfully');
-            }
-
-            function editReinsurer(index) {
-                const reinsurer = negotiationState.reinsurers[index];
-                if (!reinsurer) return;
+                const reinsurer = negotiationState.reinsurers[reinsurerIndex];
 
                 Swal.fire({
                     title: 'Edit Reinsurer Shares',
                     html: `
-                <div class="form-group text-start mb-3">
-                    <label class="form-label fw-semibold mb-2">${reinsurer.name}</label>
-                    <div class="mb-3">
-                        <label class="form-label">Written Share</label>
-                        <div class="input-group">
-                            <input type="number"
-                                   id="editWrittenShareInput"
-                                   class="form-control"
-                                   value="${reinsurer.written_share}"
-                                   min="0.01"
-                                   max="100"
-                                   step="0.01"
-                                   placeholder="Enter written share percentage">
-                            <span class="input-group-text">%</span>
+                        <div class="form-group text-start mb-3">
+                            <label class="form-label fw-semibold mb-2">${escapeHtml(reinsurerName)}</label>
+                            <div class="mb-3">
+                                <label class="form-label">Written Share</label>
+                                <div class="input-group">
+                                    <input type="number"
+                                        id="editWrittenShareInput"
+                                        class="form-control"
+                                        value="${currentWrittenShare}"
+                                        min="0.01"
+                                        max="100"
+                                        step="0.01"
+                                        placeholder="Enter written share percentage">
+                                    <span class="input-group-text">%</span>
+                                </div>
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label">Signed Share</label>
+                                <div class="input-group">
+                                    <input type="number"
+                                        id="editSignedShareInput"
+                                        class="form-control"
+                                        value="${currentSignedShare || 0}"
+                                        min="0.01"
+                                        max="100"
+                                        step="0.01"
+                                        placeholder="Enter signed share percentage">
+                                    <span class="input-group-text">%</span>
+                                </div>
+                            </div>
+                            <small class="text-muted mt-1 d-block">
+                                Current total written: ${negotiationState.totalShare.toFixed(2)}%
+                            </small>
                         </div>
-                    </div>
-                    <div class="mb-2">
-                        <label class="form-label">Signed Share</label>
-                        <div class="input-group">
-                            <input type="number"
-                                   id="editSignedShareInput"
-                                   class="form-control"
-                                   value="${reinsurer.signed_share || 0}"
-                                   min="0.01"
-                                   max="100"
-                                   step="0.01"
-                                   placeholder="Enter signed share percentage">
-                            <span class="input-group-text">%</span>
-                        </div>
-                    </div>
-                    <small class="text-muted mt-1 d-block">
-                        Current total written: ${negotiationState.totalShare.toFixed(2)}%
-                    </small>
-                </div>
-            `,
+                    `,
                     showCancelButton: true,
                     confirmButtonText: 'Update',
                     cancelButtonText: 'Cancel',
                     preConfirm: () => {
-                        const newWrittenShare = parseFloat(document.getElementById('editWrittenShareInput').value);
-                        const newSignedShare = parseFloat(document.getElementById('editSignedShareInput').value);
+                        const newWrittenShare = parseFloat(document.getElementById(
+                            'editWrittenShareInput').value);
+                        const newSignedShare = parseFloat(document.getElementById(
+                            'editSignedShareInput').value);
 
                         if (!newWrittenShare || newWrittenShare <= 0 || newWrittenShare > 100) {
                             Swal.showValidationMessage(
@@ -855,8 +626,8 @@
                         }
 
                         // Calculate new total (excluding current reinsurer's share)
-                        const otherSharesTotal = negotiationState.totalShare - parseFloat(reinsurer
-                            .written_share);
+                        const otherSharesTotal = negotiationState.totalShare - parseFloat(
+                            currentWrittenShare);
                         const newTotal = otherSharesTotal + newWrittenShare;
 
                         if (newTotal > 100) {
@@ -873,19 +644,24 @@
                     }
                 }).then((result) => {
                     if (result.isConfirmed && result.value) {
-                        negotiationState.reinsurers[index].written_share = result.value.written.toFixed(2);
-                        negotiationState.reinsurers[index].signed_share = result.value.signed.toFixed(2);
+                        // FIX #6: Update using correct field names
+                        negotiationState.reinsurers[reinsurerIndex].written_share = result.value.written
+                            .toFixed(2);
+                        negotiationState.reinsurers[reinsurerIndex].signed_share = result.value.signed
+                            .toFixed(2);
 
+                        // Refresh the table
+                        const tableData = transformReinsurerData(negotiationState.reinsurers);
                         reinsurerDataTable.clear();
-                        reinsurerDataTable.rows.add(negotiationState.reinsurers);
+                        reinsurerDataTable.rows.add(tableData);
                         reinsurerDataTable.draw();
 
                         updateTotalShare();
+                        updatePlacementDisplay(); // FIX #4: Update placement display
                         showSuccessToast('Shares updated successfully');
                     }
                 });
 
-                // Focus on input when modal opens
                 setTimeout(() => {
                     const input = document.getElementById('editWrittenShareInput');
                     if (input) {
@@ -895,13 +671,19 @@
                 }, 100);
             }
 
-            function removeReinsurer(index) {
-                const reinsurer = negotiationState.reinsurers[index];
-                if (!reinsurer) return;
+            function removeReinsurer(reinsurerId, reinsurerName) {
+                const reinsurerIndex = negotiationState.reinsurers.findIndex(r =>
+                    r.reinsurer_id === reinsurerId || r.id === reinsurerId
+                );
+
+                if (reinsurerIndex === -1) {
+                    showValidationError('Reinsurer not found');
+                    return;
+                }
 
                 Swal.fire({
                     title: 'Remove Reinsurer?',
-                    html: `Are you sure you want to remove <strong>${reinsurer.name}</strong>?`,
+                    html: `Are you sure you want to remove <strong>${escapeHtml(reinsurerName)}</strong>?`,
                     icon: 'warning',
                     showCancelButton: true,
                     confirmButtonColor: '#d33',
@@ -910,14 +692,16 @@
                     cancelButtonText: 'Cancel'
                 }).then((result) => {
                     if (result.isConfirmed) {
-                        negotiationState.reinsurers.splice(index, 1);
+                        negotiationState.reinsurers.splice(reinsurerIndex, 1);
 
+                        const tableData = transformReinsurerData(negotiationState.reinsurers);
                         reinsurerDataTable.clear();
-                        reinsurerDataTable.rows.add(negotiationState.reinsurers);
+                        reinsurerDataTable.rows.add(tableData);
                         reinsurerDataTable.draw();
 
                         updateReinsurerCount();
                         updateTotalShare();
+                        updatePlacementDisplay(); // FIX #4: Update placement display
 
                         showSuccessToast('Reinsurer removed successfully');
                     }
@@ -926,18 +710,27 @@
 
             function attachReinsurerActionHandlers() {
                 $table.off('click', '.edit-reinsurer-btn');
-                $table.off('click', '.remove-reinsurer-btn');
+                $table.off('click', '.contact-reinsurer-btn');
 
                 $table.on('click', '.edit-reinsurer-btn', function(e) {
                     e.preventDefault();
-                    const index = $(this).data('index');
-                    editReinsurer(index);
+                    e.stopPropagation();
+
+                    const reinsurerId = $(this).data('reinsurer-id');
+                    const reinsurerName = $(this).data('reinsurer-name');
+                    const writtenShare = $(this).data('written-share');
+                    const signedShare = $(this).data('signed-share') || 0;
+
+                    editReinsurer(reinsurerId, reinsurerName, writtenShare, signedShare);
                 });
 
-                $table.on('click', '.remove-reinsurer-btn', function(e) {
+                $table.on('click', '.contact-reinsurer-btn', function(e) {
                     e.preventDefault();
-                    const index = $(this).data('index');
-                    removeReinsurer(index);
+                    e.stopPropagation();
+
+                    const reinsurerId = $(this).data('reinsurer-id');
+                    // Implement contact modal or action here
+                    console.log('Contact reinsurer:', reinsurerId);
                 });
             }
 
@@ -951,77 +744,44 @@
                     0
                 );
 
-                $('#totalNegReinsurerShare').val(negotiationState.totalShare.toFixed(2));
+                // FIX #1: Update hidden fields
+                $('#negPlacedShare').val(negotiationState.totalShare.toFixed(2));
+                $('#negUnPlacedShare').val((100 - negotiationState.totalShare).toFixed(2));
 
-                // Show warning if not 100%
                 const $warning = $('.share-warning');
                 $warning.remove();
 
                 if (Math.abs(negotiationState.totalShare - 100) > 0.01 && negotiationState.reinsurers.length > 0) {
                     const remaining = (100 - negotiationState.totalShare).toFixed(2);
                     const warningHtml = `
-                <div class="alert alert-warning share-warning mt-2" role="alert">
-                    <i class="bx bx-error me-2"></i>
-                    <strong>Warning:</strong> Total share is ${negotiationState.totalShare.toFixed(2)}%.
-                    Remaining: <strong>${remaining}%</strong>
-                </div>
-            `;
+                        <div class="alert alert-warning share-warning mt-2" role="alert">
+                            <i class="bx bx-error me-2"></i>
+                            <strong>Warning:</strong> Total share is ${negotiationState.totalShare.toFixed(2)}%.
+                            Remaining: <strong>${remaining}%</strong>
+                        </div>
+                    `;
                     $table.closest('.table-responsive').after(warningHtml);
                 }
             }
 
-            function populateReinsurersDropdown(reinsurers) {
-                const $select = $('#propAvailableReinsurers');
+            // FIX #4: Add function to update placement display
+            function updatePlacementDisplay() {
+                const placedShare = negotiationState.totalShare;
+                const unplacedShare = 100 - placedShare;
 
-                $select.empty().append('<option value="">Search and select reinsurer...</option>');
+                // Update text values
+                $('.placed-value').text(placedShare.toFixed(2) + '%');
+                $('.unplaced-value').text(unplacedShare.toFixed(2) + '%');
 
-                if (Array.isArray(reinsurers) && reinsurers.length > 0) {
-                    reinsurers.forEach(reinsurer => {
-                        const optionText = reinsurer.name +
-                            (reinsurer.country ? ` (${reinsurer.country})` : '');
+                // Update progress bar
+                $('.placed-progress')
+                    .css('width', placedShare + '%')
+                    .attr('aria-valuenow', placedShare);
 
-                        const $option = $('<option></option>')
-                            .val(reinsurer.id)
-                            .text(optionText)
-                            .data('reinsurer', reinsurer);
-
-                        $select.append($option);
-                    });
-                }
+                // Update hidden inputs
+                $('#negPlacedShare').val(placedShare.toFixed(2));
+                $('#negUnPlacedShare').val(unplacedShare.toFixed(2));
             }
-
-            $('#propAvailableReinsurers').select2({
-                placeholder: 'Search and select reinsurer...',
-                allowClear: true,
-                width: '100%',
-                dropdownParent: $('#negotiationModal'),
-                matcher: function(params, data) {
-                    if ($.trim(params.term) === '') {
-                        return data;
-                    }
-
-                    const searchTerm = params.term.toLowerCase();
-                    const text = data.text.toLowerCase();
-
-                    if (text.indexOf(searchTerm) > -1) {
-                        return data;
-                    }
-
-                    return null;
-                }
-            });
-
-            $('#addNegReinsurer').on('click', function(e) {
-                e.preventDefault();
-                addReinsurer();
-            });
-
-            $('#reinsurerWrittenShare, #reinsurerSignedShare').on('keypress', function(e) {
-                if (e.which === 13) {
-                    e.preventDefault();
-                    addReinsurer();
-                }
-            });
 
             function resetNegotiationModal() {
                 // Reset form
@@ -1039,13 +799,8 @@
 
                 updateReinsurerCount();
                 updateTotalShare();
+                updatePlacementDisplay(); // FIX #4: Reset placement display
 
-                // Reset select2
-                $('#propAvailableReinsurers').val(null).trigger('change');
-                $('#reinsurerWrittenShare').val('');
-                $('#reinsurerSignedShare').val('');
-
-                // Remove warnings
                 $('.share-warning').remove();
             }
 
@@ -1140,17 +895,11 @@
                 };
             }
 
-            $form.on("input blur", ".form-inputs", function() {
-                validateField($(this));
-            });
-
             $modal.on('shown.bs.modal', function() {
                 if (!negotiationState.isInitialized) {
-                    // initializeReinsurerTable();
                     negotiationState.isInitialized = true;
                 }
 
-                // Load available reinsurers
                 loadAvailableReinsurers();
             });
 
@@ -1159,21 +908,118 @@
             });
 
             function loadAvailableReinsurers() {
-                // Check if we need to load reinsurers from server
-                if ($('#propAvailableReinsurers option').length <= 1) {
-                    //{{-- $.ajax({
-                    //     url: '/api/reinsurers', // Update with your actual endpoint
-                    //     method: 'GET',
-                    //     success: function(response) {
-                    //         if (response.success && Array.isArray(response.data)) {
-                    //             populateReinsurersDropdown(response.data);
-                    //         }
-                    //     },
-                    //     error: function(xhr, status, error) {
-                    //         console.error('Failed to load reinsurers:', error);
-                    //     }
-                    // }); --}}
+                try {
+                    const reinsurersData = $("#negReinsurersData").val();
+                    const reinsurers = reinsurersData ? JSON.parse(reinsurersData) : [];
+
+                    if (reinsurers.length > 0) {
+                        negotiationState.reinsurers = reinsurers;
+                    }
+
+                    initializeReinsurerTable();
+                } catch (error) {
+                    console.error('Error loading reinsurers:', error);
+                    showValidationError('Failed to load reinsurer data');
                 }
+            }
+
+            function initializeReinsurerTable() {
+                // FIX #3: Properly destroy existing table
+                if (reinsurerDataTable) {
+                    try {
+                        reinsurerDataTable.destroy();
+                        reinsurerDataTable = null;
+                    } catch (e) {
+                        console.warn('Failed to destroy existing table:', e);
+                    }
+                }
+
+                const tableData = transformReinsurerData(negotiationState.reinsurers);
+
+                reinsurerDataTable = $table.DataTable({
+                    data: tableData,
+                    columns: [{
+                            data: 'name',
+                            title: 'Reinsurer',
+                            render: (data, type, row) => {
+                                const escapedName = escapeHtml(data);
+                                const escapedContact = escapeHtml(row.contact);
+                                return `
+                                    <div class="d-flex flex-start">
+                                        <div>
+                                            <div class="fw-medium">${escapedName}</div>
+                                            <small class="text-muted">${escapedContact}</small>
+                                        </div>
+                                    </div>
+                                `;
+                            }
+                        },
+                        {
+                            data: 'written_share',
+                            title: 'Written Share (%)',
+                            className: 'text-start',
+                            render: (data, type, row) => {
+                                return `
+                                    <span class="badge bg-success">${data}%</span>
+                                `;
+                            }
+                        },
+                        {
+                            data: 'signed_share',
+                            title: 'Signed Share (%)',
+                            className: 'text-start',
+                            render: (data, type, row) => {
+                                const escapedName = escapeHtml(row.name);
+                                return `
+                                    <span>
+                                        <span class="badge bg-secondary">${data}%</span>
+                                        <span class="badge bg-dark edit-reinsurer-btn"
+                                            data-reinsurer-id="${row.id}"
+                                            data-reinsurer-name="${escapedName}"
+                                            data-written-share="${row.written_share}"
+                                            data-signed-share="${row.signed_share}"
+                                            style="margin-left: 0.25rem; cursor: pointer;"
+                                            title="Edit Shares">
+                                            <i class="bx bx-edit"></i>
+                                        </span>
+                                    </span>
+                                `;
+                            }
+                        },
+                        {
+                            data: "action",
+                            title: "Action",
+                            orderable: false,
+                            searchable: false,
+                            className: "text-left",
+                            render: (data, type, row) => {
+                                return `
+                                    <div>
+                                        <button type="button" class="btn btn-primary btn-sm contact-reinsurer-btn"
+                                            data-reinsurer-id="${row.id}"
+                                            title="Contacts">
+                                            <i class="bx bx-book"></i>
+                                        </button>
+                                    </div>
+                                `;
+                            },
+                        }
+                    ],
+                    paging: false,
+                    searching: false,
+                    info: false,
+                    ordering: false,
+                    language: {
+                        emptyTable: "No reinsurers selected. Click '+' to add reinsurers."
+                    },
+                    drawCallback: function() {
+                        attachReinsurerActionHandlers();
+                    }
+                });
+
+                updateReinsurerCount();
+                updateTotalShare();
+                updatePlacementDisplay();
             }
 
             function showValidationError(message) {
@@ -1190,7 +1036,33 @@
                 }
             }
 
-            // initializeReinsurerTable();
+            // FIX #6: Ensure transform function handles all field variations
+            function transformReinsurerData(reinsurers) {
+                return reinsurers.map((reinsurer) => {
+                    return {
+                        id: reinsurer.reinsurer_id || reinsurer.id,
+                        name: reinsurer.reinsurer_name || reinsurer.name,
+                        written_share: parseFloat(reinsurer.written_share || 0).toFixed(2),
+                        signed_share: parseFloat(reinsurer.signed_share || 0).toFixed(2),
+                        previous_written_share: parseFloat(reinsurer.previous_written_share || reinsurer
+                            .written_share || 0).toFixed(2),
+                        commission: parseFloat(reinsurer.brokerage_rate || reinsurer.commission || 0)
+                            .toFixed(2),
+                        status: reinsurer.status || 'pending',
+                        is_declined: reinsurer.is_declined || false,
+                        country: reinsurer.country || '',
+                        contact: reinsurer.email || reinsurer.contact || "-",
+                        action: "",
+                    };
+                });
+            }
+
+            function escapeHtml(text) {
+                if (!text) return "";
+                const div = document.createElement("div");
+                div.textContent = text;
+                return div.innerHTML;
+            }
         });
     </script>
 @endpush

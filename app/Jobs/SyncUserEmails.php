@@ -25,7 +25,7 @@ class SyncUserEmails implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public $tries = 3;
-    public $backoff = [60, 300, 900]; // 1min, 5min, 15min
+    public $backoff = [60, 300, 900];
 
     protected int $userId;
     protected int $totalProcessed = 0;

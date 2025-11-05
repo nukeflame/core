@@ -75,6 +75,7 @@ use App\Models\BdFacReinsurer;
 use App\Services\MailService;
 use App\Services\S3AttachmentHandler;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Str;
 
 class PipelineController
@@ -3815,9 +3816,11 @@ class PipelineController
         $page = $request->get('page', 1);
         $perPage = 200;
         $cedantId = $request->get('cedantId', '');
+        $stage = $request->stage ?? '';
+        $oppId = $request->get('oppId', '');
 
         try {
-            $reinsurers = $this->getReinsurersData($search, $page, $perPage, $cedantId);
+            $reinsurers = $this->getReinsurersData($search, $page, $perPage, $cedantId, $stage, $oppId);
             $countryIsos = collect($reinsurers['data'])->pluck('country_iso')->unique()->filter();
 
             $countries = DB::table('countries')->whereIn('country_iso', $countryIsos)->pluck('country_name', 'country_iso');
@@ -3855,28 +3858,43 @@ class PipelineController
         ]);
     }
 
-    private function getReinsurersData(?string $search, int $page, int $perPage, string $cedantId): array
+    private function getReinsurersData(?string $search, int $page, int $perPage, $cedantId, $stage, $oppId): array
     {
         $page = max(1, $page);
         $perPage = min(max(1, $perPage), 100);
+        $bdFacsCustomerIds = [];
+
+        if (isset($stage) && $stage === 'proposal') {
+            $bdFacsCustomerIds = DB::table('bd_fac_reinsurers')
+                ->where('opportunity_id', $oppId)
+                ->pluck('reinsurer_id')
+                ->toArray();
+        }
 
         $results = DB::table('customers')
             ->selectRaw('
-                customers.*,
-                COUNT(*) OVER() as total_count,
-                STRING_AGG(
-                    JSON_BUILD_OBJECT(
-                        \'id\', customer_contacts.customer_id,
-                        \'name\', customer_contacts.contact_name,
-                        \'email\', customer_contacts.contact_email,
-                        \'phone\', customer_contacts.contact_mobile_no,
-                        \'isPrimary\', customer_contacts.is_primary
-                    )::text,
-                    \',\'
-                ) as contacts
-            ')
+            customers.*,
+            COUNT(*) OVER() as total_count,
+            STRING_AGG(
+                JSON_BUILD_OBJECT(
+                    \'id\', customer_contacts.customer_id,
+                    \'name\', customer_contacts.contact_name,
+                    \'email\', customer_contacts.contact_email,
+                    \'phone\', customer_contacts.contact_mobile_no,
+                    \'isPrimary\', customer_contacts.is_primary
+                )::text,
+                \',\'
+            ) as contacts
+        ')
             ->leftJoin('customer_contacts', 'customers.customer_id', '=', 'customer_contacts.customer_id')
-            ->whereNot('customers.customer_id', $cedantId)
+            ->when(
+                !empty($cedantId),
+                fn($q) => $q->whereNot('customers.customer_id', $cedantId)
+            )
+            ->when(
+                !empty($bdFacsCustomerIds),
+                fn($q) => $q->whereNotIn('customers.customer_id', $bdFacsCustomerIds)
+            )
             ->when(
                 $search,
                 fn($q) =>
@@ -7666,6 +7684,7 @@ class PipelineController
     {
         try {
             $opportunityId = $request->opportunity_id;
+
             if (!$opportunityId) {
                 return [
                     'success' => false,
@@ -7684,6 +7703,8 @@ class PipelineController
                     'brokerage_rate',
                     'reinsurer_id',
                     'email',
+                    'is_declined',
+                    'decline_reason',
                     'status',
                 ])
                 ->get();
@@ -7693,7 +7714,7 @@ class PipelineController
                 'data' => $reins,
                 'count' => $reins->count()
             ];
-        } catch (\Illuminate\Database\QueryException $e) {
+        } catch (QueryException $e) {
             return [
                 'success' => false,
                 'message' => 'Database error occurred',
@@ -7914,36 +7935,30 @@ class PipelineController
         DB::beginTransaction();
         try {
             $validated = $request->validate([
-                'reinsurerId' => 'required|integer',
-                'opportunityId' => 'required|integer',
-                'declineReason' => 'required|string|max:500'
+                'reinsurerId' => 'required',
+                'opportunityId' => 'required|string',
+                'declineReason' => 'required|string'
             ]);
 
-            // Check if already declined
             $existing = ReinsurersDeclined::where([
                 'customer_id' => $validated['reinsurerId'],
                 'opportunity_id' => $validated['opportunityId']
             ])->first();
 
             if ($existing) {
-                // Update existing record
                 $existing->update([
                     'reason' => $validated['declineReason'],
-                    'decline_unchecked_count' => ($existing->decline_unchecked_count ?? 0) + 1
                 ]);
             } else {
-                // Create new declined record
                 ReinsurersDeclined::create([
                     'customer_id' => $validated['reinsurerId'],
                     'opportunity_id' => $validated['opportunityId'],
                     'reason' => $validated['declineReason'],
-                    'decline_unchecked_count' => 1
                 ]);
             }
 
-            // Update BdFacReinsurer to mark as declined
             BdFacReinsurer::where([
-                'customer_id' => $validated['reinsurerId'],
+                'reinsurer_id' => $validated['reinsurerId'],
                 'opportunity_id' => $validated['opportunityId']
             ])->update([
                 'is_declined' => true,
@@ -7958,8 +7973,6 @@ class PipelineController
             ]);
         } catch (\Exception $ex) {
             DB::rollBack();
-            Log::error('Error declining reinsurer: ' . $ex->getMessage());
-
             return response()->json([
                 'status' => 0,
                 'message' => 'Failed to decline reinsurer. Please try again later.'
@@ -7977,7 +7990,6 @@ class PipelineController
                 'written_share' => 'required|numeric|min:0.01|max:100'
             ]);
 
-            // Update the reinsurer share in BdFacReinsurer table
             $reinsurer = BdFacReinsurer::where([
                 'customer_id' => $validated['reinsurer_id'],
                 'opportunity_id' => $validated['opportunity_id']
@@ -8005,7 +8017,6 @@ class PipelineController
             ]);
         } catch (\Exception $ex) {
             DB::rollBack();
-            Log::error('Error updating reinsurer share: ' . $ex->getMessage());
 
             return response()->json([
                 'status' => 0,

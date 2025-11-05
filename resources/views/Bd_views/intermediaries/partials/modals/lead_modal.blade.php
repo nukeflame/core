@@ -174,7 +174,8 @@
                                                 </label>
                                                 <input type="number" class="form-inputs total_reinsurer_share"
                                                     id="leadTotalReinsurerShare" name="total_reinsurer_share"
-                                                    placeholder="100.00" step="0.01" min="100" max="100" required value="100">
+                                                    placeholder="100.00" step="0.01" min="100"
+                                                    max="100" required value="100">
                                             </div>
                                         </div>
                                         <div class="col-md-2">
@@ -1490,7 +1491,9 @@
                         return {
                             q: params.term || "",
                             page: params.page || 1,
-                            cedantId: $("#lead_cedant_id").val()
+                            cedantId: $("#lead_cedant_id").val(),
+                            stage: '',
+                            oppId: '',
                         };
                     },
                     processResults: function(data, params) {
@@ -1516,7 +1519,6 @@
                     return `
                         <div class="reinsurer-option">
                             <div><strong>${reinsurer.name}</strong>
-                                <span class="badge bg-secondary ms-1">${reinsurer.rating}</span>
                             </div>
                             <div><small class="text-muted">${reinsurer.country} | Email: ${email}</small></div>
                         </div>
@@ -1652,7 +1654,6 @@
             $("#leadTotalReinsurerShare").on("input", function() {
                 const value = parseFloat($(this).val());
 
-                // Total Written Share must be exactly 100%
                 if (value > 100) {
                     $(this).val("100");
                     Swal.fire({
@@ -1733,7 +1734,7 @@
                 let sharesDisplay = $(".total-shares-display");
                 if (sharesDisplay.length === 0) {
                     const displayHtml = `
-                        <div class="total-shares-display mt-3">
+                        <div class="total-shares-display d-block mt-3">
                             <div class="row g-3">
                                 <div class="col-md-6">
                                     <div class="shares-card placed-shares">
@@ -2352,7 +2353,6 @@
                 const fieldErrors = validateFormFields();
                 errors.push(...fieldErrors);
 
-                // Validate Total Written Share is 100%
                 const writtenShareError = validateTotalWrittenShareIs100();
                 if (writtenShareError) {
                     errors.push(writtenShareError);
@@ -2457,18 +2457,18 @@
             function validateRequiredFiles() {
                 const errors = [];
 
-                if (typeof pipelineManager === 'undefined' || !pipelineManager) {
+                if (typeof window.pipelineManager === 'undefined' || !window.pipelineManager) {
                     console.warn('pipelineManager is not defined. Skipping file validation.');
                     return errors;
                 }
 
-                if (typeof pipelineManager.getAllUploadedFiles !== 'function') {
+                if (typeof window.pipelineManager.getAllUploadedFiles !== 'function') {
                     console.warn(
                         'pipelineManager.getAllUploadedFiles is not a function. Skipping file validation.');
                     return errors;
                 }
 
-                const allUploadedFiles = pipelineManager.getAllUploadedFiles();
+                const allUploadedFiles = window.pipelineManager.getAllUploadedFiles();
                 const uploadedFileNames = extractUploadedFileNames(allUploadedFiles);
                 const missingFiles = findMissingRequiredFiles(uploadedFileNames);
 
@@ -2573,7 +2573,7 @@
              * @returns {Boolean} True if valid, false otherwise
              */
             function isShareAllocationValid(shareData) {
-                const TOLERANCE = 0.01; // Allow 0.01% tolerance for floating point precision
+                const TOLERANCE = 0.01;
                 return shareData.sharesDifference <= TOLERANCE && shareData.totalUnplacedShares === 0;
             }
 
@@ -2652,11 +2652,11 @@
 
                 if (reinsurerCount < VALIDATION_CONFIG.MIN_REINSURERS) {
                     const errorHtml = `
-                        <div class="alert alert-danger reinsurer-validation-error mt-2">
-                            <i class="bx bx-error-circle me-2"></i>
-                            At least ${VALIDATION_CONFIG.MIN_REINSURERS} reinsurer must be selected
-                        </div>
-                    `;
+                    <div class="alert alert-danger reinsurer-validation-error mt-2">
+                        <i class="bx bx-error-circle me-2"></i>
+                        At least ${VALIDATION_CONFIG.MIN_REINSURERS} reinsurer must be selected
+                    </div>
+                `;
                     $reinsurerSection.append(errorHtml);
                     return false;
                 }
@@ -2742,16 +2742,17 @@
                                 showConfirmButton: true,
                             }).then((result) => {
                                 if (result.isConfirmed) {
-                                    if (typeof pipelineManager !== 'undefined' &&
-                                        typeof pipelineManager.reloadAllTables ===
+                                    if (typeof window.pipelineManager !== 'undefined' &&
+                                        typeof window.pipelineManager.reloadAllTables ===
                                         'function') {
-                                        pipelineManager.reloadAllTables();
+                                        window.pipelineManager.reloadAllTables();
                                     }
 
-                                    if (typeof pipelineManager !== 'undefined' &&
-                                        typeof pipelineManager.loadChartData === 'function'
+                                    if (typeof window.pipelineManager !== 'undefined' &&
+                                        typeof window.pipelineManager.loadChartData ===
+                                        'function'
                                     ) {
-                                        pipelineManager.loadChartData();
+                                        window.pipelineManager.loadChartData();
                                     }
 
                                     $("#leadModal").modal("hide");
@@ -2933,10 +2934,10 @@
                     }
                 });
 
-                // Handle uploaded files if pipelineManager is available
-                if (typeof pipelineManager !== 'undefined' && pipelineManager && typeof pipelineManager
+                if (typeof window.pipelineManager !== 'undefined' && window.pipelineManager && typeof window
+                    .pipelineManager
                     .getAllUploadedFiles === 'function') {
-                    const allUploadedFiles = pipelineManager.getAllUploadedFiles();
+                    const allUploadedFiles = window.pipelineManager.getAllUploadedFiles();
                     Object.entries(allUploadedFiles).forEach(([fieldId, filesData]) => {
                         filesData.forEach((file, index) => {
                             formData.append('facultative_files[]', file);
@@ -3510,6 +3511,12 @@
                 $("#documentFields").empty().hide();
                 $("#documentsSubtitle").html("");
                 uploadedFiles = {};
+
+                // Clear files from pipelineManager
+                if (typeof window.pipelineManager !== 'undefined' &&
+                    typeof window.pipelineManager.clearAllFiles === 'function') {
+                    window.pipelineManager.clearAllFiles();
+                }
 
                 $(".deductible_excess_div").hide();
             }

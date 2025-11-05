@@ -181,7 +181,6 @@
         @include('Bd_views.intermediaries.partials.modals.final_stage_modal')
     </div>
 
-    {{-- Initialize pipeline routes for JavaScript --}}
     <script>
         window.pipelineRoutes = {
             pipelineData: "{{ route('pipeline.sales.get_pipeline_data') }}",
@@ -196,7 +195,8 @@
         };
     </script>
 
-    <script type="module" src="{{ asset('js/pipeline-manager.js') }}"></script>
+    {{-- <script type="module" src="{{ asset('js/pipeline-manager.js') }}"></script> --}}
+    <script type="module" src="js/pipeline-manager.js"></script>
 @endsection
 
 @section('styles')
