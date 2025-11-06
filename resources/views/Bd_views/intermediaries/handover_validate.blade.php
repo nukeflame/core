@@ -23,17 +23,8 @@
             box-sizing: border-box;
         }
 
-        /* Typography */
-        body {
-            font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            color: var(--reins-text);
-            line-height: 1.6;
-            background-color: #f8f9fa;
-        }
-
-        /* Page Header */
         .page-header {
-            background: linear-gradient(135deg, #e1251b 0%, var(--secondary-color) 100%) color: white;
+            background: #fff;
             padding: 2rem;
             margin: -1rem -1rem 2rem -1rem;
             border-radius: 0;
@@ -41,7 +32,7 @@
         }
 
         .page-header h1 {
-            font-size: 1.75rem;
+            font-size: 1.55rem;
             font-weight: 600;
             margin: 0;
             display: flex;
@@ -50,8 +41,10 @@
         }
 
         .page-header .insured-name {
-            color: #ffd700;
-            font-weight: 700;
+            color: #198754;
+            font-weight: 600;
+            font-size: 18px;
+            line-height: 2px;
         }
 
         .page-header .badge {
@@ -61,7 +54,6 @@
             letter-spacing: 0.5px;
         }
 
-        /* Card Improvements */
         .card {
             border: 1px solid var(--reins-border);
             border-radius: 8px;
@@ -79,14 +71,12 @@
             padding: 2rem;
         }
 
-        /* Section Headers */
         .section-header {
             display: flex;
             align-items: center;
             gap: 0.75rem;
             font-size: 1.1rem;
             font-weight: 600;
-            color: var(--reins-primary);
             margin-bottom: 1.5rem;
             padding-bottom: 0.75rem;
             border-bottom: 2px solid var(--reins-accent);
@@ -94,7 +84,7 @@
 
         .section-header i {
             font-size: 1.3rem;
-            color: var(--reins-accent);
+            color: #fff;
         }
 
         .section-icon {
@@ -109,7 +99,6 @@
             font-size: 1.1rem;
         }
 
-        /* Form Fields */
         .form-group {
             margin-bottom: 1.5rem;
         }
@@ -154,7 +143,6 @@
             cursor: not-allowed;
         }
 
-        /* Info Cards for Key Data */
         .info-card {
             background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
             border-left: 4px solid var(--reins-secondary);
@@ -178,9 +166,8 @@
             color: var(--reins-primary);
         }
 
-        /* Premium & Financial Display */
         .financial-summary {
-            background: linear-gradient(135deg, var(--reins-primary), var(--reins-secondary));
+            background: linear-gradient(135deg, #660909, #2d5f7f);
             color: white;
             padding: 1.5rem;
             border-radius: 8px;
@@ -211,9 +198,8 @@
             font-family: 'Courier New', monospace;
         }
 
-        /* Tables */
         .table-container {
-            background: white;
+            /* background: white; */
             border-radius: 8px;
             overflow: hidden;
             box-shadow: var(--reins-shadow);
@@ -226,7 +212,7 @@
 
         .table thead th {
             background: var(--reins-primary);
-            color: white;
+            /* color: white; */
             font-weight: 600;
             font-size: 0.875rem;
             text-transform: uppercase;
@@ -250,7 +236,6 @@
             border-bottom: none;
         }
 
-        /* Reinsurer Filter Panel */
         .filter-panel {
             background: white;
             border: 1px solid var(--reins-border);
@@ -269,7 +254,6 @@
             gap: 0.5rem;
         }
 
-        /* Badges */
         .badge {
             padding: 0.4rem 0.8rem;
             font-weight: 500;
@@ -294,7 +278,6 @@
             background-color: #e74c3c;
         }
 
-        /* Document Section */
         .document-row {
             background: white;
             border: 1px solid var(--reins-border);
@@ -325,7 +308,6 @@
             min-width: 100px;
         }
 
-        /* Buttons */
         .btn {
             padding: 0.625rem 1.5rem;
             font-weight: 500;
@@ -378,7 +360,6 @@
             text-decoration: underline;
         }
 
-        /* Action Bar */
         .action-bar {
             background: white;
             border: 1px solid var(--reins-border);
@@ -394,7 +375,6 @@
             z-index: 100;
         }
 
-        /* Radio Buttons */
         .radio-group {
             display: flex;
             gap: 1.5rem;
@@ -420,7 +400,6 @@
             font-weight: 500;
         }
 
-        /* Grid System Enhancement */
         .data-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
@@ -428,7 +407,6 @@
             margin-bottom: 2rem;
         }
 
-        /* Responsive */
         @media (max-width: 768px) {
             .page-header {
                 padding: 1.5rem;
@@ -452,7 +430,6 @@
             }
         }
 
-        /* Loading State */
         .loading-overlay {
             position: absolute;
             top: 0;
@@ -486,20 +463,18 @@
             }
         }
 
-        /* Empty State */
-        .empty-state {
+        .empty-state-table {
             text-align: center;
             padding: 3rem 1rem;
             color: var(--reins-text-muted);
         }
 
-        .empty-state i {
+        .empty-state-table i {
             font-size: 3rem;
             margin-bottom: 1rem;
             opacity: 0.5;
         }
 
-        /* Modal Improvements */
         .modal-header {
             background: linear-gradient(135deg, var(--reins-primary), var(--reins-secondary));
             color: white;
@@ -517,7 +492,6 @@
             padding: 2rem;
         }
 
-        /* Status Indicators */
         .status-indicator {
             display: inline-flex;
             align-items: center;
@@ -538,7 +512,6 @@
             color: #f39c12;
         }
 
-        /* Tooltips */
         .info-tooltip {
             display: inline-flex;
             align-items: center;
@@ -553,14 +526,12 @@
             margin-left: 0.5rem;
         }
 
-        /* Divider */
         hr {
             border: none;
             border-top: 1px solid var(--reins-border);
             margin: 2rem 0;
         }
 
-        /* File Upload Area */
         .upload-area {
             border: 2px dashed var(--reins-border);
             border-radius: 8px;
@@ -580,7 +551,6 @@
             background-color: #d5f4e6;
         }
 
-        /* Success/Error Messages */
         .alert {
             border-radius: 8px;
             padding: 1rem 1.5rem;
@@ -602,17 +572,22 @@
             background-color: #d6eaf8;
             color: #3498db;
         }
+
+        .form-group {
+            margin-bottom: 0px;
+            border: none;
+            padding: 0px;
+        }
     </style>
 
     <div class="container-fluid">
         <div class="row">
             <div class="col-12">
                 <div class="card">
-                    {{-- Page Header --}}
                     <div class="page-header">
                         <h1>
                             <i class="bx bx-transfer"></i>
-                            Prospect Handover
+                            Prospect Handover -
                             <span class="insured-name">{{ $prospProperties->insured_name ?? 'N/A' }}</span>
                             @if ($approval == 1)
                                 <span class="badge status-indicator approved">
@@ -823,16 +798,6 @@
                                                 value="{{ $prospProperties->industry ?? 'N/A' }}" readonly />
                                         </div>
 
-                                        {{-- Offered Date --}}
-                                        <div class="form-group">
-                                            <label class="form-label">
-                                                Offered Date <span class="required-indicator">*</span>
-                                            </label>
-                                            <input type="date" class="form-control" name="offered_date"
-                                                value="{{ old('offered_date', $handover_approval->inception_date ?? '') }}"
-                                                {{ $approval == 1 ? 'disabled' : 'required' }} />
-                                        </div>
-
                                         {{-- Currency --}}
                                         <div class="form-group">
                                             @php
@@ -879,64 +844,6 @@
                                                 readonly />
                                         </div>
 
-                                        {{-- Excess Type --}}
-                                        <div class="form-group">
-                                            <label class="form-label">
-                                                Excess Type <span class="required-indicator">*</span>
-                                            </label>
-                                            <select class="form-select" name="excess_type" id="excess_type"
-                                                {{ $approval == 1 ? 'disabled' : 'required' }}>
-                                                <option value="">Select Excess Type</option>
-                                                <option value="R"
-                                                    {{ old('excess_type', $handover_approval->excess_type ?? '') === 'R' ? 'selected' : '' }}>
-                                                    Rate (%)
-                                                </option>
-                                                <option value="A"
-                                                    {{ old('excess_type', $handover_approval->excess_type ?? '') === 'A' ? 'selected' : '' }}>
-                                                    Amount
-                                                </option>
-                                            </select>
-                                        </div>
-
-                                        {{-- Excess --}}
-                                        <div class="form-group">
-                                            <label class="form-label" id="excess_label">
-                                                Excess <span class="required-indicator">*</span>
-                                            </label>
-                                            <input type="text" class="form-control" name="excess" id="excess"
-                                                value="{{ old('excess', $handover_approval->excess ?? '') }}"
-                                                {{ $approval == 1 ? 'disabled' : 'required' }} />
-                                        </div>
-
-                                        {{-- Max/Min --}}
-                                        <div class="form-group">
-                                            <label class="form-label">
-                                                Max/Min <span class="required-indicator">*</span>
-                                            </label>
-                                            <div class="d-flex align-items-center gap-3">
-                                                <input type="text" name="max_min" class="form-control"
-                                                    style="flex: 1;"
-                                                    value="{{ old('max_min', $handover_approval->{'max/min'} ?? '') }}"
-                                                    {{ $approval == 1 ? 'disabled' : 'required' }} />
-                                                <div class="radio-group">
-                                                    <div class="radio-option">
-                                                        <input type="radio" name="range" id="range_min"
-                                                            value="min"
-                                                            {{ ($handover_approval->range ?? '') == 'min' ? 'checked' : '' }}
-                                                            {{ $approval == 1 ? 'disabled' : 'required' }} />
-                                                        <label for="range_min">Min</label>
-                                                    </div>
-                                                    <div class="radio-option">
-                                                        <input type="radio" name="range" id="range_max"
-                                                            value="max"
-                                                            {{ ($handover_approval->range ?? '') == 'max' ? 'checked' : '' }}
-                                                            {{ $approval == 1 ? 'disabled' : 'required' }} />
-                                                        <label for="range_max">Max</label>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-
                                         {{-- Apply EML --}}
                                         <div class="form-group">
                                             @php
@@ -977,7 +884,75 @@
                                         {{-- Risk Details --}}
                                         <div class="form-group" style="grid-column: 1 / -1;">
                                             <label class="form-label">Risk Details</label>
-                                            <textarea class="form-control" name="risk_details" rows="3" readonly>{{ $prospProperties->risk_details ?? 'N/A' }}</textarea>
+                                            <textarea class="form-control resize-none" name="risk_details" rows="3" readonly>{{ $prospProperties->risk_details ?? 'N/A' }}</textarea>
+                                        </div>
+
+                                        {{-- Offered Date --}}
+                                        <div class="form-group">
+                                            <label class="form-label">
+                                                Offered Date <span class="required-indicator">*</span>
+                                            </label>
+                                            <input type="date" class="form-control" name="offered_date"
+                                                value="{{ old('offered_date', $handover_approval->inception_date ?? '') }}"
+                                                {{ $approval == 1 ? 'disabled' : 'required' }} />
+                                        </div>
+
+                                        {{-- Excess Type --}}
+                                        <div class="form-group">
+                                            <label class="form-label">
+                                                Excess Type <span class="required-indicator">*</span>
+                                            </label>
+                                            <select class="form-select" name="excess_type" id="excess_type"
+                                                {{ $approval == 1 ? 'disabled' : 'required' }}>
+                                                <option value="">Select Excess Type</option>
+                                                <option value="R"
+                                                    {{ old('excess_type', $handover_approval->excess_type ?? '') === 'R' ? 'selected' : '' }}>
+                                                    Rate (%)
+                                                </option>
+                                                <option value="A"
+                                                    {{ old('excess_type', $handover_approval->excess_type ?? '') === 'A' ? 'selected' : '' }}>
+                                                    Amount
+                                                </option>
+                                            </select>
+                                        </div>
+
+                                        {{-- Excess --}}
+                                        <div class="form-group">
+                                            <label class="form-label" id="excess_label">
+                                                Excess <span class="required-indicator">*</span>
+                                            </label>
+                                            <input type="text" class="form-control" name="excess" id="excess"
+                                                value="{{ old('excess', $handover_approval->excess ?? '') }}"
+                                                {{ $approval == 1 ? 'disabled' : 'required' }} />
+                                        </div>
+
+                                        {{-- Max/Min --}}
+                                        <div class="form-group">
+                                            <label class="form-label">
+                                                Max/Min<span class="required-indicator">*</span>
+                                            </label>
+                                            <div class="d-flex align-items-center gap-3">
+                                                <input type="text" name="max_min" class="form-control"
+                                                    style="flex: 1; width:130px;"
+                                                    value="{{ old('max_min', $handover_approval->{'max/min'} ?? '') }}"
+                                                    {{ $approval == 1 ? 'disabled' : 'required' }} />
+                                                <div class="radio-group">
+                                                    <div class="radio-option">
+                                                        <input type="radio" name="range" id="range_min"
+                                                            value="min"
+                                                            {{ ($handover_approval->range ?? '') == 'min' ? 'checked' : '' }}
+                                                            {{ $approval == 1 ? 'disabled' : 'required' }} />
+                                                        <label for="range_min">Minimum</label>
+                                                    </div>
+                                                    <div class="radio-option">
+                                                        <input type="radio" name="range" id="range_max"
+                                                            value="max"
+                                                            {{ ($handover_approval->range ?? '') == 'max' ? 'checked' : '' }}
+                                                            {{ $approval == 1 ? 'disabled' : 'required' }} />
+                                                        <label for="range_max">Maximum</label>
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -993,12 +968,20 @@
                                         <div class="col-lg-6 mb-4">
                                             <div class="financial-summary">
                                                 <h6 class="mb-3" style="opacity: 0.9;">Cedant Details</h6>
+                                                <div class="financial-item">
+                                                    <div class="financial-label">Sum Insured</div>
+                                                    <div class="financial-value">
+                                                        {{ $selectedCurrency->currency_symbol ?? '' }}
+                                                        {{ number_format($prospProperties->cede_premium ?? 0, 2) }}
+                                                    </div>
+                                                </div>
+
 
                                                 <div class="financial-item">
                                                     <div class="financial-label">Cedant Premium</div>
                                                     <div class="financial-value">
                                                         {{ $selectedCurrency->currency_symbol ?? '' }}
-                                                        {{ number_format($prospProperties->cede_premium ?? 0, 2) }}
+                                                        {{ number_format($prospProperties->effective_sum_insured ?? 0, 2) }}
                                                     </div>
                                                 </div>
 
@@ -1020,7 +1003,7 @@
 
                                         <div class="col-lg-6 mb-4">
                                             <div class="financial-summary">
-                                                <h6 class="mb-3" style="opacity: 0.9;">Reinsurer Details</h6>
+                                                <h6 class="mb-3" style="opacity: 0.9;">Reinsurer Broker Details</h6>
 
                                                 <div class="financial-item">
                                                     <div class="financial-label">Reinsurer Premium</div>
@@ -1103,30 +1086,32 @@
                                     </h6>
 
                                     <div class="data-grid">
-                                        {{-- Cover Start Date (Commented in original) --}}
-                                        {{-- <div class="form-group">
+                                        {{-- Cover Start Date --}}
+                                        <div class="form-group">
                                             <label class="form-label">
                                                 Cover Start Date <span class="required-indicator">*</span>
                                             </label>
                                             <input type="date" class="form-control" name="effective_date"
-                                                   value="{{ $prospProperties->effective_date ?? '' }}"
-                                                   {{ $approval == 1 ? 'disabled' : 'required' }} />
-                                        </div> --}}
+                                                value="{{ $prospProperties->effective_date ?? '' }}"
+                                                {{ $approval == 1 ? 'disabled' : 'required' }} />
+                                        </div>
 
                                         {{-- Cover End Date --}}
                                         <div class="form-group">
-                                            <label class="form-label">Cover End Date</label>
+                                            <label class="form-label">Cover End Date <span
+                                                    class="required-indicator">*</span></label>
                                             <input type="date" class="form-control" name="closing_date"
                                                 value="{{ $prospProperties->closing_date ?? '' }}"
                                                 {{ $approval == 1 ? 'disabled' : '' }} />
                                         </div>
 
-                                        {{-- Account Handler (Commented in original) --}}
-                                        {{-- <div class="form-group">
+                                        {{-- Account Handler --}}
+                                        <div class="form-group">
                                             <label class="form-label">
                                                 Account Handler <span class="required-indicator">*</span>
                                             </label>
-                                            <select class="form-select" name="handler" {{ $approval == 1 ? 'disabled' : 'required' }}>
+                                            <select class="form-select" name="handler"
+                                                {{ $approval == 1 ? 'disabled' : 'required' }}>
                                                 <option value="">Select Account Handler</option>
                                                 @foreach ($users as $user)
                                                     <option value="{{ $user->id }}"
@@ -1135,10 +1120,10 @@
                                                     </option>
                                                 @endforeach
                                             </select>
-                                        </div> --}}
+                                        </div>
 
-                                        {{-- Approver (Commented in original) --}}
-                                        {{-- <div class="form-group">
+                                        {{-- Approver --}}
+                                        <div class="form-group" style="grid-column: 4 / 8;">
                                             @php
                                                 $selectedApprovers = isset($handover_approval)
                                                     ? json_decode($handover_approval->approver, true) ?? []
@@ -1147,7 +1132,8 @@
                                             <label class="form-label">
                                                 Approver(s) <span class="required-indicator">*</span>
                                             </label>
-                                            <select class="form-select" name="approver[]" multiple {{ $approval == 1 ? 'disabled' : 'required' }}>
+                                            <select class="form-select" name="approver[]" multiple
+                                                {{ $approval == 1 ? 'disabled' : 'required' }}>
                                                 @foreach ($users as $user)
                                                     <option value="{{ $user->id }}"
                                                         {{ in_array($user->id, $selectedApprovers) ? 'selected' : '' }}>
@@ -1155,7 +1141,7 @@
                                                     </option>
                                                 @endforeach
                                             </select>
-                                        </div> --}}
+                                        </div>
 
                                         {{-- Remarks --}}
                                         <div class="form-group" style="grid-column: 1 / -1;">
@@ -1181,11 +1167,14 @@
                                         <div class="row align-items-end">
                                             <div class="col-md-4">
                                                 <label class="form-label">Select Stage</label>
+
                                                 <select id="stage" class="form-select">
                                                     <option value="">All Stages</option>
-                                                    <option value="2">Stage 2 - Quotation</option>
-                                                    <option value="3">Stage 3 - Negotiation</option>
-                                                    <option value="4">Stage 4 - Commitment</option>
+                                                    @foreach ($stages as $stage)
+                                                        <option value="{{ $stage['value'] }}">Stage {{ $stage['value'] }}
+                                                            -
+                                                            {{ ucwords($stage['key']) }}</option>
+                                                    @endforeach
                                                 </select>
                                             </div>
                                             <div class="col-md-8 mt-3 mt-md-0">
@@ -1210,7 +1199,7 @@
                                             <tbody id="reinsurer-body">
                                                 <tr>
                                                     <td colspan="3" class="text-center py-5">
-                                                        <div class="empty-state">
+                                                        <div class="empty-state-table">
                                                             <i class="bx bx-filter-alt"></i>
                                                             <p class="mb-0">Please select a stage to load reinsurers</p>
                                                         </div>
@@ -1288,7 +1277,7 @@
                                 @endif
 
                                 {{-- Document Attachments Section --}}
-                                <div class="form-section mt-4">
+                                <div class="form-section mt-4 d-none">
                                     <h6 class="section-header">
                                         <span class="section-icon"><i class="bx bx-file"></i></span>
                                         Document Attachments
@@ -1325,7 +1314,7 @@
                                                 </div>
                                             </div>
                                         @empty
-                                            <div class="empty-state">
+                                            <div class="empty-state-table">
                                                 <i class="bx bx-folder-open"></i>
                                                 <p class="mb-0">No documents have been uploaded yet</p>
                                             </div>
@@ -1478,23 +1467,394 @@
     </div>
 @endsection
 
-@push('scripts')
+@push('script')
+    {{-- DataTables CSS and JS --}}
+    {{-- <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css">
+    <link rel="stylesheet" href="https://cdn.datatables.net/responsive/2.5.0/css/responsive.bootstrap5.min.css">
+    <link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.4.2/css/buttons.bootstrap5.min.css">
+
+    <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
+    <script src="https://cdn.datatables.net/responsive/2.5.0/js/dataTables.responsive.min.js"></script>
+    <script src="https://cdn.datatables.net/responsive/2.5.0/js/responsive.bootstrap5.min.js"></script>
+    <script src="https://cdn.datatables.net/buttons/2.4.2/js/dataTables.buttons.min.js"></script>
+    <script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.bootstrap5.min.js"></script>
+    <script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.html5.min.js"></script>
+    <script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.print.min.js"></script> --}}
+
     <script>
         $(document).ready(function() {
-            'use strict';
+            const CONFIG = {
+                approval: @json($approval),
+                prospect: @json($prospect),
+                pipeid: @json($pipeid),
+                routes: {
+                    reinsurersFilter: '{{ route('reinsurers.filter') }}',
+                    clientStage: '{{ route('client.stage') }}'
+                }
+            };
 
-            const approval = @json($approval);
-            const prospect = @json($prospect);
-            const pipeid = []; // Pipeline ID array (commented in original)
+            let reinsurerTable = null;
+            let currentStageData = [];
 
-            // Initialize CSRF token for AJAX requests
             $.ajaxSetup({
                 headers: {
                     'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
                 }
             });
 
-            // Update excess label based on type
+            function initializeDataTable() {
+                if (reinsurerTable) {
+                    reinsurerTable.destroy();
+                }
+
+                reinsurerTable = $('#reinsurer-datatable').DataTable({
+                    responsive: true,
+                    pageLength: 10,
+                    lengthMenu: [
+                        [5, 10, 25, 50, 100, -1],
+                        [5, 10, 25, 50, 100, "All"]
+                    ],
+                    order: [
+                        [1, 'asc']
+                    ], // Sort by Reinsurer Name
+                    dom: '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>' +
+                        '<"row"<"col-sm-12"tr>>' +
+                        '<"row"<"col-sm-12 col-md-5"i><"col-sm-12 col-md-7"p>>',
+                    language: {
+                        emptyTable: "No reinsurers found for the selected stage",
+                        zeroRecords: "No matching reinsurers found",
+                        info: "Showing _START_ to _END_ of _TOTAL_ reinsurers",
+                        infoEmpty: "Showing 0 to 0 of 0 reinsurers",
+                        infoFiltered: "(filtered from _MAX_ total reinsurers)",
+                        search: '<i class="bx bx-search"></i> Search:',
+                        lengthMenu: "Show _MENU_ entries",
+                        paginate: {
+                            first: '<i class="bx bx-chevrons-left"></i>',
+                            last: '<i class="bx bx-chevrons-right"></i>',
+                            next: '<i class="bx bx-chevron-right"></i>',
+                            previous: '<i class="bx bx-chevron-left"></i>'
+                        },
+                        loadingRecords: "Loading reinsurers...",
+                        processing: "Processing..."
+                    },
+                    columnDefs: [{
+                            targets: 0, // No. column
+                            orderable: false,
+                            searchable: false,
+                            className: 'text-center',
+                            width: '8%'
+                        },
+                        {
+                            targets: 1, // Reinsurer Name
+                            orderable: true,
+                            width: '45%'
+                        },
+                        {
+                            targets: 2, // Stage
+                            orderable: true,
+                            searchable: false,
+                            className: 'text-center',
+                            width: '15%'
+                        },
+                        {
+                            targets: 3, // Written Share
+                            orderable: true,
+                            type: 'num',
+                            className: 'text-end',
+                            width: '16%',
+                            render: function(data, type, row) {
+                                if (type === 'display') {
+                                    return data;
+                                }
+                                return parseFloat(data) || 0;
+                            }
+                        },
+                        {
+                            targets: 4, // Signed Share
+                            orderable: true,
+                            type: 'num',
+                            className: 'text-end',
+                            width: '16%',
+                            render: function(data, type, row) {
+                                if (type === 'display') {
+                                    return data;
+                                }
+                                return parseFloat(data) || 0;
+                            }
+                        }
+                    ],
+                    drawCallback: function() {
+                        // Update row numbers after sorting/filtering
+                        const api = this.api();
+                        api.column(0, {
+                            search: 'applied',
+                            order: 'applied'
+                        }).nodes().each(function(cell, i) {
+                            cell.innerHTML = i + 1;
+                        });
+
+                        // Update totals in footer
+                        updateTotalsFooter();
+                    },
+                    initComplete: function() {
+                        console.log('DataTable initialized successfully');
+                        updateQuickStats();
+                    }
+                });
+            }
+
+            // ========================================
+            // Calculate and Display Totals
+            // ========================================
+            function updateTotalsFooter() {
+                if (!reinsurerTable || currentStageData.length === 0) {
+                    $('#reinsurer-totals').hide();
+                    return;
+                }
+
+                let totalWritten = 0;
+                let totalSigned = 0;
+
+                currentStageData.forEach(item => {
+                    totalWritten += parseFloat(item.written_share) || 0;
+                    totalSigned += parseFloat(item.signed_share) || 0;
+                });
+
+                $('#footer-written-total').text(totalWritten.toFixed(2) + '%');
+                $('#footer-signed-total').text(totalSigned.toFixed(2) + '%');
+                $('#reinsurer-totals').show();
+            }
+
+            function updateQuickStats() {
+                if (currentStageData.length === 0) {
+                    $('#total-reinsurers').html('<i class="bx bx-building"></i> Total: 0');
+                    $('#total-written-share').html('<i class="bx bx-trending-up"></i> Written: 0%');
+                    $('#total-signed-share').html('<i class="bx bx-check-circle"></i> Signed: 0%');
+                    return;
+                }
+
+                let totalWritten = 0;
+                let totalSigned = 0;
+
+                currentStageData.forEach(item => {
+                    totalWritten += parseFloat(item.written_share) || 0;
+                    totalSigned += parseFloat(item.signed_share) || 0;
+                });
+
+                $('#total-reinsurers').html(`<i class="bx bx-building"></i> Total: ${currentStageData.length}`);
+                $('#total-written-share').html(
+                    `<i class="bx bx-trending-up"></i> Written: ${totalWritten.toFixed(2)}%`);
+                $('#total-signed-share').html(
+                    `<i class="bx bx-check-circle"></i> Signed: ${totalSigned.toFixed(2)}%`);
+            }
+
+            // ========================================
+            // Get Share Value Class
+            // ========================================
+            function getShareClass(value) {
+                const numValue = parseFloat(value);
+                if (numValue >= 50) return 'high';
+                if (numValue >= 25) return 'medium';
+                return 'low';
+            }
+
+            // ========================================
+            // Format Reinsurer Name
+            // ========================================
+            function formatReinsurerName(name) {
+                return name.split(' ')
+                    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+                    .join(' ');
+            }
+
+            $('#stage').on('change', function() {
+                const stage = $(this).val();
+                const $container = $('#reinsurer-table-container');
+                const $tbody = $('#reinsurer-body');
+
+                currentStageData = [];
+                updateQuickStats();
+
+                if (!stage) {
+                    if (reinsurerTable) {
+                        reinsurerTable.destroy();
+                        reinsurerTable = null;
+                    }
+
+                    $tbody.html(`
+                        <tr>
+                            <td colspan="5" class="text-center py-5">
+                                <div class="empty-state-table">
+                                    <i class="bx bx-filter-alt"></i>
+                                    <p class="mb-0">Please select a stage to load reinsurers</p>
+                                </div>
+                            </td>
+                        </tr>
+                    `);
+                    $('#reinsurer-totals').hide();
+                    return;
+                }
+
+                const loadingHtml = $('#loading-overlay-template').html();
+                $container.append(loadingHtml);
+
+                $.ajax({
+                    url: CONFIG.routes.reinsurersFilter,
+                    type: 'GET',
+                    data: {
+                        stage: stage,
+                        opportunity_id: CONFIG.pipeid
+                    },
+                    success: function(response) {
+                        let rows = '';
+
+                        if (response.reinsurers?.length > 0) {
+                            currentStageData = response.reinsurers;
+
+                            response.reinsurers.forEach((item, index) => {
+                                const name = formatReinsurerName(item.reinsurer_name);
+                                const writtenShare = item.written_share || 'N/A';
+                                const signedShare = item.signed_share || 'N/A';
+
+                                const writtenClass = writtenShare !== 'N/A' ?
+                                    getShareClass(writtenShare) : '';
+                                const signedClass = signedShare !== 'N/A' ?
+                                    getShareClass(signedShare) : '';
+
+                                rows += `
+                                    <tr>
+                                        <td class="text-center">${index + 1}</td>
+                                        <td>
+                                            <div class="reinsurer-name-cell">
+                                                <strong>${name}</strong>
+                                            </div>
+                                        </td>
+                                        <td class="text-center">
+                                            <span class="badge badge-stage-${stage}">Stage ${stage}</span>
+                                        </td>
+                                        <td class="text-end">
+                                            <span class="share-value ${writtenClass}">
+                                                ${writtenShare}${writtenShare !== 'N/A' ? '%' : ''}
+                                            </span>
+                                        </td>
+                                        <td class="text-end">
+                                            <span class="share-value ${signedClass}">
+                                                ${signedShare}${signedShare !== 'N/A' ? '%' : ''}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                `;
+
+                                console.log(currentStageData)
+
+                            });
+
+                            $tbody.html(rows);
+                            initializeDataTable();
+                            updateQuickStats();
+
+                            // Success notification
+                            showToast('success',
+                                `Loaded ${response.reinsurers.length} reinsurer(s) from Stage ${stage}`
+                            );
+                        } else {
+                            if (reinsurerTable) {
+                                reinsurerTable.destroy();
+                                reinsurerTable = null;
+                            }
+
+                            rows = `
+                                <tr>
+                                    <td colspan="5" class="text-center py-5">
+                                        <div class="empty-state-table">
+                                            <i class="bx bx-search-alt"></i>
+                                            <p class="mb-0">No reinsurers found for Stage ${stage}</p>
+                                            <small class="text-muted">Try selecting a different stage</small>
+                                        </div>
+                                    </td>
+                                </tr>
+                            `;
+                            $tbody.html(rows);
+                            $('#reinsurer-totals').hide();
+
+                            showToast('info', 'No reinsurers found for this stage');
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        console.error('Error loading reinsurers:', error);
+
+                        if (reinsurerTable) {
+                            reinsurerTable.destroy();
+                            reinsurerTable = null;
+                        }
+
+                        $tbody.html(`
+                            <tr>
+                                <td colspan="5" class="text-center py-5">
+                                    <div class="alert alert-danger mb-0">
+                                        <i class="bx bx-error"></i>
+                                        <strong>Error Loading Data</strong>
+                                        <p class="mb-0 mt-2">Failed to load reinsurer data. Please try again.</p>
+                                    </div>
+                                </td>
+                            </tr>
+                        `);
+                        $('#reinsurer-totals').hide();
+
+                        showToast('error', 'Failed to load reinsurer data');
+                    },
+                    complete: function() {
+                        $container.find('.loading-overlay').remove();
+                    }
+                });
+            });
+
+            // ========================================
+            // Toast Notification Helper
+            // ========================================
+            function showToast(type, message) {
+                const iconMap = {
+                    success: 'bx-check-circle',
+                    error: 'bx-error-circle',
+                    info: 'bx-info-circle',
+                    warning: 'bx-error'
+                };
+
+                const bgMap = {
+                    success: 'success',
+                    error: 'danger',
+                    info: 'info',
+                    warning: 'warning'
+                };
+
+                const toast = `
+                    <div class="toast align-items-center text-white bg-${bgMap[type]} border-0" role="alert" style="position: fixed; top: 20px; right: 20px; z-index: 9999;">
+                        <div class="d-flex">
+                            <div class="toast-body">
+                                <i class="bx ${iconMap[type]} me-2"></i>
+                                ${message}
+                            </div>
+                            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                        </div>
+                    </div>
+                `;
+
+                $('body').append(toast);
+                const $toast = $('.toast').last();
+                const bsToast = new bootstrap.Toast($toast[0], {
+                    delay: 3000
+                });
+                bsToast.show();
+
+                $toast.on('hidden.bs.toast', function() {
+                    $(this).remove();
+                });
+            }
+
+            // ========================================
+            // Excess Type Change Handler
+            // ========================================
             function updateExcessLabel() {
                 const excessType = $('#excess_type').val();
                 const label = excessType === 'R' ? 'Excess (%)' : 'Excess Amount';
@@ -1504,7 +1864,9 @@
             $('#excess_type').on('change', updateExcessLabel);
             updateExcessLabel();
 
-            // Auto-calculate closing date (1 year - 1 day from effective date)
+            // ========================================
+            // Auto-calculate Closing Date
+            // ========================================
             $('#effective_date').on('change', function() {
                 const effectiveDate = $(this).val();
                 if (effectiveDate) {
@@ -1515,95 +1877,9 @@
                 }
             });
 
-            // Load reinsurers by stage with improved UI
-            $('#stage').on('change', function() {
-                const stage = $(this).val();
-                const $container = $('#reinsurer-table-container');
-                const $tbody = $('#reinsurer-body');
-
-                if (!stage) {
-                    $tbody.html(`
-                        <tr>
-                            <td colspan="3" class="text-center py-5">
-                                <div class="empty-state">
-                                    <i class="bx bx-filter-alt"></i>
-                                    <p class="mb-0">Please select a stage to load reinsurers</p>
-                                </div>
-                            </td>
-                        </tr>
-                    `);
-                    return;
-                }
-
-                // Show loading state
-                $container.append('<div class="loading-overlay"><div class="spinner"></div></div>');
-
-                $.ajax({
-                    url: '{{ route('reinsurers.filter') }}',
-                    type: 'GET',
-                    data: {
-                        stage,
-                        opportunity_id: pipeid
-                    },
-                    success: function(response) {
-                        let rows = '';
-
-                        if (response.reinsurers?.length > 0) {
-                            response.reinsurers.forEach(item => {
-                                const name = item.reinsurer_name
-                                    .split(' ')
-                                    .map(word => word.charAt(0).toUpperCase() + word
-                                        .slice(1).toLowerCase())
-                                    .join(' ');
-
-                                const writtenShare = item.written_share || 'N/A';
-                                const signedShare = item.signed_share || 'N/A';
-
-                                rows += `
-                                    <tr>
-                                        <td>
-                                            <strong>${name}</strong>
-                                            <span class="badge badge-stage-${stage} ms-2">Stage ${stage}</span>
-                                        </td>
-                                        <td><strong>${writtenShare}${writtenShare !== 'N/A' ? '%' : ''}</strong></td>
-                                        <td><strong>${signedShare}${signedShare !== 'N/A' ? '%' : ''}</strong></td>
-                                    </tr>
-                                `;
-                            });
-                        } else {
-                            rows = `
-                                <tr>
-                                    <td colspan="3" class="text-center py-5">
-                                        <div class="empty-state">
-                                            <i class="bx bx-search-alt"></i>
-                                            <p class="mb-0">No reinsurers found for this stage</p>
-                                        </div>
-                                    </td>
-                                </tr>
-                            `;
-                        }
-
-                        $tbody.html(rows);
-                    },
-                    error: function() {
-                        $tbody.html(`
-                            <tr>
-                                <td colspan="3" class="text-center py-5">
-                                    <div class="alert alert-danger mb-0">
-                                        <i class="bx bx-error"></i>
-                                        Failed to load reinsurer data. Please try again.
-                                    </div>
-                                </td>
-                            </tr>
-                        `);
-                    },
-                    complete: function() {
-                        $container.find('.loading-overlay').remove();
-                    }
-                });
-            });
-
-            // Handle document preview with improved error handling
+            // ========================================
+            // Document Preview Handler
+            // ========================================
             $(document).on('click', '.preview', function() {
                 const $row = $(this).closest('.document-row');
                 const fileInput = $row.find('input[type="file"]')[0];
@@ -1613,7 +1889,8 @@
                     Swal.fire({
                         icon: 'warning',
                         title: 'No File Selected',
-                        text: 'Please select a file first before previewing'
+                        text: 'Please select a file first before previewing',
+                        confirmButtonColor: '#f39c12'
                     });
                     return;
                 }
@@ -1623,12 +1900,10 @@
                 const $image = $('#preview_image');
                 const $error = $('#preview_error');
 
-                // Hide all preview elements
                 $iframe.hide();
                 $image.hide();
                 $error.hide();
 
-                // Show appropriate preview based on file type
                 if (file.type === 'application/pdf') {
                     $iframe.attr('src', fileURL).show();
                 } else if (file.type.startsWith('image/')) {
@@ -1637,23 +1912,23 @@
                     $error.show();
                 }
 
-                // Show modal
                 $('#v_docs').modal('show');
 
-                // Clean up blob URL when modal is closed
                 $('#v_docs').one('hidden.bs.modal', function() {
                     URL.revokeObjectURL(fileURL);
                 });
             });
 
-            // Add new document row
+            // ========================================
+            // Add New Document Row
+            // ========================================
             let fileCounter = 0;
             $(document).on('click', '.addDocfac', function(e) {
                 e.preventDefault();
                 fileCounter++;
 
                 const newRow = `
-                    <div class="document-row new-document-row">
+                    <div class="document-row new-document-row" style="animation: slideIn 0.3s ease;">
                         <div class="row align-items-center">
                             <div class="col-auto">
                                 <div class="document-icon">
@@ -1663,12 +1938,12 @@
                             <div class="col-md-3">
                                 <label class="form-label">Document Type</label>
                                 <input type="text" name="document_name[]" class="form-control"
-                                       placeholder="Enter document name" />
+                                       placeholder="Enter document name" required />
                             </div>
                             <div class="col-md-5">
                                 <label class="form-label">Select File</label>
                                 <input type="file" name="document_file[]" class="form-control document_file"
-                                       accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" />
+                                       accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" required />
                             </div>
                             <div class="col-md-4 text-end">
                                 <label class="form-label d-block">&nbsp;</label>
@@ -1684,28 +1959,32 @@
                 `;
 
                 $(this).closest('.document-row').after(newRow);
+                showToast('success', 'New document row added');
             });
 
-            // Remove document row
+            // ========================================
+            // Remove Document Row
+            // ========================================
             $(document).on('click', '.remove-file', function() {
                 $(this).closest('.new-document-row').fadeOut(300, function() {
                     $(this).remove();
+                    showToast('info', 'Document row removed');
                 });
             });
 
-            // Form submission with validation
+            // ========================================
+            // Form Submission Handler
+            // ========================================
             $('#submit').on('click', function(e) {
                 e.preventDefault();
 
                 const form = $('#msform')[0];
 
-                // Check form validity
                 if (!form.checkValidity()) {
                     form.reportValidity();
                     return;
                 }
 
-                // Confirmation dialog
                 Swal.fire({
                     icon: 'warning',
                     title: 'Confirm Handover Submission',
@@ -1717,7 +1996,8 @@
                     confirmButtonText: '<i class="bx bx-check"></i> Yes, Submit',
                     cancelButtonText: '<i class="bx bx-x"></i> Cancel',
                     confirmButtonColor: '#27ae60',
-                    cancelButtonColor: '#95a5a6'
+                    cancelButtonColor: '#95a5a6',
+                    reverseButtons: true
                 }).then((result) => {
                     if (result.isConfirmed) {
                         submitForm();
@@ -1725,23 +2005,25 @@
                 });
             });
 
-            // Submit form function
+            // ========================================
+            // Submit Form Function
+            // ========================================
             function submitForm() {
                 const form = $('#msform')[0];
                 const formData = new FormData(form);
                 const $submitBtn = $('#submit');
 
-                // Disable submit button and show loading state
                 $submitBtn
                     .html('<span class="spinner-border spinner-border-sm me-2"></span>Submitting...')
                     .prop('disabled', true);
 
                 $.ajax({
                     type: 'POST',
-                    url: '{{ route('client.stage') }}',
+                    url: CONFIG.routes.clientStage,
                     data: formData,
                     processData: false,
                     contentType: false,
+                    timeout: 60000, // 60 seconds timeout
                     success: function(res) {
                         if (res.status === 200) {
                             Swal.fire({
@@ -1753,7 +2035,9 @@
                                 `,
                                 timer: 2000,
                                 timerProgressBar: true,
-                                showConfirmButton: false
+                                showConfirmButton: false,
+                                allowOutsideClick: false,
+                                allowEscapeKey: false
                             }).then(() => {
                                 window.location.href = '/pipelines_view';
                             });
@@ -1767,21 +2051,28 @@
                             resetSubmitButton();
                         }
                     },
-                    error: function(xhr) {
+                    error: function(xhr, status, error) {
+                        console.error('Submission error:', error);
+
                         let errorMessage = 'An error occurred during submission';
 
                         if (xhr.responseJSON?.message) {
                             errorMessage = xhr.responseJSON.message;
+                        } else if (xhr.responseJSON?.errors) {
+                            const errors = Object.values(xhr.responseJSON.errors).flat();
+                            errorMessage = errors.join('<br>');
                         } else if (xhr.status === 422) {
                             errorMessage = 'Please check all required fields and try again';
                         } else if (xhr.status === 500) {
                             errorMessage = 'Server error. Please contact support';
+                        } else if (status === 'timeout') {
+                            errorMessage = 'Request timeout. Please try again';
                         }
 
                         Swal.fire({
                             icon: 'error',
                             title: 'Submission Error',
-                            text: errorMessage,
+                            html: errorMessage,
                             confirmButtonColor: '#e74c3c'
                         });
                         resetSubmitButton();
@@ -1789,12 +2080,37 @@
                 });
             }
 
-            // Reset submit button
+            // ========================================
+            // Reset Submit Button
+            // ========================================
             function resetSubmitButton() {
                 $('#submit')
                     .html('<i class="bx bx-transfer"></i> Submit for Handover')
                     .prop('disabled', false);
             }
+
+            // ========================================
+            // Add Slide In Animation
+            // ========================================
+            $('<style>')
+                .text(`
+                    @keyframes slideIn {
+                        from {
+                            opacity: 0;
+                            transform: translateY(-20px);
+                        }
+                        to {
+                            opacity: 1;
+                            transform: translateY(0);
+                        }
+                    }
+                `)
+                .appendTo('head');
+
+            // ========================================
+            // Initialize on Page Load
+            // ========================================
+            console.log('Prospect Handover Form initialized');
         });
     </script>
 @endpush

@@ -2122,13 +2122,11 @@ class PipelineController
         $pipeid = $request->prospect;
         $approval = $request->approval;
 
-        // Validate required input
         if (!$pipeid) {
             return back()->with('error', 'Prospect ID is required');
         }
 
         try {
-            // Get prospect properties
             $prospProperties = DB::table('pipeline_opportunities')
                 ->where('opportunity_id', $pipeid)
                 ->first();
@@ -2144,7 +2142,26 @@ class PipelineController
             $contactData = $this->getContactData($pipeid);
             $referenceData = $this->getReferenceData();
 
-            // Merge all data
+            $stages  = [
+                [
+                    'key' => 'Proposal',
+                    'value' => '2',
+                ],
+                [
+                    'key' => 'Negotiation',
+                    'value' => '3',
+                ],
+                [
+                    'key' => 'Won/Lost',
+                    'value' => '4',
+                ],
+                [
+                    'key' => 'Final Stage',
+                    'value' => '5',
+                ]
+
+            ];
+
             $viewData = array_merge(
                 $commonData,
                 $prospectData,
@@ -2156,13 +2173,13 @@ class PipelineController
                     'prospect' => $pipeid,
                     'pipeid' => $pipeid,
                     'approval' => $approval,
+                    'stages' => $stages,
                     'years' => range(date('Y'), date('Y') + 10),
                 ]
             );
 
             return view('Bd_views.intermediaries.handover_validate', $viewData);
         } catch (\Exception $e) {
-            logger($e);
             return back()->with('error', 'An error occurred while loading handover data');
         }
     }
@@ -7541,14 +7558,38 @@ class PipelineController
 
     public function filterReinsurers(Request $request)
     {
-        $stage = $request->stage;
-        $opportunity_id = $request->opportunity_id;
+        try {
+            $validated = $request->validate([
+                'stage' => 'required|integer',
+                'opportunity_id' => 'required'
+            ]);
 
-        $reinsurers = QuoteReinsurers::where('stage', $stage)
-            ->where('opportunity_id', $opportunity_id)
-            ->get();
-        return Response()->Json(['reinsurers' => $reinsurers]);
+            $reinsurers = BdFacReinsurer::where('opportunity_id', $validated['opportunity_id'])->get();
+
+            logger()->debug(json_encode($reinsurers, JSON_PRETTY_PRINT));
+
+            return response()->json([
+                'success' => true,
+                'reinsurers' => $reinsurers
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            logger($e);
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            logger($e);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch reinsurers',
+                'error' => config('app.debug') ? $e->getMessage() : null
+            ], 500);
+        }
     }
+
 
     public function saveTenderDocs(Request $request)
     {
