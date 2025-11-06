@@ -1,4 +1,4 @@
-<!-- Negotiation Stage Modal - FIXED VERSION -->
+<!-- Negotiation Stage Modal -->
 <div id="negotiationModal" class="modal fade effect-scale md-wrapper" tabindex="-1" data-bs-backdrop="static"
     data-bs-keyboard="false" aria-labelledby="staticPropoalStageLabel" aria-hidden="true" role="dialog">
     <div class="modal-dialog modal-dialog-centered modal-xl" role="document">
@@ -175,9 +175,9 @@
                                             id="negReinsurersTable">
                                             <thead class="table-dark">
                                                 <tr>
-                                                    <th style="width: 60%">Reinsurer</th>
-                                                    <th style="width: 15%">Written Share (%)</th>
-                                                    <th style="width: 15%">Signed Share (%)</th>
+                                                    <th style="width: 50%">Reinsurer</th>
+                                                    <th style="width: 20%">Written Share (%)</th>
+                                                    <th style="width: 20%">Signed Share (%)</th>
                                                     <th style="width: 10%">Action</th>
                                                 </tr>
                                             </thead>
@@ -298,9 +298,6 @@
 
             let reinsurerDataTable = null;
 
-            // FIX #3: Remove duplicate initialization - only initialize once in initializeReinsurerTable
-            // Don't initialize here at document ready
-
             $("#negotiationForm").on("input", ".form-inputs", function() {
                 validateField($(this));
             });
@@ -313,10 +310,27 @@
                     };
                 }
 
+                // Check if all reinsurers have signed shares
+                const missingSignedShares = negotiationState.reinsurers.filter(r => {
+                    const signedShare = parseFloat(r.signed_share || 0);
+                    return signedShare <= 0;
+                });
+
+                if (missingSignedShares.length > 0) {
+                    const reinsurerNames = missingSignedShares
+                        .map(r => r.reinsurer_name || r.name)
+                        .join(', ');
+                    return {
+                        isValid: false,
+                        message: `Please enter signed shares for: ${reinsurerNames}`
+                    };
+                }
+
+                // Check if total signed shares equal 100%
                 if (Math.abs(negotiationState.totalShare - 100) > 0.01) {
                     return {
                         isValid: false,
-                        message: `Total reinsurer share must equal 100% (current: ${negotiationState.totalShare.toFixed(2)}%)`
+                        message: `Total signed share must equal 100% (current: ${negotiationState.totalShare.toFixed(2)}%)`
                     };
                 }
 
@@ -425,7 +439,6 @@
                     });
                 }
 
-                // FIX #1: Uncomment and ensure reinsurer data is added
                 formData.append("reinsurers_data", JSON.stringify(negotiationState.reinsurers));
                 formData.append("total_placed_shares", negotiationState.totalShare.toFixed(2));
                 formData.append("total_unplaced_shares", (100 - negotiationState.totalShare).toFixed(2));
@@ -439,7 +452,6 @@
                 const $submitBtn = $form.find("button[type='submit']");
                 const originalBtnContent = $submitBtn.html();
 
-                // FIX #5: Re-enable validation
                 const validation = validateNegotiationForm();
                 if (!validation.isValid) {
                     let errorHtml = '<ul class="text-start mb-0">';
@@ -455,7 +467,6 @@
                         confirmButtonColor: "#dc3545",
                     });
 
-                    // Scroll to first error
                     const $firstError = $form.find(".is-invalid").first();
                     if ($firstError.length) {
                         $firstError[0].scrollIntoView({
@@ -487,16 +498,20 @@
                     timeout: 60000,
                     success: function(response) {
                         if (response.success) {
-                            resetNegotiationModal();
-
                             Swal.fire({
                                 icon: "success",
                                 title: "Negotiation Sent Successfully!",
                                 text: "Your negotiation has been submitted",
                                 showConfirmButton: true,
+                                timer: 3000
                             }).then(() => {
+                                // Reset modal before hiding
+                                resetNegotiationModal();
+
+                                // Hide modal
                                 $modal.modal("hide");
 
+                                // Reload tables and charts
                                 if (typeof pipelineManager !== 'undefined' &&
                                     typeof pipelineManager.reloadAllTables ===
                                     'function') {
@@ -553,7 +568,6 @@
                 });
             });
 
-            // FIX #2: Update edit function to work with correct data structure
             function editReinsurer(reinsurerId, reinsurerName, currentWrittenShare, currentSignedShare) {
                 const reinsurerIndex = negotiationState.reinsurers.findIndex(r =>
                     r.reinsurer_id === reinsurerId || r.id === reinsurerId
@@ -565,110 +579,162 @@
                 }
 
                 const reinsurer = negotiationState.reinsurers[reinsurerIndex];
+                const escapedName = escapeHtml(reinsurerName);
 
-                Swal.fire({
-                    title: 'Edit Reinsurer Shares',
-                    html: `
-                        <div class="form-group text-start mb-3">
-                            <label class="form-label fw-semibold mb-2">${escapeHtml(reinsurerName)}</label>
-                            <div class="mb-3">
-                                <label class="form-label">Written Share</label>
-                                <div class="input-group">
-                                    <input type="number"
-                                        id="editWrittenShareInput"
-                                        class="form-control"
-                                        value="${currentWrittenShare}"
-                                        min="0.01"
-                                        max="100"
-                                        step="0.01"
-                                        placeholder="Enter written share percentage">
-                                    <span class="input-group-text">%</span>
+                // Remove existing modal if any
+                $("#editReinsurerSharesModal").remove();
+
+                const modalHtml = `
+                    <div class="modal fade mod-popup effect-scale" id="editReinsurerSharesModal" tabindex="-1" data-bs-backdrop="static">
+                        <div class="modal-dialog modal-dialog-centered">
+                            <div class="modal-content">
+                                <div class="modal-header bg-primary text-white">
+                                    <h5 class="modal-title">Edit Signed Share</h5>
+                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                </div>
+                                <div class="modal-body pt-4 pb-3">
+                                    <div class="text-center mb-3">
+                                        <label class="form-label fw-semibold">${escapedName}</label>
+                                    </div>
+                                    <div class="form-group mb-3">
+                                        <label class="form-label text-muted">Written Share</label>
+                                        <div class="input-group">
+                                            <input
+                                                type="text"
+                                                class="form-control"
+                                                value="${currentWrittenShare}%"
+                                                readonly
+                                                disabled
+                                            >
+                                        </div>
+                                        <small class="text-muted">This value is set during initial placement</small>
+                                    </div>
+                                    <div class="form-group mb-3">
+                                        <label for="editSignedShareInput" class="form-label">
+                                            Signed Share (%)
+                                            <span class="text-danger">*</span>
+                                        </label>
+                                        <div class="input-group">
+                                            <input
+                                                type="number"
+                                                class="form-control"
+                                                id="editSignedShareInput"
+                                                value="${currentSignedShare || ''}"
+                                                min="0.01"
+                                                max="100"
+                                                step="0.01"
+                                                placeholder="Enter signed share percentage"
+                                            >
+                                            <span class="input-group-text">%</span>
+                                        </div>
+                                        <div class="invalid-feedback" id="signedShareError"></div>
+                                    </div>
+                                    <small class="text-muted mt-1 d-block">
+                                        <i class="bx bx-info-circle me-1"></i>
+                                        Current total signed: ${negotiationState.totalShare.toFixed(2)}%
+                                        (${(100 - negotiationState.totalShare).toFixed(2)}% remaining)
+                                    </small>
+                                </div>
+                                <div class="modal-footer border-0">
+                                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                                    <button type="button" class="btn btn-success" id="confirmSharesUpdate">
+                                        <i class="bx bx-check me-1"></i>Update Share
+                                    </button>
                                 </div>
                             </div>
-                            <div class="mb-2">
-                                <label class="form-label">Signed Share</label>
-                                <div class="input-group">
-                                    <input type="number"
-                                        id="editSignedShareInput"
-                                        class="form-control"
-                                        value="${currentSignedShare || 0}"
-                                        min="0.01"
-                                        max="100"
-                                        step="0.01"
-                                        placeholder="Enter signed share percentage">
-                                    <span class="input-group-text">%</span>
-                                </div>
-                            </div>
-                            <small class="text-muted mt-1 d-block">
-                                Current total written: ${negotiationState.totalShare.toFixed(2)}%
-                            </small>
                         </div>
-                    `,
-                    showCancelButton: true,
-                    confirmButtonText: 'Update',
-                    cancelButtonText: 'Cancel',
-                    preConfirm: () => {
-                        const newWrittenShare = parseFloat(document.getElementById(
-                            'editWrittenShareInput').value);
-                        const newSignedShare = parseFloat(document.getElementById(
-                            'editSignedShareInput').value);
+                    </div>
+                `;
 
-                        if (!newWrittenShare || newWrittenShare <= 0 || newWrittenShare > 100) {
-                            Swal.showValidationMessage(
-                                'Please enter a valid written share between 0.01 and 100');
-                            return false;
+                $("body").append(modalHtml);
+
+                // Clear validation
+                $("#editSignedShareInput").removeClass("is-invalid");
+                $("#signedShareError").text("");
+
+                const editModal = new bootstrap.Modal(
+                    document.getElementById("editReinsurerSharesModal")
+                );
+
+                // Focus on input when modal is shown
+                $("#editReinsurerSharesModal").one("shown.bs.modal", function() {
+                    $("#editSignedShareInput").focus().select();
+                });
+
+                // Clean up modal when hidden
+                $("#editReinsurerSharesModal").one("hidden.bs.modal", function() {
+                    $("#editReinsurerSharesModal").remove();
+                });
+
+                // Handle confirm button click
+                $("#confirmSharesUpdate")
+                    .off("click")
+                    .on("click", () => {
+                        const signedValue = $("#editSignedShareInput").val();
+                        const newSignedShare = parseFloat(signedValue);
+
+                        // Reset validation
+                        $("#editSignedShareInput").removeClass("is-invalid");
+                        $("#signedShareError").text("");
+
+                        // Validate signed share
+                        if (signedValue === "" || isNaN(newSignedShare)) {
+                            $("#editSignedShareInput").addClass("is-invalid");
+                            $("#signedShareError").text("Please enter a valid number");
+                            return;
                         }
 
-                        if (!newSignedShare || newSignedShare <= 0 || newSignedShare > 100) {
-                            Swal.showValidationMessage(
-                                'Please enter a valid signed share between 0.01 and 100');
-                            return false;
+                        if (newSignedShare <= 0 || newSignedShare > 100) {
+                            $("#editSignedShareInput").addClass("is-invalid");
+                            $("#signedShareError").text("Please enter a value between 0.01 and 100");
+                            return;
                         }
 
-                        // Calculate new total (excluding current reinsurer's share)
-                        const otherSharesTotal = negotiationState.totalShare - parseFloat(
-                            currentWrittenShare);
-                        const newTotal = otherSharesTotal + newWrittenShare;
+                        // Check total signed share limit
+                        const otherSignedSharesTotal = negotiationState.reinsurers
+                            .filter((r, idx) => idx !== reinsurerIndex)
+                            .reduce((sum, r) => sum + parseFloat(r.signed_share || 0), 0);
+
+                        const newTotal = otherSignedSharesTotal + newSignedShare;
 
                         if (newTotal > 100) {
-                            Swal.showValidationMessage(
-                                `Total would exceed 100%. Maximum allowed: ${(100 - otherSharesTotal).toFixed(2)}%`
+                            $("#editSignedShareInput").addClass("is-invalid");
+                            $("#signedShareError").text(
+                                `Total would exceed 100%. Maximum allowed: ${(100 - otherSignedSharesTotal).toFixed(2)}%`
                             );
-                            return false;
+                            return;
                         }
 
-                        return {
-                            written: newWrittenShare,
-                            signed: newSignedShare
-                        };
-                    }
-                }).then((result) => {
-                    if (result.isConfirmed && result.value) {
-                        // FIX #6: Update using correct field names
-                        negotiationState.reinsurers[reinsurerIndex].written_share = result.value.written
-                            .toFixed(2);
-                        negotiationState.reinsurers[reinsurerIndex].signed_share = result.value.signed
-                            .toFixed(2);
+                        // Update only signed share
+                        negotiationState.reinsurers[reinsurerIndex].signed_share = newSignedShare.toFixed(2);
 
-                        // Refresh the table
+                        // Refresh table
                         const tableData = transformReinsurerData(negotiationState.reinsurers);
                         reinsurerDataTable.clear();
                         reinsurerDataTable.rows.add(tableData);
                         reinsurerDataTable.draw();
 
+                        // Update hidden input
+                        $('.selected_reinsurers').val(JSON.stringify(tableData) || []);
+
+                        // Update totals and displays
                         updateTotalShare();
-                        updatePlacementDisplay(); // FIX #4: Update placement display
-                        showSuccessToast('Shares updated successfully');
+                        updatePlacementDisplay();
+
+                        showSuccessToast('Signed share updated successfully');
+
+                        editModal.hide();
+                    });
+
+                // Handle Enter key press
+                $("#editSignedShareInput").on("keypress", (e) => {
+                    if (e.which === 13) {
+                        e.preventDefault();
+                        $("#confirmSharesUpdate").click();
                     }
                 });
 
-                setTimeout(() => {
-                    const input = document.getElementById('editWrittenShareInput');
-                    if (input) {
-                        input.focus();
-                        input.select();
-                    }
-                }, 100);
+                editModal.show();
             }
 
             function removeReinsurer(reinsurerId, reinsurerName) {
@@ -701,7 +767,7 @@
 
                         updateReinsurerCount();
                         updateTotalShare();
-                        updatePlacementDisplay(); // FIX #4: Update placement display
+                        updatePlacementDisplay();
 
                         showSuccessToast('Reinsurer removed successfully');
                     }
@@ -729,8 +795,7 @@
                     e.stopPropagation();
 
                     const reinsurerId = $(this).data('reinsurer-id');
-                    // Implement contact modal or action here
-                    console.log('Contact reinsurer:', reinsurerId);
+                    // Handle contact action here
                 });
             }
 
@@ -740,58 +805,53 @@
 
             function updateTotalShare() {
                 negotiationState.totalShare = negotiationState.reinsurers.reduce(
-                    (sum, r) => sum + parseFloat(r.written_share || 0),
+                    (sum, r) => sum + parseFloat(r.signed_share || 0),
                     0
                 );
 
-                // FIX #1: Update hidden fields
                 $('#negPlacedShare').val(negotiationState.totalShare.toFixed(2));
                 $('#negUnPlacedShare').val((100 - negotiationState.totalShare).toFixed(2));
 
                 const $warning = $('.share-warning');
                 $warning.remove();
-
-                if (Math.abs(negotiationState.totalShare - 100) > 0.01 && negotiationState.reinsurers.length > 0) {
-                    const remaining = (100 - negotiationState.totalShare).toFixed(2);
-                    const warningHtml = `
-                        <div class="alert alert-warning share-warning mt-2" role="alert">
-                            <i class="bx bx-error me-2"></i>
-                            <strong>Warning:</strong> Total share is ${negotiationState.totalShare.toFixed(2)}%.
-                            Remaining: <strong>${remaining}%</strong>
-                        </div>
-                    `;
-                    $table.closest('.table-responsive').after(warningHtml);
-                }
             }
 
-            // FIX #4: Add function to update placement display
             function updatePlacementDisplay() {
                 const placedShare = negotiationState.totalShare;
                 const unplacedShare = 100 - placedShare;
 
-                // Update text values
                 $('.placed-value').text(placedShare.toFixed(2) + '%');
                 $('.unplaced-value').text(unplacedShare.toFixed(2) + '%');
 
-                // Update progress bar
-                $('.placed-progress')
-                    .css('width', placedShare + '%')
+                const progressBar = $('.placed-progress');
+
+                const displayWidth = Math.min(placedShare, 100);
+                progressBar
+                    .css('width', displayWidth + '%')
                     .attr('aria-valuenow', placedShare);
 
-                // Update hidden inputs
+                if (Math.abs(placedShare - 100) < 0.01) {
+                    progressBar.removeClass('bg-warning bg-danger').addClass('bg-success');
+                } else if (placedShare > 100) {
+                    progressBar.removeClass('bg-warning bg-success').addClass('bg-danger');
+                } else {
+                    progressBar.removeClass('bg-success bg-danger').addClass('bg-warning');
+                }
+
                 $('#negPlacedShare').val(placedShare.toFixed(2));
                 $('#negUnPlacedShare').val(unplacedShare.toFixed(2));
             }
 
             function resetNegotiationModal() {
-                // Reset form
                 $form[0].reset();
+
                 $form.find('.is-invalid').removeClass('is-invalid');
+                $form.find('.is-valid').removeClass('is-valid');
                 $form.find('.invalid-feedback').remove();
 
-                // Reset reinsurers
                 negotiationState.reinsurers = [];
                 negotiationState.totalShare = 0;
+                negotiationState.isInitialized = false;
 
                 if (reinsurerDataTable) {
                     reinsurerDataTable.clear().draw();
@@ -799,9 +859,19 @@
 
                 updateReinsurerCount();
                 updateTotalShare();
-                updatePlacementDisplay(); // FIX #4: Reset placement display
+                updatePlacementDisplay();
 
                 $('.share-warning').remove();
+
+                $('#negReinsurersData').val('');
+                $('.selected_reinsurers').val('');
+                $('#negPlacedShare').val('0.00');
+                $('#negUnPlacedShare').val('100.00');
+
+                if (typeof pipelineManager !== 'undefined' &&
+                    typeof pipelineManager.clearAllFiles === 'function') {
+                    pipelineManager.clearAllFiles();
+                }
             }
 
             function validateField($field) {
@@ -842,7 +912,6 @@
                 const fieldValue = $field.val();
                 const numericValue = parseFloat(fieldValue?.replace(/,/g, "") || 0);
 
-                // Currency validation
                 if ($field.closest(".currency-input").length ||
                     fieldName?.includes("premium") ||
                     fieldName?.includes("sum_insured")) {
@@ -863,7 +932,6 @@
                     }
                 }
 
-                // Percentage validation
                 if (fieldName?.includes("rate") || fieldName?.includes("Share")) {
                     if (!FIELD_VALIDATORS.percentage.pattern.test(fieldValue)) {
                         return {
@@ -880,7 +948,6 @@
                     }
                 }
 
-                // Email validation
                 if ($field.attr("type") === "email" || fieldName?.includes("email")) {
                     if (!FIELD_VALIDATORS.email.pattern.test(fieldValue)) {
                         return {
@@ -904,7 +971,9 @@
             });
 
             $modal.on('hidden.bs.modal', function() {
-                resetNegotiationModal();
+                if (negotiationState.reinsurers.length > 0 || negotiationState.isInitialized) {
+                    resetNegotiationModal();
+                }
             });
 
             function loadAvailableReinsurers() {
@@ -924,7 +993,6 @@
             }
 
             function initializeReinsurerTable() {
-                // FIX #3: Properly destroy existing table
                 if (reinsurerDataTable) {
                     try {
                         reinsurerDataTable.destroy();
@@ -970,16 +1038,20 @@
                             className: 'text-start',
                             render: (data, type, row) => {
                                 const escapedName = escapeHtml(row.name);
+                                const signedShare = parseFloat(data);
+                                const badgeClass = signedShare > 0 ? 'bg-secondary' : 'bg-danger';
+                                const displayText = signedShare > 0 ? `${data}%` : 'Required';
+
                                 return `
                                     <span>
-                                        <span class="badge bg-secondary">${data}%</span>
+                                        <span class="badge ${badgeClass}">${displayText}</span>
                                         <span class="badge bg-dark edit-reinsurer-btn"
                                             data-reinsurer-id="${row.id}"
                                             data-reinsurer-name="${escapedName}"
                                             data-written-share="${row.written_share}"
                                             data-signed-share="${row.signed_share}"
                                             style="margin-left: 0.25rem; cursor: pointer;"
-                                            title="Edit Shares">
+                                            title="Edit Signed Share">
                                             <i class="bx bx-edit"></i>
                                         </span>
                                     </span>
@@ -1036,13 +1108,12 @@
                 }
             }
 
-            // FIX #6: Ensure transform function handles all field variations
             function transformReinsurerData(reinsurers) {
                 return reinsurers.map((reinsurer) => {
                     return {
                         id: reinsurer.reinsurer_id || reinsurer.id,
                         name: reinsurer.reinsurer_name || reinsurer.name,
-                        written_share: parseFloat(reinsurer.written_share || 0).toFixed(2),
+                        written_share: parseFloat(reinsurer.updated_written_share || 0).toFixed(2),
                         signed_share: parseFloat(reinsurer.signed_share || 0).toFixed(2),
                         previous_written_share: parseFloat(reinsurer.previous_written_share || reinsurer
                             .written_share || 0).toFixed(2),

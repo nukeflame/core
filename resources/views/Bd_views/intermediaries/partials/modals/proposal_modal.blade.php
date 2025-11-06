@@ -853,6 +853,8 @@
                 }
 
                 if (typeof proposalState !== 'undefined') {
+                    console.log(proposalState.reinsurers)
+
                     formData.append("reinsurers_data", JSON.stringify(proposalState.reinsurers || []));
                     formData.append("total_placed_shares", (proposalState.totalShare || 0).toFixed(2));
                     formData.append("total_unplaced_shares", (100 - (proposalState.totalShare || 0)).toFixed(2));

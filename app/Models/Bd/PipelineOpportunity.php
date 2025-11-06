@@ -59,6 +59,8 @@ class PipelineOpportunity extends Model
         'cr_processed',
         'created_by',
         'updated_by',
+        'category_type',
+        'sales_entry_date',
     ];
 
     protected $casts = [

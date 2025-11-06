@@ -15,21 +15,23 @@
                 @csrf
                 <div class="modal-body">
                     <input type="hidden" name="opportunity_id" class="opportunity_id" id="finOpportunityId" />
-                    <input type="hidden" class="current_stage" id="finCurrentStage" name="current_stage" />
+                    <input type="hidden" class="current_stage" id="finCurrentStage" name="current_stage"
+                        value="final_stage" />
                     <input type="hidden" name="class_code" class="class_code" id="finClassCode">
                     <input type="hidden" name="class_group_code" class="class_group_code" id="finClassGroupCode">
+                    <input type="hidden" name="final_status" id="finFinalStatus" />
 
                     <div class="mb-4">
                         <label for="finStageLabel" class="form-label">
                             Final Stage Status<span class="required-asterisk">*</span>
                         </label>
-                        <select class="form-inputs select2" name="stageSatus" id="finStageLabel"
+                        <select class="form-inputs select2" name="stageStatus" id="finStageLabel"
                             aria-describedby="statusTypeHelp">
                             <option value="" disabled selected>Select final stage status</option>
                             <option value="won">Closed Won - BD Facultative</option>
                             <option value="lost">Closed Lost - BD Facultative</option>
                         </select>
-                        <div class="invalid-feedback" id="category_type_error"></div>
+                        <div class="invalid-feedback" id="finStageLabel_error"></div>
                         <div class="form-text" id="statusTypeHelp">
                             Please select the final stage status for this BD Facultative opportunity.
                         </div>
@@ -69,6 +71,8 @@
 
             $finStageType.on('change', function() {
                 clearFieldError($(this));
+
+                $('#finFinalStatus').val($(this).val());
             });
 
             $form.on('submit', function(e) {
@@ -98,16 +102,19 @@
                         Swal.fire({
                             icon: 'success',
                             title: 'Success!',
-                            text: 'Stage updated successfully',
+                            text: response.message || 'Stage updated successfully',
                             timer: 2000,
                             showConfirmButton: false
                         }).then(() => {
-                            console.log(response)
+
                             $('#finalStageModal').modal('hide');
                             $form[0].reset();
 
-                            // Reload page or update UI as needed
-                            if (typeof location !== 'undefined') {
+                            if (typeof window.pipelineManager !== 'undefined' &&
+                                typeof window.pipelineManager.reloadAllTables ===
+                                'function') {
+                                window.pipelineManager.reloadAllTables();
+                            } else {
                                 location.reload();
                             }
                         });
@@ -157,7 +164,7 @@
                     $errorDiv.text(message).show();
                 } else {
                     $('<div class="invalid-feedback d-block" id="' + fieldId + '_error">' + message + '</div>')
-                        .insertAfter($field);
+                        .insertAfter($field.closest('.mb-4'));
                 }
             }
 
@@ -183,26 +190,23 @@
 
             function showFormError(message) {
                 const errorMessage = $('<div class="alert alert-danger mt-2" role="alert">' + message + '</div>');
-                $form.prepend(errorMessage);
-                setTimeout(() => errorMessage.fadeOut(() => errorMessage.remove()), 3000);
+                $form.find('.modal-body').prepend(errorMessage);
+                setTimeout(() => errorMessage.fadeOut(() => errorMessage.remove()), 5000);
             }
 
             function prepareFormData() {
                 const formData = new FormData();
+
                 $form.find("input:not([type='file']), select, textarea").each(function() {
                     const $el = $(this);
                     const name = $el.attr("name");
                     const type = $el.attr("type");
 
                     if (!name) return;
-
                     if ((type === "checkbox" || type === "radio") && !$el.is(":checked")) return;
 
                     let value = $el.val();
                     if (value !== null && value !== "") {
-                        if (name.includes('sum_insured') || name.includes('premium')) {
-                            value = value.replace(/,/g, '');
-                        }
                         formData.append(name, value);
                     }
                 });
@@ -219,16 +223,23 @@
             $('#finalStageModal').on('hidden.bs.modal', function() {
                 $form[0].reset();
                 $('#finOpportunityId').val('');
+                $('#finFinalStatus').val('');
                 if ($.fn.select2) $finStageType.val('').trigger('change');
                 clearAllErrors();
             });
 
-            window.openFinalStageModal = function(opportunityId) {
+            window.openFinalStageModal = function(opportunityId, classCode, classGroupCode) {
                 if (!opportunityId) {
                     showFormError('Invalid opportunity ID.');
                     return;
                 }
+
                 $('#finOpportunityId').val(opportunityId);
+                $('#finClassCode').val(classCode || '');
+                $('#finClassGroupCode').val(classGroupCode || '');
+                $('#finCurrentStage').val('final_stage');
+
+                clearAllErrors();
                 $('#finalStageModal').modal('show');
             };
         });

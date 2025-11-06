@@ -1,8 +1,7 @@
-@props(['label', 'for'])
+@props(['label' => '', 'for' => null])
 <div class="">
-    <label for="{{ $for }}"
-           class="">
-           {{ $label }}
+    <label {{ $for ? "for=\"{$for}\"" : '' }} class="">
+        {{ $label }}
     </label>
     <div class="">
         {{ $slot }}

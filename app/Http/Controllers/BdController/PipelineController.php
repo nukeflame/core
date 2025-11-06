@@ -1914,75 +1914,265 @@ class PipelineController
         return view('Bd_views.intermediaries.handover_bd');
     }
 
+    // public function handoverToCR(Request $request)
+    // {
+    //     $pipeid = $request->prospect;
+
+    //     // begin new code
+    //     $currentYear = date('Y');
+    //     $endYear = $currentYear + 10;
+    //     $years = range($currentYear, $endYear); // Generate an array of years
+    //     $customer_types = CustomerTypes::select('type_id', 'type_name')->get();
+    //     $salutations = Salutation::all();
+    //     $sources = LeadsSource::all();
+    //     $statuses = LeadStatus::wherein('id', [2, 4, 5])->get();
+    //     $engage_types = LeadsSource::all();
+    //     $industries = Occupation::all();
+    //     $divisions = DB::table('divisions')->get();
+    //     $clients = Client::select('full_name', 'global_customer_id', 'client_type', 'salutation_code', 'occupation_code')->get();
+    //     $prospProperties = DB::table('pipeline_opportunities')->where('opportunity_id', "=", $request->prospect)->first();
+    //     $users = User::all();
+    //     // dd($prospProperties);
+    //     $currencies = Currency::all();
+    //     $leadsources = DB::table('leadsources')->get();
+    //     $prospect = $request->prospect;
+    //     $countries = Country::all();
+    //     $underwriters = DB::table('companies')->get();
+    //     $branches = Branch::where('status', 'A')->get(['branch_code', 'branch_name', 'status']);
+    //     $treatytypes = TreatyType::where('status', 'A')->get();
+    //     $types_of_bus = BusinessType::get(['bus_type_id', 'bus_type_name']);
+    //     $branches = Branch::where('status', 'A')->get(['branch_code', 'branch_name', 'status']);
+    //     $brokers = Broker::where('status', 'A')->get(['broker_code', 'broker_name', 'status']);
+    //     $classes = Classes::where('status', 'A')->get(['class_code', 'class_name', 'status']);
+    //     $types_of_sum_insured = TypeOfSumInsured::where('status', 'A')->get(['sum_insured_code', 'sum_insured_name', 'status']);
+    //     $classGroups = ClassGroup::get(['group_code', 'group_name']);
+    //     $paymethods = PayMethod::all();
+    //     $premium_pay_terms = PremiumPayTerm::all();
+    //     $currency = Currency::all();
+    //     $covertypes = CoverType::all();
+    //     $quotes = Quote::where('opportunity_id', $pipeid)->get('quote_number');
+    //     $reinsdivisions = ReinsDivision::where('status', 'A')->get();
+    //     $reinsclasses = ReinsClass::where('status', 'A')->get();
+    //     $treatytypes = TreatyType::where('status', 'A')->get();
+    //     $reinPremTypes = ReinclassPremtype::where('status', 'A')->get();
+    //     $pipeYear = Pipeline::orderBy('year', 'asc')->get();
+    //     $Contact_details = DB::table('pipeline_opportunities')
+    //         ->select('contact_name', 'phone', 'email', 'telephone')
+    //         ->where('opportunity_id', "=", $request->prospect)->first();
+    //     // Convert JSON fields into arrays
+    //     $contactNames = json_decode($Contact_details->contact_name ?? '[]', true);
+    //     $emails = json_decode($Contact_details->email ?? '[]', true);
+    //     $phones = json_decode($Contact_details->phone ?? '[]', true);
+    //     $telephones = json_decode($Contact_details->telephone ?? '[]', true);
+    //     $stage = DB::table('pipeline_opportunities')
+    //         ->select('stage')
+    //         ->where('opportunity_id', "=", $request->prospect)->first();
+    //     $category_type = DB::table('pipeline_opportunities')
+    //         ->select('category_type')
+    //         ->where('opportunity_id', "=", $request->prospect)->first();
+    //     // Ensure they are always arrays and have the same length
+    //     $count = max(count($contactNames), count($emails), count($phones), count($telephones));
+
+    //     $contacts = [];
+    //     for ($i = 0; $i < $count; $i++) {
+    //         $contacts[] = [
+    //             'contact_name' => $contactNames[$i] ?? '',
+    //             'email' => $emails[$i] ?? '',
+    //             'phone' => $phones[$i] ?? '',
+    //             'telephone' => $telephones[$i] ?? '',
+    //         ];
+    //     }
+
+    //     $customers = DB::table('customers')
+    //         ->join('customer_types', function ($join) {
+    //             $join->on('customer_types.type_id', '=', DB::raw("ANY (SELECT json_array_elements_text(customers.customer_type)::int)"));
+    //         })
+    //         ->select(
+    //             DB::raw('CAST(customers.customer_id AS INT) as customer_id'),
+    //             'customers.name'
+    //         )
+    //         ->whereIn('customer_types.type_name', ['INSURANCE', 'REINSURANCE'])
+    //         ->distinct('name') // Filtering for 'insurance' or 'reinsurance'
+    //         ->get();
+
+
+
+    //     $insured = DB::table('customers')
+    //         ->join('customer_types', function ($join) {
+    //             $join->on('customer_types.type_id', '=', DB::raw("ANY (SELECT json_array_elements_text(customers.customer_type)::int)"));
+    //         })
+    //         ->select(
+    //             DB::raw('CAST(customers.customer_id AS INT) as customer_id'), // Casting customer_id as an integer
+    //             'customers.name'
+    //         )
+    //         ->where('customer_types.code', 'INSURED')
+    //         ->get();
+    //     $decline_reinsurers = ReinsurersDeclined::with('customer_name')->where('opportunity_id', $pipeid)
+    //         ->get();
+
+
+    //     $commonVariables = [
+    //         'insured' => $insured,
+    //         'types_of_bus' => $types_of_bus,
+    //         'branches' => $branches,
+    //         'brokers' => $brokers,
+    //         'classGroups' => $classGroups,
+    //         'class' => $classes,
+    //         'paymethods' => $paymethods,
+    //         'premium_pay_terms' => $premium_pay_terms,
+    //         'currencies' => $currency,
+    //         'covertypes' => $covertypes,
+    //         'types_of_sum_insured' => $types_of_sum_insured,
+    //         'reinsdivisions' => $reinsdivisions,
+    //         'reinsclasses' => $reinsclasses,
+    //         'treatytypes' => $treatytypes,
+    //         'customers' => $customers,
+    //         'contacts_det' => $contacts,
+    //         'decline_reinsurers' => $decline_reinsurers
+
+    //     ];
+    //     $otherVariabales = [
+    //         'countries' => $countries,
+    //         'prospProperties' => $prospProperties,
+    //         'underwriters' => $underwriters,
+    //         'prospect' => $prospect,
+    //         'engage_types' => $engage_types,
+    //         'divisions' => $divisions,
+    //         'leadsources' => $leadsources,
+    //         'currencies' => $currencies,
+    //         'statuses' => $statuses,
+    //         'salutations' => $salutations,
+    //         'sources' => $sources,
+    //         'industries' => $industries,
+    //         'users' => $users,
+    //         'clients' => $clients,
+    //         'years' => $years,
+    //         'customer_types' => $customer_types,
+    //         'pipeYear' => $pipeYear,
+    //         'quotes' => $quotes,
+    //         'pipeid' => $pipeid
+
+    //     ];
+    //     $allVariables = array_merge($commonVariables, $otherVariabales);
+
+    //     $prospect = $request->prospect;
+    //     $occupations = Occupation::all();
+
+    //     $salutations = Salutation::all();
+    //     $genders = Gender::all();
+    //     $divisions = DB::table('divisions')->get();
+
+    //     $statuses = Status::all();
+
+    //     $countries = Country::all();
+    //     $users = User::all();
+
+    //     $bd_users = User::all();
+
+    //     // $docs = DB::table('stage_documents')
+    //     //     ->join('doc_types', 'stage_documents.doc_type', '=', 'doc_types.id')
+    //     //     ->where('stage', 4)
+    //     //     ->select('doc_types.id', 'doc_types.doc_type', 'stage_documents.mandatory', 'stage_documents.division')
+    //     //     ->get();
+
+    //     $category = $category_type->category_type;
+    //     $stage = $stage->stage;
+    //     // dd($category);
+
+    //     // $docs = DB::table('stage_documents')
+    //     //     ->join('doc_types', 'stage_documents.doc_type', '=', 'doc_types.id')
+    //     //     ->where('stage', $stage )
+    //     //     // ->where('category_type', $category)
+    //     //     ->select('doc_types.id', 'doc_types.doc_type', 'stage_documents.mandatory', 'stage_documents.division')
+    //     //     ->get();
+
+    //     $docs = DB::table('stage_documents')
+    //         ->join('doc_types', 'stage_documents.doc_type', '=', 'doc_types.id')
+    //         ->where('stage_documents.stage', $stage)
+    //         ->where('stage_documents.category_type', $category)
+    //         ->whereJsonContains('type_of_bus', $prospProperties->type_of_bus)
+    //         ->select(
+    //             'doc_types.id',
+    //             'doc_types.doc_type',
+    //             'stage_documents.mandatory',
+    //             'stage_documents.division'
+    //         )
+    //         ->get();
+
+
+    //     $approval = $request->approval;
+    //     $handover_approval = null;
+    //     $prosp_doc = null;
+    //     $reinsurers = null;
+    //     $prosp_doc = DB::table('prospect_docs')
+    //         ->where('prospect_id', $pipeid)
+    //         ->get();
+
+    //     if ($approval == 1) {
+    //         $handover_approval = HandoverApproval::where('prospect_id', $pipeid)->first();
+    //         $reinsurers = QuoteReinsurers::where('opportunity_id', $pipeid)->where('stage', 4)->get();
+    //     }
+
+    //     $currencies = Currency::all();
+    //     return view('Bd_views.intermediaries.handover_validate', compact('currencies', 'users', 'bd_users', 'docs', 'divisions', 'prospect', 'countries', 'statuses', 'occupations', 'genders', 'salutations', 'allVariables', 'reinsurers', 'approval', 'prosp_doc', 'handover_approval'));
+    // }
+
     public function handoverToCR(Request $request)
     {
         $pipeid = $request->prospect;
+        $approval = $request->approval;
 
-        // begin new code
-        $currentYear = date('Y');
-        $endYear = $currentYear + 10;
-        $years = range($currentYear, $endYear); // Generate an array of years
-        $customer_types = CustomerTypes::select('type_id', 'type_name')->get();
-        $salutations = Salutation::all();
-        $sources = LeadsSource::all();
-        $statuses = LeadStatus::wherein('id', [2, 4, 5])->get();
-        $engage_types = LeadsSource::all();
-        $industries = Occupation::all();
-        $divisions = DB::table('divisions')->get();
-        $clients = Client::select('full_name', 'global_customer_id', 'client_type', 'salutation_code', 'occupation_code')->get();
-        $prospProperties = DB::table('pipeline_opportunities')->where('opportunity_id', "=", $request->prospect)->first();
-        $users = User::all();
-        // dd($prospProperties);
-        $currencies = Currency::all();
-        $leadsources = DB::table('leadsources')->get();
-        $prospect = $request->prospect;
-        $countries = Country::all();
-        $underwriters = DB::table('companies')->get();
-        $branches = Branch::where('status', 'A')->get(['branch_code', 'branch_name', 'status']);
-        $treatytypes = TreatyType::where('status', 'A')->get();
-        $types_of_bus = BusinessType::get(['bus_type_id', 'bus_type_name']);
-        $branches = Branch::where('status', 'A')->get(['branch_code', 'branch_name', 'status']);
-        $brokers = Broker::where('status', 'A')->get(['broker_code', 'broker_name', 'status']);
-        $classes = Classes::where('status', 'A')->get(['class_code', 'class_name', 'status']);
-        $types_of_sum_insured = TypeOfSumInsured::where('status', 'A')->get(['sum_insured_code', 'sum_insured_name', 'status']);
-        $classGroups = ClassGroup::get(['group_code', 'group_name']);
-        $paymethods = PayMethod::all();
-        $premium_pay_terms = PremiumPayTerm::all();
-        $currency = Currency::all();
-        $covertypes = CoverType::all();
-        $quotes = Quote::where('opportunity_id', $pipeid)->get('quote_number');
-        $reinsdivisions = ReinsDivision::where('status', 'A')->get();
-        $reinsclasses = ReinsClass::where('status', 'A')->get();
-        $treatytypes = TreatyType::where('status', 'A')->get();
-        $reinPremTypes = ReinclassPremtype::where('status', 'A')->get();
-        $pipeYear = Pipeline::orderBy('year', 'asc')->get();
-        $Contact_details = DB::table('pipeline_opportunities')
-            ->select('contact_name', 'phone', 'email', 'telephone')
-            ->where('opportunity_id', "=", $request->prospect)->first();
-        // Convert JSON fields into arrays
-        $contactNames = json_decode($Contact_details->contact_name ?? '[]', true);
-        $emails = json_decode($Contact_details->email ?? '[]', true);
-        $phones = json_decode($Contact_details->phone ?? '[]', true);
-        $telephones = json_decode($Contact_details->telephone ?? '[]', true);
-        $stage = DB::table('pipeline_opportunities')
-            ->select('stage')
-            ->where('opportunity_id', "=", $request->prospect)->first();
-        $category_type = DB::table('pipeline_opportunities')
-            ->select('category_type')
-            ->where('opportunity_id', "=", $request->prospect)->first();
-        // Ensure they are always arrays and have the same length
-        $count = max(count($contactNames), count($emails), count($phones), count($telephones));
-
-        $contacts = [];
-        for ($i = 0; $i < $count; $i++) {
-            $contacts[] = [
-                'contact_name' => $contactNames[$i] ?? '',
-                'email' => $emails[$i] ?? '',
-                'phone' => $phones[$i] ?? '',
-                'telephone' => $telephones[$i] ?? '',
-            ];
+        // Validate required input
+        if (!$pipeid) {
+            return back()->with('error', 'Prospect ID is required');
         }
 
+        try {
+            // Get prospect properties
+            $prospProperties = DB::table('pipeline_opportunities')
+                ->where('opportunity_id', $pipeid)
+                ->first();
+
+            if (!$prospProperties) {
+                return back()->with('error', 'Prospect not found');
+            }
+
+            // Prepare data arrays
+            $commonData = $this->getCommonData($pipeid, $prospProperties);
+            $prospectData = $this->getProspectData($pipeid, $approval);
+            $documentData = $this->getDocumentData($pipeid, $prospProperties->stage, $prospProperties->category_type, $prospProperties->type_of_bus);
+            $contactData = $this->getContactData($pipeid);
+            $referenceData = $this->getReferenceData();
+
+            // Merge all data
+            $viewData = array_merge(
+                $commonData,
+                $prospectData,
+                $documentData,
+                $contactData,
+                $referenceData,
+                [
+                    'prospProperties' => $prospProperties,
+                    'prospect' => $pipeid,
+                    'pipeid' => $pipeid,
+                    'approval' => $approval,
+                    'years' => range(date('Y'), date('Y') + 10),
+                ]
+            );
+
+            return view('Bd_views.intermediaries.handover_validate', $viewData);
+        } catch (\Exception $e) {
+            logger($e);
+            return back()->with('error', 'An error occurred while loading handover data');
+        }
+    }
+
+    /**
+     * Get common business data (customers, insurers, brokers, etc.)
+     */
+    private function getCommonData($pipeid, $prospProperties)
+    {
+        // Get customers with insurance/reinsurance types
         $customers = DB::table('customers')
             ->join('customer_types', function ($join) {
                 $join->on('customer_types.type_id', '=', DB::raw("ANY (SELECT json_array_elements_text(customers.customer_type)::int)"));
@@ -1992,105 +2182,80 @@ class PipelineController
                 'customers.name'
             )
             ->whereIn('customer_types.type_name', ['INSURANCE', 'REINSURANCE'])
-            ->distinct('name') // Filtering for 'insurance' or 'reinsurance'
+            ->distinct('customers.name')
             ->get();
 
-
-
+        // Get insured customers
         $insured = DB::table('customers')
             ->join('customer_types', function ($join) {
                 $join->on('customer_types.type_id', '=', DB::raw("ANY (SELECT json_array_elements_text(customers.customer_type)::int)"));
             })
             ->select(
-                DB::raw('CAST(customers.customer_id AS INT) as customer_id'), // Casting customer_id as an integer
+                DB::raw('CAST(customers.customer_id AS INT) as customer_id'),
                 'customers.name'
             )
             ->where('customer_types.code', 'INSURED')
             ->get();
-        $decline_reinsurers = ReinsurersDeclined::with('customer_name')->where('opportunity_id', $pipeid)
+
+        // Get declined reinsurers
+        $decline_reinsurers = ReinsurersDeclined::with('customer_name')
+            ->where('opportunity_id', $pipeid)
             ->get();
 
-
-        $commonVariables = [
-            'insured' => $insured,
-            'types_of_bus' => $types_of_bus,
-            'branches' => $branches,
-            'brokers' => $brokers,
-            'classGroups' => $classGroups,
-            'class' => $classes,
-            'paymethods' => $paymethods,
-            'premium_pay_terms' => $premium_pay_terms,
-            'currencies' => $currency,
-            'covertypes' => $covertypes,
-            'types_of_sum_insured' => $types_of_sum_insured,
-            'reinsdivisions' => $reinsdivisions,
-            'reinsclasses' => $reinsclasses,
-            'treatytypes' => $treatytypes,
+        return [
             'customers' => $customers,
-            'contacts_det' => $contacts,
-            'decline_reinsurers' => $decline_reinsurers
-
+            'insured' => $insured,
+            'types_of_bus' => BusinessType::select('bus_type_id', 'bus_type_name')->get(),
+            'branches' => Branch::where('status', 'A')->select('branch_code', 'branch_name', 'status')->get(),
+            'brokers' => Broker::where('status', 'A')->select('broker_code', 'broker_name', 'status')->get(),
+            'class' => Classes::where('status', 'A')->select('class_code', 'class_name', 'status')->get(),
+            'classGroups' => ClassGroup::select('group_code', 'group_name')->get(),
+            'paymethods' => PayMethod::all(),
+            'premium_pay_terms' => PremiumPayTerm::all(),
+            'currencies' => Currency::all(),
+            'covertypes' => CoverType::all(),
+            'types_of_sum_insured' => TypeOfSumInsured::where('status', 'A')->select('sum_insured_code', 'sum_insured_name', 'status')->get(),
+            'reinsdivisions' => ReinsDivision::where('status', 'A')->get(),
+            'reinsclasses' => ReinsClass::where('status', 'A')->get(),
+            'treatytypes' => TreatyType::where('status', 'A')->get(),
+            'decline_reinsurers' => $decline_reinsurers,
         ];
-        $otherVariabales = [
-            'countries' => $countries,
-            'prospProperties' => $prospProperties,
-            'underwriters' => $underwriters,
-            'prospect' => $prospect,
-            'engage_types' => $engage_types,
-            'divisions' => $divisions,
-            'leadsources' => $leadsources,
-            'currencies' => $currencies,
-            'statuses' => $statuses,
-            'salutations' => $salutations,
-            'sources' => $sources,
-            'industries' => $industries,
-            'users' => $users,
-            'clients' => $clients,
-            'years' => $years,
-            'customer_types' => $customer_types,
-            'pipeYear' => $pipeYear,
-            'quotes' => $quotes,
-            'pipeid' => $pipeid
+    }
 
+    /**
+     * Get prospect-specific data
+     */
+    private function getProspectData($pipeid, $approval)
+    {
+        $data = [
+            'quotes' => Quote::where('opportunity_id', $pipeid)->select('quote_number')->get(),
+            'pipeYear' => Pipeline::orderBy('year', 'asc')->get(),
+            'handover_approval' => null,
+            'reinsurers' => null,
+            'prosp_doc' => DB::table('prospect_docs')->where('prospect_id', $pipeid)->get(),
         ];
-        $allVariables = array_merge($commonVariables, $otherVariabales);
 
-        $prospect = $request->prospect;
-        $occupations = Occupation::all();
+        // Get handover approval data if in approval mode
+        if ($approval == 1) {
+            $data['handover_approval'] = HandoverApproval::where('prospect_id', $pipeid)->first();
+            $data['reinsurers'] = QuoteReinsurers::where('opportunity_id', $pipeid)
+                ->where('stage', 4)
+                ->get();
+        }
 
-        $salutations = Salutation::all();
-        $genders = Gender::all();
-        $divisions = DB::table('divisions')->get();
+        return $data;
+    }
 
-        $statuses = Status::all();
-
-        $countries = Country::all();
-        $users = User::all();
-
-        $bd_users = User::all();
-
-        // $docs = DB::table('stage_documents')
-        //     ->join('doc_types', 'stage_documents.doc_type', '=', 'doc_types.id')
-        //     ->where('stage', 4)
-        //     ->select('doc_types.id', 'doc_types.doc_type', 'stage_documents.mandatory', 'stage_documents.division')
-        //     ->get();
-
-        $category = $category_type->category_type;
-        $stage = $stage->stage;
-        // dd($category);
-
-        // $docs = DB::table('stage_documents')
-        //     ->join('doc_types', 'stage_documents.doc_type', '=', 'doc_types.id')
-        //     ->where('stage', $stage )
-        //     // ->where('category_type', $category)
-        //     ->select('doc_types.id', 'doc_types.doc_type', 'stage_documents.mandatory', 'stage_documents.division')
-        //     ->get();
-
+    /**
+     * Get document requirements based on stage and category
+     */
+    private function getDocumentData($pipeid, $stage, $category, $typeOfBus)
+    {
         $docs = DB::table('stage_documents')
             ->join('doc_types', 'stage_documents.doc_type', '=', 'doc_types.id')
             ->where('stage_documents.stage', $stage)
             ->where('stage_documents.category_type', $category)
-            ->whereJsonContains('type_of_bus', $prospProperties->type_of_bus)
+            ->whereJsonContains('type_of_bus', $typeOfBus)
             ->select(
                 'doc_types.id',
                 'doc_types.doc_type',
@@ -2099,22 +2264,69 @@ class PipelineController
             )
             ->get();
 
+        return [
+            'docs' => $docs,
+        ];
+    }
 
-        $approval = $request->approval;
-        $handover_approval = null;
-        $prosp_doc = null;
-        $reinsurers = null;
-        $prosp_doc = DB::table('prospect_docs')
-            ->where('prospect_id', $pipeid)
-            ->get();
+    /**
+     * Get and format contact details
+     */
+    private function getContactData($pipeid)
+    {
+        $contactDetails = DB::table('pipeline_opportunities')
+            ->select('contact_name', 'phone', 'email', 'telephone')
+            ->where('opportunity_id', $pipeid)
+            ->first();
 
-        if ($approval == 1) {
-            $handover_approval = HandoverApproval::where('prospect_id', $pipeid)->first();
-            $reinsurers = QuoteReinsurers::where('opportunity_id', $pipeid)->where('stage', 4)->get();
+        if (!$contactDetails) {
+            return ['contacts_det' => []];
         }
 
-        $currencies = Currency::all();
-        return view('Bd_views.intermediaries.handover_validate', compact('currencies', 'users', 'bd_users', 'docs', 'divisions', 'prospect', 'countries', 'statuses', 'occupations', 'genders', 'salutations', 'allVariables', 'reinsurers', 'approval', 'prosp_doc', 'handover_approval'));
+        // Decode JSON fields
+        $contactNames = json_decode($contactDetails->contact_name ?? '[]', true) ?: [];
+        $emails = json_decode($contactDetails->email ?? '[]', true) ?: [];
+        $phones = json_decode($contactDetails->phone ?? '[]', true) ?: [];
+        $telephones = json_decode($contactDetails->telephone ?? '[]', true) ?: [];
+
+        // Combine into structured array
+        $count = max(count($contactNames), count($emails), count($phones), count($telephones));
+        $contacts = [];
+
+        for ($i = 0; $i < $count; $i++) {
+            $contacts[] = [
+                'contact_name' => $contactNames[$i] ?? '',
+                'email' => $emails[$i] ?? '',
+                'phone' => $phones[$i] ?? '',
+                'telephone' => $telephones[$i] ?? '',
+            ];
+        }
+
+        return ['contacts_det' => $contacts];
+    }
+
+    /**
+     * Get reference/lookup data (countries, users, etc.)
+     */
+    private function getReferenceData()
+    {
+        return [
+            'countries' => Country::all(),
+            'users' => User::all(),
+            'bd_users' => User::all(), // Consider filtering if needed
+            'customer_types' => CustomerTypes::select('type_id', 'type_name')->get(),
+            'salutations' => Salutation::all(),
+            'sources' => LeadsSource::all(),
+            'statuses' => LeadStatus::whereIn('id', [2, 4, 5])->get(),
+            'engage_types' => LeadsSource::all(),
+            'industries' => Occupation::all(),
+            'divisions' => DB::table('divisions')->get(),
+            'clients' => Client::select('full_name', 'global_customer_id', 'client_type', 'salutation_code', 'occupation_code')->get(),
+            'leadsources' => DB::table('leadsources')->get(),
+            'underwriters' => DB::table('companies')->get(),
+            'occupations' => Occupation::all(),
+            'genders' => Gender::all(),
+        ];
     }
 
     public function handoverSave(Request $request)
@@ -3525,12 +3737,13 @@ class PipelineController
         }
 
         if ($stage === 5) {
+            $url = '/lead/handover?prospect=' . urlencode($opportunity_id) . '&approval=0';
             $btnActions .= "
-                <button class='btn btn-success btn-sm me-1 handover-btn'
+                <a href='{$url}' class='btn btn-success btn-sm me-1 handover-btn'
                         data-opportunity-id='{$opportunity_id}'
                         title='Handover Opportunity'>
                     <i class='bx bx-transfer'></i>
-                </button>
+                </a>
             ";
         }
 
@@ -3550,7 +3763,6 @@ class PipelineController
             </div>
         ";
     }
-
 
     public function getPipelineChartData(Request $request)
     {
@@ -3790,7 +4002,9 @@ class PipelineController
             $category_type = $request->category_type;
 
             if (!$opp_id || !$category_type) {
-                return response()->json(['error' => 'Invalid data provided'], 400);
+                return response()->json([
+                    'error' => 'Invalid data provided'
+                ], 400);
             }
 
             $opportunity = PipelineOpportunity::where('opportunity_id', $opp_id)
@@ -3798,15 +4012,22 @@ class PipelineController
 
             $opportunity->update([
                 'category_type' => $category_type,
+                'stage_updated_at' => Carbon::now(),
                 'sales_entry_date' => now(),
-                // 'stage_updated_at' => Carbon::now(),
             ]);
 
-            return response()->json(['success' => 'Category Type updated successfully'], 200);
+            return response()->json([
+                'success' => 'Category Type updated successfully',
+                'data' => $opportunity
+            ], 200);
         } catch (ModelNotFoundException $e) {
-            return response()->json(['error' => 'Opportunity not found'], 404);
+            return response()->json([
+                'error' => 'Opportunity not found'
+            ], 404);
         } catch (Exception $e) {
-            return response()->json(['error' => 'Something went wrong. Please try again.'], 500);
+            return response()->json([
+                'error' => 'Something went wrong. Please try again.'
+            ], 500);
         }
     }
 
@@ -5463,6 +5684,7 @@ class PipelineController
             $class_group_code       = $request->class_group_code;
             $total_unplaced_shares  = $request->total_unplaced_shares ?? 0;
             $reinsurers_data        = $request->reinsurers_data;
+            $selected_reinsurers    = $request->selected_reinsurers;
 
             $updateData = [];
             $reinsurers = json_decode($reinsurers_data, true);
@@ -5679,6 +5901,41 @@ class PipelineController
                         'stage'             => 3,
                         'status'            => Stage::NEGOTIATION
                     ];
+
+                    $reinsurers = json_decode($selected_reinsurers, true);
+
+                    if (!empty($reinsurers) && is_array($reinsurers)) {
+                        foreach ($reinsurers as $index => $rein) {
+                            try {
+                                $reinsurerId = $rein['id'] ?? null;
+                                $updatedWrittenShare = (float) str_replace(',', '', $rein['written_share'] ?? 0);
+
+                                if (!$reinsurerId) {
+                                    continue;
+                                }
+
+                                if ($updatedWrittenShare < 0 || $updatedWrittenShare > 100) {
+                                    continue;
+                                }
+
+                                DB::table('bd_fac_reinsurers')
+                                    ->where('reinsurer_id', $reinsurerId)
+                                    ->where('opportunity_id', $opportunityId)
+                                    ->update([
+                                        'updated_written_share' => $updatedWrittenShare,
+                                        'updated_by' => auth()->id(),
+                                        'updated_at' => now()
+                                    ]);
+                            } catch (\Exception $e) {
+                                if ($e instanceof \PDOException) {
+                                    throw $e;
+                                }
+
+                                continue;
+                            }
+                        }
+                    }
+
                     break;
 
                 case Stage::NEGOTIATION:
@@ -5689,16 +5946,63 @@ class PipelineController
                         'status'            => Stage::FINAL_STAGE
                     ];
 
+                    $reinsurers = json_decode($selected_reinsurers, true);
+
+                    if (!empty($reinsurers) && is_array($reinsurers)) {
+                        foreach ($reinsurers as $index => $rein) {
+                            try {
+                                $reinsurerId = $rein['id'] ?? null;
+                                $signedShare = (float) str_replace(',', '', $rein['signed_share'] ?? 0);
+
+                                if (!$reinsurerId) {
+                                    continue;
+                                }
+
+                                if ($signedShare < 0 || $signedShare > 100) {
+                                    continue;
+                                }
+
+                                DB::table('bd_fac_reinsurers')
+                                    ->where('reinsurer_id', $reinsurerId)
+                                    ->where('opportunity_id', $opportunityId)
+                                    ->update([
+                                        'signed_share' => $signedShare,
+                                        'updated_by' => auth()->id(),
+                                        'updated_at' => now()
+                                    ]);
+                            } catch (\Exception $e) {
+                                if ($e instanceof \PDOException) {
+                                    throw $e;
+                                }
+
+                                continue;
+                            }
+                        }
+                    }
+
                     break;
 
                 case Stage::FINAL_STAGE:
-                    // logger()->debug($request->all());
-                    $updateData = [
-                        'stage_updated_at'  => now(),
-                        'updated_at'        => now(),
-                        'stage'             => 5,
-                        'status'            => Stage::WON
-                    ];
+                    $finalStatus = $request->input('final_status', 'won');
+
+                    if ($finalStatus === 'won') {
+                        $updateData = [
+                            'stage_updated_at'  => now(),
+                            'updated_at'        => now(),
+                            'stage'             => 5,
+                            'status'            => Stage::WON,
+                            // 'closed_at'         => now(),
+                        ];
+                    } else {
+                        $updateData = [
+                            'stage_updated_at'  => now(),
+                            'updated_at'        => now(),
+                            'stage'             => 6,
+                            'status'            => Stage::LOST,
+                            // 'closed_at'         => now(),
+                            // 'lost_reason'       => $request->input('lost_reason'),
+                        ];
+                    }
                     break;
 
                 default:
@@ -7700,6 +8004,8 @@ class PipelineController
                     'reinsurer_name',
                     'share_amount',
                     'written_share',
+                    'updated_written_share',
+                    'signed_share',
                     'brokerage_rate',
                     'reinsurer_id',
                     'email',

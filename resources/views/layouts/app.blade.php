@@ -10,7 +10,7 @@
     <title> {{ $pageTitle ?? ($company->company_name ?? 'Acentriagroup.com') }}</title>
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta name="Description" content="Reinsurance Broking System" />
-    <meta name="Author" content="Intramek Solutions" />
+    <meta name="Author" content="@pk305" />
     <meta name="keywords"
         content="admin,admin dashboard,admin panel,admin template,bootstrap,clean,dashboard,flat,jquery,modern,responsive,premium admin templates,responsive admin,ui,ui kit." />
 

@@ -207,8 +207,32 @@ class PipelineManager {
             this.initializeChart();
             this.initializeDataTables();
             this.bindEvents();
+
+            this.performInitialConnectionCheck();
         } catch (error) {
             this.handleError("Initialization failed", error);
+        }
+    }
+
+    /**
+     * Performs initial email connection check
+     */
+    performInitialConnectionCheck() {
+        if (
+            typeof window.BDEmailModal !== "undefined" &&
+            typeof window.BDEmailModal.checkEmailConnection === "function"
+        ) {
+            window.BDEmailModal.checkEmailConnection()
+                .then((isConnected) => {
+                    this.updateMailButtonStates(isConnected);
+
+                    if (!isConnected) {
+                        console.warn("Email service is not connected");
+                    }
+                })
+                .catch((error) => {
+                    console.error("Initial connection check failed:", error);
+                });
         }
     }
 
@@ -1555,7 +1579,6 @@ class PipelineManager {
                 editModal.hide();
             });
 
-        // Handle Enter key press
         $("#editShareInput").on("keypress", (e) => {
             if (e.which === 13) {
                 e.preventDefault();
@@ -1618,8 +1641,10 @@ class PipelineManager {
             (sum, r) => sum + parseFloat(r.written_share),
             0
         );
-        this.updatePlacedShare(totalShare);
 
+        $(".selected_reinsurers").val(JSON.stringify(updatedData) || []);
+
+        this.updatePlacedShare(totalShare);
         toastr.success("Reinsurer share updated successfully");
     }
 
@@ -3057,10 +3082,89 @@ class PipelineManager {
             const opportunityId = this.currentDealId;
             const currentStage = buttonData.current_stage;
 
-            this.loadBdEssentials(opportunityId, currentStage);
+            this.checkEmailConnectionBeforeLoad(opportunityId, currentStage);
         } catch (error) {
             this.handleError("Error handling BD notification", error);
+            this.hideLoading();
         }
+    }
+
+    /**
+     * Checks email connection before loading BD essentials
+     *
+     * @param {number} opportunityId - Opportunity ID
+     * @param {string} currentStage - Current stage
+     */
+    checkEmailConnectionBeforeLoad(opportunityId, currentStage) {
+        if (
+            typeof window.BDEmailModal !== "undefined" &&
+            typeof window.BDEmailModal.checkEmailConnection === "function"
+        ) {
+            window.BDEmailModal.checkEmailConnection()
+                .then((isConnected) => {
+                    if (isConnected) {
+                        this.loadBdEssentials(opportunityId, currentStage);
+                    } else {
+                        this.hideLoading();
+                        Swal.fire({
+                            icon: "warning",
+                            title: "Email Service Disconnected",
+                            html: `
+                            <p>Your email service is currently not connected.</p>
+                            <p>Please reconnect before sending notifications.</p>
+                        `,
+                            confirmButtonText: "Reconnect",
+                            showCancelButton: true,
+                            cancelButtonText: "Cancel",
+                        }).then((result) => {
+                            if (result.isConfirmed) {
+                                this.handleEmailReconnect(
+                                    opportunityId,
+                                    currentStage
+                                );
+                            }
+                        });
+                    }
+                })
+                .catch((error) => {
+                    console.error("Connection check failed:", error);
+                    this.loadBdEssentials(opportunityId, currentStage);
+                });
+        } else {
+            this.loadBdEssentials(opportunityId, currentStage);
+        }
+    }
+
+    /**
+     * Handles email reconnection flow
+     *
+     * @param {number} opportunityId - Opportunity ID
+     * @param {string} currentStage - Current stage
+     */
+    handleEmailReconnect(opportunityId, currentStage) {
+        this.showLoading();
+
+        $.ajax({
+            url: "/api/email/reconnect",
+            method: "POST",
+            timeout: 10000,
+            success: (response) => {
+                if (response.success) {
+                    toastr.success("Email service reconnected successfully!");
+                    // Now proceed with loading BD essentials
+                    this.loadBdEssentials(opportunityId, currentStage);
+                } else {
+                    this.hideLoading();
+                    toastr.error(response.message || "Failed to reconnect");
+                }
+            },
+            error: (xhr) => {
+                this.hideLoading();
+                const errorMsg =
+                    xhr.responseJSON?.message || "Reconnection failed";
+                toastr.error(errorMsg);
+            },
+        });
     }
 
     /**
@@ -3144,12 +3248,28 @@ class PipelineManager {
             },
             error: function (xhr, status, error) {
                 this.hideLoading();
-                Swal.fire({
-                    icon: "error",
-                    title: "Failed",
-                    html: `An error occurred: <b>${error}</b>`,
-                    confirmButtonColor: "#dc3545",
-                });
+
+                if (
+                    xhr.status === 503 ||
+                    xhr.responseJSON?.error === "email_disconnected"
+                ) {
+                    Swal.fire({
+                        icon: "warning",
+                        title: "Email Service Disconnected",
+                        html: `
+                        <p>The email service is currently unavailable.</p>
+                        <p>Please try reconnecting or contact support.</p>
+                    `,
+                        confirmButtonColor: "#ff9800",
+                    });
+                } else {
+                    Swal.fire({
+                        icon: "error",
+                        title: "Failed",
+                        html: `An error occurred: <b>${error}</b>`,
+                        confirmButtonColor: "#dc3545",
+                    });
+                }
             },
         });
     }
@@ -3229,7 +3349,6 @@ class PipelineManager {
                     const email = contact.email;
                     if (!email) return;
 
-                    // XSS Protection: Escape contact data
                     let optionText = contact.name
                         ? `${this.escapeHtml(contact.name)} (${this.escapeHtml(
                               email
@@ -3280,8 +3399,19 @@ class PipelineManager {
             }
 
             $("#sendBDEmailModal").modal("show");
+
+            $("#sendBDEmailModal").one("shown.bs.modal", function () {
+                if (
+                    typeof window.BDEmailModal !== "undefined" &&
+                    typeof window.BDEmailModal.refreshConnectionStatus ===
+                        "function"
+                ) {
+                    window.BDEmailModal.refreshConnectionStatus();
+                }
+            });
         } catch (error) {
             console.error("Error in prepareBDEmailModal:", error);
+            this.handleError("Error preparing BD email modal", error);
         }
     }
 
@@ -3439,8 +3569,6 @@ class PipelineManager {
     }
 
     /**
-     * Adds "no            // XSS Protection: User data is inserted into text nodes, not HTML
- files" message
      *
      * @param {jQuery} $container - jQuery container element
      */
@@ -3472,12 +3600,91 @@ class PipelineManager {
         const totalCount = staticCount + dynamicCount;
         $("#fileCount").text(`${totalCount} files attached`);
     }
-}
 
-/* ============================================================================
-   Initialization
-   ========================================================================== */
-let pipelineManager;
+    /**
+     * Checks if email service is available
+     *
+     * @returns {Promise<boolean>} Promise resolving to connection status
+     */
+    async checkEmailServiceAvailability() {
+        try {
+            // const response = await $.ajax({
+            //     url: "/api/email/check-connection",
+            //     method: "GET",
+            //     timeout: 5000,
+            // });
+            return false;
+        } catch (error) {
+            console.error("Email service check failed:", error);
+            return false;
+        }
+    }
+
+    /**
+     * Shows email connection warning
+     *
+     * @param {Function} retryCallback - Callback function to retry after reconnection
+     */
+    showEmailConnectionWarning(retryCallback) {
+        Swal.fire({
+            icon: "warning",
+            title: "Email Service Disconnected",
+            html: `
+            <div class="text-start">
+                <p class="mb-2">Your email service is currently not connected.</p>
+                <p class="mb-2">You won't be able to send notifications until the connection is restored.</p>
+                <p class="text-muted small mb-0">
+                    <i class="bx bx-info-circle me-1"></i>
+                    This might be due to:
+                </p>
+                <ul class="text-muted small mt-2">
+                    <li>Network connectivity issues</li>
+                    <li>Email server maintenance</li>
+                    <li>Authentication timeout</li>
+                </ul>
+            </div>
+        `,
+            showCancelButton: true,
+            confirmButtonText: '<i class="bx bx-refresh me-1"></i> Reconnect',
+            cancelButtonText: "Cancel",
+            confirmButtonColor: "#3085d6",
+            cancelButtonColor: "#6c757d",
+            reverseButtons: true,
+            customClass: {
+                confirmButton: "btn btn-primary",
+                cancelButton: "btn btn-light",
+            },
+            buttonsStyling: false,
+        }).then((result) => {
+            if (result.isConfirmed && typeof retryCallback === "function") {
+                retryCallback();
+            }
+        });
+    }
+
+    /**
+     * Updates mail button state based on connection status
+     *
+     * @param {boolean} isConnected - Connection status
+     */
+    updateMailButtonStates(isConnected) {
+        const $mailButtons = $(".mail-btn");
+
+        if (isConnected) {
+            $mailButtons
+                .prop("disabled", false)
+                .removeClass("btn-secondary")
+                .addClass("btn-primary")
+                .attr("title", "Send BD Notification");
+        } else {
+            $mailButtons
+                .prop("disabled", true)
+                .removeClass("btn-primary")
+                .addClass("btn-secondary")
+                .attr("title", "Email service disconnected");
+        }
+    }
+}
 
 $(document).ready(function () {
     try {
