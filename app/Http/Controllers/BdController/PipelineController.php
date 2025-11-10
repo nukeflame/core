@@ -2144,6 +2144,10 @@ class PipelineController
 
             $stages  = [
                 [
+                    'key' => 'Lead',
+                    'value' => '1',
+                ],
+                [
                     'key' => 'Proposal',
                     'value' => '2',
                 ],
@@ -2151,14 +2155,14 @@ class PipelineController
                     'key' => 'Negotiation',
                     'value' => '3',
                 ],
-                [
-                    'key' => 'Won/Lost',
-                    'value' => '4',
-                ],
-                [
-                    'key' => 'Final Stage',
-                    'value' => '5',
-                ]
+                // [
+                //     'key' => 'Won/Lost',
+                //     'value' => '4',
+                // ],
+                // [
+                //     'key' => 'Final Stage',
+                //     'value' => '5',
+                // ]
 
             ];
 
@@ -2189,7 +2193,6 @@ class PipelineController
      */
     private function getCommonData($pipeid, $prospProperties)
     {
-        // Get customers with insurance/reinsurance types
         $customers = DB::table('customers')
             ->join('customer_types', function ($join) {
                 $join->on('customer_types.type_id', '=', DB::raw("ANY (SELECT json_array_elements_text(customers.customer_type)::int)"));
@@ -5984,6 +5987,7 @@ class PipelineController
                                     ->where('opportunity_id', $opportunityId)
                                     ->update([
                                         'signed_share' => $signedShare,
+                                        'updated_signed_share' => $signedShare,
                                         'updated_by' => auth()->id(),
                                         'updated_at' => now()
                                     ]);
@@ -7565,8 +7569,63 @@ class PipelineController
             ]);
 
             $reinsurers = BdFacReinsurer::where('opportunity_id', $validated['opportunity_id'])->get();
+            $stage = $validated['stage'];
+            switch ((string) $stage) {
+                case '1':
+                    $reinsurers = $reinsurers->map(function ($reinsurer) {
+                        return [
+                            'id' => $reinsurer->id,
+                            'reinsurer_name' => $reinsurer->reinsurer_name ?? $reinsurer->name,
+                            'stage' => $reinsurer->stage,
+                            'written_share' => number_format($reinsurer->written_share ?? 0, 2),
+                            'signed_share' => null,
+                            'opportunity_id' => $reinsurer->opportunity_id,
+                            'stage' => 1,
+                            'status' => 'written',
+                        ];
+                    });
 
-            logger()->debug(json_encode($reinsurers, JSON_PRETTY_PRINT));
+                    break;
+
+                case '2':
+                    $reinsurers = $reinsurers->map(function ($reinsurer) {
+                        return [
+                            'id' => $reinsurer->id,
+                            'reinsurer_name' => $reinsurer->reinsurer_name ?? $reinsurer->name,
+                            'stage' => $reinsurer->stage,
+                            'written_share' => number_format($reinsurer->written_share ?? 0, 2),
+                            'updated_written_share' => number_format($reinsurer->updated_written_share ?? 0, 2),
+                            'signed_share' => null,
+                            'stage' => 2,
+                            'opportunity_id' => $reinsurer->opportunity_id,
+                            'status' => 'written',
+                        ];
+                    });
+
+                    break;
+
+                case '3':
+                    $reinsurers = $reinsurers->map(function ($reinsurer) {
+                        return [
+                            'id' => $reinsurer->id,
+                            'reinsurer_name' => $reinsurer->reinsurer_name ?? $reinsurer->name,
+                            'stage' => $reinsurer->stage,
+                            'written_share' => number_format($reinsurer->written_share ?? 0, 2),
+                            'signed_share' => number_format($reinsurer->signed_share ?? 0, 2),
+                            'opportunity_id' => $reinsurer->opportunity_id,
+                            'stage' => 3,
+                            'status' => 'pending',
+                            'updated_written_share' => number_format($reinsurer->updated_written_share ?? 0, 2),
+                        ];
+                    });
+
+                    break;
+
+                default:
+                    break;
+            }
+
+            // logger()->debug(json_encode($reinsurers, JSON_PRETTY_PRINT));
 
             return response()->json([
                 'success' => true,

@@ -13,6 +13,7 @@ return new class extends Migration
     {
         Schema::table('bd_fac_reinsurers', function (Blueprint $table) {
             $table->unsignedBigInteger('updated_written_share')->nullable();
+            $table->unsignedBigInteger('updated_signed_share')->nullable();
             $table->unsignedBigInteger('signed_share')->nullable();
         });
     }
@@ -23,7 +24,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('bd_fac_reinsurers', function (Blueprint $table) {
-            $table->dropColumn(['updated_written_share', 'signed_share']);
+            $table->dropColumn(['updated_written_share', 'signed_share', 'updated_signed_share']);
         });
     }
 };

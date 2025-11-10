@@ -310,7 +310,6 @@
                     };
                 }
 
-                // Check if all reinsurers have signed shares
                 const missingSignedShares = negotiationState.reinsurers.filter(r => {
                     const signedShare = parseFloat(r.signed_share || 0);
                     return signedShare <= 0;
@@ -326,7 +325,6 @@
                     };
                 }
 
-                // Check if total signed shares equal 100%
                 if (Math.abs(negotiationState.totalShare - 100) > 0.01) {
                     return {
                         isValid: false,
@@ -505,13 +503,10 @@
                                 showConfirmButton: true,
                                 timer: 3000
                             }).then(() => {
-                                // Reset modal before hiding
                                 resetNegotiationModal();
 
-                                // Hide modal
                                 $modal.modal("hide");
 
-                                // Reload tables and charts
                                 if (typeof pipelineManager !== 'undefined' &&
                                     typeof pipelineManager.reloadAllTables ===
                                     'function') {
@@ -581,7 +576,6 @@
                 const reinsurer = negotiationState.reinsurers[reinsurerIndex];
                 const escapedName = escapeHtml(reinsurerName);
 
-                // Remove existing modal if any
                 $("#editReinsurerSharesModal").remove();
 
                 const modalHtml = `
@@ -648,7 +642,6 @@
 
                 $("body").append(modalHtml);
 
-                // Clear validation
                 $("#editSignedShareInput").removeClass("is-invalid");
                 $("#signedShareError").text("");
 
@@ -656,28 +649,23 @@
                     document.getElementById("editReinsurerSharesModal")
                 );
 
-                // Focus on input when modal is shown
                 $("#editReinsurerSharesModal").one("shown.bs.modal", function() {
                     $("#editSignedShareInput").focus().select();
                 });
 
-                // Clean up modal when hidden
                 $("#editReinsurerSharesModal").one("hidden.bs.modal", function() {
                     $("#editReinsurerSharesModal").remove();
                 });
 
-                // Handle confirm button click
                 $("#confirmSharesUpdate")
                     .off("click")
                     .on("click", () => {
                         const signedValue = $("#editSignedShareInput").val();
                         const newSignedShare = parseFloat(signedValue);
 
-                        // Reset validation
                         $("#editSignedShareInput").removeClass("is-invalid");
                         $("#signedShareError").text("");
 
-                        // Validate signed share
                         if (signedValue === "" || isNaN(newSignedShare)) {
                             $("#editSignedShareInput").addClass("is-invalid");
                             $("#signedShareError").text("Please enter a valid number");
@@ -690,7 +678,6 @@
                             return;
                         }
 
-                        // Check total signed share limit
                         const otherSignedSharesTotal = negotiationState.reinsurers
                             .filter((r, idx) => idx !== reinsurerIndex)
                             .reduce((sum, r) => sum + parseFloat(r.signed_share || 0), 0);
@@ -705,19 +692,15 @@
                             return;
                         }
 
-                        // Update only signed share
                         negotiationState.reinsurers[reinsurerIndex].signed_share = newSignedShare.toFixed(2);
 
-                        // Refresh table
                         const tableData = transformReinsurerData(negotiationState.reinsurers);
                         reinsurerDataTable.clear();
                         reinsurerDataTable.rows.add(tableData);
                         reinsurerDataTable.draw();
 
-                        // Update hidden input
                         $('.selected_reinsurers').val(JSON.stringify(tableData) || []);
 
-                        // Update totals and displays
                         updateTotalShare();
                         updatePlacementDisplay();
 
@@ -726,7 +709,6 @@
                         editModal.hide();
                     });
 
-                // Handle Enter key press
                 $("#editSignedShareInput").on("keypress", (e) => {
                     if (e.which === 13) {
                         e.preventDefault();
@@ -795,7 +777,6 @@
                     e.stopPropagation();
 
                     const reinsurerId = $(this).data('reinsurer-id');
-                    // Handle contact action here
                 });
             }
 
@@ -1003,6 +984,8 @@
                 }
 
                 const tableData = transformReinsurerData(negotiationState.reinsurers);
+
+                console.log(tableData)
 
                 reinsurerDataTable = $table.DataTable({
                     data: tableData,

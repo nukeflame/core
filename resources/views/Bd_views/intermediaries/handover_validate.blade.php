@@ -578,6 +578,49 @@
             border: none;
             padding: 0px;
         }
+
+        .reinsurer-row {
+            transition: all 0.2s ease;
+        }
+
+        .reinsurer-row:hover {
+            background-color: #f8f9fa;
+            transform: scale(1.01);
+        }
+
+        .badge {
+            font-weight: 500;
+            letter-spacing: 0.3px;
+            padding: 0.5rem 0.75rem;
+        }
+
+        .badge-soft-written {
+            background-color: rgba(13, 110, 253, 0.1);
+            color: #0d6efd;
+        }
+
+        .badge-soft-signed {
+            background-color: rgba(25, 135, 84, 0.1);
+            color: #198754;
+        }
+
+        .share-history {
+            display: flex;
+            align-items: center;
+            justify-content: start;
+            flex-wrap: wrap;
+            gap: 0.25rem;
+        }
+
+        .reinsurer-name {
+            display: flex;
+            align-items: center;
+        }
+
+        .font-monospace {
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 0.875rem;
+        }
     </style>
 
     <div class="container-fluid">
@@ -1158,7 +1201,6 @@
                                         Participating Reinsurers
                                     </h6>
 
-                                    {{-- Filter Panel --}}
                                     <div class="filter-panel">
                                         <h6>
                                             <i class="bx bx-filter"></i>
@@ -1178,7 +1220,8 @@
                                                 </select>
                                             </div>
                                             <div class="col-md-8 mt-3 mt-md-0">
-                                                <div class="alert alert-info mb-0">
+                                                <div class="alert alert-info mb-0"
+                                                    style="padding: 9px; padding-left: 15px;">
                                                     <i class="bx bx-info-circle"></i>
                                                     Select a stage to view reinsurers at that pipeline stage
                                                 </div>
@@ -1186,19 +1229,20 @@
                                         </div>
                                     </div>
 
-                                    {{-- Reinsurers Table --}}
                                     <div class="table-container position-relative" id="reinsurer-table-container">
                                         <table class="table">
                                             <thead>
                                                 <tr>
-                                                    <th style="width: 50%;">Reinsurer Name</th>
-                                                    <th style="width: 25%;">Written Share (%)</th>
-                                                    <th style="width: 25%;">Signed Share (%)</th>
+                                                    <th style="width: 2%;"></th>
+                                                    <th style="width: 40%;">Reinsurer Name</th>
+                                                    <th style="width: 20%;">Written Share (%)</th>
+                                                    <th style="width: 20%;">Signed Share (%)</th>
+                                                    <th style="width: 18%;">Status</th>
                                                 </tr>
                                             </thead>
                                             <tbody id="reinsurer-body">
                                                 <tr>
-                                                    <td colspan="3" class="text-center py-5">
+                                                    <td colspan="5" class="text-center py-5">
                                                         <div class="empty-state-table">
                                                             <i class="bx bx-filter-alt"></i>
                                                             <p class="mb-0">Please select a stage to load reinsurers</p>
@@ -1208,83 +1252,68 @@
                                             </tbody>
                                         </table>
                                     </div>
-                                </div>
 
-                                {{-- Declined Reinsurers Section --}}
-                                @if ($decline_reinsurers->isNotEmpty())
-                                    <div class="form-section mt-4">
-                                        <h6 class="section-header">
-                                            <span class="section-icon"><i class="bx bx-x-circle"></i></span>
-                                            Declined Reinsurers
+                                    <div class="filter-panel">
+                                        <h6>
+                                            <i class="bx bx-file"></i>
+                                            Stage Document Uploaded
                                         </h6>
 
-                                        <div class="table-container">
-                                            <table class="table">
-                                                <thead>
-                                                    <tr>
-                                                        <th style="width: 60%;">Reinsurer Name</th>
-                                                        <th style="width: 40%;">Action</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    @foreach ($decline_reinsurers as $index => $item)
-                                                        <tr>
-                                                            <td>
-                                                                <div class="d-flex align-items-center gap-2">
-                                                                    <span class="badge badge-declined">Declined</span>
-                                                                    <strong>{{ $item->customer_name->name ?? 'N/A' }}</strong>
-                                                                </div>
-                                                            </td>
-                                                            <td>
-                                                                <button type="button" class="btn btn-link"
-                                                                    data-bs-toggle="modal"
-                                                                    data-bs-target="#reasonModal{{ $index }}">
-                                                                    <i class="bx bx-show"></i> View Decline Reason
-                                                                </button>
-                                                            </td>
-                                                        </tr>
-                                                    @endforeach
-                                                </tbody>
-                                            </table>
+                                        <div class="alert alert-info mb-0">
+                                            <i class="bx bx-info-circle me-1"></i>
+                                            Previous uploaded attachments for <span id="docStageName"></span> stage
                                         </div>
                                     </div>
 
-                                    {{-- Modals for Decline Reasons --}}
-                                    @foreach ($decline_reinsurers as $index => $item)
-                                        <div class="modal fade" id="reasonModal{{ $index }}" tabindex="-1"
-                                            aria-hidden="true">
-                                            <div class="modal-dialog modal-lg">
-                                                <div class="modal-content">
-                                                    <div class="modal-header">
-                                                        <h5 class="modal-title">
-                                                            <i class="bx bx-message-square-detail"></i>
-                                                            Decline Reason - {{ $item->customer_name->name ?? 'N/A' }}
-                                                        </h5>
-                                                        <button type="button" class="btn-close btn-close-white"
-                                                            data-bs-dismiss="modal" aria-label="Close"></button>
-                                                    </div>
-                                                    <div class="modal-body">
-                                                        <div class="alert alert-danger">
-                                                            <strong>Reason:</strong>
-                                                            <p class="mb-0 mt-2">
-                                                                {{ $item->reason ?? 'No reason provided' }}</p>
+                                    @if ($approval !== 1)
+                                        @if ($prosp_doc->isNotEmpty())
+                                            @php
+                                                $baseAssetUrl = Storage::disk('s3')->url('uploads');
+                                            @endphp
+
+                                            <div class="row">
+                                                @foreach ($prosp_doc as $doc)
+                                                    <div class="col-6">
+                                                        <div class="document-row">
+                                                            <div class="row align-items-center">
+                                                                <div class="col-auto">
+                                                                    <div class="document-icon">
+                                                                        <i class="bx bx-check"></i>
+                                                                    </div>
+                                                                </div>
+                                                                <div class="col-md-3">
+                                                                    <label class="form-label mb-0">Document Type</label>
+                                                                    <div class="fw-bold">{{ $doc->description }}</div>
+                                                                </div>
+                                                                <div class="col-md-5">
+                                                                    <label class="form-label mb-0">File Name</label>
+                                                                    <div class="text-muted small">{{ $doc->file }}
+                                                                    </div>
+                                                                </div>
+                                                                <div class="col-md-3 text-end">
+                                                                    <a href="{{ $baseAssetUrl . '/' . $doc->file }}"
+                                                                        target="_blank"
+                                                                        class="btn btn-primary btn-document-action">
+                                                                        <i class="bx bx-show"></i> View
+                                                                    </a>
+                                                                </div>
+                                                            </div>
                                                         </div>
                                                     </div>
-                                                </div>
+                                                @endforeach
                                             </div>
-                                        </div>
-                                    @endforeach
-                                @endif
+                                        @endif
+                                    @endif
+                                </div>
 
                                 {{-- Document Attachments Section --}}
-                                <div class="form-section mt-4 d-none">
+                                <div class="form-section mt-4">
                                     <h6 class="section-header">
                                         <span class="section-icon"><i class="bx bx-file"></i></span>
                                         Document Attachments
                                     </h6>
 
                                     @if ($approval == 1)
-                                        {{-- View Mode: Show uploaded documents --}}
                                         @php
                                             $baseAssetUrl = Storage::disk('s3')->url('uploads');
                                         @endphp
@@ -1293,7 +1322,7 @@
                                             <div class="document-row">
                                                 <div class="row align-items-center">
                                                     <div class="col-auto">
-                                                        <div class="document-icon">
+                                                        <div class="document-icon bg-warning">
                                                             <i class="bx bx-file-blank"></i>
                                                         </div>
                                                     </div>
@@ -1320,7 +1349,6 @@
                                             </div>
                                         @endforelse
                                     @else
-                                        {{-- Edit Mode: Upload new documents --}}
                                         <div class="alert alert-info mb-4">
                                             <i class="bx bx-info-circle"></i>
                                             <strong>Document Requirements:</strong> Please upload all mandatory documents
@@ -1329,89 +1357,53 @@
                                             PNG, DOC, DOCX
                                         </div>
 
-                                        @foreach ($docs as $index => $doc)
-                                            <div class="document-row" data-division="{{ $doc->division }}">
-                                                <div class="row align-items-center">
-                                                    <div class="col-auto">
-                                                        <div class="document-icon">
-                                                            <i class="bx bx-upload"></i>
-                                                        </div>
-                                                    </div>
-                                                    <div class="col-md-3">
-                                                        <label class="form-label">
-                                                            Document Type
-                                                            @if ($doc->mandatory === 'Y')
-                                                                <span class="required-indicator">*</span>
-                                                            @endif
-                                                        </label>
-                                                        <input type="text" name="document_name[]" class="form-control"
-                                                            value="{{ $doc->doc_type }}" readonly />
-                                                    </div>
-                                                    <div class="col-md-5">
-                                                        <label class="form-label">Select File</label>
-                                                        <input type="file" name="document_file[]"
-                                                            id="document_file{{ $doc->id }}"
-                                                            class="form-control document_file"
-                                                            {{ $doc->mandatory === 'Y' ? 'required' : '' }}
-                                                            accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" />
-                                                    </div>
-                                                    <div class="col-md-4 text-end">
-                                                        <label class="form-label d-block">&nbsp;</label>
-                                                        <button type="button" class="btn btn-info preview me-2"
-                                                            data-doc-id="{{ $doc->id }}">
-                                                            <i class="bx bx-show"></i> Preview
-                                                        </button>
-                                                        <button class="btn btn-success addDocfac" type="button">
-                                                            <i class="bx bx-plus"></i> Add More
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        @endforeach
-
-                                        {{-- Show previously uploaded documents --}}
-                                        @if ($prosp_doc->isNotEmpty())
-                                            <h6 class="section-header mt-4"
-                                                style="border-bottom: 1px solid var(--reins-border);">
-                                                <span class="section-icon"><i class="bx bx-history"></i></span>
-                                                Previously Uploaded Documents
-                                            </h6>
-
-                                            @php
-                                                $baseAssetUrl = Storage::disk('s3')->url('uploads');
-                                            @endphp
-
-                                            @foreach ($prosp_doc as $doc)
-                                                <div class="document-row">
-                                                    <div class="row align-items-center">
-                                                        <div class="col-auto">
-                                                            <div class="document-icon">
-                                                                <i class="bx bx-check"></i>
+                                        <div class="row">
+                                            @foreach ($docs as $index => $doc)
+                                                <div class="col-6">
+                                                    <div class="document-row" data-division="{{ $doc->division }}">
+                                                        <div class="row align-items-center">
+                                                            <div class="col-auto">
+                                                                <div class="document-icon">
+                                                                    <i class="bx bx-upload"></i>
+                                                                </div>
                                                             </div>
-                                                        </div>
-                                                        <div class="col-md-3">
-                                                            <label class="form-label mb-0">Document Type</label>
-                                                            <div class="fw-bold">{{ $doc->description }}</div>
-                                                        </div>
-                                                        <div class="col-md-5">
-                                                            <label class="form-label mb-0">File Name</label>
-                                                            <div class="text-muted small">{{ $doc->file }}</div>
-                                                        </div>
-                                                        <div class="col-md-3 text-end">
-                                                            <a href="{{ $baseAssetUrl . '/' . $doc->file }}"
-                                                                target="_blank"
-                                                                class="btn btn-primary btn-document-action">
-                                                                <i class="bx bx-show"></i> View
-                                                            </a>
+                                                            <div class="col-md-3">
+                                                                <label class="form-label">
+                                                                    Document Type
+                                                                    @if ($doc->mandatory === 'Y')
+                                                                        <span class="required-indicator">*</span>
+                                                                    @endif
+                                                                </label>
+                                                                <input type="text" name="document_name[]"
+                                                                    class="form-control" value="{{ $doc->doc_type }}"
+                                                                    readonly />
+                                                            </div>
+                                                            <div class="col-md-5">
+                                                                <label class="form-label">Select File</label>
+                                                                <input type="file" name="document_file[]"
+                                                                    id="document_file{{ $doc->id }}"
+                                                                    class="form-control document_file"
+                                                                    {{ $doc->mandatory === 'Y' ? 'required' : '' }}
+                                                                    accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" />
+                                                            </div>
+                                                            <div class="col-md-4 text-end">
+                                                                <label class="form-label d-block">&nbsp;</label>
+                                                                <button type="button" class="btn btn-info preview me-2"
+                                                                    data-doc-id="{{ $doc->id }}">
+                                                                    <i class="bx bx-show"></i> Preview
+                                                                </button>
+                                                                <button class="btn btn-success addDocfac" type="button">
+                                                                    <i class="bx bx-plus"></i> Add More
+                                                                </button>
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 </div>
                                             @endforeach
-                                        @endif
+                                        </div>
                                     @endif
                                 </div>
 
-                                {{-- Action Bar --}}
                                 @if ($approval != 1)
                                     <div class="action-bar">
                                         <div>
@@ -1468,20 +1460,6 @@
 @endsection
 
 @push('script')
-    {{-- DataTables CSS and JS --}}
-    {{-- <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css">
-    <link rel="stylesheet" href="https://cdn.datatables.net/responsive/2.5.0/css/responsive.bootstrap5.min.css">
-    <link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.4.2/css/buttons.bootstrap5.min.css">
-
-    <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
-    <script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
-    <script src="https://cdn.datatables.net/responsive/2.5.0/js/dataTables.responsive.min.js"></script>
-    <script src="https://cdn.datatables.net/responsive/2.5.0/js/responsive.bootstrap5.min.js"></script>
-    <script src="https://cdn.datatables.net/buttons/2.4.2/js/dataTables.buttons.min.js"></script>
-    <script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.bootstrap5.min.js"></script>
-    <script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.html5.min.js"></script>
-    <script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.print.min.js"></script> --}}
-
     <script>
         $(document).ready(function() {
             const CONFIG = {
@@ -1508,7 +1486,7 @@
                     reinsurerTable.destroy();
                 }
 
-                reinsurerTable = $('#reinsurer-datatable').DataTable({
+                reinsurerTable = $('#reinsurer-table-f').DataTable({
                     responsive: true,
                     pageLength: 10,
                     lengthMenu: [
@@ -1517,10 +1495,7 @@
                     ],
                     order: [
                         [1, 'asc']
-                    ], // Sort by Reinsurer Name
-                    dom: '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>' +
-                        '<"row"<"col-sm-12"tr>>' +
-                        '<"row"<"col-sm-12 col-md-5"i><"col-sm-12 col-md-7"p>>',
+                    ],
                     language: {
                         emptyTable: "No reinsurers found for the selected stage",
                         zeroRecords: "No matching reinsurers found",
@@ -1543,26 +1518,19 @@
                             orderable: false,
                             searchable: false,
                             className: 'text-center',
-                            width: '8%'
+                            width: '2%'
                         },
                         {
                             targets: 1, // Reinsurer Name
                             orderable: true,
-                            width: '45%'
-                        },
-                        {
-                            targets: 2, // Stage
-                            orderable: true,
-                            searchable: false,
-                            className: 'text-center',
-                            width: '15%'
+                            width: '40%'
                         },
                         {
                             targets: 3, // Written Share
                             orderable: true,
                             type: 'num',
                             className: 'text-end',
-                            width: '16%',
+                            width: '20%',
                             render: function(data, type, row) {
                                 if (type === 'display') {
                                     return data;
@@ -1575,17 +1543,22 @@
                             orderable: true,
                             type: 'num',
                             className: 'text-end',
-                            width: '16%',
+                            width: '20%',
                             render: function(data, type, row) {
                                 if (type === 'display') {
                                     return data;
                                 }
                                 return parseFloat(data) || 0;
                             }
+                        },
+                        {
+                            targets: 5, // Status
+                            orderable: false,
+                            className: 'text-end',
+                            width: '18%',
                         }
                     ],
                     drawCallback: function() {
-                        // Update row numbers after sorting/filtering
                         const api = this.api();
                         api.column(0, {
                             search: 'applied',
@@ -1594,19 +1567,14 @@
                             cell.innerHTML = i + 1;
                         });
 
-                        // Update totals in footer
                         updateTotalsFooter();
                     },
                     initComplete: function() {
-                        console.log('DataTable initialized successfully');
                         updateQuickStats();
                     }
                 });
             }
 
-            // ========================================
-            // Calculate and Display Totals
-            // ========================================
             function updateTotalsFooter() {
                 if (!reinsurerTable || currentStageData.length === 0) {
                     $('#reinsurer-totals').hide();
@@ -1649,9 +1617,6 @@
                     `<i class="bx bx-check-circle"></i> Signed: ${totalSigned.toFixed(2)}%`);
             }
 
-            // ========================================
-            // Get Share Value Class
-            // ========================================
             function getShareClass(value) {
                 const numValue = parseFloat(value);
                 if (numValue >= 50) return 'high';
@@ -1659,9 +1624,6 @@
                 return 'low';
             }
 
-            // ========================================
-            // Format Reinsurer Name
-            // ========================================
             function formatReinsurerName(name) {
                 return name.split(' ')
                     .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
@@ -1714,50 +1676,69 @@
 
                             response.reinsurers.forEach((item, index) => {
                                 const name = formatReinsurerName(item.reinsurer_name);
-                                const writtenShare = item.written_share || 'N/A';
-                                const signedShare = item.signed_share || 'N/A';
+                                let writtenShare = item.written_share || '--';
+                                const signedShare = item.signed_share || '--';
+                                const status = item.status || '--';
 
-                                const writtenClass = writtenShare !== 'N/A' ?
+                                const writtenClass = writtenShare !== '--' ?
                                     getShareClass(writtenShare) : '';
-                                const signedClass = signedShare !== 'N/A' ?
+                                const signedClass = signedShare !== '--' ?
                                     getShareClass(signedShare) : '';
 
+                                let prevWrittenShare = 0;
+                                if (item.stage == 2) {
+                                    prevWrittenShare = item.updated_written_share;
+                                }
+
+                                if (item.stage == 3) {
+                                    writtenShare = item.updated_written_share;
+                                }
+
                                 rows += `
-                                    <tr>
-                                        <td class="text-center">${index + 1}</td>
-                                        <td>
-                                            <div class="reinsurer-name-cell">
-                                                <strong>${name}</strong>
+                                    <tr class="reinsurer-row">
+                                        <td class="text-center align-middle">
+                                            <span class="badge bg-light text-dark">${index + 1}</span>
+                                        </td>
+                                        <td class="align-middle">
+                                            <div class="reinsurer-name">
+                                                <strong class="text-dark">${name}</strong>
                                             </div>
                                         </td>
-                                        <td class="text-center">
-                                            <span class="badge badge-stage-${stage}">Stage ${stage}</span>
+                                        <td class="text-start">
+                                            ${prevWrittenShare != 0
+                                                ? `<div class="share-history">
+                                                                                                                                                                        <small class="text-muted d-block mb-1">Change:</small>
+                                                                                                                                                                        <span class="badge badge-soft-${writtenClass} mb-1 text-primary">
+                                                                                                                                                                            ${writtenShare}%
+                                                                                                                                                                        </span>
+                                                                                                                                                                        <i class="bx bx-right-arrow-alt mx-1 text-muted"></i>
+                                                                                                                                                                        <span class="badge ${getBadgeClass(writtenClass)}">
+                                                                                                                                                                            ${prevWrittenShare}%
+                                                                                                                                                                        </span>
+                                                                                                                                                                    </div>`
+                                                : `<span class="badge ${getBadgeClass(writtenClass)} font-monospace">
+                                                                                                                                                                        ${writtenShare !== '--' ? writtenShare + '%' : '<span class="text-muted">—</span>'}
+                                                                                                                                                                    </span>`
+                                            }
                                         </td>
-                                        <td class="text-end">
-                                            <span class="share-value ${writtenClass}">
-                                                ${writtenShare}${writtenShare !== 'N/A' ? '%' : ''}
+                                        <td class="text-start">
+                                            <span class="badge ${getBadgeClass(signedClass)} font-monospace">
+                                                ${signedShare !== '--' ? signedShare + '%' : '<span class="text-light">—</span>'}
                                             </span>
                                         </td>
-                                        <td class="text-end">
-                                            <span class="share-value ${signedClass}">
-                                                ${signedShare}${signedShare !== 'N/A' ? '%' : ''}
+                                        <td class="text-start">
+                                            <span class="badge ${getStatusBadgeClass(status)} text-light">
+                                                <i class="${getStatusIcon(status)} me-1"></i>
+                                                ${status ? status.charAt(0).toUpperCase() + status.slice(1) : '--'}
                                             </span>
                                         </td>
                                     </tr>
                                 `;
-
-                                console.log(currentStageData)
-
                             });
 
                             $tbody.html(rows);
                             initializeDataTable();
                             updateQuickStats();
-
-                            // Success notification
-                            showToast('success',
-                                `Loaded ${response.reinsurers.length} reinsurer(s) from Stage ${stage}`
-                            );
                         } else {
                             if (reinsurerTable) {
                                 reinsurerTable.destroy();
@@ -1765,16 +1746,16 @@
                             }
 
                             rows = `
-                                <tr>
-                                    <td colspan="5" class="text-center py-5">
-                                        <div class="empty-state-table">
-                                            <i class="bx bx-search-alt"></i>
-                                            <p class="mb-0">No reinsurers found for Stage ${stage}</p>
-                                            <small class="text-muted">Try selecting a different stage</small>
-                                        </div>
-                                    </td>
-                                </tr>
-                            `;
+                            <tr>
+                                <td colspan="5" class="text-center py-5">
+                                    <div class="empty-state-table">
+                                        <i class="bx bx-search-alt"></i>
+                                        <p class="mb-0">No reinsurers found for Stage ${stage}</p>
+                                        <small class="text-muted">Try selecting a different stage</small>
+                                    </div>
+                                </td>
+                            </tr>
+                        `;
                             $tbody.html(rows);
                             $('#reinsurer-totals').hide();
 
@@ -1782,8 +1763,6 @@
                         }
                     },
                     error: function(xhr, status, error) {
-                        console.error('Error loading reinsurers:', error);
-
                         if (reinsurerTable) {
                             reinsurerTable.destroy();
                             reinsurerTable = null;
@@ -1810,9 +1789,44 @@
                 });
             });
 
-            // ========================================
-            // Toast Notification Helper
-            // ========================================
+            function getBadgeClass(shareClass) {
+                const classMap = {
+                    'high': 'bg-success',
+                    'medium': 'bg-warning',
+                    'low': 'bg-info',
+                    'zero': 'bg-secondary',
+                    'written': 'bg-primary',
+                    'signed': 'bg-success'
+                };
+                return classMap[shareClass] || 'bg-secondary';
+            }
+
+            function getStatusBadgeClass(status) {
+                const statusMap = {
+                    'written': 'bg-info text-dark',
+                    'signed': 'bg-success',
+                    'quoted': 'bg-warning text-dark',
+                    'declined': 'bg-danger',
+                    'pending': 'bg-secondary',
+                    'approved': 'bg-primary',
+                    'active': 'bg-success',
+                    'inactive': 'bg-secondary'
+                };
+                return statusMap[status?.toLowerCase()] || 'bg-secondary';
+            }
+
+            function getStatusIcon(status) {
+                const iconMap = {
+                    'written': 'bx bx-edit',
+                    'signed': 'bx bx-check-circle',
+                    'quoted': 'bx bx-file',
+                    'declined': 'bx bx-x-circle',
+                    'pending': 'bx bx-time',
+                    'approved': 'bx bx-check-double'
+                };
+                return iconMap[status?.toLowerCase()] || 'bx bx-circle';
+            }
+
             function showToast(type, message) {
                 const iconMap = {
                     success: 'bx-check-circle',
@@ -1852,9 +1866,6 @@
                 });
             }
 
-            // ========================================
-            // Excess Type Change Handler
-            // ========================================
             function updateExcessLabel() {
                 const excessType = $('#excess_type').val();
                 const label = excessType === 'R' ? 'Excess (%)' : 'Excess Amount';
@@ -1864,9 +1875,6 @@
             $('#excess_type').on('change', updateExcessLabel);
             updateExcessLabel();
 
-            // ========================================
-            // Auto-calculate Closing Date
-            // ========================================
             $('#effective_date').on('change', function() {
                 const effectiveDate = $(this).val();
                 if (effectiveDate) {
@@ -1877,9 +1885,6 @@
                 }
             });
 
-            // ========================================
-            // Document Preview Handler
-            // ========================================
             $(document).on('click', '.preview', function() {
                 const $row = $(this).closest('.document-row');
                 const fileInput = $row.find('input[type="file"]')[0];
@@ -1919,9 +1924,6 @@
                 });
             });
 
-            // ========================================
-            // Add New Document Row
-            // ========================================
             let fileCounter = 0;
             $(document).on('click', '.addDocfac', function(e) {
                 e.preventDefault();
@@ -1962,9 +1964,6 @@
                 showToast('success', 'New document row added');
             });
 
-            // ========================================
-            // Remove Document Row
-            // ========================================
             $(document).on('click', '.remove-file', function() {
                 $(this).closest('.new-document-row').fadeOut(300, function() {
                     $(this).remove();
@@ -1972,9 +1971,6 @@
                 });
             });
 
-            // ========================================
-            // Form Submission Handler
-            // ========================================
             $('#submit').on('click', function(e) {
                 e.preventDefault();
 
@@ -2005,9 +2001,6 @@
                 });
             });
 
-            // ========================================
-            // Submit Form Function
-            // ========================================
             function submitForm() {
                 const form = $('#msform')[0];
                 const formData = new FormData(form);
@@ -2080,18 +2073,12 @@
                 });
             }
 
-            // ========================================
-            // Reset Submit Button
-            // ========================================
             function resetSubmitButton() {
                 $('#submit')
                     .html('<i class="bx bx-transfer"></i> Submit for Handover')
                     .prop('disabled', false);
             }
 
-            // ========================================
-            // Add Slide In Animation
-            // ========================================
             $('<style>')
                 .text(`
                     @keyframes slideIn {
@@ -2107,10 +2094,7 @@
                 `)
                 .appendTo('head');
 
-            // ========================================
-            // Initialize on Page Load
-            // ========================================
-            console.log('Prospect Handover Form initialized');
+            initializeDataTable()
         });
     </script>
 @endpush

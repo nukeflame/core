@@ -243,113 +243,138 @@ return [
                     'permission' => 'app.reins_settings.view',
                     'submenu' => [
                         [
-                            'title' => 'Customers',
-                            'route' => 'customer.info',
-                            'permission' => 'reins_settings.customers.view'
+                            'title' => 'Facultative Settings',
+                            'permission' => 'app.reins_settings.view',
+                            'has_sub' => true,
+                            'children' => [
+                                [
+                                    'title' => 'Classes',
+                                    'route' => 'class.info',
+                                    'permission' => 'reins_settings.classes.view'
+                                ],
+                                [
+                                    'title' => 'Class Groups',
+                                    'route' => 'classGroup.info',
+                                    'permission' => 'reins_settings.class_groups.view'
+                                ],
+                                [
+                                    'title' => 'Sum Insured Types',
+                                    'route' => 'sumInsType.info',
+                                    'permission' => 'reins_settings.sum_insured_types.view'
+                                ],
+                                [
+                                    'title' => 'Policy Clauses',
+                                    'route' => 'clauseparam.info',
+                                    'permission' => 'reins_settings.policy_clauses.view'
+                                ],
+                                [
+                                    'title' => 'Binder Classes',
+                                    'route' => 'binder.info',
+                                    'permission' => 'reins_settings.binder_classes.view'
+                                ],
+                            ]
                         ],
                         [
-                            'title' => 'Class Groups',
-                            'route' => 'classGroup.info',
-                            'permission' => 'reins_settings.class_groups.view'
+                            'title' => 'Treaty Settings',
+                            'permission' => 'app.reins_settings.view',
+                            'has_sub' => true,
+                            'children' => [
+                                [
+                                    'title' => 'Treaty Types',
+                                    'route' => 'treatyType.info',
+                                    'permission' => 'reins_settings.treaty_types.view'
+                                ],
+                                [
+                                    'title' => 'Reins Division',
+                                    'route' => 'reinsDivision.info',
+                                    'permission' => 'reins_settings.rein_division.view'
+                                ],
+                                [
+                                    'title' => 'Reins Classes',
+                                    'route' => 'reinsClass.info',
+                                    'permission' => 'reins_settings.rein_classes.view'
+                                ],
+                                [
+                                    'title' => 'Reins Class Premium Types',
+                                    'route' => 'reinsClassPremtypes.info',
+                                    'permission' => 'reins_settings.rein_class_prem_types.view'
+                                ],
+                            ]
                         ],
                         [
-                            'title' => 'Classes',
-                            'route' => 'class.info',
-                            'permission' => 'reins_settings.classes.view'
+                            'title' => 'Business Development',
+                            'permission' => 'app.reins_settings.view',
+                            'has_sub' => true,
+                            'children' => [
+                                [
+                                    'title' => 'Lead Status',
+                                    'route' => 'lead.status.info',
+                                    'permission' => 'app.reins_settings.view'
+                                ],
+                                [
+                                    'title' => 'BD Schedule Headers',
+                                    'route' => 'bd.schedule.info',
+                                    'permission' => 'app.reins_settings.view'
+                                ],
+                                [
+                                    'title' => 'BD Schedule Slip Template',
+                                    'route' => 'docs-setup.bd-schedule-slip-template',
+                                    'permission' => 'app.reins_settings.view'
+                                ],
+                                [
+                                    'title' => 'BD Stage Documents',
+                                    'route' => 'stage.doc.info',
+                                    'permission' => 'app.reins_settings.view'
+                                ],
+                                [
+                                    'title' => 'BD Document Types',
+                                    'route' => 'doc.type.info',
+                                    'permission' => 'app.reins_settings.view'
+                                ],
+                                [
+                                    'title' => 'BD Operation Checklists',
+                                    'route' => 'operationchecklist.info',
+                                    'permission' => 'app.reins_settings.view'
+                                ],
+                                [
+                                    'title' => 'Tender Documents',
+                                    'route' => 'tender.docsparam',
+                                    'permission' => 'app.reins_settings.view'
+                                ]
+                            ]
                         ],
                         [
-                            'title' => 'Policy Clauses',
-                            'route' => 'clauseparam.info',
-                            'permission' => 'reins_settings.policy_clauses.view'
+                            'title' => 'Common Settings',
+                            'permission' => 'app.reins_settings.view',
+                            'has_sub' => true,
+                            'children' => [
+                                [
+                                    'title' => 'Customers',
+                                    'route' => 'customer.info',
+                                    'permission' => 'app.reins_settings.view'
+                                ],
+                                [
+                                    'title' => 'Customer Types',
+                                    'route' => 'customerType.info',
+                                    'permission' => 'reins_settings.customer_types.view'
+                                ],
+                                [
+                                    'title' => 'Countries',
+                                    'route' => 'country.info',
+                                    'permission' => 'reins_settings.countries.view'
+                                ],
+                                [
+                                    'title' => 'Business Types',
+                                    'route' => 'businessType.info',
+                                    'permission' => 'reins_settings.business_types.view'
+                                ],
+                                [
+                                    'title' => 'Payment Methods',
+                                    'route' => 'payMethod.info',
+                                    'permission' => 'reins_settings.pay_methods.view'
+                                ],
+                            ]
                         ],
-                        [
-                            'title' => 'Sum Insured Types',
-                            'route' => 'sumInsType.info',
-                            'permission' => 'reins_settings.sum_insured_types.view'
-                        ],
-                        [
-                            'title' => 'Reins Division',
-                            'route' => 'reinsDivision.info',
-                            'permission' => 'reins_settings.rein_division.view'
-                        ],
-                        [
-                            'title' => 'Reins Classes',
-                            'route' => 'reinsClass.info',
-                            'permission' => 'reins_settings.rein_classes.view'
-                        ],
-                        [
-                            'title' => 'Reins Class PremTypes',
-                            'route' => 'reinsClassPremtypes.info',
-                            'permission' => 'reins_settings.rein_class_prem_types.view'
-                        ],
-                        [
-                            'title' => 'Treaty Types',
-                            'route' => 'treatyType.info',
-                            'permission' => 'reins_settings.treaty_types.view'
-                        ],
-                        [
-                            'title' => 'Customer Types',
-                            'route' => 'customerType.info',
-                            'permission' => 'reins_settings.customer_types.view'
-                        ],
-                        [
-                            'title' => 'Countries',
-                            'route' => 'country.info',
-                            'permission' => 'reins_settings.countries.view'
-                        ],
-                        [
-                            'title' => 'Business Types',
-                            'route' => 'businessType.info',
-                            'permission' => 'reins_settings.business_types.view'
-                        ],
-                        [
-                            'title' => 'Binder Classes',
-                            'route' => 'binder.info',
-                            'permission' => 'reins_settings.binder_classes.view'
-                        ],
-                        [
-                            'title' => 'Pay Method',
-                            'route' => 'payMethod.info',
-                            'permission' => 'reins_settings.pay_methods.view'
-                        ],
-                        [
-                            'title' => 'Lead Status',
-                            'route' => 'lead.status.info',
-                            'permission' => 'reins_settings.pay_methods.view'
-                        ],
-                        [
-                            'title' => 'Bd Schedule Headers',
-                            'route' => 'bd.schedule.info',
-                            'permission' => 'reins_settings.pay_methods.view'
-                        ],
-                        [
-                            'title' => 'Bd Schedule Slip Template',
-                            'route' => 'docs-setup.bd-schedule-slip-template',
-                            'permission' => 'reins_settings.pay_methods.view'
-                        ],
-                        [
-                            'title' => 'Bd Stage Document',
-                            'route' => 'stage.doc.info',
-                            'permission' => 'reins_settings.pay_methods.view'
-                        ],
-                        [
-                            'title' => 'Bd Document Types',
-                            'route' => 'doc.type.info',
-                            'permission' => 'reins_settings.pay_methods.view'
-                        ],
-                        [
-                            'title' => 'Bd Operation Checklists',
-                            'route' => 'operationchecklist.info',
-                            'permission' => 'reins_settings.pay_methods.view'
-                        ],
-                        [
-                            'title' => 'Tender Docs',
-                            'route' => 'tender.docsparam',
-                            'permission' => 'reins_settings.pay_methods.view'
-                        ]
-
-
-
                     ]
                 ],
                 [
