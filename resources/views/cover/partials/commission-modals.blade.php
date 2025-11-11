@@ -1,11 +1,11 @@
-<div class="modal fade" id="slidingScaleModal" tabindex="-1">
+<div class="modal fade effect-scale" id="slidingScaleModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">
+                <h6 class="modal-title">
                     <i class="bx bx-trending-up me-2"></i>Configure Sliding Scale Commission
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
                 <div class="alert alert-warning">
@@ -88,14 +88,14 @@
     </div>
 </div>
 
-<div class="modal fade" id="commissionHelpModal" tabindex="-1">
+<div class="modal fade effect-scale" id="commissionHelpModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">
                     <i class="bx bx-help-circle me-2"></i>Commission Types Guide
                 </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
                 <div class="row">
