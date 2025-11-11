@@ -18,14 +18,16 @@
     {{-- Underwriter --}}
     <div class="col-md-3">
         <label class="form-label" for="leadSource">Underwriter</label>
-        <select class="form-control select2" id="leadSource" name="underwriter">
-            <option value="">Select Staff</option>
-            @if (isset($staff) && count($staff) > 0)
-                @foreach ($staff as $s)
-                    <option value="{{ $s->id }}">{{ $s->name }}</option>
-                @endforeach
-            @endif
-        </select>
+        <div class="cover-card">
+            <select class="form-control select2" id="leadSource" name="underwriter">
+                <option value="">Select Staff</option>
+                @if (isset($staff) && count($staff) > 0)
+                    @foreach ($staff as $s)
+                        <option value="{{ $s->id }}">{{ $s->name }}</option>
+                    @endforeach
+                @endif
+            </select>
+        </div>
     </div>
 </div>
 

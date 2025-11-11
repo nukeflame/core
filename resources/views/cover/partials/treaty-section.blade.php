@@ -1,7 +1,6 @@
 {{-- Common Treaty Fields --}}
 <div id="treaty_common_section">
     <div class="row g-3">
-        {{-- Treaty Type --}}
         <div class="col-md-3">
             <label class="form-label required">Treaty Type</label>
             <select class="form-control select2" name="treatytype" id="treatytype" required>
@@ -15,28 +14,24 @@
             </select>
         </div>
 
-        {{-- Date Offered --}}
         <div class="col-md-3">
             <label class="form-label required">Date Offered</label>
             <input type="date" class="form-control" id="date_offered" name="date_offered"
                 value="{{ isset($old_endt_trans) ? $old_endt_trans->date_offered : '' }}" required>
         </div>
 
-        {{-- Share Offered --}}
         <div class="col-md-2">
             <label class="form-label required">Share Offered (%)</label>
             <input type="text" class="form-control" id="share_offered" name="share_offered"
                 value="{{ isset($old_endt_trans) ? number_format($old_endt_trans->share_offered, 2) : '' }}" required>
         </div>
 
-        {{-- Premium Tax Rate --}}
         <div class="col-md-2">
             <label class="form-label required">Premium Tax Rate (%)</label>
             <input type="number" class="form-control" id="prem_tax_rate" name="prem_tax_rate"
                 value="{{ isset($old_endt_trans) ? number_format($old_endt_trans->prem_tax_rate, 2) : '' }}" required>
         </div>
 
-        {{-- RI Tax Rate --}}
         <div class="col-md-2">
             <label class="form-label required">RI Tax Rate (%)</label>
             <input type="number" class="form-control" id="ri_tax_rate" name="ri_tax_rate" min="0" max="100"
@@ -45,7 +40,6 @@
     </div>
 
     <div class="row g-3 mt-2">
-        {{-- Brokerage Commission Rate --}}
         <div class="col-md-3">
             <label class="form-label required">Brokerage Comm Rate (%)</label>
             <input type="number" class="form-control" id="treaty_brokerage_comm_rate" name="brokerage_comm_rate"
@@ -54,7 +48,6 @@
                 required>
         </div>
 
-        {{-- Reinsurers Per Treaty --}}
         <div class="col-md-3" id="reinsurer_per_treaty_section" style="display: none;">
             <label class="form-label required">Reinsurers Per Treaty?</label>
             <select class="form-control select2" name="reinsurer_per_treaty" id="reinsurer_per_treaty">
@@ -70,7 +63,6 @@
     </div>
 </div>
 
-{{-- Treaty Proportional Section --}}
 <div id="treaty_proportional_section" style="display: none;">
     <hr class="my-4">
     <h6 class="mb-3">Proportional Treaty Details</h6>
@@ -108,14 +100,6 @@
             <label class="form-label required">Deficit C/F (years)</label>
             <input type="number" class="form-control" id="deficit_yrs" name="deficit_yrs" min="0"
                 max="10" value="{{ isset($old_endt_trans) ? $old_endt_trans->deficit_yrs : '' }}">
-        </div>
-    </div>
-
-    <div class="row mt-3">
-        <div class="col-12">
-            <button type="button" class="btn btn-primary" id="add_rein_class">
-                <i class="bx bx-plus me-1"></i> Add Reinsurance Class
-            </button>
         </div>
     </div>
 

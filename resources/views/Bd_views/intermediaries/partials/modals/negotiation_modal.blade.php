@@ -316,8 +316,7 @@
                     return signedShare <= 0 && r.is_declined !== true;
                 });
 
-                console.log(missingSignedShares)
-
+                // console.log(missingSignedShares)
 
                 if (missingSignedShares.length > 0) {
                     const reinsurerNames = missingSignedShares

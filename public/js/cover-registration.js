@@ -1,12 +1,12 @@
 /**
- * Cover Registration Module
- * Handles all functionality for cover registration form
+ * Cover Registration Module - Refactored
+ * Enhanced with better error handling, security, and performance
  */
 
 const CoverRegistration = (function () {
     "use strict";
 
-    // Private variables
+    // ==================== Configuration ====================
     const config = {
         trans_type: "",
         prospectId: "",
@@ -14,111 +14,167 @@ const CoverRegistration = (function () {
         oldData: null,
         resetableTransTypes: ["NEW"],
         installmentTotalAmount: 0,
+        currentModalTarget: null,
+        maxInstallments: 100,
+        maxLayers: 20,
+        maxReinClasses: 14, // A-N
+        debounceDelay: 300,
+        calculationPrecision: 2,
     };
 
-    // Cache DOM elements
-    const elements = {};
+    // ==================== State Management ====================
+    const state = {
+        isSubmitting: false,
+        isDirty: false,
+        cachedData: new Map(),
+        activeRequests: new Map(),
+    };
 
-    /**
-     * Initialize the module
-     */
+    // ==================== DOM Elements Cache ====================
+    const elements = {
+        form: null,
+        typeOfBus: null,
+        coverType: null,
+        binderSection: null,
+        brokerFlag: null,
+        brokerSection: null,
+        payMethod: null,
+        currencyCode: null,
+        todayCurrency: null,
+        applyEml: null,
+        facSection: null,
+        treatySection: null,
+        installmentSection: null,
+        pageLoader: null,
+        classGroup: null,
+        classCode: null,
+        prospectId: null,
+    };
+
+    // ==================== Initialization ====================
     function init() {
-        // Load configuration from window object
+        try {
+            loadConfiguration();
+            cacheElements();
+            validateElements();
+            setupEventListeners();
+            initializePlugins();
+            setupValidation();
+            initializeFields();
+            setupBeforeUnloadWarning();
+            hideLoader();
+        } catch (error) {
+            console.error("Initialization error:", error);
+            Swal.fire({
+                icon: "error",
+                title: "Initialization Error",
+                text: "Failed to initialize the cover registration form. Please refresh the page.",
+            });
+        }
+    }
+
+    function loadConfiguration() {
         if (typeof window.coverConfig !== "undefined") {
             Object.assign(config, window.coverConfig);
+
+            // Sanitize configuration
+            config.maxInstallments = Math.min(
+                Math.max(1, config.maxInstallments || 100),
+                100
+            );
+            config.maxLayers = Math.min(
+                Math.max(1, config.maxLayers || 20),
+                20
+            );
         }
-
-        // Cache DOM elements
-        cacheElements();
-
-        // Setup event listeners
-        setupEventListeners();
-
-        // Initialize plugins
-        initializePlugins();
-
-        // Setup form validation
-        setupValidation();
-
-        // Initialize fields based on transaction type
-        initializeFields();
-
-        // Hide loader
-        hideLoader();
-
-        // Log initialization
-        console.log("Cover Registration initialized:", config.trans_type);
     }
 
-    /**
-     * Cache frequently used DOM elements
-     */
     function cacheElements() {
-        elements.form = $("#register_cover");
-        elements.typeOfBus = $("#type_of_bus");
-        elements.coverType = $("#covertype");
-        elements.binderSection = $("#binder_section");
-        elements.brokerFlag = $("#broker_flag");
-        elements.brokerSection = $("#broker_section");
-        elements.payMethod = $("#pay_method");
-        elements.currencyCode = $("#currency_code");
-        elements.todayCurrency = $("#today_currency");
-        elements.applyEml = $("#apply_eml");
-        elements.facSection = $("#fac_section");
-        elements.treatySection = $("#treaty_section");
-        elements.installmentSection = $("#installment_section");
-        elements.pageLoader = $("#page-loader");
-        elements.classGroup = $("#class_group");
-        elements.classCode = $("#classcode");
-        elements.prospectId = $("#prospect_id");
+        const elementIds = {
+            form: "#register_cover",
+            typeOfBus: "#type_of_bus",
+            coverType: "#covertype",
+            binderSection: "#binder_section",
+            brokerFlag: "#broker_flag",
+            brokerSection: "#broker_section",
+            payMethod: "#pay_method",
+            currencyCode: "#currency_code",
+            todayCurrency: "#today_currency",
+            applyEml: "#apply_eml",
+            facSection: "#fac_section",
+            treatySection: "#treaty_section",
+            installmentSection: "#installment_section",
+            pageLoader: "#page-loader",
+            classGroup: "#class_group",
+            classCode: "#classcode",
+            prospectId: "#prospect_id",
+        };
+
+        Object.entries(elementIds).forEach(([key, selector]) => {
+            elements[key] = $(selector);
+        });
     }
 
-    /**
-     * Setup all event listeners
-     */
+    function validateElements() {
+        const requiredElements = [
+            "form",
+            "typeOfBus",
+            "coverType",
+            "pageLoader",
+        ];
+        const missingElements = requiredElements.filter(
+            (key) => !elements[key].length
+        );
+
+        if (missingElements.length > 0) {
+            throw new Error(
+                `Required elements not found: ${missingElements.join(", ")}`
+            );
+        }
+    }
+
+    // ==================== Event Listeners ====================
     function setupEventListeners() {
-        // Business type change
+        // Business logic handlers
         elements.typeOfBus.on("change", handleBusinessTypeChange);
-
-        // Cover type change
         elements.coverType.on("change", handleCoverTypeChange);
-
-        // Broker flag change
         elements.brokerFlag.on("change", handleBrokerFlagChange);
-
-        // Payment method change
         elements.payMethod.on("change", handlePaymentMethodChange);
-
-        // Currency change
         elements.currencyCode.on("change", handleCurrencyChange);
-
-        // Apply EML change
         elements.applyEml.on("change", handleEmlChange);
-
-        // Class group change
         elements.classGroup.on("change", handleClassGroupChange);
 
         // Form submission
         $("#save_cover").on("click", handleFormSubmit);
 
         // Date validation
-        $("#coverfrom, #coverto").on("change", validateDates);
+        $("#coverfrom, #coverto").on("change", debounce(validateDates, 300));
 
-        // Installment events
+        // Installments
         $("#add_fac_instalments").on("click", addInstallments);
         $(document).on("click", ".remove-installment", removeInstallment);
 
-        // Commission calculations
-        $("#comm_rate").on("keyup", calculateCedantCommission);
-        $("#reins_comm_rate").on("keyup", calculateReinsurerCommission);
-        $("#cede_premium").on("keyup", handleCedantPremiumChange);
+        // Commission calculations - debounced
+        $("#comm_rate").on("keyup", debounce(calculateCedantCommission, 300));
+        $("#reins_comm_rate").on(
+            "keyup",
+            debounce(calculateReinsurerCommission, 300)
+        );
+        $("#cede_premium").on(
+            "keyup",
+            debounce(handleCedantPremiumChange, 300)
+        );
+
         $("#reins_comm_type").on("change", handleReinsurerCommTypeChange);
         $("#brokerage_comm_type").on("change", handleBrokerageCommTypeChange);
 
-        // EML calculations
-        $("#eml_rate, #total_sum_insured").on("keyup", calculateEml);
+        // EML calculations - debounced
+        $("#eml_rate, #total_sum_insured").on(
+            "keyup",
+            debounce(calculateEml, 300)
+        );
 
-        // Treaty events
+        // Treaty sections
         $(document).on("change", ".treaty_reinclass", handleReinclassChange);
         $("#add_rein_class").on("click", addReinClass);
         $(document).on("click", ".add-comm-section", addCommissionSection);
@@ -127,8 +183,31 @@ const CoverRegistration = (function () {
             ".remove-comm-section",
             removeCommissionSection
         );
+        $(document).on("click", ".remove-rein-class", removeReinClass);
 
-        // Layer events
+        // Commission types
+        $(document).on(
+            "change",
+            ".commission_type",
+            handleCommissionTypeChange
+        );
+        $(document).on(
+            "click",
+            ".configure-sliding-btn",
+            handleSlidingScaleConfig
+        );
+        $("#save-sliding-scale").on("click", saveSlidingScale);
+        $("#add-scale-tier").on("click", addSlidingScaleTier);
+        $(document).on("click", ".remove-scale-row", removeSlidingScaleTier);
+        $(document).on("click", ".load-template", loadSlidingTemplate);
+
+        // CSV imports
+        $("#import-sliding-csv").on("click", () =>
+            $("#sliding-csv-file").click()
+        );
+        $("#sliding-csv-file").on("change", handleSlidingCSVImport);
+
+        // Layers
         $("#add-layer-section").on("click", addLayer);
         $(document).on("click", ".remove-layer-section", removeLayer);
         $(document).on(
@@ -137,178 +216,321 @@ const CoverRegistration = (function () {
             handleLimitPerReinclassChange
         );
 
-        // Treaty type change
+        // Treaty type and method
         $("#treatytype").on("change", handleTreatyTypeChange);
-
-        // Method change (for non-proportional)
         $("#method").on("change", handleMethodChange);
 
-        // Prospect ID change
-        elements.prospectId.on("change", function () {
-            const prospectId = $(this).val();
-            if (prospectId.length >= 3) {
-                loadProspectData(prospectId);
-            }
-        });
+        // Prospect data
+        elements.prospectId.on(
+            "change",
+            debounce(function () {
+                const prospectId = $(this).val();
+                if (prospectId && prospectId.length >= 3) {
+                    loadProspectData(prospectId);
+                }
+            }, 500)
+        );
 
-        // Add insured modal
-        $("#addInsuredData").on("click", function () {
-            $("#addInsuredDataModal").modal("show");
-        });
+        // Insured modal
+        $("#addInsuredData").on("click", () =>
+            $("#addInsuredDataModal").modal("show")
+        );
 
-        // Risk details paste handling
+        // Risk details
         $("#risk_details_content").on("paste", handleRiskDetailsPaste);
 
-        // Amount formatting
-        $(document).on("keyup", ".amount", function () {
-            const value = $(this).val().replace(/,/g, "");
-            if (!isNaN(value) && value !== "") {
-                $(this).val(numberWithCommas(value));
-            }
-        });
+        // Amount formatting - debounced
+        $(document).on("keyup", ".amount", debounce(formatAmountField, 300));
 
-        // Quota/Surplus calculations
-        $(document).on("keyup", ".retention_per", calculateQuotaRetention);
+        // Treaty calculations - debounced
         $(document).on(
             "keyup",
-            ".quota_share_total_limit",
-            calculateQuotaRetention
+            ".retention_per, .quota_share_total_limit",
+            debounce(calculateQuotaRetention, 300)
         );
-        $(document).on("keyup", ".no_of_lines", calculateSurplusLimit);
-    }
+        $(document).on(
+            "keyup",
+            ".no_of_lines",
+            debounce(calculateSurplusLimit, 300)
+        );
 
-    /**
-     * Initialize jQuery plugins
-     */
-    function initializePlugins() {
-        // Initialize Select2
-        if ($.fn.select2) {
-            $(".select2").select2({
-                width: "100%",
-                theme: "bootstrap-5",
-                placeholder: function () {
-                    return $(this).data("placeholder") || "Select an option";
-                },
-                allowClear: true,
-            });
-        }
-
-        // Initialize tooltips
-        if ($.fn.tooltip) {
-            $('[data-bs-toggle="tooltip"]').tooltip();
-        }
-
-        // Initialize popovers
-        if ($.fn.popover) {
-            $('[data-bs-toggle="popover"]').popover();
-        }
-    }
-
-    /**
-     * Setup form validation
-     */
-    function setupValidation() {
-        if (!$.fn.validate) return;
-
-        elements.form.validate({
-            ignore: ":hidden",
-            errorClass: "is-invalid",
-            validClass: "is-valid",
-            errorElement: "div",
-            errorPlacement: function (error, element) {
-                error.addClass("invalid-feedback");
-                if (element.parent(".input-group").length) {
-                    error.insertAfter(element.parent());
-                } else {
-                    error.insertAfter(element);
-                }
-            },
-            highlight: function (element) {
-                $(element).addClass("is-invalid").removeClass("is-valid");
-            },
-            unhighlight: function (element) {
-                $(element).removeClass("is-invalid").addClass("is-valid");
-            },
-            rules: {
-                type_of_bus: { required: true },
-                covertype: { required: true },
-                branchcode: { required: true },
-                broker_flag: { required: true },
-                currency_code: { required: true },
-                pay_method: { required: true },
-                premium_payment_term: { required: true },
-                division: { required: true },
-                coverfrom: { required: true },
-                coverto: { required: true },
-            },
-            messages: {
-                type_of_bus: "Please select a business type",
-                covertype: "Please select a cover type",
-                branchcode: "Please select a branch",
-                broker_flag: "Please select broker flag",
-                currency_code: "Please select a currency",
-                pay_method: "Please select a payment method",
-                premium_payment_term: "Please select payment terms",
-                division: "Please select a division",
-                coverfrom: "Please enter cover start date",
-                coverto: "Please enter cover end date",
-            },
+        // Track form changes
+        elements.form.on("change", "input, select, textarea", () => {
+            state.isDirty = true;
         });
     }
 
+    // ==================== Utility Functions ====================
+
     /**
-     * Initialize fields based on transaction type and existing data
+     * Debounce function to limit rate of execution
      */
-    function initializeFields() {
-        // Hide all dynamic sections initially
-        hideSections();
+    function debounce(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+            const later = () => {
+                clearTimeout(timeout);
+                func.apply(this, args);
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+        };
+    }
 
-        // If editing or viewing existing transaction
-        if (config.trans_type !== "NEW" && config.oldData) {
-            populateExistingData();
-        }
+    /**
+     * Throttle function to ensure execution at most once per interval
+     */
+    function throttle(func, limit) {
+        let inThrottle;
+        return function (...args) {
+            if (!inThrottle) {
+                func.apply(this, args);
+                inThrottle = true;
+                setTimeout(() => (inThrottle = false), limit);
+            }
+        };
+    }
 
-        // Trigger initial changes
-        elements.typeOfBus.trigger("change");
-        elements.coverType.trigger("change");
-        elements.brokerFlag.trigger("change");
-        elements.payMethod.trigger("change");
-        elements.applyEml.trigger("change");
+    /**
+     * Sanitize HTML content to prevent XSS
+     */
+    function sanitizeHTML(html) {
+        const temp = document.createElement("div");
+        temp.textContent = html;
+        return temp.innerHTML;
+    }
 
-        // Handle prospect data if provided
-        if (config.prospectId) {
-            elements.prospectId.val(config.prospectId);
-            loadProspectData(config.prospectId);
+    /**
+     * Sanitize input values
+     */
+    function sanitizeInput(value) {
+        if (typeof value !== "string") return value;
+        return value.replace(/[<>]/g, "");
+    }
+
+    /**
+     * Parse number safely
+     */
+    function parseNumber(value) {
+        const cleaned = String(value).replace(/[^0-9.-]/g, "");
+        const parsed = parseFloat(cleaned);
+        return isNaN(parsed) ? 0 : parsed;
+    }
+
+    /**
+     * Format number with commas
+     */
+    function numberWithCommas(value, decimals = 2) {
+        if (!value && value !== 0) return "";
+        const num = typeof value === "number" ? value : parseNumber(value);
+        return num.toFixed(decimals).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    }
+
+    /**
+     * Remove commas from string
+     */
+    function removeCommas(value) {
+        return String(value).replace(/,/g, "");
+    }
+
+    /**
+     * Check if decimals are equal within tolerance
+     */
+    function areDecimalsEqual(num1, num2, tolerance = 0.01) {
+        return Math.abs(parseFloat(num1) - parseFloat(num2)) <= tolerance;
+    }
+
+    /**
+     * Format amount field on keyup
+     */
+    function formatAmountField() {
+        const $input = $(this);
+        const value = removeCommas($input.val());
+
+        if (!isNaN(value) && value !== "") {
+            const formatted = numberWithCommas(value);
+            if ($input.val() !== formatted) {
+                $input.val(formatted);
+            }
         }
     }
 
     /**
-     * Handle business type change
+     * Validate numeric input
      */
+    function validateNumericInput(value, min = null, max = null) {
+        const num = parseNumber(value);
+
+        if (min !== null && num < min) return false;
+        if (max !== null && num > max) return false;
+
+        return !isNaN(num);
+    }
+
+    /**
+     * Setup before unload warning
+     */
+    function setupBeforeUnloadWarning() {
+        window.addEventListener("beforeunload", (e) => {
+            if (state.isDirty && !state.isSubmitting) {
+                e.preventDefault();
+                e.returnValue =
+                    "You have unsaved changes. Are you sure you want to leave?";
+                return e.returnValue;
+            }
+        });
+    }
+
+    // ==================== AJAX Helper ====================
+
+    /**
+     * Centralized AJAX handler with caching and abort control
+     */
+    function makeAjaxRequest(options) {
+        const {
+            url,
+            method = "GET",
+            data = {},
+            cache = false,
+            cacheKey = null,
+            successCallback,
+            errorCallback,
+            completeCallback,
+            showLoading = true,
+            loadingMessage = "Loading...",
+        } = options;
+
+        // Check cache first
+        if (cache && cacheKey && state.cachedData.has(cacheKey)) {
+            const cachedResult = state.cachedData.get(cacheKey);
+            if (successCallback) successCallback(cachedResult);
+            return Promise.resolve(cachedResult);
+        }
+
+        // Abort existing request with same key
+        if (cacheKey && state.activeRequests.has(cacheKey)) {
+            state.activeRequests.get(cacheKey).abort();
+        }
+
+        if (showLoading) {
+            showLoader(loadingMessage);
+        }
+
+        const xhr = $.ajax({
+            url: url,
+            method: method,
+            data: data,
+            dataType: "json",
+            headers: {
+                "X-CSRF-TOKEN": $('meta[name="csrf-token"]').attr("content"),
+                "X-Requested-With": "XMLHttpRequest",
+            },
+            timeout: 30000, // 30 second timeout
+            success: function (response) {
+                // Cache response if requested
+                if (cache && cacheKey) {
+                    state.cachedData.set(cacheKey, response);
+
+                    // Clear cache after 5 minutes
+                    setTimeout(() => {
+                        state.cachedData.delete(cacheKey);
+                    }, 300000);
+                }
+
+                if (successCallback) {
+                    successCallback(response);
+                }
+            },
+            error: function (xhr, status, error) {
+                console.error("AJAX Error:", {
+                    url: url,
+                    status: xhr.status,
+                    statusText: xhr.statusText,
+                    error: error,
+                });
+
+                // Handle specific error codes
+                if (xhr.status === 401) {
+                    Swal.fire({
+                        icon: "error",
+                        title: "Session Expired",
+                        text: "Your session has expired. Please log in again.",
+                    }).then(() => {
+                        window.location.href = "/login";
+                    });
+                    return;
+                }
+
+                if (xhr.status === 403) {
+                    toastr.error(
+                        "You do not have permission to perform this action"
+                    );
+                    return;
+                }
+
+                if (xhr.status === 419) {
+                    toastr.error(
+                        "CSRF token mismatch. Please refresh the page."
+                    );
+                    return;
+                }
+
+                if (errorCallback) {
+                    errorCallback(xhr, status, error);
+                } else {
+                    const message =
+                        xhr.responseJSON?.message ||
+                        "An error occurred. Please try again.";
+                    toastr.error(message);
+                }
+            },
+            complete: function () {
+                if (cacheKey) {
+                    state.activeRequests.delete(cacheKey);
+                }
+
+                if (showLoading) {
+                    hideLoader();
+                }
+
+                if (completeCallback) {
+                    completeCallback();
+                }
+            },
+        });
+
+        if (cacheKey) {
+            state.activeRequests.set(cacheKey, xhr);
+        }
+
+        return xhr;
+    }
+
+    // ==================== Business Logic Handlers ====================
+
     function handleBusinessTypeChange() {
         const bustype = $(this).val();
 
-        // Hide all sections first
         hideSections();
 
         if (!bustype) return;
 
-        // Show relevant sections based on business type
-        if (["FPR", "FNP"].includes(bustype)) {
-            showFacSection();
-        } else if (bustype === "TPR") {
-            showTreatyProportionalSection();
-        } else if (bustype === "TNP") {
-            showTreatyNonProportionalSection();
+        // Show appropriate section based on business type
+        const sectionMap = {
+            FPR: showFacSection,
+            FNP: showFacSection,
+            TPR: showTreatyProportionalSection,
+            TNP: showTreatyNonProportionalSection,
+        };
+
+        const showSection = sectionMap[bustype];
+        if (showSection) {
+            showSection();
         }
 
-        // Load treaty types
         loadTreatyTypes(bustype);
     }
 
-    /**
-     * Handle cover type change
-     */
     function handleCoverTypeChange() {
         const coverTypeDesc = $(this)
             .find("option:selected")
@@ -324,9 +546,6 @@ const CoverRegistration = (function () {
         }
     }
 
-    /**
-     * Handle broker flag change
-     */
     function handleBrokerFlagChange() {
         const brokerFlag = $(this).val();
 
@@ -342,9 +561,6 @@ const CoverRegistration = (function () {
         }
     }
 
-    /**
-     * Handle payment method change
-     */
     function handlePaymentMethodChange() {
         const payMethodDesc = $(this)
             .find("option:selected")
@@ -368,9 +584,6 @@ const CoverRegistration = (function () {
         }
     }
 
-    /**
-     * Handle currency change
-     */
     function handleCurrencyChange() {
         const currencyCode = $(this).val();
 
@@ -379,39 +592,31 @@ const CoverRegistration = (function () {
             return;
         }
 
-        showLoader("Loading exchange rate...");
-
-        $.ajax({
+        makeAjaxRequest({
             url: config.routes.getTodaysRate,
             data: { currency_code: currencyCode },
-            type: "GET",
-            success: function (response) {
-                const data = JSON.parse(response);
+            cache: true,
+            cacheKey: `currency_${currencyCode}`,
+            loadingMessage: "Loading exchange rate...",
+            successCallback: function (response) {
+                // Handle both JSON string and object responses
+                const data =
+                    typeof response === "string"
+                        ? JSON.parse(response)
+                        : response;
 
                 if (data.valid === 2) {
-                    // Base currency
                     elements.todayCurrency.val("1.00");
                 } else if (data.valid === 1) {
-                    // Rate found
                     elements.todayCurrency.val(numberWithCommas(data.rate));
                 } else {
-                    // Rate not set
                     elements.todayCurrency.val("");
                     toastr.warning("Currency rate for today not yet set");
                 }
             },
-            error: function () {
-                toastr.error("Failed to load exchange rate");
-            },
-            complete: function () {
-                hideLoader();
-            },
         });
     }
 
-    /**
-     * Handle EML application change
-     */
     function handleEmlChange() {
         const applyEml = $(this).val();
 
@@ -421,17 +626,22 @@ const CoverRegistration = (function () {
         if (applyEml === "Y") {
             $(".eml-field").show();
             $("#eml_rate, #eml_amt").prop("required", true);
+
+            // Set default EML rate if empty
+            if (!$("#eml_rate").val()) {
+                $("#eml_rate").val(100);
+            }
+
             calculateEml();
         } else {
             $("#eml_rate").val("");
             $("#eml_amt").val("");
-            $("#effective_sum_insured").val($("#total_sum_insured").val());
+
+            const totalSumInsured = $("#total_sum_insured").val();
+            $("#effective_sum_insured").val(totalSumInsured);
         }
     }
 
-    /**
-     * Handle class group change
-     */
     function handleClassGroupChange() {
         const classGroup = $(this).val();
 
@@ -441,16 +651,25 @@ const CoverRegistration = (function () {
 
         if (!classGroup) return;
 
-        showLoader("Loading classes...");
-
-        $.ajax({
+        makeAjaxRequest({
             url: config.routes.getClasses,
             data: { class_group: classGroup },
-            type: "GET",
-            success: function (response) {
-                const classes = response ? JSON.parse(response) : [];
+            cache: true,
+            cacheKey: `classes_${classGroup}`,
+            loadingMessage: "Loading classes...",
+            successCallback: function (response) {
+                const classes = Array.isArray(response)
+                    ? response
+                    : JSON.parse(response);
 
-                $.each(classes, function (i, cls) {
+                if (!classes || classes.length === 0) {
+                    elements.classCode.append(
+                        '<option value="">No classes available</option>'
+                    );
+                    return;
+                }
+
+                classes.forEach((cls) => {
                     elements.classCode.append(
                         $("<option>")
                             .val(cls.class_code)
@@ -460,29 +679,34 @@ const CoverRegistration = (function () {
 
                 elements.classCode.trigger("change.select2");
             },
-            error: function () {
-                toastr.error("Failed to load classes");
-            },
-            complete: function () {
-                hideLoader();
-            },
         });
     }
 
-    /**
-     * Handle form submission
-     */
+    // ==================== Form Submission ====================
+
     function handleFormSubmit(e) {
         e.preventDefault();
+
+        // Prevent double submission
+        if (state.isSubmitting) {
+            toastr.warning("Submission in progress. Please wait...");
+            return false;
+        }
 
         // Validate form
         if (!elements.form.valid()) {
             toastr.error("Please correct the errors before submitting");
+            scrollToFirstError();
             return false;
         }
 
         // Validate installments if applicable
         if (isInstallmentPayment() && !validateInstallments()) {
+            return false;
+        }
+
+        // Validate business type specific requirements
+        if (!validateBusinessTypeRequirements()) {
             return false;
         }
 
@@ -501,99 +725,185 @@ const CoverRegistration = (function () {
             buttonsStyling: false,
         }).then((result) => {
             if (result.isConfirmed) {
-                // Set risk details content
-                $("#hidden_risk_details").val(
-                    $("#risk_details_content").html()
-                );
-
-                // Submit form
-                showLoader("Submitting...");
-                elements.form.submit();
+                submitForm();
             }
         });
     }
 
-    /**
-     * Validate dates
-     */
+    function submitForm() {
+        state.isSubmitting = true;
+        state.isDirty = false;
+
+        // Sanitize risk details before submission
+        const riskDetails = $("#risk_details_content").html();
+        const sanitized = DOMPurify
+            ? DOMPurify.sanitize(riskDetails, {
+                  ALLOWED_TAGS: [
+                      "p",
+                      "br",
+                      "strong",
+                      "em",
+                      "u",
+                      "ul",
+                      "ol",
+                      "li",
+                      "table",
+                      "tr",
+                      "td",
+                      "th",
+                  ],
+                  ALLOWED_ATTR: ["class", "style"],
+              })
+            : riskDetails;
+
+        $("#hidden_risk_details").val(sanitized);
+
+        showLoader("Submitting cover registration...");
+
+        // Submit form
+        elements.form.submit();
+    }
+
+    function validateBusinessTypeRequirements() {
+        const busType = elements.typeOfBus.val();
+
+        if (!busType) {
+            toastr.error("Please select a business type");
+            return false;
+        }
+
+        // FAC validation
+        if (["FPR", "FNP"].includes(busType)) {
+            const cedantPremium = parseNumber($("#cede_premium").val());
+            const shareOffered = parseNumber($("#fac_share_offered").val());
+
+            if (cedantPremium <= 0) {
+                toastr.error("Cedant premium must be greater than zero");
+                return false;
+            }
+
+            if (shareOffered <= 0 || shareOffered > 100) {
+                toastr.error("Share offered must be between 1 and 100%");
+                return false;
+            }
+        }
+
+        // Treaty validation
+        if (["TPR", "TNP"].includes(busType)) {
+            const hasReinClass =
+                $(".treaty_reinclass").filter(function () {
+                    return $(this).val() !== "";
+                }).length > 0;
+
+            if (!hasReinClass) {
+                toastr.error("Please add at least one reinsurance class");
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    function scrollToFirstError() {
+        const $firstError = $(".is-invalid:first");
+        if ($firstError.length) {
+            $("html, body").animate(
+                {
+                    scrollTop: $firstError.offset().top - 100,
+                },
+                500
+            );
+            $firstError.focus();
+        }
+    }
+
     function validateDates() {
         const coverFrom = new Date($("#coverfrom").val());
         const coverTo = new Date($("#coverto").val());
+
+        if (!$("#coverfrom").val() || !$("#coverto").val()) {
+            return;
+        }
 
         if (coverFrom >= coverTo) {
             Swal.fire({
                 icon: "error",
                 title: "Invalid Date Range",
-                text: "Cover start date must be earlier than cover end date",
+                text: "Cover end date must be after cover start date",
             });
 
-            $("#coverfrom").val("");
-            $("#coverto").val("");
+            $("#coverto").val("").addClass("is-invalid");
+            return false;
         }
+
+        $("#coverfrom, #coverto").removeClass("is-invalid");
+        return true;
     }
 
-    /**
-     * Add installments
-     */
+    // ==================== Installments Management ====================
+
     function addInstallments() {
         const noOfInstallments = parseInt($("#no_of_installments").val());
-        const businessType = elements.typeOfBus.val();
-        const cedantPremium = $("#cede_premium").val();
-        const facShareOffered = $("#fac_share_offered").val();
-        const commRate = $("#comm_rate").val();
 
-        // Validate required fields
-        if (!noOfInstallments) {
-            toastr.error("Please enter number of installments");
+        // Validation
+        if (!noOfInstallments || noOfInstallments < 1) {
+            toastr.error("Please enter a valid number of installments");
             return false;
         }
 
-        if (!businessType) {
-            toastr.error("Please select business type");
+        if (noOfInstallments > config.maxInstallments) {
+            toastr.error(
+                `Maximum ${config.maxInstallments} installments allowed`
+            );
             return false;
         }
 
-        if (!cedantPremium) {
-            toastr.error("Please enter cedant premium");
+        if (!validateInstallmentPrerequisites()) {
             return false;
         }
 
-        if (!facShareOffered) {
-            toastr.error("Please enter share offered");
-            return false;
-        }
-
-        if (!commRate) {
-            toastr.error("Please enter commission rate");
-            return false;
-        }
-
-        // Calculate installment amount
         const instalAmount = computeInstallmentAmount();
         config.installmentTotalAmount = parseFloat(instalAmount);
+
+        if (config.installmentTotalAmount <= 0) {
+            toastr.error("Invalid installment amount calculated");
+            return false;
+        }
 
         const installmentAmount = (
             config.installmentTotalAmount / noOfInstallments
         ).toFixed(2);
 
-        // Clear existing installments
         $("#fac-installments-section").empty();
 
-        // Add installment rows
         for (let i = 1; i <= noOfInstallments; i++) {
             const row = createInstallmentRow(i, installmentAmount);
             $("#fac-installments-section").append(row);
         }
 
-        // Show installment section
         elements.installmentSection.show();
-
-        toastr.success("Installments added successfully");
+        toastr.success(`${noOfInstallments} installments added successfully`);
     }
 
-    /**
-     * Create installment row HTML
-     */
+    function validateInstallmentPrerequisites() {
+        const required = [
+            { selector: "#cede_premium", label: "cedant premium" },
+            { selector: "#fac_share_offered", label: "share offered" },
+            { selector: "#comm_rate", label: "commission rate" },
+        ];
+
+        for (const item of required) {
+            const value = parseNumber($(item.selector).val());
+            if (!value || value <= 0) {
+                toastr.error(`Please enter ${item.label}`);
+                $(item.selector).focus();
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     function createInstallmentRow(index, amount) {
         return `
             <div class="row g-3 mb-3 installment-row" data-count="${index}">
@@ -605,16 +915,15 @@ const CoverRegistration = (function () {
                            id="instl_no_${index}" class="form-control" readonly>
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label">Due Date</label>
+                    <label class="form-label required">Due Date</label>
                     <input type="date" name="installment_date[]"
                            id="instl_date_${index}" class="form-control" required>
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label">Amount</label>
+                    <label class="form-label required">Amount</label>
                     <input type="text" name="installment_amt[]"
-                           id="instl_amnt_${index}" value="${numberWithCommas(
-            amount
-        )}"
+                           id="instl_amnt_${index}"
+                           value="${numberWithCommas(amount)}"
                            class="form-control amount" required>
                 </div>
                 <div class="col-md-3">
@@ -627,25 +936,30 @@ const CoverRegistration = (function () {
         `;
     }
 
-    /**
-     * Remove installment
-     */
     function removeInstallment() {
-        const currentCount = parseInt($("#no_of_installments").val());
+        const $row = $(this).closest(".installment-row");
+        const currentCount = $(".installment-row").length;
 
-        if (currentCount > 1) {
-            $("#no_of_installments").val(currentCount - 1);
-            $(this).closest(".installment-row").remove();
-        } else {
+        if (currentCount === 1) {
             $("#no_of_installments").val("");
             elements.installmentSection.hide();
-            $(this).closest(".installment-row").remove();
+        } else {
+            $("#no_of_installments").val(currentCount - 1);
         }
+
+        $row.remove();
+        renumberInstallments();
     }
 
-    /**
-     * Validate installments
-     */
+    function renumberInstallments() {
+        $(".installment-row").each(function (index) {
+            const newIndex = index + 1;
+            $(this).attr("data-count", newIndex);
+            $(this).find('input[name="installment_no[]"]').val(newIndex);
+            $(this).find("input[readonly]").val(`Installment No. ${newIndex}`);
+        });
+    }
+
     function validateInstallments() {
         if ($("#fac-installments-section").is(":empty")) {
             toastr.error("Please add installment details");
@@ -658,21 +972,36 @@ const CoverRegistration = (function () {
         if (!areDecimalsEqual(expectedAmount, totalInstallments, 0.5)) {
             toastr.error(
                 `Total installment amount (${numberWithCommas(
-                    totalInstallments.toFixed(2)
-                )}) does not match expected amount (${numberWithCommas(
-                    expectedAmount.toFixed(2)
-                )})`
+                    totalInstallments
+                )}) ` +
+                    `does not match expected amount (${numberWithCommas(
+                        expectedAmount
+                    )})`
             );
             return false;
         }
 
-        // Validate each installment has a date
+        // Validate all dates are filled
         let hasEmptyDate = false;
+        let hasDuplicateDate = false;
+        const dates = [];
+
         $(".installment-row").each(function () {
             const dateInput = $(this).find('input[name="installment_date[]"]');
-            if (!dateInput.val()) {
+            const dateValue = dateInput.val();
+
+            if (!dateValue) {
                 hasEmptyDate = true;
                 dateInput.addClass("is-invalid");
+            } else {
+                dateInput.removeClass("is-invalid");
+
+                // Check for duplicate dates
+                if (dates.includes(dateValue)) {
+                    hasDuplicateDate = true;
+                    dateInput.addClass("is-invalid");
+                }
+                dates.push(dateValue);
             }
         });
 
@@ -681,30 +1010,31 @@ const CoverRegistration = (function () {
             return false;
         }
 
+        if (hasDuplicateDate) {
+            toastr.error("Installment dates must be unique");
+            return false;
+        }
+
         return true;
     }
 
-    /**
-     * Calculate total installments
-     */
     function calculateTotalInstallments() {
         let total = 0;
         $('input[name="installment_amt[]"]').each(function () {
-            const value = parseFloat(removeCommas($(this).val()));
-            if (!isNaN(value)) {
-                total += value;
-            }
+            const value = parseNumber($(this).val());
+            total += value;
         });
         return total;
     }
 
-    /**
-     * Compute installment amount
-     */
     function computeInstallmentAmount() {
         const shareOffered = parseNumber($("#fac_share_offered").val());
         const rate = parseNumber($("#comm_rate").val());
         const cedantPremium = parseNumber($("#cede_premium").val());
+
+        if (!shareOffered || !cedantPremium) {
+            return 0;
+        }
 
         const totalDr = (shareOffered / 100) * cedantPremium;
         const totalCr = (rate / 100) * totalDr;
@@ -712,54 +1042,62 @@ const CoverRegistration = (function () {
         return (totalDr - totalCr).toFixed(2);
     }
 
-    /**
-     * Calculate cedant commission
-     */
+    // ==================== Commission Calculations ====================
+
     function calculateCedantCommission() {
         const rate = parseNumber($(this).val());
         const cedePremium = parseNumber($("#cede_premium").val());
 
+        if (!validateNumericInput(rate, 0, 100)) {
+            toastr.error("Commission rate must be between 0 and 100%");
+            $(this).val("");
+            return;
+        }
+
         const commAmount = (rate / 100) * cedePremium;
-        $("#comm_amt").val(numberWithCommas(commAmount.toFixed(2)));
+        $("#comm_amt").val(numberWithCommas(commAmount));
 
         calculateBrokerageCommission();
     }
 
-    /**
-     * Calculate reinsurer commission
-     */
     function calculateReinsurerCommission() {
         const rate = parseNumber($(this).val());
         const reinPremium = parseNumber($("#rein_premium").val());
 
+        if (!validateNumericInput(rate, 0, 100)) {
+            toastr.error("Commission rate must be between 0 and 100%");
+            $(this).val("");
+            return;
+        }
+
         const commAmount = (rate / 100) * reinPremium;
-        $("#reins_comm_amt").val(numberWithCommas(commAmount.toFixed(2)));
+        $("#reins_comm_amt").val(numberWithCommas(commAmount));
 
         calculateBrokerageCommission();
     }
 
-    /**
-     * Handle cedant premium change
-     */
     function handleCedantPremiumChange() {
+        const value = $(this).val();
+
         $("#comm_rate").trigger("keyup");
-        $("#rein_premium").val($(this).val());
+        $("#rein_premium").val(value);
     }
 
-    /**
-     * Handle reinsurer commission type change
-     */
     function handleReinsurerCommTypeChange() {
         const commType = $(this).val();
 
         if (commType === "R") {
             $(".reins-comm-rate-field").show();
-            $("#reins_comm_rate").prop("disabled", false);
-            $("#reins_comm_amt").prop("readonly", true);
-        } else {
+            $("#reins_comm_rate")
+                .prop("disabled", false)
+                .prop("required", true);
+            $("#reins_comm_amt").prop("readonly", true).prop("required", false);
+        } else if (commType === "A") {
             $(".reins-comm-rate-field").hide();
-            $("#reins_comm_rate").prop("disabled", true);
-            $("#reins_comm_amt").prop("readonly", false);
+            $("#reins_comm_rate")
+                .prop("disabled", true)
+                .prop("required", false);
+            $("#reins_comm_amt").prop("readonly", false).prop("required", true);
         }
 
         if (config.resetableTransTypes.includes(config.trans_type)) {
@@ -767,23 +1105,17 @@ const CoverRegistration = (function () {
         }
     }
 
-    /**
-     * Handle brokerage commission type change
-     */
     function handleBrokerageCommTypeChange() {
         const brokerageCommType = $(this).val();
 
-        $(".brokerage-amount-field").hide();
-        $(".brokerage-rate-field").hide();
-        $(".brokerage-rate-amount-field").hide();
-
+        $(
+            ".brokerage-amount-field, .brokerage-rate-field, .brokerage-rate-amount-field"
+        ).hide();
         $("#brokerage_comm_amt").prop("disabled", true);
-        $("#brokerage_comm_rate").val("");
-        $("#brokerage_comm_rate_amnt").val("");
+        $("#brokerage_comm_rate, #brokerage_comm_rate_amnt").val("");
 
         if (brokerageCommType === "R") {
-            $(".brokerage-rate-field").show();
-            $(".brokerage-rate-amount-field").show();
+            $(".brokerage-rate-field, .brokerage-rate-amount-field").show();
             calculateBrokerageCommission();
         } else if (brokerageCommType === "A") {
             $(".brokerage-amount-field").show();
@@ -791,9 +1123,6 @@ const CoverRegistration = (function () {
         }
     }
 
-    /**
-     * Calculate brokerage commission
-     */
     function calculateBrokerageCommission() {
         const brokerageCommType = $("#brokerage_comm_type").val();
 
@@ -801,44 +1130,43 @@ const CoverRegistration = (function () {
 
         const cedantCommRate = parseNumber($("#comm_rate").val());
         const reinCommRate = parseNumber($("#reins_comm_rate").val());
-        const reinCommAmt = parseNumber($("#reins_comm_amt").val());
+        const reinPremium = parseNumber($("#rein_premium").val());
 
         const brokerageCommRate = Math.max(0, reinCommRate - cedantCommRate);
-        const brokerageCommAmt = (brokerageCommRate / 100) * reinCommAmt;
+        const brokerageCommAmt = (brokerageCommRate / 100) * reinPremium;
 
-        $("#brokerage_comm_rate").val(
-            numberWithCommas(brokerageCommRate.toFixed(2))
-        );
-        $("#brokerage_comm_rate_amnt").val(
-            numberWithCommas(brokerageCommAmt.toFixed(2))
-        );
+        $("#brokerage_comm_rate").val(numberWithCommas(brokerageCommRate));
+        $("#brokerage_comm_rate_amnt").val(numberWithCommas(brokerageCommAmt));
     }
 
-    /**
-     * Calculate EML
-     */
+    // ==================== EML Calculations ====================
+
     function calculateEml() {
         const emlRate = parseNumber($("#eml_rate").val());
         const totalSumInsured = parseNumber($("#total_sum_insured").val());
 
         if (!emlRate || !totalSumInsured) {
-            $("#effective_sum_insured").val(
-                numberWithCommas(totalSumInsured.toFixed(2))
-            );
+            $("#effective_sum_insured").val(numberWithCommas(totalSumInsured));
+            return;
+        }
+
+        if (!validateNumericInput(emlRate, 0, 100)) {
+            toastr.error("EML rate must be between 0 and 100%");
+            $("#eml_rate").val("");
             return;
         }
 
         const emlAmt = totalSumInsured * (emlRate / 100);
 
-        $("#eml_amt").val(numberWithCommas(emlAmt.toFixed(2)));
-        $("#effective_sum_insured").val(numberWithCommas(emlAmt.toFixed(2)));
+        $("#eml_amt").val(numberWithCommas(emlAmt));
+        $("#effective_sum_insured").val(numberWithCommas(emlAmt));
     }
 
-    /**
-     * Calculate quota retention
-     */
+    // ==================== Quota & Surplus Calculations ====================
+
     function calculateQuotaRetention() {
-        const row = $(this).closest("[data-counter]");
+        const $input = $(this);
+        const row = $input.closest("[data-counter]");
         const counter = row.data("counter");
 
         const retentionPer = parseNumber($(`#retention_per-${counter}`).val());
@@ -848,24 +1176,30 @@ const CoverRegistration = (function () {
 
         if (!retentionPer || !quotaLimit) return;
 
+        if (!validateNumericInput(retentionPer, 0, 100)) {
+            toastr.error("Retention percentage must be between 0 and 100%");
+            $(`#retention_per-${counter}`).val("");
+            return;
+        }
+
         const treatyPer = 100 - retentionPer;
         const retentionAmt = (retentionPer / 100) * quotaLimit;
         const treatyLimit = (treatyPer / 100) * quotaLimit;
 
-        $(`#treaty_reice-${counter}`).val(treatyPer);
+        $(`#treaty_reice-${counter}`).val(treatyPer.toFixed(2));
         $(`#quota_retention_amt-${counter}`).val(
-            numberWithCommas(retentionAmt.toFixed(2))
+            numberWithCommas(retentionAmt)
         );
-        $(`#quota_treaty_limit-${counter}`).val(
-            numberWithCommas(treatyLimit.toFixed(2))
-        );
+        $(`#quota_treaty_limit-${counter}`).val(numberWithCommas(treatyLimit));
+
+        // Auto-calculate surplus if present
+        $(`#surp_retention_amt-${counter}`).val(numberWithCommas(retentionAmt));
+        $(`#no_of_lines-${counter}`).trigger("keyup");
     }
 
-    /**
-     * Calculate surplus limit
-     */
     function calculateSurplusLimit() {
-        const row = $(this).closest("[data-counter]");
+        const $input = $(this);
+        const row = $input.closest("[data-counter]");
         const counter = row.data("counter");
 
         const lines = parseNumber($(`#no_of_lines-${counter}`).val());
@@ -875,29 +1209,1021 @@ const CoverRegistration = (function () {
 
         if (!lines || !retention) return;
 
+        if (lines < 1 || lines > 100) {
+            toastr.error("Number of lines must be between 1 and 100");
+            $(`#no_of_lines-${counter}`).val("");
+            return;
+        }
+
         const treatyLimit = lines * retention;
-        $(`#surp_treaty_limit-${counter}`).val(
-            numberWithCommas(treatyLimit.toFixed(2))
-        );
+        $(`#surp_treaty_limit-${counter}`).val(numberWithCommas(treatyLimit));
     }
 
-    /**
-     * Load treaty types based on business type
-     */
+    // ==================== Commission Type Handlers ====================
+
+    function handleCommissionTypeChange() {
+        const $select = $(this);
+        const $parent = $select.closest(".comm-sections");
+        const selectedType = $select.val();
+
+        $parent
+            .find(".flat_rate_div, .provincial_comm_div, .sliding_scale_div")
+            .hide();
+        $parent.find(".prem_type_comm_rate").prop("required", false);
+
+        switch (selectedType) {
+            case "FLAT":
+                $parent.find(".flat_rate_div").show();
+                $parent.find(".prem_type_comm_rate").prop("required", true);
+                break;
+            case "SLIDING":
+                $parent.find(".sliding_scale_div").show();
+                break;
+        }
+    }
+
+    // ==================== Sliding Scale Management ====================
+
+    function handleSlidingScaleConfig() {
+        const classCounter = $(this).data("class-counter");
+        const counter = $(this).data("counter");
+        config.currentModalTarget = `#sliding_scale_data-${classCounter}-${counter}`;
+
+        const existingData = $(config.currentModalTarget).val();
+
+        if (existingData && existingData !== "[]" && existingData !== "") {
+            try {
+                const data = JSON.parse(existingData);
+                loadSlidingScaleData(data);
+            } catch (e) {
+                console.error("Error parsing sliding scale data:", e);
+                resetSlidingScaleTable();
+            }
+        } else {
+            resetSlidingScaleTable();
+        }
+
+        $("#slidingScaleModal").modal("show");
+    }
+
+    function loadSlidingScaleData(data) {
+        resetSlidingScaleTable();
+
+        if (Array.isArray(data) && data.length > 0) {
+            $("#sliding-scale-rows").empty();
+            data.forEach((tier) => addSlidingScaleTier(tier));
+        }
+    }
+
+    function resetSlidingScaleTable() {
+        $("#sliding-scale-rows").html(`
+            <tr class="sliding-scale-row">
+                <td>
+                    <input type="number" class="form-control loss-ratio-min"
+                           min="0" max="100" step="0.01" placeholder="0.00" required>
+                </td>
+                <td>
+                    <input type="number" class="form-control loss-ratio-max"
+                           min="0" max="100" step="0.01" placeholder="100.00" required>
+                </td>
+                <td>
+                    <input type="number" class="form-control commission-rate"
+                           min="0" max="100" step="0.01" placeholder="0.00" required>
+                </td>
+                <td>
+                    <button type="button" class="btn btn-danger btn-sm remove-scale-row">
+                        <i class="bx bx-trash"></i>
+                    </button>
+                </td>
+            </tr>
+        `);
+    }
+
+    function addSlidingScaleTier(data = null) {
+        const minVal = data ? parseNumber(data.loss_ratio_min) : "";
+        const maxVal = data ? parseNumber(data.loss_ratio_max) : "";
+        const commVal = data ? parseNumber(data.commission_rate) : "";
+
+        const html = `
+            <tr class="sliding-scale-row">
+                <td>
+                    <input type="number" class="form-control loss-ratio-min"
+                           min="0" max="100" step="0.01" value="${minVal}" placeholder="0.00" required>
+                </td>
+                <td>
+                    <input type="number" class="form-control loss-ratio-max"
+                           min="0" max="100" step="0.01" value="${maxVal}" placeholder="100.00" required>
+                </td>
+                <td>
+                    <input type="number" class="form-control commission-rate"
+                           min="0" max="100" step="0.01" value="${commVal}" placeholder="0.00" required>
+                </td>
+                <td>
+                    <button type="button" class="btn btn-danger btn-sm remove-scale-row">
+                        <i class="bx bx-trash"></i>
+                    </button>
+                </td>
+            </tr>
+        `;
+
+        $("#sliding-scale-rows").append(html);
+    }
+
+    function removeSlidingScaleTier() {
+        const rowCount = $("#sliding-scale-rows .sliding-scale-row").length;
+
+        if (rowCount > 1) {
+            $(this).closest("tr").remove();
+        } else {
+            toastr.warning("You must have at least one tier.");
+        }
+    }
+
+    function saveSlidingScale() {
+        const tiers = [];
+        let isValid = true;
+
+        $("#sliding-scale-rows .sliding-scale-row").each(function () {
+            const minRatio = parseFloat($(this).find(".loss-ratio-min").val());
+            const maxRatio = parseFloat($(this).find(".loss-ratio-max").val());
+            const commRate = parseFloat($(this).find(".commission-rate").val());
+
+            // Validate individual fields
+            if (isNaN(minRatio) || isNaN(maxRatio) || isNaN(commRate)) {
+                toastr.error("All fields must be filled with valid numbers.");
+                isValid = false;
+                return false;
+            }
+
+            if (
+                minRatio < 0 ||
+                minRatio > 100 ||
+                maxRatio < 0 ||
+                maxRatio > 100 ||
+                commRate < 0 ||
+                commRate > 100
+            ) {
+                toastr.error("All values must be between 0 and 100.");
+                isValid = false;
+                return false;
+            }
+
+            if (minRatio >= maxRatio) {
+                toastr.error(
+                    "Loss Ratio Min must be less than Loss Ratio Max."
+                );
+                isValid = false;
+                return false;
+            }
+
+            tiers.push({
+                loss_ratio_min: minRatio,
+                loss_ratio_max: maxRatio,
+                commission_rate: commRate,
+            });
+        });
+
+        if (!isValid || tiers.length === 0) return;
+
+        // Sort tiers and validate no overlaps
+        tiers.sort((a, b) => a.loss_ratio_min - b.loss_ratio_min);
+
+        for (let i = 0; i < tiers.length - 1; i++) {
+            if (tiers[i].loss_ratio_max > tiers[i + 1].loss_ratio_min) {
+                toastr.error("Loss ratio ranges cannot overlap.");
+                return;
+            }
+        }
+
+        // Validate complete coverage (0-100%)
+        if (tiers[0].loss_ratio_min !== 0) {
+            toastr.error("Sliding scale must start from 0%.");
+            return;
+        }
+
+        if (tiers[tiers.length - 1].loss_ratio_max !== 100) {
+            toastr.error("Sliding scale must end at 100%.");
+            return;
+        }
+
+        // Save to hidden input
+        $(config.currentModalTarget).val(JSON.stringify(tiers));
+
+        // Update button text
+        const $btn = $(config.currentModalTarget)
+            .closest(".sliding_scale_div")
+            .find(".configure-sliding-btn");
+        $btn.html(
+            `<i class="bx bx-trending-up me-1"></i> Edit Scale (${tiers.length} tiers)`
+        );
+
+        // Create preview
+        createSlidingScalePreview(config.currentModalTarget, tiers);
+
+        $("#slidingScaleModal").modal("hide");
+        toastr.success("Sliding scale saved successfully!");
+    }
+
+    function createSlidingScalePreview(targetId, tiers) {
+        const $parent = $(targetId).closest(".comm-sections");
+        $parent.find(".sliding-preview").remove();
+
+        let html =
+            '<div class="alert alert-success alert-sm mt-2 sliding-preview">';
+        html += "<strong>Sliding Scale Tiers:</strong> ";
+
+        tiers.forEach((tier) => {
+            html += `<span class="badge bg-success me-1">
+                ${tier.loss_ratio_min.toFixed(2)}-${tier.loss_ratio_max.toFixed(
+                2
+            )}%:
+                ${tier.commission_rate.toFixed(2)}%
+            </span>`;
+        });
+
+        html += "</div>";
+        $parent.append(html);
+    }
+
+    function loadSlidingTemplate() {
+        const template = $(this).data("template");
+
+        const templates = {
+            standard: [
+                { loss_ratio_min: 0, loss_ratio_max: 40, commission_rate: 25 },
+                { loss_ratio_min: 40, loss_ratio_max: 70, commission_rate: 20 },
+                {
+                    loss_ratio_min: 70,
+                    loss_ratio_max: 100,
+                    commission_rate: 15,
+                },
+            ],
+            aggressive: [
+                { loss_ratio_min: 0, loss_ratio_max: 30, commission_rate: 30 },
+                { loss_ratio_min: 30, loss_ratio_max: 50, commission_rate: 25 },
+                { loss_ratio_min: 50, loss_ratio_max: 65, commission_rate: 20 },
+                { loss_ratio_min: 65, loss_ratio_max: 80, commission_rate: 15 },
+                {
+                    loss_ratio_min: 80,
+                    loss_ratio_max: 100,
+                    commission_rate: 10,
+                },
+            ],
+        };
+
+        const tiers = templates[template];
+
+        if (tiers) {
+            resetSlidingScaleTable();
+            $("#sliding-scale-rows").empty();
+            tiers.forEach((tier) => addSlidingScaleTier(tier));
+            toastr.success(
+                `${
+                    template.charAt(0).toUpperCase() + template.slice(1)
+                } template loaded!`
+            );
+        }
+    }
+
+    function handleSlidingCSVImport(e) {
+        const file = e.target.files[0];
+
+        if (!file) return;
+
+        if (!file.name.endsWith(".csv")) {
+            toastr.error("Please select a CSV file");
+            return;
+        }
+
+        if (file.size > 1048576) {
+            // 1MB limit
+            toastr.error("File size must be less than 1MB");
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = function (e) {
+            try {
+                const csv = e.target.result;
+                parseSlidingScaleCSV(csv);
+            } catch (error) {
+                console.error("CSV parsing error:", error);
+                toastr.error("Failed to parse CSV file");
+            }
+        };
+        reader.onerror = function () {
+            toastr.error("Failed to read file");
+        };
+        reader.readAsText(file);
+    }
+
+    function parseSlidingScaleCSV(csv) {
+        const lines = csv.split("\n").filter((line) => line.trim() !== "");
+
+        resetSlidingScaleTable();
+        $("#sliding-scale-rows").empty();
+
+        let imported = 0;
+        const errors = [];
+
+        // Skip header if present
+        const startIndex =
+            lines[0].toLowerCase().includes("loss") ||
+            lines[0].toLowerCase().includes("ratio")
+                ? 1
+                : 0;
+
+        for (let i = startIndex; i < lines.length; i++) {
+            const parts = lines[i].split(",").map((p) => p.trim());
+
+            if (parts.length < 3) {
+                errors.push(`Line ${i + 1}: Insufficient columns`);
+                continue;
+            }
+
+            const minRatio = parseFloat(parts[0]);
+            const maxRatio = parseFloat(parts[1]);
+            const commRate = parseFloat(parts[2]);
+
+            if (isNaN(minRatio) || isNaN(maxRatio) || isNaN(commRate)) {
+                errors.push(`Line ${i + 1}: Invalid numeric values`);
+                continue;
+            }
+
+            if (
+                minRatio < 0 ||
+                minRatio > 100 ||
+                maxRatio < 0 ||
+                maxRatio > 100 ||
+                commRate < 0 ||
+                commRate > 100
+            ) {
+                errors.push(`Line ${i + 1}: Values must be between 0 and 100`);
+                continue;
+            }
+
+            if (minRatio >= maxRatio) {
+                errors.push(`Line ${i + 1}: Min must be less than Max`);
+                continue;
+            }
+
+            addSlidingScaleTier({
+                loss_ratio_min: minRatio,
+                loss_ratio_max: maxRatio,
+                commission_rate: commRate,
+            });
+            imported++;
+        }
+
+        if (errors.length > 0) {
+            console.warn("CSV import errors:", errors);
+        }
+
+        if (imported > 0) {
+            toastr.success(`Imported ${imported} sliding scale tier(s)!`);
+        } else {
+            toastr.error("No valid data found in CSV file.");
+        }
+
+        // Reset file input
+        $("#sliding-csv-file").val("");
+    }
+
+    // ==================== Treaty Type & Method ====================
+
+    function handleTreatyTypeChange() {
+        const treatyType = $(this).val();
+        const treatyTypeTxt = $(this).find("option:selected").text();
+
+        // Hide all sections first
+        $(".quota_header_div, .surp_header_div").hide();
+        $(
+            ".quota_share_total_limit_div, .retention_per_div, .treaty_reice_div"
+        ).hide();
+        $(".quota_retention_amt_div, .quota_treaty_limit_div").hide();
+        $(
+            ".no_of_lines_div, .surp_retention_amt_div, .surp_treaty_limit_div"
+        ).hide();
+        $("#reinsurer_per_treaty_section").hide();
+        $(".quota-share-section, .surplus-section").hide();
+
+        // Update first premium type treaty dropdown
+        $(`#prem_type_treaty-0-0`)
+            .empty()
+            .append($("<option>").text(treatyTypeTxt).attr("value", treatyType))
+            .trigger("change");
+
+        // Show appropriate sections based on treaty type
+        const sectionMap = {
+            QUOT: () => {
+                $(".quota-share-section").show();
+                $(".quota_header_div").show();
+                $(
+                    ".quota_share_total_limit_div, .retention_per_div, .treaty_reice_div"
+                ).show();
+                $(".quota_retention_amt_div, .quota_treaty_limit_div").show();
+            },
+            SURP: () => {
+                $(".surplus-section").show();
+                $(".surp_header_div").show();
+                $(
+                    ".no_of_lines_div, .surp_retention_amt_div, .surp_treaty_limit_div"
+                ).show();
+            },
+            SPQT: () => {
+                $(".quota-share-section, .surplus-section").show();
+                $(".quota_header_div, .surp_header_div").show();
+                $(
+                    ".quota_share_total_limit_div, .retention_per_div, .treaty_reice_div"
+                ).show();
+                $(".quota_retention_amt_div, .quota_treaty_limit_div").show();
+                $(
+                    ".no_of_lines_div, .surp_retention_amt_div, .surp_treaty_limit_div"
+                ).show();
+                $("#reinsurer_per_treaty_section").show();
+            },
+        };
+
+        const showSections = sectionMap[treatyType];
+        if (showSections) {
+            showSections();
+        }
+    }
+
+    function handleMethodChange() {
+        const method = $(this).val();
+
+        $(".burning_rate_div, .flat_rate_div").hide();
+        $(".burning_rate, .flat_rate").prop("disabled", true).val("");
+
+        if (method === "B") {
+            $(".burning_rate_div").show();
+            $(".burning_rate").prop("disabled", false).prop("required", true);
+        } else if (method === "F") {
+            $(".flat_rate_div").show();
+            $(".flat_rate").prop("disabled", false).prop("required", true);
+        }
+    }
+
+    // ==================== Reinsurance Classes ====================
+
+    function handleReinclassChange() {
+        const $select = $(this);
+        const counter = $select.data("counter");
+        const reinclass = $select.val();
+        const treatyType = $("#treatytype").val();
+
+        if (!treatyType) {
+            toastr.error("Please select treaty type first");
+            $select.val("");
+            return false;
+        }
+
+        if (!reinclass) {
+            return;
+        }
+
+        // Update hidden reinclass field
+        $(`#prem_type_reinclass-${counter}-0`).val(reinclass);
+        $(`#prem_type_code-${counter}-0`).attr("data-reinclass", reinclass);
+        $(`#prem_type_treaty-${counter}-0`).trigger("change");
+
+        loadPremTypesData(treatyType, counter, reinclass);
+    }
+
+    function addReinClass() {
+        const lastSection = $(".reinclass-section").last();
+        const prevCounter = parseInt(lastSection.attr("data-counter"));
+
+        // Validate previous section
+        const reinClassVal = $(`#treaty_reinclass-${prevCounter}`).val();
+        if (!reinClassVal) {
+            const sectionLabel = String.fromCharCode(65 + prevCounter);
+            toastr.error(
+                `Please select reinsurance class in Section ${sectionLabel}`
+            );
+            return false;
+        }
+
+        // Check max sections
+        const currentSections = $(".reinclass-section").length;
+        if (currentSections >= config.maxReinClasses) {
+            toastr.error(
+                `Maximum ${config.maxReinClasses} reinsurance classes allowed`
+            );
+            return false;
+        }
+
+        const counter = prevCounter + 1;
+        const newSection = lastSection.clone(true, false);
+
+        // Update section attributes
+        newSection.attr("id", `reinclass-section-${counter}`);
+        newSection.attr("data-counter", counter);
+
+        // Remove select2 containers
+        newSection.find(".select2-container").remove();
+
+        // Update section label
+        const sectionLabel = String.fromCharCode(65 + counter);
+        newSection.find(".section-title").text(`Section ${sectionLabel}`);
+
+        // Clear values
+        newSection.find('input[type="text"], input[type="number"]').val("");
+        newSection.find("select").val("").prop("selectedIndex", 0);
+
+        // Update IDs and data attributes
+        updateSectionIds(newSection, counter);
+
+        // Keep only first commission section
+        newSection.find(".comm-sections").slice(1).remove();
+
+        // Add remove button if not present
+        if (!newSection.find(".remove-rein-class").length) {
+            newSection.find(".section-title").parent().append(`
+                <button type="button" class="btn btn-danger btn-sm remove-rein-class">
+                    <i class="bx bx-trash me-1"></i> Remove Section
+                </button>
+            `);
+        }
+
+        lastSection.after(newSection);
+
+        // Reinitialize select2
+        newSection.find(".select2").select2({
+            width: "100%",
+            theme: "bootstrap-5",
+        });
+
+        toastr.success(`Section ${sectionLabel} added`);
+    }
+
+    function removeReinClass() {
+        const $section = $(this).closest(".reinclass-section");
+        const counter = $section.data("counter");
+        const sectionLabel = String.fromCharCode(65 + counter);
+
+        Swal.fire({
+            title: "Remove Section?",
+            text: `Are you sure you want to remove Section ${sectionLabel}?`,
+            icon: "warning",
+            showCancelButton: true,
+            confirmButtonText: "Yes, remove it",
+            cancelButtonText: "Cancel",
+        }).then((result) => {
+            if (result.isConfirmed) {
+                $section.remove();
+                renumberReinclassSections();
+                toastr.success(`Section ${sectionLabel} removed`);
+            }
+        });
+    }
+
+    function renumberReinclassSections() {
+        $(".reinclass-section").each(function (index) {
+            const sectionLabel = String.fromCharCode(65 + index);
+            $(this).attr("data-counter", index);
+            $(this).find(".section-title").text(`Section ${sectionLabel}`);
+
+            // Update all IDs and data attributes in this section
+            updateSectionIds($(this), index);
+        });
+    }
+
+    function updateSectionIds($section, counter) {
+        $section
+            .find("[id], [data-counter], [data-class-counter]")
+            .each(function () {
+                const $el = $(this);
+
+                // Update ID
+                const id = $el.attr("id");
+                if (id) {
+                    const newId = id.replace(/-\d+-/, `-${counter}-`);
+                    $el.attr("id", newId);
+                }
+
+                // Update data-counter
+                if ($el.attr("data-counter") !== undefined) {
+                    $el.attr("data-counter", counter);
+                }
+
+                // Update data-class-counter
+                if ($el.attr("data-class-counter") !== undefined) {
+                    $el.attr("data-class-counter", counter);
+                }
+            });
+    }
+
+    // ==================== Commission Sections ====================
+
+    function addCommissionSection() {
+        const classCounter = $(this).data("counter");
+        const $commContainer = $(`#comm-section-${classCounter}`);
+        const lastCommSection = $commContainer.find(".comm-sections:last");
+        const prevCounter = lastCommSection.data("counter") || 0;
+        const counter = prevCounter + 1;
+
+        // Validate previous section
+        const reinclass = $(`#treaty_reinclass-${classCounter}`).val();
+        const prevPremType = $(
+            `#prem_type_code-${classCounter}-${prevCounter}`
+        ).val();
+        const prevCommRate = $(
+            `#prem_type_comm_rate-${classCounter}-${prevCounter}`
+        ).val();
+
+        if (!reinclass) {
+            toastr.error("Please select reinsurance class");
+            return false;
+        }
+
+        if (!prevPremType) {
+            toastr.error(
+                "Please select premium type in previous commission section"
+            );
+            return false;
+        }
+
+        if (
+            !prevCommRate &&
+            $(`#commission_type-${classCounter}-${prevCounter}`).val() ===
+                "FLAT"
+        ) {
+            toastr.error("Please enter commission rate in previous section");
+            return false;
+        }
+
+        const newSection = createCommissionSection(classCounter, counter);
+        $commContainer.append(newSection);
+
+        // Initialize select2 on new section
+        $(
+            `#prem_type_treaty-${classCounter}-${counter}, #prem_type_code-${classCounter}-${counter}, #commission_type-${classCounter}-${counter}`
+        ).select2({
+            width: "100%",
+            theme: "bootstrap-5",
+        });
+
+        // Trigger change to load premium types
+        $(`#prem_type_treaty-${classCounter}-${counter}`).trigger("change");
+
+        toastr.success("Commission section added");
+    }
+
+    function createCommissionSection(classCounter, premCounter) {
+        return `
+            <div class="comm-sections"
+                 id="comm-section-${classCounter}-${premCounter}"
+                 data-class-counter="${classCounter}"
+                 data-counter="${premCounter}">
+                <div class="row g-3 align-items-end mb-2">
+                    <div class="col-md-3 prem_type_treaty_div">
+                        <label class="form-label required">Treaty</label>
+                        <select class="form-control select2 prem_type_treaty"
+                                name="prem_type_treaty[]"
+                                id="prem_type_treaty-${classCounter}-${premCounter}"
+                                data-class-counter="${classCounter}"
+                                data-counter="${premCounter}"
+                                required>
+                            <option value="">Select Treaty</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-3 prem_type_code_div">
+                        <label class="form-label required">Premium Type</label>
+                        <input type="hidden"
+                               class="prem_type_reinclass"
+                               id="prem_type_reinclass-${classCounter}-${premCounter}"
+                               name="prem_type_reinclass[]">
+                        <select class="form-control select2 prem_type_code"
+                                name="prem_type_code[]"
+                                id="prem_type_code-${classCounter}-${premCounter}"
+                                data-class-counter="${classCounter}"
+                                data-counter="${premCounter}"
+                                required>
+                            <option value="">Select Premium Type</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-2 comm_type_div">
+                        <label class="form-label required">Commission Type</label>
+                        <select class="form-control select2 commission_type"
+                                name="commission_type[]"
+                                id="commission_type-${classCounter}-${premCounter}"
+                                data-class-counter="${classCounter}"
+                                data-counter="${premCounter}"
+                                required>
+                            <option value="">Select Type</option>
+                            <option value="FLAT">Flat Rate</option>
+                            <option value="SLIDING">Sliding Scale</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-3 flat_rate_div">
+                        <label class="form-label">Commission (%)</label>
+                        <div class="input-group">
+                            <input type="text"
+                                   class="form-control prem_type_comm_rate"
+                                   name="prem_type_comm_rate[]"
+                                   id="prem_type_comm_rate-${classCounter}-${premCounter}"
+                                   placeholder="0.00">
+                            <button class="btn btn-danger remove-comm-section" type="button">
+                                <i class="bx bx-minus"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="col-md-3 sliding_scale_div" style="display: none;">
+                        <label class="form-label">Sliding Scale</label>
+                        <div class="input-group">
+                            <button type="button"
+                                    class="btn btn-outline-secondary btn-block configure-sliding-btn"
+                                    data-class-counter="${classCounter}"
+                                    data-counter="${premCounter}">
+                                <i class="bx bx-trending-up me-1"></i> Configure
+                            </button>
+                            <button class="btn btn-danger remove-comm-section" type="button">
+                                <i class="bx bx-minus"></i>
+                            </button>
+                        </div>
+                        <input type="hidden"
+                               class="sliding_scale_data"
+                               name="sliding_scale_data[]"
+                               id="sliding_scale_data-${classCounter}-${premCounter}">
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    function removeCommissionSection() {
+        const $section = $(this).closest(".comm-sections");
+        const $container = $section.closest("[id^='comm-section-']");
+
+        const remainingSections = $container.find(".comm-sections").length;
+
+        if (remainingSections <= 1) {
+            toastr.warning("Cannot remove the last commission section");
+            return;
+        }
+
+        $section.remove();
+        toastr.success("Commission section removed");
+    }
+
+    // ==================== Layer Management ====================
+
+    function addLayer() {
+        const $layerContainer = $("#layer-section");
+        const lastLayer = $layerContainer.find(".layer-sections:last");
+        const prevCounter = lastLayer.length
+            ? parseInt(lastLayer.data("counter"))
+            : -1;
+        const counter = prevCounter + 1;
+
+        // Check max layers
+        const currentLayers = $layerContainer.find(".layer-sections").length;
+        if (currentLayers >= config.maxLayers) {
+            toastr.error(`Maximum ${config.maxLayers} layers allowed`);
+            return false;
+        }
+
+        const newLayer = createLayerSection(counter);
+        $layerContainer.append(newLayer);
+
+        // Initialize select2
+        $(
+            `#limit_per_reinclass-${counter}-0, #reinstatement_type-${counter}-0`
+        ).select2({
+            width: "100%",
+            theme: "bootstrap-5",
+        });
+
+        toastr.success(`Layer ${counter + 1} added successfully`);
+    }
+
+    function createLayerSection(counter) {
+        return `
+            <div class="layer-sections" id="layer-section-${counter}" data-counter="${counter}">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h6 class="mb-0">Layer ${counter + 1}</h6>
+                    ${
+                        counter > 0
+                            ? `
+                        <button type="button" class="btn btn-danger btn-sm remove-layer-section">
+                            <i class="bx bx-trash me-1"></i> Remove Layer
+                        </button>
+                    `
+                            : ""
+                    }
+                </div>
+
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <label class="form-label required">Capture Limits per Class?</label>
+                        <select class="form-control select2 limit_per_reinclass"
+                                name="limit_per_reinclass[]"
+                                id="limit_per_reinclass-${counter}-0"
+                                required>
+                            <option value="">Select Option</option>
+                            <option value="N" selected>No</option>
+                            <option value="Y">Yes</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="row g-3 mt-2">
+                    <div class="col-md-2">
+                        <label class="form-label required">Reinclass</label>
+                        <input type="hidden" class="form-control layer_no"
+                               id="layer_no-${counter}-0" name="layer_no[]"
+                               value="${counter + 1}" readonly>
+                        <input type="hidden" class="form-control nonprop_reinclass"
+                               id="nonprop_reinclass-${counter}-0" name="nonprop_reinclass[]"
+                               value="ALL" readonly>
+                        <input type="text" class="form-control nonprop_reinclass_desc"
+                               id="nonprop_reinclass_desc-${counter}-0" name="nonprop_reinclass_desc[]"
+                               value="ALL" readonly>
+                    </div>
+
+                    <div class="col-md-2">
+                        <label class="form-label required">Limit</label>
+                        <input type="text" class="form-control amount indemnity_treaty_limit"
+                               id="indemnity_treaty_limit-${counter}-0"
+                               name="indemnity_treaty_limit[]"
+                               placeholder="0.00" required>
+                    </div>
+
+                    <div class="col-md-2">
+                        <label class="form-label required">Deductible Amount</label>
+                        <input type="text" class="form-control amount underlying_limit"
+                               id="underlying_limit-${counter}-0"
+                               name="underlying_limit[]"
+                               placeholder="0.00" required>
+                    </div>
+
+                    <div class="col-md-2">
+                        <label class="form-label required">EGNPI</label>
+                        <input type="text" class="form-control amount egnpi"
+                               id="egnpi-${counter}-0"
+                               name="egnpi[]"
+                               placeholder="0.00" required>
+                    </div>
+                </div>
+
+                <!-- Burning Cost Fields (Hidden by default) -->
+                <div class="row g-3 mt-2 burning_rate_section" style="display: none;">
+                    <div class="col-md-3 burning_rate_div">
+                        <label class="form-label">Min BC Rate (%)</label>
+                        <input type="text" class="form-control burning_rate"
+                               id="min_bc_rate-${counter}-0" name="min_bc_rate[]"
+                               placeholder="0.00">
+                    </div>
+
+                    <div class="col-md-3 burning_rate_div">
+                        <label class="form-label">Max BC Rate (%)</label>
+                        <input type="text" class="form-control burning_rate"
+                               id="max_bc_rate-${counter}-0" name="max_bc_rate[]"
+                               placeholder="0.00">
+                    </div>
+
+                    <div class="col-md-3 burning_rate_div">
+                        <label class="form-label">Upper Adj (%)</label>
+                        <input type="text" class="form-control burning_rate"
+                               id="upper_adj-${counter}-0" name="upper_adj[]"
+                               placeholder="0.00">
+                    </div>
+
+                    <div class="col-md-3 burning_rate_div">
+                        <label class="form-label">Lower Adj (%)</label>
+                        <input type="text" class="form-control burning_rate"
+                               id="lower_adj-${counter}-0" name="lower_adj[]"
+                               placeholder="0.00">
+                    </div>
+                </div>
+
+                <!-- Flat Rate Fields (Hidden by default) -->
+                <div class="row g-3 mt-2 flat_rate_section" style="display: none;">
+                    <div class="col-md-4 flat_rate_div">
+                        <label class="form-label">Flat Rate (%)</label>
+                        <input type="text" class="form-control flat_rate"
+                               id="flat_rate-${counter}-0" name="flat_rate[]"
+                               placeholder="0.00">
+                    </div>
+                </div>
+
+                <div class="row g-3 mt-2">
+                    <div class="col-md-3">
+                        <label class="form-label required">Min Deposit Premium</label>
+                        <input type="text" class="form-control amount min_deposit"
+                               id="min_deposit-${counter}-0"
+                               name="min_deposit[]"
+                               placeholder="0.00" required>
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label required">Reinstatement Type</label>
+                        <select name="reinstatement_type[]"
+                                id="reinstatement_type-${counter}-0"
+                                class="form-control select2"
+                                required>
+                            <option value="">Select Type</option>
+                            <option value="NOR">Number of Reinstatements</option>
+                            <option value="AAL">Annual Aggregate Limit</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label required">Reinstatement Value</label>
+                        <input type="text" class="form-control amount reinstatement_value"
+                               id="reinstatement_value-${counter}-0"
+                               name="reinstatement_value[]"
+                               placeholder="0.00" required>
+                    </div>
+                </div>
+
+                <hr class="my-3">
+            </div>
+        `;
+    }
+
+    function removeLayer() {
+        const $layer = $(this).closest(".layer-sections");
+        const counter = $layer.data("counter");
+
+        Swal.fire({
+            title: "Remove Layer?",
+            text: `Are you sure you want to remove Layer ${counter + 1}?`,
+            icon: "warning",
+            showCancelButton: true,
+            confirmButtonText: "Yes, remove it",
+            cancelButtonText: "Cancel",
+        }).then((result) => {
+            if (result.isConfirmed) {
+                $layer.remove();
+                renumberLayers();
+                toastr.success(`Layer ${counter + 1} removed`);
+            }
+        });
+    }
+
+    function renumberLayers() {
+        $(".layer-sections").each(function (index) {
+            $(this).attr("data-counter", index);
+            $(this)
+                .find("h6:first")
+                .text(`Layer ${index + 1}`);
+            $(this)
+                .find(".layer_no")
+                .val(index + 1);
+
+            // Update all IDs in this layer
+            updateLayerIds($(this), index);
+        });
+    }
+
+    function updateLayerIds($layer, counter) {
+        $layer.find("[id]").each(function () {
+            const $el = $(this);
+            const id = $el.attr("id");
+            if (id) {
+                const newId = id.replace(/-\d+-/, `-${counter}-`);
+                $el.attr("id", newId);
+            }
+        });
+    }
+
+    function handleLimitPerReinclassChange() {
+        // Placeholder for future implementation
+        // This would handle showing/hiding additional fields based on selection
+    }
+
+    // ==================== Data Loading Functions ====================
+
     function loadTreatyTypes(businessType) {
         if (!businessType) return;
 
-        $.ajax({
+        makeAjaxRequest({
             url: config.routes.getTreatyTypes,
             data: { type_of_bus: businessType },
-            type: "GET",
-            success: function (response) {
+            cache: true,
+            cacheKey: `treaty_types_${businessType}`,
+            loadingMessage: "Loading treaty types...",
+            successCallback: function (response) {
                 const treatySelect = $("#treatytype");
                 treatySelect
                     .empty()
                     .append('<option value="">Select Treaty Type</option>');
 
-                $.each(response, function (i, treaty) {
+                if (!Array.isArray(response) || response.length === 0) {
+                    treatySelect.append(
+                        '<option value="">No treaty types available</option>'
+                    );
+                    return;
+                }
+
+                response.forEach((treaty) => {
                     treatySelect.append(
                         $("<option>")
                             .val(treaty.treaty_code)
@@ -909,28 +2235,34 @@ const CoverRegistration = (function () {
 
                 treatySelect.trigger("change.select2");
             },
-            error: function () {
-                toastr.error("Failed to load treaty types");
-            },
         });
     }
 
-    /**
-     * Load binder covers
-     */
     function loadBinderCovers() {
-        $.ajax({
+        makeAjaxRequest({
             url: config.routes.getBinderCovers,
-            type: "GET",
-            success: function (response) {
-                const binders = JSON.parse(response);
+            cache: true,
+            cacheKey: "binder_covers",
+            loadingMessage: "Loading binder covers...",
+            successCallback: function (response) {
+                const binders =
+                    typeof response === "string"
+                        ? JSON.parse(response)
+                        : response;
                 const binderSelect = $("#bindercoverno");
 
                 binderSelect
                     .empty()
                     .append('<option value="">Select Binder Cover</option>');
 
-                $.each(binders, function (i, binder) {
+                if (!Array.isArray(binders) || binders.length === 0) {
+                    binderSelect.append(
+                        '<option value="">No binder covers available</option>'
+                    );
+                    return;
+                }
+
+                binders.forEach((binder) => {
                     binderSelect.append(
                         $("<option>")
                             .val(binder.binder_cov_no)
@@ -942,507 +2274,228 @@ const CoverRegistration = (function () {
 
                 binderSelect.trigger("change.select2");
             },
-            error: function () {
-                toastr.error("Failed to load binder covers");
+        });
+    }
+
+    function loadPremTypesData(treatyType, counter, reinClass) {
+        if (!treatyType || counter === undefined || !reinClass) {
+            console.warn(
+                "Missing required parameters for loading premium types"
+            );
+            return;
+        }
+
+        const targetSelect = $(`#prem_type_code-${counter}-0`);
+
+        if (!targetSelect.length) {
+            console.warn(
+                `Target select #prem_type_code-${counter}-0 not found`
+            );
+            return;
+        }
+
+        const selectedPremTypes = getSelectedPremiumTypes(
+            reinClass,
+            treatyType
+        );
+
+        targetSelect.prop("disabled", true);
+        targetSelect
+            .empty()
+            .append(
+                $("<option>").val("").text("Loading...").prop("disabled", true)
+            );
+
+        makeAjaxRequest({
+            url: config.routes.getReinPremType,
+            data: {
+                reinclass: reinClass,
+                selectedCodes: selectedPremTypes,
+            },
+            cache: true,
+            cacheKey: `prem_types_${reinClass}_${treatyType}`,
+            loadingMessage: false,
+            successCallback: function (response) {
+                targetSelect.prop("disabled", false);
+                targetSelect.empty();
+                targetSelect.append(
+                    $("<option>")
+                        .val("")
+                        .text("-- Select Premium Type --")
+                        .prop("disabled", true)
+                        .prop("selected", true)
+                );
+
+                if (!Array.isArray(response) || response.length === 0) {
+                    targetSelect.append(
+                        $("<option>")
+                            .val("")
+                            .text("No premium types available")
+                            .prop("disabled", true)
+                    );
+                    return;
+                }
+
+                response.forEach((premType) => {
+                    if (!premType.premtype_code || !premType.premtype_name) {
+                        return;
+                    }
+
+                    const optionText = `${premType.premtype_code} - ${premType.premtype_name}`;
+
+                    targetSelect.append(
+                        $("<option>")
+                            .val(premType.premtype_code)
+                            .text(optionText)
+                            .attr("data-reinclass", reinClass)
+                            .attr("data-treaty", treatyType)
+                            .attr("data-name", premType.premtype_name)
+                    );
+                });
+
+                targetSelect.trigger("change.select2");
+            },
+            errorCallback: function () {
+                targetSelect.prop("disabled", false);
+                targetSelect
+                    .empty()
+                    .append(
+                        $("<option>")
+                            .val("")
+                            .text("Failed to load premium types")
+                    );
             },
         });
     }
 
-    /**
-     * Handle treaty type change
-     */
-    function handleTreatyTypeChange() {
-        const treatyType = $(this).val();
+    function getSelectedPremiumTypes(reinClass, treaty) {
+        const selectedPremTypes = [];
+        const selector = `.prem_type_code[data-reinclass="${reinClass}"][data-treaty="${treaty}"]`;
 
-        // Hide all treaty-specific sections
-        $(".quota_header_div, .surp_header_div").hide();
-        $(
-            ".quota_share_total_limit_div, .retention_per_div, .treaty_reice_div"
-        ).hide();
-        $(".quota_retention_amt_div, .quota_treaty_limit_div").hide();
-        $(
-            ".no_of_lines_div, .surp_retention_amt_div, .surp_treaty_limit_div"
-        ).hide();
-        $("#reinsurer_per_treaty_section").hide();
-
-        // Show relevant sections based on treaty type
-        if (treatyType === "QUOT") {
-            $(".quota_header_div").show();
-            $(
-                ".quota_share_total_limit_div, .retention_per_div, .treaty_reice_div"
-            ).show();
-            $(".quota_retention_amt_div, .quota_treaty_limit_div").show();
-        } else if (treatyType === "SURP") {
-            $(".surp_header_div").show();
-            $(
-                ".no_of_lines_div, .surp_retention_amt_div, .surp_treaty_limit_div"
-            ).show();
-        } else if (treatyType === "SPQT") {
-            $(".quota_header_div, .surp_header_div").show();
-            $(
-                ".quota_share_total_limit_div, .retention_per_div, .treaty_reice_div"
-            ).show();
-            $(".quota_retention_amt_div, .quota_treaty_limit_div").show();
-            $(
-                ".no_of_lines_div, .surp_retention_amt_div, .surp_treaty_limit_div"
-            ).show();
-            $("#reinsurer_per_treaty_section").show();
-        }
-    }
-
-    /**
-     * Handle method change (for non-proportional)
-     */
-    function handleMethodChange() {
-        const method = $(this).val();
-
-        $(".burning_rate_div, .flat_rate_div").hide();
-        $(".burning_rate, .flat_rate").prop("disabled", true).val("");
-
-        if (method === "B") {
-            $(".burning_rate_div").show();
-            $(".burning_rate").prop("disabled", false);
-        } else if (method === "F") {
-            $(".flat_rate_div").show();
-            $(".flat_rate").prop("disabled", false);
-        }
-    }
-
-    /**
-     * Handle reinclass change
-     */
-    function handleReinclassChange() {
-        const counter = $(this).data("counter");
-        const reinclass = $(this).val();
-        const treatyType = $("#treatytype").val();
-
-        if (!treatyType) {
-            toastr.error("Please select treaty type first");
-            $(this).val("");
-            return false;
-        }
-
-        // Set reinclass for commission sections
-        $(`#prem_type_reinclass-${counter}-0`).val(reinclass);
-        $(`#prem_type_code-${counter}-0`).attr("data-reinclass", reinclass);
-        $(`#prem_type_treaty-${counter}-0`).trigger("change");
-    }
-
-    /**
-     * Add reinsurance class
-     */
-    function addReinClass() {
-        const lastSection = $(".reinclass-section").last();
-        const prevCounter = parseInt(lastSection.attr("data-counter"));
-        const reinClassVal = $(`#treaty_reinclass-${prevCounter}`).val();
-
-        if (!reinClassVal) {
-            const sectionLabel = String.fromCharCode(65 + prevCounter);
-            toastr.error(
-                `Please select reinsurance class in Section ${sectionLabel}`
-            );
-            return false;
-        }
-
-        // Clone and update section
-        const newSection = lastSection.clone();
-        const counter = prevCounter + 1;
-
-        // Update IDs and data attributes
-        newSection.attr("id", `reinclass-section-${counter}`);
-        newSection.attr("data-counter", counter);
-
-        // Remove select2 containers
-        newSection.find(".select2-container").remove();
-
-        // Update section title
-        const sectionLabel = String.fromCharCode(65 + counter);
-        newSection.find(".section-title").text(`Section ${sectionLabel}`);
-
-        // Reset values
-        newSection.find('input[type="text"], input[type="number"]').val("");
-        newSection.find("select").val("").removeAttr("selected");
-
-        // Update counter attributes
-        newSection.find("[id], [data-counter]").each(function () {
-            const id = $(this).attr("id");
-            if (id) {
-                $(this).attr("id", id.replace(/-\d+$/, `-${counter}`));
+        $(selector).each(function () {
+            const selectedVal = $(this).find("option:selected").val();
+            if (selectedVal && selectedVal.trim() !== "") {
+                selectedPremTypes.push(selectedVal);
             }
-            $(this).attr("data-counter", counter);
         });
 
-        // Remove all commission sections except first
-        newSection.find(".comm-sections").slice(1).remove();
-
-        // Insert new section
-        lastSection.after(newSection);
-
-        // Reinitialize select2
-        newSection.find(".select2").select2({
-            width: "100%",
-            theme: "bootstrap-5",
-        });
-
-        toastr.success("Reinsurance class section added");
+        return selectedPremTypes;
     }
 
-    /**
-     * Add commission section
-     */
-    function addCommissionSection() {
-        const classCounter = $(this).data("counter");
-        const lastCommSection = $(`#comm-section-${classCounter}`).find(
-            ".comm-sections:last"
-        );
-        const prevCounter = lastCommSection.data("counter");
-        const counter = prevCounter + 1;
-
-        // Validate previous section
-        const reinclass = $(`#treaty_reinclass-${classCounter}`).val();
-        const premType = $(
-            `#prem_type_code-${classCounter}-${prevCounter}`
-        ).val();
-        const commRate = $(
-            `#prem_type_comm_rate-${classCounter}-${prevCounter}`
-        ).val();
-
-        if (!reinclass) {
-            toastr.error("Please select reinsurance class");
-            return false;
-        }
-
-        if (!premType) {
-            toastr.error("Please select premium type");
-            return false;
-        }
-
-        if (!commRate) {
-            toastr.error("Please enter commission rate");
-            return false;
-        }
-
-        // Create new commission section
-        const newSection = createCommissionSection(classCounter, counter);
-        $(`#comm-section-${classCounter}`).append(newSection);
-
-        // Initialize select2
-        $(
-            `#prem_type_treaty-${classCounter}-${counter}, #prem_type_code-${classCounter}-${counter}`
-        ).select2({
-            width: "100%",
-            theme: "bootstrap-5",
-        });
-
-        // Load premium types
-        $(`#prem_type_treaty-${classCounter}-${counter}`).trigger("change");
-    }
-
-    /**
-     * Create commission section HTML
-     */
-    function createCommissionSection(classCounter, premCounter) {
-        return `
-            <div class="row g-3 mb-2 comm-sections"
-                 id="comm-section-${classCounter}-${premCounter}"
-                 data-class-counter="${classCounter}"
-                 data-counter="${premCounter}">
-                <div class="col-md-4">
-                    <label class="form-label required">Treaty</label>
-                    <select class="form-control select2 prem_type_treaty"
-                            name="prem_type_treaty[]"
-                            id="prem_type_treaty-${classCounter}-${premCounter}"
-                            data-class-counter="${classCounter}"
-                            data-counter="${premCounter}"
-                            required>
-                        <option value="">Select Treaty</option>
-                    </select>
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label required">Premium Type</label>
-                    <input type="hidden"
-                           class="prem_type_reinclass"
-                           id="prem_type_reinclass-${classCounter}-${premCounter}"
-                           name="prem_type_reinclass[]">
-                    <select class="form-control select2 prem_type_code"
-                            name="prem_type_code[]"
-                            id="prem_type_code-${classCounter}-${premCounter}"
-                            data-class-counter="${classCounter}"
-                            data-counter="${premCounter}"
-                            required>
-                        <option value="">Select Premium Type</option>
-                    </select>
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label required">Commission (%)</label>
-                    <div class="input-group">
-                        <input type="text"
-                               class="form-control prem_type_comm_rate"
-                               name="prem_type_comm_rate[]"
-                               id="prem_type_comm_rate-${classCounter}-${premCounter}"
-                               required>
-                        <button class="btn btn-danger remove-comm-section" type="button">
-                            <i class="bx bx-minus"></i>
-                        </button>
-                    </div>
-                </div>
-            </div>
-        `;
-    }
-
-    /**
-     * Remove commission section
-     */
-    function removeCommissionSection() {
-        $(this).closest(".comm-sections").remove();
-    }
-
-    /**
-     * Add layer
-     */
-    function addLayer() {
-        const lastLayer = $("#layer-section .layer-sections:last");
-        const prevCounter = lastLayer.data("counter");
-        const counter = prevCounter + 1;
-
-        // Create new layer
-        const newLayer = createLayerSection(counter);
-        $("#layer-section").append(newLayer);
-
-        // Initialize select2
-        $(`#reinstatement_type-${counter}-0`).select2({
-            width: "100%",
-            theme: "bootstrap-5",
-        });
-
-        toastr.success("Layer added successfully");
-    }
-
-    /**
-     * Create layer section HTML
-     */
-    function createLayerSection(counter) {
-        return `
-            <div class="layer-sections" id="layer-section-${counter}" data-counter="${counter}">
-                <h6 class="mt-3">Layer ${counter + 1}</h6>
-                <div class="row g-3">
-                    <div class="col-md-2">
-                        <label class="form-label required">Capture Limits per Class?</label>
-                        <select class="form-control limit_per_reinclass"
-                                name="limit_per_reinclass[]"
-                                id="limit_per_reinclass-${counter}-0"
-                                required>
-                            <option value="">Select Option</option>
-                            <option value="N" selected>No</option>
-                            <option value="Y">Yes</option>
-                        </select>
-                    </div>
-                    <div class="col-md-2">
-                        <label class="form-label required">Reinclass</label>
-                        <input type="hidden" name="layer_no[]" value="${
-                            counter + 1
-                        }">
-                        <input type="hidden" name="nonprop_reinclass[]"
-                               id="nonprop_reinclass-${counter}-0" value="ALL">
-                        <input type="text" class="form-control"
-                               id="nonprop_reinclass_desc-${counter}-0"
-                               value="ALL" readonly>
-                    </div>
-                    <div class="col-md-2">
-                        <label class="form-label required">Limit</label>
-                        <input type="text" class="form-control amount"
-                               name="indemnity_treaty_limit[]"
-                               id="indemnity_treaty_limit-${counter}-0"
-                               required>
-                    </div>
-                    <div class="col-md-2">
-                        <label class="form-label required">Deductible Amount</label>
-                        <input type="text" class="form-control amount"
-                               name="underlying_limit[]"
-                               id="underlying_limit-${counter}-0"
-                               required>
-                    </div>
-                    <div class="col-md-2">
-                        <label class="form-label required">EGNPI</label>
-                        <input type="text" class="form-control amount"
-                               name="egnpi[]"
-                               id="egnpi-${counter}-0"
-                               required>
-                    </div>
-                    <div class="col-md-2 burning_rate_div" style="display: none;">
-                        <label class="form-label required">Min BC Rate (%)</label>
-                        <input type="text" class="form-control burning_rate"
-                               name="min_bc_rate[]"
-                               id="min_bc_rate-${counter}-0">
-                    </div>
-                    <div class="col-md-2 burning_rate_div" style="display: none;">
-                        <label class="form-label required">Max Rate (%)</label>
-                        <input type="text" class="form-control burning_rate"
-                               name="max_bc_rate[]"
-                               id="max_bc_rate-${counter}-0">
-                    </div>
-                    <div class="col-md-2 flat_rate_div" style="display: none;">
-                        <label class="form-label required">Flat Rate (%)</label>
-                        <input type="text" class="form-control flat_rate"
-                               name="flat_rate[]"
-                               id="flat_rate-${counter}-0">
-                    </div>
-                    <div class="col-md-2 burning_rate_div" style="display: none;">
-                        <label class="form-label required">Upper Adj Rate</label>
-                        <input type="text" class="form-control burning_rate"
-                               name="upper_adj[]"
-                               id="upper_adj-${counter}-0">
-                    </div>
-                    <div class="col-md-2 burning_rate_div" style="display: none;">
-                        <label class="form-label required">Lower Adj Rate</label>
-                        <input type="text" class="form-control burning_rate"
-                               name="lower_adj[]"
-                               id="lower_adj-${counter}-0">
-                    </div>
-                    <div class="col-md-2">
-                        <label class="form-label required">Min Deposit Premium</label>
-                        <div class="input-group">
-                            <input type="text" class="form-control amount"
-                                   name="min_deposit[]"
-                                   id="min_deposit-${counter}-0"
-                                   required>
-                            <button class="btn btn-danger remove-layer-section" type="button">
-                                <i class="bx bx-minus"></i>
-                            </button>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label required">Reinstatement Type</label>
-                        <select name="reinstatement_type[]"
-                                id="reinstatement_type-${counter}-0"
-                                class="form-control select2"
-                                required>
-                            <option value="NOR">Number of Reinstatement</option>
-                            <option value="AAL">Annual Aggregate Limit</option>
-                        </select>
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label required">Reinstatement Value</label>
-                        <input type="text" class="form-control amount"
-                               name="reinstatement_value[]"
-                               id="reinstatement_value-${counter}-0"
-                               required>
-                    </div>
-                </div>
-            </div>
-        `;
-    }
-
-    /**
-     * Remove layer
-     */
-    function removeLayer() {
-        $(this).closest(".layer-sections").remove();
-    }
-
-    /**
-     * Handle limit per reinclass change
-     */
-    function handleLimitPerReinclassChange() {
-        // Implementation for handling limit per reinclass
-        // This would create additional layer sections per reinclass
-    }
-
-    /**
-     * Load prospect data
-     */
     function loadProspectData(prospectId) {
-        if (prospectId.length < 3) return;
+        if (!prospectId || prospectId.length < 3) return;
 
-        showLoader("Loading prospect data...");
+        if (!config.routes.getProspectData) {
+            toastr.error("Prospect data endpoint not configured");
+            return;
+        }
 
         const url = config.routes.getProspectData.replace(
             ":id",
             encodeURIComponent(prospectId)
         );
 
-        $.ajax({
+        makeAjaxRequest({
             url: url,
-            type: "GET",
-            dataType: "json",
-            success: function (response) {
-                if (response.status) {
+            loadingMessage: "Loading prospect data...",
+            successCallback: function (response) {
+                if (response.status && response.data) {
                     populateProspectData(response.data);
                     toastr.success("Prospect data loaded successfully");
                 } else {
-                    toastr.error("No data found for this Prospect ID");
+                    toastr.info("No data found for this Prospect ID");
                 }
             },
-            error: function (xhr, status, error) {
-                console.error("Error loading prospect data:", error);
+            errorCallback: function () {
                 toastr.error("Failed to load prospect data");
-            },
-            complete: function () {
-                hideLoader();
             },
         });
     }
 
-    /**
-     * Populate prospect data
-     */
     function populateProspectData(data) {
-        // Basic information
-        elements.typeOfBus.val(data.type_of_bus).trigger("change");
-        elements.coverType.val(data.covertype).trigger("change");
-        $("#branchcode").val(data.branchcode).trigger("change");
+        if (!data) return;
 
-        // Broker information
-        if (data.broker_flag) {
-            elements.brokerFlag.val(data.broker_flag).trigger("change");
-            if (data.broker_flag === "Y" && data.broker_code) {
-                $("#brokercode").val(data.broker_code).trigger("change");
+        const fieldMappings = {
+            type_of_bus: elements.typeOfBus,
+            covertype: elements.coverType,
+            branchcode: $("#branchcode"),
+            broker_flag: elements.brokerFlag,
+            broker_code: $("#brokercode"),
+            currency_code: elements.currencyCode,
+        };
+
+        Object.entries(fieldMappings).forEach(([key, $element]) => {
+            if (data[key] && $element.length) {
+                $element.val(data[key]).trigger("change");
             }
-        }
-
-        // Financial information
-        if (data.currency_code) {
-            elements.currencyCode.val(data.currency_code).trigger("change");
-        }
-
-        // Continue populating other fields...
-        // This is a simplified version - expand based on your data structure
+        });
     }
 
-    /**
-     * Populate existing data (for edit mode)
-     */
     function populateExistingData() {
-        // Implementation for populating form with existing data
-        // when editing or viewing
+        // This would be implemented based on the old_endt_trans data structure
+        // For now, it's a placeholder
+        if (!config.oldData) return;
+
+        // Populate fields based on config.oldData
+        console.log("Populating existing data:", config.oldData);
     }
 
-    /**
-     * Handle risk details paste
-     */
+    // ==================== Risk Details ====================
+
     function handleRiskDetailsPaste(e) {
+        e.preventDefault();
+
         const clipboardData = (e.originalEvent || e).clipboardData;
-        const pastedText = clipboardData.getData("text/html");
+        if (!clipboardData) return;
 
-        if (pastedText) {
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(pastedText, "text/html");
-            const table = $(doc).find("table");
+        const pastedHTML = clipboardData.getData("text/html");
+        const pastedText = clipboardData.getData("text/plain");
 
-            if (table.length) {
-                $("#hidden_risk_details").val(table.html());
+        if (pastedHTML) {
+            try {
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(pastedHTML, "text/html");
+                const table = doc.querySelector("table");
+
+                if (table) {
+                    // Sanitize table HTML
+                    const sanitized = DOMPurify
+                        ? DOMPurify.sanitize(table.outerHTML, {
+                              ALLOWED_TAGS: [
+                                  "table",
+                                  "tr",
+                                  "td",
+                                  "th",
+                                  "thead",
+                                  "tbody",
+                                  "tfoot",
+                              ],
+                              ALLOWED_ATTR: ["class", "style"],
+                          })
+                        : table.outerHTML;
+
+                    document.execCommand("insertHTML", false, sanitized);
+                } else {
+                    // Fall back to plain text
+                    document.execCommand("insertText", false, pastedText);
+                }
+            } catch (error) {
+                console.error("Error parsing pasted content:", error);
+                document.execCommand("insertText", false, pastedText);
             }
+        } else if (pastedText) {
+            document.execCommand("insertText", false, pastedText);
         }
     }
 
-    /**
-     * Show/hide sections
-     */
+    // ==================== Section Management ====================
+
     function hideSections() {
         elements.facSection.hide();
         elements.treatySection.hide();
         $("#treaty_proportional_section").hide();
         $("#treaty_nonproportional_section").hide();
+        $("#treaty_common_section").hide();
     }
 
     function showFacSection() {
@@ -1454,6 +2507,7 @@ const CoverRegistration = (function () {
         elements.treatySection.show();
         $("#treaty_common_section").show();
         $("#treaty_proportional_section").show();
+
         enableSection(".treaty-section");
         enableSection(".treaty-proportional");
     }
@@ -1462,14 +2516,16 @@ const CoverRegistration = (function () {
         elements.treatySection.show();
         $("#treaty_common_section").show();
         $("#treaty_nonproportional_section").show();
+
         enableSection(".treaty-section");
         enableSection(".treaty-nonproportional");
     }
 
     function enableSection(selector) {
-        $(`${selector} input, ${selector} select, ${selector} textarea`)
-            .prop("disabled", false)
-            .removeClass("d-none");
+        $(`${selector} input, ${selector} select, ${selector} textarea`).prop(
+            "disabled",
+            false
+        );
         $(`${selector}-div`).show();
     }
 
@@ -1480,34 +2536,169 @@ const CoverRegistration = (function () {
         $(`${selector}-div`).hide();
     }
 
-    /**
-     * Utility functions
-     */
+    // ==================== Plugins Initialization ====================
+
+    function initializePlugins() {
+        // Tooltips
+        if ($.fn.tooltip) {
+            $('[data-bs-toggle="tooltip"]').tooltip();
+        }
+
+        // Popovers
+        if ($.fn.popover) {
+            $('[data-bs-toggle="popover"]').popover();
+        }
+
+        // Initialize commission type displays
+        $(".commission_type").each(function () {
+            handleCommissionTypeChange.call(this);
+        });
+    }
+
+    // ==================== Validation ====================
+
+    function setupValidation() {
+        if (!$.fn.validate) {
+            console.warn("jQuery Validation plugin not loaded");
+            return;
+        }
+
+        // Custom validation methods
+        $.validator.addMethod(
+            "greaterThan",
+            function (value, element, param) {
+                const target = $(param);
+                if (this.optional(element) && this.optional(target[0])) {
+                    return true;
+                }
+                return parseNumber(value) > parseNumber(target.val());
+            },
+            "Must be greater than {0}"
+        );
+
+        $.validator.addMethod(
+            "percentage",
+            function (value, element) {
+                return (
+                    this.optional(element) ||
+                    (parseNumber(value) >= 0 && parseNumber(value) <= 100)
+                );
+            },
+            "Please enter a valid percentage (0-100)"
+        );
+
+        // Form validation rules
+        elements.form.validate({
+            ignore: ":hidden:not(.select2-hidden-accessible)",
+            errorClass: "is-invalid",
+            validClass: "is-valid",
+            errorElement: "div",
+            errorPlacement: function (error, element) {
+                error.addClass("invalid-feedback");
+
+                if (element.parent(".input-group").length) {
+                    error.insertAfter(element.parent());
+                } else if (element.hasClass("select2-hidden-accessible")) {
+                    error.insertAfter(element.next(".select2-container"));
+                } else {
+                    error.insertAfter(element);
+                }
+            },
+            highlight: function (element) {
+                $(element).addClass("is-invalid").removeClass("is-valid");
+
+                if ($(element).hasClass("select2-hidden-accessible")) {
+                    $(element)
+                        .next(".select2-container")
+                        .find(".select2-selection")
+                        .addClass("is-invalid");
+                }
+            },
+            unhighlight: function (element) {
+                $(element).removeClass("is-invalid").addClass("is-valid");
+
+                if ($(element).hasClass("select2-hidden-accessible")) {
+                    $(element)
+                        .next(".select2-container")
+                        .find(".select2-selection")
+                        .removeClass("is-invalid");
+                }
+            },
+            rules: {
+                type_of_bus: { required: true },
+                covertype: { required: true },
+                branchcode: { required: true },
+                broker_flag: { required: true },
+                currency_code: { required: true },
+                pay_method: { required: true },
+                premium_payment_term: { required: true },
+                division: { required: true },
+                coverfrom: { required: true },
+                coverto: {
+                    required: true,
+                    greaterThan: "#coverfrom",
+                },
+            },
+            messages: {
+                type_of_bus: "Please select a business type",
+                covertype: "Please select a cover type",
+                branchcode: "Please select a branch",
+                broker_flag: "Please select broker flag",
+                currency_code: "Please select a currency",
+                pay_method: "Please select a payment method",
+                premium_payment_term: "Please select payment terms",
+                division: "Please select a division",
+                coverfrom: "Please enter cover start date",
+                coverto: {
+                    required: "Please enter cover end date",
+                    greaterThan: "End date must be after start date",
+                },
+            },
+        });
+    }
+
+    // ==================== Field Initialization ====================
+
+    function initializeFields() {
+        hideSections();
+
+        // Populate existing data if in edit mode
+        if (config.trans_type !== "NEW" && config.oldData) {
+            populateExistingData();
+        }
+
+        // Trigger change events to show/hide appropriate sections
+        elements.typeOfBus.trigger("change");
+        elements.coverType.trigger("change");
+        elements.brokerFlag.trigger("change");
+        elements.payMethod.trigger("change");
+        elements.applyEml.trigger("change");
+
+        // Load prospect data if provided
+        if (config.prospectId) {
+            elements.prospectId.val(config.prospectId);
+            loadProspectData(config.prospectId);
+        }
+    }
+
+    // ==================== Loader ====================
+
     function showLoader(message = "Loading...") {
+        if (!elements.pageLoader.length) {
+            console.warn("Page loader element not found");
+            return;
+        }
+
         elements.pageLoader.find(".loader-text").text(message);
         elements.pageLoader.fadeIn(200);
     }
 
     function hideLoader() {
+        if (!elements.pageLoader.length) return;
         elements.pageLoader.fadeOut(200);
     }
 
-    function parseNumber(value) {
-        return parseFloat(String(value).replace(/,/g, "")) || 0;
-    }
-
-    function numberWithCommas(value) {
-        if (!value) return "";
-        return value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-    }
-
-    function removeCommas(value) {
-        return String(value).replace(/,/g, "");
-    }
-
-    function areDecimalsEqual(num1, num2, tolerance = 0.1) {
-        return Math.abs(parseFloat(num1) - parseFloat(num2)) <= tolerance;
-    }
+    // ==================== Helper: Check Payment Type ====================
 
     function isInstallmentPayment() {
         const payMethodDesc = elements.payMethod
@@ -1516,17 +2707,45 @@ const CoverRegistration = (function () {
         return payMethodDesc === "I";
     }
 
-    // Public API
+    // ==================== Public API ====================
+
     return {
         init: init,
         showLoader: showLoader,
         hideLoader: hideLoader,
         numberWithCommas: numberWithCommas,
         parseNumber: parseNumber,
+        sanitizeHTML: sanitizeHTML,
+        sanitizeInput: sanitizeInput,
+        formatAmountField: formatAmountField,
+        validateNumericInput: validateNumericInput,
+
+        // Expose for testing/debugging
+        _config: config,
+        _state: state,
+        _elements: elements,
     };
 })();
 
-// Initialize on document ready
+// ==================== Document Ready ====================
+
 $(document).ready(function () {
-    CoverRegistration.init();
+    try {
+        CoverRegistration.init();
+    } catch (error) {
+        console.error("Failed to initialize Cover Registration:", error);
+
+        Swal.fire({
+            icon: "error",
+            title: "Initialization Failed",
+            text: "There was an error loading the page. Please refresh and try again.",
+            footer: '<a href="javascript:window.location.reload()">Click here to reload</a>',
+        });
+    }
 });
+
+// ==================== Export for Module Systems ====================
+
+if (typeof module !== "undefined" && module.exports) {
+    module.exports = CoverRegistration;
+}

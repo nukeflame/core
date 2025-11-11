@@ -2,15 +2,18 @@
     {{-- Payment Method --}}
     <div class="col-md-3">
         <label class="form-label required">Payment Method</label>
-        <select class="form-control select2" name="pay_method" id="pay_method" required>
-            <option value="">Choose Payment Method</option>
-            @foreach ($paymethods as $pay_method)
-                <option value="{{ $pay_method->pay_method_code }}" data-description="{{ $pay_method->short_description }}"
-                    {{ isset($old_endt_trans) && $old_endt_trans->pay_method_code == $pay_method->pay_method_code ? 'selected' : '' }}>
-                    {{ $pay_method->pay_method_name }}
-                </option>
-            @endforeach
-        </select>
+        <div class="cover-card">
+            <select class="form-control select2" name="pay_method" id="pay_method" required>
+                <option value="">Choose Payment Method</option>
+                @foreach ($paymethods as $pay_method)
+                    <option value="{{ $pay_method->pay_method_code }}"
+                        data-description="{{ $pay_method->short_description }}"
+                        {{ isset($old_endt_trans) && $old_endt_trans->pay_method_code == $pay_method->pay_method_code ? 'selected' : '' }}>
+                        {{ $pay_method->pay_method_name }}
+                    </option>
+                @endforeach
+            </select>
+        </div>
         @error('pay_method')
             <div class="text-danger">{{ $message }}</div>
         @enderror
@@ -35,15 +38,17 @@
     {{-- Currency --}}
     <div class="col-md-2">
         <label class="form-label required">Currency</label>
-        <select class="form-control select2" name="currency_code" id="currency_code" required>
-            <option value="">Choose Currency</option>
-            @foreach ($currencies as $currency)
-                <option value="{{ $currency->currency_code }}"
-                    {{ isset($old_endt_trans) && $old_endt_trans->currency_code == $currency->currency_code ? 'selected' : '' }}>
-                    {{ $currency->currency_name }}
-                </option>
-            @endforeach
-        </select>
+        <div class="cover-card">
+            <select class="form-control select2" name="currency_code" id="currency_code" required>
+                <option value="">Choose Currency</option>
+                @foreach ($currencies as $currency)
+                    <option value="{{ $currency->currency_code }}"
+                        {{ isset($old_endt_trans) && $old_endt_trans->currency_code == $currency->currency_code ? 'selected' : '' }}>
+                        {{ $currency->currency_name }}
+                    </option>
+                @endforeach
+            </select>
+        </div>
         @error('currency_code')
             <div class="text-danger">{{ $message }}</div>
         @enderror
@@ -59,16 +64,18 @@
     {{-- Premium Payment Terms --}}
     <div class="col-md-3">
         <label class="form-label required">Premium Payment Terms</label>
-        <select class="form-control select2" name="premium_payment_term" id="premium_payment_term" required>
-            <option value="">Choose Payment Term</option>
-            @foreach ($premium_pay_terms as $premium_pay_term)
-                <option value="{{ $premium_pay_term->pay_term_code }}"
-                    data-description="{{ $premium_pay_term->pay_term_desc }}"
-                    {{ isset($old_endt_trans) && $old_endt_trans->premium_payment_code == $premium_pay_term->pay_term_code ? 'selected' : '' }}>
-                    {{ $premium_pay_term->pay_term_desc }}
-                </option>
-            @endforeach
-        </select>
+        <div class="cover-card">
+            <select class="form-control select2" name="premium_payment_term" id="premium_payment_term" required>
+                <option value="">Choose Payment Term</option>
+                @foreach ($premium_pay_terms as $premium_pay_term)
+                    <option value="{{ $premium_pay_term->pay_term_code }}"
+                        data-description="{{ $premium_pay_term->pay_term_desc }}"
+                        {{ isset($old_endt_trans) && $old_endt_trans->premium_payment_code == $premium_pay_term->pay_term_code ? 'selected' : '' }}>
+                        {{ $premium_pay_term->pay_term_desc }}
+                    </option>
+                @endforeach
+            </select>
+        </div>
         @error('premium_payment_term')
             <div class="text-danger">{{ $message }}</div>
         @enderror
