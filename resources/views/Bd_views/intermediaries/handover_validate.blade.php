@@ -295,7 +295,7 @@
         .document-icon {
             width: 48px;
             height: 48px;
-            background: linear-gradient(135deg, var(--reins-secondary), var(--reins-primary));
+            background: linear-gradient(135deg, #6c757d, #a09292);
             border-radius: 8px;
             display: flex;
             align-items: center;
@@ -1367,7 +1367,7 @@
                                                                     <i class="bx bx-upload"></i>
                                                                 </div>
                                                             </div>
-                                                            <div class="col-md-3">
+                                                            <div class="col-md-5">
                                                                 <label class="form-label">
                                                                     Document Type
                                                                     @if ($doc->mandatory === 'Y')
@@ -1378,7 +1378,7 @@
                                                                     class="form-control" value="{{ $doc->doc_type }}"
                                                                     readonly />
                                                             </div>
-                                                            <div class="col-md-5">
+                                                            <div class="col-md-6">
                                                                 <label class="form-label">Select File</label>
                                                                 <input type="file" name="document_file[]"
                                                                     id="document_file{{ $doc->id }}"
@@ -1386,7 +1386,7 @@
                                                                     {{ $doc->mandatory === 'Y' ? 'required' : '' }}
                                                                     accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" />
                                                             </div>
-                                                            <div class="col-md-4 text-end">
+                                                            <div class="col-md-4">
                                                                 <label class="form-label d-block">&nbsp;</label>
                                                                 <button type="button" class="btn btn-info preview me-2"
                                                                     data-doc-id="{{ $doc->id }}">
@@ -1707,18 +1707,18 @@
                                         <td class="text-start">
                                             ${prevWrittenShare != 0
                                                 ? `<div class="share-history">
-                                                                                                                                                                        <small class="text-muted d-block mb-1">Change:</small>
-                                                                                                                                                                        <span class="badge badge-soft-${writtenClass} mb-1 text-primary">
-                                                                                                                                                                            ${writtenShare}%
-                                                                                                                                                                        </span>
-                                                                                                                                                                        <i class="bx bx-right-arrow-alt mx-1 text-muted"></i>
-                                                                                                                                                                        <span class="badge ${getBadgeClass(writtenClass)}">
-                                                                                                                                                                            ${prevWrittenShare}%
-                                                                                                                                                                        </span>
-                                                                                                                                                                    </div>`
+                                                                                                                                                                                                        <small class="text-muted d-block mb-1">Change:</small>
+                                                                                                                                                                                                        <span class="badge badge-soft-${writtenClass} mb-1 text-primary">
+                                                                                                                                                                                                            ${writtenShare}%
+                                                                                                                                                                                                        </span>
+                                                                                                                                                                                                        <i class="bx bx-right-arrow-alt mx-1 text-muted"></i>
+                                                                                                                                                                                                        <span class="badge ${getBadgeClass(writtenClass)}">
+                                                                                                                                                                                                            ${prevWrittenShare}%
+                                                                                                                                                                                                        </span>
+                                                                                                                                                                                                    </div>`
                                                 : `<span class="badge ${getBadgeClass(writtenClass)} font-monospace">
-                                                                                                                                                                        ${writtenShare !== '--' ? writtenShare + '%' : '<span class="text-muted">—</span>'}
-                                                                                                                                                                    </span>`
+                                                                                                                                                                                                        ${writtenShare !== '--' ? writtenShare + '%' : '<span class="text-muted">—</span>'}
+                                                                                                                                                                                                    </span>`
                                             }
                                         </td>
                                         <td class="text-start">
@@ -1758,8 +1758,6 @@
                         `;
                             $tbody.html(rows);
                             $('#reinsurer-totals').hide();
-
-                            showToast('info', 'No reinsurers found for this stage');
                         }
                     },
                     error: function(xhr, status, error) {
@@ -1937,17 +1935,17 @@
                                     <i class="bx bx-plus"></i>
                                 </div>
                             </div>
-                            <div class="col-md-3">
+                            <div class="col-md-5">
                                 <label class="form-label">Document Type</label>
                                 <input type="text" name="document_name[]" class="form-control"
                                        placeholder="Enter document name" required />
                             </div>
-                            <div class="col-md-5">
+                            <div class="col-md-6">
                                 <label class="form-label">Select File</label>
                                 <input type="file" name="document_file[]" class="form-control document_file"
                                        accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" required />
                             </div>
-                            <div class="col-md-4 text-end">
+                            <div class="col-md-4">
                                 <label class="form-label d-block">&nbsp;</label>
                                 <button type="button" class="btn btn-info preview me-2">
                                     <i class="bx bx-show"></i> Preview
@@ -1961,13 +1959,11 @@
                 `;
 
                 $(this).closest('.document-row').after(newRow);
-                showToast('success', 'New document row added');
             });
 
             $(document).on('click', '.remove-file', function() {
                 $(this).closest('.new-document-row').fadeOut(300, function() {
                     $(this).remove();
-                    showToast('info', 'Document row removed');
                 });
             });
 

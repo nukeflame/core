@@ -175,10 +175,11 @@
                                             id="negReinsurersTable">
                                             <thead class="table-dark">
                                                 <tr>
-                                                    <th style="width: 50%">Reinsurer</th>
+                                                    <th style="width: 1%"></th>
+                                                    <th style="width: 41%">Reinsurer</th>
                                                     <th style="width: 20%">Written Share (%)</th>
                                                     <th style="width: 20%">Signed Share (%)</th>
-                                                    <th style="width: 10%">Action</th>
+                                                    <th style="width: 18%">Action</th>
                                                 </tr>
                                             </thead>
                                             <tbody></tbody>
@@ -312,8 +313,11 @@
 
                 const missingSignedShares = negotiationState.reinsurers.filter(r => {
                     const signedShare = parseFloat(r.signed_share || 0);
-                    return signedShare <= 0;
+                    return signedShare <= 0 && r.is_declined !== true;
                 });
+
+                console.log(missingSignedShares)
+
 
                 if (missingSignedShares.length > 0) {
                     const reinsurerNames = missingSignedShares
@@ -968,7 +972,6 @@
 
                     initializeReinsurerTable();
                 } catch (error) {
-                    console.error('Error loading reinsurers:', error);
                     showValidationError('Failed to load reinsurer data');
                 }
             }
@@ -978,18 +981,23 @@
                     try {
                         reinsurerDataTable.destroy();
                         reinsurerDataTable = null;
-                    } catch (e) {
-                        console.warn('Failed to destroy existing table:', e);
-                    }
+                    } catch (e) {}
                 }
 
                 const tableData = transformReinsurerData(negotiationState.reinsurers);
 
-                console.log(tableData)
-
                 reinsurerDataTable = $table.DataTable({
                     data: tableData,
                     columns: [{
+                            data: 'id',
+                            title: '',
+                            width: "1%",
+                            orderable: false,
+                            searchable: false,
+                            render: (data, type, row, index) => {
+                                return `1`;
+                            }
+                        }, {
                             data: 'name',
                             title: 'Reinsurer',
                             render: (data, type, row) => {
@@ -1010,6 +1018,10 @@
                             title: 'Written Share (%)',
                             className: 'text-start',
                             render: (data, type, row) => {
+                                if (row.is_declined) {
+                                    return '--';
+                                }
+
                                 return `
                                     <span class="badge bg-success">${data}%</span>
                                 `;
@@ -1025,20 +1037,24 @@
                                 const badgeClass = signedShare > 0 ? 'bg-secondary' : 'bg-danger';
                                 const displayText = signedShare > 0 ? `${data}%` : 'Required';
 
+                                if (row.is_declined) {
+                                    return '--';
+                                }
+
                                 return `
-                                    <span>
-                                        <span class="badge ${badgeClass}">${displayText}</span>
-                                        <span class="badge bg-dark edit-reinsurer-btn"
-                                            data-reinsurer-id="${row.id}"
-                                            data-reinsurer-name="${escapedName}"
-                                            data-written-share="${row.written_share}"
-                                            data-signed-share="${row.signed_share}"
-                                            style="margin-left: 0.25rem; cursor: pointer;"
-                                            title="Edit Signed Share">
-                                            <i class="bx bx-edit"></i>
-                                        </span>
+                                <span>
+                                    <span class="badge ${badgeClass}">${displayText}</span>
+                                    <span class="badge bg-dark edit-reinsurer-btn"
+                                        data-reinsurer-id="${row.id}"
+                                        data-reinsurer-name="${escapedName}"
+                                        data-written-share="${row.written_share}"
+                                        data-signed-share="${row.signed_share}"
+                                        style="margin-left: 0.25rem; cursor: pointer;"
+                                        title="Edit Signed Share">
+                                        <i class="bx bx-edit"></i>
                                     </span>
-                                `;
+                                </span>
+                            `;
                             }
                         },
                         {
@@ -1048,6 +1064,10 @@
                             searchable: false,
                             className: "text-left",
                             render: (data, type, row) => {
+                                if (row.is_declined) {
+                                    return `<span class="badge bg-danger">Declined</span>`
+                                }
+
                                 return `
                                     <div>
                                         <button type="button" class="btn btn-primary btn-sm contact-reinsurer-btn"

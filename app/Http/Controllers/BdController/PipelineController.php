@@ -7598,7 +7598,7 @@ class PipelineController
                             'signed_share' => null,
                             'stage' => 2,
                             'opportunity_id' => $reinsurer->opportunity_id,
-                            'status' => 'written',
+                            'status' => $reinsurer->is_declined ? 'declined' : 'written',
                         ];
                     });
 
@@ -7614,7 +7614,7 @@ class PipelineController
                             'signed_share' => number_format($reinsurer->signed_share ?? 0, 2),
                             'opportunity_id' => $reinsurer->opportunity_id,
                             'stage' => 3,
-                            'status' => 'pending',
+                            'status' => $reinsurer->is_declined ? 'declined' : 'pending',
                             'updated_written_share' => number_format($reinsurer->updated_written_share ?? 0, 2),
                         ];
                     });

@@ -1701,7 +1701,6 @@
 
                 // updateSharesDisplay();
 
-                // Reset form fields
                 $("#propAvailableReinsurers").val(null).trigger('change');
                 $("#propReinShare").val('');
 
@@ -1743,8 +1742,6 @@
                 const reinsurerID = $(this).data('reinsurer-id');
                 const row = $(this).closest('tr');
 
-                console.log('Removing reinsurer:', reinsurerID);
-
                 const dt = initializeDataTable();
                 dt.row(row).remove().draw();
 
@@ -1752,8 +1749,6 @@
                 $('#reinsurerCount').text(selectedReinsurers.size);
 
                 updateSharesDisplay();
-
-                console.log('✅ Reinsurer removed');
             });
 
 
