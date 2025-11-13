@@ -824,10 +824,10 @@ class LeadsOnboardingController
         // Apply search filter if provided
         if ($request->filled('search_query')) {
             $searchTerm = $request->search_query;
-            $query->where(function($q) use ($searchTerm) {
+            $query->where(function ($q) use ($searchTerm) {
                 $q->where('opportunity_id', 'like', "%{$searchTerm}%")
-                  ->orWhere('insured_name', 'like', "%{$searchTerm}%")
-                  ->orWhere('type_of_bus', 'like', "%{$searchTerm}%");
+                    ->orWhere('insured_name', 'like', "%{$searchTerm}%")
+                    ->orWhere('type_of_bus', 'like', "%{$searchTerm}%");
             });
         }
 

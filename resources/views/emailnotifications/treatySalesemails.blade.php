@@ -87,7 +87,7 @@
 
         {{-- @if (!empty($received_docs))
           <p style="font-size: 16px; line-height: 1.6; color: #555; margin-top: 10px; margin-bottom: 10px;">
-               These are the documents we have received from you. 
+               These are the documents we have received from you.
             </p>
             <div class="docs-section">
                 <h3>Documents We Received</h3>

@@ -23,9 +23,9 @@
             page-break-before: always;
             font-family: inherit;
             /* font-family: "Open Sans", sans-serif;
-                                                                                                                                                                                                                                                                                                                                        font-optical-sizing: auto;
-                                                                                                                                                                                                                                                                                                                                        font-weight: 400;
-                                                                                                                                                                                                                                                                                                                                        font-style: normal; */
+                                                                                                                                                                                                                                                                                                                                                font-optical-sizing: auto;
+                                                                                                                                                                                                                                                                                                                                                font-weight: 400;
+                                                                                                                                                                                                                                                                                                                                                font-style: normal; */
         }
 
         .first-page {

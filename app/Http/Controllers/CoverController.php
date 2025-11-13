@@ -275,18 +275,28 @@ class CoverController extends Controller
             ]);
 
             if ($validator) {
+                // logger()->debug($request->all());
+
+                if ($request->type_of_bus == 'TPR') {
+                    return redirect()->route('cedant.info')->with([
+                        'success' => 'Treaty Cover Register not implemented!',
+                        'data' => ['cover_type' => 'Proportional', 'year' => 2025],
+                    ]);
+                }
+
                 $result = $this->repository->registerCover($request);
+
                 DB::commit();
                 $redirectUrl = route('cover.CoverHome', ['endorsement_no' => $result->endorsement_no]);
                 return redirect($redirectUrl)->with('success', 'Cover Register information saved successfully');
             } else {
-                Session::flash('error', 'some field data is required');
                 return [
                     'code' => -1,
                     'msg' => $validator->errors(),
                 ];
             }
         } catch (\Exception $e) {
+            logger($e);
             DB::rollback();
             throw $e;
         }

@@ -1,87 +1,102 @@
 # Microsoft Graph API Subscriptions & Real-Time Email Implementation
 
 ## Overview
+
 Complete implementation of Microsoft Graph API webhook subscriptions for real-time email notifications in RB Acentria Laravel application.
 
 ## ✅ What Has Been Implemented
 
 ### 1. **Database Models**
+
 Created two new Eloquent models with full relationship support:
 
 #### GraphSubscription Model
+
 **Location**: `app/Models/GraphSubscription.php`
-- Tracks Microsoft Graph API subscriptions
-- Includes helper methods for renewal checks
-- Scopes for active, expired, and expiring subscriptions
-- **Relationships**: `belongsTo(User)`, `hasMany(WebhookDelivery)`
+
+-   Tracks Microsoft Graph API subscriptions
+-   Includes helper methods for renewal checks
+-   Scopes for active, expired, and expiring subscriptions
+-   **Relationships**: `belongsTo(User)`, `hasMany(WebhookDelivery)`
 
 #### WebhookDelivery Model
+
 **Location**: `app/Models/WebhookDelivery.php`
-- Logs all incoming webhook notifications
-- Tracks processing status and errors
-- Scopes for unprocessed, valid, and failed deliveries
-- **Relationships**: `belongsTo(GraphSubscription)`, `belongsTo(User)`
+
+-   Logs all incoming webhook notifications
+-   Tracks processing status and errors
+-   Scopes for unprocessed, valid, and failed deliveries
+-   **Relationships**: `belongsTo(GraphSubscription)`, `belongsTo(User)`
 
 ### 2. **Database Migrations**
 
 #### GraphSubscriptions Table
+
 **File**: `database/migrations/2025_01_02_000001_create_graph_subscriptions_table.php`
 
 **Columns**:
-- `id` - Primary key
-- `subscription_id` - Microsoft Graph subscription ID (unique, indexed)
-- `user_id` - Foreign key to users
-- `user_email` - Email address
-- `resource` - Subscription resource (e.g., `me/messages`)
-- `change_type` - Change types (`created,updated,deleted`)
-- `notification_url` - Webhook URL
-- `client_state` - Validation token
-- `expiration_date` - When subscription expires
-- `status` - Enum: `active`, `expired`, `failed`, `pending`
-- `last_notification_at` - Last webhook received
-- `notification_count` - Total webhooks received
-- `last_renewal_at` - Last renewal timestamp
-- `renewal_attempts` - Failed renewal attempts
-- `last_error` - Error message if failed
+
+-   `id` - Primary key
+-   `subscription_id` - Microsoft Graph subscription ID (unique, indexed)
+-   `user_id` - Foreign key to users
+-   `user_email` - Email address
+-   `resource` - Subscription resource (e.g., `me/messages`)
+-   `change_type` - Change types (`created,updated,deleted`)
+-   `notification_url` - Webhook URL
+-   `client_state` - Validation token
+-   `expiration_date` - When subscription expires
+-   `status` - Enum: `active`, `expired`, `failed`, `pending`
+-   `last_notification_at` - Last webhook received
+-   `notification_count` - Total webhooks received
+-   `last_renewal_at` - Last renewal timestamp
+-   `renewal_attempts` - Failed renewal attempts
+-   `last_error` - Error message if failed
 
 **Run Migration**:
+
 ```bash
 php artisan migrate
 ```
 
 #### WebhookDeliveries Table
+
 **File**: `database/migrations/2025_01_02_000002_create_webhook_deliveries_table.php`
 
 **Columns**:
-- `id` - Primary key
-- `subscription_id` - Links to subscription
-- `user_id` - User who owns the email
-- `change_type` - Type of change
-- `resource` - Resource path
-- `resource_data` - JSON data about resource
-- `client_state` - Validation token
-- `is_valid` - Boolean: passed validation
-- `is_processed` - Boolean: has been processed
-- `processed_at` - Processing timestamp
-- `payload` - Full JSON payload
-- `source_ip` - IP address of webhook sender
-- `processing_error` - Error message if failed
+
+-   `id` - Primary key
+-   `subscription_id` - Links to subscription
+-   `user_id` - User who owns the email
+-   `change_type` - Type of change
+-   `resource` - Resource path
+-   `resource_data` - JSON data about resource
+-   `client_state` - Validation token
+-   `is_valid` - Boolean: passed validation
+-   `is_processed` - Boolean: has been processed
+-   `processed_at` - Processing timestamp
+-   `payload` - Full JSON payload
+-   `source_ip` - IP address of webhook sender
+-   `processing_error` - Error message if failed
 
 ### 3. **Enhanced OutlookService**
+
 **Location**: `app/Services/OutlookService.php`
 
 #### createSubscription($user, array $options = [])
+
 **Lines**: 3864-3947
 
 Creates new Microsoft Graph webhook subscription:
-- Validates webhook URL (must be HTTPS)
-- Sets expiration to 71 hours (Microsoft max)
-- Subscribes to `me/messages` (all folders)
-- Saves to `graph_subscriptions` table
-- Updates `email_sync_states` with subscription info
-- Returns detailed response with subscription ID
+
+-   Validates webhook URL (must be HTTPS)
+-   Sets expiration to 71 hours (Microsoft max)
+-   Subscribes to `me/messages` (all folders)
+-   Saves to `graph_subscriptions` table
+-   Updates `email_sync_states` with subscription info
+-   Returns detailed response with subscription ID
 
 **Usage**:
+
 ```php
 $outlookService = app(OutlookService::class);
 $result = $outlookService->createSubscription($user, [
@@ -93,60 +108,72 @@ $result = $outlookService->createSubscription($user, [
 ```
 
 #### renewSubscription(string $subscriptionId, $user)
+
 **Lines**: 3952-3998
 
 Renews expiring subscription:
-- Extends expiration by 71 hours
-- Updates database records
-- Tracks renewal attempts
-- Returns new expiration date
+
+-   Extends expiration by 71 hours
+-   Updates database records
+-   Tracks renewal attempts
+-   Returns new expiration date
 
 **Usage**:
+
 ```php
 $result = $outlookService->renewSubscription($subscriptionId, $user);
 ```
 
 #### deleteSubscription(string $subscriptionId, $user)
+
 **Lines**: 4003-4030
 
 Deletes subscription:
-- Calls Microsoft Graph API
-- Updates database status to 'deleted'
-- Clears subscription from email_sync_states
+
+-   Calls Microsoft Graph API
+-   Updates database status to 'deleted'
+-   Clears subscription from email_sync_states
 
 **Usage**:
+
 ```php
 $outlookService->deleteSubscription($subscriptionId, $user);
 ```
 
 ### 4. **Webhook Controller**
+
 **Location**: `app/Http/Controllers/MicrosoftWebhookController.php`
 
 The webhook controller is already configured but needs enhancement. It handles:
-- **Validation**: Responds to Microsoft's validation request
-- **Notification Processing**: Receives webhook notifications
-- **Client State Validation**: Verifies webhooks are from Microsoft
+
+-   **Validation**: Responds to Microsoft's validation request
+-   **Notification Processing**: Receives webhook notifications
+-   **Client State Validation**: Verifies webhooks are from Microsoft
 
 **Current Routes**:
-- `POST /api/webhook/subscriptionNotification` - Receive notifications
-- `GET /api/webhook/subscriptionNotification` - Validation endpoint
+
+-   `POST /api/webhook/subscriptionNotification` - Receive notifications
+-   `GET /api/webhook/subscriptionNotification` - Validation endpoint
 
 ### 5. **Test & Diagnostic Command**
+
 **Location**: `app/Console/Commands/TestRealtimeEmailSetup.php`
 
 Comprehensive testing command that checks:
-- ✅ Database tables exist
-- ✅ Environment variables configured
-- ✅ Horizon is running
-- ✅ Reverb is running
-- ✅ Queue driver configured
-- ✅ Broadcast driver configured
-- ✅ Outlook connections are valid
-- ✅ Subscriptions are active
-- ✅ Webhook endpoint is accessible
-- ✅ Broadcasting channels configured
+
+-   ✅ Database tables exist
+-   ✅ Environment variables configured
+-   ✅ Horizon is running
+-   ✅ Reverb is running
+-   ✅ Queue driver configured
+-   ✅ Broadcast driver configured
+-   ✅ Outlook connections are valid
+-   ✅ Subscriptions are active
+-   ✅ Webhook endpoint is accessible
+-   ✅ Broadcasting channels configured
 
 **Run Test**:
+
 ```bash
 # Test all configurations
 php artisan emails:test-realtime
@@ -162,6 +189,7 @@ php artisan emails:test-realtime --test-webhook
 ```
 
 **Sample Output**:
+
 ```
 =======================================================
   Real-Time Email Sync Configuration Test
@@ -203,6 +231,7 @@ Success Rate: 100%
 ### Step 1: Environment Configuration
 
 Add to `.env`:
+
 ```bash
 # Microsoft Azure AD
 AZURE_CLIENT_ID=your-client-id
@@ -220,6 +249,7 @@ QUEUE_CONNECTION=database
 ```
 
 **For Local Development with ngrok**:
+
 ```bash
 # Start ngrok
 ngrok http 8000
@@ -229,11 +259,13 @@ AZURE_WEBHOOK_URL=https://abc123.ngrok-free.app/api/webhook/subscriptionNotifica
 ```
 
 ### Step 2: Run Migrations
+
 ```bash
 php artisan migrate
 ```
 
 ### Step 3: Start Required Services
+
 ```bash
 # Terminal 1: Queue worker
 php artisan horizon
@@ -246,11 +278,13 @@ php artisan serve
 ```
 
 ### Step 4: Test Configuration
+
 ```bash
 php artisan emails:test-realtime
 ```
 
 ### Step 5: Create Subscriptions
+
 ```bash
 # For specific user
 php artisan emails:test-realtime --user=1 --create-subscription
@@ -264,7 +298,9 @@ $result = $outlookService->createSubscription($user);
 ## 🔄 Subscription Lifecycle Management
 
 ### Automatic Renewal (Recommended)
+
 Add to `app/Console/Kernel.php`:
+
 ```php
 protected function schedule(Schedule $schedule)
 {
@@ -281,6 +317,7 @@ protected function schedule(Schedule $schedule)
 ```
 
 ### Manual Subscription Management
+
 ```php
 use App\Models\GraphSubscription;
 use App\Services\OutlookService;
@@ -308,45 +345,50 @@ $outlookService->deleteSubscription(
 ## 🎯 Webhook Processing Flow
 
 ### 1. Microsoft Sends Notification
+
 When a new email arrives:
+
 ```json
 {
-  "value": [
-    {
-      "subscriptionId": "abc-123-def",
-      "clientState": "your-secret-token",
-      "changeType": "created",
-      "resource": "Users/user@domain.com/Messages/AAMkAD...",
-      "resourceData": {
-        "@odata.type": "#Microsoft.Graph.Message",
-        "@odata.id": "Users/user@domain.com/Messages/AAMkAD...",
-        "@odata.etag": "W/\"CQAAABYAAADw...",
-        "id": "AAMkAD..."
-      }
-    }
-  ]
+    "value": [
+        {
+            "subscriptionId": "abc-123-def",
+            "clientState": "your-secret-token",
+            "changeType": "created",
+            "resource": "Users/user@domain.com/Messages/AAMkAD...",
+            "resourceData": {
+                "@odata.type": "#Microsoft.Graph.Message",
+                "@odata.id": "Users/user@domain.com/Messages/AAMkAD...",
+                "@odata.etag": "W/\"CQAAABYAAADw...",
+                "id": "AAMkAD..."
+            }
+        }
+    ]
 }
 ```
 
 ### 2. Webhook Controller Receives & Validates
+
 **File**: `app/Http/Controllers/MicrosoftWebhookController.php:14`
 
-- Verifies `clientState` matches configured value
-- Logs to `webhook_deliveries` table
-- Dispatches `SyncUserEmails` job
+-   Verifies `clientState` matches configured value
+-   Logs to `webhook_deliveries` table
+-   Dispatches `SyncUserEmails` job
 
 ### 3. Sync Job Processes Changes
+
 **File**: `app/Jobs/SyncUserEmails.php`
 
-- Uses delta query to fetch actual email data
-- Stores in `fetched_emails` table
-- Broadcasts `NewEmailReceived` event via WebSocket
+-   Uses delta query to fetch actual email data
+-   Stores in `fetched_emails` table
+-   Broadcasts `NewEmailReceived` event via WebSocket
 
 ### 4. Frontend Receives Real-Time Update
+
 **File**: `resources/views/mail/index.blade.php:156`
 
 ```javascript
-channel.listen('.email.new', (data) => {
+channel.listen(".email.new", (data) => {
     // Show notification
     // Update unread count
     // Display refresh banner
@@ -378,6 +420,7 @@ email_sync_states
 ## 🔍 Monitoring & Debugging
 
 ### Check Subscription Status
+
 ```php
 use App\Models\GraphSubscription;
 
@@ -392,6 +435,7 @@ $userSubs = GraphSubscription::where('user_id', 1)->active()->get();
 ```
 
 ### Check Webhook Deliveries
+
 ```php
 use App\Models\WebhookDelivery;
 
@@ -406,6 +450,7 @@ $failed = WebhookDelivery::failed()->get();
 ```
 
 ### View Logs
+
 ```bash
 # Laravel logs
 tail -f storage/logs/laravel.log
@@ -421,12 +466,15 @@ php artisan tinker
 ## 🚨 Troubleshooting
 
 ### Issue: Webhooks Not Received
+
 **Causes**:
+
 1. Webhook URL not accessible from internet
 2. Firewall blocking Microsoft IPs
 3. SSL certificate invalid
 
 **Solutions**:
+
 ```bash
 # Test webhook endpoint
 curl https://your-domain.com/api/webhook/subscriptionNotification?validationToken=test
@@ -439,12 +487,15 @@ ngrok http 8000
 ```
 
 ### Issue: Subscription Creation Fails
+
 **Causes**:
+
 1. Invalid OAuth token
 2. Insufficient permissions
 3. Invalid webhook URL
 
 **Solutions**:
+
 ```bash
 # Test configuration
 php artisan emails:test-realtime --user=1
@@ -457,7 +508,9 @@ php artisan tinker
 ```
 
 ### Issue: Subscriptions Expiring
+
 **Solution**:
+
 ```php
 // Set up automatic renewal in Kernel.php
 $schedule->command('emails:renew-subscriptions')->daily();
@@ -466,12 +519,15 @@ $schedule->command('emails:renew-subscriptions')->daily();
 ## 📈 Performance Considerations
 
 ### Webhook Rate Limiting
+
 Microsoft may send bursts of notifications. The system handles this by:
-- Batching multiple notifications
-- Using queue system (Horizon)
-- 5-second delay before processing
+
+-   Batching multiple notifications
+-   Using queue system (Horizon)
+-   5-second delay before processing
 
 ### Database Optimization
+
 ```sql
 -- Indexes are automatically created by migrations
 -- For additional performance:
@@ -480,6 +536,7 @@ CREATE INDEX idx_webhook_deliveries_status ON webhook_deliveries(is_processed, i
 ```
 
 ### Cleanup Old Data
+
 ```php
 // Delete old webhook deliveries (keep 30 days)
 WebhookDelivery::where('created_at', '<', now()->subDays(30))->delete();
@@ -494,22 +551,24 @@ GraphSubscription::where('status', 'expired')
 
 Before deploying to production:
 
-- [ ] Run `php artisan emails:test-realtime`
-- [ ] Verify webhook URL is publicly accessible
-- [ ] Configure automatic subscription renewal
-- [ ] Set up monitoring for expired subscriptions
-- [ ] Enable Horizon autoscaling
-- [ ] Configure queue workers (min 2)
-- [ ] Set up log rotation
-- [ ] Configure backup for webhook_deliveries table
-- [ ] Test subscription creation for all users
-- [ ] Verify WebSocket connection in production
-- [ ] Set up alerts for failed subscriptions
+-   [ ] Run `php artisan emails:test-realtime`
+-   [ ] Verify webhook URL is publicly accessible
+-   [ ] Configure automatic subscription renewal
+-   [ ] Set up monitoring for expired subscriptions
+-   [ ] Enable Horizon autoscaling
+-   [ ] Configure queue workers (min 2)
+-   [ ] Set up log rotation
+-   [ ] Configure backup for webhook_deliveries table
+-   [ ] Test subscription creation for all users
+-   [ ] Verify WebSocket connection in production
+-   [ ] Set up alerts for failed subscriptions
 
 ## 🔐 Security Considerations
 
 ### Client State Validation
+
 Always validate the `clientState` in webhooks:
+
 ```php
 if ($notification['clientState'] !== config('services.azure.webhook_client_state')) {
     // Reject webhook
@@ -518,34 +577,39 @@ if ($notification['clientState'] !== config('services.azure.webhook_client_state
 ```
 
 ### HTTPS Required
+
 Microsoft requires HTTPS for webhooks. Use:
-- Valid SSL certificate in production
-- ngrok for local development
+
+-   Valid SSL certificate in production
+-   ngrok for local development
 
 ### Secrets Management
-- Store `AZURE_WEBHOOK_CLIENT_STATE` securely
-- Rotate client state periodically
-- Use Laravel's encryption for sensitive data
+
+-   Store `AZURE_WEBHOOK_CLIENT_STATE` securely
+-   Rotate client state periodically
+-   Use Laravel's encryption for sensitive data
 
 ## 📚 Additional Resources
 
-- [Microsoft Graph Subscriptions Documentation](https://learn.microsoft.com/en-us/graph/api/resources/subscription)
-- [Webhook Notification Payload](https://learn.microsoft.com/en-us/graph/webhooks)
-- [Laravel Horizon Documentation](https://laravel.com/docs/horizon)
-- [Laravel Reverb Documentation](https://laravel.com/docs/reverb)
+-   [Microsoft Graph Subscriptions Documentation](https://learn.microsoft.com/en-us/graph/api/resources/subscription)
+-   [Webhook Notification Payload](https://learn.microsoft.com/en-us/graph/webhooks)
+-   [Laravel Horizon Documentation](https://laravel.com/docs/horizon)
+-   [Laravel Reverb Documentation](https://laravel.com/docs/reverb)
 
 ## 🎉 Summary
 
 This implementation provides:
-- ✅ Real-time email notifications via Microsoft Graph webhooks
-- ✅ Automatic subscription management and renewal
-- ✅ Comprehensive database tracking
-- ✅ Full diagnostic and testing tools
-- ✅ WebSocket broadcasting to frontend
-- ✅ Production-ready error handling
-- ✅ Performance optimized with queues
+
+-   ✅ Real-time email notifications via Microsoft Graph webhooks
+-   ✅ Automatic subscription management and renewal
+-   ✅ Comprehensive database tracking
+-   ✅ Full diagnostic and testing tools
+-   ✅ WebSocket broadcasting to frontend
+-   ✅ Production-ready error handling
+-   ✅ Performance optimized with queues
 
 **Run the diagnostic command to verify everything is working**:
+
 ```bash
 php artisan emails:test-realtime
 ```

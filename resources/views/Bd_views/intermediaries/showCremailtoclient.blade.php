@@ -43,9 +43,9 @@
                                 </label>
 
                                 <textarea class="form-control" id="content" name="content" rows="10"
-                                    style="text-align: left !important; 
-                                        height: 434px; 
-                                        padding-left: 10px; 
+                                    style="text-align: left !important;
+                                        height: 434px;
+                                        padding-left: 10px;
                                         line-height: 1.5;
                                         text-align-last: left;
                                         white-space: pre-wrap;
@@ -53,50 +53,50 @@
                                         hyphens: auto;"
                                     required>
 Dear XXXX,
-                        
+
 On behalf of Acentria Insurance Brokers Limited, I take this opportunity to welcome XXXX (Name of client) on board. We are grateful for the appointment to serve your company as the insurance broker and shall reiterate by offering bespoke service.
-                        
-We have placed the scheme on cover effective dd/mm/yr to dd/mm/yr with XXX (Insurance company).   
-                        
+
+We have placed the scheme on cover effective dd/mm/yr to dd/mm/yr with XXX (Insurance company).
+
 As part of onboarding, I wish to e-introduce the day-to-day team that shall be handling your scheme:
-                        
+
 Tracy Miranyi / Fiona Karanu – tmiranyi@acentriagroup.com / fkaranu@acentriagroup.com and group email- underwriting@acentriagroup.com – 0727-112777 – additions/deletions/statements
 Wanjiru Nyaga – wnyaga@acentriagroup.com – 0726-625438 - All day-to-day escalations/performance reviews etc
 Mandela Kariuki - claims@acentriagroup.com
-                        
+
 This team is backed by a larger team in their absence.
-                                                        
+
 Emergency numbers – 0731-200999 or 0716 -200999
-                                                        
+
  We have attached the following as part of the staff starter pack to ensure compliance and seamless operation through the year:
-                                                        
-Insurance company provider panel 
+
+Insurance company provider panel
                         Outpatient claim form – for members who may visit providers outside the panel
  Member application form – for new members joining the scheme
  Reimbursement requirements
-                        
+
 Attached also find the following:
-                        
+
 Service level agreement for your perusal and execution
 Sample memo to staff on changes
 Implementation timetable on how we plan to engage and service the scheme
-                        
-We would suggest to have a member education session for staff, and implementation meeting with the team in charge of the scheme at your convenience to plan the yearly activities. This is preferably best planned in the first month of cover. 
-                        
+
+We would suggest to have a member education session for staff, and implementation meeting with the team in charge of the scheme at your convenience to plan the yearly activities. This is preferably best planned in the first month of cover.
+
 Should you need further clarification or assistance, we are at your service.  Do not hesitate to reach out.
-                        
-Once again, thank you for your business support and we assure you of our seamless service throughout the year. 
-                        
+
+Once again, thank you for your business support and we assure you of our seamless service throughout the year.
+
 Kind Regards,
-                        
+
 xxxx     xxx
 Client Relations Executive
 +254 7xx xxx xxx
 xxxx@acentriagroup.com
-                        
+
 Acentria Group - Insurance Broking
 West Park Towers, 9th floor, Mpesi Lane, Muthithi Road
-P.O Box 5864-00100 Nairobi, Kenya |  +254 705 200 222 
+P.O Box 5864-00100 Nairobi, Kenya |  +254 705 200 222
 info@acentriagroup.com  |  www.acentriagroup.com
 </textarea>
                             </div>

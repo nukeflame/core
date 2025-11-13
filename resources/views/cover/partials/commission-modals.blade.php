@@ -55,7 +55,7 @@
 
                 <hr class="my-3">
 
-                <div class="row g-3">
+                {{-- <div class="row g-3">
                     <div class="col-md-6">
                         <h6>Quick Templates:</h6>
                         <button type="button" class="btn btn-outline-secondary btn-sm me-2 load-template"
@@ -76,7 +76,7 @@
                         </button>
                         <input type="file" id="sliding-csv-file" accept=".csv" style="display: none;">
                     </div>
-                </div>
+                </div> --}}
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>

@@ -1,8 +1,8 @@
 <div class="row g-3">
     {{-- Class Group --}}
     <div class="col-md-3">
-        <label class="form-label ">Class Group</label>
-        <select class="form-control select2" name="class_group" id="class_group">
+        <label class="form-label required">Class Group</label>
+        <select class="form-control select2" name="class_group" id="class_group" required>
             <option value="">Choose Class Group</option>
             @foreach ($classGroups as $classGroup)
                 <option value="{{ $classGroup->group_code }}"
@@ -15,8 +15,8 @@
 
     {{-- Class Name --}}
     <div class="col-md-3">
-        <label class="form-label  ">Class Name</label>
-        <select class="form-control select2" name="classcode" id="classcode">
+        <label class="form-label required">Class Name</label>
+        <select class="form-control select2" name="classcode" id="classcode" required>
             <option value="">Select Class Name</option>
         </select>
         @error('classcode')
@@ -26,8 +26,8 @@
 
     {{-- Insured Name --}}
     <div class="col-md-{{ isset($prospectId) && $prospectId ? '2' : '3' }}">
-        <label class="form-label  ">Insured Name</label>
-        <select class="form-control select2" name="insured_name" id="insured_name">
+        <label class="form-label required">Insured Name</label>
+        <select class="form-control select2" name="insured_name" id="insured_name" required>
             <option value="">Choose Insured</option>
             @foreach ($insured as $insured_name)
                 <option value="{{ $insured_name->name }}"
@@ -49,17 +49,17 @@
 
     {{-- Date Offered --}}
     <div class="col-md-3">
-        <label class="form-label  ">Date Offered</label>
+        <label class="form-label required">Date Offered</label>
         <input type="date" class="form-control" id="fac_date_offered" name="fac_date_offered"
-            value="{{ isset($old_endt_trans) ? $old_endt_trans->date_offered : '' }}">
+            value="{{ isset($old_endt_trans) ? $old_endt_trans->date_offered : '' }}" required>
     </div>
 </div>
 
 <div class="row g-3 mt-2">
     {{-- Sum Insured Type --}}
     <div class="col-md-3">
-        <label class="form-label  ">Sum Insured Type</label>
-        <select class="form-control select2" name="sum_insured_type" id="sum_insured_type">
+        <label class="form-label required">Sum Insured Type</label>
+        <select class="form-control select2" name="sum_insured_type" id="sum_insured_type" required>
             <option value="">Choose Sum Insured Type</option>
             @foreach ($types_of_sum_insured as $type_of_sum_insured)
                 <option value="{{ $type_of_sum_insured->sum_insured_code }}"
@@ -72,20 +72,20 @@
 
     {{-- 100% Sum Insured --}}
     <div class="col-md-3">
-        <label class="form-label  ">100% Sum Insured <span id="sum_insured_label"></span></label>
+        <label class="form-label required">100% Sum Insured <span id="sum_insured_label"></span></label>
         <input type="text" class="form-control amount" id="total_sum_insured" name="total_sum_insured"
-            value="{{ isset($old_endt_trans) ? number_format($old_endt_trans->total_sum_insured, 2) : '' }}">
+            value="{{ isset($old_endt_trans) ? number_format($old_endt_trans->total_sum_insured, 2) : '' }}" required>
     </div>
 
     {{-- Apply EML --}}
     <div class="col-md-2">
-        <label class="form-label  ">Apply EML</label>
-        <select name="apply_eml" class="form-control select2" id="apply_eml">
+        <label class="form-label required">Apply EML</label>
+        <select name="apply_eml" class="form-control select2" id="apply_eml" required>
             <option value="">Select Option</option>
-            <option value="Y" {{ isset($old_endt_trans) && $old_endt_trans->apply_eml == 'Y' ? 'selected' : '' }}>
-                Yes</option>
-            <option value="N" {{ isset($old_endt_trans) && $old_endt_trans->apply_eml == 'N' ? 'selected' : '' }}>
-                No</option>
+            <option value="Y"
+                {{ isset($old_endt_trans) && $old_endt_trans->apply_eml == 'Y' ? 'selected' : '' }}>Yes</option>
+            <option value="N"
+                {{ isset($old_endt_trans) && $old_endt_trans->apply_eml == 'N' ? 'selected' : '' }}>No</option>
         </select>
     </div>
 
@@ -125,37 +125,37 @@
 <div class="row g-3 mt-2">
     {{-- Cedant Premium --}}
     <div class="col-md-3">
-        <label class="form-label  ">Cedant Premium</label>
+        <label class="form-label required">Cedant Premium</label>
         <input type="text" class="form-control amount" id="cede_premium" name="cede_premium"
-            value="{{ isset($old_endt_trans) ? number_format($old_endt_trans->cedant_premium, 2) : '' }}">
+            value="{{ isset($old_endt_trans) ? number_format($old_endt_trans->cedant_premium, 2) : '' }}" required>
     </div>
 
     {{-- Reinsurer Premium --}}
     <div class="col-md-3">
-        <label class="form-label  ">Reinsurer Premium</label>
+        <label class="form-label required">Reinsurer Premium</label>
         <input type="text" class="form-control amount" id="rein_premium" name="rein_premium"
-            value="{{ isset($old_endt_trans) ? number_format($old_endt_trans->rein_premium, 2) : '' }}">
+            value="{{ isset($old_endt_trans) ? number_format($old_endt_trans->rein_premium, 2) : '' }}" required>
     </div>
 
     {{-- Share Offered --}}
     <div class="col-md-3">
-        <label class="form-label  ">Share Offered (%)</label>
+        <label class="form-label required">Share Offered (%)</label>
         <input type="number" class="form-control" id="fac_share_offered" name="fac_share_offered" max="100"
-            min="0" value="{{ isset($old_endt_trans) ? $old_endt_trans->share_offered : '' }}">
+            min="0" value="{{ isset($old_endt_trans) ? $old_endt_trans->share_offered : '' }}" required>
     </div>
 </div>
 
 <div class="row g-3 mt-2">
     {{-- Cedant Commission Rate --}}
     <div class="col-md-3">
-        <label class="form-label  ">Cedant Comm Rate (%)</label>
+        <label class="form-label required">Cedant Comm Rate (%)</label>
         <input type="text" class="form-control" id="comm_rate" name="comm_rate"
-            value="{{ isset($old_endt_trans) ? $old_endt_trans->cedant_comm_rate : '' }}">
+            value="{{ isset($old_endt_trans) ? $old_endt_trans->cedant_comm_rate : '' }}" required>
     </div>
 
     {{-- Cedant Commission Amount --}}
     <div class="col-md-3">
-        <label class="form-label  ">Cedant Comm Amount</label>
+        <label class="form-label required">Cedant Comm Amount</label>
         <input type="text" class="form-control amount" id="comm_amt" name="comm_amt"
             value="{{ isset($old_endt_trans) ? number_format($old_endt_trans->cedant_comm_amount, 2) : '' }}"
             readonly>
@@ -163,8 +163,8 @@
 
     {{-- Reinsurer Commission Type --}}
     <div class="col-md-3">
-        <label class="form-label  ">Reinsurer Comm Type</label>
-        <select class="form-control select2" name="reins_comm_type" id="reins_comm_type">
+        <label class="form-label required">Reinsurer Comm Type</label>
+        <select class="form-control select2" name="reins_comm_type" id="reins_comm_type" required>
             <option value="">Choose Type</option>
             <option value="R"
                 {{ isset($old_endt_trans) && $old_endt_trans->rein_comm_type == 'R' ? 'selected' : '' }}>Rate

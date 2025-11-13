@@ -10,15 +10,17 @@
         <div class="row g-3">
             <div class="col-md-4">
                 <label class="form-label required">Reinsurance Class</label>
-                <select class="form-control select2 treaty_reinclass" name="treaty_reinclass[]" id="treaty_reinclass-0"
-                    data-counter="0" required>
-                    <option value="">Choose Reinsurance Class</option>
-                    @foreach ($reinsclasses as $reinsclass)
-                        <option value="{{ $reinsclass->class_code }}">
-                            {{ $reinsclass->class_code }} - {{ $reinsclass->class_name }}
-                        </option>
-                    @endforeach
-                </select>
+                <div class="cover-card">
+                    <select class="form-control select2 treaty_reinclass" name="treaty_reinclass[]"
+                        id="treaty_reinclass-0" data-counter="0" required>
+                        <option value="">Choose Reinsurance Class</option>
+                        @foreach ($reinsclasses as $reinsclass)
+                            <option value="{{ $reinsclass->class_code }}">
+                                {{ $reinsclass->class_code }} - {{ $reinsclass->class_name }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
             </div>
         </div>
 
@@ -33,16 +35,16 @@
             <div class="row g-3">
                 <div class="col-md-3 quota_share_total_limit_div">
                     <label class="form-label required">100% Quota Share Limit</label>
-                    <input type="text" class="form-control amount quota_share_total_limit"
+                    <input type="text" class="form-control amount quota_share_total_limit required"
                         id="quota_share_total_limit-0" name="quota_share_total_limit[]" data-counter="0"
-                        placeholder="0.00" required>
+                        placeholder="0.00">
                     <small class="text-muted">Total sum insured</small>
                 </div>
 
                 <div class="col-md-2 retention_per_div">
                     <label class="form-label required">Retention (%)</label>
-                    <input type="number" class="form-control retention_per" id="retention_per-0" name="retention_per[]"
-                        data-counter="0" min="0" max="100" step="0.01" placeholder="0.00" required>
+                    <input type="number" class="form-control retention_per required" id="retention_per-0"
+                        name="retention_per[]" data-counter="0" placeholder="0.00">
                     <small class="text-muted">% retained by cedant</small>
                 </div>
 
@@ -55,8 +57,8 @@
 
                 <div class="col-md-2 treaty_reice_div">
                     <label class="form-label required">Treaty (%)</label>
-                    <input type="number" class="form-control treaty_reice" id="treaty_reice-0" name="treaty_reice[]"
-                        data-counter="0" min="0" max="100" step="0.01" placeholder="0.00" required>
+                    <input type="number" class="form-control treaty_reice required" id="treaty_reice-0"
+                        name="treaty_reice[]" data-counter="0" placeholder="0.00">
                     <small class="text-muted">% ceded to treaty</small>
                 </div>
 
@@ -85,8 +87,8 @@
 
                 <div class="col-md-2 no_of_lines_div">
                     <label class="form-label required">Number of Lines</label>
-                    <input type="number" class="form-control no_of_lines" id="no_of_lines-0" name="no_of_lines[]"
-                        data-counter="0" min="1" placeholder="1" required>
+                    <input type="number" class="form-control no_of_lines required" id="no_of_lines-0"
+                        name="no_of_lines[]" data-counter="0" min="1" placeholder="1">
                     <small class="text-muted">Lines above retention</small>
                 </div>
 
@@ -102,15 +104,15 @@
         <div class="row g-3 mt-3">
             <div class="col-md-3 estimated_income_div">
                 <label class="form-label required">Estimated Income</label>
-                <input type="text" class="form-control amount estimated_income" id="estimated_income-0"
+                <input type="text" class="form-control amount estimated_income required" id="estimated_income-0"
                     name="estimated_income[]" data-counter="0" placeholder="0.00" required>
                 <small class="text-muted">Expected premium income</small>
             </div>
 
             <div class="col-md-3 cashloss_limit_div">
                 <label class="form-label required">Cash Loss Limit</label>
-                <input type="text" class="form-control amount cashloss_limit" id="cashloss_limit-0"
-                    name="cashloss_limit[]" data-counter="0" placeholder="0.00" required>
+                <input type="text" class="form-control amount cashloss_limit required" id="cashloss_limit-0"
+                    name="cashloss_limit[]" data-counter="0" placeholder="0.00">
                 <small class="text-muted">Maximum claim amount</small>
             </div>
         </div>
@@ -130,38 +132,45 @@
                 <div class="row g-3 align-items-end">
                     <div class="col-md-3 prem_type_treaty_div">
                         <label class="form-label required">Treaty</label>
-                        <select class="form-control select2 prem_type_treaty" name="prem_type_treaty[]"
-                            id="prem_type_treaty-0-0" data-class-counter="0" data-counter="0" required>
-                            <option value="">Select Treaty</option>
-                        </select>
+                        <div class="cover-card">
+                            <select class="form-control select2 prem_type_treaty required" name="prem_type_treaty[]"
+                                id="prem_type_treaty-0-0" data-class-counter="0" data-counter="0">
+                                <option value="">Select Treaty</option>
+                            </select>
+                        </div>
                     </div>
 
                     <div class="col-md-3 prem_type_code_div">
                         <label class="form-label required">Premium Type</label>
                         <input type="hidden" class="prem_type_reinclass" id="prem_type_reinclass-0-0"
                             name="prem_type_reinclass[]">
-                        <select class="form-control select2 prem_type_code" name="prem_type_code[]"
-                            id="prem_type_code-0-0" data-class-counter="0" data-counter="0" required>
-                            <option value="">Select Premium Type</option>
-                        </select>
+                        <div class="cover-card">
+                            <select class="form-control select2 prem_type_code required" name="prem_type_code[]"
+                                id="prem_type_code-0-0" data-class-counter="0" data-counter="0">
+                                <option value="">Select Premium Type</option>
+                            </select>
+                        </div>
                     </div>
 
                     <div class="col-md-2 comm_type_div">
                         <label class="form-label required">Commission Type</label>
-                        <select class="form-control select2 commission_type" name="commission_type[]"
-                            id="commission_type-0-0" data-class-counter="0" data-counter="0" required>
-                            <option value="">Select Type</option>
-                            <option value="FLAT">Flat Rate</option>
-                            <option value="SLIDING">Sliding Scale</option>
-                        </select>
+                        <div class="cover-card">
+                            <select class="form-control select2 commission_type required"
+                                name="treaty_commission_type[]" id="commission_type-0-0" data-class-counter="0"
+                                data-counter="0">
+                                <option value="">Select Type</option>
+                                <option value="FLAT">Flat Rate</option>
+                                <option value="SLIDING">Sliding Scale</option>
+                            </select>
+                        </div>
                     </div>
 
                     <div class="col-md-3 flat_rate_div">
                         <label class="form-label required">Commission (%)</label>
                         <div class="input-group">
-                            <input type="text" class="form-control prem_type_comm_rate"
-                                name="prem_type_comm_rate[]" id="prem_type_comm_rate-0-0" data-counter="0"
-                                placeholder="0.00" required>
+                            <input type="text" class="form-control prem_type_comm_rate required"
+                                name="flat_prem_type_comm_rate[]" id="prem_type_comm_rate-0-0" data-counter="0"
+                                placeholder="0.00">
                             <button class="btn btn-primary add-comm-section" type="button" id="add-comm-section-0-0"
                                 data-counter="0" title="Add another commission rate">
                                 <i class="bx bx-plus"></i>
@@ -172,9 +181,9 @@
                     <div class="col-md-2 sliding_scale_div" style="display: none;">
                         <label class="form-label">Commission (%)</label>
                         <div class="input-group">
-                            <input type="text" class="form-control prem_type_comm_rate"
-                                name="prem_type_comm_rate[]" id="prem_type_comm_rate-0-1" data-counter="0"
-                                placeholder="0.00" required>
+                            <input type="text" class="form-control prem_type_comm_rate required"
+                                name="sliding_treaty_prem_type_comm_rate[]" id="prem_type_comm_rate-0-1"
+                                data-counter="0" placeholder="0.00">
                         </div>
                         <input type="hidden" class="provincial_data" name="provincial_data[]"
                             id="provincial_data-0-0">
@@ -200,6 +209,7 @@
                 </div>
             </div>
         </div>
+
     </div>
 @else
     @if (isset($coverreinpropClasses) && count($coverreinpropClasses) > 0)

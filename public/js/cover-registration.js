@@ -1,12 +1,11 @@
 /**
- * Cover Registration Module - Refactored
+ * Cover Registration Module
  * Enhanced with better error handling, security, and performance
  */
 
 const CoverRegistration = (function () {
     "use strict";
 
-    // ==================== Configuration ====================
     const config = {
         trans_type: "",
         prospectId: "",
@@ -22,7 +21,6 @@ const CoverRegistration = (function () {
         calculationPrecision: 2,
     };
 
-    // ==================== State Management ====================
     const state = {
         isSubmitting: false,
         isDirty: false,
@@ -30,7 +28,6 @@ const CoverRegistration = (function () {
         activeRequests: new Map(),
     };
 
-    // ==================== DOM Elements Cache ====================
     const elements = {
         form: null,
         typeOfBus: null,
@@ -51,7 +48,6 @@ const CoverRegistration = (function () {
         prospectId: null,
     };
 
-    // ==================== Initialization ====================
     function init() {
         try {
             loadConfiguration();
@@ -77,7 +73,6 @@ const CoverRegistration = (function () {
         if (typeof window.coverConfig !== "undefined") {
             Object.assign(config, window.coverConfig);
 
-            // Sanitize configuration
             config.maxInstallments = Math.min(
                 Math.max(1, config.maxInstallments || 100),
                 100
@@ -133,9 +128,7 @@ const CoverRegistration = (function () {
         }
     }
 
-    // ==================== Event Listeners ====================
     function setupEventListeners() {
-        // Business logic handlers
         elements.typeOfBus.on("change", handleBusinessTypeChange);
         elements.coverType.on("change", handleCoverTypeChange);
         elements.brokerFlag.on("change", handleBrokerFlagChange);
@@ -144,17 +137,13 @@ const CoverRegistration = (function () {
         elements.applyEml.on("change", handleEmlChange);
         elements.classGroup.on("change", handleClassGroupChange);
 
-        // Form submission
         $("#save_cover").on("click", handleFormSubmit);
 
-        // Date validation
         $("#coverfrom, #coverto").on("change", debounce(validateDates, 300));
 
-        // Installments
         $("#add_fac_instalments").on("click", addInstallments);
         $(document).on("click", ".remove-installment", removeInstallment);
 
-        // Commission calculations - debounced
         $("#comm_rate").on("keyup", debounce(calculateCedantCommission, 300));
         $("#reins_comm_rate").on(
             "keyup",
@@ -168,13 +157,11 @@ const CoverRegistration = (function () {
         $("#reins_comm_type").on("change", handleReinsurerCommTypeChange);
         $("#brokerage_comm_type").on("change", handleBrokerageCommTypeChange);
 
-        // EML calculations - debounced
         $("#eml_rate, #total_sum_insured").on(
             "keyup",
             debounce(calculateEml, 300)
         );
 
-        // Treaty sections
         $(document).on("change", ".treaty_reinclass", handleReinclassChange);
         $("#add_rein_class").on("click", addReinClass);
         $(document).on("click", ".add-comm-section", addCommissionSection);
@@ -185,7 +172,6 @@ const CoverRegistration = (function () {
         );
         $(document).on("click", ".remove-rein-class", removeReinClass);
 
-        // Commission types
         $(document).on(
             "change",
             ".commission_type",
@@ -201,13 +187,11 @@ const CoverRegistration = (function () {
         $(document).on("click", ".remove-scale-row", removeSlidingScaleTier);
         $(document).on("click", ".load-template", loadSlidingTemplate);
 
-        // CSV imports
         $("#import-sliding-csv").on("click", () =>
             $("#sliding-csv-file").click()
         );
         $("#sliding-csv-file").on("change", handleSlidingCSVImport);
 
-        // Layers
         $("#add-layer-section").on("click", addLayer);
         $(document).on("click", ".remove-layer-section", removeLayer);
         $(document).on(
@@ -216,11 +200,9 @@ const CoverRegistration = (function () {
             handleLimitPerReinclassChange
         );
 
-        // Treaty type and method
         $("#treatytype").on("change", handleTreatyTypeChange);
         $("#method").on("change", handleMethodChange);
 
-        // Prospect data
         elements.prospectId.on(
             "change",
             debounce(function () {
@@ -231,18 +213,14 @@ const CoverRegistration = (function () {
             }, 500)
         );
 
-        // Insured modal
         $("#addInsuredData").on("click", () =>
             $("#addInsuredDataModal").modal("show")
         );
 
-        // Risk details
         $("#risk_details_content").on("paste", handleRiskDetailsPaste);
 
-        // Amount formatting - debounced
         $(document).on("keyup", ".amount", debounce(formatAmountField, 300));
 
-        // Treaty calculations - debounced
         $(document).on(
             "keyup",
             ".retention_per, .quota_share_total_limit",
@@ -254,17 +232,11 @@ const CoverRegistration = (function () {
             debounce(calculateSurplusLimit, 300)
         );
 
-        // Track form changes
         elements.form.on("change", "input, select, textarea", () => {
             state.isDirty = true;
         });
     }
 
-    // ==================== Utility Functions ====================
-
-    /**
-     * Debounce function to limit rate of execution
-     */
     function debounce(func, wait) {
         let timeout;
         return function executedFunction(...args) {
@@ -277,87 +249,42 @@ const CoverRegistration = (function () {
         };
     }
 
-    /**
-     * Throttle function to ensure execution at most once per interval
-     */
-    function throttle(func, limit) {
-        let inThrottle;
-        return function (...args) {
-            if (!inThrottle) {
-                func.apply(this, args);
-                inThrottle = true;
-                setTimeout(() => (inThrottle = false), limit);
-            }
-        };
-    }
-
-    /**
-     * Sanitize HTML content to prevent XSS
-     */
     function sanitizeHTML(html) {
         const temp = document.createElement("div");
         temp.textContent = html;
         return temp.innerHTML;
     }
 
-    /**
-     * Sanitize input values
-     */
     function sanitizeInput(value) {
         if (typeof value !== "string") return value;
         return value.replace(/[<>]/g, "");
     }
 
-    /**
-     * Parse number safely
-     */
     function parseNumber(value) {
         const cleaned = String(value).replace(/[^0-9.-]/g, "");
         const parsed = parseFloat(cleaned);
         return isNaN(parsed) ? 0 : parsed;
     }
 
-    /**
-     * Format number with commas
-     */
     function numberWithCommas(value, decimals = 2) {
         if (!value && value !== 0) return "";
         const num = typeof value === "number" ? value : parseNumber(value);
         return num.toFixed(decimals).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
     }
 
-    /**
-     * Remove commas from string
-     */
     function removeCommas(value) {
         return String(value).replace(/,/g, "");
     }
 
-    /**
-     * Check if decimals are equal within tolerance
-     */
     function areDecimalsEqual(num1, num2, tolerance = 0.01) {
         return Math.abs(parseFloat(num1) - parseFloat(num2)) <= tolerance;
     }
 
-    /**
-     * Format amount field on keyup
-     */
     function formatAmountField() {
         const $input = $(this);
-        const value = removeCommas($input.val());
-
-        if (!isNaN(value) && value !== "") {
-            const formatted = numberWithCommas(value);
-            if ($input.val() !== formatted) {
-                $input.val(formatted);
-            }
-        }
+        return $input.val();
     }
 
-    /**
-     * Validate numeric input
-     */
     function validateNumericInput(value, min = null, max = null) {
         const num = parseNumber(value);
 
@@ -367,25 +294,15 @@ const CoverRegistration = (function () {
         return !isNaN(num);
     }
 
-    /**
-     * Setup before unload warning
-     */
     function setupBeforeUnloadWarning() {
         window.addEventListener("beforeunload", (e) => {
             if (state.isDirty && !state.isSubmitting) {
                 e.preventDefault();
-                e.returnValue =
-                    "You have unsaved changes. Are you sure you want to leave?";
-                return e.returnValue;
+                return "You have unsaved changes. Are you sure you want to leave?";
             }
         });
     }
 
-    // ==================== AJAX Helper ====================
-
-    /**
-     * Centralized AJAX handler with caching and abort control
-     */
     function makeAjaxRequest(options) {
         const {
             url,
@@ -400,14 +317,12 @@ const CoverRegistration = (function () {
             loadingMessage = "Loading...",
         } = options;
 
-        // Check cache first
         if (cache && cacheKey && state.cachedData.has(cacheKey)) {
             const cachedResult = state.cachedData.get(cacheKey);
             if (successCallback) successCallback(cachedResult);
             return Promise.resolve(cachedResult);
         }
 
-        // Abort existing request with same key
         if (cacheKey && state.activeRequests.has(cacheKey)) {
             state.activeRequests.get(cacheKey).abort();
         }
@@ -425,13 +340,11 @@ const CoverRegistration = (function () {
                 "X-CSRF-TOKEN": $('meta[name="csrf-token"]').attr("content"),
                 "X-Requested-With": "XMLHttpRequest",
             },
-            timeout: 30000, // 30 second timeout
+            timeout: 30000,
             success: function (response) {
-                // Cache response if requested
                 if (cache && cacheKey) {
                     state.cachedData.set(cacheKey, response);
 
-                    // Clear cache after 5 minutes
                     setTimeout(() => {
                         state.cachedData.delete(cacheKey);
                     }, 300000);
@@ -449,7 +362,6 @@ const CoverRegistration = (function () {
                     error: error,
                 });
 
-                // Handle specific error codes
                 if (xhr.status === 401) {
                     Swal.fire({
                         icon: "error",
@@ -506,8 +418,6 @@ const CoverRegistration = (function () {
         return xhr;
     }
 
-    // ==================== Business Logic Handlers ====================
-
     function handleBusinessTypeChange() {
         const bustype = $(this).val();
 
@@ -515,7 +425,6 @@ const CoverRegistration = (function () {
 
         if (!bustype) return;
 
-        // Show appropriate section based on business type
         const sectionMap = {
             FPR: showFacSection,
             FNP: showFacSection,
@@ -524,6 +433,7 @@ const CoverRegistration = (function () {
         };
 
         const showSection = sectionMap[bustype];
+
         if (showSection) {
             showSection();
         }
@@ -599,7 +509,6 @@ const CoverRegistration = (function () {
             cacheKey: `currency_${currencyCode}`,
             loadingMessage: "Loading exchange rate...",
             successCallback: function (response) {
-                // Handle both JSON string and object responses
                 const data =
                     typeof response === "string"
                         ? JSON.parse(response)
@@ -627,7 +536,6 @@ const CoverRegistration = (function () {
             $(".eml-field").show();
             $("#eml_rate, #eml_amt").prop("required", true);
 
-            // Set default EML rate if empty
             if (!$("#eml_rate").val()) {
                 $("#eml_rate").val(100);
             }
@@ -682,35 +590,32 @@ const CoverRegistration = (function () {
         });
     }
 
-    // ==================== Form Submission ====================
-
     function handleFormSubmit(e) {
         e.preventDefault();
 
-        // Prevent double submission
         if (state.isSubmitting) {
-            toastr.warning("Submission in progress. Please wait...");
             return false;
         }
 
-        // Validate form
+        // const validator = elements.form.validate();
+        // validator.form();
+        // const invalidFields = Object.keys(validator.invalid);
+        // console.log("Invalid fields:", invalidFields);
+
         if (!elements.form.valid()) {
             toastr.error("Please correct the errors before submitting");
             scrollToFirstError();
             return false;
         }
 
-        // Validate installments if applicable
-        if (isInstallmentPayment() && !validateInstallments()) {
-            return false;
-        }
+        // if (isInstallmentPayment() && !validateInstallments()) {
+        //     return false;
+        // }
 
-        // Validate business type specific requirements
-        if (!validateBusinessTypeRequirements()) {
-            return false;
-        }
+        // if (!validateBusinessTypeRequirements()) {
+        //     return false;
+        // }
 
-        // Confirm submission
         Swal.fire({
             title: "Confirm Submission",
             text: "Do you want to submit this cover registration?",
@@ -734,33 +639,31 @@ const CoverRegistration = (function () {
         state.isSubmitting = true;
         state.isDirty = false;
 
-        // Sanitize risk details before submission
         const riskDetails = $("#risk_details_content").html();
-        const sanitized = DOMPurify
-            ? DOMPurify.sanitize(riskDetails, {
-                  ALLOWED_TAGS: [
-                      "p",
-                      "br",
-                      "strong",
-                      "em",
-                      "u",
-                      "ul",
-                      "ol",
-                      "li",
-                      "table",
-                      "tr",
-                      "td",
-                      "th",
-                  ],
-                  ALLOWED_ATTR: ["class", "style"],
-              })
-            : riskDetails;
+        // const sanitized = DOMPurify
+        //     ? DOMPurify.sanitize(riskDetails, {
+        //           ALLOWED_TAGS: [
+        //               "p",
+        //               "br",
+        //               "strong",
+        //               "em",
+        //               "u",
+        //               "ul",
+        //               "ol",
+        //               "li",
+        //               "table",
+        //               "tr",
+        //               "td",
+        //               "th",
+        //           ],
+        //           ALLOWED_ATTR: ["class", "style"],
+        //       })
+        //     : riskDetails;
 
-        $("#hidden_risk_details").val(sanitized);
+        $("#hidden_risk_details").val(riskDetails);
 
         showLoader("Submitting cover registration...");
 
-        // Submit form
         elements.form.submit();
     }
 
@@ -772,7 +675,6 @@ const CoverRegistration = (function () {
             return false;
         }
 
-        // FAC validation
         if (["FPR", "FNP"].includes(busType)) {
             const cedantPremium = parseNumber($("#cede_premium").val());
             const shareOffered = parseNumber($("#fac_share_offered").val());
@@ -788,7 +690,6 @@ const CoverRegistration = (function () {
             }
         }
 
-        // Treaty validation
         if (["TPR", "TNP"].includes(busType)) {
             const hasReinClass =
                 $(".treaty_reinclass").filter(function () {
@@ -839,8 +740,6 @@ const CoverRegistration = (function () {
         $("#coverfrom, #coverto").removeClass("is-invalid");
         return true;
     }
-
-    // ==================== Installments Management ====================
 
     function addInstallments() {
         const noOfInstallments = parseInt($("#no_of_installments").val());
@@ -1041,8 +940,6 @@ const CoverRegistration = (function () {
 
         return (totalDr - totalCr).toFixed(2);
     }
-
-    // ==================== Commission Calculations ====================
 
     function calculateCedantCommission() {
         const rate = parseNumber($(this).val());
@@ -1585,17 +1482,13 @@ const CoverRegistration = (function () {
             toastr.error("No valid data found in CSV file.");
         }
 
-        // Reset file input
         $("#sliding-csv-file").val("");
     }
-
-    // ==================== Treaty Type & Method ====================
 
     function handleTreatyTypeChange() {
         const treatyType = $(this).val();
         const treatyTypeTxt = $(this).find("option:selected").text();
 
-        // Hide all sections first
         $(".quota_header_div, .surp_header_div").hide();
         $(
             ".quota_share_total_limit_div, .retention_per_div, .treaty_reice_div"
@@ -1607,13 +1500,11 @@ const CoverRegistration = (function () {
         $("#reinsurer_per_treaty_section").hide();
         $(".quota-share-section, .surplus-section").hide();
 
-        // Update first premium type treaty dropdown
         $(`#prem_type_treaty-0-0`)
             .empty()
             .append($("<option>").text(treatyTypeTxt).attr("value", treatyType))
             .trigger("change");
 
-        // Show appropriate sections based on treaty type
         const sectionMap = {
             QUOT: () => {
                 $(".quota-share-section").show();
@@ -1665,8 +1556,6 @@ const CoverRegistration = (function () {
         }
     }
 
-    // ==================== Reinsurance Classes ====================
-
     function handleReinclassChange() {
         const $select = $(this);
         const counter = $select.data("counter");
@@ -1683,7 +1572,6 @@ const CoverRegistration = (function () {
             return;
         }
 
-        // Update hidden reinclass field
         $(`#prem_type_reinclass-${counter}-0`).val(reinclass);
         $(`#prem_type_code-${counter}-0`).attr("data-reinclass", reinclass);
         $(`#prem_type_treaty-${counter}-0`).trigger("change");
@@ -1695,7 +1583,6 @@ const CoverRegistration = (function () {
         const lastSection = $(".reinclass-section").last();
         const prevCounter = parseInt(lastSection.attr("data-counter"));
 
-        // Validate previous section
         const reinClassVal = $(`#treaty_reinclass-${prevCounter}`).val();
         if (!reinClassVal) {
             const sectionLabel = String.fromCharCode(65 + prevCounter);
@@ -1705,7 +1592,6 @@ const CoverRegistration = (function () {
             return false;
         }
 
-        // Check max sections
         const currentSections = $(".reinclass-section").length;
         if (currentSections >= config.maxReinClasses) {
             toastr.error(
@@ -1717,28 +1603,21 @@ const CoverRegistration = (function () {
         const counter = prevCounter + 1;
         const newSection = lastSection.clone(true, false);
 
-        // Update section attributes
         newSection.attr("id", `reinclass-section-${counter}`);
         newSection.attr("data-counter", counter);
 
-        // Remove select2 containers
         newSection.find(".select2-container").remove();
 
-        // Update section label
         const sectionLabel = String.fromCharCode(65 + counter);
         newSection.find(".section-title").text(`Section ${sectionLabel}`);
 
-        // Clear values
         newSection.find('input[type="text"], input[type="number"]').val("");
         newSection.find("select").val("").prop("selectedIndex", 0);
 
-        // Update IDs and data attributes
         updateSectionIds(newSection, counter);
 
-        // Keep only first commission section
         newSection.find(".comm-sections").slice(1).remove();
 
-        // Add remove button if not present
         if (!newSection.find(".remove-rein-class").length) {
             newSection.find(".section-title").parent().append(`
                 <button type="button" class="btn btn-danger btn-sm remove-rein-class">
@@ -1749,7 +1628,6 @@ const CoverRegistration = (function () {
 
         lastSection.after(newSection);
 
-        // Reinitialize select2
         newSection.find(".select2").select2({
             width: "100%",
             theme: "bootstrap-5",
@@ -1785,7 +1663,6 @@ const CoverRegistration = (function () {
             $(this).attr("data-counter", index);
             $(this).find(".section-title").text(`Section ${sectionLabel}`);
 
-            // Update all IDs and data attributes in this section
             updateSectionIds($(this), index);
         });
     }
@@ -1796,26 +1673,21 @@ const CoverRegistration = (function () {
             .each(function () {
                 const $el = $(this);
 
-                // Update ID
                 const id = $el.attr("id");
                 if (id) {
                     const newId = id.replace(/-\d+-/, `-${counter}-`);
                     $el.attr("id", newId);
                 }
 
-                // Update data-counter
                 if ($el.attr("data-counter") !== undefined) {
                     $el.attr("data-counter", counter);
                 }
 
-                // Update data-class-counter
                 if ($el.attr("data-class-counter") !== undefined) {
                     $el.attr("data-class-counter", counter);
                 }
             });
     }
-
-    // ==================== Commission Sections ====================
 
     function addCommissionSection() {
         const classCounter = $(this).data("counter");
@@ -1824,7 +1696,6 @@ const CoverRegistration = (function () {
         const prevCounter = lastCommSection.data("counter") || 0;
         const counter = prevCounter + 1;
 
-        // Validate previous section
         const reinclass = $(`#treaty_reinclass-${classCounter}`).val();
         const prevPremType = $(
             `#prem_type_code-${classCounter}-${prevCounter}`
@@ -1857,7 +1728,6 @@ const CoverRegistration = (function () {
         const newSection = createCommissionSection(classCounter, counter);
         $commContainer.append(newSection);
 
-        // Initialize select2 on new section
         $(
             `#prem_type_treaty-${classCounter}-${counter}, #prem_type_code-${classCounter}-${counter}, #commission_type-${classCounter}-${counter}`
         ).select2({
@@ -1865,7 +1735,6 @@ const CoverRegistration = (function () {
             theme: "bootstrap-5",
         });
 
-        // Trigger change to load premium types
         $(`#prem_type_treaty-${classCounter}-${counter}`).trigger("change");
 
         toastr.success("Commission section added");
@@ -1880,14 +1749,16 @@ const CoverRegistration = (function () {
                 <div class="row g-3 align-items-end mb-2">
                     <div class="col-md-3 prem_type_treaty_div">
                         <label class="form-label required">Treaty</label>
-                        <select class="form-control select2 prem_type_treaty"
-                                name="prem_type_treaty[]"
-                                id="prem_type_treaty-${classCounter}-${premCounter}"
-                                data-class-counter="${classCounter}"
-                                data-counter="${premCounter}"
-                                required>
-                            <option value="">Select Treaty</option>
-                        </select>
+                        <div class="card-form">
+                            <select class="form-control select2 prem_type_treaty"
+                                    name="prem_type_treaty[]"
+                                    id="prem_type_treaty-${classCounter}-${premCounter}"
+                                    data-class-counter="${classCounter}"
+                                    data-counter="${premCounter}"
+                                    required>
+                                <option value="">Select Treaty</option>
+                            </select>
+                        </div>
                     </div>
 
                     <div class="col-md-3 prem_type_code_div">
@@ -1896,28 +1767,32 @@ const CoverRegistration = (function () {
                                class="prem_type_reinclass"
                                id="prem_type_reinclass-${classCounter}-${premCounter}"
                                name="prem_type_reinclass[]">
-                        <select class="form-control select2 prem_type_code"
-                                name="prem_type_code[]"
-                                id="prem_type_code-${classCounter}-${premCounter}"
-                                data-class-counter="${classCounter}"
-                                data-counter="${premCounter}"
-                                required>
-                            <option value="">Select Premium Type</option>
-                        </select>
+                        <div class="card-form">
+                            <select class="form-control select2 prem_type_code"
+                                    name="prem_type_code[]"
+                                    id="prem_type_code-${classCounter}-${premCounter}"
+                                    data-class-counter="${classCounter}"
+                                    data-counter="${premCounter}"
+                                    required>
+                                <option value="">Select Premium Type</option>
+                            </select>
+                        </div>
                     </div>
 
                     <div class="col-md-2 comm_type_div">
                         <label class="form-label required">Commission Type</label>
-                        <select class="form-control select2 commission_type"
-                                name="commission_type[]"
-                                id="commission_type-${classCounter}-${premCounter}"
-                                data-class-counter="${classCounter}"
-                                data-counter="${premCounter}"
-                                required>
-                            <option value="">Select Type</option>
-                            <option value="FLAT">Flat Rate</option>
-                            <option value="SLIDING">Sliding Scale</option>
-                        </select>
+                        <div class="card-form">
+                            <select class="form-control select2 commission_type"
+                                    name="commission_type[]"
+                                    id="commission_type-${classCounter}-${premCounter}"
+                                    data-class-counter="${classCounter}"
+                                    data-counter="${premCounter}"
+                                    required>
+                                <option value="">Select Type</option>
+                                <option value="FLAT">Flat Rate</option>
+                                <option value="SLIDING">Sliding Scale</option>
+                            </select>
+                        </div>
                     </div>
 
                     <div class="col-md-3 flat_rate_div">
@@ -1972,8 +1847,6 @@ const CoverRegistration = (function () {
         toastr.success("Commission section removed");
     }
 
-    // ==================== Layer Management ====================
-
     function addLayer() {
         const $layerContainer = $("#layer-section");
         const lastLayer = $layerContainer.find(".layer-sections:last");
@@ -1982,7 +1855,6 @@ const CoverRegistration = (function () {
             : -1;
         const counter = prevCounter + 1;
 
-        // Check max layers
         const currentLayers = $layerContainer.find(".layer-sections").length;
         if (currentLayers >= config.maxLayers) {
             toastr.error(`Maximum ${config.maxLayers} layers allowed`);
@@ -1992,7 +1864,6 @@ const CoverRegistration = (function () {
         const newLayer = createLayerSection(counter);
         $layerContainer.append(newLayer);
 
-        // Initialize select2
         $(
             `#limit_per_reinclass-${counter}-0, #reinstatement_type-${counter}-0`
         ).select2({
@@ -2022,14 +1893,16 @@ const CoverRegistration = (function () {
                 <div class="row g-3">
                     <div class="col-md-3">
                         <label class="form-label required">Capture Limits per Class?</label>
-                        <select class="form-control select2 limit_per_reinclass"
-                                name="limit_per_reinclass[]"
-                                id="limit_per_reinclass-${counter}-0"
-                                required>
-                            <option value="">Select Option</option>
-                            <option value="N" selected>No</option>
-                            <option value="Y">Yes</option>
-                        </select>
+                        <div class="card-form">
+                            <select class="form-control select2 limit_per_reinclass"
+                                    name="limit_per_reinclass[]"
+                                    id="limit_per_reinclass-${counter}-0"
+                                    required>
+                                <option value="">Select Option</option>
+                                <option value="N" selected>No</option>
+                                <option value="Y">Yes</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
 
@@ -2072,7 +1945,6 @@ const CoverRegistration = (function () {
                     </div>
                 </div>
 
-                <!-- Burning Cost Fields (Hidden by default) -->
                 <div class="row g-3 mt-2 burning_rate_section" style="display: none;">
                     <div class="col-md-3 burning_rate_div">
                         <label class="form-label">Min BC Rate (%)</label>
@@ -2103,7 +1975,6 @@ const CoverRegistration = (function () {
                     </div>
                 </div>
 
-                <!-- Flat Rate Fields (Hidden by default) -->
                 <div class="row g-3 mt-2 flat_rate_section" style="display: none;">
                     <div class="col-md-4 flat_rate_div">
                         <label class="form-label">Flat Rate (%)</label>
@@ -2178,7 +2049,6 @@ const CoverRegistration = (function () {
                 .find(".layer_no")
                 .val(index + 1);
 
-            // Update all IDs in this layer
             updateLayerIds($(this), index);
         });
     }
@@ -2194,12 +2064,7 @@ const CoverRegistration = (function () {
         });
     }
 
-    function handleLimitPerReinclassChange() {
-        // Placeholder for future implementation
-        // This would handle showing/hiding additional fields based on selection
-    }
-
-    // ==================== Data Loading Functions ====================
+    function handleLimitPerReinclassChange() {}
 
     function loadTreatyTypes(businessType) {
         if (!businessType) return;
@@ -2432,15 +2297,8 @@ const CoverRegistration = (function () {
     }
 
     function populateExistingData() {
-        // This would be implemented based on the old_endt_trans data structure
-        // For now, it's a placeholder
         if (!config.oldData) return;
-
-        // Populate fields based on config.oldData
-        console.log("Populating existing data:", config.oldData);
     }
-
-    // ==================== Risk Details ====================
 
     function handleRiskDetailsPaste(e) {
         e.preventDefault();
@@ -2458,7 +2316,6 @@ const CoverRegistration = (function () {
                 const table = doc.querySelector("table");
 
                 if (table) {
-                    // Sanitize table HTML
                     const sanitized = DOMPurify
                         ? DOMPurify.sanitize(table.outerHTML, {
                               ALLOWED_TAGS: [
@@ -2476,7 +2333,6 @@ const CoverRegistration = (function () {
 
                     document.execCommand("insertHTML", false, sanitized);
                 } else {
-                    // Fall back to plain text
                     document.execCommand("insertText", false, pastedText);
                 }
             } catch (error) {
@@ -2488,11 +2344,22 @@ const CoverRegistration = (function () {
         }
     }
 
-    // ==================== Section Management ====================
-
     function hideSections() {
         elements.facSection.hide();
         elements.treatySection.hide();
+
+        $("#fac_section :input").each(function () {
+            $(this).rules("remove");
+        });
+
+        $("#treaty_section :input").each(function () {
+            $(this).rules("remove");
+        });
+
+        $("#installment_section :input").each(function () {
+            $(this).rules("remove");
+        });
+
         $("#treaty_proportional_section").hide();
         $("#treaty_nonproportional_section").hide();
         $("#treaty_common_section").hide();
@@ -2500,13 +2367,27 @@ const CoverRegistration = (function () {
 
     function showFacSection() {
         elements.facSection.show();
+
+        $("#fac_section :input.required").each(function () {
+            const $input = $(this);
+            $input.rules("add", { required: true });
+            $input.valid();
+        });
+
         enableSection(".fac-section");
     }
 
     function showTreatyProportionalSection() {
         elements.treatySection.show();
+
         $("#treaty_common_section").show();
         $("#treaty_proportional_section").show();
+
+        $("#treaty_section :input.required").each(function () {
+            const $input = $(this);
+            $input.rules("add", { required: true });
+            $input.valid();
+        });
 
         enableSection(".treaty-section");
         enableSection(".treaty-proportional");
@@ -2536,26 +2417,19 @@ const CoverRegistration = (function () {
         $(`${selector}-div`).hide();
     }
 
-    // ==================== Plugins Initialization ====================
-
     function initializePlugins() {
-        // Tooltips
         if ($.fn.tooltip) {
             $('[data-bs-toggle="tooltip"]').tooltip();
         }
 
-        // Popovers
         if ($.fn.popover) {
             $('[data-bs-toggle="popover"]').popover();
         }
 
-        // Initialize commission type displays
         $(".commission_type").each(function () {
             handleCommissionTypeChange.call(this);
         });
     }
-
-    // ==================== Validation ====================
 
     function setupValidation() {
         if (!$.fn.validate) {
@@ -2563,7 +2437,6 @@ const CoverRegistration = (function () {
             return;
         }
 
-        // Custom validation methods
         $.validator.addMethod(
             "greaterThan",
             function (value, element, param) {
@@ -2587,7 +2460,6 @@ const CoverRegistration = (function () {
             "Please enter a valid percentage (0-100)"
         );
 
-        // Form validation rules
         elements.form.validate({
             ignore: ":hidden:not(.select2-hidden-accessible)",
             errorClass: "is-invalid",
@@ -2595,34 +2467,17 @@ const CoverRegistration = (function () {
             errorElement: "div",
             errorPlacement: function (error, element) {
                 error.addClass("invalid-feedback");
-
                 if (element.parent(".input-group").length) {
                     error.insertAfter(element.parent());
-                } else if (element.hasClass("select2-hidden-accessible")) {
-                    error.insertAfter(element.next(".select2-container"));
                 } else {
                     error.insertAfter(element);
                 }
             },
             highlight: function (element) {
                 $(element).addClass("is-invalid").removeClass("is-valid");
-
-                if ($(element).hasClass("select2-hidden-accessible")) {
-                    $(element)
-                        .next(".select2-container")
-                        .find(".select2-selection")
-                        .addClass("is-invalid");
-                }
             },
             unhighlight: function (element) {
                 $(element).removeClass("is-invalid").addClass("is-valid");
-
-                if ($(element).hasClass("select2-hidden-accessible")) {
-                    $(element)
-                        .next(".select2-container")
-                        .find(".select2-selection")
-                        .removeClass("is-invalid");
-                }
             },
             rules: {
                 type_of_bus: { required: true },
@@ -2638,6 +2493,20 @@ const CoverRegistration = (function () {
                     required: true,
                     greaterThan: "#coverfrom",
                 },
+
+                class_group: { required: true },
+                classcode: { required: true },
+                insured_name: { required: true },
+                fac_date_offered: { required: true },
+                sum_insured_type: { required: true },
+                total_sum_insured: { required: true },
+                apply_eml: { required: true },
+                cede_premium: { required: true },
+                rein_premium: { required: true },
+                fac_share_offered: { required: true },
+                comm_rate: { required: true },
+                comm_amt: { required: true },
+                reins_comm_type: { required: true },
             },
             messages: {
                 type_of_bus: "Please select a business type",
@@ -2653,35 +2522,56 @@ const CoverRegistration = (function () {
                     required: "Please enter cover end date",
                     greaterThan: "End date must be after start date",
                 },
+                class_group: "Please select a class group",
+                classcode: "Please select a class name",
+                insured_name: "Please select an insured name",
+                fac_date_offered: "Please enter date offered",
+                sum_insured_type: "Please select sum insured type",
+                total_sum_insured: "Please enter total sum insured",
+                apply_eml: "Please select apply EML option",
+                cede_premium: "Please enter cedant premium",
+                rein_premium: "Please enter reinsurer premium",
+                fac_share_offered: "Please enter share offered",
+                comm_rate: "Please enter cedant commission rate",
+                comm_amt: "Please enter cedant commission amount",
+                reins_comm_type: "Please select reinsurer commission type",
+            },
+            ignore: function (index, element) {
+                const $el = $(element);
+
+                const $facSection = $("#fac_section");
+                if (
+                    $facSection.is(":hidden") ||
+                    $facSection.css("display") === "none"
+                ) {
+                    if ($el.closest("#fac_section").length > 0) {
+                        return true;
+                    }
+                }
+
+                return !$el.is(":visible") || $el.closest(":hidden").length > 0;
             },
         });
     }
 
-    // ==================== Field Initialization ====================
-
     function initializeFields() {
         hideSections();
 
-        // Populate existing data if in edit mode
         if (config.trans_type !== "NEW" && config.oldData) {
             populateExistingData();
         }
 
-        // Trigger change events to show/hide appropriate sections
         elements.typeOfBus.trigger("change");
         elements.coverType.trigger("change");
         elements.brokerFlag.trigger("change");
         elements.payMethod.trigger("change");
         elements.applyEml.trigger("change");
 
-        // Load prospect data if provided
         if (config.prospectId) {
             elements.prospectId.val(config.prospectId);
             loadProspectData(config.prospectId);
         }
     }
-
-    // ==================== Loader ====================
 
     function showLoader(message = "Loading...") {
         if (!elements.pageLoader.length) {
@@ -2698,16 +2588,12 @@ const CoverRegistration = (function () {
         elements.pageLoader.fadeOut(200);
     }
 
-    // ==================== Helper: Check Payment Type ====================
-
     function isInstallmentPayment() {
         const payMethodDesc = elements.payMethod
             .find("option:selected")
             .data("description");
         return payMethodDesc === "I";
     }
-
-    // ==================== Public API ====================
 
     return {
         init: init,
@@ -2720,14 +2606,11 @@ const CoverRegistration = (function () {
         formatAmountField: formatAmountField,
         validateNumericInput: validateNumericInput,
 
-        // Expose for testing/debugging
         _config: config,
         _state: state,
         _elements: elements,
     };
 })();
-
-// ==================== Document Ready ====================
 
 $(document).ready(function () {
     try {
@@ -2743,8 +2626,6 @@ $(document).ready(function () {
         });
     }
 });
-
-// ==================== Export for Module Systems ====================
 
 if (typeof module !== "undefined" && module.exports) {
     module.exports = CoverRegistration;

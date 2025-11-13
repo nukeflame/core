@@ -304,7 +304,7 @@
                                                 @endif
                                             @endforeach
 
-                                            
+
 
                                         </tbody>
                                     </table>
@@ -1027,8 +1027,8 @@
                         $scheduleDetails = isset($customer->facschedule_details)
                             ? $customer->facschedule_details
                             : $customer->schedule_details;
-                            $hasCurrentAmount = false;
-                            $hasProposedAmount = false;
+                        $hasCurrentAmount = false;
+                        $hasProposedAmount = false;
                         $hasFinalAmount = false;
 
                         if (!empty($scheduleDetails)) {
@@ -1089,30 +1089,30 @@
                                     @if (isset($detail['id']) && isset($detail['current_amount']))
                                         <tr>
                                             <!-- Name Column -->
-                                            @if(isset($detail['name']) && ($detail['name'])!==null)
-                                            <td style="border: 1px solid #ddd; padding: 8px;">
-                                                <strong>{{ isset($detail['name']) ? ucfirst($detail['name']) : '' }}</strong>
-                                            </td>
+                                            @if (isset($detail['name']) && $detail['name'] !== null)
+                                                <td style="border: 1px solid #ddd; padding: 8px;">
+                                                    <strong>{{ isset($detail['name']) ? ucfirst($detail['name']) : '' }}</strong>
+                                                </td>
                                             @endif
                                             <!-- Current Structure Column -->
                                             @if (isset($detail['current_amount']) && $detail['current_amount'] !== null)
-                                            <td style="border: 1px solid #ddd; padding: 8px;">
+                                                <td style="border: 1px solid #ddd; padding: 8px;">
                                                     {{ $detail['current_amount'] }}
-                                            </td>
+                                                </td>
                                             @endif
                                             <!-- Proposed Terms Column -->
                                             @if (isset($detail['proposed_amount']) && $detail['proposed_amount'] !== null)
-                                            <td style="border: 1px solid #ddd; padding: 8px;">
-                                                
+                                                <td style="border: 1px solid #ddd; padding: 8px;">
+
                                                     {{ $detail['proposed_amount'] }}
-                                            </td>
+                                                </td>
                                             @endif
                                             <!-- Final Terms Column -->
                                             @if (isset($detail['final_amount']) && $detail['final_amount'] !== null)
-                                            <td style="border: 1px solid #ddd; padding: 8px;">
-                                               
+                                                <td style="border: 1px solid #ddd; padding: 8px;">
+
                                                     {{ $detail['final_amount'] }}
-                                            </td>
+                                                </td>
                                             @endif
                                         </tr>
                                     @endif

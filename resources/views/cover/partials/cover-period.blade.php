@@ -31,7 +31,7 @@
     </div>
 </div>
 
-<div class="row mt-3">
+{{-- <div class="row mt-3">
     <div class="col-12">
         <div class="alert alert-warning">
             <i class="bx bx-info-circle me-2"></i>
@@ -39,4 +39,4 @@
             For annual policies, the end date is typically one year minus one day from the start date.
         </div>
     </div>
-</div>
+</div> --}}

@@ -3,7 +3,8 @@
 @section('content')
     <style>
         :root {
-            --reins-primary: ##fff;
+            --reins-primary: #fff;
+            --reins-default: #333;
             --reins-secondary: #2d5f7f;
             --reins-accent: #e74c3c;
             --reins-success: #27ae60;
@@ -163,7 +164,7 @@
         .info-card-value {
             font-size: 1.1rem;
             font-weight: 700;
-            color: var(--reins-primary);
+            color: var(--reins-default);
         }
 
         .financial-summary {
@@ -199,7 +200,6 @@
         }
 
         .table-container {
-            /* background: white; */
             border-radius: 8px;
             overflow: hidden;
             box-shadow: var(--reins-shadow);
@@ -211,8 +211,6 @@
         }
 
         .table thead th {
-            background: var(--reins-primary);
-            /* color: white; */
             font-weight: 600;
             font-size: 0.875rem;
             text-transform: uppercase;
@@ -236,6 +234,13 @@
             border-bottom: none;
         }
 
+        .table tfoot th {
+            background: #f8f9fa;
+            font-weight: 600;
+            padding: 1rem;
+            border-top: 2px solid var(--reins-border);
+        }
+
         .filter-panel {
             background: white;
             border: 1px solid var(--reins-border);
@@ -246,7 +251,7 @@
         }
 
         .filter-panel h6 {
-            color: var(--reins-primary);
+            color: inherit;
             font-weight: 600;
             margin-bottom: 1rem;
             display: flex;
@@ -463,6 +468,18 @@
             }
         }
 
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
         .empty-state-table {
             text-align: center;
             padding: 3rem 1rem;
@@ -621,7 +638,34 @@
             font-family: 'Monaco', 'Menlo', monospace;
             font-size: 0.875rem;
         }
+
+        .stats-panel {
+            background: white;
+            border: 1px solid var(--reins-border);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+            box-shadow: var(--reins-shadow);
+        }
+
+        .stat-item {
+            padding: 0.75rem;
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border-radius: 6px;
+            text-align: center;
+        }
+
+        #loading-overlay-template {
+            display: none;
+        }
     </style>
+
+    {{-- Loading Overlay Template --}}
+    <template id="loading-overlay-template">
+        <div class="loading-overlay">
+            <div class="spinner"></div>
+        </div>
+    </template>
 
     <div class="container-fluid">
         <div class="row">
@@ -699,7 +743,7 @@
                                         <div class="form-group">
                                             <label class="form-label">Reference Number</label>
                                             <input type="text" class="form-control"
-                                                value="{{ $quotes->first()->quote_number ?? 'N/A' }}" readonly />
+                                                value="{{ $quotes->first()->opportunity_id ?? 'N/A' }}" readonly />
                                         </div>
 
                                         {{-- Year --}}
@@ -945,18 +989,21 @@
                                             <label class="form-label">
                                                 Excess Type <span class="required-indicator">*</span>
                                             </label>
-                                            <select class="form-select" name="excess_type" id="excess_type"
-                                                {{ $approval == 1 ? 'disabled' : 'required' }}>
-                                                <option value="">Select Excess Type</option>
-                                                <option value="R"
-                                                    {{ old('excess_type', $handover_approval->excess_type ?? '') === 'R' ? 'selected' : '' }}>
-                                                    Rate (%)
-                                                </option>
-                                                <option value="A"
-                                                    {{ old('excess_type', $handover_approval->excess_type ?? '') === 'A' ? 'selected' : '' }}>
-                                                    Amount
-                                                </option>
-                                            </select>
+                                            <div class="cover-card">
+                                                <select class="form-select" name="excess_type" id="excess_type"
+                                                    {{ $approval == 1 ? 'disabled' : 'required' }}>
+                                                    <option value="">Select Excess Type</option>
+                                                    <option value="R"
+                                                        {{ old('excess_type', $handover_approval->excess_type ?? '') === 'R' ? 'selected' : '' }}>
+                                                        Rate (%)
+                                                    </option>
+                                                    <option value="A"
+                                                        {{ old('excess_type', $handover_approval->excess_type ?? '') === 'A' ? 'selected' : '' }}>
+                                                        Amount
+                                                    </option>
+                                                </select>
+                                            </div>
+
                                         </div>
 
                                         {{-- Excess --}}
@@ -975,22 +1022,22 @@
                                                 Max/Min<span class="required-indicator">*</span>
                                             </label>
                                             <div class="d-flex align-items-center gap-3">
-                                                <input type="text" name="max_min" class="form-control"
-                                                    style="flex: 1; width:130px;"
-                                                    value="{{ old('max_min', $handover_approval->{'max/min'} ?? '') }}"
-                                                    {{ $approval == 1 ? 'disabled' : 'required' }} />
+                                                <div class="cover-card" style="flex-direction: column!important;">
+                                                    <input type="text" name="max_min" class="form-control"
+                                                        style="flex: 1; width:130px;"
+                                                        value="{{ old('max_min', $handover_approval->{'max/min'} ?? '') }}"
+                                                        {{ $approval == 1 ? 'disabled' : 'required' }} />
+                                                </div>
                                                 <div class="radio-group">
                                                     <div class="radio-option">
                                                         <input type="radio" name="range" id="range_min"
-                                                            value="min"
-                                                            {{ ($handover_approval->range ?? '') == 'min' ? 'checked' : '' }}
+                                                            value="min" checked
                                                             {{ $approval == 1 ? 'disabled' : 'required' }} />
                                                         <label for="range_min">Minimum</label>
                                                     </div>
                                                     <div class="radio-option">
                                                         <input type="radio" name="range" id="range_max"
-                                                            value="max"
-                                                            {{ ($handover_approval->range ?? '') == 'max' ? 'checked' : '' }}
+                                                            value="max" checked {{-- {{ ($handover_approval->range ?? '') == 'max' ? 'checked' : '' }} --}}
                                                             {{ $approval == 1 ? 'disabled' : 'required' }} />
                                                         <label for="range_max">Maximum</label>
                                                     </div>
@@ -1018,7 +1065,6 @@
                                                         {{ number_format($prospProperties->cede_premium ?? 0, 2) }}
                                                     </div>
                                                 </div>
-
 
                                                 <div class="financial-item">
                                                     <div class="financial-label">Cedant Premium</div>
@@ -1153,20 +1199,24 @@
                                             <label class="form-label">
                                                 Account Handler <span class="required-indicator">*</span>
                                             </label>
-                                            <select class="form-select" name="handler"
-                                                {{ $approval == 1 ? 'disabled' : 'required' }}>
-                                                <option value="">Select Account Handler</option>
-                                                @foreach ($users as $user)
-                                                    <option value="{{ $user->id }}"
-                                                        {{ ($handover_approval->handler ?? '') == $user->id ? 'selected' : '' }}>
-                                                        {{ ucwords($user->name) }}
-                                                    </option>
-                                                @endforeach
-                                            </select>
+                                            <div class="cover-card">
+
+                                                <select class="form-select" name="handler"
+                                                    {{ $approval == 1 ? 'disabled' : 'required' }}>
+                                                    <option value="">Select Account Handler</option>
+                                                    @foreach ($users as $user)
+                                                        <option value="{{ $user->id }}"
+                                                            {{ ($handover_approval->handler ?? '') == $user->id ? 'selected' : '' }}>
+                                                            {{ ucwords($user->name) }}
+                                                        </option>
+                                                    @endforeach
+                                                </select>
+                                            </div>
+
                                         </div>
 
                                         {{-- Approver --}}
-                                        <div class="form-group" style="grid-column: 4 / 8;">
+                                        <div class="form-group" style="grid-column: 4 / 6;">
                                             @php
                                                 $selectedApprovers = isset($handover_approval)
                                                     ? json_decode($handover_approval->approver, true) ?? []
@@ -1175,15 +1225,17 @@
                                             <label class="form-label">
                                                 Approver(s) <span class="required-indicator">*</span>
                                             </label>
-                                            <select class="form-select" name="approver[]" multiple
-                                                {{ $approval == 1 ? 'disabled' : 'required' }}>
-                                                @foreach ($users as $user)
-                                                    <option value="{{ $user->id }}"
-                                                        {{ in_array($user->id, $selectedApprovers) ? 'selected' : '' }}>
-                                                        {{ ucwords($user->name) }}
-                                                    </option>
-                                                @endforeach
-                                            </select>
+                                            <div class="cover-card">
+                                                <select class="form-select" name="approver[]" multiple
+                                                    {{ $approval == 1 ? 'disabled' : 'required' }}>
+                                                    @foreach ($users as $user)
+                                                        <option value="{{ $user->id }}"
+                                                            {{ in_array($user->id, $selectedApprovers) ? 'selected' : '' }}>
+                                                            {{ ucwords($user->name) }}
+                                                        </option>
+                                                    @endforeach
+                                                </select>
+                                            </div>
                                         </div>
 
                                         {{-- Remarks --}}
@@ -1209,7 +1261,6 @@
                                         <div class="row align-items-end">
                                             <div class="col-md-4">
                                                 <label class="form-label">Select Stage</label>
-
                                                 <select id="stage" class="form-select">
                                                     <option value="">All Stages</option>
                                                     @foreach ($stages as $stage)
@@ -1229,8 +1280,35 @@
                                         </div>
                                     </div>
 
+                                    {{-- Quick Stats Panel --}}
+                                    <div class="stats-panel">
+                                        <div class="row">
+                                            <div class="col-md-4">
+                                                <div class="stat-item">
+                                                    <div id="total-reinsurers">
+                                                        <i class="bx bx-building"></i> Total: 0
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <div class="stat-item">
+                                                    <div id="total-written-share">
+                                                        <i class="bx bx-trending-up"></i> Written: 0%
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <div class="stat-item">
+                                                    <div id="total-signed-share">
+                                                        <i class="bx bx-check-circle"></i> Signed: 0%
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
                                     <div class="table-container position-relative" id="reinsurer-table-container">
-                                        <table class="table">
+                                        <table class="table" id="reinsurer-table-f">
                                             <thead>
                                                 <tr>
                                                     <th style="width: 2%;"></th>
@@ -1250,6 +1328,18 @@
                                                     </td>
                                                 </tr>
                                             </tbody>
+                                            <tfoot id="reinsurer-totals" style="display: none;">
+                                                <tr>
+                                                    <th colspan="2" class="text-end">Totals:</th>
+                                                    <th class="text-end">
+                                                        <span id="footer-written-total" class="badge bg-primary">0%</span>
+                                                    </th>
+                                                    <th class="text-end">
+                                                        <span id="footer-signed-total" class="badge bg-success">0%</span>
+                                                    </th>
+                                                    <th></th>
+                                                </tr>
+                                            </tfoot>
                                         </table>
                                     </div>
 
@@ -1261,52 +1351,22 @@
 
                                         <div class="alert alert-info mb-0">
                                             <i class="bx bx-info-circle me-1"></i>
-                                            Previous uploaded attachments for <span id="docStageName"></span> stage
+                                            Previous uploaded attachments for <span id="docStageName">selected</span> stage
                                         </div>
                                     </div>
 
-                                    @if ($approval !== 1)
-                                        @if ($prosp_doc->isNotEmpty())
-                                            @php
-                                                $baseAssetUrl = Storage::disk('s3')->url('uploads');
-                                            @endphp
+                                    {{-- Documents Display Container --}}
+                                    <div id="prospectStageDisplay" style="display: none;"></div>
 
-                                            <div class="row">
-                                                @foreach ($prosp_doc as $doc)
-                                                    <div class="col-6">
-                                                        <div class="document-row">
-                                                            <div class="row align-items-center">
-                                                                <div class="col-auto">
-                                                                    <div class="document-icon">
-                                                                        <i class="bx bx-check"></i>
-                                                                    </div>
-                                                                </div>
-                                                                <div class="col-md-3">
-                                                                    <label class="form-label mb-0">Document Type</label>
-                                                                    <div class="fw-bold">{{ $doc->description }}</div>
-                                                                </div>
-                                                                <div class="col-md-5">
-                                                                    <label class="form-label mb-0">File Name</label>
-                                                                    <div class="text-muted small">{{ $doc->file }}
-                                                                    </div>
-                                                                </div>
-                                                                <div class="col-md-3 text-end">
-                                                                    <a href="{{ $baseAssetUrl . '/' . $doc->file }}"
-                                                                        target="_blank"
-                                                                        class="btn btn-primary btn-document-action">
-                                                                        <i class="bx bx-show"></i> View
-                                                                    </a>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                @endforeach
-                                            </div>
-                                        @endif
-                                    @endif
+                                    {{-- Empty State --}}
+                                    <div id="prospectStageEmpty">
+                                        <div class="empty-state-table">
+                                            <i class="bx bx-file"></i>
+                                            <p class="mb-0">Please select a stage to load documents</p>
+                                        </div>
+                                    </div>
                                 </div>
 
-                                {{-- Document Attachments Section --}}
                                 <div class="form-section mt-4">
                                     <h6 class="section-header">
                                         <span class="section-icon"><i class="bx bx-file"></i></span>
@@ -1466,9 +1526,11 @@
                 approval: @json($approval),
                 prospect: @json($prospect),
                 pipeid: @json($pipeid),
+                opportunityId: @json(request('prospect')),
                 routes: {
                     reinsurersFilter: '{{ route('reinsurers.filter') }}',
-                    clientStage: '{{ route('client.stage') }}'
+                    clientStage: '{{ route('client.stage') }}',
+                    prospectDocs: '{{ route('prospect.documents') }}',
                 }
             };
 
@@ -1486,7 +1548,7 @@
                     reinsurerTable.destroy();
                 }
 
-                reinsurerTable = $('#reinsurer-table-f').DataTable({
+                reinsurerTable = $('#reinsurer-table-df').DataTable({
                     responsive: true,
                     pageLength: 10,
                     lengthMenu: [
@@ -1514,19 +1576,19 @@
                         processing: "Processing..."
                     },
                     columnDefs: [{
-                            targets: 0, // No. column
+                            targets: 0,
                             orderable: false,
                             searchable: false,
                             className: 'text-center',
                             width: '2%'
                         },
                         {
-                            targets: 1, // Reinsurer Name
+                            targets: 1,
                             orderable: true,
                             width: '40%'
                         },
                         {
-                            targets: 3, // Written Share
+                            targets: 2,
                             orderable: true,
                             type: 'num',
                             className: 'text-end',
@@ -1539,7 +1601,7 @@
                             }
                         },
                         {
-                            targets: 4, // Signed Share
+                            targets: 3,
                             orderable: true,
                             type: 'num',
                             className: 'text-end',
@@ -1552,7 +1614,7 @@
                             }
                         },
                         {
-                            targets: 5, // Status
+                            targets: 4,
                             orderable: false,
                             className: 'text-end',
                             width: '18%',
@@ -1639,6 +1701,14 @@
                 updateQuickStats();
 
                 if (!stage) {
+                    $('#prospectStageDisplay').hide();
+                    $('#prospectStageEmpty').html(`
+                        <div class="empty-state-table">
+                            <i class="bx bx-file"></i>
+                            <p class="mb-0">Please select a stage to load documents</p>
+                        </div>
+                    `).show();
+
                     if (reinsurerTable) {
                         reinsurerTable.destroy();
                         reinsurerTable = null;
@@ -1705,25 +1775,11 @@
                                             </div>
                                         </td>
                                         <td class="text-start">
-                                            ${prevWrittenShare != 0
-                                                ? `<div class="share-history">
-                                                                                                                                                                                                        <small class="text-muted d-block mb-1">Change:</small>
-                                                                                                                                                                                                        <span class="badge badge-soft-${writtenClass} mb-1 text-primary">
-                                                                                                                                                                                                            ${writtenShare}%
-                                                                                                                                                                                                        </span>
-                                                                                                                                                                                                        <i class="bx bx-right-arrow-alt mx-1 text-muted"></i>
-                                                                                                                                                                                                        <span class="badge ${getBadgeClass(writtenClass)}">
-                                                                                                                                                                                                            ${prevWrittenShare}%
-                                                                                                                                                                                                        </span>
-                                                                                                                                                                                                    </div>`
-                                                : `<span class="badge ${getBadgeClass(writtenClass)} font-monospace">
-                                                                                                                                                                                                        ${writtenShare !== '--' ? writtenShare + '%' : '<span class="text-muted">—</span>'}
-                                                                                                                                                                                                    </span>`
-                                            }
+                                            ${renderWrittenShare(writtenShare, prevWrittenShare, writtenClass)}
                                         </td>
                                         <td class="text-start">
                                             <span class="badge ${getBadgeClass(signedClass)} font-monospace">
-                                                ${signedShare !== '--' ? signedShare + '%' : '<span class="text-light">—</span>'}
+                                                ${signedShare !== '--' ? signedShare + '%' : '<span class="text-muted">—</span>'}
                                             </span>
                                         </td>
                                         <td class="text-start">
@@ -1739,6 +1795,8 @@
                             $tbody.html(rows);
                             initializeDataTable();
                             updateQuickStats();
+                            renderProspectDocs(stage);
+
                         } else {
                             if (reinsurerTable) {
                                 reinsurerTable.destroy();
@@ -1786,6 +1844,146 @@
                     }
                 });
             });
+
+            function renderProspectDocs(stage) {
+                let currentStage = '';
+                switch (stage) {
+                    case "1":
+                        currentStage = 'lead'
+                        break;
+
+                    case "2":
+                        currentStage = 'proposal'
+                        break;
+
+                    case "3":
+                        currentStage = 'negotiation'
+                        break;
+
+                    case "4":
+                        currentStage = 'final_stage'
+                        break;
+
+                    default:
+                        break;
+                }
+
+                const $prospectStageEmpty = $("#prospectStageEmpty");
+                const $prospectStageDisplay = $("#prospectStageDisplay");
+                const $docStageName = $("#docStageName");
+
+                const stageName = `Stage ${currentStage}`;
+                $docStageName.text(stageName);
+
+                $prospectStageEmpty.hide();
+                $prospectStageDisplay.empty().append(`
+                    <div class="text-center py-4 d-flex flex-column align-items-center justify-content-center">
+                        <div class="spinner"></div>
+                        <p class="mt-2 text-muted">Loading documents...</p>
+                    </div>
+                `).show();
+
+                $.ajax({
+                    url: CONFIG.routes.prospectDocs,
+                    type: 'GET',
+                    data: {
+                        stage: currentStage,
+                        opportunity_id: CONFIG.pipeid
+                    },
+                    success: function(response) {
+                        if (response.status == 200) {
+                            if (response.documents && response.documents.length > 0) {
+                                let docsHtml = '<div class="row">';
+
+                                response.documents.forEach(function(doc) {
+                                    docsHtml += `
+                                    <div class="col-6 mb-3">
+                                        <div class="document-row">
+                                            <div class="row align-items-center">
+                                                <div class="col-auto">
+                                                    <div class="document-icon bg-success">
+                                                        <i class="bx bx-check"></i>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <label class="form-label mb-0">Document Type</label>
+                                                    <div class="fw-bold">${doc.description || 'N/A'}</div>
+                                                </div>
+                                                <div class="col-md-5">
+                                                    <label class="form-label mb-0">File Name</label>
+                                                    <div class="text-muted small">${doc.file || 'N/A'}</div>
+                                                </div>
+                                                <div class="col-md-3 text-end">
+                                                    <a href="${doc.file_url}"
+                                                    target="_blank"
+                                                    class="btn btn-info btn-document-action">
+                                                        <i class="bx bx-show"></i> View
+                                                    </a>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                `;
+                                });
+
+                                docsHtml += '</div>';
+                                $prospectStageDisplay.html(docsHtml).show();
+                                $prospectStageEmpty.hide();
+                            } else {
+                                $prospectStageDisplay.hide();
+                                $prospectStageEmpty.html(`
+                                    <div class="empty-state-table">
+                                        <i class="bx bx-folder-open"></i>
+                                        <p class="mb-0">No documents uploaded for ${stageName}</p>
+                                    </div>
+                                `).show();
+                            }
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        $prospectStageDisplay.hide();
+                        $prospectStageEmpty.html(`
+                        <div class="alert alert-danger mb-0">
+                            <i class="bx bx-error"></i>
+                            <strong>Error Loading Documents</strong>
+                            <p class="mb-0 mt-2">Failed to load documents. Please try again.</p>
+                        </div>
+                    `).show();
+
+                        showToast('error', 'Failed to load stage documents');
+                    }
+                });
+            }
+
+            function renderWrittenShare(writtenShare, prevWrittenShare, writtenClass) {
+                const currentShare = writtenShare ?? '--';
+                const previousShare = prevWrittenShare ?? 0;
+
+                if (previousShare != 0) {
+                    return `
+                        <div class="share-history">
+                            <small class="text-muted d-block mb-1">Change:</small>
+                            <span class="badge badge-soft-${writtenClass} mb-1 text-primary">
+                                ${currentShare}%
+                            </span>
+                            <i class="bx bx-right-arrow-alt mx-1 text-muted"></i>
+                            <span class="badge ${getBadgeClass(writtenClass)}">
+                                ${previousShare}%
+                            </span>
+                        </div>
+                    `;
+                }
+
+                const displayValue = currentShare !== '--' ?
+                    `${currentShare}%` :
+                    '<span class="text-muted">—</span>';
+
+                return `
+                    <span class="badge ${getBadgeClass(writtenClass)} font-monospace">
+                        ${displayValue}
+                    </span>
+                `;
+            }
 
             function getBadgeClass(shareClass) {
                 const classMap = {
@@ -1916,10 +2114,23 @@
                 }
 
                 $('#v_docs').modal('show');
+            });
 
-                $('#v_docs').one('hidden.bs.modal', function() {
-                    URL.revokeObjectURL(fileURL);
-                });
+            $('#v_docs').on('hidden.bs.modal', function() {
+                const $iframe = $('#preview_iframe');
+                const $image = $('#preview_image');
+                const iframeSrc = $iframe.attr('src');
+                const imageSrc = $image.attr('src');
+
+                if (iframeSrc && iframeSrc.startsWith('blob:')) {
+                    URL.revokeObjectURL(iframeSrc);
+                }
+                if (imageSrc && imageSrc.startsWith('blob:')) {
+                    URL.revokeObjectURL(imageSrc);
+                }
+
+                $iframe.attr('src', '');
+                $image.attr('src', '');
             });
 
             let fileCounter = 0;
@@ -1970,10 +2181,12 @@
             $('#submit').on('click', function(e) {
                 e.preventDefault();
 
-                const form = $('#msform')[0];
+                clearValidationErrors();
 
-                if (!form.checkValidity()) {
-                    form.reportValidity();
+                const validationErrors = validateForm();
+
+                if (validationErrors.length > 0) {
+                    displayValidationErrors(validationErrors);
                     return;
                 }
 
@@ -1997,6 +2210,245 @@
                 });
             });
 
+            function validateForm() {
+                const errors = [];
+
+                const offeredDate = $('input[name="offered_date"]').val();
+                if (!offeredDate || offeredDate.trim() === '') {
+                    errors.push({
+                        field: 'offered_date',
+                        message: 'Offered Date is required',
+                        element: $('input[name="offered_date"]')
+                    });
+                }
+
+                const excessType = $('#excess_type').val();
+                if (!excessType || excessType.trim() === '') {
+                    errors.push({
+                        field: 'excess_type',
+                        message: 'Excess Type is required',
+                        element: $('#excess_type')
+                    });
+                }
+
+                const excess = $('#excess').val();
+                if (!excess || excess.trim() === '') {
+                    errors.push({
+                        field: 'excess',
+                        message: 'Excess value is required',
+                        element: $('#excess')
+                    });
+                } else if (isNaN(excess) || parseFloat(excess) < 0) {
+                    errors.push({
+                        field: 'excess',
+                        message: 'Excess must be a valid positive number',
+                        element: $('#excess')
+                    });
+                } else if (excessType === 'R' && parseFloat(excess) > 100) {
+                    errors.push({
+                        field: 'excess',
+                        message: 'Excess rate cannot exceed 100%',
+                        element: $('#excess')
+                    });
+                }
+
+                const maxMin = $('input[name="max_min"]').val();
+                if (!maxMin || maxMin.trim() === '') {
+                    errors.push({
+                        field: 'max_min',
+                        message: 'Value is required',
+                        element: $('input[name="max_min"]')
+                    });
+                } else if (isNaN(maxMin) || parseFloat(maxMin) < 0) {
+                    errors.push({
+                        field: 'max_min',
+                        message: 'Value must be a valid positive number',
+                        element: $('input[name="max_min"]')
+                    });
+                }
+
+                const range = $('input[name="range"]:checked').val();
+                if (!range) {
+                    errors.push({
+                        field: 'range',
+                        message: 'Please select either Minimum or Maximum',
+                        element: $('input[name="range"]').first()
+                    });
+                }
+
+                const effectiveDate = $('input[name="effective_date"]').val();
+                if (!effectiveDate || effectiveDate.trim() === '') {
+                    errors.push({
+                        field: 'effective_date',
+                        message: 'Cover Start Date is required',
+                        element: $('input[name="effective_date"]')
+                    });
+                }
+
+                const closingDate = $('input[name="closing_date"]').val();
+                if (!closingDate || closingDate.trim() === '') {
+                    errors.push({
+                        field: 'closing_date',
+                        message: 'Cover End Date is required',
+                        element: $('input[name="closing_date"]')
+                    });
+                }
+
+                if (effectiveDate && closingDate) {
+                    const startDate = new Date(effectiveDate);
+                    const endDate = new Date(closingDate);
+
+                    if (endDate <= startDate) {
+                        errors.push({
+                            field: 'closing_date',
+                            message: 'Cover End Date must be after Cover Start Date',
+                            element: $('input[name="closing_date"]')
+                        });
+                    }
+                }
+
+                const handler = $('select[name="handler"]').val();
+                if (!handler || handler.trim() === '') {
+                    errors.push({
+                        field: 'handler',
+                        message: 'Account Handler is required',
+                        element: $('select[name="handler"]')
+                    });
+                }
+
+                const approvers = $('select[name="approver[]"]').val();
+                if (!approvers || approvers.length === 0) {
+                    errors.push({
+                        field: 'approver',
+                        message: 'At least one Approver must be selected',
+                        element: $('select[name="approver[]"]')
+                    });
+                }
+
+                const mandatoryDocs = [];
+                $('.document-row').each(function() {
+                    const $row = $(this);
+                    const $fileInput = $row.find('input[type="file"]');
+
+                    if ($fileInput.length && $fileInput.prop('required')) {
+                        const fileName = $fileInput.val();
+                        const docName = $row.find('input[name="document_name[]"]').val();
+
+                        if (!fileName || fileName.trim() === '') {
+                            mandatoryDocs.push(docName || 'Unknown Document');
+                            errors.push({
+                                field: $fileInput.attr('id') || 'document_file',
+                                message: `Document "${docName}" is required`,
+                                element: $fileInput
+                            });
+                        }
+                    }
+                });
+
+                $('input[type="file"]').each(function() {
+                    const files = this.files;
+                    if (files.length > 0) {
+                        const file = files[0];
+                        const maxSize = 10 * 1024 * 1024;
+                        const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png',
+                            'application/msword',
+                            'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+                        ];
+
+                        if (file.size > maxSize) {
+                            errors.push({
+                                field: $(this).attr('id') || 'document_file',
+                                message: `File "${file.name}" exceeds 10MB limit`,
+                                element: $(this)
+                            });
+                        }
+
+                        if (!allowedTypes.includes(file.type)) {
+                            errors.push({
+                                field: $(this).attr('id') || 'document_file',
+                                message: `File "${file.name}" has invalid format. Allowed: PDF, JPG, PNG, DOC, DOCX`,
+                                element: $(this)
+                            });
+                        }
+                    }
+                });
+
+                $('.new-document-row').each(function() {
+                    const $row = $(this);
+                    const docName = $row.find('input[name="document_name[]"]').val();
+                    const $fileInput = $row.find('input[type="file"]');
+
+                    if (!docName || docName.trim() === '') {
+                        errors.push({
+                            field: 'document_name',
+                            message: 'Document name is required for additional documents',
+                            element: $row.find('input[name="document_name[]"]')
+                        });
+                    }
+
+                    if (!$fileInput.val() || $fileInput.val().trim() === '') {
+                        errors.push({
+                            field: 'document_file',
+                            message: `File is required for document "${docName || 'Unnamed'}"`,
+                            element: $fileInput
+                        });
+                    }
+                });
+
+                return errors;
+            }
+
+            function displayValidationErrors(errors) {
+                if (errors.length > 0 && errors[0].element) {
+                    $('html, body').animate({
+                        scrollTop: errors[0].element.offset().top - 100
+                    }, 500);
+                }
+
+                errors.forEach(error => {
+                    if (error.element) {
+                        error.element.addClass('is-invalid');
+
+                        error.element.siblings('.invalid-feedback').remove();
+
+                        error.element.after(`
+                            <div class="invalid-feedback d-block" style="color: var(--reins-accent); font-size: 0.875rem; margin-top: 0.25rem;">
+                                <i class="bx bx-error-circle"></i> ${error.message}
+                            </div>
+                        `);
+
+                        error.element.css('border-color', 'var(--reins-accent)');
+                    }
+                });
+
+                const errorList = errors.map(err => `<li class="text-start">${err.message}</li>`).join('');
+
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Validation Errors',
+                    html: `
+                        <div class="text-start">
+                            <p><strong>Please fix the following errors:</strong></p>
+                            <ul style="max-height: 300px; overflow-y: auto;">
+                                ${errorList}
+                            </ul>
+                        </div>
+                    `,
+                    confirmButtonText: 'OK',
+                    confirmButtonColor: '#e74c3c',
+                    customClass: {
+                        popup: 'validation-error-popup'
+                    }
+                });
+            }
+
+            function clearValidationErrors() {
+                $('.is-invalid').removeClass('is-invalid');
+                $('.invalid-feedback').remove();
+
+                $('input, select, textarea').css('border-color', '');
+            }
+
             function submitForm() {
                 const form = $('#msform')[0];
                 const formData = new FormData(form);
@@ -2012,58 +2464,67 @@
                     data: formData,
                     processData: false,
                     contentType: false,
-                    timeout: 60000, // 60 seconds timeout
+                    timeout: 60000,
                     success: function(res) {
-                        if (res.status === 200) {
-                            Swal.fire({
-                                icon: 'success',
-                                title: 'Handover Successful!',
-                                html: `
-                                    <p>The prospect has been successfully submitted for handover.</p>
-                                    <p>Redirecting to pipeline view...</p>
-                                `,
-                                timer: 2000,
-                                timerProgressBar: true,
-                                showConfirmButton: false,
-                                allowOutsideClick: false,
-                                allowEscapeKey: false
-                            }).then(() => {
-                                window.location.href = '/pipelines_view';
-                            });
-                        } else {
-                            Swal.fire({
-                                icon: 'error',
-                                title: 'Submission Failed',
-                                text: res.message || 'An error occurred during submission',
-                                confirmButtonColor: '#e74c3c'
-                            });
-                            resetSubmitButton();
-                        }
+                        console.log(res)
+                        // if (res.status === 200) {
+                        //     Swal.fire({
+                        //         icon: 'success',
+                        //         title: 'Handover Successful!',
+                        //         html: `
+                    //             <p>The prospect has been successfully submitted for handover.</p>
+                    //             <p>Redirecting to pipeline view...</p>
+                    //         `,
+                        //         timer: 2000,
+                        //         timerProgressBar: true,
+                        //         showConfirmButton: false,
+                        //         allowOutsideClick: false,
+                        //         allowEscapeKey: false
+                        //     }).then(() => {
+                        //         window.location.href = '/pipelines_view';
+                        //     });
+                        // } else {
+                        //     Swal.fire({
+                        //         icon: 'error',
+                        //         title: 'Submission Failed',
+                        //         text: res.message || 'An error occurred during submission',
+                        //         confirmButtonColor: '#e74c3c'
+                        //     });
+                        //     resetSubmitButton();
+                        // }
                     },
                     error: function(xhr, status, error) {
-                        console.error('Submission error:', error);
-
                         let errorMessage = 'An error occurred during submission';
+                        let validationErrors = [];
 
-                        if (xhr.responseJSON?.message) {
+                        if (xhr.status === 422 && xhr.responseJSON?.errors) {
+                            const errors = xhr.responseJSON.errors;
+                            validationErrors = Object.keys(errors).map(field => ({
+                                field: field,
+                                message: errors[field][0],
+                                element: $(`[name="${field}"]`).length ? $(
+                                    `[name="${field}"]`) : $(`#${field}`)
+                            }));
+
+                            displayValidationErrors(validationErrors);
+                            errorMessage = 'Please check the highlighted fields';
+                        } else if (xhr.responseJSON?.message) {
                             errorMessage = xhr.responseJSON.message;
-                        } else if (xhr.responseJSON?.errors) {
-                            const errors = Object.values(xhr.responseJSON.errors).flat();
-                            errorMessage = errors.join('<br>');
-                        } else if (xhr.status === 422) {
-                            errorMessage = 'Please check all required fields and try again';
                         } else if (xhr.status === 500) {
                             errorMessage = 'Server error. Please contact support';
                         } else if (status === 'timeout') {
                             errorMessage = 'Request timeout. Please try again';
                         }
 
-                        Swal.fire({
-                            icon: 'error',
-                            title: 'Submission Error',
-                            html: errorMessage,
-                            confirmButtonColor: '#e74c3c'
-                        });
+                        if (validationErrors.length === 0) {
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Submission Error',
+                                html: errorMessage,
+                                confirmButtonColor: '#e74c3c'
+                            });
+                        }
+
                         resetSubmitButton();
                     }
                 });
@@ -2075,22 +2536,39 @@
                     .prop('disabled', false);
             }
 
-            $('<style>')
-                .text(`
-                    @keyframes slideIn {
-                        from {
-                            opacity: 0;
-                            transform: translateY(-20px);
-                        }
-                        to {
-                            opacity: 1;
-                            transform: translateY(0);
-                        }
+            function initializeRealTimeValidation() {
+                $('input[required], select[required], textarea[required]').on('input change', function() {
+                    const $field = $(this);
+                    if ($field.hasClass('is-invalid')) {
+                        $field.removeClass('is-invalid');
+                        $field.siblings('.invalid-feedback').fadeOut(300, function() {
+                            $(this).remove();
+                        });
+                        $field.css('border-color', '');
                     }
-                `)
-                .appendTo('head');
+                });
 
-            initializeDataTable()
+                $('input[name="range"]').on('change', function() {
+                    $('input[name="range"]').removeClass('is-invalid');
+                    $('input[name="range"]').siblings('.invalid-feedback').remove();
+                });
+
+                $('input[type="file"]').on('change', function() {
+                    const $input = $(this);
+                    $input.removeClass('is-invalid');
+                    $input.siblings('.invalid-feedback').remove();
+                    $input.css('border-color', '');
+
+                    const fileName = $(this).val().split('\\').pop();
+                    if (fileName) {
+                        console.log(`File selected: ${fileName}`);
+                    }
+                });
+            }
+
+            initializeDataTable();
+
+            initializeRealTimeValidation();
         });
     </script>
 @endpush

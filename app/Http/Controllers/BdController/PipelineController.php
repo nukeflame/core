@@ -386,6 +386,33 @@ class PipelineController
         }
     }
 
+    public function handoverStageDocs(Request $request)
+    {
+        $stage = $request->input('stage');
+        $opportunityId = $request->input('opportunity_id');
+
+        $documents = DB::table('prospect_docs')->where('prospect_id', $opportunityId)
+            ->where('prospect_status', $stage)
+            ->get()
+            ->map(function ($doc) {
+                return [
+                    'id' => $doc->id,
+                    'description' => $doc->description,
+                    'file' => $doc->file,
+                    'file_url' => $doc->s3_url,
+                    'stage' => $doc->prospect_status,
+                    'uploaded_at' => $doc->created_at
+                ];
+            });
+
+        // logger()->debug(json_encode($documents, JSON_PRETTY_PRINT));
+
+        return response()->json([
+            'status' => 200,
+            'documents' => $documents
+        ]);
+    }
+
     private function getQuoteReinsurers($prospectId, $prosStage)
     {
         try {
@@ -2135,7 +2162,6 @@ class PipelineController
                 return back()->with('error', 'Prospect not found');
             }
 
-            // Prepare data arrays
             $commonData = $this->getCommonData($pipeid, $prospProperties);
             $prospectData = $this->getProspectData($pipeid, $approval);
             $documentData = $this->getDocumentData($pipeid, $prospProperties->stage, $prospProperties->category_type, $prospProperties->type_of_bus);
@@ -2188,9 +2214,26 @@ class PipelineController
         }
     }
 
-    /**
-     * Get common business data (customers, insurers, brokers, etc.)
-     */
+    private function getProspectData($pipeid, $approval)
+    {
+        $data = [
+            'quotes' => PipelineOpportunity::where('opportunity_id', $pipeid)->select('opportunity_id')->get(),
+            'pipeYear' => Pipeline::orderBy('year', 'asc')->get(),
+            'handover_approval' => null,
+            'reinsurers' => null,
+            'prosp_doc' => []
+        ];
+
+        if ($approval == 1) {
+            $data['handover_approval'] = HandoverApproval::where('prospect_id', $pipeid)->first();
+            $data['reinsurers'] = QuoteReinsurers::where('opportunity_id', $pipeid)
+                ->where('stage', 4)
+                ->get();
+        }
+
+        return $data;
+    }
+
     private function getCommonData($pipeid, $prospProperties)
     {
         $customers = DB::table('customers')
@@ -2240,30 +2283,6 @@ class PipelineController
             'treatytypes' => TreatyType::where('status', 'A')->get(),
             'decline_reinsurers' => $decline_reinsurers,
         ];
-    }
-
-    /**
-     * Get prospect-specific data
-     */
-    private function getProspectData($pipeid, $approval)
-    {
-        $data = [
-            'quotes' => Quote::where('opportunity_id', $pipeid)->select('quote_number')->get(),
-            'pipeYear' => Pipeline::orderBy('year', 'asc')->get(),
-            'handover_approval' => null,
-            'reinsurers' => null,
-            'prosp_doc' => DB::table('prospect_docs')->where('prospect_id', $pipeid)->get(),
-        ];
-
-        // Get handover approval data if in approval mode
-        if ($approval == 1) {
-            $data['handover_approval'] = HandoverApproval::where('prospect_id', $pipeid)->first();
-            $data['reinsurers'] = QuoteReinsurers::where('opportunity_id', $pipeid)
-                ->where('stage', 4)
-                ->get();
-        }
-
-        return $data;
     }
 
     /**
@@ -6100,7 +6119,6 @@ class PipelineController
                 'message' => "{$stageTitle} updated successfully"
             ]);
         } catch (\Exception $e) {
-            logger($e);
             DB::rollBack();
             return response()->json([
                 'success' => false,
@@ -7625,22 +7643,17 @@ class PipelineController
                     break;
             }
 
-            // logger()->debug(json_encode($reinsurers, JSON_PRETTY_PRINT));
-
             return response()->json([
                 'success' => true,
                 'reinsurers' => $reinsurers
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
-            logger($e);
             return response()->json([
                 'success' => false,
                 'message' => 'Validation failed',
                 'errors' => $e->errors()
             ], 422);
         } catch (\Exception $e) {
-            logger($e);
-
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch reinsurers',
@@ -8478,8 +8491,6 @@ class PipelineController
                 ], 404);
             }
 
-            logger()->debug(json_encode($customer, JSON_PRETTY_PRINT));
-
             $customerData = []; // $customer[0];
             // $customerData->contact_persons = json_decode($customerData->contact_persons, true) ?? [];
             // $customerData->type_ids = json_decode($customerData->type_ids, true) ?? [];
@@ -8495,7 +8506,6 @@ class PipelineController
                 'department_contacts' => $departmentContacts
             ]);
         } catch (\Exception $ex) {
-            logger($ex);
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to retrieve contact information'

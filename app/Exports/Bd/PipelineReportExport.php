@@ -317,14 +317,14 @@ class PipelineReportExport implements FromCollection, WithHeadings, WithStyles, 
         // Set row heights for better appearance
         $sheet->getRowDimension(1)->setRowHeight(45); // Company header
         $sheet->getRowDimension(2)->setRowHeight(35); // Report title
-        
+
         // Filter rows
         for ($i = 3; $i < $headerRow; $i++) {
             $sheet->getRowDimension($i)->setRowHeight(20);
         }
-        
+
         $sheet->getRowDimension($headerRow)->setRowHeight(30); // Column headers
-        
+
         // Data rows
         for ($i = $headerRow + 1; $i <= $rowCount; $i++) {
             $sheet->getRowDimension($i)->setRowHeight(22);
@@ -338,20 +338,20 @@ class PipelineReportExport implements FromCollection, WithHeadings, WithStyles, 
         return [
             \Maatwebsite\Excel\Events\BeforeSheet::class => function ($event) {
                 $sheet = $event->sheet->getDelegate();
-                
+
                 // Company header (left side)
                 $companyHeader = 'ACENTRIA INTERNATIONAL';
                 $sheet->setCellValue('A1', $companyHeader);
                 $sheet->mergeCells('A1:Q1');
-                
+
                 // Logo placeholder (right side) - you'll need to add the actual logo
                 $this->insertLogo($sheet);
-                
+
                 // Report title
                 $reportTitle = 'PIPELINE REPORT';
                 $sheet->setCellValue('A2', $reportTitle);
                 $sheet->mergeCells('A2:R2');
-                
+
                 // Filter labels (left side, multiple rows)
                 $filterLabels = $this->buildFilterLabels();
                 $currentRow = 3;
@@ -360,7 +360,7 @@ class PipelineReportExport implements FromCollection, WithHeadings, WithStyles, 
                     $sheet->mergeCells('A' . $currentRow . ':R' . $currentRow);
                     $currentRow++;
                 }
-                
+
                 // Freeze panes for better navigation
                 $sheet->freezePane('A' . ($currentRow + 1));
             },
@@ -397,10 +397,10 @@ class PipelineReportExport implements FromCollection, WithHeadings, WithStyles, 
     {
         $filters = $this->filters;
         $labels = [];
-        
+
         // Generation info
         $labels[] = 'Report Generated: ' . date('F j, Y \a\t g:i A');
-        
+
         // Individual filter lines
         if (!empty($filters['from_year'])) {
             $pipeline = Pipeline::where('id', $filters['from_year'])->first();
@@ -423,12 +423,12 @@ class PipelineReportExport implements FromCollection, WithHeadings, WithStyles, 
         if (!empty($filters['closure_date'])) {
             $labels[] = "Closure Date: " . $this->formatDate($filters['closure_date']);
         }
-        
+
         // If no filters, add a note
         if (count($labels) === 1) { // Only generation info
             $labels[] = 'No Filters Applied';
         }
-        
+
         return $labels;
     }
 
@@ -486,7 +486,7 @@ class PipelineReportExport implements FromCollection, WithHeadings, WithStyles, 
         if ($num < 1 && $num > 0) {
             return number_format($num * 100, 2, '.', ',') . '%';
         }
-        
+
         // Otherwise, assume it's already a percentage value
         return number_format($num, 2, '.', ',') . '%';
     }

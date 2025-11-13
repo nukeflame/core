@@ -23,9 +23,9 @@
             page-break-before: always;
             font-family: inherit;
             /* font-family: "Open Sans", sans-serif;
-                                                                                                                                                                                                                                                                                                                                        font-optical-sizing: auto;
-                                                                                                                                                                                                                                                                                                                                        font-weight: 400;
-                                                                                                                                                                                                                                                                                                                                        font-style: normal; */
+                                                                                                                                                                                                                                                                                                                                                font-optical-sizing: auto;
+                                                                                                                                                                                                                                                                                                                                                font-weight: 400;
+                                                                                                                                                                                                                                                                                                                                                font-style: normal; */
         }
 
         .first-page {
@@ -136,9 +136,9 @@
             <div class="logo">
                 <?php
                 $logoPath = public_path('logo.png');
-
+                
                 $imgSrc = '';
-
+                
                 if (file_exists($logoPath) && is_readable($logoPath)) {
                     $imageData = file_get_contents($logoPath);
                     if ($imageData !== false) {
@@ -280,19 +280,19 @@
                                 <strong>Name</strong>
                             </th>
                             @if ($hasCurrent)
-                            <th style="border: 1px solid #ddd; padding: 8px; text-align: left; width: 25%;">
-                                <strong>Current Structure</strong>
-                            </th>
+                                <th style="border: 1px solid #ddd; padding: 8px; text-align: left; width: 25%;">
+                                    <strong>Current Structure</strong>
+                                </th>
                             @endif
                             @if ($hasProposed)
-                            <th style="border: 1px solid #ddd; padding: 8px; text-align: left; width: 25%;">
-                                <strong>Proposed Terms</strong>
-                            </th>
+                                <th style="border: 1px solid #ddd; padding: 8px; text-align: left; width: 25%;">
+                                    <strong>Proposed Terms</strong>
+                                </th>
                             @endif
                             @if ($hasFinal)
-                            <th style="border: 1px solid #ddd; padding: 8px; text-align: left; width: 25%;">
-                                <strong>Final Terms</strong>
-                            </th>
+                                <th style="border: 1px solid #ddd; padding: 8px; text-align: left; width: 25%;">
+                                    <strong>Final Terms</strong>
+                                </th>
                             @endif
                         </tr>
                     </thead>
@@ -307,21 +307,21 @@
                                     </td>
                                     <!-- Current Structure Column -->
                                     @if (isset($detail->current) && $detail->current !== null)
-                                    <td style="border: 1px solid #ddd; padding: 8px;">
+                                        <td style="border: 1px solid #ddd; padding: 8px;">
                                             {{ $detail->current }}
-                                    </td>
+                                        </td>
                                     @endif
                                     <!-- Proposed Terms Column -->
                                     @if (isset($detail->proposed) && $detail->proposed !== null)
-                                    <td style="border: 1px solid #ddd; padding: 8px;">
+                                        <td style="border: 1px solid #ddd; padding: 8px;">
                                             {{ $detail->proposed }}
-                                    </td>
+                                        </td>
                                     @endif
                                     <!-- Final Terms Column -->
                                     @if (isset($detail->final) && $detail->final !== null)
-                                    <td style="border: 1px solid #ddd; padding: 8px;">
+                                        <td style="border: 1px solid #ddd; padding: 8px;">
                                             {{ $detail->final }}
-                                    </td>
+                                        </td>
                                     @endif
                                 </tr>
                             @endif

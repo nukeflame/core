@@ -170,6 +170,8 @@ Route::middleware(['auth', 'check.first.login'])->group(function () {
     Route::get('division/classes', [PipelineController::class, 'divisionClasses'])->name('get_division_classes');
     // Route::get('search-prospect-fullnames', [PipelineController::class, 'search_prospect_fullnames'])->name('search-prospect-fullnames');
     Route::post('lead/handover/save', [PipelineController::class, 'handoverSave'])->name('client.stage');
+    Route::get('/prospect-documents', [PipelineController::class, 'handoverStageDocs'])
+        ->name('prospect.documents');
 
     // Leads Routes
     Route::get('leads_get', [LeadsOnboardingController::class, 'leads_get'])->name('leads.get');
