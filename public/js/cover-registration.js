@@ -137,7 +137,7 @@ const CoverRegistration = (function () {
         elements.applyEml.on("change", handleEmlChange);
         elements.classGroup.on("change", handleClassGroupChange);
 
-        $("#save_cover").on("click", handleFormSubmit);
+        $("#register_cover").on("submit", handleFormSubmit);
 
         $("#coverfrom, #coverto").on("change", debounce(validateDates, 300));
 
@@ -640,32 +640,226 @@ const CoverRegistration = (function () {
         state.isDirty = false;
 
         const riskDetails = $("#risk_details_content").html();
-        // const sanitized = DOMPurify
-        //     ? DOMPurify.sanitize(riskDetails, {
-        //           ALLOWED_TAGS: [
-        //               "p",
-        //               "br",
-        //               "strong",
-        //               "em",
-        //               "u",
-        //               "ul",
-        //               "ol",
-        //               "li",
-        //               "table",
-        //               "tr",
-        //               "td",
-        //               "th",
-        //           ],
-        //           ALLOWED_ATTR: ["class", "style"],
-        //       })
-        //     : riskDetails;
 
         $("#hidden_risk_details").val(riskDetails);
 
-        showLoader("Submitting cover registration...");
+        // showLoader("Submitting cover registration...");
 
-        elements.form.submit();
+        const formData = new FormData(elements.form[0]);
+
+        // const data = {};
+        // formData.forEach((value, key) => {
+        //     if (data[key]) {
+        //         if (!Array.isArray(data[key])) {
+        //             data[key] = [data[key]];
+        //         }
+        //         data[key].push(value);
+        //     } else {
+        //         data[key] = value;
+        //     }
+        // });
+
+        // console.log("Form data:", data);
+
+        $.ajax({
+            url: elements.form.attr("action"),
+            method: elements.form.attr("method") || "POST",
+            data: formData,
+            processData: false,
+            contentType: false,
+            headers: {
+                "X-CSRF-TOKEN": $('meta[name="csrf-token"]').attr("content"),
+                "X-Requested-With": "XMLHttpRequest",
+            },
+            timeout: 60000,
+
+            success: function (response) {
+                hideLoader();
+                state.isSubmitting = false;
+
+                if (response.success) {
+                    console.log(response);
+
+                    Swal.fire({
+                        icon: "success",
+                        title: "Success!",
+                        text: "Cover registered successfully",
+                        confirmButtonText: "OK",
+                    }).then(() => {
+                        if (response.data.redirectUrl) {
+                            window.location.href = response.data.redirectUrl;
+                        } else {
+                            window.location.reload();
+                        }
+                    });
+                } else {
+                    Swal.fire({
+                        icon: "warning",
+                        title: "Warning",
+                        text:
+                            response.message ||
+                            "Cover registration completed with warnings",
+                    });
+                    state.isSubmitting = false;
+                    state.isDirty = true;
+                }
+            },
+            error: function (xhr, status, error) {
+                hideLoader();
+                state.isSubmitting = false;
+                state.isDirty = true;
+
+                console.error("Form submission error:", {
+                    status: xhr.status,
+                    statusText: xhr.statusText,
+                    error: error,
+                    response: xhr.responseJSON,
+                });
+
+                if (xhr.status === 422) {
+                    handleValidationErrors(xhr.responseJSON);
+                } else if (xhr.status === 401) {
+                    Swal.fire({
+                        icon: "error",
+                        title: "Session Expired",
+                        text: "Your session has expired. Please log in again.",
+                    }).then(() => {
+                        window.location.href = "/login";
+                    });
+                } else if (xhr.status === 403) {
+                    Swal.fire({
+                        icon: "error",
+                        title: "Access Denied",
+                        text: "You do not have permission to perform this action.",
+                    });
+                } else if (xhr.status === 419) {
+                    Swal.fire({
+                        icon: "error",
+                        title: "CSRF Token Mismatch",
+                        text: "Your session token has expired. Please refresh the page and try again.",
+                        confirmButtonText: "Refresh Page",
+                    }).then(() => {
+                        window.location.reload();
+                    });
+                } else if (xhr.status === 500) {
+                    Swal.fire({
+                        icon: "error",
+                        title: "Server Error",
+                        text:
+                            xhr.responseJSON?.message ||
+                            "An internal server error occurred. Please try again or contact support.",
+                        footer: xhr.responseJSON?.trace_id
+                            ? `<small>Error ID: ${xhr.responseJSON.trace_id}</small>`
+                            : "",
+                    });
+                } else if (status === "timeout") {
+                    Swal.fire({
+                        icon: "error",
+                        title: "Request Timeout",
+                        text: "The request took too long to complete. Please check your connection and try again.",
+                    });
+                } else if (status === "abort") {
+                    toastr.info("Request cancelled");
+                } else {
+                    // Generic error
+                    const errorMessage =
+                        xhr.responseJSON?.message ||
+                        xhr.responseJSON?.error ||
+                        "An error occurred while submitting the form. Please try again.";
+
+                    Swal.fire({
+                        icon: "error",
+                        title: "Submission Failed",
+                        text: errorMessage,
+                    });
+                }
+            },
+        });
     }
+
+    function handleValidationErrors(response) {
+        const errors = response.errors || {};
+        const errorMessages = [];
+
+        $(".is-invalid").removeClass("is-invalid");
+        $(".invalid-feedback").remove();
+
+        Object.keys(errors).forEach((fieldName) => {
+            const fieldErrors = errors[fieldName];
+            const $field = $(`[name="${fieldName}"]`);
+
+            if ($field.length) {
+                $field.addClass("is-invalid");
+
+                const errorHtml = `<div class="invalid-feedback d-block">${fieldErrors[0]}</div>`;
+
+                if ($field.parent(".input-group").length) {
+                    $field.parent().after(errorHtml);
+                } else {
+                    $field.after(errorHtml);
+                }
+
+                errorMessages.push(`${fieldName}: ${fieldErrors[0]}`);
+            } else {
+                errorMessages.push(`${fieldName}: ${fieldErrors[0]}`);
+            }
+        });
+
+        const $firstError = $(".is-invalid:first");
+        if ($firstError.length) {
+            $("html, body").animate(
+                {
+                    scrollTop: $firstError.offset().top - 100,
+                },
+                500
+            );
+            $firstError.focus();
+        }
+
+        const errorSummary =
+            errorMessages.length <= 3
+                ? errorMessages.join("<br>")
+                : `${errorMessages.length} validation errors found. Please check the form.`;
+
+        Swal.fire({
+            icon: "error",
+            title: "Validation Error",
+            html: errorSummary,
+            confirmButtonText: "OK",
+        });
+    }
+
+    // function submitForm() {
+    //     state.isSubmitting = true;
+    //     state.isDirty = false;
+
+    //     const riskDetails = $("#risk_details_content").html();
+    //     // const sanitized = DOMPurify
+    //     //     ? DOMPurify.sanitize(riskDetails, {
+    //     //           ALLOWED_TAGS: [
+    //     //               "p",
+    //     //               "br",
+    //     //               "strong",
+    //     //               "em",
+    //     //               "u",
+    //     //               "ul",
+    //     //               "ol",
+    //     //               "li",
+    //     //               "table",
+    //     //               "tr",
+    //     //               "td",
+    //     //               "th",
+    //     //           ],
+    //     //           ALLOWED_ATTR: ["class", "style"],
+    //     //       })
+    //     //     : riskDetails;
+
+    //     $("#hidden_risk_details").val(riskDetails);
+
+    //     showLoader("Submitting cover registration...");
+
+    //     elements.form.submit();
+    // }
 
     function validateBusinessTypeRequirements() {
         const busType = elements.typeOfBus.val();

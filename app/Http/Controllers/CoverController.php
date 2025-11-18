@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Enums\PermissionsLevel;
+use App\Http\Requests\CoverRegistrationRequest;
 use App\Jobs\SendReinsurerEmailJob;
 use App\Jobs\SendRenewalNoticeJob;
 use Throwable;
@@ -63,6 +64,7 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\Response;
 use App\Repositories\CoverRepository;
+use App\Services\CoverService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Exception;
 use Illuminate\Support\Facades\Storage;
@@ -73,15 +75,22 @@ class CoverController extends Controller
     private $_month;
     private $_quarter;
     private $_endorsement_no;
-    protected $repository;
+    protected $coverRepository;
+    protected $coverService;
+    protected $prospectDataService;
 
-    public function __construct(CoverRepository $repository)
-    {
+    public function __construct(
+        CoverService $coverService,
+        // ProspectDataService $prospectDataService,
+        CoverRepository $coverRepository
+    ) {
         $this->_year = Carbon::now()->year;
         $this->_month = Carbon::now()->month;
         $this->_quarter = Carbon::now()->quarter;
 
-        $this->repository = $repository;
+        $this->coverRepository = $coverRepository;
+        $this->coverService = $coverService;
+        // $this->prospectDataService = $prospectDataService;
     }
 
     public function getCustomers(Request $request)
@@ -116,7 +125,7 @@ class CoverController extends Controller
                     return back()->with('error', 'Cover number and endorsement number are required for non-NEW transactions');
                 }
 
-                $old_endt_trans = CoverRegister::where('endorsement_no', $endorsement_no)->first();
+                $old_endt_trans = CoverRegister::where('endorseu8ment_no', $endorsement_no)->first();
                 if ($old_endt_trans) {
                     if (!in_array($old_endt_trans?->transaction_type, ['NEW', 'REN']) && $trans_type == 'EDIT') {
                         return back()->with('error', 'You can only edit New covers or Renewals');
@@ -249,6 +258,7 @@ class CoverController extends Controller
             return back()->withErros(['An error occurred while loading the cover form']);
         }
     }
+
     public function getTreatyPerBusType(Request $request)
     {
         $type_of_bus = $request->type_of_bus;
@@ -256,49 +266,47 @@ class CoverController extends Controller
         return response()->json($result);
     }
 
-    public function CoverRegister(Request $request)
+    public function CoverRegister(CoverRegistrationRequest $request)
     {
-        DB::beginTransaction();
         try {
-            $validator = Validator::make($request->all(), [
-                'covertype' => 'required',
-                'branchcode' => 'required',
-                // 'brokercode' => 'required',
-                'customer_id' => 'required',
-                'classcode' => 'required',
-                'coverfrom' => 'required',
-                'coverto' => 'required',
-                'pay_method' => 'required',
-                'type_of_bus' => 'required',
-                'class_group' => 'required',
-                // 'no_of_installments' => 'required',
+            // logger()->debug($request->all());
+
+            $transType = $request->get('trans_type');
+
+            // logger()->debug(json_encode($request->all(), JSON_PRETTY_PRINT));
+            // logger()->debug($request->all());
+
+            $cover = match ($transType) {
+                'NEW' => $this->coverService->registerNewCover($request->validated()),
+                // 'REN' => $this->coverService->renewCover($request->validated()),
+                // 'EXT' => $this->coverService->processEndorsement($request->validated(), 'EXTRA'),
+                // 'CNC' => $this->coverService->processEndorsement($request->validated(), 'CANCEL'),
+                // 'RFN' => $this->coverService->processEndorsement($request->validated(), 'REFUND'),
+                // 'NIL' => $this->coverService->processEndorsement($request->validated(), 'NIL'),
+                // 'INS' => $this->coverService->processInstallment($request->validated()),
+                default => throw new Exception('Invalid transaction type')
+            };
+
+            $redirectUrl = route('cover.CoverHome', ['endorsement_no' => $cover['endorsement_no']]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Cover registration processed successfully',
+                'data' => [
+                    'trans_type' => $transType,
+                    'redirectUrl' => $redirectUrl
+                ]
+            ], 200);
+        } catch (Exception $e) {
+            logger()->error('Cover Registration Error', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
             ]);
-
-            if ($validator) {
-                // logger()->debug($request->all());
-
-                if ($request->type_of_bus == 'TPR') {
-                    return redirect()->route('cedant.info')->with([
-                        'success' => 'Treaty Cover Register not implemented!',
-                        'data' => ['cover_type' => 'Proportional', 'year' => 2025],
-                    ]);
-                }
-
-                $result = $this->repository->registerCover($request);
-
-                DB::commit();
-                $redirectUrl = route('cover.CoverHome', ['endorsement_no' => $result->endorsement_no]);
-                return redirect($redirectUrl)->with('success', 'Cover Register information saved successfully');
-            } else {
-                return [
-                    'code' => -1,
-                    'msg' => $validator->errors(),
-                ];
-            }
-        } catch (\Exception $e) {
-            logger($e);
-            DB::rollback();
-            throw $e;
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while processing the cover registration',
+                'error' => config('app.debug') ? $e->getMessage() : 'Server error'
+            ], 500);
         }
     }
 
@@ -306,7 +314,7 @@ class CoverController extends Controller
     {
         DB::beginTransaction();
         try {
-            $result = $this->repository->saveCoverEndorsement($request);
+            $result = $this->coverRepository->saveCoverEndorsement($request);
 
             DB::commit();
             return redirect()->route('cover.CoverHome', ['endorsement_no' => $result['endorsement_no']])->with('success', 'Cover Endorsement information updated successfully');
@@ -343,7 +351,7 @@ class CoverController extends Controller
 
         DB::beginTransaction();
         try {
-            $result = $this->repository->editCoverRegister($request);
+            $result = $this->coverRepository->editCoverRegister($request);
             DB::commit();
             return redirect()->route('cover.CoverHome', ['endorsement_no' => $result->endorsement_no])->with('success', 'Cover Register information updated successfully');
         } catch (\Exception $e) {
@@ -547,9 +555,11 @@ class CoverController extends Controller
 
     public function coverHome(Request $request)
     {
-        $respone_data = $this->repository->processCoverHome($request);
+        $cover = $this->coverRepository->processCoverHome($request);
+        // logger()->debug(json_encode($cover, JSON_PRETTY_PRINT));
 
-        return view('cover.cover_home', $respone_data);
+
+        return view('cover.cover_home', $cover);
     }
 
     public function get_todays_rate(Request $request)
@@ -946,7 +956,7 @@ class CoverController extends Controller
     public function editReinsurerData(Request $request)
     {
         try {
-            return $this->repository->editReinsurer($request);
+            return $this->coverRepository->editReinsurer($request);
         } catch (ValidationException $e) {
             return response()->json([
                 'status' => Response::HTTP_UNPROCESSABLE_ENTITY,
@@ -1843,7 +1853,7 @@ class CoverController extends Controller
             $type_of_bus = $request->type_of_bus;
             $prev_endorsement_no = $request->endorsement_no;
 
-            $endorsement = $this->repository->generateEndorseNo($type_of_bus, $trans_type);
+            $endorsement = $this->coverRepository->generateEndorseNo($type_of_bus, $trans_type);
             $new_endorsement_no = $endorsement->endorsement_no;
             $this->_endorsement_no = $new_endorsement_no;
             $cover_serial_no = $endorsement->serial_no;
@@ -2053,7 +2063,7 @@ class CoverController extends Controller
 
             // begin replication from previous
 
-            $this->repository->replicateFromPrevious($prev_endorsement_no);
+            $this->coverRepository->replicateFromPrevious($prev_endorsement_no);
             // $this->coverPremToReinNote();
 
             DB::commit();
@@ -2084,7 +2094,7 @@ class CoverController extends Controller
             $type_of_bus = $request->type_of_bus;
             $prev_endorsement_no = $request->endorsement_no;
 
-            $endorsement = $this->repository->generateEndorseNo($type_of_bus, $trans_type);
+            $endorsement = $this->coverRepository->generateEndorseNo($type_of_bus, $trans_type);
             $new_endorsement_no = $endorsement->endorsement_no;
             $this->_endorsement_no = $new_endorsement_no;
             $cover_serial_no = $endorsement->serial_no;
@@ -2432,7 +2442,7 @@ class CoverController extends Controller
             }
             // }
 
-            $this->repository->replicateFromPrevious($prev_endorsement_no);
+            $this->coverRepository->replicateFromPrevious($prev_endorsement_no);
             $this->coverPremToReinNote();
 
             DB::commit();
@@ -2688,7 +2698,7 @@ class CoverController extends Controller
             $type_of_bus = $request->type_of_bus;
             $prev_endorsement_no = $request->endorsement_no;
 
-            $endorsement = $this->repository->generateEndorseNo($type_of_bus, $trans_type);
+            $endorsement = $this->coverRepository->generateEndorseNo($type_of_bus, $trans_type);
             $new_endorsement_no = $endorsement->endorsement_no;
             $this->_endorsement_no = $new_endorsement_no;
             $cover_serial_no = $endorsement->serial_no;
@@ -2818,7 +2828,7 @@ class CoverController extends Controller
                 }
             }
 
-            $this->repository->replicateFromPrevious($prev_endorsement_no);
+            $this->coverRepository->replicateFromPrevious($prev_endorsement_no);
             $this->coverPremToReinNote();
 
             DB::commit();
@@ -2930,7 +2940,7 @@ class CoverController extends Controller
             $port_reinsurer_share = $request->port_share;
             $total_port_amt = str_replace(',', '', $request->port_amt);
 
-            $endorsement = $this->repository->generateEndorseNo($type_of_bus, $trans_type);
+            $endorsement = $this->coverRepository->generateEndorseNo($type_of_bus, $trans_type);
             if ($portfolio_type == 'IN') {
                 $cover_title = 'TREATY PROPORTIONAL ACCOUNT - PORTFOLIO IN';
                 $premium_desc = 'PREMIUM PORTFOLIO ENTRY - IN';
@@ -3191,7 +3201,7 @@ class CoverController extends Controller
 
     public function preCoverVerification(Request $request)
     {
-        return $this->repository->preCoverVerification($request);
+        return $this->coverRepository->preCoverVerification($request);
     }
 
     public function policyRenewal(Request $request)
@@ -3406,7 +3416,7 @@ class CoverController extends Controller
                     'endorsement_no' => $request->endorsement_no,
                     'cover_no' => $request->cover_no,
                 ])->delete();
-                $this->repository->deleteCoverData($request->cover_no, $request->endorsement_no);
+                $this->coverRepository->deleteCoverData($request->cover_no, $request->endorsement_no);
                 $cover->delete();
             }
 
@@ -3540,7 +3550,7 @@ class CoverController extends Controller
             try {
                 DB::beginTransaction();
 
-                $result = $this->repository->registerCover($validationRequest);
+                $result = $this->coverRepository->registerCover($validationRequest);
                 $handover = HandoverApproval::where('prospect_id', $p->opportunity_id)->first();
                 $handover->update([
                     'intergrate' => true,

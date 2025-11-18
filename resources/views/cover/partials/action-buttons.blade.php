@@ -1,7 +1,7 @@
 <div class="d-flex gap-2">
     @switch($trans_type)
         @case('NEW')
-            <button type="button" id="save_cover" class="btn btn-success btn-lg">
+            <button type="submit" id="save_cover" class="btn btn-success btn-lg">
                 <i class="bi bi-save me-2"></i>Save Cover
             </button>
         @break
@@ -17,19 +17,19 @@
 
         @case('RFN')
         @case('INS')
-            <button type="submit" id="ext_cover" class="btn btn-primary btn-lg">
+            <button type="button" id="ext_cover" class="btn btn-primary btn-lg">
                 <i class="bi bi-save me-2"></i>Save Endorsement
             </button>
         @break
 
         @case('REN')
-            <button type="submit" id="save_cover" class="btn btn-success btn-lg">
+            <button type="button" id="save_cover" class="btn btn-success btn-lg">
                 <i class="bi bi-arrow-repeat me-2"></i>Renew Policy
             </button>
         @break
 
         @default
-            <button type="submit" id="save_cover" class="btn btn-primary btn-lg">
+            <button type="button" id="save_cover" class="btn btn-primary btn-lg">
                 <i class="bi bi-save me-2"></i>Save
             </button>
     @endswitch

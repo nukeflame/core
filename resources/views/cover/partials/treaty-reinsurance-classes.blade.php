@@ -11,8 +11,8 @@
             <div class="col-md-4">
                 <label class="form-label required">Reinsurance Class</label>
                 <div class="cover-card">
-                    <select class="form-control select2 treaty_reinclass" name="treaty_reinclass[]"
-                        id="treaty_reinclass-0" data-counter="0" required>
+                    <select class="form-control select2 treaty_reinclass required" name="treaty_reinclass[]"
+                        id="treaty_reinclass-0" data-counter="0">
                         <option value="">Choose Reinsurance Class</option>
                         @foreach ($reinsclasses as $reinsclass)
                             <option value="{{ $reinsclass->class_code }}">

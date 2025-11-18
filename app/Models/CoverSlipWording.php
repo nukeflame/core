@@ -11,6 +11,7 @@ class CoverSlipWording extends Model
     use HasFactory, SoftDeletes;
 
     protected $table = 'coverslipwording';
+
     public $timestamps = true;
     public $primaryKey = ['id'];
     public $incrementing = false;
