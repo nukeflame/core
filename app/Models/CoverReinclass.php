@@ -10,11 +10,11 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 class CoverReinclass extends Model
 {
     use HasFactory, ModelCompositeKey;
-    // protected $connection = 'mysql'; 
-    protected $table='cover_reinclass';
-	public $timestamps=true;
-	public $primaryKey=['cover_no','endorsement_no','class_code'];
-	public $incrementing=false;
+
+    protected $table = 'cover_reinclass';
+    public $timestamps = true;
+    public $primaryKey = ['cover_no', 'endorsement_no', 'class_code'];
+    public $incrementing = false;
     protected $guarded = [];
 
 

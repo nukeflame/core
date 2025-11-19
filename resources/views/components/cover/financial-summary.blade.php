@@ -1,5 +1,3 @@
-{{-- resources/views/components/cover/financial-summary.blade.php --}}
-
 @props(['cover'])
 
 @php

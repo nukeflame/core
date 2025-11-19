@@ -53,18 +53,15 @@ use App\Models\TreatyType;
 
 class CoverRepository extends BaseRepository
 {
-    // Business Type Constants
     const TYPE_FACULTATIVE_PROPORTIONAL = 'FPR';
     const TYPE_FACULTATIVE_NON_PROPORTIONAL = 'FNP';
     const TYPE_TREATY_PROPORTIONAL = 'TPR';
     const TYPE_TREATY_NON_PROPORTIONAL = 'TNP';
 
-    // Transaction Type Constants
     const TRANSACTION_NEW = 'NEW';
     const TRANSACTION_REFUND = 'RFN';
     const TRANSACTION_CANCEL = 'CNC';
 
-    // Entry Type Constants
     const ENTRY_PREMIUM = 'PRM';
     const ENTRY_COMMISSION = 'COM';
     const ENTRY_CLAIM = 'CLM';
@@ -75,15 +72,13 @@ class CoverRepository extends BaseRepository
     const ENTRY_WITHHOLDING_TAX = 'WHT';
     const ENTRY_FRONTING_FEE = 'FRF';
 
-    // Debit/Credit Constants
     const DR = 'DR';
     const CR = 'CR';
 
-    // Other Constants
     const FLOAT_COMPARISON_EPSILON = 0.01;
     const TREATY_CODE_FAC = 'FAC';
     const TREATY_CODE_TRT = 'TRT';
-    const CACHE_TTL = 3600; // 1 hour
+    const CACHE_TTL = 3600;
 
     protected $fieldSearchable = [];
     private $_year;
@@ -244,7 +239,6 @@ class CoverRepository extends BaseRepository
 
     public function editReinsurer(Request $request)
     {
-        // Validate input
         $validated = $request->validate([
             'tran_no' => 'required|integer',
             'endorsement_no' => 'required|string',
@@ -261,7 +255,6 @@ class CoverRepository extends BaseRepository
 
         DB::beginTransaction();
         try {
-            // Fetch required models
             $CoverRegister = CoverRegister::where('endorsement_no', $request->endorsement_no)
                 ->firstOrFail();
 
@@ -270,10 +263,8 @@ class CoverRepository extends BaseRepository
                 ->where('partner_no', $request->reinsurer)
                 ->firstOrFail();
 
-            // Calculate amounts based on business type
             $amounts = $this->calculateReinsurerAmounts($CoverRegister, $coverRipart, $request);
 
-            // Update cover ripart
             $coverRipart->update([
                 'share' => $request->share,
                 'written_lines' => $request->written_share,
@@ -293,10 +284,8 @@ class CoverRepository extends BaseRepository
                 'updated_at' => now()
             ]);
 
-            // Refresh model to get updated values
             $coverRipart->refresh();
 
-            // Create rein notes
             $this->createReinNotes($CoverRegister, $coverRipart, $amounts);
 
             DB::commit();
@@ -308,13 +297,6 @@ class CoverRepository extends BaseRepository
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
-
-            logger()->error('Error in editReinsurer', [
-                'tran_no' => $request->tran_no,
-                'endorsement_no' => $request->endorsement_no,
-                'message' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
 
             return response()->json([
                 'status' => Response::HTTP_INTERNAL_SERVER_ERROR,
@@ -335,7 +317,6 @@ class CoverRepository extends BaseRepository
             $share_offered = (float) $cover->share_offered;
             $pending = [];
 
-            // Check share placement based on business type
             switch ($cover->type_of_bus) {
                 case self::TYPE_FACULTATIVE_PROPORTIONAL:
                 case self::TYPE_FACULTATIVE_NON_PROPORTIONAL:
@@ -378,7 +359,6 @@ class CoverRepository extends BaseRepository
                     break;
             }
 
-            // Check installments match total amount
             $installmentPrems = CoverInstallments::where([
                 'endorsement_no' => $request->endorsement_no,
                 'dr_cr' => self::DR
@@ -393,10 +373,6 @@ class CoverRepository extends BaseRepository
 
             return $pending;
         } catch (\Exception $e) {
-            logger()->error('Error in preCoverVerification', [
-                'endorsement_no' => $request->endorsement_no ?? null,
-                'message' => $e->getMessage()
-            ]);
             return ['An internal error occurred'];
         }
     }
@@ -429,7 +405,6 @@ class CoverRepository extends BaseRepository
     {
         DB::beginTransaction();
         try {
-            // Extract and validate basic data
             $risk_details = $data->risk_details;
             $covertype = $data->covertype;
             $branchcode = (int) $data->branchcode;
@@ -481,7 +456,7 @@ class CoverRepository extends BaseRepository
             $this->createBusinessTypeRecords($data, $type_of_bus, $cover_no, $endorsement_no, $CoverRegister);
 
             if ($this->isTreatyBusiness($type_of_bus)) {
-                // $this->createSlipWording($cover_no, $endorsement_no, $type_of_bus);
+                $this->createSlipWording($cover_no, $endorsement_no, $type_of_bus);
             }
 
             if ((int) $data->no_of_installments > 0) {
@@ -491,7 +466,6 @@ class CoverRepository extends BaseRepository
             if ($data->trans_type !== self::TRANSACTION_NEW) {
                 $this->replicateFromPrevious($old_endorsement_no);
             }
-
 
             DB::commit();
 
@@ -527,13 +501,6 @@ class CoverRepository extends BaseRepository
         $this->replicateClauses($prev_endorsement_no);
     }
 
-    /**
-     * Edit cover register with validation and transaction handling
-     *
-     * @param Request $request
-     * @return object
-     * @throws \Exception
-     */
     public function editCoverRegister($request)
     {
         DB::beginTransaction();
@@ -548,21 +515,17 @@ class CoverRepository extends BaseRepository
                 ? TreatyType::where('treaty_code', $request->treatytype)->first()
                 : null;
 
-            // Calculate business type specific data
             $businessData = $this->prepareBusinessTypeDataForEdit(
                 $request,
                 $CoverRegister->type_of_bus,
                 $treatytype
             );
 
-            // Update cover register
             $this->updateCoverRegister($CoverRegister, $request, $businessData);
             $CoverRegister->save();
 
-            // Update business type specific records
             $this->updateBusinessTypeRecords($request, $CoverRegister->type_of_bus, $treatytype);
 
-            // Update installments
             $this->updateCoverInstallments($CoverRegister, $request);
 
             DB::commit();
@@ -571,23 +534,10 @@ class CoverRepository extends BaseRepository
         } catch (\Exception $e) {
             DB::rollBack();
 
-            logger()->error('Error in editCoverRegister', [
-                'endorsement_no' => $request->endorsement_no ?? null,
-                'message' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-
             throw $e;
         }
     }
 
-    /**
-     * Save cover endorsement with proper validation
-     *
-     * @param Request $request
-     * @return array
-     * @throws \Exception
-     */
     public function saveCoverEndorsement($request)
     {
         DB::beginTransaction();
@@ -595,23 +545,19 @@ class CoverRepository extends BaseRepository
             $type_of_bus = $request->type_of_bus;
             $endorse_type_slug = $request->endorse_type;
 
-            // Fetch endorsement type
             $endorse_type = EndorsementType::where('type_of_bus', $type_of_bus)
                 ->where('endorse_type_slug', $endorse_type_slug)
                 ->firstOrFail();
 
             $trans_type = $endorse_type->transaction_type;
 
-            // Calculate endorsement-specific changes
             $endorsementData = $this->calculateEndorsementChanges($request);
 
-            // Generate new endorsement number
             $endorsement = $this->generateEndorseNo($type_of_bus, $trans_type);
             $endorsement_no = $endorsement->endorsement_no;
             $this->_endorsement_no = $endorsement_no;
             $cover_serial_no = $endorsement->serial_no;
 
-            // Get previous cover register
             $cover_no = $request->cover_no;
             $old_endorsement_no = $request->endorsement_no;
 
@@ -626,7 +572,6 @@ class CoverRepository extends BaseRepository
 
             $orig_endorsement_no = $prevCoverRegister->orig_endorsement_no;
 
-            // Create new cover register from previous
             $CoverRegister = new CoverRegister($prevCoverRegister->getAttributes());
             $this->populateEndorsementRegister(
                 $CoverRegister,
@@ -640,7 +585,6 @@ class CoverRepository extends BaseRepository
 
             $CoverRegister->save();
 
-            // Handle business type specific premiums
             if ($this->isFacultativeBusiness($type_of_bus)) {
                 $this->replicateFacultativePremiums($old_endorsement_no, $CoverRegister);
             }
@@ -666,13 +610,6 @@ class CoverRepository extends BaseRepository
         }
     }
 
-    /**
-     * Delete cover data with cascading
-     *
-     * @param string $coverNo
-     * @param string $endorsementNo
-     * @return bool
-     */
     public function deleteCoverData($coverNo, $endorsementNo)
     {
         DB::beginTransaction();
@@ -752,12 +689,6 @@ class CoverRepository extends BaseRepository
         });
     }
 
-    /**
-     * Get cached business type
-     *
-     * @param string $bus_type_id
-     * @return BusinessType|null
-     */
     private function getCachedBusinessType($bus_type_id)
     {
         return Cache::remember("business_type_{$bus_type_id}", self::CACHE_TTL, function () use ($bus_type_id) {
@@ -765,11 +696,6 @@ class CoverRepository extends BaseRepository
         });
     }
 
-    /**
-     * Get cached schedule headers
-     *
-     * @return \Illuminate\Support\Collection
-     */
     private function getCachedScheduleHeaders()
     {
         return Cache::remember('schedule_headers', self::CACHE_TTL, function () {
@@ -777,11 +703,6 @@ class CoverRepository extends BaseRepository
         });
     }
 
-    /**
-     * Get cached WHT rates
-     *
-     * @return \Illuminate\Support\Collection
-     */
     private function getCachedWhtRates()
     {
         return Cache::remember('wht_rates', self::CACHE_TTL, function () {
@@ -789,11 +710,6 @@ class CoverRepository extends BaseRepository
         });
     }
 
-    /**
-     * Get cached payment methods
-     *
-     * @return \Illuminate\Support\Collection
-     */
     private function getCachedPaymentMethods()
     {
         return Cache::remember('payment_methods', self::CACHE_TTL, function () {
@@ -801,12 +717,6 @@ class CoverRepository extends BaseRepository
         });
     }
 
-    /**
-     * Get cached system process
-     *
-     * @param string $nice_name
-     * @return SystemProcess|null
-     */
     private function getCachedSystemProcess($nice_name)
     {
         return Cache::remember("system_process_{$nice_name}", self::CACHE_TTL, function () use ($nice_name) {
@@ -814,12 +724,6 @@ class CoverRepository extends BaseRepository
         });
     }
 
-    /**
-     * Get cached system process action
-     *
-     * @param string $nice_name
-     * @return SystemProcessAction|null
-     */
     private function getCachedSystemProcessAction($nice_name)
     {
         return Cache::remember("system_process_action_{$nice_name}", self::CACHE_TTL, function () use ($nice_name) {
@@ -827,22 +731,11 @@ class CoverRepository extends BaseRepository
         });
     }
 
-    /**
-     * Get verifiers (users except current)
-     *
-     * @return \Illuminate\Support\Collection
-     */
     private function getVerifiers()
     {
         return User::where('user_name', '<>', Auth::user()->user_name)->get();
     }
 
-    /**
-     * Get customer types based on business type
-     *
-     * @param string $type_of_bus
-     * @return array
-     */
     private function getCustomerTypes($type_of_bus)
     {
         return match ($type_of_bus) {
@@ -854,12 +747,6 @@ class CoverRepository extends BaseRepository
         };
     }
 
-    /**
-     * Get reinsurers based on customer types
-     *
-     * @param array $cusType
-     * @return \Illuminate\Support\Collection
-     */
     private function getReinsurers(array $cusType)
     {
         if (empty($cusType)) {
@@ -880,16 +767,6 @@ class CoverRepository extends BaseRepository
             ->get();
     }
 
-    // ============================================================================
-    // HELPER METHODS - Calculations
-    // ============================================================================
-
-    /**
-     * Calculate premium totals with single query
-     *
-     * @param string $endorsement_no
-     * @return array
-     */
     private function calculatePremiumTotals($endorsement_no)
     {
         $totals = CoverPremium::where('endorsement_no', $endorsement_no)
@@ -927,14 +804,6 @@ class CoverRepository extends BaseRepository
         ];
     }
 
-    /**
-     * Calculate installment details
-     *
-     * @param CoverRegister $cover
-     * @param int $debitsCount
-     * @param array $premiumTotals
-     * @return array
-     */
     private function calculateInstallmentDetails($cover, $debitsCount, $premiumTotals)
     {
         $totalInstallments = (int) $cover->no_of_installments;
@@ -960,12 +829,6 @@ class CoverRepository extends BaseRepository
         ];
     }
 
-    /**
-     * Get reinsurance layer details (SQL injection fixed)
-     *
-     * @param CoverRegister $cover
-     * @return array
-     */
     private function getReinLayerDetails($cover)
     {
         $mdpAmount = CoverReinLayer::where('endorsement_no', $cover->endorsement_no)
@@ -975,7 +838,6 @@ class CoverRepository extends BaseRepository
             ->groupBy('layer_no')
             ->count();
 
-        // FIXED: SQL Injection - use parameter binding
         $reinLayers = DB::table('coverreinlayers')
             ->select('cover_no', 'endorsement_no', 'layer_no', DB::raw('SUM(min_deposit) as min_deposit'))
             ->where('endorsement_no', $cover->orig_endorsement_no)
@@ -989,14 +851,6 @@ class CoverRepository extends BaseRepository
         ];
     }
 
-    /**
-     * Calculate reinsurer amounts based on business type
-     *
-     * @param CoverRegister $cover
-     * @param CoverRipart $ripart
-     * @param Request $request
-     * @return array
-     */
     private function calculateReinsurerAmounts($cover, $ripart, $request)
     {
         if ($this->isFacultativeBusiness($cover->type_of_bus)) {
@@ -1010,13 +864,6 @@ class CoverRepository extends BaseRepository
         return $this->getEmptyAmounts();
     }
 
-    /**
-     * Calculate facultative amounts
-     *
-     * @param CoverRegister $cover
-     * @param Request $request
-     * @return array
-     */
     private function calculateFacultativeAmounts($cover, $request)
     {
         $total_sum_insured = $cover->total_sum_insured ?? 0;
@@ -1055,14 +902,6 @@ class CoverRepository extends BaseRepository
         ];
     }
 
-    /**
-     * Calculate treaty amounts
-     *
-     * @param CoverRegister $cover
-     * @param CoverRipart $ripart
-     * @param Request $request
-     * @return array
-     */
     private function calculateTreatyAmounts($cover, $ripart, $request)
     {
         $premiumTotals = $this->calculatePremiumTotals($cover->endorsement_no);
@@ -1098,11 +937,6 @@ class CoverRepository extends BaseRepository
         ];
     }
 
-    /**
-     * Get empty amounts array
-     *
-     * @return array
-     */
     private function getEmptyAmounts()
     {
         return [
@@ -1145,14 +979,6 @@ class CoverRepository extends BaseRepository
         return (float) str_replace(',', '', $value);
     }
 
-    /**
-     * Safe division to avoid division by zero
-     *
-     * @param float $numerator
-     * @param float $denominator
-     * @param float $default
-     * @return float
-     */
     private function safeDivide($numerator, $denominator, $default = 0.0)
     {
         if (abs($denominator) < self::FLOAT_COMPARISON_EPSILON) {
@@ -1161,14 +987,6 @@ class CoverRepository extends BaseRepository
         return $numerator / $denominator;
     }
 
-    /**
-     * Create rein notes for premium items
-     *
-     * @param CoverRegister $cover
-     * @param CoverRipart $ripart
-     * @param array $amounts
-     * @return void
-     */
     private function createReinNotes($cover, $ripart, $amounts)
     {
         $premItemTypes = [
@@ -1255,11 +1073,6 @@ class CoverRepository extends BaseRepository
         }
     }
 
-    /**
-     * Generate extension document number
-     *
-     * @return string
-     */
     private function generateExtDocNumber()
     {
         return DB::transaction(function () {
@@ -1335,7 +1148,6 @@ class CoverRepository extends BaseRepository
         ];
     }
 
-
     private function prepareTreatyNonPropData($request, $customer, $treatytype)
     {
         $brokerage_comm_rate = $request->brokerage_comm_rate;
@@ -1367,24 +1179,19 @@ class CoverRepository extends BaseRepository
     private function prepareTreatyPropData($data, $customer, $treatytype)
     {
         $brokerage_comm_rate = $data->treaty_brokerage_comm_rate;
-        $treaty_reinclass = '1001'; //$data->treaty_reinclass;
+        $treaty_reinclass = $data->treaty_reinclass;
         $classcode = self::TREATY_CODE_TRT;
         $insured_name = $customer->name;
 
-        logger()->debug(json_encode($data, JSON_PRETTY_PRINT));
+        $reinclass = ReinsClass::whereIn('class_code', $treaty_reinclass)
+            ->pluck('class_name')
+            ->toArray();
 
-
-        // $reinclass = ReinsClass::whereIn('class_code', $treaty_reinclass)
-        //     ->pluck('class_name')
-        //     ->toArray();
-
-        // $treaty_name = implode('-', $reinclass) . ' ' .
-        //     ($treatytype ? $treatytype->treaty_name : '') . ' TREATY';
+        $treaty_name = implode('-', $reinclass) . ' ' .
+            ($treatytype ? $treatytype->treaty_name : '') . ' TREATY';
 
         $date_offered = $data->date_offered;
         $share_offered = $data->share_offered;
-
-        $treaty_name = 'FIRE - ' . $treatytype->treaty_name . ' - TREATY';
 
         return [
             'classcode' => $classcode,
@@ -1471,7 +1278,7 @@ class CoverRepository extends BaseRepository
         $CoverRegister->prem_tax_rate = $this->parseNumeric($data->prem_tax_rate);
         $CoverRegister->ri_tax_rate = $this->parseNumeric($data->ri_tax_rate);
         $CoverRegister->status = 'A';
-        $CoverRegister->verified = 'P';
+        $CoverRegister->verified = null;
         $CoverRegister->prospect_id = $data->prospect_id;
         $CoverRegister->created_at = now();
         $CoverRegister->updated_at = now();
@@ -1567,19 +1374,21 @@ class CoverRepository extends BaseRepository
     {
         $treaty_reinclass = $data->treaty_reinclass;
 
-        // foreach ($treaty_reinclass as $index => $treaty_class) {
-        //     CoverReinclass::create([
-        //         'cover_no' => $cover_no,
-        //         'endorsement_no' => $endorsement_no,
-        //         'reinclass' => $treaty_class,
-        //         'created_by' => Auth::user()->user_name,
-        //         'updated_by' => Auth::user()->user_name,
-        //     ]);
+        if ($treaty_reinclass && !empty($treaty_reinclass)) {
+            foreach ($treaty_reinclass as $index => $treaty_class) {
+                CoverReinclass::create([
+                    'cover_no' => $cover_no,
+                    'endorsement_no' => $endorsement_no,
+                    'reinclass' => $treaty_class,
+                    'created_by' => Auth::user()->user_name,
+                    'updated_by' => Auth::user()->user_name,
+                ]);
 
-        //     $this->createPropRecords($data, $cover_no, $endorsement_no, $treaty_class, $index);
-        // }
+                $this->createPropRecords($data, $cover_no, $endorsement_no, $treaty_class, $index);
+            }
+        }
 
-        // $this->createPremiumTypes($data, $cover_no, $endorsement_no);
+        $this->createPremiumTypes($data, $cover_no, $endorsement_no);
     }
 
     private function createPropRecords($request, $cover_no, $endorsement_no, $treaty_class, $index)
@@ -1657,27 +1466,31 @@ class CoverRepository extends BaseRepository
         }
     }
 
-    private function createPremiumTypes($request, $cover_no, $endorsement_no)
+    private function createPremiumTypes($data, $cover_no, $endorsement_no)
     {
-        $prem_type_reinclass = $request->prem_type_reinclass;
-        $prem_type_treaty = $request->prem_type_treaty;
-        $prem_type_code = $request->prem_type_code;
-        $prem_type_comm_rate = $request->prem_type_comm_rate;
+        $prem_type_reinclass = $data->prem_type_reinclass;
+        $prem_type_treaty = $data->prem_type_treaty;
+        $prem_type_code = $data->prem_type_code;
+        // $prem_type_comm_rate = $data->prem_type_comm_rate;
+        $flat_prem_type_comm_rate = $data->flat_prem_type_comm_rate;
+        // $sliding_treaty_prem_type_comm_rate = $data->sliding_treaty_prem_type_comm_rate;
 
-        foreach ($prem_type_reinclass as $index => $reinclass) {
-            $premtype_reinclass = ReinclassPremtype::where('reinclass', $reinclass)
-                ->where('premtype_code', $prem_type_code[$index])
-                ->first();
+        if ($prem_type_reinclass && !empty($prem_type_reinclass)) {
+            foreach ($prem_type_reinclass as $index => $reinclass) {
+                $premtype_reinclass = ReinclassPremtype::where('reinclass', $reinclass)
+                    ->where('premtype_code', $prem_type_code[$index])
+                    ->first();
 
-            CoverPremtype::create([
-                'cover_no' => $cover_no,
-                'endorsement_no' => $endorsement_no,
-                'reinclass' => $reinclass,
-                'treaty' => $prem_type_treaty[$index],
-                'premtype_code' => $prem_type_code[$index],
-                'premtype_name' => $premtype_reinclass->premtype_name,
-                'comm_rate' => $prem_type_comm_rate[$index],
-            ]);
+                CoverPremtype::create([
+                    'cover_no' => $cover_no,
+                    'endorsement_no' => $endorsement_no,
+                    'reinclass' => $reinclass,
+                    'treaty' => $prem_type_treaty[$index],
+                    'premtype_code' => $prem_type_code[$index],
+                    'premtype_name' => $premtype_reinclass->premtype_name,
+                    'comm_rate' => $flat_prem_type_comm_rate[$index],
+                ]);
+            }
         }
     }
 
@@ -1873,10 +1686,8 @@ class CoverRepository extends BaseRepository
 
     private function replicateReinsurers($prev_endorsement_no, $cover, $base_cover, $request, $isChangeDueDate)
     {
-        // Get max tran_no once
         $max_tran_no = (int) CoverRipart::withTrashed()->max('tran_no');
 
-        // Get cover premiums once
         $coverPremiums = CoverPremium::where('endorsement_no', $this->_endorsement_no)->get();
 
         $reinsurers = CoverRipart::where('endorsement_no', $base_cover->endorsement_no)->get();
@@ -1890,15 +1701,12 @@ class CoverRepository extends BaseRepository
 
             CoverRipart::create($data);
 
-            // Generate installment for this reinsurer
             $this->generateCoverInstallment($prev_endorsement_no, $ripart, $data, $cover, $isChangeDueDate, $request);
 
-            // Delete old rein notes
             ReinNote::where('endorsement_no', $this->_endorsement_no)
                 ->where('partner_no', $ripart->partner_no)
                 ->forceDelete();
 
-            // Create new rein notes
             $this->createReinsurerNotes($cover, $ripart, $data);
 
             $currTotalRIShare += (float) $ripart->share;

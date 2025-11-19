@@ -8,34 +8,6 @@
     </div>
     <div class="card-body pt-2 px-0">
         <div class="row">
-            <div class="col-md-3 text-start">
-                <div class="summary-items">
-                    <div class="summary-item">
-                        <span class="summary-label">Status</span>
-                    </div>
-                </div>
-
-            </div>
-            <div class="col-md-3 text-end">
-                <x-cover.status-badge :status="$cover->verified" />
-
-                @if ($cover->verified === 'P')
-                    <div class="mt-2">
-                        <span class="badge bg-warning-subtle text-warning">
-                            <i class="ri-time-line me-1"></i>Awaiting Verification
-                        </span>
-                    </div>
-                @elseif($cover->verified === 'A')
-                    <div class="mt-2">
-                        <small class="text-muted">
-                            <i class="ri-check-line me-1"></i>
-                            Verified on {{ formatDate($cover->updated_at) }}
-                        </small>
-                    </div>
-                @endif
-            </div>
-        </div>
-        <div class="row">
             <div class="col-md-6">
                 <div class="summary-items">
                     <div class="summary-item">
@@ -165,24 +137,10 @@
                     @endif
 
                     @if (in_array($cover->type_of_bus, ['TPR', 'TNP']))
-                        <div class="summary-item border-top mt-2 pt-2">
-                            <span class="summary-label">Treaty</span>
-                            <span class="summary-value">{{ $cover->cover_title }}</span>
+                        <div class="summary-item">
+                            <span class="summary-label">Treaty Capacity</span>
+                            <span class="summary-value">{{ number_format($cover->treaty_limit, 2) }}</span>
                         </div>
-
-                        @if (isset($summaryData))
-                            <div class="summary-item">
-                                <span class="summary-label">Reinsurers</span>
-                                <span class="summary-value">{{ $summaryData['total_reinsurers'] ?? 0 }}</span>
-                            </div>
-
-                            <div class="summary-item">
-                                <span class="summary-label">Total Placed</span>
-                                <span class="summary-value">
-                                    {{ number_format($summaryData['total_placed'] ?? 0, 2) }}%
-                                </span>
-                            </div>
-                        @endif
                     @endif
                 </div>
             </div>

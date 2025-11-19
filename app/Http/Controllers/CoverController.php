@@ -273,9 +273,6 @@ class CoverController extends Controller
 
             $transType = $request->get('trans_type');
 
-            // logger()->debug(json_encode($request->all(), JSON_PRETTY_PRINT));
-            // logger()->debug($request->all());
-
             $cover = match ($transType) {
                 'NEW' => $this->coverService->registerNewCover($request->validated()),
                 // 'REN' => $this->coverService->renewCover($request->validated()),
@@ -557,9 +554,11 @@ class CoverController extends Controller
     {
         $cover = $this->coverRepository->processCoverHome($request);
         // logger()->debug(json_encode($cover, JSON_PRETTY_PRINT));
+        $summaryData = ['summaryData' => []];
 
+        $data = array_merge($summaryData, $cover);
 
-        return view('cover.cover_home', $cover);
+        return view('cover.cover_home', $data);
     }
 
     public function get_todays_rate(Request $request)

@@ -44,7 +44,8 @@
                 <div class="col-md-2 retention_per_div">
                     <label class="form-label required">Retention (%)</label>
                     <input type="number" class="form-control retention_per required" id="retention_per-0"
-                        name="retention_per[]" data-counter="0" placeholder="0.00">
+                        name="retention_per[]" data-counter="0" placeholder="0.00" min="0" max="100"
+                        step="0.01">
                     <small class="text-muted">% retained by cedant</small>
                 </div>
 
@@ -58,7 +59,8 @@
                 <div class="col-md-2 treaty_reice_div">
                     <label class="form-label required">Treaty (%)</label>
                     <input type="number" class="form-control treaty_reice required" id="treaty_reice-0"
-                        name="treaty_reice[]" data-counter="0" placeholder="0.00">
+                        name="treaty_reice[]" data-counter="0" placeholder="0.00" min="0" max="100"
+                        step="0.01" readonly>
                     <small class="text-muted">% ceded to treaty</small>
                 </div>
 
@@ -71,6 +73,7 @@
             </div>
         </div>
 
+        {{-- Surplus Section --}}
         <div class="surplus-section mt-3" style="display: none;">
             <div class="surp_header_div">
                 <h6 class="text-success">
@@ -101,6 +104,7 @@
             </div>
         </div>
 
+        {{-- Financial Details --}}
         <div class="row g-3 mt-3">
             <div class="col-md-3 estimated_income_div">
                 <label class="form-label required">Estimated Income</label>
@@ -117,15 +121,16 @@
             </div>
         </div>
 
+        {{-- Commission Section --}}
         <div class="commission-section mt-4" id="comm-section-0">
             <div class="d-flex justify-content-between align-items-center mb-3">
                 <h6 class="text-info mb-0">
                     <i class="bx bx-money me-2"></i>Commission Structure
                 </h6>
-                <button type="button" class="btn btn-outline-info btn-sm" data-bs-toggle="modal"
+                {{-- <button type="button" class="btn btn-outline-info btn-sm" data-bs-toggle="modal"
                     data-bs-target="#commissionHelpModal">
                     <i class="bx bx-help-circle me-1"></i> Commission Types Guide
-                </button>
+                </button> --}}
             </div>
 
             <div class="comm-sections" id="comm-section-0-0" data-class-counter="0" data-counter="0">
@@ -165,6 +170,7 @@
                         </div>
                     </div>
 
+                    {{-- Flat Rate Commission --}}
                     <div class="col-md-3 flat_rate_div">
                         <label class="form-label required">Commission (%)</label>
                         <div class="input-group">
@@ -176,23 +182,22 @@
                                 <i class="bx bx-plus"></i>
                             </button>
                         </div>
+                        {{-- <small class="text-muted">Fixed rate for all premiums</small> --}}
                     </div>
 
+                    {{-- Sliding Scale Commission --}}
                     <div class="col-md-2 sliding_scale_div" style="display: none;">
-                        <label class="form-label">Commission (%)</label>
+                        <label class="form-label">Commission Rate (%)</label>
                         <div class="input-group">
-                            <input type="text" class="form-control prem_type_comm_rate required"
-                                name="sliding_treaty_prem_type_comm_rate[]" id="prem_type_comm_rate-0-1"
-                                data-counter="0" placeholder="0.00">
+                            <input type="text" class="form-control prem_type_comm_rate"
+                                name="sliding_treaty_prem_type_comm_rate[]" id="prem_type_comm_rate-sliding-0-0"
+                                data-counter="0" placeholder="0.00" readonly>
                         </div>
-                        <input type="hidden" class="provincial_data" name="provincial_data[]"
-                            id="provincial_data-0-0">
+                        <small class="text-muted">Average rate from scale</small>
                     </div>
 
-                    <div class="col-md-2 sliding_scale_div" style="display: none;">
-                        <label class="form-label">Sliding Scale <small class="text-muted"
-                                style="padding-left: .2rem">(Rates based on loss
-                                ratio)</small></label>
+                    <div class="col-md-3 sliding_scale_div config_scale_div" style="display: none;">
+                        <label class="form-label required">Configure Scale</label>
                         <div class="input-group">
                             <button type="button" class="btn btn-outline-secondary btn-block configure-sliding-btn"
                                 data-class-counter="0" data-counter="0" style="width: 86%;">
@@ -203,6 +208,7 @@
                                 <i class="bx bx-plus"></i>
                             </button>
                         </div>
+                        <small class="text-muted">Rates based on loss ratio</small>
                         <input type="hidden" class="sliding_scale_data" name="sliding_scale_data[]"
                             id="sliding_scale_data-0-0">
                     </div>
@@ -212,6 +218,7 @@
 
     </div>
 @else
+    {{-- EDIT MODE --}}
     @if (isset($coverreinpropClasses) && count($coverreinpropClasses) > 0)
         @php
             $sections = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N'];
@@ -283,7 +290,7 @@
                                     id="retention_per-{{ $index }}" name="retention_per[]"
                                     data-counter="{{ $index }}"
                                     value="{{ number_format($quotaData->retention_rate, 2) }}" min="0"
-                                    max="100" required>
+                                    max="100" step="0.01" required>
                             </div>
 
                             <div class="col-md-3 quota_retention_amt_div">
@@ -300,7 +307,7 @@
                                     id="treaty_reice-{{ $index }}" name="treaty_reice[]"
                                     data-counter="{{ $index }}"
                                     value="{{ number_format($quotaData->treaty_rate, 2) }}" min="0"
-                                    max="100" required>
+                                    max="100" step="0.01" readonly required>
                             </div>
 
                             <div class="col-md-3 quota_treaty_limit_div">
@@ -372,6 +379,7 @@
                     </div>
                 </div>
 
+                {{-- Commission Section --}}
                 <div class="commission-section mt-4" id="comm-section-{{ $index }}">
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <h6 class="text-info mb-0">
@@ -386,9 +394,6 @@
                     @foreach ($classPremTypes as $premType)
                         @php
                             $commType = $premType->commission_type ?? 'FLAT';
-                            $provincialData = isset($premType->provincial_data)
-                                ? json_decode($premType->provincial_data, true)
-                                : null;
                             $slidingData = isset($premType->sliding_scale_data)
                                 ? json_decode($premType->sliding_scale_data, true)
                                 : null;
@@ -431,20 +436,19 @@
                                     </select>
                                 </div>
 
-                                {{-- <div class="col-md-2 comm_type_div">
+                                <div class="col-md-2 comm_type_div">
                                     <label class="form-label required">Commission Type</label>
-                                    <select class="form-control select2 commission_type" name="commission_type[]"
+                                    <select class="form-control select2 commission_type"
+                                        name="treaty_commission_type[]"
                                         id="commission_type-{{ $index }}-{{ $loop->index }}"
                                         data-class-counter="{{ $index }}" data-counter="{{ $loop->index }}"
                                         required>
                                         <option value="FLAT" {{ $commType == 'FLAT' ? 'selected' : '' }}>Flat Rate
                                         </option>
-                                        <option value="PROVINCIAL" {{ $commType == 'PROVINCIAL' ? 'selected' : '' }}>
-                                            Provincial</option>
                                         <option value="SLIDING" {{ $commType == 'SLIDING' ? 'selected' : '' }}>Sliding
                                             Scale</option>
                                     </select>
-                                </div> --}}
+                                </div>
 
                                 {{-- Flat Rate Commission --}}
                                 <div class="col-md-3 flat_rate_div"
@@ -452,7 +456,7 @@
                                     <label class="form-label">Commission (%)</label>
                                     <div class="input-group">
                                         <input type="text" class="form-control prem_type_comm_rate"
-                                            name="prem_type_comm_rate[]"
+                                            name="flat_prem_type_comm_rate[]"
                                             id="prem_type_comm_rate-{{ $index }}-{{ $loop->index }}"
                                             value="{{ number_format($premType->comm_rate, 2) }}">
                                         @if ($loop->first)
@@ -470,48 +474,27 @@
                                     <small class="text-muted">Fixed rate for all premiums</small>
                                 </div>
 
-                                {{-- Provincial Commission --}}
-                                <div class="col-md-3 provincial_comm_div"
-                                    style="display: {{ $commType == 'PROVINCIAL' ? 'block' : 'none' }};">
-                                    <label class="form-label">Provincial Rates</label>
+                                {{-- Sliding Scale Commission --}}
+                                <div class="col-md-2 sliding_scale_div"
+                                    style="display: {{ $commType == 'SLIDING' ? 'block' : 'none' }};">
+                                    <label class="form-label">Commission Rate (%)</label>
                                     <div class="input-group">
-                                        <button type="button"
-                                            class="btn btn-outline-secondary btn-block configure-provincial-btn"
-                                            data-class-counter="{{ $index }}"
-                                            data-counter="{{ $loop->index }}">
-                                            <i class="bx bx-cog me-1"></i>
-                                            @if ($provincialData)
-                                                Edit Provinces ({{ count($provincialData) }})
-                                            @else
-                                                Configure Provinces
-                                            @endif
-                                        </button>
-                                        @if ($loop->first)
-                                            <button class="btn btn-primary add-comm-section" type="button"
-                                                data-counter="{{ $index }}">
-                                                <i class="bx bx-plus"></i>
-                                            </button>
-                                        @else
-                                            <button class="btn btn-danger remove-comm-section" type="button">
-                                                <i class="bx bx-minus"></i>
-                                            </button>
-                                        @endif
+                                        <input type="text" class="form-control prem_type_comm_rate"
+                                            name="sliding_treaty_prem_type_comm_rate[]"
+                                            id="prem_type_comm_rate-sliding-{{ $index }}-{{ $loop->index }}"
+                                            value="{{ number_format($premType->comm_rate, 2) }}" readonly>
                                     </div>
-                                    <small class="text-muted">Different rates per county</small>
-                                    <input type="hidden" class="provincial_data" name="provincial_data[]"
-                                        id="provincial_data-{{ $index }}-{{ $loop->index }}"
-                                        value="{{ json_encode($provincialData) }}">
+                                    <small class="text-muted">Average rate from scale</small>
                                 </div>
 
-                                {{-- Sliding Scale Commission --}}
                                 <div class="col-md-3 sliding_scale_div"
                                     style="display: {{ $commType == 'SLIDING' ? 'block' : 'none' }};">
-                                    <label class="form-label">Sliding Scale</label>
+                                    <label class="form-label">Configure Scale</label>
                                     <div class="input-group">
                                         <button type="button"
                                             class="btn btn-outline-secondary btn-block configure-sliding-btn"
                                             data-class-counter="{{ $index }}"
-                                            data-counter="{{ $loop->index }}">
+                                            data-counter="{{ $loop->index }}" style="width: 86%;">
                                             <i class="bx bx-trending-up me-1"></i>
                                             @if ($slidingData)
                                                 Edit Scale ({{ count($slidingData) }} tiers)
@@ -537,18 +520,6 @@
                                 </div>
                             </div>
 
-                            {{-- Preview Section for Provincial --}}
-                            @if ($commType == 'PROVINCIAL' && $provincialData)
-                                <div class="alert alert-info alert-sm mt-2 provincial-preview">
-                                    <strong>Provincial Rates:</strong>
-                                    @foreach ($provincialData as $province => $rate)
-                                        <span class="badge bg-info me-1">{{ $province }}:
-                                            {{ $rate }}%</span>
-                                    @endforeach
-                                </div>
-                            @endif
-
-                            {{-- Preview Section for Sliding Scale --}}
                             @if ($commType == 'SLIDING' && $slidingData)
                                 <div class="alert alert-success alert-sm mt-2 sliding-preview">
                                     <strong>Sliding Scale Tiers:</strong>
@@ -566,7 +537,6 @@
             </div>
         @endforeach
     @else
-        {{-- No existing classes - show default template --}}
         <div class="alert alert-info">
             <i class="bx bx-info-circle me-2"></i>
             No reinsurance classes configured yet. The default class will be added when you select a reinsurance class
@@ -580,48 +550,6 @@
     <button type="button" class="btn btn-outline-primary" id="add_rein_class">
         <i class="bx bx-plus me-1"></i> Add Another Reinsurance Class
     </button>
-</div>
-
-{{-- Information Card --}}
-<div class="card bg-light mt-3">
-    <div class="card-body">
-        <h6 class="card-title">
-            <i class="bx bx-info-circle me-2"></i>Treaty Structure Guide
-        </h6>
-        <div class="row">
-            <div class="col-md-4">
-                <p class="mb-2"><strong>Quota Share:</strong></p>
-                <ul class="small mb-0">
-                    <li>Fixed percentage of every risk</li>
-                    <li>Simple proportional sharing</li>
-                    <li>Retention + Treaty = 100%</li>
-                    <li>Example: 30% retention, 70% treaty</li>
-                </ul>
-            </div>
-            <div class="col-md-4">
-                <p class="mb-2"><strong>Surplus:</strong></p>
-                <ul class="small mb-0">
-                    <li>Based on multiples (lines) of retention</li>
-                    <li>Varies by risk size</li>
-                    <li>Treaty Limit = Lines × Retention</li>
-                    <li>Example: 5 lines × kes100,000 = kes500,000</li>
-                </ul>
-            </div>
-            <div class="col-md-4">
-                <p class="mb-2"><strong>Commission Types:</strong></p>
-                <ul class="small mb-0">
-                    <li><strong>Flat:</strong> Fixed percentage</li>
-                    <li><strong>Provincial:</strong> Varies by county</li>
-                    <li><strong>Sliding:</strong> Based on loss ratio</li>
-                </ul>
-            </div>
-        </div>
-        <hr>
-        <p class="mb-0 small">
-            <strong>Note:</strong> Combined treaties (SPQT) use both Quota Share and Surplus arrangements.
-            The retention from Quota Share becomes the base for Surplus calculations.
-        </p>
-    </div>
 </div>
 
 @include('cover.partials.commission-modals')
@@ -692,17 +620,6 @@
         margin-bottom: 1rem;
     }
 
-    .card.bg-light {
-        border-left: 4px solid #17a2b8;
-        background-color: #f0f8ff !important;
-    }
-
-    .configure-provincial-btn,
-    .configure-sliding-btn {
-        width: 100%;
-        text-align: left;
-    }
-
     .alert-sm {
         padding: 0.5rem 0.75rem;
         font-size: 0.875rem;
@@ -711,5 +628,24 @@
     .badge {
         font-size: 0.75rem;
         padding: 0.35em 0.65em;
+    }
+
+    .sliding_scale_div .prem_type_comm_rate {
+        background-color: #e9ecef;
+        cursor: not-allowed;
+    }
+
+    .prem_type_treaty_div,
+    .prem_type_code_div,
+    .comm_type_div,
+    .flat_rate_div,
+    .sliding_scale_div {
+        height: 95px;
+    }
+
+    .config_scale_div {
+        height: auto;
+        min-height: auto !important;
+        margin-top: 0px !important;
     }
 </style>

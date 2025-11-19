@@ -13,6 +13,7 @@ class CoverPremtype extends Model
     use HasFactory, ModelCompositeKey, SoftDeletes;
 
     protected $table = 'cover_premtypes';
+
     public $timestamps = false;
     public $primaryKey = ['cover_no', 'endorsement_no', 'reinclass', 'premtype_code'];
     public $incrementing = false;

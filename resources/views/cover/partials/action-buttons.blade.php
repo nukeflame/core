@@ -1,47 +1,25 @@
-<div class="d-flex gap-2">
-    @switch($trans_type)
-        @case('NEW')
-            <button type="submit" id="save_cover" class="btn btn-success btn-lg">
-                <i class="bi bi-save me-2"></i>Save Cover
-            </button>
-        @break
+{{-- resources/views/cover/partials/action-buttons.blade.php --}}
+<div class="card-body p-3 mx-0 cover-info-wrapper" style="background-color:var(--cover-bg);border-radius:0.375rem;">
 
-        @case('EDIT')
-            <button type="submit" id="save_cover" class="btn btn-primary btn-lg">
-                <i class="bi bi-pencil me-2"></i>Update Details
-            </button>
-        @break
+    {{-- Verify Details Button --}}
+    <button class="btn btn-outline-dark mr-2 btn-sm btn-wave waves-effect waves-light" id="verify_details"
+        data-pre-verify-url="{{ route('cover.pre_cover_verification') }}">
+        <i class="bx bx-plus me-1 align-middle"></i>
+        <span id="verify-text">Verify Details</span>
+    </button>
 
-        @case('EXT')
-        @case('CNC')
-
-        @case('RFN')
-        @case('INS')
-            <button type="button" id="ext_cover" class="btn btn-primary btn-lg">
-                <i class="bi bi-save me-2"></i>Save Endorsement
-            </button>
-        @break
-
-        @case('REN')
-            <button type="button" id="save_cover" class="btn btn-success btn-lg">
-                <i class="bi bi-arrow-repeat me-2"></i>Renew Policy
-            </button>
-        @break
-
-        @default
-            <button type="button" id="save_cover" class="btn btn-primary btn-lg">
-                <i class="bi bi-save me-2"></i>Save
-            </button>
-    @endswitch
-
-    <a href="{{ route('customer.info') }}" class="btn btn-secondary btn-lg">
-        <i class="bi bi-x-circle me-2"></i>Cancel
+    {{-- Generate Slip Button --}}
+    <a href="#" class="btn btn-outline-dark mr-2 btn-sm btn-wave waves-effect waves-light" id="generate_slip"
+        data-pre-slip-url="{{ route('docs.pre_cover_slip_verification') }}"
+        data-slip-url="{{ route('docs.coverslip', ['endorsement_no' => $cover->endorsement_no, 'pre_debit' => 'Y']) }}">
+        <i class="bx bx-analyse me-1 align-middle"></i> Generate Slip
     </a>
-</div>
 
-<div class="mt-3">
-    <small class="text-muted">
-        <i class="bx bx-info-circle me-1"></i>
-        All fields marked with <span class="text-danger">*</span> are required.
-    </small>
+    {{-- Send Email to Reinsurer --}}
+    <button class="btn btn-outline-dark mr-2 btn-sm btn-wave waves-effect waves-light send_reinsurer_email"
+        data-tran_no="{{ $reinsurer->tran_no }}"
+        data-debit_url="{{ route('docs.coverdebitnote', ['endorsement_no' => $cover->endorsement_no]) }}"
+        data-claim_notice_url="{{ route('docs.claimnotice', ['endorsement_no' => $cover->endorsement_no]) }}">
+        <i class="bx bx-envelope me-1 align-middle"></i> Send Email
+    </button>
 </div>

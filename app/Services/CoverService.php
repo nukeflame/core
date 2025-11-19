@@ -31,7 +31,7 @@ class CoverService
             'branches' => $this->coverRepository->getCachedBranches(),
             'brokers' => $this->coverRepository->getCachedBrokers(),
             'reinsdivisions' => $this->coverRepository->getCachedReinsuranceDivisions(),
-            'paymethods' => $this->coverRepository->getCachedPaymentMethods(),
+            // 'paymethods' => $this->coverRepository->getCachedPaymentMethods(),
             'currencies' => $this->coverRepository->getCachedCurrencies(),
             'premium_pay_terms' => $this->coverRepository->getCachedPremiumPaymentTerms(),
             'classGroups' => $this->coverRepository->getCachedClassGroups(),
@@ -74,7 +74,6 @@ class CoverService
             $repositoryData = $this->transformRequestData($data);
 
             $result = $this->coverRepository->registerCover((object) $repositoryData);
-            // logger()->info(json_encode($repositoryData, JSON_PRETTY_PRINT));
 
             return [
                 'success' => true,
@@ -97,7 +96,6 @@ class CoverService
         try {
             $oldCover = CoverRegister::where('cover_no', $data['cover_no'])->firstOrFail();
 
-            // Transform data for renewal
             $repositoryData = $this->transformRequestData(array_merge($data, [
                 'trans_type' => 'REN',
                 'endorsement_no' => $oldCover->endorsement_no,
@@ -113,11 +111,6 @@ class CoverService
             ];
         } catch (Exception $e) {
             DB::rollBack();
-
-            logger()->error('Failed to renew cover', [
-                'message' => $e->getMessage(),
-                'cover_no' => $data['cover_no'] ?? null
-            ]);
 
             throw $e;
         }
@@ -146,11 +139,6 @@ class CoverService
         } catch (Exception $e) {
             DB::rollBack();
 
-            logger()->error('Failed to process endorsement', [
-                'type' => $type,
-                'message' => $e->getMessage()
-            ]);
-
             throw $e;
         }
     }
@@ -177,11 +165,6 @@ class CoverService
             ];
         } catch (Exception $e) {
             DB::rollBack();
-
-            logger()->error('Failed to update cover', [
-                'endorsement_no' => $endorsementNo,
-                'message' => $e->getMessage()
-            ]);
 
             throw $e;
         }
@@ -270,13 +253,13 @@ class CoverService
             'surp_treaty_limit' => $data['surp_treaty_limit'] ?? null,
 
             // Premium types
-            'prem_type_code' => $data['prem_type_code'] ?? null,
-            'prem_type_reinclass' => $data['prem_type_reinclass'] ?? null,
-            'prem_type_treaty' => $data['prem_type_treaty'] ?? null,
+            'prem_type_code' => $data['prem_type_code'] ?? [],
+            'prem_type_reinclass' => $data['prem_type_reinclass'] ?? [],
+            'prem_type_treaty' => $data['prem_type_treaty'] ?? [],
             'prem_type_comm_rate' => $data['prem_type_comm_rate'] ?? null,
             'premium_payment_term' => $data['premium_payment_term'] ?? null,
             'premium_payment_code' => $data['premium_payment_code'] ?? null,
-
+            'flat_prem_type_comm_rate' => $data['flat_prem_type_comm_rate'] ?? [],
 
             // Treaty non-proportional arrays
             'layer_no' => $data['layer_no'] ?? null,

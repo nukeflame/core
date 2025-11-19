@@ -1,21 +1,46 @@
 @props(['cover', 'endorsementNarration'])
 
-<div class="card border-0 shadow-sm mb-3 mb-2">
+@php
+    $isUnverified = in_array($cover->verified, [null, 'R']);
+    $isPending = $cover->verified === 'P';
+    $isApproved = $cover->verified === 'A';
+    $isNotCancelled = $cover->status !== 'cancelled';
+
+    $isFacultative = in_array($cover->type_of_bus, ['FPR', 'FNP']);
+    $isTreaty = in_array($cover->type_of_bus, ['TNP', 'TPR']);
+    $isNewOrRenewal = in_array($cover->transaction_type, ['NEW', 'REN']);
+    $isNewRenewalOrExtension = in_array($cover->transaction_type, ['NEW', 'REN', 'EXT']);
+
+    $statusConfig = [
+        null => ['badge' => 'bg-danger', 'text' => 'Pending'],
+        'R' => ['badge' => 'bg-danger', 'text' => 'Rejected'],
+        'P' => ['badge' => 'bg-warning', 'text' => 'Awaiting Verification'],
+        'A' => ['badge' => 'bg-success', 'text' => 'Approved'],
+    ];
+
+    $currentStatus = $statusConfig[$cover->verified] ?? ['badge' => 'bg-secondary', 'text' => 'Unknown'];
+@endphp
+
+<div class="card border-0 shadow-sm mb-3">
     <div class="card-header bg-white border-0 pb-2 px-0 pt-2">
         <h6 class="mb-0 fw-semibold">
             <i class="ri-settings-3-line me-2" style="vertical-align: -2px;"></i>Quick Actions
         </h6>
     </div>
+
     <div class="card-body px-0 pt-2 mx-0 cover-info-wrapper"
         style="background-color:var(--cover-bg);border-radius:0.375rem;">
-        @if (in_array($cover->verified, [null, 'R']))
-            <button type="button" class="btn btn-outline-dark btn-sm text-start me-2"
-                onclick="editCover('{{ $cover->endorsement_no }}')">
+
+        {{-- Edit Actions --}}
+        @if ($isUnverified)
+            <button type="button" class="btn btn-outline-dark btn-sm text-start me-2" data-action="edit"
+                data-endorsement="{{ $cover->endorsement_no }}">
                 <i class="ri-edit-line me-2"></i>Edit Cover Details
             </button>
         @endif
 
-        @if (in_array($cover->type_of_bus, ['FPR', 'FNP']))
+        {{-- Facultative Actions --}}
+        @if ($isFacultative)
             <button type="button" class="btn btn-outline-dark btn-sm text-start me-2" data-bs-toggle="modal"
                 data-bs-target="#addScheduleModal">
                 <i class="ri-table-line me-2"></i>Add Schedule
@@ -32,241 +57,115 @@
             </button>
         @endif
 
-        <button type="button" class="btn btn-outline-success btn-sm text-start me-2" data-bs-toggle="modal"
-            data-bs-target="#addReinsurerModal">
-            <i class="ri-team-line me-2"></i>Add Reinsurer
-        </button>
-
-        @if (in_array($cover->type_of_bus, ['FPR', 'FNP']))
-            <button type="button" class="btn btn-outline-secondary btn-sm text-start me-2"
-                onclick="generateSlip('{{ $cover->endorsement_no }}')">
-                <i class="ri-file-pdf-line me-2"></i>Generate Slip
+        {{-- Treaty Actions --}}
+        @if ($isTreaty && $isNewOrRenewal && $isUnverified)
+            <button class="btn btn-outline-dark btn-sm me-2" data-bs-toggle="modal"
+                data-bs-target="#insurance-class-modal">
+                <i class="ri-list-check me-2"></i>Classes of Insurance
             </button>
-            {{--
-            <button type="button" class="btn btn-outline-secondary btn-sm text-start me-2" data-bs-toggle="modal"
-                data-bs-target="#generateDebitModal">
-                <i class="ri-file-list-3-line me-2"></i>Generate Debit Note
-            </button> --}}
+
+            @if ($cover->type_of_bus === 'TNP')
+                <button class="btn btn-outline-dark btn-sm me-2" data-bs-toggle="modal"
+                    data-bs-target="#mdpInstallmentModal">
+                    <i class="ri-calendar-line me-2"></i>MDP Installments
+                </button>
+            @endif
         @endif
 
-        @if (in_array($cover->verified, [null, 'R']))
+        {{-- Common Unverified Actions --}}
+        @if ($isUnverified)
+            <button type="button" class="btn btn-outline-success btn-sm text-start me-2" data-bs-toggle="modal"
+                data-bs-target="#addReinsurerModal">
+                <i class="ri-team-line me-2"></i>Add Reinsurer
+            </button>
+
+            <button type="button" class="btn btn-outline-secondary btn-sm text-start me-2" data-action="generate-slip"
+                data-endorsement="{{ $cover->endorsement_no }}">
+                <i class="ri-file-pdf-line me-2"></i>Generate Slip
+            </button>
+
             <button type="button" class="btn btn-warning btn-sm text-start" data-bs-toggle="modal"
                 data-bs-target="#verificationModal">
                 <i class="ri-send-plane-line me-2"></i>Submit for Verification
             </button>
         @endif
 
-        @if ($cover->verified === 'P' && auth()->user()->can('verify_covers'))
-            <button type="button" class="btn btn-success btn-sm text-start"
-                onclick="verifyCover('{{ $cover->endorsement_no }}', 'A')">
-                <i class="ri-check-double-line me-2"></i>Approve Cover
+        {{-- Pending Verification Actions --}}
+        @if ($isPending)
+            <button class="btn btn-outline-dark btn-sm me-2" id="verify_details">
+                <i class="ri-arrow-up-circle-line me-2"></i>Re-escalate Verification
             </button>
-
-            <button type="button" class="btn btn-danger btn-sm text-start"
-                onclick="verifyCover('{{ $cover->endorsement_no }}', 'R')">
-                <i class="ri-close-circle-line me-2"></i>Reject Cover
-            </button>
+            <span class="badge bg-warning text-dark">
+                <i class="ri-time-line me-1"></i>Pending Verification
+            </span>
         @endif
 
-        @if ($cover->verified === 'A' && $cover->status !== 'cancelled')
-            <button type="button" class="btn btn-outline-danger btn-sm text-start"
-                onclick="cancelCover('{{ $cover->endorsement_no }}')">
-                <i class="ri-close-line me-2"></i>Cancel Cover
-            </button>
-        @endif
-    </div>
-    <div class="card-body pt-2 d-none">
-        <div class="card-body p-3 mx-0 cover-info-wrapper"
-            style="background-color:var(--cover-bg);border-radius:0.375rem;">
-            {{-- Edit Cover --}}
-            @if (in_array($cover->verified, [null, 'R']))
-                <button type="button" class="btn btn-outline-primary btn-sm text-start"
-                    onclick="editCover('{{ $cover->endorsement_no }}')">
-                    <i class="ri-edit-line me-2"></i>Edit Cover Details
+        {{-- Approved Actions --}}
+        @if ($isApproved && $isNotCancelled)
+            @if ($isFacultative || (!$isFacultative && !$isNewOrRenewal))
+                <button class="btn btn-outline-dark btn-sm me-2" data-bs-toggle="modal" data-bs-target="#facDebitModal">
+                    <i class="ri-file-list-3-line me-2"></i>Generate Debit
                 </button>
-            @endif
-
-            {{-- Add Schedule (Facultative Only) --}}
-            @if (in_array($cover->type_of_bus, ['FPR', 'FNP']))
-                <button type="button" class="btn btn-outline-primary btn-sm text-start" data-bs-toggle="modal"
-                    data-bs-target="#addScheduleModal">
-                    <i class="ri-table-line me-2"></i>Add Schedule
+            @elseif (!$isFacultative && $isNewRenewalOrExtension)
+                <button type="button" class="btn btn-outline-secondary btn-sm me-2" data-action="preview-slip"
+                    data-endorsement="{{ $cover->endorsement_no }}">
+                    <i class="ri-eye-line me-2"></i>Preview Slip
                 </button>
 
-                {{-- Add Clause --}}
-                <button type="button" class="btn btn-outline-primary btn-sm text-start" data-bs-toggle="modal"
-                    data-bs-target="#addClauseModal">
-                    <i class="ri-file-text-line me-2"></i>Add Clause
+                <button class="btn btn-outline-dark btn-sm me-2" data-bs-toggle="modal"
+                    data-bs-target="#treatyDebitModal">
+                    <i class="ri-file-list-3-line me-2"></i>Generate Debit
                 </button>
 
-                {{-- Upload Document --}}
-                <button type="button" class="btn btn-outline-primary btn-sm text-start" data-bs-toggle="modal"
-                    data-bs-target="#addAttachmentModal">
-                    <i class="ri-upload-line me-2"></i>Upload Document
-                </button>
-            @endif
-
-            {{-- Add Reinsurer --}}
-            <button type="button" class="btn btn-outline-success btn-sm text-start" data-bs-toggle="modal"
-                data-bs-target="#addReinsurerModal">
-                <i class="ri-team-line me-2"></i>Add Reinsurer
-            </button>
-
-            {{-- Divider --}}
-            <hr class="my-2">
-
-            {{-- Generate Slip --}}
-            @if (in_array($cover->type_of_bus, ['FPR', 'FNP']))
-                <button type="button" class="btn btn-outline-secondary btn-sm text-start"
-                    onclick="generateSlip('{{ $cover->endorsement_no }}')">
-                    <i class="ri-file-pdf-line me-2"></i>Generate Slip
-                </button>
-
-                {{-- Generate Debit Note --}}
-                <button type="button" class="btn btn-outline-secondary btn-sm text-start" data-bs-toggle="modal"
-                    data-bs-target="#generateDebitModal">
-                    <i class="ri-file-list-3-line me-2"></i>Generate Debit Note
-                </button>
-            @endif
-
-            {{-- Send Email --}}
-            <button type="button" class="btn btn-outline-secondary btn-sm text-start"
-                onclick="sendEmail('{{ $cover->endorsement_no }}')">
-                <i class="ri-mail-send-line me-2"></i>Send Email
-            </button>
-
-            {{-- Divider --}}
-            <hr class="my-2">
-
-            {{-- Submit for Verification --}}
-            @if (in_array($cover->verified, [null, 'R']))
-                <button type="button" class="btn btn-warning btn-sm text-start" data-bs-toggle="modal"
-                    data-bs-target="#verificationModal">
-                    <i class="ri-send-plane-line me-2"></i>Submit for Verification
-                </button>
-            @endif
-
-            {{-- Verify/Approve --}}
-            @if ($cover->verified === 'P' && auth()->user()->can('verify_covers'))
-                <button type="button" class="btn btn-success btn-sm text-start"
-                    onclick="verifyCover('{{ $cover->endorsement_no }}', 'A')">
-                    <i class="ri-check-double-line me-2"></i>Approve Cover
-                </button>
-
-                <button type="button" class="btn btn-danger btn-sm text-start"
-                    onclick="verifyCover('{{ $cover->endorsement_no }}', 'R')">
-                    <i class="ri-close-circle-line me-2"></i>Reject Cover
-                </button>
-            @endif
-
-            {{-- Cancel Cover --}}
-            @if ($cover->verified === 'A' && $cover->status !== 'cancelled')
-                <button type="button" class="btn btn-outline-danger btn-sm text-start"
-                    onclick="cancelCover('{{ $cover->endorsement_no }}')">
-                    <i class="ri-close-line me-2"></i>Cancel Cover
-                </button>
-            @endif
-        </div>
-
-        {{-- Endorsement Narration Summary --}}
-        @if (count($endorsementNarration) > 0)
-            <div class="mt-3 pt-3 border-top">
-                <small class="text-muted d-block mb-2">
-                    <i class="ri-information-line me-1"></i>Recent Endorsements
-                </small>
-                <div class="list-group list-group-flush">
-                    @foreach ($endorsementNarration->take(3) as $narration)
-                        <div class="list-group-item px-0 py-2 border-0">
-                            <div class="d-flex justify-content-between align-items-start">
-                                <div class="flex-grow-1">
-                                    <small class="fw-semibold d-block">
-                                        {{ $narration->endorsementType->endorse_type_name ?? 'Endorsement' }}
-                                    </small>
-                                    <small class="text-muted">
-                                        {{ Str::limit($narration->narration ?? 'No description', 50) }}
-                                    </small>
-                                </div>
-                                <small class="text-muted ms-2">
-                                    {{ \Carbon\Carbon::parse($narration->created_at)->format('d M') }}
-                                </small>
-                            </div>
-                        </div>
-                    @endforeach
-                </div>
-                @if (count($endorsementNarration) > 3)
-                    <button type="button" class="btn btn-link btn-sm p-0 mt-2"
-                        onclick="document.querySelector('[data-bs-target=\'#endorse-narration-tab\']').click()">
-                        View all {{ count($endorsementNarration) }} endorsements
+                {{-- @foreach ([['label' => 'Debit', 'icon' => 'file-list-3-line'], ['label' => 'Profit Commission', 'icon' => 'money-dollar-circle-line'], ['label' => 'Portfolio', 'icon' => 'folder-line'], ['label' => 'Commission Adjustment', 'icon' => 'exchange-line']] as $action)
+                    <button type="button" class="btn btn-outline-dark btn-sm text-start me-2"
+                        data-action="generate-{{ Str::slug($action['label']) }}"
+                        data-endorsement="{{ $cover->endorsement_no }}">
+                        <i class="ri-{{ $action['icon'] }} me-2"></i>{{ $action['label'] }}
                     </button>
-                @endif
-            </div>
+                @endforeach --}}
+            @endif
         @endif
 
-        {{-- Cover Status Info --}}
+        {{-- Cover Status Section --}}
         <div class="mt-3 pt-3 border-top">
-            <small class="text-muted d-block mb-2">
-                <i class="ri-information-line me-1"></i>Cover Status
-            </small>
-            <div class="d-flex flex-column gap-2">
-                <div class="d-flex justify-content-between align-items-center">
-                    <small class="text-muted">Status:</small>
-                    <span
-                        class="badge
-                        @switch($cover->verified)
-                            @case(null)
-                            @case('R')
-                                bg-danger
-                                @break
-                            @case('P')
-                                bg-warning
-                                @break
-                            @case('A')
-                                bg-success
-                                @break
-                            @default
-                                bg-secondary
-                        @endswitch
-                    ">
-                        @switch($cover->verified)
-                            @case(null)
-                            @case('R')
-                                Pending
-                            @break
+            <span class="text-muted d-block mb-2 fs-14">
+                <i class="ri-information-line me-1 fs-14" style="vertical-align: -2px;"></i>Cover Status
+            </span>
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <div class="d-flex flex-column gap-2">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <small class="text-muted">Status:</small>
+                            <span class="badge {{ $currentStatus['badge'] }}">
+                                {{ $currentStatus['text'] }}
+                            </span>
+                        </div>
 
-                            @case('P')
-                                Awaiting Verification
-                            @break
+                        <div class="d-flex justify-content-between align-items-center">
+                            <small class="text-muted">Created:</small>
+                            <small class="fw-semibold">
+                                {{ $cover->created_at->format('d M Y') }}
+                            </small>
+                        </div>
 
-                            @case('A')
-                                Approved
-                            @break
-
-                            @default
-                                Unknown
-                        @endswitch
-                    </span>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <small class="text-muted">Last Updated:</small>
+                            <small class="fw-semibold">
+                                {{ $cover->updated_at->diffForHumans() }}
+                            </small>
+                        </div>
+                    </div>
                 </div>
 
-                <div class="d-flex justify-content-between align-items-center">
-                    <small class="text-muted">Created:</small>
-                    <small class="fw-semibold">
-                        {{ \Carbon\Carbon::parse($cover->created_at)->format('d M Y') }}
-                    </small>
-                </div>
-
-                <div class="d-flex justify-content-between align-items-center">
-                    <small class="text-muted">Last Updated:</small>
-                    <small class="fw-semibold">
-                        {{ \Carbon\Carbon::parse($cover->updated_at)->diffForHumans() }}
-                    </small>
-                </div>
-
-                @if ($cover->verified === 'A' && $cover->approved_by)
-                    <div class="d-flex justify-content-between align-items-center">
-                        <small class="text-muted">Approved By:</small>
-                        <small class="fw-semibold">
-                            {{ $cover->approver->name ?? 'N/A' }}
-                        </small>
+                @if ($isApproved && $cover->approved_by)
+                    <div class="col-md-6">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <small class="text-muted">Approved By:</small>
+                            <small class="fw-semibold">
+                                {{ $cover->approver->name ?? 'N/A' }}
+                            </small>
+                        </div>
                     </div>
                 @endif
             </div>
@@ -274,157 +173,153 @@
     </div>
 </div>
 
-@push('scripts')
+@push('script')
     <script>
-        function editCover(endorsementNo) {
-            window.location.href = `/covers/${endorsementNo}/edit`;
-        }
+        (function() {
+            'use strict';
 
-        function generateSlip(endorsementNo) {
-            if (confirm('Generate placement slip for this cover?')) {
-                window.open(`/covers/${endorsementNo}/generate-slip`, '_blank');
-            }
-        }
+            const CoverActions = {
+                csrfToken: document.querySelector('meta[name="csrf-token"]')?.content,
 
-        function verifyCover(endorsementNo, action) {
-            const actionText = action === 'A' ? 'approve' : 'reject';
-            const actionColor = action === 'A' ? 'success' : 'danger';
-
-            Swal.fire({
-                title: `${actionText.charAt(0).toUpperCase() + actionText.slice(1)} Cover?`,
-                text: `Are you sure you want to ${actionText} this cover?`,
-                icon: 'question',
-                input: 'textarea',
-                inputLabel: 'Comment (required)',
-                inputPlaceholder: 'Enter your verification comment...',
-                inputAttributes: {
-                    'aria-label': 'Enter your verification comment'
+                init() {
+                    if (!this.csrfToken) {
+                        console.error('CSRF token not found');
+                        return;
+                    }
+                    this.bindEvents();
                 },
-                showCancelButton: true,
-                confirmButtonText: `Yes, ${actionText}`,
-                confirmButtonColor: action === 'A' ? '#198754' : '#dc3545',
-                cancelButtonText: 'Cancel',
-                inputValidator: (value) => {
-                    if (!value) {
-                        return 'You need to provide a comment!';
-                    }
-                }
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    // Submit verification
-                    fetch(`/covers/${endorsementNo}/verify`, {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-                            },
-                            body: JSON.stringify({
-                                action: action,
-                                comment: result.value
-                            })
-                        })
-                        .then(response => response.json())
-                        .then(data => {
-                            if (data.success) {
-                                Swal.fire('Success',
-                                        `Cover ${action === 'A' ? 'approved' : 'rejected'} successfully!`,
-                                        'success')
-                                    .then(() => {
-                                        window.location.reload();
-                                    });
-                            } else {
-                                throw new Error(data.message || 'Verification failed');
-                            }
-                        })
-                        .catch(error => {
-                            Swal.fire('Error', error.message, 'error');
-                        });
-                }
-            });
-        }
 
-        function cancelCover(endorsementNo) {
-            Swal.fire({
-                title: 'Cancel Cover?',
-                text: 'This action cannot be undone. Are you sure you want to cancel this cover?',
-                icon: 'warning',
-                input: 'textarea',
-                inputLabel: 'Cancellation Reason (required)',
-                inputPlaceholder: 'Enter reason for cancellation...',
-                showCancelButton: true,
-                confirmButtonText: 'Yes, cancel it',
-                confirmButtonColor: '#dc3545',
-                cancelButtonText: 'No, keep it',
-                inputValidator: (value) => {
-                    if (!value) {
-                        return 'You need to provide a cancellation reason!';
+                bindEvents() {
+                    document.querySelectorAll('[data-action]').forEach(btn => {
+                        btn.addEventListener('click', (e) => {
+                            const action = e.currentTarget.dataset.action;
+                            const endorsement = e.currentTarget.dataset.endorsement;
+                            this.handleAction(action, endorsement);
+                        });
+                    });
+                },
+
+                handleAction(action, endorsementNo) {
+                    const actionMap = {
+                        'edit': () => this.editCover(endorsementNo),
+                        'generate-slip': () => this.generateDocument(endorsementNo, 'slip'),
+                        'preview-slip': () => this.generateDocument(endorsementNo, 'slip', true),
+                        'generate-debit': () => this.generateDocument(endorsementNo, 'debit'),
+                        'generate-profit-commission': () => this.generateDocument(endorsementNo,
+                            'profit-commission'),
+                        'generate-portfolio': () => this.generateDocument(endorsementNo, 'portfolio'),
+                        'generate-commission-adjustment': () => this.generateDocument(endorsementNo,
+                            'commission-adjustment')
+                    };
+
+                    const handler = actionMap[action];
+                    if (handler) {
+                        handler();
+                    } else {
+                        console.warn(`Unknown action: ${action}`);
                     }
-                }
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    // Submit cancellation
-                    fetch(`/covers/${endorsementNo}/cancel`, {
+                },
+
+                editCover(endorsementNo) {
+                    window.location.href = `/covers/${endorsementNo}/edit`;
+                },
+
+                generateDocument(endorsementNo, type, isPreview = false) {
+                    const messages = {
+                        'slip': 'Generate placement slip for this cover?',
+                        'debit': 'Generate debit note for this cover?',
+                        'profit-commission': 'Generate profit commission report?',
+                        'portfolio': 'Generate portfolio report?',
+                        'commission-adjustment': 'Generate commission adjustment?'
+                    };
+
+                    const message = messages[type] || 'Generate document?';
+                    const action = isPreview ? 'Preview' : 'Generate';
+
+                    if (confirm(`${action}: ${message}`)) {
+                        const url = `/covers/${endorsementNo}/generate-${type}`;
+                        window.open(url, '_blank');
+                    }
+                },
+
+                async apiRequest(url, data = {}) {
+                    try {
+                        const response = await fetch(url, {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
-                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                                'X-CSRF-TOKEN': this.csrfToken,
+                                'Accept': 'application/json'
                             },
-                            body: JSON.stringify({
-                                reason: result.value
-                            })
-                        })
-                        .then(response => response.json())
-                        .then(data => {
-                            if (data.success) {
-                                Swal.fire('Cancelled', 'Cover has been cancelled successfully.', 'success')
-                                    .then(() => {
-                                        window.location.reload();
-                                    });
-                            } else {
-                                throw new Error(data.message || 'Cancellation failed');
-                            }
-                        })
-                        .catch(error => {
-                            Swal.fire('Error', error.message, 'error');
+                            body: JSON.stringify(data)
                         });
+
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+
+                        return await response.json();
+                    } catch (error) {
+                        console.error('API request failed:', error);
+                        throw error;
+                    }
+                },
+
+                showAlert(title, text, icon = 'info') {
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            title,
+                            text,
+                            icon
+                        });
+                    } else {
+                        alert(`${title}: ${text}`);
+                    }
                 }
-            });
-        }
+            };
+
+            // Initialize when DOM is ready
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', () => CoverActions.init());
+            } else {
+                CoverActions.init();
+            }
+
+            // Expose for legacy compatibility
+            window.CoverActions = CoverActions;
+        })();
     </script>
 @endpush
 
 <style>
-    .action-card .btn {
-        border-radius: 8px;
-        transition: all 0.2s ease;
+    .cover-info-wrapper .btn {
+        border-radius: 0.375rem;
+        transition: all 0.2s ease-in-out;
     }
 
-    .action-card .btn:hover {
-        transform: translateX(4px);
+    .cover-info-wrapper .btn:hover:not(:disabled) {
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     }
 
-    .action-card .list-group-item {
-        background: transparent;
-        transition: background-color 0.2s ease;
+    .cover-info-wrapper .btn:active:not(:disabled) {
+        transform: translateY(0);
     }
 
-    .action-card .list-group-item:hover {
-        background-color: #f8f9fa;
-        border-radius: 6px;
+    .cover-info-wrapper .badge {
+        font-weight: 500;
+        padding: 0.35em 0.65em;
     }
 
-    .action-card hr {
-        border-top: 1px solid #e9ecef;
-        opacity: 0.5;
+    .cover-info-wrapper small {
+        font-size: 0.8125rem;
     }
 
-    .action-card .btn-link {
-        color: var(--cover-primary);
-        text-decoration: none;
-        font-size: 0.875rem;
+    .cover-info-wrapper .border-top {
+        border-color: rgba(0, 0, 0, 0.1) !important;
     }
 
-    .action-card .btn-link:hover {
-        text-decoration: underline;
+    .cover-info-wrapper .btn.btn-sm i {
+        vertical-align: -1px;
     }
 </style>

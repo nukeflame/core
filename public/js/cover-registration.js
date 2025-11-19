@@ -1,6 +1,6 @@
 /**
  * Cover Registration Module
- * Enhanced with better error handling, security, and performance
+ *
  */
 
 const CoverRegistration = (function () {
@@ -10,13 +10,14 @@ const CoverRegistration = (function () {
         trans_type: "",
         prospectId: "",
         routes: {},
+        premTypesData: [],
         oldData: null,
         resetableTransTypes: ["NEW"],
         installmentTotalAmount: 0,
         currentModalTarget: null,
         maxInstallments: 100,
         maxLayers: 20,
-        maxReinClasses: 14, // A-N
+        maxReinClasses: 14,
         debounceDelay: 300,
         calculationPrecision: 2,
     };
@@ -129,6 +130,23 @@ const CoverRegistration = (function () {
     }
 
     function setupEventListeners() {
+        $(document).on("input keyup", "input, textarea", function () {
+            $(this).removeClass("is-invalid");
+            $(this).next(".invalid-feedback").remove();
+            $(this).parent(".input-group").next(".invalid-feedback").remove();
+        });
+
+        $(document).on("change", "select", function () {
+            $(this).removeClass("is-invalid");
+
+            $(this)
+                .next(".select2-container")
+                .find(".select2-selection")
+                .removeClass("is-invalid");
+
+            $(this).closest(".cover-card").find(".invalid-feedback").remove();
+        });
+
         elements.typeOfBus.on("change", handleBusinessTypeChange);
         elements.coverType.on("change", handleCoverTypeChange);
         elements.brokerFlag.on("change", handleBrokerFlagChange);
@@ -597,24 +615,23 @@ const CoverRegistration = (function () {
             return false;
         }
 
-        // const validator = elements.form.validate();
-        // validator.form();
-        // const invalidFields = Object.keys(validator.invalid);
-        // console.log("Invalid fields:", invalidFields);
-
         if (!elements.form.valid()) {
             toastr.error("Please correct the errors before submitting");
             scrollToFirstError();
             return false;
         }
 
-        // if (isInstallmentPayment() && !validateInstallments()) {
-        //     return false;
-        // }
+        if (!validateCommissionSections()) {
+            return false;
+        }
 
-        // if (!validateBusinessTypeRequirements()) {
-        //     return false;
-        // }
+        // // if (isInstallmentPayment() && !validateInstallments()) {
+        // //     return false;
+        // // }
+
+        // // if (!validateBusinessTypeRequirements()) {
+        // //     return false;
+        // // }
 
         Swal.fire({
             title: "Confirm Submission",
@@ -643,7 +660,7 @@ const CoverRegistration = (function () {
 
         $("#hidden_risk_details").val(riskDetails);
 
-        // showLoader("Submitting cover registration...");
+        showLoader("Submitting cover registration...");
 
         const formData = new FormData(elements.form[0]);
 
@@ -658,8 +675,7 @@ const CoverRegistration = (function () {
         //         data[key] = value;
         //     }
         // });
-
-        // console.log("Form data:", data);
+        // console.log(data);
 
         $.ajax({
             url: elements.form.attr("action"),
@@ -678,8 +694,7 @@ const CoverRegistration = (function () {
                 state.isSubmitting = false;
 
                 if (response.success) {
-                    console.log(response);
-
+                    // console.log(response);
                     Swal.fire({
                         icon: "success",
                         title: "Success!",
@@ -761,7 +776,6 @@ const CoverRegistration = (function () {
                 } else if (status === "abort") {
                     toastr.info("Request cancelled");
                 } else {
-                    // Generic error
                     const errorMessage =
                         xhr.responseJSON?.message ||
                         xhr.responseJSON?.error ||
@@ -1310,30 +1324,53 @@ const CoverRegistration = (function () {
         $(`#surp_treaty_limit-${counter}`).val(numberWithCommas(treatyLimit));
     }
 
-    // ==================== Commission Type Handlers ====================
-
     function handleCommissionTypeChange() {
         const $select = $(this);
         const $parent = $select.closest(".comm-sections");
         const selectedType = $select.val();
+        const classCounter = $parent.data("class-counter");
+        const counter = $parent.data("counter");
 
-        $parent
-            .find(".flat_rate_div, .provincial_comm_div, .sliding_scale_div")
-            .hide();
+        $parent.find(".flat_rate_div, .sliding_scale_div").hide();
         $parent.find(".prem_type_comm_rate").prop("required", false);
+
+        $parent.find(".is-invalid").removeClass("is-invalid");
+        $parent.find(".invalid-feedback").remove();
 
         switch (selectedType) {
             case "FLAT":
                 $parent.find(".flat_rate_div").show();
-                $parent.find(".prem_type_comm_rate").prop("required", true);
+                $parent
+                    .find(".flat_rate_div .prem_type_comm_rate")
+                    .prop("required", true)
+                    .prop("readonly", false);
+
+                $parent.find(".sliding_scale_data").val("");
+                $parent.find(".sliding-preview").remove();
                 break;
+
             case "SLIDING":
                 $parent.find(".sliding_scale_div").show();
+
+                const slidingData = $parent.find(".sliding_scale_data").val();
+                if (
+                    !slidingData ||
+                    slidingData === "[]" ||
+                    slidingData === ""
+                ) {
+                    $parent
+                        .find(".configure-sliding-btn")
+                        .addClass("btn-warning")
+                        .removeClass("btn-outline-secondary");
+                }
+
+                $parent.find(".flat_rate_div .prem_type_comm_rate").val("");
+                break;
+
+            default:
                 break;
         }
     }
-
-    // ==================== Sliding Scale Management ====================
 
     function handleSlidingScaleConfig() {
         const classCounter = $(this).data("class-counter");
@@ -1439,7 +1476,6 @@ const CoverRegistration = (function () {
             const maxRatio = parseFloat($(this).find(".loss-ratio-max").val());
             const commRate = parseFloat($(this).find(".commission-rate").val());
 
-            // Validate individual fields
             if (isNaN(minRatio) || isNaN(maxRatio) || isNaN(commRate)) {
                 toastr.error("All fields must be filled with valid numbers.");
                 isValid = false;
@@ -1476,7 +1512,6 @@ const CoverRegistration = (function () {
 
         if (!isValid || tiers.length === 0) return;
 
-        // Sort tiers and validate no overlaps
         tiers.sort((a, b) => a.loss_ratio_min - b.loss_ratio_min);
 
         for (let i = 0; i < tiers.length - 1; i++) {
@@ -1486,7 +1521,6 @@ const CoverRegistration = (function () {
             }
         }
 
-        // Validate complete coverage (0-100%)
         if (tiers[0].loss_ratio_min !== 0) {
             toastr.error("Sliding scale must start from 0%.");
             return;
@@ -1497,10 +1531,8 @@ const CoverRegistration = (function () {
             return;
         }
 
-        // Save to hidden input
         $(config.currentModalTarget).val(JSON.stringify(tiers));
 
-        // Update button text
         const $btn = $(config.currentModalTarget)
             .closest(".sliding_scale_div")
             .find(".configure-sliding-btn");
@@ -1508,7 +1540,6 @@ const CoverRegistration = (function () {
             `<i class="bx bx-trending-up me-1"></i> Edit Scale (${tiers.length} tiers)`
         );
 
-        // Create preview
         createSlidingScalePreview(config.currentModalTarget, tiers);
 
         $("#slidingScaleModal").modal("hide");
@@ -1587,7 +1618,6 @@ const CoverRegistration = (function () {
         }
 
         if (file.size > 1048576) {
-            // 1MB limit
             toastr.error("File size must be less than 1MB");
             return;
         }
@@ -1617,7 +1647,6 @@ const CoverRegistration = (function () {
         let imported = 0;
         const errors = [];
 
-        // Skip header if present
         const startIndex =
             lines[0].toLowerCase().includes("loss") ||
             lines[0].toLowerCase().includes("ratio")
@@ -1767,10 +1796,36 @@ const CoverRegistration = (function () {
         }
 
         $(`#prem_type_reinclass-${counter}-0`).val(reinclass);
-        $(`#prem_type_code-${counter}-0`).attr("data-reinclass", reinclass);
-        $(`#prem_type_treaty-${counter}-0`).trigger("change");
 
+        populateTreatyDropdown(counter, treatyType);
         loadPremTypesData(treatyType, counter, reinclass);
+    }
+
+    function populateTreatyDropdown(counter, treatyType) {
+        const $treatySelect = $(`#prem_type_treaty-${counter}-0`);
+
+        if (!$treatySelect.length) {
+            return;
+        }
+
+        const $treatyTypeSelect = $("#treatytype");
+        const treatyCode = $treatyTypeSelect.val();
+        const treatyName = $treatyTypeSelect.find("option:selected").text();
+
+        if (!treatyCode) {
+            console.warn("No treaty type selected");
+            return;
+        }
+
+        $treatySelect.empty();
+        $treatySelect.append(
+            $("<option>")
+                .val(treatyCode)
+                .text(treatyName)
+                .prop("selected", true)
+        );
+
+        $treatySelect.trigger("change.select2");
     }
 
     function addReinClass() {
@@ -1803,7 +1858,9 @@ const CoverRegistration = (function () {
         newSection.find(".select2-container").remove();
 
         const sectionLabel = String.fromCharCode(65 + counter);
-        newSection.find(".section-title").text(`Section ${sectionLabel}`);
+        newSection
+            .find(".section-title")
+            .html(`<i class="bx bx-layer me-2"></i> Section ${sectionLabel}`);
 
         newSection.find('input[type="text"], input[type="number"]').val("");
         newSection.find("select").val("").prop("selectedIndex", 0);
@@ -1891,31 +1948,58 @@ const CoverRegistration = (function () {
         const counter = prevCounter + 1;
 
         const reinclass = $(`#treaty_reinclass-${classCounter}`).val();
-        const prevPremType = $(
-            `#prem_type_code-${classCounter}-${prevCounter}`
-        ).val();
-        const prevCommRate = $(
-            `#prem_type_comm_rate-${classCounter}-${prevCounter}`
-        ).val();
+        const treatyType = $("#treatytype").val();
 
         if (!reinclass) {
             toastr.error("Please select reinsurance class");
             return false;
         }
 
-        if (!prevPremType) {
-            toastr.error(
-                "Please select premium type in previous commission section"
-            );
+        if (!treatyType) {
+            toastr.error("Please select treaty type first");
             return false;
         }
 
-        if (
-            !prevCommRate &&
-            $(`#commission_type-${classCounter}-${prevCounter}`).val() ===
-                "FLAT"
-        ) {
-            toastr.error("Please enter commission rate in previous section");
+        const prevCommType = $(
+            `#commission_type-${classCounter}-${prevCounter}`
+        ).val();
+        if (!prevCommType) {
+            toastr.error("Please select commission type in previous section");
+            return false;
+        }
+
+        if (prevCommType === "FLAT") {
+            const prevCommRate = $(
+                `#prem_type_comm_rate-${classCounter}-${prevCounter}`
+            ).val();
+            if (!prevCommRate || parseFloat(prevCommRate) <= 0) {
+                toastr.error(
+                    "Please enter commission rate in previous section"
+                );
+                return false;
+            }
+        } else if (prevCommType === "SLIDING") {
+            const prevSlidingData = $(
+                `#sliding_scale_data-${classCounter}-${prevCounter}`
+            ).val();
+            if (
+                !prevSlidingData ||
+                prevSlidingData === "[]" ||
+                prevSlidingData === ""
+            ) {
+                toastr.error(
+                    "Please configure sliding scale in previous section"
+                );
+                return false;
+            }
+        }
+
+        const prevPremType = $(
+            `#prem_type_code-${classCounter}-${prevCounter}`
+        ).val();
+
+        if (!prevPremType) {
+            toastr.error("Please select premium type in previous section");
             return false;
         }
 
@@ -1926,104 +2010,285 @@ const CoverRegistration = (function () {
             `#prem_type_treaty-${classCounter}-${counter}, #prem_type_code-${classCounter}-${counter}, #commission_type-${classCounter}-${counter}`
         ).select2({
             width: "100%",
-            theme: "bootstrap-5",
         });
 
-        $(`#prem_type_treaty-${classCounter}-${counter}`).trigger("change");
+        loadPremTypeTreaty(classCounter, counter, treatyType);
+
+        $(`#prem_type_reinclass-${classCounter}-${counter}`).val(reinclass);
+
+        loadPremTypeCode(
+            classCounter,
+            counter,
+            treatyType,
+            reinclass,
+            prevCounter
+        );
 
         toastr.success("Commission section added");
     }
 
+    function loadPremTypeTreaty(classCounter, premCounter, treatyType) {
+        const $treatySelect = $(
+            `#prem_type_treaty-${classCounter}-${premCounter}`
+        );
+        const treatyName = $("#treatytype").find("option:selected").text();
+
+        $treatySelect.empty();
+        $treatySelect.append(
+            $("<option>")
+                .val(treatyType)
+                .text(treatyName)
+                .prop("selected", true)
+        );
+
+        $treatySelect.trigger("change.select2");
+    }
+
+    function loadPremTypeCode(
+        classCounter,
+        premCounter,
+        treatyType,
+        reinclass
+    ) {
+        const premTypesData = config.premTypesData;
+        const targetSelect = $(
+            `#prem_type_code-${classCounter}-${premCounter}`
+        );
+
+        targetSelect.empty();
+        targetSelect.append(
+            $("<option>")
+                .val("")
+                .text("-- Select Premium Type --")
+                .prop("selected", true)
+        );
+
+        if (!premTypesData || premTypesData.length === 0) {
+            targetSelect.trigger("change.select2");
+            return;
+        }
+
+        const currentValue =
+            targetSelect.data("current-value") || targetSelect.val();
+
+        const selectedPremTypes = [];
+        $(`.prem_type_code[data-class-counter="${classCounter}"]`).each(
+            function () {
+                const value = $(this).val();
+                const selectId = $(this).attr("id");
+                const targetId = targetSelect.attr("id");
+
+                if (value && selectId !== targetId) {
+                    selectedPremTypes.push(value);
+                }
+            }
+        );
+
+        premTypesData.forEach((premType) => {
+            if (!premType.premtype_code || !premType.premtype_name) {
+                return;
+            }
+
+            const isSelected = selectedPremTypes.includes(
+                premType.premtype_code
+            );
+            const isCurrentValue = premType.premtype_code === currentValue;
+
+            if (!isSelected || isCurrentValue) {
+                const optionText = `${premType.premtype_code} - ${premType.premtype_name}`;
+
+                targetSelect.append(
+                    $("<option>")
+                        .val(premType.premtype_code)
+                        .text(optionText)
+                        .attr("data-reinclass", reinclass)
+                        .attr("data-treaty", treatyType)
+                        .attr("data-name", premType.premtype_name)
+                );
+            }
+        });
+
+        if (currentValue) {
+            targetSelect.val(currentValue);
+        }
+
+        targetSelect.trigger("change.select2");
+    }
+
     function createCommissionSection(classCounter, premCounter) {
         return `
-            <div class="comm-sections"
-                 id="comm-section-${classCounter}-${premCounter}"
-                 data-class-counter="${classCounter}"
-                 data-counter="${premCounter}">
-                <div class="row g-3 align-items-end mb-2">
-                    <div class="col-md-3 prem_type_treaty_div">
-                        <label class="form-label required">Treaty</label>
-                        <div class="card-form">
-                            <select class="form-control select2 prem_type_treaty"
-                                    name="prem_type_treaty[]"
-                                    id="prem_type_treaty-${classCounter}-${premCounter}"
-                                    data-class-counter="${classCounter}"
-                                    data-counter="${premCounter}"
-                                    required>
-                                <option value="">Select Treaty</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <div class="col-md-3 prem_type_code_div">
-                        <label class="form-label required">Premium Type</label>
-                        <input type="hidden"
-                               class="prem_type_reinclass"
-                               id="prem_type_reinclass-${classCounter}-${premCounter}"
-                               name="prem_type_reinclass[]">
-                        <div class="card-form">
-                            <select class="form-control select2 prem_type_code"
-                                    name="prem_type_code[]"
-                                    id="prem_type_code-${classCounter}-${premCounter}"
-                                    data-class-counter="${classCounter}"
-                                    data-counter="${premCounter}"
-                                    required>
-                                <option value="">Select Premium Type</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <div class="col-md-2 comm_type_div">
-                        <label class="form-label required">Commission Type</label>
-                        <div class="card-form">
-                            <select class="form-control select2 commission_type"
-                                    name="commission_type[]"
-                                    id="commission_type-${classCounter}-${premCounter}"
-                                    data-class-counter="${classCounter}"
-                                    data-counter="${premCounter}"
-                                    required>
-                                <option value="">Select Type</option>
-                                <option value="FLAT">Flat Rate</option>
-                                <option value="SLIDING">Sliding Scale</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <div class="col-md-3 flat_rate_div">
-                        <label class="form-label">Commission (%)</label>
-                        <div class="input-group">
-                            <input type="text"
-                                   class="form-control prem_type_comm_rate"
-                                   name="prem_type_comm_rate[]"
-                                   id="prem_type_comm_rate-${classCounter}-${premCounter}"
-                                   placeholder="0.00">
-                            <button class="btn btn-danger remove-comm-section" type="button">
-                                <i class="bx bx-minus"></i>
-                            </button>
-                        </div>
-                    </div>
-
-                    <div class="col-md-3 sliding_scale_div" style="display: none;">
-                        <label class="form-label">Sliding Scale</label>
-                        <div class="input-group">
-                            <button type="button"
-                                    class="btn btn-outline-secondary btn-block configure-sliding-btn"
-                                    data-class-counter="${classCounter}"
-                                    data-counter="${premCounter}">
-                                <i class="bx bx-trending-up me-1"></i> Configure
-                            </button>
-                            <button class="btn btn-danger remove-comm-section" type="button">
-                                <i class="bx bx-minus"></i>
-                            </button>
-                        </div>
-                        <input type="hidden"
-                               class="sliding_scale_data"
-                               name="sliding_scale_data[]"
-                               id="sliding_scale_data-${classCounter}-${premCounter}">
+        <div class="comm-sections"
+             id="comm-section-${classCounter}-${premCounter}"
+             data-class-counter="${classCounter}"
+             data-counter="${premCounter}">
+            <div class="row g-3 align-items-end mb-2">
+                <div class="col-md-3 prem_type_treaty_div">
+                    <label class="form-label required">Treaty</label>
+                    <div class="card-form">
+                        <select class="form-control select2 prem_type_treaty"
+                                name="prem_type_treaty[]"
+                                id="prem_type_treaty-${classCounter}-${premCounter}"
+                                data-class-counter="${classCounter}"
+                                data-counter="${premCounter}"
+                                required>
+                            <option value="">Select Treaty</option>
+                        </select>
                     </div>
                 </div>
+
+                <div class="col-md-3 prem_type_code_div">
+                    <label class="form-label required">Premium Type</label>
+                    <input type="hidden"
+                           class="prem_type_reinclass"
+                           id="prem_type_reinclass-${classCounter}-${premCounter}"
+                           name="prem_type_reinclass[]">
+                    <div class="card-form">
+                        <select class="form-control select2 prem_type_code"
+                                name="prem_type_code[]"
+                                id="prem_type_code-${classCounter}-${premCounter}"
+                                data-class-counter="${classCounter}"
+                                data-counter="${premCounter}"
+                                required>
+                            <option value="">Select Premium Type</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="col-md-2 comm_type_div">
+                    <label class="form-label required">Commission Type</label>
+                    <div class="card-form">
+                        <select class="form-control select2 commission_type"
+                                name="treaty_commission_type[]"
+                                id="commission_type-${classCounter}-${premCounter}"
+                                data-class-counter="${classCounter}"
+                                data-counter="${premCounter}"
+                                required>
+                            <option value="">Select Type</option>
+                            <option value="FLAT">Flat Rate</option>
+                            <option value="SLIDING">Sliding Scale</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="col-md-3 flat_rate_div">
+                    <label class="form-label required">Commission (%)</label>
+                    <div class="input-group">
+                        <input type="text"
+                               class="form-control prem_type_comm_rate"
+                               name="flat_prem_type_comm_rate[]"
+                               id="prem_type_comm_rate-${classCounter}-${premCounter}"
+                               placeholder="0.00">
+                        <button class="btn btn-danger remove-comm-section" type="button">
+                            <i class="bx bx-minus"></i>
+                        </button>
+                    </div>
+                    <small class="text-muted">Fixed rate for all premiums</small>
+                </div>
+
+                <div class="col-md-2 sliding_scale_div" style="display: none;">
+                    <label class="form-label">Commission Rate (%)</label>
+                    <div class="input-group">
+                        <input type="text"
+                               class="form-control prem_type_comm_rate"
+                               name="sliding_treaty_prem_type_comm_rate[]"
+                               id="prem_type_comm_rate-sliding-${classCounter}-${premCounter}"
+                               placeholder="0.00"
+                               readonly>
+                    </div>
+                    <small class="text-muted">Average rate from scale</small>
+                </div>
+
+                <div class="col-md-3 sliding_scale_div" style="display: none;">
+                    <label class="form-label required">Configure Scale</label>
+                    <div class="input-group">
+                        <button type="button"
+                                class="btn btn-outline-secondary btn-block configure-sliding-btn"
+                                data-class-counter="${classCounter}"
+                                data-counter="${premCounter}"
+                                style="width: 86%;">
+                            <i class="bx bx-trending-up me-1"></i> Configure Scale
+                        </button>
+                        <button class="btn btn-danger remove-comm-section" type="button">
+                            <i class="bx bx-minus"></i>
+                        </button>
+                    </div>
+                    <small class="text-muted">Rates based on loss ratio</small>
+                    <input type="hidden"
+                           class="sliding_scale_data"
+                           name="sliding_scale_data[]"
+                           id="sliding_scale_data-${classCounter}-${premCounter}">
+                </div>
             </div>
-        `;
+        </div>
+    `;
+    }
+
+    function validateCommissionSections() {
+        let isValid = true;
+        const errors = [];
+
+        $(".comm-sections").each(function () {
+            const $section = $(this);
+            const classCounter = $section.data("class-counter");
+            const counter = $section.data("counter");
+            const sectionLabel = `Section ${String.fromCharCode(
+                65 + classCounter
+            )} - Commission ${counter + 1}`;
+
+            const treaty = $section.find(".prem_type_treaty").val();
+            if (!treaty) {
+                errors.push(`${sectionLabel}: Please select treaty`);
+                isValid = false;
+            }
+
+            const premType = $section.find(".prem_type_code").val();
+            if (!premType) {
+                errors.push(`${sectionLabel}: Please select premium type`);
+                isValid = false;
+            }
+
+            const commType = $section.find(".commission_type").val();
+            if (!commType) {
+                errors.push(`${sectionLabel}: Please select commission type`);
+                isValid = false;
+                return;
+            }
+
+            if (commType === "FLAT") {
+                const commRate = $section
+                    .find(".flat_rate_div .prem_type_comm_rate")
+                    .val();
+                if (!commRate || parseFloat(commRate) <= 0) {
+                    errors.push(
+                        `${sectionLabel}: Please enter commission rate`
+                    );
+                    isValid = false;
+                }
+            } else if (commType === "SLIDING") {
+                const slidingData = $section.find(".sliding_scale_data").val();
+                if (
+                    !slidingData ||
+                    slidingData === "[]" ||
+                    slidingData === ""
+                ) {
+                    errors.push(
+                        `${sectionLabel}: Please configure sliding scale`
+                    );
+                    isValid = false;
+                }
+            }
+        });
+
+        if (!isValid) {
+            Swal.fire({
+                icon: "error",
+                title: "Commission Validation Failed",
+                html: errors.join("<br>"),
+                confirmButtonText: "OK",
+            });
+        }
+
+        return isValid;
     }
 
     function removeCommissionSection() {
@@ -2032,13 +2297,9 @@ const CoverRegistration = (function () {
 
         const remainingSections = $container.find(".comm-sections").length;
 
-        if (remainingSections <= 1) {
-            toastr.warning("Cannot remove the last commission section");
-            return;
+        if (remainingSections > 0) {
+            $section.remove();
         }
-
-        $section.remove();
-        toastr.success("Commission section removed");
     }
 
     function addLayer() {
@@ -2413,6 +2674,8 @@ const CoverRegistration = (function () {
                 });
 
                 targetSelect.trigger("change.select2");
+
+                config.premTypesData = response;
             },
             errorCallback: function () {
                 targetSelect.prop("disabled", false);
@@ -2423,6 +2686,8 @@ const CoverRegistration = (function () {
                             .val("")
                             .text("Failed to load premium types")
                     );
+
+                config.premTypesData = [];
             },
         });
     }
@@ -2562,12 +2827,6 @@ const CoverRegistration = (function () {
     function showFacSection() {
         elements.facSection.show();
 
-        $("#fac_section :input.required").each(function () {
-            const $input = $(this);
-            $input.rules("add", { required: true });
-            $input.valid();
-        });
-
         enableSection(".fac-section");
     }
 
@@ -2576,12 +2835,6 @@ const CoverRegistration = (function () {
 
         $("#treaty_common_section").show();
         $("#treaty_proportional_section").show();
-
-        $("#treaty_section :input.required").each(function () {
-            const $input = $(this);
-            $input.rules("add", { required: true });
-            $input.valid();
-        });
 
         enableSection(".treaty-section");
         enableSection(".treaty-proportional");
@@ -2765,6 +3018,20 @@ const CoverRegistration = (function () {
             elements.prospectId.val(config.prospectId);
             loadProspectData(config.prospectId);
         }
+
+        $(".commission_type").each(function () {
+            handleCommissionTypeChange.call(this);
+        });
+
+        if (config.trans_type === "EDIT") {
+            $(".reinclass-section").each(function () {
+                const counter = $(this).data("counter");
+                const treatyType = $("#treatytype").val();
+                if (treatyType) {
+                    populateTreatyDropdown(counter, treatyType);
+                }
+            });
+        }
     }
 
     function showLoader(message = "Loading...") {
@@ -2810,8 +3077,6 @@ $(document).ready(function () {
     try {
         CoverRegistration.init();
     } catch (error) {
-        console.error("Failed to initialize Cover Registration:", error);
-
         Swal.fire({
             icon: "error",
             title: "Initialization Failed",
