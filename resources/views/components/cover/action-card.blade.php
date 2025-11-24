@@ -1,4 +1,4 @@
-@props(['cover', 'endorsementNarration'])
+@props(['cover', 'endorsementNarration', 'isTransaction' => false])
 
 @php
     $isUnverified = in_array($cover->verified, [null, 'R']);
@@ -24,14 +24,13 @@
 <div class="card border-0 shadow-sm mb-3">
     <div class="card-header bg-white border-0 pb-2 px-0 pt-2">
         <h6 class="mb-0 fw-semibold">
-            <i class="ri-settings-3-line me-2" style="vertical-align: -2px;"></i>Quick Actions
+            <i class="bi bi-lightning-charge-fill"></i> Quick Actions
         </h6>
     </div>
 
     <div class="card-body px-0 pt-2 mx-0 cover-info-wrapper"
         style="background-color:var(--cover-bg);border-radius:0.375rem;">
 
-        {{-- Edit Actions --}}
         @if ($isUnverified)
             <button type="button" class="btn btn-outline-dark btn-sm text-start me-2" data-action="edit"
                 data-endorsement="{{ $cover->endorsement_no }}">
@@ -39,25 +38,25 @@
             </button>
         @endif
 
-        {{-- Facultative Actions --}}
         @if ($isFacultative)
-            <button type="button" class="btn btn-outline-dark btn-sm text-start me-2" data-bs-toggle="modal"
-                data-bs-target="#addScheduleModal">
-                <i class="ri-table-line me-2"></i>Add Schedule
-            </button>
+            @if ($isUnverified)
+                <button type="button" class="btn btn-outline-dark btn-sm text-start me-2" data-bs-toggle="modal"
+                    data-bs-target="#addScheduleModal">
+                    <i class="ri-table-line me-2"></i>Add Schedule
+                </button>
 
-            <button type="button" class="btn btn-outline-dark btn-sm text-start me-2" data-bs-toggle="modal"
-                data-bs-target="#addClauseModal">
-                <i class="ri-file-text-line me-2"></i>Add Clause
-            </button>
+                <button type="button" class="btn btn-outline-dark btn-sm text-start me-2" data-bs-toggle="modal"
+                    data-bs-target="#addClauseModal">
+                    <i class="ri-file-text-line me-2"></i>Add Clause
+                </button>
 
-            <button type="button" class="btn btn-outline-dark btn-sm text-start me-2" data-bs-toggle="modal"
-                data-bs-target="#addAttachmentModal">
-                <i class="ri-upload-line me-2"></i>Upload Document
-            </button>
+                <button type="button" class="btn btn-outline-dark btn-sm text-start me-2" data-bs-toggle="modal"
+                    data-bs-target="#addAttachmentModal">
+                    <i class="ri-upload-line me-2"></i>Upload Document
+                </button>
+            @endif
         @endif
 
-        {{-- Treaty Actions --}}
         @if ($isTreaty && $isNewOrRenewal && $isUnverified)
             <button class="btn btn-outline-dark btn-sm me-2" data-bs-toggle="modal"
                 data-bs-target="#insurance-class-modal">
@@ -72,7 +71,6 @@
             @endif
         @endif
 
-        {{-- Common Unverified Actions --}}
         @if ($isUnverified)
             <button type="button" class="btn btn-outline-success btn-sm text-start me-2" data-bs-toggle="modal"
                 data-bs-target="#addReinsurerModal">
@@ -81,7 +79,7 @@
 
             <button type="button" class="btn btn-outline-secondary btn-sm text-start me-2" data-action="generate-slip"
                 data-endorsement="{{ $cover->endorsement_no }}">
-                <i class="ri-file-pdf-line me-2"></i>Generate Slip
+                <i class="ri-file-pdf-line me-2" style="vertical-align: -1px;"></i>Generate Slip
             </button>
 
             <button type="button" class="btn btn-warning btn-sm text-start" data-bs-toggle="modal"
@@ -90,40 +88,43 @@
             </button>
         @endif
 
-        {{-- Pending Verification Actions --}}
         @if ($isPending)
-            <button class="btn btn-outline-dark btn-sm me-2" id="verify_details">
+            <button class="btn btn-outline-dark btn-sm me-2" id="verify_detailss">
                 <i class="ri-arrow-up-circle-line me-2"></i>Re-escalate Verification
             </button>
-            <span class="badge bg-warning text-dark">
+            <button class="badge bg-warning text-dark" disabled style="cursor: default;">
                 <i class="ri-time-line me-1"></i>Pending Verification
-            </span>
+            </button>
         @endif
 
-        {{-- Approved Actions --}}
         @if ($isApproved && $isNotCancelled)
             @if ($isFacultative || (!$isFacultative && !$isNewOrRenewal))
                 <button class="btn btn-outline-dark btn-sm me-2" data-bs-toggle="modal" data-bs-target="#facDebitModal">
-                    <i class="ri-file-list-3-line me-2"></i>Generate Debit
+                    <i class="bi bi-cash-stack me-1"></i>Generate Debit
                 </button>
             @elseif (!$isFacultative && $isNewRenewalOrExtension)
                 <button type="button" class="btn btn-outline-secondary btn-sm me-2" data-action="preview-slip"
                     data-endorsement="{{ $cover->endorsement_no }}">
-                    <i class="ri-eye-line me-2"></i>Preview Slip
+                    <i class="bi bi-file-earmark-text"></i> Preview Slip
                 </button>
 
-                <button class="btn btn-outline-dark btn-sm me-2" data-bs-toggle="modal"
-                    data-bs-target="#treatyDebitModal">
-                    <i class="ri-file-list-3-line me-2"></i>Generate Debit
-                </button>
-
-                {{-- @foreach ([['label' => 'Debit', 'icon' => 'file-list-3-line'], ['label' => 'Profit Commission', 'icon' => 'money-dollar-circle-line'], ['label' => 'Portfolio', 'icon' => 'folder-line'], ['label' => 'Commission Adjustment', 'icon' => 'exchange-line']] as $action)
-                    <button type="button" class="btn btn-outline-dark btn-sm text-start me-2"
-                        data-action="generate-{{ Str::slug($action['label']) }}"
-                        data-endorsement="{{ $cover->endorsement_no }}">
-                        <i class="ri-{{ $action['icon'] }} me-2"></i>{{ $action['label'] }}
+                @if ($isTransaction)
+                    @foreach ([['label' => 'Debit', 'icon' => 'bi-file-earmark-text'], ['label' => 'Profit Commission', 'icon' => 'bi-percent'], ['label' => 'Portfolio', 'icon' => 'bi-briefcase'], ['label' => 'Commission Adjustment', 'icon' => 'bi-sliders']] as $action)
+                        <button type="button" class="btn btn-outline-dark btn-sm text-start me-1"
+                            data-action="generate-{{ Str::slug($action['label']) }}"
+                            data-endorsement="{{ $cover->endorsement_no }}">
+                            <i class="bi {{ $action['icon'] }} me-1"></i>Create {{ $action['label'] }}
+                        </button>
+                    @endforeach
+                @else
+                    <button class="btn btn-outline-dark btn-sm me-2" data-bs-toggle="modal"
+                        data-bs-target="#treatyDebitModal">
+                        <i class="bi bi-cash-stack me-1"></i>Generate Debit
                     </button>
-                @endforeach --}}
+                @endif
+
+
+
             @endif
         @endif
 
@@ -234,12 +235,17 @@
                     };
 
                     const message = messages[type] || 'Generate document?';
-                    const action = isPreview ? 'Preview' : 'Generate';
 
-                    if (confirm(`${action}: ${message}`)) {
-                        const url = `/covers/${endorsementNo}/generate-${type}`;
-                        window.open(url, '_blank');
+                    if (type === 'debit') {
+                        $('#treatyDebitModal').modal('show');
                     }
+
+                    // const action = isPreview ? 'Preview' : 'Generate';
+
+                    // if (confirm(`${action}: ${message}`)) {
+                    //     const url = `/covers/${endorsementNo}/generate-${type}`;
+                    //     window.open(url, '_blank');
+                    // }
                 },
 
                 async apiRequest(url, data = {}) {

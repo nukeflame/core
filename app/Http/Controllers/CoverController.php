@@ -269,8 +269,6 @@ class CoverController extends Controller
     public function CoverRegister(CoverRegistrationRequest $request)
     {
         try {
-            // logger()->debug($request->all());
-
             $transType = $request->get('trans_type');
 
             $cover = match ($transType) {
@@ -295,10 +293,6 @@ class CoverController extends Controller
                 ]
             ], 200);
         } catch (Exception $e) {
-            logger()->error('Cover Registration Error', [
-                'message' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
             return response()->json([
                 'success' => false,
                 'message' => 'An error occurred while processing the cover registration',
@@ -553,7 +547,7 @@ class CoverController extends Controller
     public function coverHome(Request $request)
     {
         $cover = $this->coverRepository->processCoverHome($request);
-        // logger()->debug(json_encode($cover, JSON_PRETTY_PRINT));
+
         $summaryData = ['summaryData' => []];
 
         $data = array_merge($summaryData, $cover);
@@ -598,10 +592,8 @@ class CoverController extends Controller
         $check = $query->count();
 
         if ($check == 0) {
-            # Notify user to set currency rate manually
             return $check;
         } else {
-            # Fetch rate
             $rate = $query->first();
             return $rate;
         }
@@ -610,8 +602,6 @@ class CoverController extends Controller
     public function endorse_functions(Request $request)
     {
         $cover_no = trim($request->cover_no);
-        // $latest_endorsement = CoverRegister::where('cover_no', $cover_no)->where('cancelled','<>','Y')
-        // ->where('transaction_type')->orderBy('dola', 'desc')->first();
 
         $latest_endorsement = CoverRegister::where('cover_no', $cover_no)
             ->where('cancelled', '<>', 'Y')
@@ -700,256 +690,321 @@ class CoverController extends Controller
     public function saveReinsurerData(Request $request)
     {
         DB::beginTransaction();
+
         try {
             $rules = [
-                'treaty.*.reinsurers.*.reinsurer' => 'required',
-                'treaty.*.reinsurers.*.share' => 'required',
+                'endorsement_no' => 'required|exists:cover_register,endorsement_no',
+                'treaty' => 'required|array|min:1',
+                'treaty.*.treaty' => 'nullable|string',
+                'treaty.*.reinsurers' => 'required|array|min:1',
+                'treaty.*.reinsurers.*.reinsurer' => 'required|exists:customers,customer_id',
+                'treaty.*.reinsurers.*.share' => 'required|numeric|min:0|max:100',
+                'treaty.*.reinsurers.*.written_share' => 'required|numeric|min:0|max:100',
+                'treaty.*.reinsurers.*.comm_rate' => 'nullable|numeric|min:0',
+                'treaty.*.reinsurers.*.wht_rate' => 'nullable|numeric|min:0|max:100',
+                'treaty.*.reinsurers.*.pay_method' => 'required|exists:pay_method,pay_method_code',
+                'treaty.*.reinsurers.*.no_of_installments' => 'nullable|integer|min:1|max:12',
+                'treaty.*.reinsurers.*.installments' => 'nullable|array',
+                'treaty.*.reinsurers.*.installments.*.number' => 'required_with:treaty.*.reinsurers.*.installments|integer',
+                'treaty.*.reinsurers.*.installments.*.due_date' => 'required_with:treaty.*.reinsurers.*.installments|date',
+                'treaty.*.reinsurers.*.installments.*.amount' => 'required_with:treaty.*.reinsurers.*.installments|numeric',
             ];
-            $messages = [
-                'treaty.*.reinsurers.*.reinsurer.required' => 'Reinsurer field is required.',
-                'treaty.*.reinsurers.*.share.required' => 'Share field is required.',
-            ];
-            $request->validate($rules, $messages);
 
-            $CoverRegister = CoverRegister::where('endorsement_no', $request->endorsement_no)->first();
-            foreach ($request->treaty as $treaty) {
-                foreach ($treaty['reinsurers'] as $reinsurer) {
-                    $tran_no = (int) CoverRipart::withTrashed()->max('tran_no') ?? 0;
-                    $tran_no = $tran_no + 1;
+            $messages = [
+                'treaty.*.reinsurers.*.reinsurer.required' => 'Reinsurer is required for all entries',
+                'treaty.*.reinsurers.*.reinsurer.exists' => 'Selected reinsurer does not exist',
+                'treaty.*.reinsurers.*.share.required' => 'Share is required for all reinsurers',
+                'treaty.*.reinsurers.*.share.max' => 'Share cannot exceed 100%',
+                'treaty.*.reinsurers.*.written_share.required' => 'Written share is required',
+                'treaty.*.reinsurers.*.pay_method.required' => 'Payment method is required',
+            ];
+
+            $validated = $request->validate($rules, $messages);
+
+            $coverRegister = CoverRegister::where('endorsement_no', $request->endorsement_no)->firstOrFail();
+
+            $this->_endorsement_no = $coverRegister->endorsement_no;
+            $this->_year = now()->year;
+            $this->_month = now()->month;
+
+            DB::table('coverripart')->where('endorsement_no', $coverRegister->endorsement_no)->delete();
+            DB::table('rein_notes')->where('endorsement_no', $coverRegister->endorsement_no)->delete();
+            DB::table('cover_installments')->where('endorsement_no', $coverRegister->endorsement_no)->delete();
+
+            foreach ($request->treaty as $treatyIndex => $treaty) {
+                foreach ($treaty['reinsurers'] as $reinsurerIndex => $reinsurerData) {
+
+                    $tran_no = DB::transaction(function () {
+                        $max = (int) CoverRipart::withTrashed()->max('tran_no');
+                        return $max + 1;
+                    });
+
                     $coverRipart = new CoverRipart();
-                    $coverRipart->cover_no = $CoverRegister->cover_no;
-                    $coverRipart->endorsement_no = $CoverRegister->endorsement_no;
+                    $coverRipart->cover_no = $coverRegister->cover_no;
+                    $coverRipart->endorsement_no = $coverRegister->endorsement_no;
                     $coverRipart->tran_no = $tran_no;
                     $coverRipart->period_year = $this->_year;
                     $coverRipart->period_month = $this->_month;
-                    $coverRipart->partner_no = $reinsurer['reinsurer'];
-                    $coverRipart->share = $reinsurer['share'];
-                    $coverRipart->written_lines = $reinsurer['written_share'];
-                    $coverRipart->comm_rate = $reinsurer['comm_rate'] ?? 0;
-                    $coverRipart->wht_rate = $reinsurer['wht_rate'] ?? 0;
+                    $coverRipart->partner_no = $reinsurerData['reinsurer'];
+                    $coverRipart->share = $this->parseNumber($reinsurerData['share']);
+                    $coverRipart->written_lines = $this->parseNumber($reinsurerData['written_share']);
+                    $coverRipart->comm_rate = $this->parseNumber($reinsurerData['comm_rate'] ?? 0);
+                    $coverRipart->wht_rate = $this->parseNumber($reinsurerData['wht_rate'] ?? 0);
 
-                    if (in_array($CoverRegister->type_of_bus, ['FPR', 'FNP'])) {
-                        $coverRipart->total_sum_insured = $CoverRegister->total_sum_insured ?? 0;
-                        $coverRipart->total_premium = $CoverRegister->rein_premium ?? 0;
-                        $coverRipart->total_commission = $CoverRegister->rein_comm_amount ?? 0;
-                        $coverRipart->sum_insured = (float) str_replace(',', '', $reinsurer['sum_insured']) ?? 0;
-                        $coverRipart->premium = (float) str_replace(',', '', $reinsurer['premium']) ?? 0;
-                        $coverRipart->commission = (float) str_replace(',', '', $reinsurer['comm_amt']) ?? 0;
-                        $coverRipart->fronting_rate = (float) str_replace(',', '', $reinsurer['fronting_rate']) ?? 0;
-                        $coverRipart->wht_amt = 0;
-                        $coverRipart->fronting_amt = 0;
+                    if (in_array($coverRegister->type_of_bus, ['FPR', 'FNP'])) {
 
-                        $brokerage_comm_rate_amnt = (float) str_replace(',', '', $reinsurer['brokerage_comm_rate_amnt']) ?? 0;
-                        $brokerage_comm_amt = (float) str_replace(',', '', $reinsurer['brokerage_comm_amt']) ?? 0;
+                        $coverRipart->total_sum_insured = $coverRegister->total_sum_insured ?? 0;
+                        $coverRipart->total_premium = $coverRegister->rein_premium ?? 0;
+                        $coverRipart->total_commission = $coverRegister->rein_comm_amount ?? 0;
+
+                        $coverRipart->sum_insured = $this->parseNumber($reinsurerData['sum_insured'] ?? 0);
+                        $coverRipart->premium = $this->parseNumber($reinsurerData['premium'] ?? 0);
+                        $coverRipart->commission = $this->parseNumber($reinsurerData['comm_amt'] ?? 0);
+                        $coverRipart->fronting_rate = $this->parseNumber($reinsurerData['fronting_rate'] ?? 0);
+
                         if ($coverRipart->fronting_rate > 0) {
-                            $coverRipart->fronting_amt = ($coverRipart->fronting_rate / 100) * ($coverRipart->premium - $coverRipart->commission);
-                        }
-                        if ($coverRipart->wht_rate > 0) {
-                            $coverRipart->wht_amt = ($coverRipart->wht_rate / 100) * ($coverRipart->premium - $coverRipart->commission);
+                            $netPremium = $coverRipart->premium - $coverRipart->commission;
+                            $coverRipart->fronting_amt = ($coverRipart->fronting_rate / 100) * $netPremium;
+                        } else {
+                            $coverRipart->fronting_amt = 0;
                         }
 
-                        if ($request->brokerage_comm_type == 'R') {
-                            $coverRipart->brokerage_comm_amt = (float) $brokerage_comm_rate_amnt ?? 0;
-                            $coverRipart->brokerage_comm_rate = (float) ($coverRipart->brokerage_comm_amt / $coverRipart->premium) * 100 ?? 0;
+                        if ($coverRipart->wht_rate > 0) {
+                            $netPremium = $coverRipart->premium - $coverRipart->commission;
+                            $coverRipart->wht_amt = ($coverRipart->wht_rate / 100) * $netPremium;
                         } else {
-                            $coverRipart->brokerage_comm_rate = 0;
-                            $coverRipart->brokerage_comm_amt = $brokerage_comm_amt;
+                            $coverRipart->wht_amt = 0;
                         }
-                    } elseif (in_array($CoverRegister->type_of_bus, ['TPR', 'TNP'])) {
-                        $coverRipart->treaty_code = $treaty['treaty'];
+
+                        $brokerageType = $reinsurerData['brokerage_comm_type'] ?? 'R';
+
+                        if ($brokerageType === 'R') {
+                            $cedantCommRate = $coverRegister->cedant_comm_rate ?? 0;
+                            $reinCommRate = $coverRipart->comm_rate;
+                            $brokerageRate = max(0, $reinCommRate - $cedantCommRate);
+
+                            $coverRipart->brokerage_comm_rate = $brokerageRate;
+                            $coverRipart->brokerage_comm_amt = ($brokerageRate / 100) * $coverRipart->premium;
+                        } else {
+                            $brokerageAmt = $this->parseNumber($reinsurerData['brokerage_comm_amt'] ?? 0);
+                            $coverRipart->brokerage_comm_amt = $brokerageAmt;
+
+                            if ($coverRipart->premium > 0) {
+                                $coverRipart->brokerage_comm_rate = ($brokerageAmt / $coverRipart->premium) * 100;
+                            } else {
+                                $coverRipart->brokerage_comm_rate = 0;
+                            }
+                        }
+                    } elseif (in_array($coverRegister->type_of_bus, ['TPR', 'TNP'])) {
+                        $coverRipart->treaty_code = $treaty['treaty'] ?? null;
+
+                        $coverRipart->sum_insured = 0;
+                        $coverRipart->premium = 0;
+                        $coverRipart->commission = 0;
+                        $coverRipart->fronting_amt = 0;
+                        $coverRipart->wht_amt = 0;
+                        $coverRipart->brokerage_comm_amt = 0;
+                        $coverRipart->brokerage_comm_rate = 0;
+
+                        logger()->debug(json_encode($reinsurerIndex, JSON_PRETTY_PRINT));
                     }
 
                     $coverRipart->created_by = Auth::user()->user_name;
                     $coverRipart->updated_by = Auth::user()->user_name;
+
                     $coverRipart->save();
 
-                    // Save installments
-                    $paymethods = PayMethod::all();
-                    $selected_pay_method = collect($paymethods)->first(
-                        fn($item) => $item->pay_method_code == $request->pay_method,
-                    );
-                    $no_of_installments = (int) $request->no_of_installments;
-                    $cover_no = $CoverRegister->cover_no;
-                    $endorsement_no = $CoverRegister->endorsement_no;
-                    $dr_cr_type = 'CR';
-                    $partner_no = $reinsurer['reinsurer'];
-                    $layer_no = 0;
-                    $created_by = Auth::user()->user_name;
-                    $created_at = now();
-                    $updated_at = now();
-                    $comm_rate = (float) str_replace(",", "", $request->treaty[0]['reinsurers'][0]['comm_rate']) ?? 0;
-                    $comm_amt = (float) str_replace(",", "", $request->treaty[0]['reinsurers'][0]['comm_amt']) ?? 0;
-                    $premium = (float) str_replace(",", "", $request->treaty[0]['reinsurers'][0]['premium']) ?? 0;
-                    $reinsurer_fronting_rate = (float) str_replace(",", "", $request->treaty[0]['reinsurers'][0]['fronting_rate']) ?? 0;
-                    $reinsurer_wht_rate = (float) str_replace(",", "", $reinsurer['wht_rate']) ?? 0;
-                    $wht_amt = 0;
-                    $fronting_amt = 0;
-                    $total_deducted = 0;
-                    $total_add = 0;
-                    // Withholding tax
-                    if ($reinsurer_wht_rate > 0) {
-                        $wht_amt = ($reinsurer_wht_rate / 100) * ($premium - $comm_amt);
-                        $total_deducted += $wht_amt;
-                    }
-                    // Fronting fees
-                    if ($reinsurer_fronting_rate > 0) {
-                        $fronting_amt = ($reinsurer_fronting_rate / 100) * ($premium - $comm_amt);
-                        $total_deducted += $fronting_amt;
+                    $payMethodCode = $reinsurerData['pay_method'];
+                    $payMethod = PayMethod::where('pay_method_code', $payMethodCode)->first();
+
+                    if (!$payMethod) {
+                        throw new \Exception("Payment method {$payMethodCode} not found");
                     }
 
-                    $totalDr = $premium - $total_deducted;
-                    // Balance due
-                    $totalCr = (float) (($comm_rate / 100) * $premium);
-                    $installmentAmount = max(0, ceil(($totalDr - $totalCr) + $total_add));
+                    if ($payMethod->short_description === 'I' || $payMethod->pay_method_code === 'INS' || $payMethod->pay_method_code === 'INST') {
 
-                    $installmentData = [
-                        'cover_no' => $cover_no,
-                        'endorsement_no' => $endorsement_no,
-                        'layer_no' => $layer_no,
-                        'trans_type' => $CoverRegister->type_of_bus,
-                        'entry_type' => $CoverRegister->transaction_type,
-                        'dr_cr' => $dr_cr_type,
-                        'partner_no' => $partner_no,
-                        'created_by' => $created_by,
-                        'created_at' => $created_at,
-                        'updated_by' => $created_by,
-                        'updated_at' => $updated_at,
-                    ];
+                        $installments = $reinsurerData['installments'] ?? [];
 
-                    if ($selected_pay_method->short_description === 'I') {
-                        foreach (range(0, $no_of_installments - 1) as $i) {
-                            DB::table('cover_installments')->insert(
-                                [
-                                    ...$installmentData,
-                                    ...[
-                                        'installment_no' => $request->installment_no[$i],
-                                        'installment_date' => Carbon::parse($request->installment_date[$i])->format('Y-m-d'),
-                                        'installment_amt' => (float) str_replace(",", "", $request->installment_amt[$i]),
-                                    ]
-                                ]
-                            );
+                        if (empty($installments)) {
+                            throw new \Exception("Installments are required for installment payment method");
                         }
-                    } elseif ($selected_pay_method->short_description === 'A') {
-                        DB::table('cover_installments')->insert(
-                            [
-                                ...$installmentData,
-                                ...[
-                                    'installment_no' => 1,
-                                    'installment_date' => $CoverRegister->cover_from->addDays((int) $CoverRegister->premium_payment_days),
-                                    'installment_amt' => (float) $installmentAmount,
-                                ]
-                            ]
-                        );
+
+                        foreach ($installments as $installment) {
+                            DB::table('cover_installments')->insert([
+                                'cover_no' => $coverRegister->cover_no,
+                                'endorsement_no' => $coverRegister->endorsement_no,
+                                'layer_no' => 0,
+                                'trans_type' => $coverRegister->type_of_bus,
+                                'entry_type' => $coverRegister->transaction_type,
+                                'dr_cr' => 'CR',
+                                'partner_no' => $reinsurerData['reinsurer'],
+                                'installment_no' => $installment['number'],
+                                'installment_date' => Carbon::parse($installment['due_date'])->format('Y-m-d'),
+                                'installment_amt' => $this->parseNumber($installment['amount']),
+                                'created_by' => Auth::user()->user_name,
+                                'updated_by' => Auth::user()->user_name,
+                                'created_at' => now(),
+                                'updated_at' => now(),
+                            ]);
+                        }
+                    } elseif ($payMethod->short_description === 'A') {
+
+                        $totalDr = $coverRipart->premium ?? 0;
+                        $totalCr = $coverRipart->commission ?? 0;
+                        $whtAmt = $coverRipart->wht_amt ?? 0;
+                        $frontingAmt = $coverRipart->fronting_amt ?? 0;
+
+                        $installmentAmount = max(0, $totalDr - $totalCr - $whtAmt - $frontingAmt);
+
+                        $premiumPaymentDays = (int) ($coverRegister->premium_payment_days ?? 30);
+                        $dueDate = Carbon::parse($coverRegister->cover_from)
+                            ->addDays($premiumPaymentDays)
+                            ->format('Y-m-d');
+
+                        DB::table('cover_installments')->insert([
+                            'cover_no' => $coverRegister->cover_no,
+                            'endorsement_no' => $coverRegister->endorsement_no,
+                            'layer_no' => 0,
+                            'trans_type' => $coverRegister->type_of_bus,
+                            'entry_type' => $coverRegister->transaction_type,
+                            'dr_cr' => 'CR',
+                            'partner_no' => $reinsurerData['reinsurer'],
+                            'installment_no' => 1,
+                            'installment_date' => $dueDate,
+                            'installment_amt' => $installmentAmount,
+                            'created_by' => Auth::user()->user_name,
+                            'updated_by' => Auth::user()->user_name,
+                            'created_at' => now(),
+                            'updated_at' => now(),
+                        ]);
                     }
 
-                    ReinNote::where('endorsement_no', $this->_endorsement_no)
-                        ->where('partner_no', $coverRipart->partner_no)
-                        ->forceDelete();
+                    if (in_array($coverRegister->type_of_bus, ['FPR', 'FNP'])) {
 
-                    $premItemTypes = [
-                        'PRM' => [
-                            'descr' => 'Gross Premium',
-                            'dr_cr' => 'CR',
-                            'tax_rate' => $coverRipart->share ?? 0,
-                            'total_amount' => $CoverRegister->rein_premium ?? 0,
-                            'amount' => $coverRipart->premium ?? 0,
-                        ],
-                        'BRC' => [
-                            'descr' => 'Brokerage Commission',
-                            'dr_cr' => 'DR',
-                            'amount' => $coverRipart->brokerage_comm_amt ?? 0,
-                            'tax_rate' => $coverRipart->brokerage_comm_rate ?? 0,
-                            'total_amount' => $coverRipart->premium ?? 0,
-                        ],
-                        'COM' => [
-                            'descr' => 'Commission',
-                            'dr_cr' => 'DR',
-                            'tax_rate' => $coverRipart->comm_rate ?? 0,
-                            'amount' => $coverRipart->commission ?? 0,
-                            'total_amount' => $coverRipart->premium ?? 0,
-                        ],
-                        'WHT' => [
-                            'descr' => 'Withholding Tax',
-                            'dr_cr' => 'DR',
-                            'tax_rate' => $coverRipart->wht_rate ?? 0,
-                            'amount' => $coverRipart->wht_amt ?? 0,
-                            'total_amount' => (float) (($coverRipart->premium ?? 0) - ($coverRipart->commission ?? 0)),
-                        ],
-                        'FRF' => [
-                            'descr' => 'Fronting Fees',
-                            'dr_cr' => 'DR',
-                            'tax_rate' => $coverRipart->fronting_rate ?? 0,
-                            'amount' => $coverRipart->fronting_amt ?? 0,
-                            'total_amount' => (float) (($coverRipart->premium ?? 0) - ($coverRipart->commission ?? 0)),
-                        ],
-                    ];
+                        ReinNote::where('endorsement_no', $coverRegister->endorsement_no)
+                            ->where('partner_no', $coverRipart->partner_no)
+                            ->forceDelete();
 
-                    foreach ($premItemTypes as $key => $premItemType) {
-                        $tran_no = DB::transaction(function () use ($CoverRegister) {
-                            $max_tran_no = DB::table('rein_notes')
-                                ->whereNull('deleted_at')
-                                ->where('endorsement_no', $CoverRegister->endorsement_no)
-                                ->max('tran_no');
-                            return ($max_tran_no ?? 0) + 1;
-                        });
-
-                        $ln_no = DB::transaction(function () use ($CoverRegister, $key) {
-                            $count = DB::table('rein_notes')
-                                ->whereNull('deleted_at')
-                                ->where('endorsement_no', $CoverRegister->endorsement_no)
-                                ->where('transaction_type', $CoverRegister->transaction_type)
-                                ->where('entry_type_descr', $key)
-                                ->count();
-                            return $count + 1;
-                        });
-
-                        $share = (float) $coverRipart->share ?? 0;
-                        $username = Auth::user()->user_name;
-                        $net_amnt = $premItemType['amount'] ?? 0;
-
-                        $data = [
-                            'cover_no'          => $CoverRegister->cover_no,
-                            'endorsement_no'    => $CoverRegister->endorsement_no,
-                            'partner_no'        => $coverRipart->partner_no,
-                            'transaction_type'  => $CoverRegister->transaction_type,
-                            'account_year'      => $this->_year,
-                            'account_month'     => $this->_month,
-                            'share'             => $share,
-                            'created_by'        => $username,
-                            'updated_by'        => $username,
-                            'tran_no'           => $tran_no,
-                            'ln_no'             => $ln_no,
-                            'entry_type_descr'  => $key,
-                            'item_title'        => $premItemType['descr'],
-                            'dr_cr'             => $premItemType['dr_cr'],
-                            'rate'              => $premItemType['tax_rate'] ?? 0,
-                            'total_gross'       => $premItemType['total_amount'] ?? 0,
-                            'gross'             => $premItemType['amount'] ?? 0,
-                            'net_amt'           => $net_amnt,
+                        $premItemTypes = [
+                            'PRM' => [
+                                'descr' => 'Gross Premium',
+                                'dr_cr' => 'CR',
+                                'tax_rate' => $coverRipart->share,
+                                'total_amount' => $coverRegister->rein_premium,
+                                'amount' => $coverRipart->premium,
+                            ],
+                            'COM' => [
+                                'descr' => 'Commission',
+                                'dr_cr' => 'DR',
+                                'tax_rate' => $coverRipart->comm_rate,
+                                'amount' => $coverRipart->commission,
+                                'total_amount' => $coverRipart->premium,
+                            ],
+                            'BRC' => [
+                                'descr' => 'Brokerage Commission',
+                                'dr_cr' => 'DR',
+                                'amount' => $coverRipart->brokerage_comm_amt,
+                                'tax_rate' => $coverRipart->brokerage_comm_rate,
+                                'total_amount' => $coverRipart->premium,
+                            ],
+                            'WHT' => [
+                                'descr' => 'Withholding Tax',
+                                'dr_cr' => 'DR',
+                                'tax_rate' => $coverRipart->wht_rate,
+                                'amount' => $coverRipart->wht_amt,
+                                'total_amount' => $coverRipart->premium - $coverRipart->commission,
+                            ],
+                            'FRF' => [
+                                'descr' => 'Fronting Fees',
+                                'dr_cr' => 'DR',
+                                'tax_rate' => $coverRipart->fronting_rate,
+                                'amount' => $coverRipart->fronting_amt,
+                                'total_amount' => $coverRipart->premium - $coverRipart->commission,
+                            ],
                         ];
 
-                        ReinNote::create($data);
+                        foreach ($premItemTypes as $key => $premItemType) {
+
+                            if (($premItemType['amount'] ?? 0) == 0 && $key !== 'PRM') {
+                                continue;
+                            }
+
+                            $reinTranNo = DB::transaction(function () use ($coverRegister) {
+                                $max = ReinNote::where('endorsement_no', $coverRegister->endorsement_no)
+                                    ->max('tran_no');
+                                return ($max ?? 0) + 1;
+                            });
+
+                            $lnNo = DB::transaction(function () use ($coverRegister, $key) {
+                                $count = ReinNote::where('endorsement_no', $coverRegister->endorsement_no)
+                                    ->where('transaction_type', $coverRegister->transaction_type)
+                                    ->where('entry_type_descr', $key)
+                                    ->count();
+                                return $count + 1;
+                            });
+
+                            $reinNote = new ReinNote();
+                            $reinNote->cover_no = $coverRegister->cover_no;
+                            $reinNote->endorsement_no = $coverRegister->endorsement_no;
+                            $reinNote->partner_no = $coverRipart->partner_no;
+                            $reinNote->transaction_type = $coverRegister->transaction_type;
+                            $reinNote->account_year = $this->_year;
+                            $reinNote->account_month = $this->_month;
+                            $reinNote->share = $coverRipart->share;
+                            $reinNote->tran_no = $reinTranNo;
+                            $reinNote->ln_no = $lnNo;
+                            $reinNote->entry_type_descr = $key;
+                            $reinNote->item_title = $premItemType['descr'];
+                            $reinNote->dr_cr = $premItemType['dr_cr'];
+                            $reinNote->rate = $premItemType['tax_rate'] ?? 0;
+                            $reinNote->total_gross = $premItemType['total_amount'] ?? 0;
+                            $reinNote->gross = $premItemType['amount'] ?? 0;
+                            $reinNote->net_amt = $premItemType['amount'] ?? 0;
+                            $reinNote->created_by = Auth::user()->user_name;
+                            $reinNote->updated_by = Auth::user()->user_name;
+
+                            $reinNote->save();
+                        }
                     }
                 }
             }
 
             DB::commit();
+
             return response()->json([
                 'status' => Response::HTTP_CREATED,
-                'message' => "Reinsurer's Share Successfully saved"
-            ]);
+                'success' => true,
+                'message' => "Reinsurer placement saved successfully"
+            ], Response::HTTP_CREATED);
         } catch (ValidationException $e) {
+            DB::rollback();
+
             return response()->json([
                 'status' => Response::HTTP_UNPROCESSABLE_ENTITY,
+                'success' => false,
+                'message' => 'Validation failed',
                 'errors' => $e->errors()
-            ], 422);
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
         } catch (\Exception $e) {
             DB::rollback();
+
+            logger($e);
+
             return response()->json([
-                'status' => $e->getCode(),
-                'message' => 'Failed to save'
-            ]);
+                'status' => Response::HTTP_INTERNAL_SERVER_ERROR,
+                'success' => false,
+                'message' => 'Failed to save reinsurer data: ' . $e->getMessage()
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
+    }
+
+    private function parseNumber($value)
+    {
+        if (is_null($value) || $value === '') {
+            return 0;
+        }
+
+        return (float) str_replace(',', '', $value);
     }
 
     public function editReinsurerData(Request $request)
@@ -1232,19 +1287,19 @@ class CoverController extends Controller
             })
             ->addColumn('action', function ($data) {
                 $btn = "";
-                if ($actionable) {
-                    switch ($data->status) {
-                        case 'P':
-                            $btn .= " <button class='btn btn-outline-dark btn-wave waves-effect waves-light edit-reinsurer datatable-action-btn' data-id='{$data->id}' id='re-escalate'>Re-escalate</button>";
-                            break;
-                        case 'A':
-                            $btn .= " <span class='badge badge-success' disabled>Closed</span>";
-                            break;
-                        case 'R':
-                            $btn .= " <button class='btn btn-outline-primary btn-sm' data-id='{$data->id}' id='re-send'>Re-send</button>";
-                            break;
-                    }
-                }
+                // if ($actionable) {
+                //     switch ($data->status) {
+                //         case 'P':
+                //             $btn .= " <button class='btn btn-outline-dark btn-wave waves-effect waves-light edit-reinsurer datatable-action-btn' data-id='{$data->id}' id='re-escalate'>Re-escalate</button>";
+                //             break;
+                //         case 'A':
+                //             $btn .= " <span class='badge badge-success' disabled>Closed</span>";
+                //             break;
+                //         case 'R':
+                //             $btn .= " <button class='btn btn-outline-primary btn-sm' data-id='{$data->id}' id='re-send'>Re-send</button>";
+                //             break;
+                //     }
+                // }
                 return $btn;
             })
             ->rawColumns(['action', 'status'])
@@ -1394,101 +1449,107 @@ class CoverController extends Controller
     public function generateDebit(Request $request)
     {
 
-        DB::beginTransaction();
-        try {
-            $request->validate([
-                'cover_no' => 'required',
-                'endorsement_no' => 'required',
-                'installment' => 'required',
-                'amount' => 'required',
-            ]);
+        // DB::beginTransaction();
+        // try {
+        //     $request->validate([
+        //         'cover_no' => 'required',
+        //         'endorsement_no' => 'required',
+        //         'installment' => 'required',
+        //         'amount' => 'required',
+        //     ]);
 
-            $CoverRegister = CoverRegister::where('endorsement_no', $request->endorsement_no)
-                ->first();
+        //     $CoverRegister = CoverRegister::where('endorsement_no', $request->endorsement_no)
+        //         ->first();
 
-            $id = (int) CoverDebit::withTrashed()->max('id') + 1;
+        //     $id = (int) CoverDebit::withTrashed()->max('id') + 1;
 
-            $net_amt = (float) str_replace(',', '', $request->amount) ?? 0;
-            if ($net_amt > 0) {
-                $doc_type = 'DRN';
-                $dr_cr = 'D';
-            } else {
-                $doc_type = 'CRN';
-                $dr_cr = 'C';
-            }
-            $dr_cr_no = SystemSerials::nextSerial($doc_type);
+        //     $net_amt = (float) str_replace(',', '', $request->amount) ?? 0;
+        //     if ($net_amt > 0) {
+        //         $doc_type = 'DRN';
+        //         $dr_cr = 'D';
+        //     } else {
+        //         $doc_type = 'CRN';
+        //         $dr_cr = 'C';
+        //     }
+        //     $dr_cr_no = SystemSerials::nextSerial($doc_type);
 
-            $debit = new CoverDebit();
-            $debit->id = $id;
-            $debit->dr_no = $dr_cr_no;
-            $debit->document = $doc_type;
-            $debit->cover_no = $request->cover_no;
-            $debit->endorsement_no = $request->endorsement_no;
-            $debit->period_year = $this->_year;
-            $debit->period_month = $this->_month;
-            $debit->installment = $request->installment;
-            $debit->gross = (float) str_replace(',', '', $request->amount) ?? 0;
-            $debit->net_amt = $net_amt;
-            $debit->created_by = Auth::user()->user_name;
-            $debit->updated_by = Auth::user()->user_name;
-            $debit->gl_updated = 'N';
-            $debit->gl_updated_errors = '';
-            $debit->premium_payment_due_date = $CoverRegister->cover_from->addDays((int) $CoverRegister->premium_payment_days);
-            $debit->save();
+        //     $debit = new CoverDebit();
+        //     $debit->id = $id;
+        //     $debit->dr_no = $dr_cr_no;
+        //     $debit->document = $doc_type;
+        //     $debit->cover_no = $request->cover_no;
+        //     $debit->endorsement_no = $request->endorsement_no;
+        //     $debit->period_year = $this->_year;
+        //     $debit->period_month = $this->_month;
+        //     $debit->installment = $request->installment;
+        //     $debit->gross = (float) str_replace(',', '', $request->amount) ?? 0;
+        //     $debit->net_amt = $net_amt;
+        //     $debit->created_by = Auth::user()->user_name;
+        //     $debit->updated_by = Auth::user()->user_name;
+        //     $debit->gl_updated = 'N';
+        //     $debit->gl_updated_errors = '';
+        //     $debit->premium_payment_due_date = $CoverRegister->cover_from->addDays((int) $CoverRegister->premium_payment_days);
+        //     $debit->save();
 
-            $serial_no = str_pad($debit->dr_no, 6, '0', STR_PAD_LEFT);
-            $custaccount = new CustomerAccDet();
-            $custaccount->branch = $CoverRegister->branch_code;
-            $custaccount->customer_id = $CoverRegister->customer_id;
-            $custaccount->source_code = 'U/W';
-            $custaccount->doc_type = $doc_type;
-            $custaccount->entry_type_descr = $CoverRegister->transaction_type;
-            $custaccount->reference = $serial_no . $this->_year;
-            $custaccount->account_year = $this->_year;
-            $custaccount->account_month = $this->_month;
-            $custaccount->line_no = 1;
-            $custaccount->cheque_no = ' ';
-            $custaccount->cheque_date = null;
-            $custaccount->cover_no = $CoverRegister->cover_no;
-            $custaccount->endorsement_no = $CoverRegister->endorsement_no;
-            $custaccount->insured = $CoverRegister->insured_name;
-            $custaccount->class = $CoverRegister->class_code;
-            $custaccount->currency_code = $CoverRegister->currency_code;
-            $custaccount->currency_rate = $CoverRegister->currency_rate;
-            $custaccount->created_by = Auth::user()->user_name;
-            $custaccount->created_date = Carbon::now();
-            $custaccount->created_time = Carbon::now();
-            $custaccount->updated_by = Auth::user()->user_name;
-            $custaccount->updated_datetime = Carbon::now();
-            $custaccount->dr_cr = $dr_cr;
-            $custaccount->foreign_basic_amount = $debit->gross;
-            $custaccount->local_basic_amount = $debit->gross * $CoverRegister->currency_rate;
-            $custaccount->foreign_taxes_amount = 0;
-            $custaccount->local_taxes_amount = 0;
-            $custaccount->foreign_nett_amount = $debit->net_amt;
-            $custaccount->local_nett_amount = $debit->net_amt * $CoverRegister->currency_rate;
-            $custaccount->allocated_amount = 0;
-            $custaccount->unallocated_amount = $debit->gross * $CoverRegister->currency_rate;
+        //     $serial_no = str_pad($debit->dr_no, 6, '0', STR_PAD_LEFT);
+        //     $custaccount = new CustomerAccDet();
+        //     $custaccount->branch = $CoverRegister->branch_code;
+        //     $custaccount->customer_id = $CoverRegister->customer_id;
+        //     $custaccount->source_code = 'U/W';
+        //     $custaccount->doc_type = $doc_type;
+        //     $custaccount->entry_type_descr = $CoverRegister->transaction_type;
+        //     $custaccount->reference = $serial_no . $this->_year;
+        //     $custaccount->account_year = $this->_year;
+        //     $custaccount->account_month = $this->_month;
+        //     $custaccount->line_no = 1;
+        //     $custaccount->cheque_no = ' ';
+        //     $custaccount->cheque_date = null;
+        //     $custaccount->cover_no = $CoverRegister->cover_no;
+        //     $custaccount->endorsement_no = $CoverRegister->endorsement_no;
+        //     $custaccount->insured = $CoverRegister->insured_name;
+        //     $custaccount->class = $CoverRegister->class_code;
+        //     $custaccount->currency_code = $CoverRegister->currency_code;
+        //     $custaccount->currency_rate = $CoverRegister->currency_rate;
+        //     $custaccount->created_by = Auth::user()->user_name;
+        //     $custaccount->created_date = Carbon::now();
+        //     $custaccount->created_time = Carbon::now();
+        //     $custaccount->updated_by = Auth::user()->user_name;
+        //     $custaccount->updated_datetime = Carbon::now();
+        //     $custaccount->dr_cr = $dr_cr;
+        //     $custaccount->foreign_basic_amount = $debit->gross;
+        //     $custaccount->local_basic_amount = $debit->gross * $CoverRegister->currency_rate;
+        //     $custaccount->foreign_taxes_amount = 0;
+        //     $custaccount->local_taxes_amount = 0;
+        //     $custaccount->foreign_nett_amount = $debit->net_amt;
+        //     $custaccount->local_nett_amount = $debit->net_amt * $CoverRegister->currency_rate;
+        //     $custaccount->allocated_amount = 0;
+        //     $custaccount->unallocated_amount = $debit->gross * $CoverRegister->currency_rate;
 
-            $custaccount->save();
+        //     $custaccount->save();
 
-            DB::commit();
-            return response()->json([
-                'status' => Response::HTTP_CREATED,
-                'message' => 'Data saved successfully'
-            ]);
-        } catch (ValidationException $e) {
-            return response()->json([
-                'status' => Response::HTTP_UNPROCESSABLE_ENTITY,
-                'errors' => $e->errors()
-            ], 422);
-        } catch (Throwable $e) {
-            DB::rollback();
-            return response()->json([
-                'status' => $e->getCode(),
-                'message' => $e->getMessage()
-            ]);
-        }
+        //     DB::commit();
+        //     return response()->json([
+        //         'status' => Response::HTTP_CREATED,
+        //         'message' => 'Data saved successfully'
+        //     ]);
+        // } catch (ValidationException $e) {
+        //     return response()->json([
+        //         'status' => Response::HTTP_UNPROCESSABLE_ENTITY,
+        //         'errors' => $e->errors()
+        //     ], 422);
+        // } catch (Throwable $e) {
+        //     DB::rollback();
+        //     return response()->json([
+        //         'status' => $e->getCode(),
+        //         'message' => $e->getMessage()
+        //     ]);
+        // }
+
+        $endorsementNo  = "CNEW0000232025";
+
+        $redirectUrl = route('cover.transactions.index', ['endorsementNo' => $endorsementNo, 'cover' => (object) []]);
+
+        return response()->json(['success' => true, 'redirectUrl' => $redirectUrl]);
     }
 
     public function saveAttachment(Request $request)

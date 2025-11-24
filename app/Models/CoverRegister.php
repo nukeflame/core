@@ -47,6 +47,11 @@ class CoverRegister extends Model
         return $this->hasMany(CoverClass::class, 'endorsement_no', 'endorsement_no');
     }
 
+    public function branch()
+    {
+        return $this->belongsTo(Branch::class, 'branch_code', 'branch_code');
+    }
+
     // public function reinsurers()
     // {
     //     return $this->hasMany(CoverRipart::class, 'endorsement_no', 'endorsement_no')

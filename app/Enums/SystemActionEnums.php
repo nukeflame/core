@@ -13,4 +13,5 @@ final class SystemActionEnums extends Enum
     const CLAIM_REGISTRATION = 'claim_registration';
 
     const VERIFY_CLAIM_INTIMATION_PROCESS = 'verify_claim_intimation_process';
+    const VERIFY_COVER_PROCESS = 'verify_cover';
 }

@@ -1,4 +1,3 @@
-{{-- resources/views/cover/partials/action-buttons.blade.php --}}
 <div class="card-body p-3 mx-0 cover-info-wrapper" style="background-color:var(--cover-bg);border-radius:0.375rem;">
 
     {{-- Verify Details Button --}}

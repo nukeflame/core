@@ -21,9 +21,11 @@
         <div class="cover-card">
             <select class="form-control select2" id="leadSource" name="underwriter">
                 <option value="">Select Staff</option>
-                @if (isset($staff) && count($staff) > 0)
+                @if (!empty($staff))
                     @foreach ($staff as $s)
-                        <option value="{{ $s->id }}">{{ $s->name }}</option>
+                        <option value="{{ $s->id }}" {{ auth()->id() == $s->id ? 'selected' : '' }}>
+                            {{ $s->name }}
+                        </option>
                     @endforeach
                 @endif
             </select>

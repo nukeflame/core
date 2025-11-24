@@ -151,15 +151,18 @@ Route::group(['prefix' => 'cover', 'middleware' => ['auth', 'check.first.login']
 
     Route::post('pipeline/intergrate', [CoverController::class, 'integrateCover'])->name('pipeline.create_cover');
     Route::get('prospect-data/{prospectId}', [CoverController::class, 'getProspectData'])->name('pipeline.get_prospect_data');
+});
 
-    Route::prefix('treaty/{endorsementNo}')->name('cover.')->group(function () {
-        Route::get('transactions', [CoverTransactionController::class, 'index'])->name('transactions.index');
-        Route::get('transactions/{debitNo}/debit', [CoverTransactionController::class, 'debit'])->name('transactions.debit');
-        Route::get('transactions/{refNo}/profit-commission', [CoverTransactionController::class, 'profitCommission'])->name('transactions.profit-commission');
-    });
+Route::prefix('cover/cover-home/{coverNumber}')->group(function () {
+    // Main transactions page
+    Route::get('transactions', [CoverTransactionController::class, 'index'])
+        ->name('cover.transactions.index');
 
-    Route::prefix('cedants')->name('cedant.')->group(function () {
-        // Route::get('/data', [CustomerController::class, 'getData'])->name('data');
-        Route::get('/statistics', [CustomerController::class, 'getStatistics'])->name('statistics');
-    });
+    // Debit transactions page
+    Route::get('transactions/debit', [CoverTransactionController::class, 'debit'])
+        ->name('cover.transactions.debit');
+
+    // Profit commission transactions page
+    Route::get('transactions/profit-commission', [CoverTransactionController::class, 'profitCommission'])
+        ->name('cover.transactions.profit-commission');
 });

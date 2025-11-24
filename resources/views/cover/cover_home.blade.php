@@ -13,10 +13,8 @@
         data-cedant-comm-rate="{{ $coverReg->cedant_comm_rate }}" data-rein-premium="{{ $coverReg->rein_premium }}"
         data-effective-sum-insured="{{ $coverReg->effective_sum_insured }}">
 
-        {{-- Page Header --}}
         <x-cover.header :cover="$coverReg" :customer="$customer" :actionable="$actionable" />
 
-        {{-- Action Cards --}}
         <div class="row row-cols-12 mx-0">
             @if ($actionable)
                 <x-cover.action-card :cover="$coverReg" :endorsementNarration="$endorsementNarration" />
@@ -25,16 +23,12 @@
             <x-cover.summary-card :cover="$coverReg" :customer="$customer" :typeOfBus="$type_of_bus" :summaryData="$summaryData" />
         </div>
 
-        {{-- Main Content Area --}}
         <div class="row-cols-12">
             <div class="card mb-2 custom-card border col">
                 <div class="card-body pt-0">
-                    {{-- Tabs Navigation --}}
                     <x-cover.tabs-navigation :cover="$coverReg" :endorsementNarration="$endorsementNarration" />
 
-                    {{-- Tab Content --}}
                     <div class="tab-content reinsurers-tabpane-card" id="tab-style-4">
-                        {{-- Schedules Tab (Facultative only) --}}
                         @if (in_array($coverReg->type_of_bus, ['FPR', 'FNP']))
                             <div class="tab-pane fade show active" id="schedules-tab" role="tabpanel"
                                 aria-labelledby="nav-schedules-tab">
@@ -53,20 +47,18 @@
                             </div>
                         @endif
 
-                        @if (in_array($coverReg->type_of_bus, ['TPR', 'TNP']))
+                        {{-- @if (in_array($coverReg->type_of_bus, ['TPR', 'TNP']))
                             <div class="tab-pane fade" id="debit-items-tab" role="tabpanel"
                                 aria-labelledby="nav-debit-items-tab">
                                 @include('cover.tabs.debit-items', ['cover' => $coverReg])
                             </div>
-                        @endif
+                        @endif --}}
 
-                        {{-- Reinsurers Tab --}}
                         <div class="tab-pane fade @if (in_array($coverReg->type_of_bus, ['TPR', 'TNP'])) show active @endif" id="reinsurers-tab"
                             role="tabpanel" aria-labelledby="nav-reinsurers-tab">
                             @include('cover.tabs.reinsurers', ['cover' => $coverReg])
                         </div>
 
-                        {{-- Insurance Classes Tab (Treaty only) --}}
                         @if (in_array($coverReg->type_of_bus, ['TPR', 'TNP']))
                             <div class="tab-pane fade" id="ins-classes-tab" role="tabpanel"
                                 aria-labelledby="nav-ins-classes-tab">
@@ -74,7 +66,6 @@
                             </div>
                         @endif
 
-                        {{-- Installments Tab --}}
                         @if ($coverReg->no_of_installments > 1)
                             <div class="tab-pane fade" id="installments-tab" role="tabpanel"
                                 aria-labelledby="nav-installments-tab">
@@ -82,7 +73,6 @@
                             </div>
                         @endif
 
-                        {{-- Endorsement Narration Tab --}}
                         @if (count($endorsementNarration) > 0)
                             <div class="tab-pane fade" id="endorse-narration-tab" role="tabpanel"
                                 aria-labelledby="nav-endorse-narration-tab">
@@ -90,19 +80,16 @@
                             </div>
                         @endif
 
-                        {{-- Approvals Tab --}}
                         <div class="tab-pane fade" id="approvals-tab" role="tabpanel" aria-labelledby="nav-approvals-tab">
                             @include('cover.tabs.approvals', ['cover' => $coverReg])
                         </div>
 
-                        {{-- Debits Tab (Facultative only) --}}
                         @if (in_array($coverReg->type_of_bus, ['FPR', 'FNP']))
                             <div class="tab-pane fade" id="debits-tab" role="tabpanel" aria-labelledby="nav-debits-tab">
                                 {{-- @include('cover.tabs.debits', ['cover' => $coverReg]) --}}
                             </div>
                         @endif
 
-                        {{-- Documents Tab --}}
                         <div class="tab-pane fade" id="docs-tab" role="tabpanel" aria-labelledby="nav-docs-tab">
                             @include('cover.tabs.documents', ['cover' => $coverReg])
                         </div>
@@ -112,7 +99,16 @@
         </div>
     </div>
 
-    {{-- Hidden Forms for Navigation --}}
+    <input type="hidden" id="share_offered" value="{{ $coverReg->share_offered ?? 0 }}">
+    <input type="hidden" id="total_sum_insured" value="{{ $coverReg->total_sum_insured ?? 0 }}">
+    <input type="hidden" id="rein_premium" value="{{ $coverReg->rein_premium ?? 0 }}">
+    <input type="hidden" id="rein_comm_amount" value="{{ $coverReg->rein_comm_amount ?? 0 }}">
+    <input type="hidden" id="cedant_comm_rate" value="{{ $coverReg->cedant_comm_rate ?? 0 }}">
+    <input type="hidden" id="brokerage_comm_rate" value="{{ $coverReg->brokerage_comm_rate ?? 0 }}">
+    <input type="hidden" id="brokerage_comm_type" value="{{ $coverReg->brokerage_comm_type ?? 'R' }}">
+    <input type="hidden" id="rein_comm_rate" value="{{ $coverReg->rein_comm_rate ?? 0 }}">
+    <input type="hidden" id="type_of_bus" value="{{ $coverReg->type_of_bus ?? 0 }}">
+
     <form action="{{ route('endorsements_list') }}" method="post" id="coverForm">
         @csrf
         <input type="hidden" name="cover_no" value="{{ $coverReg->cover_no }}" />
@@ -132,7 +128,7 @@
         <input type="hidden" name="customer_id" value="{{ $coverReg->customer_id }}" />
     </form>
 
-    {{-- Modals --}}
+
     @include('cover.modals.schedules', [
         'cover' => $coverReg,
         'schedHeaders' => $schedHeaders,
@@ -147,12 +143,13 @@
         'clauses' => $clauses,
     ]) --}}
 
-    @include('cover.modals.reinsurers', [
+    @include('cover.modals.reinsurer-placement', [
         'cover' => $coverReg,
         'reinsurers' => $reinsurers,
         'whtRates' => $whtRates,
         'paymethods' => $paymethods,
         'coverpart' => $coverpart,
+        'typeOfBus' => $type_of_bus,
         'coverTreaties' => $coverTreaties ?? null,
     ])
 
@@ -197,6 +194,7 @@
         'reinsurers' => $coverpart ?? [],
     ]) --}}
 @endsection
+
 
 @push('script')
     <script src="{{ asset('js/covers/cover-details.js') }}"></script>

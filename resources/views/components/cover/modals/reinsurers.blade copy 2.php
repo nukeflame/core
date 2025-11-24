@@ -1,5 +1,4 @@
-{{-- resources/views/cover/modals/reinsurers.blade.php --}}
-<div class="modal fade reinsurer-wrapper-modal" id="addReinsurerModal" data-bs-backdrop="static" data-bs-keyboard="false"
+<div class="modal fade reinsurer-wrapper-modal" id="reinsurer-modal" data-bs-backdrop="static" data-bs-keyboard="false"
     aria-labelledby="staticBackdropLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg" style="max-width: 80%">
         <div class="modal-content">

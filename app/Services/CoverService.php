@@ -75,6 +75,8 @@ class CoverService
 
             $result = $this->coverRepository->registerCover((object) $repositoryData);
 
+            // logger()->debug(json_encode($result, JSON_PRETTY_PRINT));
+
             return [
                 'success' => true,
                 'endorsement_no' => $result->endorsement_no ?? null,

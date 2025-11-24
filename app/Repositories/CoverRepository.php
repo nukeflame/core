@@ -2,8 +2,6 @@
 
 namespace App\Repositories;
 
-use App\Models\Branch;
-use App\Models\Broker;
 use App\Models\BusinessType;
 use App\Models\ClaimRegister;
 use App\Models\Classes;
@@ -18,7 +16,6 @@ use App\Models\CoverRegister;
 use App\Models\CoverReinclass;
 use App\Models\CoverReinLayer;
 use App\Models\CoverRipart;
-use App\Models\CoverType;
 use App\Models\Customer;
 use App\Models\EndorsementNarration;
 use App\Models\ReinNote;
@@ -31,7 +28,6 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Cache;
 use Symfony\Component\HttpFoundation\Response;
 use Illuminate\Validation\Rule;
@@ -44,12 +40,12 @@ use App\Models\CoverSlipWording;
 use App\Models\CustomerAccDet;
 use App\Models\EndorsementType;
 use App\Models\PayMethod;
-use App\Models\PolicyRenewal;
 use App\Models\PremiumPayTerm;
 use App\Models\ReinclassPremtype;
 use App\Models\ReinsClass;
 use App\Models\SlipTemplate;
 use App\Models\TreatyType;
+use App\Services\SequenceService;
 
 class CoverRepository extends BaseRepository
 {
@@ -85,13 +81,16 @@ class CoverRepository extends BaseRepository
     private $_month;
     private $_quarter;
     private $_endorsement_no;
+    private $sequenceService;
 
-    public function __construct()
+    public function __construct(SequenceService $sequenceService)
     {
         $now = Carbon::now();
         $this->_year = $now->year;
         $this->_month = $now->month;
         $this->_quarter = $now->quarter;
+
+        $this->sequenceService = $sequenceService;
     }
 
     public function model()
@@ -114,10 +113,8 @@ class CoverRepository extends BaseRepository
             $endorsement_no = $request->endorsement_no;
 
             $CoverRegister = CoverRegister::with([
-                // 'branch:branch_code,branch_name',
-                // 'classes:class_code,class_name',
+                'branch:branch_code,branch_name',
                 'customer:customer_id,name',
-                // 'coverType:type_id,type_name'
             ])->where('endorsement_no', $endorsement_no)->first();
 
             if (!$CoverRegister) {
@@ -172,6 +169,9 @@ class CoverRepository extends BaseRepository
                 'dr_cr' => self::DR
             ])->get();
 
+            // logger()->debug(json_encode($cusType, JSON_PRETTY_PRINT));
+
+
             return [
                 'coverReg' => $CoverRegister,
                 'coverpart' => $coverpart,
@@ -212,11 +212,6 @@ class CoverRepository extends BaseRepository
                 'coverInstallments' => $CoverInstallments
             ];
         } catch (\Exception $e) {
-            logger()->error('Error in processCoverHome', [
-                'endorsement_no' => $request->endorsement_no ?? null,
-                'message' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
             throw $e;
         }
     }
@@ -377,30 +372,6 @@ class CoverRepository extends BaseRepository
         }
     }
 
-    public function generateEndorseNo($type_of_bus, $trans_type)
-    {
-        return DB::transaction(function () use ($type_of_bus, $trans_type) {
-            $lastCover = CoverRegister::where('type_of_bus', $type_of_bus)
-                ->where('transaction_type', $trans_type)
-                ->where('account_year', $this->_year)
-                ->withTrashed()
-                ->orderBy('cover_serial_no', 'desc')
-                ->lockForUpdate()
-                ->first();
-
-            $endorse_serial_no = $lastCover ? $lastCover->cover_serial_no + 1 : 1;
-
-            $endorse_serial_no_formatted = str_pad($endorse_serial_no, 6, '0', STR_PAD_LEFT);
-
-            $result = (object) [
-                'endorsement_no' => 'C' . $trans_type . $endorse_serial_no_formatted . $this->_year,
-                'serial_no' => $endorse_serial_no
-            ];
-
-            return $result;
-        });
-    }
-
     public function registerCover($data)
     {
         DB::beginTransaction();
@@ -423,23 +394,32 @@ class CoverRepository extends BaseRepository
                 $treatytype
             );
 
-            $endorsement = $this->generateEndorseNo($type_of_bus, $data->trans_type);
-            $endorsement_no = $endorsement->endorsement_no;
-            $this->_endorsement_no = $endorsement_no;
-            $cover_serial_no = $endorsement->serial_no;
+            if ($data->trans_type === 'NEW') {
+                $endorsementData = $this->sequenceService->generateEndorsementNumber($data->trans_type);
+                $endorsement_no = $endorsementData->endorsement_no;
+                $cover_serial_no = $endorsementData->serial_no;
 
-            if ($data->trans_type === self::TRANSACTION_NEW) {
-                $cover_no = 'C' . $cover_serial_no;
+                $coverData = $this->sequenceService->generateCoverNumber();
+                $cover_no = $coverData->cover_no;
+
                 $orig_endorsement_no = $endorsement_no;
                 $CoverRegister = new CoverRegister();
             } else {
+                $endorsementData = $this->sequenceService->generateEndorsementNumber($data->trans_type);
+                $endorsement_no = $endorsementData->endorsement_no;
+                $cover_serial_no = $endorsementData->serial_no;
+
                 $cover_no = $data->cover_no;
                 $old_endorsement_no = $data->endorsement_no;
+
                 $prevCoverRegister = CoverRegister::where('endorsement_no', $old_endorsement_no)
                     ->firstOrFail();
                 $orig_endorsement_no = $prevCoverRegister->orig_endorsement_no;
+
                 $CoverRegister = new CoverRegister($prevCoverRegister->getAttributes());
             }
+
+            $this->_endorsement_no = $endorsement_no;
 
             $this->populateCoverRegister(
                 $CoverRegister,
@@ -468,6 +448,8 @@ class CoverRepository extends BaseRepository
             }
 
             DB::commit();
+
+            logger()->debug(json_encode($CoverRegister, JSON_PRETTY_PRINT));
 
             return (object) [
                 'endorsement_no' => $endorsement_no,
@@ -553,10 +535,10 @@ class CoverRepository extends BaseRepository
 
             $endorsementData = $this->calculateEndorsementChanges($request);
 
-            $endorsement = $this->generateEndorseNo($type_of_bus, $trans_type);
-            $endorsement_no = $endorsement->endorsement_no;
+            $endorsementData = $this->sequenceService->generateEndorsementNumber($trans_type);
+            $endorsement_no = $endorsementData->endorsement_no;
+            $cover_serial_no = $endorsementData->serial_no;
             $this->_endorsement_no = $endorsement_no;
-            $cover_serial_no = $endorsement->serial_no;
 
             $cover_no = $request->cover_no;
             $old_endorsement_no = $request->endorsement_no;
@@ -1073,14 +1055,9 @@ class CoverRepository extends BaseRepository
         }
     }
 
-    private function generateExtDocNumber()
+    public function generateExtDocNumber()
     {
-        return DB::transaction(function () {
-            $maxNumber = EndorsementNarration::lockForUpdate()
-                ->max(DB::raw('CAST(SUBSTRING(document_no, 3) AS INTEGER)')) ?? 305;
-            $newNumber = $maxNumber + 1;
-            return 'EN' . str_pad($newNumber, 6, '0', STR_PAD_LEFT);
-        });
+        return $this->sequenceService->generateDocumentNumber();
     }
 
     public function getNextSequence($busType, $branchCode, $year)

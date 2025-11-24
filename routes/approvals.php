@@ -10,5 +10,7 @@ Route::group(['prefix' => 'approvals', 'middleware' => ['auth', 'check.first.log
     Route::post('approval-action', [ApprovalsController::class, 'approvalAction'])->name('approval-action');
     Route::get('approval-data', [ApprovalsController::class, 'approvalDatatable'])->name('approval-data');
 
+    Route::get('/{id}/details', [ApprovalsController::class, 'getApprovalDetails'])->name('details');
+
     Route::post('bd-approval-action', [ApprovalsController::class, 'bdApprovalAction'])->name('bd-approval-action');
 });

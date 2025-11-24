@@ -299,9 +299,7 @@ input[type="number"]::-webkit-inner-spin-button {
 }
 .color-blk {
     border-color: #3634346e !important;
-    border-radius: 0px;
-    border-top-left-radius: 0.35rem;
-    border-bottom-left-radius: 0.35rem;
+    border-radius: 0.35rem;
     color: var(--input-text-color);
 }
 b,
@@ -773,7 +771,9 @@ highlight- .dataTables_wrapper .dataTables_length,
 .dataTables_wrapper .dataTables_info,
 .dataTables_wrapper .dataTables_paginate {
     color: var(--default-text-color);
-    margin-bottom: 0.7rem;
+    /* margin-bottom: 0.7rem; */
+    margin-bottom: 0px;
+    margin-top: 8px;
 }
 .dataTables_wrapper .dataTables_filter input,
 div.dataTables_wrapper div.dataTables_length select {

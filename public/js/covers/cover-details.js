@@ -1,10 +1,1527 @@
-/**
- * Cover Details Page
- *
- */
-
 (function ($) {
     "use strict";
+
+    const CONSTANTS = {
+        DECIMAL_PRECISION: 2,
+        TOLERANCE: 0.001,
+        MAX_INSTALLMENTS: 12,
+        MIN_INSTALLMENTS: 1,
+        ANIMATION_DURATION: 300,
+        NOTIFICATION_DURATION: 5000,
+        PERCENTAGE_MULTIPLIER: 100,
+        SELECT2_INIT_DELAY: 100,
+    };
+
+    const DOM_SELECTORS = {
+        TREATY_DIV: "#treaty-div",
+        TREATY_SECTION: ".treaty-div-section",
+        REINSURER_SECTION: ".reinsurer-section",
+        REINSURER_ROW_TEMPLATE: "#reinsurer-row-template",
+        MODAL: "#addReinsurerModal",
+        FORM: "#reinsurerForm",
+        SAVE_BUTTON: "#partner-save-btn",
+        VALIDATION_MESSAGES: "#validation-messages",
+        VALIDATION_LIST: "#validation-list",
+    };
+
+    const Utils = {
+        removeCommas(value) {
+            if (!value) return 0;
+            return parseFloat(value.toString().replace(/,/g, "")) || 0;
+        },
+
+        numberWithCommas(value) {
+            const num = parseFloat(value);
+            if (isNaN(num)) return "0.00";
+            return num
+                .toFixed(CONSTANTS.DECIMAL_PRECISION)
+                .replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+        },
+
+        toDecimal(number) {
+            return parseFloat(
+                Number(number).toFixed(CONSTANTS.DECIMAL_PRECISION)
+            );
+        },
+
+        areDecimalsEqual(num1, num2, tolerance = CONSTANTS.TOLERANCE) {
+            return (
+                Math.abs(this.toDecimal(num1) - this.toDecimal(num2)) <=
+                tolerance
+            );
+        },
+
+        getElementValue(selector, defaultValue = 0) {
+            const $element = $(selector);
+            if (!$element.length) return defaultValue;
+            return this.removeCommas($element.val()) || defaultValue;
+        },
+
+        replacePlaceholders(template, replacements) {
+            let result = template;
+            Object.keys(replacements).forEach((key) => {
+                const regex = new RegExp(key, "g");
+                result = result.replace(regex, replacements[key]);
+            });
+            return result;
+        },
+
+        escapeHtml(text) {
+            const map = {
+                "&": "&amp;",
+                "<": "&lt;",
+                ">": "&gt;",
+                '"': "&quot;",
+                "'": "&#039;",
+            };
+            return text.replace(/[&<>"']/g, (m) => map[m]);
+        },
+
+        validateNumber(value, defaultValue = 0, min = null, max = null) {
+            const num = this.removeCommas(value);
+
+            if (isNaN(num) || num === null || num === undefined) {
+                return defaultValue;
+            }
+
+            if (min !== null && num < min) return min;
+            if (max !== null && num > max) return max;
+
+            return num;
+        },
+    };
+
+    const NotificationService = {
+        activeNotifications: [],
+
+        show(type, message) {
+            const alertClass =
+                {
+                    success: "alert-success",
+                    error: "alert-danger",
+                    warning: "alert-warning",
+                    info: "alert-info",
+                }[type] || "alert-info";
+
+            const iconClass =
+                {
+                    success: "fa-check-circle",
+                    error: "fa-times-circle",
+                    warning: "fa-exclamation-triangle",
+                    info: "fa-info-circle",
+                }[type] || "fa-info-circle";
+
+            const $notification = $(`
+                <div class="alert ${alertClass} alert-dismissible fade show position-fixed notification-alert"
+                    style="top: 20px; right: 20px; z-index: 9999; min-width: 300px; max-width: 500px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);"
+                    role="alert">
+                    <i class="fa ${iconClass} me-2"></i>${Utils.escapeHtml(
+                message
+            )}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            `);
+
+            $("body").append($notification);
+
+            this.activeNotifications.push($notification);
+
+            $notification.find(".btn-close").on("click", () => {
+                this.removeFromTracking($notification);
+            });
+
+            setTimeout(() => {
+                $notification.fadeOut(
+                    CONSTANTS.ANIMATION_DURATION,
+                    function () {
+                        $(this).remove();
+                    }
+                );
+                this.removeFromTracking($notification);
+            }, CONSTANTS.NOTIFICATION_DURATION);
+
+            return $notification;
+        },
+
+        success(message) {
+            return this.show("success", message);
+        },
+
+        error(message) {
+            return this.show("error", message);
+        },
+
+        warning(message) {
+            return this.show("warning", message);
+        },
+
+        info(message) {
+            return this.show("info", message);
+        },
+
+        clear() {
+            this.activeNotifications.forEach(($notification) => {
+                if ($notification && $notification.length) {
+                    $notification.fadeOut(200, function () {
+                        $(this).remove();
+                    });
+                }
+            });
+
+            this.activeNotifications = [];
+
+            $(".notification-alert").fadeOut(200, function () {
+                $(this).remove();
+            });
+        },
+
+        removeFromTracking($notification) {
+            const index = this.activeNotifications.indexOf($notification);
+            if (index > -1) {
+                this.activeNotifications.splice(index, 1);
+            }
+        },
+
+        clearType(type) {
+            const alertClass = {
+                success: "alert-success",
+                error: "alert-danger",
+                warning: "alert-warning",
+                info: "alert-info",
+            }[type];
+
+            if (alertClass) {
+                $(`.notification-alert.${alertClass}`).fadeOut(
+                    200,
+                    function () {
+                        $(this).remove();
+                    }
+                );
+
+                this.activeNotifications = this.activeNotifications.filter(
+                    ($notification) => {
+                        return !$notification.hasClass(alertClass);
+                    }
+                );
+            }
+        },
+
+        getCount() {
+            return this.activeNotifications.length;
+        },
+    };
+
+    const Select2Manager = {
+        initialize() {
+            if (!$.fn.select2) return;
+
+            $(".select2Placement").each(function () {
+                if ($(this).hasClass("select2-hidden-accessible")) {
+                    $(this).select2("destroy");
+                }
+            });
+
+            $(".select2Placement").select2({
+                dropdownParent: $(DOM_SELECTORS.MODAL),
+                width: "100%",
+                placeholder: function () {
+                    return $(this).find("option:first").text();
+                },
+            });
+        },
+
+        initializeInContainer(containerSelector) {
+            if (!$.fn.select2) return;
+
+            $(`${containerSelector} .select2Placement`).each(function () {
+                if ($(this).hasClass("select2-hidden-accessible")) {
+                    $(this).select2("destroy");
+                }
+
+                $(this).select2({
+                    dropdownParent: $(DOM_SELECTORS.MODAL),
+                    width: "100%",
+                    placeholder: function () {
+                        return $(this).find("option:first").text();
+                    },
+                });
+            });
+        },
+    };
+
+    const SummaryManager = {
+        refreshSummary() {
+            let totalOffered = 0;
+            let totalDistributed = 0;
+            let totalReinsurers = 0;
+
+            $(DOM_SELECTORS.TREATY_SECTION).each(function () {
+                const offered = Utils.getElementValue(
+                    $(this).find(".share_offered"),
+                    0
+                );
+                const distributed = Utils.getElementValue(
+                    $(this).find(".distributed-share"),
+                    0
+                );
+
+                totalOffered += offered;
+                totalDistributed += distributed;
+                totalReinsurers += $(this).find(
+                    DOM_SELECTORS.REINSURER_SECTION
+                ).length;
+            });
+
+            const totalRemaining = totalOffered - totalDistributed;
+            const percentagePlaced =
+                totalOffered > 0
+                    ? (totalDistributed / totalOffered) *
+                      CONSTANTS.PERCENTAGE_MULTIPLIER
+                    : 0;
+
+            this.updateSummaryDisplay(
+                totalOffered,
+                totalDistributed,
+                totalRemaining,
+                totalReinsurers,
+                percentagePlaced
+            );
+        },
+
+        updateSummaryDisplay(
+            offered,
+            distributed,
+            remaining,
+            count,
+            percentage
+        ) {
+            if (!$("#summary-total-offered").length) return;
+
+            $("#summary-total-offered").text(Utils.toDecimal(offered) + "%");
+            $("#summary-total-distributed").text(
+                Utils.toDecimal(distributed) + "%"
+            );
+            $("#summary-total-remaining .remaining-value").text(
+                Math.abs(Utils.toDecimal(remaining)) + "%"
+            );
+            $("#summary-reinsurer-count").text(count);
+
+            $("#distribution-progress-bar")
+                .css("width", percentage + "%")
+                .attr("aria-valuenow", percentage)
+                .find(".progress-text")
+                .text(percentage.toFixed(1) + "% Placed");
+
+            this.updateStatusAlert(remaining, percentage);
+        },
+
+        updateStatusAlert(remaining, percentagePlaced) {
+            const $alert = $("#distribution-status-alert");
+            if (!$alert.length) return;
+
+            $alert.removeClass(
+                "alert-success alert-warning alert-danger alert-info"
+            );
+
+            if (Math.abs(remaining) < CONSTANTS.TOLERANCE) {
+                $alert
+                    .addClass("alert-success")
+                    .html(
+                        '<i class="fa fa-check-circle"></i> <strong>Perfect!</strong> All shares have been fully distributed.'
+                    )
+                    .fadeIn();
+            } else if (remaining > 0) {
+                $alert
+                    .addClass("alert-warning")
+                    .html(
+                        `<i class="fa fa-exclamation-triangle"></i> <strong>Incomplete:</strong> ${Utils.toDecimal(
+                            remaining
+                        )}% of offered share is not yet distributed.`
+                    )
+                    .fadeIn();
+            } else {
+                $alert
+                    .addClass("alert-danger")
+                    .html(
+                        `<i class="fa fa-times-circle"></i> <strong>Over-distributed:</strong> You have distributed ${Math.abs(
+                            Utils.toDecimal(remaining)
+                        )}% more than the offered share.`
+                    )
+                    .fadeIn();
+            }
+        },
+    };
+
+    class CalculationService {
+        constructor(coverReg) {
+            this.coverReg = coverReg;
+        }
+
+        calculateShareAmounts(sharePercentage, commissionRate) {
+            const shareDecimal =
+                sharePercentage / CONSTANTS.PERCENTAGE_MULTIPLIER;
+
+            const sumInsured = shareDecimal * this.coverReg.total_sum_insured;
+            const premium = shareDecimal * this.coverReg.rein_premium;
+            const commission =
+                (commissionRate / CONSTANTS.PERCENTAGE_MULTIPLIER) * premium;
+
+            return {
+                sumInsured: Utils.toDecimal(sumInsured),
+                premium: Utils.toDecimal(premium),
+                commission: Utils.toDecimal(commission),
+            };
+        }
+
+        calculateCommissionAmount(premium, commissionRate) {
+            const amount =
+                (Utils.removeCommas(premium) *
+                    Utils.removeCommas(commissionRate)) /
+                CONSTANTS.PERCENTAGE_MULTIPLIER;
+            return Utils.toDecimal(amount);
+        }
+
+        calculateCommissionRate(premium, commissionAmount) {
+            const p = Utils.removeCommas(premium);
+            const c = Utils.removeCommas(commissionAmount);
+
+            if (p <= 0) return 0;
+
+            const rate = (c / p) * CONSTANTS.PERCENTAGE_MULTIPLIER;
+            return Utils.toDecimal(rate);
+        }
+
+        calculateBrokerageCommission(
+            treatyCounter,
+            counter,
+            brokerageType,
+            quotedAmount = 0
+        ) {
+            const cedantCommRate = this.coverReg.cedant_comm_rate || 0;
+            const reinCommRate = this.coverReg.rein_comm_rate || 0;
+            const premium = Utils.getElementValue(
+                `#reinsurer-premium-${treatyCounter}-${counter}`,
+                0
+            );
+
+            if (brokerageType === "A") {
+                const amount = Utils.removeCommas(quotedAmount);
+                const p = Utils.removeCommas(premium);
+                const rate =
+                    p > 0 ? (amount / p) * CONSTANTS.PERCENTAGE_MULTIPLIER : 0;
+
+                return {
+                    rate: Utils.toDecimal(rate),
+                    amount: Utils.toDecimal(amount),
+                };
+            } else {
+                const brokerageRate = Math.max(
+                    0,
+                    Utils.removeCommas(reinCommRate) - cedantCommRate
+                );
+
+                const brokerageAmount =
+                    (brokerageRate / CONSTANTS.PERCENTAGE_MULTIPLIER) *
+                    Utils.removeCommas(premium);
+
+                return {
+                    rate: Utils.toDecimal(brokerageRate),
+                    amount: Utils.toDecimal(brokerageAmount),
+                };
+            }
+        }
+
+        calculateInstallments(totalAmount, numberOfInstallments) {
+            if (numberOfInstallments <= 0) return [];
+
+            const installmentAmount = totalAmount / numberOfInstallments;
+            const installmentPercentage =
+                CONSTANTS.PERCENTAGE_MULTIPLIER / numberOfInstallments;
+
+            const installments = [];
+            for (let i = 0; i < numberOfInstallments; i++) {
+                installments.push({
+                    number: i + 1,
+                    amount: Utils.toDecimal(installmentAmount),
+                    percentage: Utils.toDecimal(installmentPercentage),
+                });
+            }
+
+            return installments;
+        }
+    }
+
+    class ValidationService {
+        constructor(calculationService, coverReg) {
+            this.calculationService = calculationService;
+            this.coverReg = coverReg;
+            this.errors = [];
+        }
+
+        reset() {
+            this.errors = [];
+        }
+
+        addError(message) {
+            this.errors.push(Utils.escapeHtml(message));
+        }
+
+        hasErrors() {
+            return this.errors.length > 0;
+        }
+
+        getErrors() {
+            return this.errors;
+        }
+
+        getBusinessTypePrefix(treatyNumber) {
+            const typeOfBus = this.coverReg.type_of_bus;
+
+            if (typeOfBus === "FPR" || typeOfBus === "FNP") {
+                return `Facultative ${treatyNumber}`;
+            } else if (typeOfBus === "TPR" || typeOfBus === "TPN") {
+                return `Treaty ${treatyNumber}`;
+            }
+
+            return `Section ${treatyNumber}`;
+        }
+
+        validateShareAllocation(sharePercentage, remainingShare, treatyNumber) {
+            const prefix = this.getBusinessTypePrefix(treatyNumber);
+
+            if (sharePercentage <= 0) {
+                this.addError(
+                    `${prefix}: Share percentage must be greater than 0`
+                );
+                return false;
+            }
+
+            if (sharePercentage > remainingShare) {
+                this.addError(
+                    `${prefix}: Share (${sharePercentage.toFixed(
+                        2
+                    )}%) exceeds remaining share (${remainingShare.toFixed(
+                        2
+                    )}%)`
+                );
+                return false;
+            }
+
+            return true;
+        }
+
+        validateSignedShare(
+            signedShare,
+            writtenShare,
+            treatyNumber,
+            reinsurerNumber
+        ) {
+            const prefix = this.getBusinessTypePrefix(treatyNumber);
+
+            if (signedShare > writtenShare) {
+                this.addError(
+                    `${prefix}, Reinsurer ${reinsurerNumber}: Signed share (${signedShare}%) cannot exceed written share (${writtenShare}%)`
+                );
+                return false;
+            }
+            return true;
+        }
+
+        validateDistributionComplete(remaining, treatyNumber) {
+            const prefix = this.getBusinessTypePrefix(treatyNumber);
+
+            if (Math.abs(remaining) > CONSTANTS.TOLERANCE) {
+                const status = remaining > 0 ? "remaining" : "over-distributed";
+                this.addError(
+                    `${prefix}: Distribution incomplete (${Math.abs(
+                        remaining
+                    ).toFixed(2)}% ${status})`
+                );
+                return false;
+            }
+            return true;
+        }
+
+        validateReinsurerFields($section, treatyNumber, reinsurerNumber) {
+            const prefix = this.getBusinessTypePrefix(treatyNumber);
+            let isValid = true;
+
+            const reinsurer = $section.find(".reinsurer").val();
+            if (!reinsurer) {
+                this.addError(
+                    `${prefix}, Reinsurer ${reinsurerNumber}: Please select a reinsurer`
+                );
+                isValid = false;
+            }
+
+            const writtenShare = Utils.removeCommas(
+                $section.find(".reinsurer-written-share").val()
+            );
+            if (!writtenShare || writtenShare <= 0) {
+                this.addError(
+                    `${prefix}, Reinsurer ${reinsurerNumber}: Written share is required`
+                );
+                isValid = false;
+            }
+
+            const signedShare = Utils.removeCommas(
+                $section.find(".reinsurer-share").val()
+            );
+            if (!signedShare || signedShare <= 0) {
+                this.addError(
+                    `${prefix}, Reinsurer ${reinsurerNumber}: Signed share is required`
+                );
+                isValid = false;
+            }
+
+            const wht = $section.find(".reinsurer-wht").val();
+            if (wht === null || wht === undefined || wht === "") {
+                this.addError(
+                    `${prefix}, Reinsurer ${reinsurerNumber}: WHT rate is required`
+                );
+                isValid = false;
+            }
+
+            const payMethod = $section.find(".reins-pay-method").val();
+            if (!payMethod) {
+                this.addError(
+                    `${prefix}, Reinsurer ${reinsurerNumber}: Payment method is required`
+                );
+                isValid = false;
+            }
+
+            const brokerageType = $section.find(".brokerage-comm-type").val();
+            if (brokerageType === "A") {
+                const brokerageAmount = Utils.removeCommas(
+                    $section.find(".reinsurer-brokerage-comm-amt").val()
+                );
+                if (!brokerageAmount || brokerageAmount <= 0) {
+                    this.addError(
+                        `${prefix}, Reinsurer ${reinsurerNumber}: Brokerage commission amount is required when using Quoted Amount`
+                    );
+                    isValid = false;
+                }
+            }
+
+            return isValid;
+        }
+
+        displayErrors() {
+            const $validationList = $(DOM_SELECTORS.VALIDATION_LIST);
+            const $validationMessages = $(DOM_SELECTORS.VALIDATION_MESSAGES);
+
+            $validationList.empty();
+
+            if (this.hasErrors()) {
+                this.errors.forEach((error) => {
+                    $validationList.append(
+                        `<li class="text-danger">${error}</li>`
+                    );
+                });
+
+                if (!$validationMessages.is(":visible")) {
+                    $validationMessages.fadeIn(() => {
+                        $("html, body").animate(
+                            {
+                                scrollTop:
+                                    $validationMessages.offset().top - 100,
+                            },
+                            500
+                        );
+                    });
+                }
+            } else {
+                $validationMessages.fadeOut();
+            }
+        }
+    }
+    class BrokerageCommissionManager {
+        constructor(calculationService, coverReg) {
+            this.calculationService = calculationService;
+            this.coverReg = coverReg;
+        }
+
+        handleBrokerageTypeChange(treatyCounter, counter) {
+            const $section = $(`#reinsurer-div-${treatyCounter}-${counter}`);
+            const brokerageType = $section.find(".brokerage-comm-type").val();
+
+            const $rateDiv = $section.find(".brokerage_comm_rate_div");
+            const $amountDiv = $section.find(".brokerage_comm_amt_div");
+
+            const $rateInput = $(
+                `#brokerage_comm_rate-${treatyCounter}-${counter}`
+            );
+            const $rateAmountInput = $(
+                `#brokerage_comm_rate_amnt-${treatyCounter}-${counter}`
+            );
+            const $quotedAmountInput = $(
+                `#reinsurer-brokerage_comm_amt-${treatyCounter}-${counter}`
+            );
+
+            if (brokerageType === "A") {
+                $amountDiv.show();
+                $rateDiv.hide();
+
+                $rateInput.val("").prop("required", false);
+                $rateAmountInput.val("").prop("required", false);
+
+                $quotedAmountInput.prop("required", true);
+            } else if (brokerageType === "R") {
+                $rateDiv.show();
+                $amountDiv.hide();
+
+                $quotedAmountInput.val("").prop("required", false);
+
+                $rateInput.prop("required", false);
+                $rateAmountInput.prop("required", false);
+
+                this.calculateBrokerageCommission(treatyCounter, counter);
+            } else {
+                $rateDiv.hide();
+                $amountDiv.hide();
+
+                $rateInput.val("").prop("required", false);
+                $rateAmountInput.val("").prop("required", false);
+                $quotedAmountInput.val("").prop("required", false);
+            }
+        }
+
+        calculateBrokerageCommission(treatyCounter, counter) {
+            const $section = $(`#reinsurer-div-${treatyCounter}-${counter}`);
+            const brokerageType = $section.find(".brokerage-comm-type").val();
+
+            if (brokerageType === "A") {
+                const quotedAmount = Utils.getElementValue(
+                    `#reinsurer-brokerage_comm_amt-${treatyCounter}-${counter}`,
+                    0
+                );
+
+                const brokerage =
+                    this.calculationService.calculateBrokerageCommission(
+                        treatyCounter,
+                        counter,
+                        "A",
+                        quotedAmount
+                    );
+
+                $(`#brokerage_comm_rate-${treatyCounter}-${counter}`).val(
+                    Utils.numberWithCommas(brokerage.rate)
+                );
+                $(`#brokerage_comm_rate_amnt-${treatyCounter}-${counter}`).val(
+                    Utils.numberWithCommas(brokerage.amount)
+                );
+            } else if (brokerageType === "R") {
+                const brokerage =
+                    this.calculationService.calculateBrokerageCommission(
+                        treatyCounter,
+                        counter,
+                        "R"
+                    );
+
+                $(`#brokerage_comm_rate-${treatyCounter}-${counter}`).val(
+                    Utils.numberWithCommas(brokerage.rate)
+                );
+                $(`#brokerage_comm_rate_amnt-${treatyCounter}-${counter}`).val(
+                    Utils.numberWithCommas(brokerage.amount)
+                );
+            }
+        }
+
+        handleQuotedAmountChange(treatyCounter, counter) {
+            const $section = $(`#reinsurer-div-${treatyCounter}-${counter}`);
+            const brokerageType = $section.find(".brokerage-comm-type").val();
+
+            if (brokerageType === "A") {
+                this.calculateBrokerageCommission(treatyCounter, counter);
+            }
+        }
+    }
+
+    class RetroFeeManager {
+        constructor(calculationService) {
+            this.calculationService = calculationService;
+        }
+
+        handleRetroFeeToggle(treatyCounter, counter) {
+            const $section = $(`#reinsurer-div-${treatyCounter}-${counter}`);
+            const applyRetro = $section.find(".apply-fronting").val();
+
+            const $retroRateDiv = $(
+                `#fronting_rate_div-${treatyCounter}-${counter}`
+            );
+            const $retroAmtDiv = $(
+                `#fronting_amt_div-${treatyCounter}-${counter}`
+            );
+
+            const $retroRateInput = $(
+                `#reinsurer-fronting_rate-${treatyCounter}-${counter}`
+            );
+            const $retroAmtInput = $(
+                `#reinsurer-fronting_amt-${treatyCounter}-${counter}`
+            );
+
+            if (applyRetro === "Y") {
+                $retroRateDiv.fadeIn(CONSTANTS.ANIMATION_DURATION);
+                $retroAmtDiv.fadeIn(CONSTANTS.ANIMATION_DURATION);
+
+                if (!$retroRateInput.val()) {
+                    $retroRateInput.val("0.00");
+                }
+                if (!$retroAmtInput.val()) {
+                    $retroAmtInput.val("0.00");
+                }
+
+                $retroRateInput.prop("required", false);
+                $retroAmtInput.prop("required", false);
+            } else {
+                $retroRateDiv.fadeOut(CONSTANTS.ANIMATION_DURATION);
+                $retroAmtDiv.fadeOut(CONSTANTS.ANIMATION_DURATION);
+
+                $retroRateInput.val("0.00").prop("required", false);
+                $retroAmtInput.val("0.00").prop("required", false);
+            }
+        }
+
+        calculateRetroAmount(treatyCounter, counter) {
+            const retroRate = Utils.getElementValue(
+                `#reinsurer-fronting_rate-${treatyCounter}-${counter}`,
+                0
+            );
+            const premium = Utils.getElementValue(
+                `#reinsurer-premium-${treatyCounter}-${counter}`,
+                0
+            );
+
+            const retroAmount =
+                (retroRate / CONSTANTS.PERCENTAGE_MULTIPLIER) * premium;
+
+            $(`#reinsurer-fronting_amt-${treatyCounter}-${counter}`).val(
+                Utils.numberWithCommas(retroAmount)
+            );
+        }
+
+        calculateRetroRate(treatyCounter, counter) {
+            const retroAmount = Utils.getElementValue(
+                `#reinsurer-fronting_amt-${treatyCounter}-${counter}`,
+                0
+            );
+            const premium = Utils.getElementValue(
+                `#reinsurer-premium-${treatyCounter}-${counter}`,
+                0
+            );
+
+            if (premium <= 0) {
+                $(`#reinsurer-fronting_rate-${treatyCounter}-${counter}`).val(
+                    "0.00"
+                );
+                return;
+            }
+
+            const retroRate =
+                (retroAmount / premium) * CONSTANTS.PERCENTAGE_MULTIPLIER;
+
+            $(`#reinsurer-fronting_rate-${treatyCounter}-${counter}`).val(
+                Utils.numberWithCommas(retroRate)
+            );
+        }
+    }
+
+    class DistributionManager {
+        constructor(calculationService, brokerageManager) {
+            this.calculationService = calculationService;
+            this.origDistributedShare = 0;
+            this.distributedShare = 0;
+            this.brokerageManager = brokerageManager;
+        }
+
+        initializeOriginalDistribution() {
+            const coverpartners = window.coverpartners || [];
+
+            this.origDistributedShare = 0;
+            coverpartners.forEach((partner) => {
+                this.origDistributedShare += Utils.removeCommas(partner.share);
+            });
+
+            this.distributedShare = this.origDistributedShare;
+        }
+
+        calculateDistribution(treatyCounter) {
+            let totalDistributed = 0;
+
+            $(`#reinsurer-div-${treatyCounter} .reinsurer-share`).each(
+                function () {
+                    const share = Utils.validateNumber($(this).val(), 0, 0);
+                    totalDistributed += share;
+                }
+            );
+
+            const offeredShare = Utils.getElementValue(
+                `#share_offered-${treatyCounter}`,
+                0
+            );
+            const remaining = offeredShare - totalDistributed;
+
+            $(`#distributed_share-${treatyCounter}`).val(
+                Utils.toDecimal(totalDistributed)
+            );
+            $(`#rem_share-${treatyCounter}`).val(Utils.toDecimal(remaining));
+
+            this.updateRemainingShareIndicator(treatyCounter, remaining);
+            SummaryManager.refreshSummary();
+        }
+
+        updateRemainingShareIndicator(treatyCounter, remaining) {
+            const $remainingField = $(`#rem_share-${treatyCounter}`);
+
+            $remainingField.removeClass(
+                "bg-danger bg-warning bg-success text-white"
+            );
+
+            if (remaining < 0) {
+                $remainingField.addClass("bg-danger text-white");
+            } else if (remaining > CONSTANTS.TOLERANCE) {
+                $remainingField.addClass("bg-warning");
+            } else {
+                $remainingField.addClass("bg-success text-white");
+            }
+        }
+
+        handleShareInput(treatyCounter, counter) {
+            const $shareInput = $(`#share-${treatyCounter}-${counter}`);
+            const sharePercentage = Utils.validateNumber(
+                $shareInput.val(),
+                0,
+                0,
+                100
+            );
+
+            if (sharePercentage <= 0) return;
+
+            const commRate = Utils.getElementValue(
+                `#reinsurer-comm_rate-${treatyCounter}-${counter}`,
+                this.calculationService.coverReg.cedant_comm_rate
+            );
+
+            const amounts = this.calculationService.calculateShareAmounts(
+                sharePercentage,
+                commRate
+            );
+
+            this.updateShareRelatedFields(
+                treatyCounter,
+                counter,
+                amounts,
+                sharePercentage,
+                commRate
+            );
+
+            this.calculateDistribution(treatyCounter);
+        }
+
+        updateShareRelatedFields(
+            treatyCounter,
+            counter,
+            amounts,
+            sharePercentage,
+            commRate
+        ) {
+            const prefix = `#reinsurer`;
+            const suffix = `-${treatyCounter}-${counter}`;
+
+            $(`${prefix}-sum_insured${suffix}`).val(
+                Utils.numberWithCommas(amounts.sumInsured)
+            );
+            $(`${prefix}-premium${suffix}`).val(
+                Utils.numberWithCommas(amounts.premium)
+            );
+            $(`${prefix}-comm_amt${suffix}`).val(
+                Utils.numberWithCommas(amounts.commission)
+            );
+            $(`${prefix}-rein_premium${suffix}`).val(
+                Utils.numberWithCommas(amounts.premium)
+            );
+            $(`${prefix}-cedant_premium${suffix}`).val(
+                Utils.numberWithCommas(amounts.premium)
+            );
+            $(`${prefix}-comm_rate${suffix}`).val(
+                Utils.numberWithCommas(commRate)
+            );
+
+            this.brokerageManager.calculateBrokerageCommission(
+                treatyCounter,
+                counter
+            );
+        }
+    }
+
+    class CommissionManager {
+        constructor(calculationService) {
+            this.calculationService = calculationService;
+        }
+
+        calculateCommission(treatyCounter, counter) {
+            const premium = Utils.getElementValue(
+                `#reinsurer-premium-${treatyCounter}-${counter}`,
+                0
+            );
+            const commRate = Utils.getElementValue(
+                `#reinsurer-comm_rate-${treatyCounter}-${counter}`,
+                0
+            );
+
+            const commAmount =
+                this.calculationService.calculateCommissionAmount(
+                    premium,
+                    commRate
+                );
+
+            $(`#reinsurer-comm_amt-${treatyCounter}-${counter}`).val(
+                Utils.numberWithCommas(commAmount)
+            );
+        }
+    }
+
+    class InstallmentManager {
+        constructor(calculationService) {
+            this.calculationService = calculationService;
+        }
+
+        generateInstallments(treatyCounter, counter) {
+            const $row = $(`#reinsurer-div-${treatyCounter}-${counter}`);
+            const numberOfInstallments =
+                parseInt($row.find(".no-of-installments").val()) || 1;
+            const premium = Utils.getElementValue(
+                `#reinsurer-premium-${treatyCounter}-${counter}`,
+                0
+            );
+
+            if (
+                numberOfInstallments < CONSTANTS.MIN_INSTALLMENTS ||
+                numberOfInstallments > CONSTANTS.MAX_INSTALLMENTS
+            ) {
+                NotificationService.warning(
+                    `Number of installments must be between ${CONSTANTS.MIN_INSTALLMENTS} and ${CONSTANTS.MAX_INSTALLMENTS}`
+                );
+                return;
+            }
+
+            if (premium <= 0) {
+                NotificationService.warning(
+                    "Please enter reinsurer premium first"
+                );
+                return;
+            }
+
+            const installments = this.calculationService.calculateInstallments(
+                premium,
+                numberOfInstallments
+            );
+
+            const $container = $row.find(".reinsurer-plan-section");
+            $container.empty();
+
+            installments.forEach((installment, index) => {
+                const html = this.createInstallmentRow(
+                    treatyCounter,
+                    counter,
+                    installment,
+                    index
+                );
+                $container.append(html);
+            });
+
+            $row.find(".installments-box").fadeIn(CONSTANTS.ANIMATION_DURATION);
+            NotificationService.success(
+                `${numberOfInstallments} installments generated successfully`
+            );
+        }
+
+        createInstallmentRow(treatyCounter, counter, installment, index) {
+            return `
+                <div class="row mb-2 installment-row">
+                    <div class="col-md-2">
+                        <label class="form-label">Installment ${
+                            installment.number
+                        }</label>
+                        <input type="text" class="form-control" value="${
+                            installment.number
+                        }" readonly />
+                        <input type="hidden"
+                               name="treaty[${treatyCounter}][reinsurers][${counter}][installments][${index}][number]"
+                               value="${installment.number}" />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Due Date</label>
+                        <input type="date"
+                               class="form-control installment-date"
+                               name="treaty[${treatyCounter}][reinsurers][${counter}][installments][${index}][due_date]"
+                               required />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Amount</label>
+                        <input type="number"
+                               step="0.01"
+                               class="form-control installment-amount"
+                               name="treaty[${treatyCounter}][reinsurers][${counter}][installments][${index}][amount]"
+                               value="${installment.amount}"
+                               required />
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">Percentage</label>
+                        <input type="text"
+                               class="form-control"
+                               value="${installment.percentage.toFixed(2)}%"
+                               readonly />
+                    </div>
+                </div>
+            `;
+        }
+
+        handlePaymentMethodChange(treatyCounter, counter, payMethodCode) {
+            const $row = $(`#reinsurer-div-${treatyCounter}-${counter}`);
+            const $installmentsSection = $row.find(
+                ".no-of-installments-section"
+            );
+            const $addButton = $row.find(".add-installment-btn-section");
+            const $installmentsBox = $row.find(".installments-box");
+
+            if (payMethodCode === "INS" || payMethodCode === "INST") {
+                $installmentsSection.fadeIn(CONSTANTS.ANIMATION_DURATION);
+                $addButton.fadeIn(CONSTANTS.ANIMATION_DURATION);
+            } else {
+                $installmentsSection.fadeOut(CONSTANTS.ANIMATION_DURATION);
+                $addButton.fadeOut(CONSTANTS.ANIMATION_DURATION);
+                $installmentsBox.fadeOut(CONSTANTS.ANIMATION_DURATION);
+            }
+        }
+    }
+
+    class ReinsurerManager {
+        constructor(calculationService, validationService, brokerageManager) {
+            this.calculationService = calculationService;
+            this.validationService = validationService;
+            this.reinsurerCounters = {};
+            this.brokerageManager = brokerageManager;
+        }
+
+        addReinsurerRow(treatyCounter) {
+            if (typeof this.reinsurerCounters[treatyCounter] === "undefined") {
+                this.reinsurerCounters[treatyCounter] = 0;
+            }
+
+            this.reinsurerCounters[treatyCounter]++;
+            const counter = this.reinsurerCounters[treatyCounter];
+
+            const template = $(DOM_SELECTORS.REINSURER_ROW_TEMPLATE).html();
+            if (!template) {
+                console.error("Reinsurer row template not found");
+                NotificationService.error(
+                    "Unable to add reinsurer row. Template not found."
+                );
+                return;
+            }
+
+            const newRow = Utils.replacePlaceholders(template, {
+                TREATY_COUNTER_PLACEHOLDER: treatyCounter,
+                COUNTER_PLACEHOLDER: counter,
+                REINSURER_NUMBER_PLACEHOLDER: counter + 1,
+            });
+
+            const $container = $(`#reinsurer-div-${treatyCounter}`);
+            if (!$container.length) {
+                console.error(
+                    `Container not found: #reinsurer-div-${treatyCounter}`
+                );
+                NotificationService.error(
+                    "Unable to add reinsurer row. Container not found."
+                );
+                return;
+            }
+
+            $container.append(newRow);
+
+            requestAnimationFrame(() => {
+                setTimeout(() => {
+                    this.initializeSelect2InRow(treatyCounter, counter);
+                    this.updateReinsurerNumbers(treatyCounter);
+
+                    this.brokerageManager.handleBrokerageTypeChange(
+                        treatyCounter,
+                        counter
+                    );
+
+                    const $select = $(
+                        `#reinsurer-div-${treatyCounter}-${counter} .select2Placement`
+                    );
+                    if (
+                        $select.length &&
+                        !$select.hasClass("select2-hidden-accessible")
+                    ) {
+                        console.warn(
+                            "Select2 failed to initialize, retrying..."
+                        );
+                        this.initializeSelect2InRow(treatyCounter, counter);
+                    }
+                }, CONSTANTS.SELECT2_INIT_DELAY);
+            });
+        }
+
+        removeReinsurerRow(treatyCounter, counter) {
+            const $container = $(`#reinsurer-div-${treatyCounter}`);
+            const remainingReinsurers = $container.find(
+                DOM_SELECTORS.REINSURER_SECTION
+            ).length;
+
+            if (remainingReinsurers <= 1) {
+                NotificationService.warning(
+                    "Cannot remove the last reinsurer. At least one is required."
+                );
+                return;
+            }
+
+            if (!confirm("Are you sure you want to remove this reinsurer?")) {
+                return;
+            }
+
+            const $row = $(`#reinsurer-div-${treatyCounter}-${counter}`);
+            $row.fadeOut(CONSTANTS.ANIMATION_DURATION, () => {
+                $row.remove();
+                this.updateReinsurerNumbers(treatyCounter);
+                ReinsurerPlacement.distributionManager.calculateDistribution(
+                    treatyCounter
+                );
+                this.filterSelectedReinsurers(treatyCounter);
+            });
+        }
+
+        updateReinsurerNumbers(treatyCounter) {
+            $(
+                `#reinsurer-div-${treatyCounter} ${DOM_SELECTORS.REINSURER_SECTION}`
+            ).each(function (index) {
+                $(this)
+                    .find(".reinsurer-number")
+                    .text(index + 1);
+            });
+        }
+
+        filterSelectedReinsurers(treatyCounter) {
+            const selectedReinsurers =
+                this.getSelectedReinsurers(treatyCounter);
+
+            $(`#reinsurer-div-${treatyCounter} .reinsurer`).each(function () {
+                const $select = $(this);
+                const currentValue = $select.val();
+
+                if (!$select.data("original-options")) {
+                    const options = [];
+                    $select.find("option").each(function () {
+                        options.push({
+                            value: $(this).val(),
+                            text: $(this).text(),
+                            title: $(this).attr("title"),
+                        });
+                    });
+                    $select.data("original-options", options);
+                }
+
+                const originalOptions = $select.data("original-options");
+                $select.empty();
+
+                originalOptions.forEach((option) => {
+                    if (
+                        !option.value ||
+                        option.value === currentValue ||
+                        !selectedReinsurers.includes(option.value)
+                    ) {
+                        const $option = $("<option></option>")
+                            .val(option.value)
+                            .text(option.text);
+
+                        if (option.title) {
+                            $option.attr("title", option.title);
+                        }
+
+                        $select.append($option);
+                    }
+                });
+
+                if (currentValue) {
+                    $select.val(currentValue);
+                }
+
+                if ($select.hasClass("select2-hidden-accessible")) {
+                    $select.trigger("change.select2");
+                }
+            });
+        }
+
+        getSelectedReinsurers(treatyCounter) {
+            const selected = [];
+            $(`#reinsurer-div-${treatyCounter} .reinsurer`).each(function () {
+                const value = $(this).val();
+                if (value) {
+                    selected.push(value);
+                }
+            });
+            return selected;
+        }
+
+        initializeSelect2InRow(treatyCounter, counter) {
+            const containerSelector = `#reinsurer-div-${treatyCounter}-${counter}`;
+            Select2Manager.initializeInContainer(containerSelector);
+        }
+    }
+
+    class TreatyManager {
+        constructor(reinsurerManager) {
+            this.reinsurerManager = reinsurerManager;
+        }
+
+        addTreatySection() {
+            const $lastSection = $(
+                `${DOM_SELECTORS.TREATY_DIV} ${DOM_SELECTORS.TREATY_SECTION}`
+            ).last();
+
+            if (!$lastSection.length) {
+                NotificationService.error("No treaty section found to clone");
+                return;
+            }
+
+            const currCounter =
+                parseInt($lastSection.attr("data-counter")) || 0;
+
+            const currTreaty = $(`#reinsurer-treaty-${currCounter}`).val();
+            if (!currTreaty) {
+                NotificationService.error(
+                    "Please select a treaty before adding a new section"
+                );
+                return;
+            }
+
+            const counter = currCounter + 1;
+            const $newSection = $lastSection.clone();
+
+            this.cleanClonedSection($newSection, counter);
+            this.updateSectionAttributes($newSection, counter, currCounter);
+
+            $lastSection.after($newSection);
+
+            Select2Manager.initializeInContainer(
+                `#treaty-div-section-${counter}`
+            );
+            this.reinsurerManager.reinsurerCounters[counter] = counter;
+        }
+
+        cleanClonedSection($section, counter) {
+            $section.find(".select2-container").remove();
+            $section.find("[data-select2-id]").removeAttr("data-select2-id");
+
+            $section.find("input:not(.share_offered)").val("");
+
+            $section
+                .find(`${DOM_SELECTORS.REINSURER_SECTION}:not(:first)`)
+                .remove();
+
+            $section.attr({
+                "data-counter": counter,
+                id: `treaty-div-section-${counter}`,
+            });
+        }
+
+        updateSectionAttributes($section, counter, currCounter) {
+            $section.find("[id]").each(function () {
+                const id = $(this).attr("id");
+                const newId = id.replace(/(-\d)(-\d)?$/, (match, p1, p2) => {
+                    return p2 ? `-${counter}-${counter}` : `-${counter}`;
+                });
+
+                $(this).attr({
+                    id: newId,
+                    "data-counter": counter,
+                    "data-treaty-counter": counter,
+                });
+            });
+
+            $section.find(".treaties").each(function () {
+                const name = $(this).attr("name");
+                const newName = name.replace(
+                    `[${currCounter}]`,
+                    `[${counter}]`
+                );
+                $(this).attr("name", newName);
+            });
+
+            $section.find(".reinsurers").each(function () {
+                const name = $(this).attr("name");
+                const newName = name.replace(/(\[\d+\])/g, `[${counter}]`);
+                $(this).attr("name", newName);
+            });
+        }
+
+        removeTreatySection(counter) {
+            if (
+                !confirm(
+                    "Are you sure you want to remove this treaty section and all its reinsurers?"
+                )
+            ) {
+                return;
+            }
+
+            $(`#treaty-div-section-${counter}`).fadeOut(
+                CONSTANTS.ANIMATION_DURATION,
+                function () {
+                    $(this).remove();
+                    SummaryManager.refreshSummary();
+                }
+            );
+
+            delete this.reinsurerManager.reinsurerCounters[counter];
+        }
+    }
+
+    class FormSubmissionManager {
+        constructor(validationService) {
+            this.validationService = validationService;
+        }
+
+        validateAndSubmit() {
+            this.validationService.reset();
+
+            let treatyNumber = 1;
+            $(DOM_SELECTORS.TREATY_SECTION).each((index, element) => {
+                const $section = $(element);
+                const treatyCounter = $section.data("counter");
+
+                this.validateTreatySection(
+                    $section,
+                    treatyCounter,
+                    treatyNumber
+                );
+                treatyNumber++;
+            });
+
+            if (this.validationService.hasErrors()) {
+                this.validationService.displayErrors();
+                return;
+            }
+
+            this.submitForm();
+        }
+
+        validateTreatySection($section, treatyCounter, treatyNumber) {
+            if ($section.find(".reinsurer-treaty").length > 0) {
+                const treatyValue = $section.find(".reinsurer-treaty").val();
+                if (!treatyValue) {
+                    this.validationService.addError(
+                        `Treaty section ${treatyNumber}: Please select a treaty`
+                    );
+                }
+            }
+
+            const remaining = Utils.getElementValue(
+                `#rem_share-${treatyCounter}`,
+                0
+            );
+            this.validationService.validateDistributionComplete(
+                remaining,
+                treatyNumber
+            );
+
+            let reinsurerNumber = 1;
+            $(
+                `#reinsurer-div-${treatyCounter} ${DOM_SELECTORS.REINSURER_SECTION}`
+            ).each((index, element) => {
+                this.validationService.validateReinsurerFields(
+                    $(element),
+                    treatyNumber,
+                    reinsurerNumber
+                );
+                reinsurerNumber++;
+            });
+        }
+
+        submitForm() {
+            const $form = $(DOM_SELECTORS.FORM);
+
+            NotificationService.clear();
+
+            const $button = $(DOM_SELECTORS.SAVE_BUTTON);
+            const url = $form.data("url");
+
+            if (!url) {
+                NotificationService.error("Form submission URL not configured");
+                return;
+            }
+
+            $button
+                .prop("disabled", true)
+                .html('<i class="fa fa-spinner fa-spin me-2"></i>Saving...');
+
+            $.ajax({
+                url: url,
+                method: "POST",
+                data: $form.serialize(),
+                timeout: 30000,
+                success: (response) =>
+                    this.handleSubmitSuccess(response, $button),
+                error: (xhr, status, error) => {
+                    if (status === "timeout") {
+                        NotificationService.error(
+                            "Request timed out. Please try again."
+                        );
+                        $button
+                            .prop("disabled", false)
+                            .html(
+                                '<i class="fa fa-save me-2"></i>Save Placement'
+                            );
+                    } else {
+                        this.handleSubmitError(xhr, $button);
+                    }
+                },
+            });
+        }
+
+        handleSubmitSuccess(response, $button) {
+            if (response.success) {
+                toastr.success("Reinsurance placement saved successfully");
+
+                setTimeout(() => {
+                    $(DOM_SELECTORS.MODAL).modal("hide");
+
+                    if (typeof window.refreshCoverData === "function") {
+                        window.refreshCoverData();
+                    } else {
+                        location.reload();
+                    }
+                }, 1500);
+            } else {
+                toastr.error("An error occurred while saving");
+                $button
+                    .prop("disabled", false)
+                    .html('<i class="fa fa-save me-2"></i>Save Placement');
+            }
+        }
+
+        handleSubmitError(xhr, $button) {
+            let errorMessage = "An error occurred while saving";
+
+            if (xhr.responseJSON) {
+                if (xhr.responseJSON.message) {
+                    errorMessage = xhr.responseJSON.message;
+                } else if (xhr.responseJSON.errors) {
+                    const errors = Object.values(
+                        xhr.responseJSON.errors
+                    ).flat();
+                    errorMessage = errors.join("<br>");
+                }
+            }
+
+            NotificationService.error(errorMessage);
+            $button
+                .prop("disabled", false)
+                .html('<i class="fa fa-save me-2"></i>Save Placement');
+        }
+    }
 
     const CoverDetails = {
         $el: {},
@@ -26,7 +1543,6 @@
             dataTablesOptions: {
                 order: [[0, "desc"]],
                 processing: true,
-                // serverSide: true,
                 bAutoWidth: false,
                 lengthChange: false,
             },
@@ -45,7 +1561,6 @@
             this.$el = {
                 app: $("#coverDetailsApp"),
 
-                // Forms
                 schedulesForm: $("#schedulesForm"),
                 attachmentsForm: $("#attachmentsForm"),
                 clausesForm: $("#clausesForm"),
@@ -55,7 +1570,6 @@
                 debitForm: $("#debitForm"),
                 insuranceClassForm: $("#insuranceClassForm"),
 
-                // Modals
                 schedulesModal: $("#schedulesModal"),
                 attachmentsModal: $("#attachments-modal"),
                 clausesModal: $("#clauses-modal"),
@@ -66,7 +1580,6 @@
                 insuranceClassModal: $("#insurance-class-modal"),
                 sendEmailModal: $("#sendReinDocumentEmail"),
 
-                // Tables
                 schedulesTable: $("#schedules-table"),
                 attachmentsTable: $("#attachments-table"),
                 clausesTable: $("#clauses-table"),
@@ -77,16 +1590,13 @@
                 debitsTable: $("#debits-table"),
                 endorseNarrationTable: $("#endorse-narration-table"),
 
-                // Buttons
                 editCoverBtn: $("#edit-cover"),
                 verifyDetailsBtn: $("#verify_details"),
                 generateSlipBtn: $("#generate_slip"),
                 commitCoverBtn: $("#commit-cover"),
 
-                // Navigation
                 tabNav: $(".reinsurers-details-card .nav-link"),
 
-                // Other elements
                 scheduleDescription: $("#schedule_description"),
                 hiddenScheduleDescription: $("#hidden_schedule_description"),
             };
@@ -104,59 +1614,7 @@
         },
 
         initializePlugins: function () {
-            // this.initializeSelect2();
-
-            // Initialize TinyMCE if needed
-            // this.initializeTinyMCE();
-
-            // Initialize tooltips
             this.initializeTooltips();
-        },
-
-        initializeSelect2: function () {
-            const self = this;
-
-            this.$el.clausesModal.on("shown.bs.modal", function () {
-                $(".form-inputs", this).select2({
-                    dropdownParent: self.$el.clausesModal,
-                });
-            });
-
-            this.$el.attachmentsModal.on("shown.bs.modal", function () {
-                $(".form-inputs", this).select2({
-                    dropdownParent: self.$el.attachmentsModal,
-                });
-            });
-
-            this.$el.verifyModal.on("shown.bs.modal", function () {
-                $(".form-inputs", this).select2({
-                    dropdownParent: self.$el.verifyModal,
-                });
-            });
-
-            this.$el.insuranceClassModal.on("shown.bs.modal", function () {
-                $(".form-inputs", this).select2({
-                    dropdownParent: self.$el.insuranceClassModal,
-                });
-            });
-
-            this.$el.reinsurerModal.on("shown.bs.modal", function () {
-                $(".form-inputs", this).select2({
-                    dropdownParent: self.$el.reinsurerModal,
-                });
-            });
-
-            this.$el.editReinsurerModal.on("shown.bs.modal", function () {
-                $(".form-inputs", this).select2({
-                    dropdownParent: self.$el.editReinsurerModal,
-                });
-            });
-
-            this.$el.schedulesModal.on("shown.bs.modal", function () {
-                $(".form-inputs", this).select2({
-                    dropdownParent: self.$el.schedulesModal,
-                });
-            });
         },
 
         initializeTooltips: function () {
@@ -452,12 +1910,6 @@
 
             this.$el.insClassTable.DataTable({
                 ...this.config.dataTablesOptions,
-                // ajax: {
-                //     url: this.$el.insClassTable.data("url"),
-                //     data: function (d) {
-                //         d.endorsement_no = self.state.coverData.endorsement_no;
-                //     },
-                // },
                 data: [],
                 columns: [
                     { data: "id", searchable: true },
@@ -638,10 +2090,6 @@
             });
         },
 
-        // ============================================================================
-        // EVENT BINDING
-        // ============================================================================
-
         bindEvents: function () {
             this.bindNavigationEvents();
             this.bindFormEvents();
@@ -655,7 +2103,6 @@
         bindNavigationEvents: function () {
             const self = this;
 
-            // Tab navigation
             this.$el.tabNav.on("click", function () {
                 const hash = $(this).data("bs-target");
                 if (hash) {
@@ -673,7 +2120,6 @@
                 self.setActiveTab();
             });
 
-            // Navigation links
             $("#to-cover").on("click", function (e) {
                 e.preventDefault();
                 $("#coverForm").submit();
@@ -693,7 +2139,6 @@
         bindFormEvents: function () {
             const self = this;
 
-            // Schedule form validation
             if (this.$el.schedulesForm.length) {
                 this.$el.schedulesForm.validate({
                     errorClass: "errorClass",
@@ -706,7 +2151,6 @@
                 });
             }
 
-            // Attachments form validation
             if (this.$el.attachmentsForm.length) {
                 this.$el.attachmentsForm.validate({
                     errorClass: "errorClass",
@@ -720,7 +2164,6 @@
                 });
             }
 
-            // Clauses form validation
             if (this.$el.clausesForm.length) {
                 this.$el.clausesForm.validate({
                     errorClass: "errorClass",
@@ -733,7 +2176,6 @@
                 });
             }
 
-            // Reinsurer form validation
             if (this.$el.reinsurerForm.length) {
                 this.$el.reinsurerForm.validate({
                     errorClass: "errorClass",
@@ -743,7 +2185,6 @@
                 });
             }
 
-            // Edit Reinsurer form validation
             if (this.$el.editReinsurerForm.length) {
                 this.$el.editReinsurerForm.validate({
                     errorClass: "errorClass",
@@ -753,7 +2194,6 @@
                 });
             }
 
-            // Verify form validation
             if (this.$el.verifyForm.length) {
                 this.$el.verifyForm.validate({
                     errorClass: "errorClass",
@@ -768,7 +2208,6 @@
                 });
             }
 
-            // Debit form validation
             if (this.$el.debitForm.length) {
                 this.$el.debitForm.validate({
                     errorClass: "errorClass",
@@ -783,7 +2222,6 @@
                 });
             }
 
-            // Insurance class form validation
             if (this.$el.insuranceClassForm.length) {
                 this.$el.insuranceClassForm.validate({
                     errorClass: "errorClass",
@@ -801,19 +2239,16 @@
         bindButtonEvents: function () {
             const self = this;
 
-            // Verify details button
             this.$el.verifyDetailsBtn.on("click", function (e) {
                 e.preventDefault();
                 self.handleVerifyDetails();
             });
 
-            // Generate slip button
             this.$el.generateSlipBtn.on("click", function (e) {
                 e.preventDefault();
                 self.handleGenerateSlip();
             });
 
-            // Save buttons
             $("#schedule-save-btn").on("click", function () {
                 self.$el.schedulesForm.submit();
             });
@@ -846,7 +2281,6 @@
                 self.$el.insuranceClassForm.submit();
             });
 
-            // Close buttons
             $(".closeScheduleForm").on("click", function (e) {
                 e.preventDefault();
                 self.$el.schedulesForm[0].reset();
@@ -860,25 +2294,21 @@
         bindModalEvents: function () {
             const self = this;
 
-            // Schedule details modal
             $(document).on("click", "#schedule-details", function () {
                 self.$el.schedulesForm[0].reset();
                 self.$el.schedulesForm.find('[name="_method"]').val("POST");
             });
 
-            // Attachments modal
             $(document).on("click", "#attachments", function () {
                 self.$el.attachmentsForm[0].reset();
                 self.$el.attachmentsForm.find('[name="_method"]').val("POST");
             });
 
-            // Schedule header change
             $(document).on("change", "#sched-header", function () {
                 const schedTitle = $(this).find("option:selected").data("name");
                 $("#title").val(schedTitle);
             });
 
-            // Apply fronting change
             $(document).on("change", ".apply_fronting", function () {
                 const counter = $(this).data("counter");
                 const option = $(this).val();
@@ -894,7 +2324,6 @@
                 }
             });
 
-            // Brokerage commission type change
             $("#brokerage_comm_type").on("change", function () {
                 const brokerageCommType = $(this).val();
 
@@ -918,45 +2347,38 @@
         bindTableEvents: function () {
             const self = this;
 
-            // Edit schedule
             $(document).on("click", ".edit-schedule", function () {
                 const data = $(this).data();
                 self.populateScheduleForm(data);
             });
 
-            // Remove schedule
             $(document).on("click", ".remove-schedule", function () {
                 const dataId = $(this).data("id");
                 const dataName = $(this).data("name");
                 self.confirmRemoveSchedule(dataId, dataName);
             });
 
-            // Edit attachment
             $(document).on("click", ".edit-attachment", function () {
                 const data = $(this).data();
                 self.populateAttachmentForm(data);
             });
 
-            // Remove attachment
             $(document).on("click", ".remove-attachment", function () {
                 const data = $(this).data();
                 self.confirmRemoveAttachment(data);
             });
 
-            // View attachment
             $(document).on("click", ".view-attachment", function () {
                 const base64Data = $(this).data("base64");
                 const mimeType = $(this).data("mime");
                 self.showAttachmentPreview(base64Data, mimeType);
             });
 
-            // Remove clause
             $(document).on("click", ".remove-clause", function () {
                 const data = $(this).data();
                 self.confirmRemoveClause(data);
             });
 
-            // Edit reinsurer
             $(document).on("click", ".edit-reinsurer", function () {
                 const data = $(this).data("data");
                 const reinsurer = $(this).data("reinsurer");
@@ -968,20 +2390,17 @@
                 );
             });
 
-            // Remove reinsurer
             $(document).on("click", ".remove-reinsurer", function () {
                 const shareData = $(this).data("data");
                 const reinsurer = $(this).data("reinsurer");
                 self.confirmRemoveReinsurer(shareData, reinsurer);
             });
 
-            // Send reinsurer email
             $(document).on("click", ".send_reinsurer_email", function (e) {
                 e.preventDefault();
                 self.openReinsurerEmailModal($(this));
             });
 
-            // Send cedant email
             $(document).on("click", ".send-cedant-email", function (e) {
                 e.preventDefault();
                 self.openCedantEmailModal($(this));
@@ -991,7 +2410,6 @@
         bindCalculationEvents: function () {
             const self = this;
 
-            // Reinsurer share input
             $("#reinsurer-modal").on("input", ".reinsurer-share", function () {
                 self.handleReinsurerShareInput($(this));
             });
@@ -1004,7 +2422,6 @@
                 }
             );
 
-            // Commission rate input
             $("#reinsurer-modal").on(
                 "keyup",
                 'input[name="comm_rate"]',
@@ -1022,7 +2439,6 @@
                 }
             );
 
-            // Commission amount input
             $("#reinsurer-modal").on(
                 "keyup",
                 ".reinsurer-comm-amt",
@@ -1032,7 +2448,6 @@
                 }
             );
 
-            // Fronting rate input
             $(document).on("keyup", ".reinsurer-fronting_rate", function () {
                 const counter = $(this).data("counter");
                 self.computeFrontingAmount(counter);
@@ -1042,7 +2457,6 @@
                 self.computeEditFrontingAmount();
             });
 
-            // Premium input
             $(document).on("keyup", ".reinsurer-premium", function () {
                 const counter = $(this).data("counter");
                 self.computeCommissionAmt(counter);
@@ -1052,18 +2466,15 @@
         bindDynamicFieldEvents: function () {
             const self = this;
 
-            // Add treaty-reinsurer section
             $("#add-treaty-reinsurer").on("click", function () {
                 self.addTreatyReinsurerSection();
             });
 
-            // Add reinsurer
             $(document).on("click", ".add-reinsurer", function () {
                 const counter = $(this).data("counter");
                 self.addReinsurerSection(counter);
             });
 
-            // Remove reinsurer
             $("#reinsurer_plan_section").on(
                 "click",
                 "#remove_reinsurer_instalment",
@@ -1072,12 +2483,10 @@
                 }
             );
 
-            // Payment method change
             $("select#reins_pay_method").on("change", function () {
                 self.handlePaymentMethodChange();
             });
 
-            // Number of installments change
             $("#no_of_installments").on("change keyup", function () {
                 const inst = $(this).val();
                 if (!inst) {
@@ -1085,20 +2494,14 @@
                 }
             });
 
-            // Add installments
             $("#add_reinsurer_instalments").on("click", function () {
                 self.addReinsurerInstallments();
             });
 
-            // Treaty change
             $(document).on("change", ".reinsurer-treaty", function () {
                 self.handleTreatyChange($(this));
             });
         },
-
-        // ============================================================================
-        // FORM SUBMISSION HANDLERS
-        // ============================================================================
 
         handleScheduleFormSubmit: function (form) {
             const self = this;
@@ -1108,31 +2511,33 @@
                     ? this.$el.schedulesForm.data("post-url")
                     : this.$el.schedulesForm.data("put-url");
 
-            let formData = new FormData(form);
-            formData.append("details", this.$el.scheduleDescription.html());
+            console.log(url);
 
-            fetch(url, {
-                method: method,
-                headers: {
-                    "Content-Type": "application/x-www-form-urlencoded",
-                },
-                body: new URLSearchParams(formData),
-            })
-                .then((response) => response.json())
-                .then((data) => {
-                    if (data.status === 201) {
-                        toastr.success("Schedule Successfully saved");
-                        setTimeout(() => window.location.reload(), 1500);
-                    } else if (data.status === 422) {
-                        self.showValidationErrors(data.errors);
-                    } else {
-                        toastr.error("Failed to save details");
-                    }
-                })
-                .catch((error) => {
-                    toastr.error("An error occurred");
-                    console.error(error);
-                });
+            // let formData = new FormData(form);
+            // formData.append("details", this.$el.scheduleDescription.html());
+
+            // fetch(url, {
+            //     method: method,
+            //     headers: {
+            //         "Content-Type": "application/x-www-form-urlencoded",
+            //     },
+            //     body: new URLSearchParams(formData),
+            // })
+            //     .then((response) => response.json())
+            //     .then((data) => {
+            //         if (data.status === 201) {
+            //             toastr.success("Schedule Successfully saved");
+            //             setTimeout(() => window.location.reload(), 1500);
+            //         } else if (data.status === 422) {
+            //             self.showValidationErrors(data.errors);
+            //         } else {
+            //             toastr.error("Failed to save details");
+            //         }
+            //     })
+            //     .catch((error) => {
+            //         toastr.error("An error occurred");
+            //         console.error(error);
+            //     });
         },
 
         handleAttachmentFormSubmit: function (form) {
@@ -1229,40 +2634,17 @@
                 });
         },
 
-        handleReinsurerFormSubmit: function (form) {
-            const self = this;
-            $("#partner-save-btn")
-                .prop("disabled", true)
-                .html(
-                    '<span class="me-2">Saving...</span><div class="loading"></div>'
+        handleReinsurerFormSubmit: function () {
+            if (
+                window.ReinsurerPlacement &&
+                window.ReinsurerPlacement.formSubmissionManager
+            ) {
+                window.ReinsurerPlacement.formSubmissionManager.validateAndSubmit();
+            } else {
+                NotificationService.error(
+                    "Unable to submit form. Please refresh the page."
                 );
-
-            let formData = new FormData(form);
-
-            fetch(this.$el.reinsurerForm.data("url"), {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/x-www-form-urlencoded",
-                },
-                body: new URLSearchParams(formData),
-            })
-                .then((response) => response.json())
-                .then((data) => {
-                    $("#partner-save-btn").prop("disabled", false).text("Save");
-
-                    if (data.status === 201) {
-                        toastr.success(data.message);
-                        setTimeout(() => window.location.reload(), 2000);
-                    } else if (data.status === 422) {
-                        self.showValidationErrors(data.errors);
-                    } else {
-                        toastr.error("Failed to save details");
-                    }
-                })
-                .catch((error) => {
-                    toastr.error("Failed to save details");
-                    $("#partner-save-btn").prop("disabled", false).text("Save");
-                });
+            }
         },
 
         handleEditReinsurerFormSubmit: function (form) {
@@ -1303,46 +2685,85 @@
 
         handleVerifyFormSubmit: function (form) {
             const self = this;
-            $("#verify-save-btn")
-                .prop("disabled", true)
-                .html(
-                    '<span class="me-2">Submitting...</span><div class="loading"></div>'
-                );
 
-            let formData = new FormData(form);
+            const btn = $("#verify-save-btn");
+            const btnText = btn.find(".btn-text");
+            const spinner = btn.find(".spinner-border");
 
-            fetch(this.$el.verifyForm.attr("action"), {
-                method: "POST",
-                headers: {
-                    "X-CSRF-Token": $('meta[name="csrf-token"]').attr(
-                        "content"
-                    ),
-                },
-                body: formData,
-            })
-                .then((response) => response.json())
-                .then((data) => {
-                    $("#verify-save-btn")
-                        .prop("disabled", false)
-                        .text("Submit");
+            $("#validation-errors").addClass("d-none");
+            $("#error-list").empty();
+            $(".is-invalid").removeClass("is-invalid");
 
-                    if (data.status === 201) {
-                        toastr.success(
-                            "Verification request Successfully sent"
-                        );
-                        setTimeout(() => window.location.reload(), 2000);
-                    } else if (data.status === 422) {
-                        self.showValidationErrors(data.errors);
-                    } else {
-                        toastr.error("Failed to send verification request");
-                    }
-                })
-                .catch((error) => {
-                    toastr.error("Failed to send verification request");
-                    $("#verify-save-btn")
-                        .prop("disabled", false)
-                        .text("Submit");
+            const errors = [];
+
+            if (!$("#approver").val()) {
+                errors.push("Please select an approver");
+                $("#approver").addClass("is-invalid");
+            }
+            if (!$("#priority").val()) {
+                errors.push("Please select a priority level");
+                $("#priority").addClass("is-invalid");
+            }
+            const comment = $("#verify-comment").val().trim();
+            if (comment.length < 7) {
+                errors.push("Comment must be at least 7 characters");
+                $("#verify-comment").addClass("is-invalid");
+            }
+
+            if (!$('input[name="cover_no"]').val()) {
+                errors.push("Cover number is missing");
+            }
+            if (!$('input[name="process"]').val()) {
+                errors.push("Process ID is missing");
+            }
+
+            if (errors.length > 0) {
+                errors.forEach((error) => {
+                    $("#error-list").append(`<li>${error}</li>`);
                 });
+                $("#validation-errors").removeClass("d-none");
+                return false;
+            }
+            btn.prop("disabled", true);
+            btnText.text("Submitting...");
+            spinner.removeClass("d-none");
+
+            $.ajax({
+                url: this.$el.verifyForm.attr("action"),
+                method: "POST",
+                data: this.$el.verifyForm.serialize(),
+                dataType: "json",
+                success: function (response) {
+                    if (response.status == 201) {
+                        toastr.success(
+                            "Successfully sent for verification",
+                            "Success"
+                        );
+
+                        $("#verificationModal").modal("hide");
+                        setTimeout(() => {
+                            location.reload();
+                        }, 1500);
+                    }
+                },
+                error: function (xhr) {
+                    btn.prop("disabled", false);
+                    btnText.text("Submit for Verification");
+                    spinner.addClass("d-none");
+                    const errorMsg = "Failed to submit for verification";
+                    toastr.error(errorMsg);
+
+                    if (xhr.responseJSON?.errors) {
+                        const validationErrors = xhr.responseJSON.errors;
+                        Object.keys(validationErrors).forEach((key) => {
+                            validationErrors[key].forEach((error) => {
+                                $("#error-list").append(`<li>${error}</li>`);
+                            });
+                        });
+                        $("#validation-errors").removeClass("d-none");
+                    }
+                },
+            });
         },
 
         handleDebitFormSubmit: function (form) {
@@ -1421,21 +2842,20 @@
                 });
         },
 
-        // ============================================================================
-        // CALCULATION METHODS
-        // ============================================================================
-
         computeCommissionAmt: function (counter) {
             const premium =
                 parseFloat(
-                    $(`#reinsurer-premium-${counter}`).val().replace(/,/g, "")
+                    ($(`#reinsurer-premium-${counter}`).val() || "").replace(
+                        /,/g,
+                        ""
+                    )
                 ) || 0;
             const commRate =
                 parseFloat($(`#reinsurer-comm_rate-${counter}`).val()) || 0;
             const commAmt = (premium * commRate) / 100;
 
             $(`#reinsurer-comm_amt-${counter}`).val(
-                this.numberWithCommas(commAmt.toFixed(2))
+                Utils.numberWithCommas(commAmt.toFixed(2))
             );
 
             this.calculateBrokerageCommRate();
@@ -1469,7 +2889,7 @@
             const frontingAmt = (frontingRate / 100) * (premium - commAmt);
 
             $(`#reinsurer-fronting_amt-${counter}`).val(
-                this.numberWithCommas(frontingAmt.toFixed(2))
+                Utils.numberWithCommas(frontingAmt.toFixed(2))
             );
         },
 
@@ -1484,7 +2904,7 @@
             const reinsurercommAmount = (reinsurercommRate / 100) * premium;
 
             $("#edreinsurer-comm_amt").val(
-                this.numberWithCommas(reinsurercommAmount.toFixed(2))
+                Utils.numberWithCommas(reinsurercommAmount.toFixed(2))
             );
         },
 
@@ -1501,20 +2921,25 @@
                 (frontingRate / 100) * (premium - reinsurerCommAmt) || 0;
 
             $("#edreinsurer-fronting_amt").val(
-                this.numberWithCommas(frontingAmt)
+                Utils.numberWithCommas(frontingAmt)
             );
         },
 
         calculateBrokerageCommRate: function () {
             const cedantCommRate =
                 parseFloat($("#reinsurer-modal").data("cedant-comm-rate")) || 0;
+
+            const reinCommRaw = $("#reinsurer-comm_rate-0").val();
             const reinCommRate =
                 parseFloat(
-                    $("#reinsurer-comm_rate-0").val().replace(/,/g, "")
+                    reinCommRaw ? reinCommRaw.toString().replace(/,/g, "") : "0"
                 ) || 0;
+
+            const premiumRaw = $("#reinsurer-premium-0").val();
             const premium =
-                parseFloat($("#reinsurer-premium-0").val().replace(/,/g, "")) ||
-                0;
+                parseFloat(
+                    premiumRaw ? premiumRaw.toString().replace(/,/g, "") : "0"
+                ) || 0;
 
             const brokerageCommRate = Math.max(
                 0,
@@ -1523,35 +2948,24 @@
             const brokerageCommRateAmnt = (brokerageCommRate / 100) * premium;
 
             $("#brokerage_comm_rate").val(
-                this.numberWithCommas(brokerageCommRate.toFixed(2))
+                Utils.numberWithCommas(brokerageCommRate.toFixed(2))
             );
             $("#brokerage_comm_rate_amnt").val(
-                this.numberWithCommas(brokerageCommRateAmnt.toFixed(2))
+                Utils.numberWithCommas(brokerageCommRateAmnt.toFixed(2))
             );
         },
 
         handleReinsurerShareInput: function ($input) {
-            // Implementation for reinsurer share calculation
             const sharePercentage = parseFloat($input.val()) || 0;
             const counter = $input.data("counter");
             const treatyCounter = $input.data("treaty-counter");
-
-            // Add your share calculation logic here
-            // This is a simplified version - add full logic from original file
 
             this.computeCommissionAmt(counter);
         },
 
         handleEditReinsurerShareInput: function ($input) {
-            // Implementation for edit reinsurer share calculation
             const sharePercentage = parseFloat($input.val()) || 0;
-
-            // Add your share calculation logic here
         },
-
-        // ============================================================================
-        // HELPER METHODS
-        // ============================================================================
 
         setActiveTab: function () {
             const hash = window.location.hash;
@@ -1672,27 +3086,20 @@
             const id = $select.attr("id");
             const counter = $select.data("counter");
 
-            // Reset distributed share for selected treaty
             this.state.distributedShare = 0;
             this.state.origDistributedShare = 0;
-
-            // Calculate distributed share from coverpartners for this treaty
-            // Add your logic here
 
             this.appendReinsurers(counter, selectedTreaty);
         },
 
         appendReinsurers: function (treatyCounter, treaty) {
-            const counter = 0; // Get actual counter
+            const counter = 0;
             const $select = $(`#reinsurer-${treatyCounter}-${counter}`);
 
             $select.empty();
             $select.append(
                 $("<option>").text("-- Select Reinsurer--").attr("value", "")
             );
-
-            // Add reinsurers logic here
-            // Filter and append reinsurers based on treaty
 
             $select.trigger("change.select2");
         },
@@ -1701,14 +3108,12 @@
             const $lastSection = $("#treaty-div .treaty-div-section").last();
             const currCounter = parseInt($lastSection.attr("data-counter"));
 
-            // Validate current treaty selection
             const currTreaty = $(`#reinsurer-treaty-${currCounter}`).val();
             if (!currTreaty || currTreaty === "" || currTreaty === " ") {
                 toastr.error("Please Select Treaty", "Incomplete data");
                 return false;
             }
 
-            // Clone and update section
             const $newSection = $lastSection.clone();
             const counter = currCounter + 1;
 
@@ -1717,13 +3122,11 @@
             $newSection.attr("data-counter", counter);
             $newSection.attr("id", `treaty-div-section-${counter}`);
 
-            // Update IDs and counters
             this.updateSectionIds($newSection, counter);
 
             $lastSection.after($newSection);
 
-            // Reinitialize Select2
-            $("#treaty-div .form-select").select2({
+            $("#treaty-div .select2Placement").select2({
                 dropdownParent: this.$el.reinsurerModal,
             });
         },
@@ -1734,7 +3137,6 @@
             ).last();
             const prevCounter = parseInt($lastSection.attr("data-counter"));
 
-            // Validate current reinsurer selection
             const currReinsurer = $(
                 `#reinsurer-${treatyCounter}-${prevCounter}`
             ).val();
@@ -1747,7 +3149,6 @@
                 return false;
             }
 
-            // Clone and update section
             const $newSection = $lastSection.clone();
             const counter = prevCounter + 1;
 
@@ -1761,13 +3162,11 @@
             $newSection.attr("id", `reinsurer-div-${treatyCounter}-${counter}`);
             $newSection.find("input").val("");
 
-            // Update IDs and names
             this.updateSectionIds($newSection, counter);
 
             $lastSection.after($newSection);
 
-            // Reinitialize Select2
-            $("#reinsurer-div .form-select").select2({
+            $("#reinsurer-div .select2Placement").select2({
                 dropdownParent: this.$el.reinsurerModal,
             });
         },
@@ -1784,16 +3183,13 @@
             $("#add_installments_box").show();
             $("#reinsurer_plan_section").empty();
 
-            // Calculate installment amount
             const totalDr =
                 parseFloat($("#reinsurer-premium-0").val().replace(/,/g, "")) ||
                 0;
-            // Add full calculation logic here
 
             const totalFacInstAmt = (totalDr / noOfInstallments).toFixed(2);
             this.state.installmentTotalAmount = totalDr;
 
-            // Generate installment rows
             for (let i = 1; i <= noOfInstallments; i++) {
                 const row = this.createInstallmentRow(i, totalFacInstAmt);
                 $("#reinsurer_plan_section").append(row);
@@ -1816,7 +3212,7 @@
                         <label for="instl_amnt_${installmentNo}">Total Installment Amount</label>
                         <div class="input-group mb-3">
                             <input type="text" name="installment_amt[]" id="instl_amnt_${installmentNo}"
-                                value="${this.numberWithCommas(
+                                value="${Utils.numberWithCommas(
                                     amount
                                 )}" class="form-control amount"
                                 onkeyup="this.value=numberWithCommas(this.value)" required/>
@@ -1925,11 +3321,11 @@
             $("#edreinsurer-brokerage_comm_amt").val(data.brokerage_comm_amt);
             $("#edreinsurer").val(reinsurer.customer_id);
             $("#edreinsurer-sum_insured").val(
-                this.numberWithCommas(parseFloat(data.sum_insured).toFixed(2))
+                Utils.numberWithCommas(parseFloat(data.sum_insured).toFixed(2))
             );
             $("#edreinsurer-premium").val(parseFloat(data.premium).toFixed(2));
             $("#edreinsurer-comm_rate").val(
-                this.numberWithCommas(parseFloat(data.comm_rate).toFixed(2))
+                Utils.numberWithCommas(parseFloat(data.comm_rate).toFixed(2))
             );
             $("#edreinsurer-comm_amt").val(
                 parseFloat(data.commission).toFixed(2)
@@ -2143,7 +3539,6 @@
             this.state.lastReinData.claimNoticeUrl =
                 $button.data("claim_notice_url");
 
-            // Show email modal
             this.$el.sendEmailModal.modal("show");
         },
 
@@ -2152,8 +3547,6 @@
             const coverNo = $button.data("cover_no");
             const emails = $button.data("client_emails");
 
-            // Populate email form
-            // Show email modal
             this.$el.sendEmailModal.modal("show");
         },
 
@@ -2180,27 +3573,302 @@
             );
             return fetch(url, options);
         },
+    };
 
-        numberWithCommas: function (x) {
-            if (!x) return "0.00";
-            const parts = x.toString().split(".");
-            parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-            return parts.join(".");
+    const ReinsurerPlacement = {
+        calculationService: null,
+        validationService: null,
+        reinsurerManager: null,
+        treatyManager: null,
+        distributionManager: null,
+        commissionManager: null,
+        installmentManager: null,
+        formSubmissionManager: null,
+        brokerageManager: null,
+        retroFeeManager: null,
+
+        coverReg: {
+            share_offered: 0,
+            total_sum_insured: 0,
+            rein_premium: 0,
+            rein_comm_amount: 0,
+            cedant_comm_rate: 0,
+            brokerage_comm_type: "R",
+            brokerage_comm_rate: 0,
+            rein_comm_rate: 0,
+            type_of_bus: "FPR",
         },
 
-        removeCommas: function (str) {
-            return str.toString().replace(/,/g, "");
+        init() {
+            this.loadCoverData();
+            this.initializeServices();
+            this.bindEvents();
+            this.initializeSelect2();
+            this.distributionManager.initializeOriginalDistribution();
+            this.distributionManager.calculateDistribution(0);
+            this.initializeBrokerageDisplays();
+            this.initializeRetroDisplays();
         },
 
-        toDecimal: function (number) {
-            return parseFloat(Number(number).toFixed(2));
+        loadCoverData() {
+            this.coverReg = {
+                share_offered: Utils.getElementValue("#share_offered", 0),
+                total_sum_insured: Utils.getElementValue(
+                    "#total_sum_insured",
+                    0
+                ),
+                rein_premium: Utils.getElementValue("#rein_premium", 0),
+                rein_comm_amount: Utils.getElementValue("#rein_comm_amount", 0),
+                cedant_comm_rate: Utils.getElementValue("#cedant_comm_rate", 0),
+                brokerage_comm_rate: Utils.getElementValue(
+                    "#brokerage_comm_rate",
+                    0
+                ),
+                rein_comm_rate: $("#rein_comm_rate").val() || 0,
+                brokerage_comm_type: $("#brokerage_comm_type").val() || "R",
+                type_of_bus: $("#type_of_bus").val() || "FPR",
+            };
         },
 
-        areDecimalsEqual: function (num1, num2, tolerance = 0.1) {
-            return (
-                Math.abs(this.toDecimal(num1) - this.toDecimal(num2)) <=
-                tolerance
+        initializeServices() {
+            this.calculationService = new CalculationService(this.coverReg);
+            this.validationService = new ValidationService(
+                this.calculationService,
+                this.coverReg
             );
+            this.brokerageManager = new BrokerageCommissionManager(
+                this.calculationService,
+                this.coverReg
+            );
+            this.reinsurerManager = new ReinsurerManager(
+                this.calculationService,
+                this.validationService,
+                this.brokerageManager
+            );
+            this.treatyManager = new TreatyManager(this.reinsurerManager);
+            this.distributionManager = new DistributionManager(
+                this.calculationService,
+                this.brokerageManager
+            );
+            this.commissionManager = new CommissionManager(
+                this.calculationService
+            );
+            this.installmentManager = new InstallmentManager(
+                this.calculationService
+            );
+            this.formSubmissionManager = new FormSubmissionManager(
+                this.validationService
+            );
+            this.retroFeeManager = new RetroFeeManager(this.calculationService);
+        },
+
+        initializeBrokerageDisplays() {
+            const self = this;
+            $(DOM_SELECTORS.REINSURER_SECTION).each(function () {
+                const treatyCounter = $(this).data("treaty-counter");
+                const counter = $(this).data("counter");
+
+                if (treatyCounter !== undefined && counter !== undefined) {
+                    self.brokerageManager.handleBrokerageTypeChange(
+                        treatyCounter,
+                        counter
+                    );
+                }
+            });
+        },
+
+        initializeRetroDisplays() {
+            const self = this;
+            $(DOM_SELECTORS.REINSURER_SECTION).each(function () {
+                const treatyCounter = $(this).data("treaty-counter");
+                const counter = $(this).data("counter");
+
+                if (treatyCounter !== undefined && counter !== undefined) {
+                    self.retroFeeManager.handleRetroFeeToggle(
+                        treatyCounter,
+                        counter
+                    );
+                }
+            });
+        },
+
+        bindEvents() {
+            const self = this;
+
+            $(document).on("click", "#add-treaty-reinsurer", (e) => {
+                e.preventDefault();
+                self.treatyManager.addTreatySection();
+            });
+
+            $(document).on("click", ".remove-treaty-section", function (e) {
+                e.preventDefault();
+                const counter = $(this).data("counter");
+                self.treatyManager.removeTreatySection(counter);
+            });
+
+            $(document).on("click", ".add-reinsurer-btn", function (e) {
+                e.preventDefault();
+                const treatyCounter = $(this).data("treaty-counter");
+                self.reinsurerManager.addReinsurerRow(treatyCounter);
+            });
+
+            $(document).on("click", ".remove-reinsurer-btn", function (e) {
+                e.preventDefault();
+                const treatyCounter = $(this).data("treaty-counter");
+                const counter = $(this).data("counter");
+                self.reinsurerManager.removeReinsurerRow(
+                    treatyCounter,
+                    counter
+                );
+            });
+
+            $(document).on("change", ".reinsurer", function () {
+                const treatyCounter = $(this).data("treaty-counter");
+                self.reinsurerManager.filterSelectedReinsurers(treatyCounter);
+            });
+
+            $(document).on(
+                "input",
+                ".reinsurer-written-share, .reinsurer-share",
+                function () {
+                    const treatyCounter = $(this).data("treaty-counter");
+                    const counter = $(this).data("counter");
+
+                    self.distributionManager.calculateDistribution(
+                        treatyCounter
+                    );
+                    self.validateSignedVsWrittenShare(treatyCounter, counter);
+                    self.distributionManager.handleShareInput(
+                        treatyCounter,
+                        counter
+                    );
+                }
+            );
+
+            $(document).on(
+                "input",
+                ".reinsurer-premium, .reinsurer-comm-rate",
+                function () {
+                    const treatyCounter = $(this).data("treaty-counter");
+                    const counter = $(this).data("counter");
+                    self.commissionManager.calculateCommission(
+                        treatyCounter,
+                        counter
+                    );
+                    self.brokerageManager.calculateBrokerageCommission(
+                        treatyCounter,
+                        counter
+                    );
+                }
+            );
+
+            $(document).on("change", ".brokerage-comm-type", function () {
+                const treatyCounter = $(this).data("treaty-counter");
+                const counter = $(this).data("counter");
+
+                self.brokerageManager.handleBrokerageTypeChange(
+                    treatyCounter,
+                    counter
+                );
+            });
+
+            $(document).on(
+                "input",
+                ".reinsurer-brokerage-comm-amt",
+                function () {
+                    const treatyCounter = $(this).data("treaty-counter");
+                    const counter = $(this).data("counter");
+                    self.brokerageManager.handleQuotedAmountChange(
+                        treatyCounter,
+                        counter
+                    );
+                }
+            );
+
+            $(document).on("change", ".apply-fronting", function () {
+                const treatyCounter = $(this).data("treaty-counter");
+                const counter = $(this).data("counter");
+                self.retroFeeManager.handleRetroFeeToggle(
+                    treatyCounter,
+                    counter
+                );
+            });
+
+            $(document).on("input", ".reinsurer-fronting-rate", function () {
+                const treatyCounter = $(this).data("treaty-counter");
+                const counter = $(this).data("counter");
+                self.retroFeeManager.calculateRetroAmount(
+                    treatyCounter,
+                    counter
+                );
+            });
+
+            $(document).on("input", ".reinsurer-fronting-amt", function () {
+                const treatyCounter = $(this).data("treaty-counter");
+                const counter = $(this).data("counter");
+                self.retroFeeManager.calculateRetroRate(treatyCounter, counter);
+            });
+
+            $(document).on("change", ".reins-pay-method", function () {
+                const treatyCounter = $(this).data("treaty-counter");
+                const counter = $(this).data("counter");
+                const payMethod = $(this).val();
+                self.installmentManager.handlePaymentMethodChange(
+                    treatyCounter,
+                    counter,
+                    payMethod
+                );
+            });
+
+            $(document).on(
+                "click",
+                ".add-reinsurer-installments",
+                function (e) {
+                    e.preventDefault();
+                    const treatyCounter = $(this).data("treaty-counter");
+                    const counter = $(this).data("counter");
+                    self.installmentManager.generateInstallments(
+                        treatyCounter,
+                        counter
+                    );
+                }
+            );
+
+            $(DOM_SELECTORS.MODAL).on("shown.bs.modal", () => {
+                self.initializeSelect2();
+                SummaryManager.refreshSummary();
+                self.initializeBrokerageDisplays();
+                self.initializeRetroDisplays();
+            });
+        },
+
+        validateSignedVsWrittenShare(treatyCounter, counter) {
+            const writtenShare = Utils.getElementValue(
+                `#written_share-${treatyCounter}-${counter}`,
+                0
+            );
+            const signedShare = Utils.getElementValue(
+                `#share-${treatyCounter}-${counter}`,
+                0
+            );
+
+            const $signedInput = $(`#share-${treatyCounter}-${counter}`);
+
+            if (signedShare > writtenShare) {
+                $signedInput
+                    .addClass("is-invalid")
+                    .val(Utils.toDecimal(writtenShare));
+
+                NotificationService.warning(
+                    "Signed lines cannot exceed written lines"
+                );
+            } else {
+                $signedInput.removeClass("is-invalid");
+            }
+        },
+
+        initializeSelect2() {
+            Select2Manager.initialize();
         },
     };
 
@@ -2208,5 +3876,8 @@
         if ($("#coverDetailsApp").length) {
             CoverDetails.init();
         }
+
+        window.ReinsurerPlacement = ReinsurerPlacement;
+        ReinsurerPlacement.init();
     });
 })(jQuery);

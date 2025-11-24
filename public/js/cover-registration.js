@@ -621,9 +621,9 @@ const CoverRegistration = (function () {
             return false;
         }
 
-        if (!validateCommissionSections()) {
-            return false;
-        }
+        // if (!validateCommissionSections()) {
+        //     return false;
+        // }
 
         // // if (isInstallmentPayment() && !validateInstallments()) {
         // //     return false;
@@ -664,19 +664,6 @@ const CoverRegistration = (function () {
 
         const formData = new FormData(elements.form[0]);
 
-        // const data = {};
-        // formData.forEach((value, key) => {
-        //     if (data[key]) {
-        //         if (!Array.isArray(data[key])) {
-        //             data[key] = [data[key]];
-        //         }
-        //         data[key].push(value);
-        //     } else {
-        //         data[key] = value;
-        //     }
-        // });
-        // console.log(data);
-
         $.ajax({
             url: elements.form.attr("action"),
             method: elements.form.attr("method") || "POST",
@@ -688,7 +675,6 @@ const CoverRegistration = (function () {
                 "X-Requested-With": "XMLHttpRequest",
             },
             timeout: 60000,
-
             success: function (response) {
                 hideLoader();
                 state.isSubmitting = false;
@@ -723,13 +709,6 @@ const CoverRegistration = (function () {
                 hideLoader();
                 state.isSubmitting = false;
                 state.isDirty = true;
-
-                console.error("Form submission error:", {
-                    status: xhr.status,
-                    statusText: xhr.statusText,
-                    error: error,
-                    response: xhr.responseJSON,
-                });
 
                 if (xhr.status === 422) {
                     handleValidationErrors(xhr.responseJSON);
