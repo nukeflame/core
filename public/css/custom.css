@@ -409,11 +409,12 @@ strong {
     background-color: var(--default-text-color);
 }
 .tab-style-4.nav-tabs .nav-link {
-    font-weight: 600;
+    font-weight: 500;
     width: 149px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    font-size: 14px;
 }
 .tab-content .tab-pane {
     padding: 0px;

@@ -4,92 +4,306 @@ namespace App\Http\Controllers;
 
 use App\Models\CoverRegister;
 use App\Models\Customer;
+use App\Models\CustomerAccDet;
+use App\Models\CoverDebit;
 use Illuminate\Http\Request;
 
 class CoverTransactionController extends Controller
 {
-    /**
-     * Display the main transactions page for a specific cover.
-     *
-     * @param string $coverNumber
-     * @return \Illuminate\View\View
-     */
-    public function index($endorsementNo)
+
+    public function index(Request $request, $coverNo)
     {
-
-
-        $cover = CoverRegister::where('endorsement_no', $endorsementNo)->firstOrFail();
+        $cover = CoverRegister::where('cover_no', $coverNo)->whereIn('type_of_bus', ['TPR', 'TRP'])->firstOrFail();
         $customer = Customer::where('customer_id', $cover->customer_id)->first();
 
+        $query = CustomerAccDet::query();
 
+        $query->where('cover_no', $cover->cover_no);
 
+        if ($request->filled('type_of_bus')) {
+            $query->where('type_of_bus', $request->type_of_bus);
+        }
 
-        // logger()->debug($customer);
-        $transactions = [];
-        $endorsementNarration = [];
-        $actionable = true;
-        $isTransaction  = true;
+        if ($request->filled('doc_type')) {
+            $query->where('doc_type', $request->doc_type);
+        }
+
+        if ($request->filled('source_code')) {
+            $query->where('source_code', $request->source_code);
+        }
+
+        if ($request->filled('account_year')) {
+            $query->where('account_year', $request->account_year);
+        }
+
+        if ($request->filled('account_month')) {
+            $query->where('account_month', $request->account_month);
+        }
+
+        $accounts = $query->orderBy('created_date', 'desc')
+            ->paginate(25)
+            ->withQueryString();
+
+        $statsQuery = CustomerAccDet::where('cover_no', $coverNo);
+
+        $stats = [
+            'total_records' => (clone $statsQuery)->count(),
+            'total_debits' => (clone $statsQuery)->where('dr_cr', 'D')->sum('local_nett_amount'),
+            'total_credits' => (clone $statsQuery)->where('dr_cr', 'C')->sum('local_nett_amount'),
+            'total_unallocated' => (clone $statsQuery)->sum('unallocated_amount'),
+        ];
+
+        $transactions = CoverDebit::where('endorsement_no', $cover->endorsement_no)
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        $lastInstallment = CoverDebit::where('endorsement_no', $cover->endorsement_no)
+            ->max('installment') ?? 0;
+        $nextInstallment = $lastInstallment + 1;
+
+        $installmentAmount = 0;
+        if ($cover->no_of_installments > 0 && $cover->gross_premium > 0) {
+            $installmentAmount = $cover->gross_premium / $cover->no_of_installments;
+        }
+
+        $endorsementNarration = $this->getEndorsementNarration($cover);
+
+        // Determine if actions are available
+        $actionable = $cover->status !== 'CANCELLED' && $cover->status !== 'EXPIRED';
+        $isTransaction = true; //$transactions->count() > 0;
 
         return view('cover.transactions.cover_transaction_home', [
-            'endorsementNo' => $endorsementNo,
+            'endorsementNo' => $cover->endorsement_no,
             'cover' => $cover,
             'transactions' => $transactions,
             'endorsementNarration' => $endorsementNarration,
             'actionable' => $actionable,
             'isTransaction' => $isTransaction,
-            'customer' => $customer
+            'customer' => $customer,
+            'nextInstallment' => $nextInstallment,
+            'installmentAmount' => $installmentAmount,
+            'accounts' => $accounts,
+            'stats' => $stats
         ]);
     }
 
-    /**
-     * Display debit transactions page for a specific cover.
-     *
-     * @param string $coverNumber
-     * @return \Illuminate\View\View
-     */
-    public function debit($endorsementNo)
+    public function quarterlyFigures(Request $request, $coverNo, $refNo)
     {
-        $cover = CoverRegister::where('endorsement_no', $endorsementNo)->firstOrFail();
+        $cover = CoverRegister::where('endorsement_no', $request->endorsementNo)->firstOrFail();
         $customer = Customer::where('customer_id', $cover->customer_id)->first();
 
+        $transactions = CoverDebit::where('endorsement_no', $request->endorsementNo)
+            ->orderBy('installment', 'asc')
+            ->get();
 
+        // Calculate next installment number
+        $lastInstallment = $transactions->max('installment') ?? 0;
+        $nextInstallment = $lastInstallment + 1;
 
+        // Calculate remaining amount to be debited
+        $totalDebited = $transactions->sum('gross');
+        $remainingAmount = ($cover->gross_premium ?? 0) - $totalDebited;
 
-        // logger()->debug($customer);
-        $transactions = [];
-        $endorsementNarration = [];
-        $actionable = true;
-        $isTransaction  = true;
+        // Endorsement narration
+        $endorsementNarration = $this->getEndorsementNarration($cover);
+
+        // Determine if actions are available
+        $actionable = $cover->status !== 'CANCELLED'
+            && $cover->status !== 'EXPIRED'
+            && $remainingAmount > 0;
+
+        $isTransaction = $transactions->count() > 0;
 
         return view('cover.transactions.cover_transaction_debit', [
-            'endorsementNo' => $endorsementNo,
+            'endorsementNo' => $request->endorsementNo,
             'cover' => $cover,
             'transactions' => $transactions,
             'endorsementNarration' => $endorsementNarration,
             'actionable' => $actionable,
             'isTransaction' => $isTransaction,
-            'customer' => $customer
+            'customer' => $customer,
+            'nextInstallment' => $nextInstallment,
+            'remainingAmount' => $remainingAmount,
+            'totalDebited' => $totalDebited,
+        ]);
+    }
+
+    public function profitCommission(Request $request, $coverNo, $refNo)
+    {
+        $cover = CoverRegister::where('endorsement_no', $request->endorsementNo)->firstOrFail();
+        $customer = Customer::where('customer_id', $cover->customer_id)->first();
+
+        // Fetch profit commission transactions
+        $profitCommissions = CustomerAccDet::where('endorsement_no', $request->endorsementNo)
+            ->where('entry_type_descr', 'LIKE', '%Profit Commission%')
+            ->orderBy('created_date', 'desc')
+            ->get();
+
+        $endorsementNarration = $this->getEndorsementNarration($cover);
+        $actionable = $cover->status !== 'CANCELLED' && $cover->status !== 'EXPIRED';
+
+        return view('cover.transactions.cover_transaction_profit_commission', [
+            'endorsementNo' => $request->endorsementNo,
+            'cover' => $cover,
+            'customer' => $customer,
+            'profitCommissions' => $profitCommissions,
+            'endorsementNarration' => $endorsementNarration,
+            'actionable' => $actionable,
         ]);
     }
 
     /**
-     * Display profit commission transactions page for a specific cover.
-     *
-     * @param string $coverNumber
-     * @return \Illuminate\View\View
+     * Get endorsement narration based on transaction type
      */
-    public function profitCommission($coverNumber)
+    private function getEndorsementNarration($cover): array
     {
-        // [Inference] This filters for profit commission type transactions
-        // Fetch cover details and profit commission transactions
-        // Example: $cover = Cover::where('cover_number', $coverNumber)->firstOrFail();
-        // Example: $profitCommissions = Transaction::where('cover_number', $coverNumber)
-        //              ->where('type', 'profit_commission')->get();
+        $narration = [];
 
-        // return view('cover.transactions.cover_transaction_profit_commission', [
-        //     'coverNumber' => $coverNumber,
-        //     // 'cover' => $cover,
-        //     // 'profitCommissions' => $profitCommissions,
+        switch ($cover->transaction_type) {
+            case 'NEW':
+                $narration = [
+                    'type' => 'New Business',
+                    'description' => 'New policy cover registration',
+                    'icon' => 'fa-plus-circle',
+                    'color' => 'success'
+                ];
+                break;
+            case 'REN':
+                $narration = [
+                    'type' => 'Renewal',
+                    'description' => 'Policy renewal',
+                    'icon' => 'fa-sync',
+                    'color' => 'info'
+                ];
+                break;
+            case 'END':
+                $narration = [
+                    'type' => 'Endorsement',
+                    'description' => 'Policy endorsement/amendment',
+                    'icon' => 'fa-edit',
+                    'color' => 'warning'
+                ];
+                break;
+            case 'CAN':
+                $narration = [
+                    'type' => 'Cancellation',
+                    'description' => 'Policy cancellation',
+                    'icon' => 'fa-times-circle',
+                    'color' => 'danger'
+                ];
+                break;
+            default:
+                $narration = [
+                    'type' => $cover->transaction_type ?? 'Unknown',
+                    'description' => 'Transaction',
+                    'icon' => 'fa-file',
+                    'color' => 'secondary'
+                ];
+        }
+
+        return $narration;
+    }
+
+    public function storeQuarterlyFigures(Request $request)
+    {
+        // $validated = $request->validate([
+        //     'treaty_id' => 'required|exists:treaties,id',
+        //     'transaction_id' => 'required|exists:treaty_transactions,id',
+        //     'quarter' => 'required|in:Q1,Q2,Q3,Q4',
+        //     'year' => 'required|integer|min:2000|max:2100',
+        //     'gross_premium' => 'required|numeric|min:0',
+        //     'return_premium' => 'nullable|numeric|min:0',
+        //     'net_premium' => 'nullable|numeric',
+        //     'commission_rate' => 'nullable|numeric|min:0|max:100',
+        //     'commission_amount' => 'nullable|numeric|min:0',
+        //     'brokerage_rate' => 'nullable|numeric|min:0|max:100',
+        //     'claims_paid' => 'nullable|numeric|min:0',
+        //     'claims_outstanding' => 'nullable|numeric|min:0',
+        //     'remarks' => 'nullable|string|max:500',
+        // ]);
+
+        // $quarterlyFigure = QuarterlyFigure::create($validated);
+
+        // return response()->json([
+        //     'success' => true,
+        //     'message' => 'Quarterly figures created successfully',
+        //     'data' => $quarterlyFigure
+        // ]);
+
+        return null;
+    }
+
+    public function storeProfitCommission(Request $request)
+    {
+        // $validated = $request->validate([
+        //     'treaty_id' => 'required|exists:treaties,id',
+        //     'transaction_id' => 'required|exists:treaty_transactions,id',
+        //     'from_date' => 'required|date',
+        //     'to_date' => 'required|date|after_or_equal:from_date',
+        //     'premium_income' => 'required|numeric|min:0',
+        //     'portfolio_premium' => 'nullable|numeric|min:0',
+        //     'claims_paid' => 'nullable|numeric|min:0',
+        //     'claims_outstanding' => 'nullable|numeric|min:0',
+        //     'portfolio_claims' => 'nullable|numeric|min:0',
+        //     'commission_paid' => 'nullable|numeric|min:0',
+        //     'management_expenses_rate' => 'nullable|numeric|min:0|max:100',
+        //     'reserve_rate' => 'nullable|numeric|min:0|max:100',
+        //     'profit_commission_rate' => 'required|numeric|min:0|max:100',
+        //     'profit_commission_amount' => 'nullable|numeric|min:0',
+        //     'deficit_bf' => 'nullable|numeric|min:0',
+        //     'deficit_cf' => 'nullable|numeric|min:0',
+        //     'remarks' => 'nullable|string|max:500',
+        // ]);
+
+        // $profitCommission = ProfitCommission::create($validated);
+
+        // return response()->json([
+        //     'success' => true,
+        //     'message' => 'Profit commission added successfully',
+        //     'data' => $profitCommission
+        // ]);
+        return null;
+    }
+
+    public function adjustCommission(Request $request)
+    {
+        // $validated = $request->validate([
+        //     'treaty_id' => 'required|exists:treaties,id',
+        //     'transaction_id' => 'required|exists:treaty_transactions,id',
+        //     'adjustment_type' => 'required|in:rate_change,amount_adjustment,override,correction',
+        //     'adjustment_reason' => 'required|string',
+        //     'new_commission_rate' => 'nullable|numeric|min:0|max:100',
+        //     'new_brokerage_rate' => 'nullable|numeric|min:0|max:100',
+        //     'commission_adjustment_amount' => 'nullable|numeric',
+        //     'brokerage_adjustment_amount' => 'nullable|numeric',
+        //     'effective_date' => 'required|date',
+        //     'approval_reference' => 'nullable|string|max:100',
+        //     'justification' => 'required|string|min:20|max:1000',
+        //     'supporting_document' => 'nullable|file|mimes:pdf,doc,docx,xls,xlsx,jpg,png|max:5120',
+        // ]);
+
+        // // Handle file upload
+        // if ($request->hasFile('supporting_document')) {
+        //     $validated['document_path'] = $request->file('supporting_document')
+        //         ->store('treaty/adjustments', 'public');
+        // }
+
+        // // Log the adjustment for audit
+        // $adjustment = CommissionAdjustment::create($validated);
+
+        // // Update the transaction commission
+        // $transaction = TreatyTransaction::find($validated['transaction_id']);
+        // if ($validated['new_commission_rate']) {
+        //     $transaction->update([
+        //         'commission_rate' => $validated['new_commission_rate'],
+        //         'commission_amount' => $transaction->gross_premium * $validated['new_commission_rate'] / 100
+        //     ]);
+        // }
+
+        // return response()->json([
+        //     'success' => true,
+        //     'message' => 'Commission adjustment applied successfully',
+        //     'data' => $adjustment
         // ]);
         return null;
     }

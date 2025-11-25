@@ -156,6 +156,7 @@ class CoverRepository extends BaseRepository
             $reinLayerDetails = $this->getReinLayerDetails($CoverRegister);
 
             $whtRates = $this->getCachedWhtRates();
+            $premiumPayTerms = $this->getCachedPaymentTerms();
             $paymethods = $this->getCachedPaymentMethods();
             $selected_pay_method = $paymethods->firstWhere(
                 'pay_method_code',
@@ -168,9 +169,6 @@ class CoverRepository extends BaseRepository
                 'endorsement_no' => $CoverRegister->endorsement_no,
                 'dr_cr' => self::DR
             ])->get();
-
-            // logger()->debug(json_encode($cusType, JSON_PRETTY_PRINT));
-
 
             return [
                 'coverReg' => $CoverRegister,
@@ -209,7 +207,8 @@ class CoverRepository extends BaseRepository
                 'endorsementNarration' => $endorsementNarration,
                 'paymethods' => $paymethods,
                 'isInstallment' => $isInstallment,
-                'coverInstallments' => $CoverInstallments
+                'coverInstallments' => $CoverInstallments,
+                'premiumPayTerms' => $premiumPayTerms
             ];
         } catch (\Exception $e) {
             throw $e;
@@ -448,8 +447,6 @@ class CoverRepository extends BaseRepository
             }
 
             DB::commit();
-
-            logger()->debug(json_encode($CoverRegister, JSON_PRETTY_PRINT));
 
             return (object) [
                 'endorsement_no' => $endorsement_no,
@@ -696,6 +693,14 @@ class CoverRepository extends BaseRepository
     {
         return Cache::remember('payment_methods', self::CACHE_TTL, function () {
             return PayMethod::all();
+        });
+    }
+
+
+    private function getCachedPaymentTerms()
+    {
+        return Cache::remember('premium_pay_terms', self::CACHE_TTL, function () {
+            return PremiumPayTerm::all();
         });
     }
 

@@ -1,4 +1,3 @@
-{{-- resources/views/cover/modals/insurance-classes.blade.php --}}
 <div class="modal fade" id="insurance-class-modal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1"
     aria-labelledby="staticBackdropLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg">

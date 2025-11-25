@@ -62,21 +62,20 @@
             <input type="number" step="0.01" min="0" max="100"
                 name="treaty[{{ $treatyCounterValue }}][reinsurers][{{ $counterValue }}][written_share]"
                 id="written_share-{{ $treatyCounterValue }}-{{ $counterValue }}"
-                class="form-control reinsurer-written-share reinsurers color-blk treaty"
+                class="form-control reinsurer-written-share reinsurers color-blk"
                 data-treaty-counter="{{ $treatyCounterValue }}" data-counter="{{ $counterValue }}" required />
         </div>
-
 
         @if (in_array($cover->type_of_bus, ['FPR', 'FNP']))
             {{-- FACULTATIVE BUSINESS: Signed Lines --}}
             <div class="col-md-2">
-                <label for="share-{{ $treatyCounterValue }}-{{ $counterValue }}" class="form-label required">
+                <label for="signed_share-{{ $treatyCounterValue }}-{{ $counterValue }}" class="form-label required">
                     Signed Lines (%)
                 </label>
                 <input type="number" step="0.01" min="0" max="100"
                     name="treaty[{{ $treatyCounterValue }}][reinsurers][{{ $counterValue }}][share]"
-                    id="share-{{ $treatyCounterValue }}-{{ $counterValue }}"
-                    class="form-control reinsurer-share reinsurers color-blk"
+                    id="signed_share-{{ $treatyCounterValue }}-{{ $counterValue }}"
+                    class="form-control reinsurer-signed-share reinsurers color-blk"
                     data-treaty-counter="{{ $treatyCounterValue }}" data-counter="{{ $counterValue }}" required />
                 <div class="invalid-feedback">Signed lines cannot exceed written lines</div>
             </div>
@@ -92,9 +91,7 @@
                             class="select2Placement reinsurer-wht reinsurers"
                             data-treaty-counter="{{ $treatyCounterValue }}" data-counter="{{ $counterValue }}"
                             required>
-
                             <option value="">--Select WHT--</option>
-
                             @foreach ($whtRates as $whtRate)
                                 <option value="{{ $whtRate->rate }}" {{ $whtRate->rate == 0 ? 'selected' : '' }}>
                                     {{ $whtRate->description }}
@@ -181,20 +178,18 @@
                     class="form-label required">
                     Payment Method
                 </label>
-                <div class="cover-card">
-                    <select class="select2Placement reins-pay-method reinsurers"
-                        name="treaty[{{ $treatyCounterValue }}][reinsurers][{{ $counterValue }}][pay_method]"
-                        id="reins_pay_method-{{ $treatyCounterValue }}-{{ $counterValue }}"
-                        data-treaty-counter="{{ $treatyCounterValue }}" data-counter="{{ $counterValue }}" required>
-                        <option value="">Choose Payment Method</option>
-                        @foreach ($paymethods as $pay_method)
-                            <option value="{{ $pay_method->pay_method_code }}"
-                                data-pay-method-desc="{{ $pay_method->short_description }}">
-                                {{ $pay_method->pay_method_name }}
-                            </option>
-                        @endforeach
-                    </select>
-                </div>
+                <select class="select2Placement reins-pay-method reinsurers"
+                    name="treaty[{{ $treatyCounterValue }}][reinsurers][{{ $counterValue }}][pay_method]"
+                    id="reins_pay_method-{{ $treatyCounterValue }}-{{ $counterValue }}"
+                    data-treaty-counter="{{ $treatyCounterValue }}" data-counter="{{ $counterValue }}" required>
+                    <option value="">Choose Payment Method</option>
+                    @foreach ($paymethods as $pay_method)
+                        <option value="{{ $pay_method->pay_method_code }}"
+                            data-pay-method-desc="{{ $pay_method->short_description }}">
+                            {{ $pay_method->pay_method_name }}
+                        </option>
+                    @endforeach
+                </select>
             </div>
         </div>
     @endif
@@ -221,8 +216,9 @@
                 <input type="text"
                     name="treaty[{{ $treatyCounterValue }}][reinsurers][{{ $counterValue }}][premium]"
                     id="reinsurer-premium-{{ $treatyCounterValue }}-{{ $counterValue }}"
-                    class="form-control reinsurer-premium reinsurers color-blk"
-                    data-treaty-counter="{{ $treatyCounterValue }}" data-counter="{{ $counterValue }}" required />
+                    class="form-control reinsurer-premium reinsurers color-blk bg-light"
+                    data-treaty-counter="{{ $treatyCounterValue }}" data-counter="{{ $counterValue }}"
+                    data-calculation-field="premium" readonly />
             </div>
 
             <div class="col-md-3">
@@ -230,11 +226,12 @@
                     class="form-label required">
                     Commission Rate (%)
                 </label>
-                <input type="text"
+                <input type="number" step="0.01" min="0" max="100"
                     name="treaty[{{ $treatyCounterValue }}][reinsurers][{{ $counterValue }}][comm_rate]"
                     id="reinsurer-comm_rate-{{ $treatyCounterValue }}-{{ $counterValue }}"
                     class="form-control reinsurer-comm-rate reinsurers color-blk"
-                    data-treaty-counter="{{ $treatyCounterValue }}" data-counter="{{ $counterValue }}" required />
+                    data-treaty-counter="{{ $treatyCounterValue }}" data-counter="{{ $counterValue }}"
+                    data-calculation-field="commission" required />
             </div>
 
             <div class="col-md-3">
@@ -245,7 +242,8 @@
                     name="treaty[{{ $treatyCounterValue }}][reinsurers][{{ $counterValue }}][comm_amt]"
                     id="reinsurer-comm_amt-{{ $treatyCounterValue }}-{{ $counterValue }}"
                     class="form-control reinsurer-comm-amt reinsurers color-blk bg-light"
-                    data-treaty-counter="{{ $treatyCounterValue }}" data-counter="{{ $counterValue }}" readonly />
+                    data-treaty-counter="{{ $treatyCounterValue }}" data-counter="{{ $counterValue }}"
+                    data-calculation-field="commission-amount" readonly />
             </div>
         </div>
 
@@ -292,10 +290,12 @@
                 <label class="form-label" for="brokerage_comm_rate-{{ $treatyCounterValue }}-{{ $counterValue }}">
                     Brokerage Commission Rate (%)
                 </label>
-                <input type="text" class="form-control color-blk reinsurers brokerage-comm-rate"
+                <input type="number" step="0.01" min="0" max="100"
+                    class="form-control color-blk reinsurers brokerage-comm-rate"
                     id="brokerage_comm_rate-{{ $treatyCounterValue }}-{{ $counterValue }}"
                     name="treaty[{{ $treatyCounterValue }}][reinsurers][{{ $counterValue }}][brokerage_comm_rate]"
-                    data-treaty-counter="{{ $treatyCounterValue }}" data-counter="{{ $counterValue }}">
+                    data-treaty-counter="{{ $treatyCounterValue }}" data-counter="{{ $counterValue }}"
+                    data-calculation-field="brokerage">
             </div>
 
             <div class="col-md-3 fac_section_div brokerage_comm_rate_div">
@@ -306,7 +306,8 @@
                 <input type="text" class="form-control color-blk reinsurers brokerage-comm-rate-amnt bg-light"
                     id="brokerage_comm_rate_amnt-{{ $treatyCounterValue }}-{{ $counterValue }}"
                     name="treaty[{{ $treatyCounterValue }}][reinsurers][{{ $counterValue }}][brokerage_comm_rate_amnt]"
-                    data-treaty-counter="{{ $treatyCounterValue }}" data-counter="{{ $counterValue }}" readonly>
+                    data-treaty-counter="{{ $treatyCounterValue }}" data-counter="{{ $counterValue }}"
+                    data-calculation-field="brokerage-amount" readonly>
             </div>
         </div>
 

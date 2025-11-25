@@ -125,6 +125,7 @@
             background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
             padding: 1.25rem var(--spacing-md);
             border-bottom: 2px solid var(--primary-color);
+            border-radius: 50px;
         }
 
         .customer-info-header h5 {

@@ -65,7 +65,6 @@
             <input type="hidden" name="risk_details" id="hidden_risk_details">
 
 
-            {{-- Basic Information Section --}}
             <div class="card mb-3">
                 <div class="card-header d-flex align-items-center">
                     <i class="ri-file-text-line me-2 text-primary"></i>
@@ -77,7 +76,6 @@
                 </div>
             </div>
 
-            {{-- Payment Information Section --}}
             <div class="card mb-3">
                 <div class="card-header d-flex align-items-center">
                     <i class="ri-money-dollar-circle-line me-2 text-success"></i>
@@ -89,7 +87,6 @@
                 </div>
             </div>
 
-            {{-- Installment Section --}}
             <div class="card mb-3" id="installment_section" style="display: none;">
                 <div class="card-header d-flex align-items-center">
                     <i class="ri-calendar-line me-2 text-warning"></i>
@@ -101,7 +98,6 @@
                 </div>
             </div>
 
-            {{-- FAC Section --}}
             <div class="card mb-3" id="fac_section" style="display: none;">
                 <div class="card-header d-flex align-items-center">
                     <i class="ri-shield-check-line me-2 text-info"></i>
@@ -113,7 +109,6 @@
                 </div>
             </div>
 
-            {{-- Treaty Section --}}
             <div class="card mb-3" id="treaty_section" style="display: none;">
                 <div class="card-header d-flex align-items-center">
                     <i class="ri-file-shield-line me-2 text-purple"></i>
@@ -125,7 +120,6 @@
                 </div>
             </div>
 
-            {{-- Cover Period Section --}}
             <div class="card mb-3">
                 <div class="card-header d-flex align-items-center">
                     <i class="ri-calendar-check-line me-2 text-danger"></i>
@@ -137,7 +131,6 @@
                 </div>
             </div>
 
-            {{-- Action Buttons --}}
             <div class="row mb-3">
                 <div class="col-12">
                     <div class="card">
@@ -145,9 +138,6 @@
                             <a href="{{ route('customer.info') }}" class="btn btn-light">
                                 <i class="ri-close-line me-1"></i>Cancel
                             </a>
-                            <button type="button" class="btn btn-secondary" id="save_draft">
-                                <i class="ri-save-line me-1"></i>Save as Draft
-                            </button>
                             <button type="submit" class="btn btn-primary">
                                 <i
                                     class="ri-check-line me-1"></i>{{ $trans_type === 'EDIT' ? 'Update Cover' : 'Register Cover' }}

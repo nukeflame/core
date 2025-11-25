@@ -1,15 +1,17 @@
-<!-- Debit Modal -->
-<div class="modal effect-scale md-wrapper" id="treatyDebitModal" data-bs-backdrop="static" data-bs-keyboard="false"
+<div class="modal fade effect-scale md-wrapper" id="treatyDebitModal" data-bs-backdrop="static" data-bs-keyboard="false"
     aria-labelledby="staticDebitLabel" aria-hidden="true">
-    <div class="modal-dialog modal-xl">
+    <div class="modal-dialog modal-xl" style="max-width: 70%;">
         <div class="modal-content">
-            <form method="POST" id="debitForm" action="{{ route('cover.generate-debit') }}">
+            <form method="POST" id="treatyDebitForm" action="{{ route('cover.generate-debit') }}">
                 @csrf
                 <input type="hidden" name="cover_no" value="{{ $cover->cover_no }}" />
                 <input type="hidden" name="endorsement_no" value="{{ $cover->endorsement_no }}" />
+                <input type="hidden" name="type_of_bus" value="{{ $cover->type_of_bus }}" />
+                <input type="hidden" name="installment" value="{{ $nextInstallment }}" />
+                <input type="hidden" name="amount" value="{{ number_format($installmentAmount, 2) }}" />
 
                 <div class="modal-header">
-                    <h5 class="modal-title" id="staticDebitLabel">Create A Debit Note</h5>
+                    <h5 class="modal-title" id="staticDebitLabel">Generate Debit Note</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
                         aria-label="Close"></button>
                 </div>
@@ -19,13 +21,13 @@
                     <div class="row g-3 mb-3">
                         <div class="col-md-6">
                             <label class="form-label fw-semibold">Cover Number</label>
-                            <input type="text" class="form-control" value="{{ $cover->cover_no }}" readonly
-                                required />
+                            <input type="text" class="form-control fw-medium bg-light" value="{{ $cover->cover_no }}"
+                                readonly required />
                         </div>
                         <div class="col-md-6">
                             <label class="form-label fw-semibold">Endorsement Number</label>
-                            <input type="text" class="form-control" value="{{ $cover->endorsement_no }}" readonly
-                                required />
+                            <input type="text" class="form-control fw-medium bg-light"
+                                value="{{ $cover->endorsement_no }}" readonly required />
                         </div>
                     </div>
 
@@ -39,46 +41,69 @@
                                 <div class="card-body">
                                     <div class="row g-3">
                                         <div class="col-md-6">
-                                            <label class="form-label" for="reinsurer_posting">Reinsurer Posting</label>
+                                            <label class="form-label" for="reinsurer_posting">Settlement Method</label>
                                             <select name="reinsurer_posting" id="reinsurer_posting"
-                                                class="fform-inputs select2">
-                                                <option value="NET">NET</option>
-                                                <option value="GROSS">GROSS</option>
+                                                class="form-inputs select2">
+                                                <option value="NET">Net Amount</option>
+                                                <option value="GROSS">Gross Amount</option>
                                             </select>
                                         </div>
 
                                         <div class="col-md-6">
-                                            <label class="form-label" for="ppw_terms">PPW Terms</label>
+                                            <label class="form-label" for="premium_pay_terms">Payment Terms</label>
                                             <div class="cover-card">
-                                                <select class="form-inputs select2" name="ppw_terms" id="ppw_terms"
-                                                    required>
+                                                <select class="form-control select2" name="premium_pay_terms"
+                                                    id="premium_pay_terms" required>
+                                                    <option value="">-- Select --</option>
+                                                    @foreach ($premiumPayTerms as $term)
+                                                        <option value="{{ $term->pay_term_code }}"
+                                                            data-description="{{ $term->pay_term_desc }}"
+                                                            {{ isset($old_endt_trans) && $old_endt_trans->premium_payment_code == $term->pay_term_code ? 'selected' : '' }}>
+                                                            {{ $term->pay_term_desc }}
+                                                        </option>
+                                                    @endforeach
                                                 </select>
-                                                <div class="text-danger">{{ $errors->first('pay_method') }}</div>
                                             </div>
                                         </div>
 
-                                        <!-- Posting Quarter & Date -->
-                                        <div class="col-md-6">
-                                            <label class="form-label" for="posting_quarter">Posting Quarter</label>
-                                            <select name="posting_quarter" id="posting_quarter"
+                                        <!-- Posting Quarter & Year -->
+                                        <div class="col-md-4">
+                                            <label class="form-label" for="posting_year">Fiscal Year</label>
+                                            <select name="posting_year" id="posting_year"
                                                 class="form-select form-select-sm">
-                                                <option value="">Select Quarter</option>
-                                                <option value="Q1">Q1</option>
-                                                <option value="Q2">Q2</option>
-                                                <option value="Q3">Q3</option>
-                                                <option value="Q4">Q4</option>
+                                                <option value="">Select Year</option>
+                                                @for ($year = date('Y') + 1; $year >= date('Y') - 2; $year--)
+                                                    <option value="{{ $year }}"
+                                                        {{ $year == date('Y') ? 'selected' : '' }}>
+                                                        {{ $year }}
+                                                    </option>
+                                                @endfor
                                             </select>
                                         </div>
 
-                                        <div class="col-md-6">
-                                            <label class="form-label" for="posting_date">Posting Date</label>
+                                        <div class="col-md-4">
+                                            <label class="form-label" for="posting_quarter">Accounting Period
+                                                (Quarter)</label>
+                                            <select name="posting_quarter" id="posting_quarter"
+                                                class="form-select form-select-sm">
+                                                <option value="">Select Period</option>
+                                                <option value="Q1">Q1 (Jan - Mar)</option>
+                                                <option value="Q2">Q2 (Apr - Jun)</option>
+                                                <option value="Q3">Q3 (Jul - Sep)</option>
+                                                <option value="Q4">Q4 (Oct - Dec)</option>
+                                            </select>
+                                        </div>
+
+                                        <div class="col-md-4">
+                                            <label class="form-label" for="posting_date">Transaction Date</label>
                                             <input type="date" name="posting_date" id="posting_date"
-                                                class="form-control" />
+                                                class="form-control" value="{{ date('Y-m-d') }}" />
                                         </div>
 
                                         <!-- Brokerage Rate -->
                                         <div class="col-md-6 mb-3">
-                                            <label class="form-label" for="brokerage_rate">Brokerage Rate (%)</label>
+                                            <label class="form-label" for="brokerage_rate">Brokerage Rate
+                                                (%)</label>
                                             <input type="number" name="brokerage_rate" id="brokerage_rate"
                                                 class="form-control" step="0.01" value="2.50" min="0"
                                                 max="100" />
@@ -91,14 +116,14 @@
                         <div class="col-lg-4">
                             <div class="card shadow-sm mb-3">
                                 <div class="card-header bg-light py-2">
-                                    <h6 class="mb-0 fw-semibold">Standard Taxes</h6>
+                                    <h6 class="mb-0 fw-semibold">Statutory Levies</h6>
                                 </div>
                                 <div class="card-body">
                                     <div class="form-check mb-2">
                                         <input class="form-check-input" type="checkbox" name="compute_premium_tax"
                                             id="compute_premium_tax" value="1">
                                         <label class="form-check-label small" for="compute_premium_tax">
-                                            Compute Premium Tax
+                                            Apply Premium Levy
                                         </label>
                                     </div>
                                     <div class="form-check mb-2">
@@ -106,7 +131,7 @@
                                             name="compute_reinsurance_tax" id="compute_reinsurance_tax"
                                             value="1">
                                         <label class="form-check-label small" for="compute_reinsurance_tax">
-                                            Compute Reinsurance Tax
+                                            Apply Reinsurance Levy
                                         </label>
                                     </div>
                                     <div class="form-check mb-0">
@@ -114,7 +139,7 @@
                                             name="compute_withholding_tax" id="compute_withholding_tax"
                                             value="1">
                                         <label class="form-check-label small" for="compute_withholding_tax">
-                                            Compute Withholding Tax
+                                            Apply Withholding Tax (WHT)
                                         </label>
                                     </div>
                                 </div>
@@ -123,21 +148,21 @@
                             <!-- Compute Sliding -->
                             <div class="card shadow-sm mb-3">
                                 <div class="card-header bg-light py-2">
-                                    <h6 class="mb-0 fw-semibold">Sliding Scale</h6>
+                                    <h6 class="mb-0 fw-semibold">Variable Commission</h6>
                                 </div>
                                 <div class="card-body">
                                     <div class="form-check mb-2">
                                         <input class="form-check-input" type="checkbox" name="loss_participation"
                                             id="loss_participation" value="1">
                                         <label class="form-check-label small" for="loss_participation">
-                                            Loss Participation
+                                            Include Loss Participation
                                         </label>
                                     </div>
                                     <div class="form-check mb-0">
                                         <input class="form-check-input" type="checkbox" name="sliding_commission"
                                             id="sliding_commission" value="1">
                                         <label class="form-check-label small" for="sliding_commission">
-                                            Sliding Commission
+                                            Apply Sliding Scale Commission
                                         </label>
                                     </div>
                                 </div>
@@ -148,21 +173,21 @@
                     <div class="row mb-3">
                         <!-- Comments -->
                         <div class="col-12 mb-2">
-                            <label class="form-label" for="comments">Comments</label>
+                            <label class="form-label" for="comments">Additional Notes & Remarks</label>
                             <textarea name="comments" id="comments" class="form-control resize-none" rows="4"
-                                placeholder="Additional comments or notes"></textarea>
+                                placeholder="Enter any additional information, special terms, or remarks"></textarea>
                         </div>
 
                         <!-- Display Options -->
                         <div class="col-12">
-                            <label class="form-label d-block mb-2"></label>
+                            <label class="form-label d-block mb-2">Note Visibility Options</label>
                             <div class="row g-3">
                                 <div class="col-md-6">
                                     <div class="form-check">
                                         <input class="form-check-input" type="checkbox" name="show_cedant"
                                             id="show_cedant" value="1">
                                         <label class="form-check-label" for="show_cedant">
-                                            Show Comments on Cedant
+                                            Display Notes on Cedant Statement
                                         </label>
                                     </div>
                                 </div>
@@ -171,7 +196,7 @@
                                         <input class="form-check-input" type="checkbox" name="show_reinsurer"
                                             id="show_reinsurer" value="1">
                                         <label class="form-check-label" for="show_reinsurer">
-                                            Show Comments on Reinsurer
+                                            Display Notes on Reinsurer Statement
                                         </label>
                                     </div>
                                 </div>
@@ -184,9 +209,9 @@
                         <div class="col-12">
                             <div class="card">
                                 <div class="card-header py-2 d-flex justify-content-between align-items-center">
-                                    <strong>Debit Items</strong>
+                                    <strong>Transaction Line Items</strong>
                                     <button type="button" class="btn btn-sm btn-success" id="add-debit-item">
-                                        <i class="fas fa-plus"></i> Add Debit Item
+                                        <i class="fas fa-plus"></i> Add Line Item
                                     </button>
                                 </div>
                                 <div class="card-body p-0">
@@ -195,28 +220,28 @@
                                             <thead class="table-light">
                                                 <tr>
                                                     <th style="width: 12%;">Item Code</th>
-                                                    <th style="width: 23%;">Transaction Code <span
+                                                    <th style="width: 23%;">Transaction Type <span
                                                             class="text-danger">*</span></th>
-                                                    <th style="width: 23%;">Class Name</th>
-                                                    {{-- <th style="width: 15%;">Ledger</th> --}}
-                                                    <th style="width: 18%;">Commission Rate (%)</th>
-                                                    <th style="width: 19%;">Claim Amount <span
+                                                    <th style="width: 23%;">Business Class</th>
+                                                    <th style="width: 18%;">Fee Rate (%)</th>
+                                                    <th style="width: 19%;">Transaction Amount <span
                                                             class="text-danger">*</span>
                                                     </th>
-                                                    <th style="width: 5%;" class="text-center">Action</th>
+                                                    <th style="width: 5%;" class="text-center">Actions</th>
                                                 </tr>
                                             </thead>
                                             <tbody id="debit-items-body">
                                                 <tr id="no-items-row">
                                                     <td colspan="7" class="text-center text-muted py-3">
                                                         <i class="fas fa-inbox fa-2x mb-2 d-block"></i>
-                                                        No items added. Click "Add Item" to begin.
+                                                        No line items added. Click "Add Line Item" to begin.
                                                     </td>
                                                 </tr>
                                             </tbody>
                                             <tfoot class="table-light">
                                                 <tr>
-                                                    <td colspan="5" class="text-end fw-bold">Total Amount:</td>
+                                                    <td colspan="4" class="text-end fw-bold">Total Transaction
+                                                        Value:</td>
                                                     <td class="fw-bold">
                                                         <span id="total-amount">0.00</span>
                                                     </td>
@@ -249,7 +274,7 @@
     <tr class="debit-item-row" data-item-index="INDEX">
         <td>
             <select class="form-select select2" name="items[INDEX][item_code]">
-                <option value="">-- Select --</option>
+                <option value="">-- Select Code --</option>
                 <option value="IT01">IT01</option>
                 <option value="IT02">IT02</option>
                 <option value="IT03">IT03</option>
@@ -263,70 +288,63 @@
         </td>
         <td>
             <select name="items[INDEX][description]" class="form-select select2">
-                <option value="">-- Select --</option>
+                <option value="">-- Select Type --</option>
                 <option value="IT01" title="GROSS PREMIUM">Gross Premium</option>
-                <option value="IT02" title="CLAIMS">Claims</option>
-                <option value="IT03" title="COMMISSION">Commission</option>
-                <option value="IT04" title="REINSURANCE TAX">Reinsurance Tax</option>
-                <option value="IT05" title="PREMIUM TAX">Premium Tax</option>
-                <option value="IT06" title="BROKERAGE">Brokerage</option>
+                <option value="IT02" title="CLAIMS">Claims Payment</option>
+                <option value="IT03" title="COMMISSION">Commission Allowance</option>
+                <option value="IT04" title="REINSURANCE TAX">Reinsurance Levy</option>
+                <option value="IT05" title="PREMIUM TAX">Premium Levy</option>
+                <option value="IT06" title="BROKERAGE">Brokerage Fee</option>
                 <option value="IT26" title="PREMIUM PORTFOLIO ENTRY">Premium Portfolio Entry</option>
                 <option value="IT27" title="LOSS PORTFOLIO ENTRY">Loss Portfolio Entry</option>
-                <option value="IT29" title="WITHHOLDING TAX">Withholding Tax</option>
+                <option value="IT29" title="WITHHOLDING TAX">Withholding Tax (WHT)</option>
             </select>
         </td>
         <td>
             <select name="items[INDEX][class_name]" class="form-select select2">
-                <option value="">-- Select --</option>
+                <option value="">-- Select Class --</option>
 
                 <!-- Fire Classes -->
-                <optgroup label="Fire Classes">
-                    <option value="FC01" title="FIRE">Fire</option>
-                    <option value="FC02" title="FIRE INDUSTRIAL">Fire Industrial</option>
-                    <option value="FC03" title="FIRE DOMESTIC">Fire Domestic</option>
+                <optgroup label="Fire & Property">
+                    <option value="FC01" title="FIRE">Fire Insurance</option>
+                    <option value="FC02" title="FIRE INDUSTRIAL">Industrial Fire</option>
+                    <option value="FC03" title="FIRE DOMESTIC">Domestic Fire</option>
                 </optgroup>
 
                 <!-- Engineering Classes -->
-                <optgroup label="Engineering Classes">
+                <optgroup label="Engineering">
                     <option value="EC01" title="ENGINEERING">Contractors All Risks (CAR)</option>
                     <option value="EC02" title="ENGINEERING">Erection All Risks (EAR)</option>
                     <option value="EC03" title="ENGINEERING">Machinery Breakdown</option>
                 </optgroup>
 
                 <!-- Marine Classes -->
-                <optgroup label="Marine Classes">
+                <optgroup label="Marine">
                     <option value="MC01" title="MARINE CARGO">Marine Cargo</option>
                     <option value="MC02" title="MARINE HULL">Marine Hull</option>
                 </optgroup>
 
                 <!-- Motor Classes -->
-                <optgroup label="Motor Classes">
+                <optgroup label="Motor Vehicle">
                     <option value="MT01" title="MOTOR PRIVATE">Motor Private</option>
                     <option value="MT02" title="MOTOR COMMERCIAL">Motor Commercial</option>
                     <option value="MT03" title="MOTOR PSV">Motor PSV</option>
                 </optgroup>
 
                 <!-- Aviation Classes -->
-                <optgroup label="Aviation Classes">
+                <optgroup label="Aviation">
                     <option value="AV01" title="AVIATION">Aviation Hull</option>
                     <option value="AV02" title="AVIATION">Aviation Liability</option>
                 </optgroup>
 
                 <!-- Miscellaneous Classes -->
-                <optgroup label="Miscellaneous Classes">
-                    <option value="MS01" title="THEFT / BURGLARY">Burglary</option>
+                <optgroup label="Miscellaneous">
+                    <option value="MS01" title="THEFT / BURGLARY">Burglary & Theft</option>
                     <option value="MS02" title="PUBLIC LIABILITY">Public Liability</option>
-                    <option value="MS03" title="EMPLOYERS LIABILITY">Employer’s Liability</option>
+                    <option value="MS03" title="EMPLOYERS LIABILITY">Employer's Liability</option>
                 </optgroup>
             </select>
         </td>
-        {{-- <td>
-            <select name="items[INDEX][ledger]" class="form-select select2 item-ledger">
-                <option value="">Select Ledger</option>
-                <option value="CR">CR</option>
-                <option value="DR">DR</option>=
-            </select>
-        </td> --}}
         <td>
             <input type="number" name="items[INDEX][line_rate]" class="form-control item-line-rate" step="0.01"
                 placeholder="0.00" min="0" max="100" />
@@ -431,15 +449,11 @@
 
 @push('script')
     <script>
-        'use strict';
-
-        // State variables
         let debitItemIndex = 0;
         let isDebitFormSubmitting = false;
 
-        // Cache DOM elements
         const $debitModal = $('#treatyDebitModal');
-        const $debitForm = $('#debitForm');
+        const $debitForm = $('#treatyDebitForm');
         const $debitItemsBody = $('#debit-items-body');
         const $debitItemTemplate = $('#debit-item-row-template');
         const $addDebitItemBtn = $('#add-debit-item');
@@ -447,59 +461,42 @@
         const $totalAmount = $('#total-amount');
         const $noItemsRow = $('#no-items-row');
 
-        /**
-         * Initialize the debit modal functionality
-         */
         function initDebitModal() {
-            // Verify jQuery is loaded
             if (typeof jQuery === 'undefined') {
-                console.error('jQuery is not loaded');
                 return;
             }
 
-            // Verify modal exists
             if ($debitModal.length === 0) {
-                console.warn('Debit modal not found in DOM');
                 return;
             }
 
             bindDebitModalEvents();
-            console.log('✓ Debit Modal initialized successfully');
         }
 
-        /**
-         * Bind all event handlers for the debit modal
-         */
         function bindDebitModalEvents() {
-            // Add item button
             $addDebitItemBtn.on('click', function(e) {
                 e.preventDefault();
                 addDebitItem();
             });
 
-            // Remove item button (delegated event)
             $debitItemsBody.on('click', '.remove-item-btn', function(e) {
                 e.preventDefault();
                 removeDebitItem($(this));
             });
 
-            // Calculate total on amount change (delegated event)
             $debitItemsBody.on('input', '.item-amount', function() {
                 calculateDebitTotal();
             });
 
-            // Form submission
             $debitForm.on('submit', function(e) {
                 e.preventDefault();
                 handleDebitFormSubmit();
             });
 
-            // Modal hidden event - reset form
             $debitModal.on('hidden.bs.modal', function() {
                 resetDebitForm();
             });
 
-            // Modal shown event - focus first field
             $debitModal.on('shown.bs.modal', function() {
                 const $description = $('#description');
                 if ($description.length > 0) {
@@ -510,38 +507,26 @@
             });
         }
 
-        /**
-         * Add a new debit item row
-         */
         function addDebitItem() {
-            // Validate template exists
             if ($debitItemTemplate.length === 0) {
-                console.error('Debit item template not found');
                 showToast('Error: Template not found', 'error');
                 return;
             }
 
-            console.log('RT')
-            // Hide "no items" message
             $noItemsRow.hide();
 
-            // Clone and populate template
             const template = $debitItemTemplate.html();
             if (!template) {
-                console.error('Template content is empty');
                 return;
             }
 
             const itemHtml = template.replace(/INDEX/g, debitItemIndex);
             $debitItemsBody.append(itemHtml);
 
-            // Increment index for next item
             debitItemIndex++;
 
-            // Get newly added row
             const $newRow = $debitItemsBody.find('.debit-item-row:last');
 
-            // Initialize tooltips if available
             if (typeof $.fn.tooltip !== 'undefined') {
                 $newRow.find('[data-bs-toggle="tooltip"]').tooltip();
             }
@@ -551,13 +536,8 @@
             }, 50);
         }
 
-        /**
-         * Remove a debit item row
-         * @param {jQuery} $removeBtn - The remove button element
-         */
         function removeDebitItem($removeBtn) {
-            // Confirm removal
-            if (!confirm('Are you sure you want to remove this item?')) {
+            if (!confirm('Are you sure you want to remove this line item?')) {
                 return;
             }
 
@@ -568,12 +548,10 @@
                 return;
             }
 
-            // Remove with animation
             $row.fadeOut(300, function() {
                 $(this).remove();
                 calculateDebitTotal();
 
-                // Show "no items" message if table is empty
                 const itemCount = $debitItemsBody.find('.debit-item-row').length;
                 if (itemCount === 0) {
                     $noItemsRow.fadeIn(200);
@@ -581,9 +559,6 @@
             });
         }
 
-        /**
-         * Calculate and update total amount
-         */
         function calculateDebitTotal() {
             let total = 0;
 
@@ -594,7 +569,6 @@
                 }
             });
 
-            // Update display with formatting
             $totalAmount.text(formatCurrency(total));
         }
 
@@ -613,15 +587,10 @@
             });
         }
 
-        /**
-         * Validate the debit form before submission
-         * @returns {boolean}
-         */
         function validateDebitForm() {
             let isValid = true;
             const errors = [];
 
-            // Check HTML5 validation
             if ($debitForm[0] && !$debitForm[0].checkValidity()) {
                 $debitForm[0].reportValidity();
                 return false;
@@ -630,7 +599,7 @@
             // Check if items exist
             const itemCount = $debitItemsBody.find('.debit-item-row').length;
             if (itemCount === 0) {
-                errors.push('Please add at least one debit item');
+                errors.push('Please add at least one transaction line item');
                 isValid = false;
             }
 
@@ -644,7 +613,7 @@
                 const itemDesc = $itemDescription.val() ? $itemDescription.val().trim() : '';
                 if (!itemDesc) {
                     $itemDescription.addClass('is-invalid');
-                    errors.push(`Item ${index + 1}: Description is required`);
+                    errors.push(`Line ${index + 1}: Transaction type is required`);
                     isValid = false;
                 } else {
                     $itemDescription.removeClass('is-invalid');
@@ -654,7 +623,7 @@
                 const amount = parseFloat($amount.val());
                 if (isNaN(amount) || amount <= 0) {
                     $amount.addClass('is-invalid');
-                    errors.push(`Item ${index + 1}: Amount must be greater than 0`);
+                    errors.push(`Line ${index + 1}: Amount must be greater than 0`);
                     isValid = false;
                 } else {
                     $amount.removeClass('is-invalid');
@@ -678,11 +647,11 @@
                 return;
             }
 
-            const errorMessage = 'Please fix the following errors:\n\n' + errors.join('\n');
+            const errorMessage = 'Please correct the following:\n\n' + errors.join('\n');
 
             // Use toastr if available, otherwise alert
             if (typeof toastr !== 'undefined') {
-                toastr.error(errorMessage, 'Validation Error', {
+                toastr.error(errorMessage, 'Validation Required', {
                     timeOut: 5000,
                     closeButton: true
                 });
@@ -691,38 +660,13 @@
             }
         }
 
-        /**
-         * Handle form submission
-         */
         function handleDebitFormSubmit() {
             if (isDebitFormSubmitting) {
                 return;
             }
 
-            // // Validate form
-            // if (!validateDebitForm()) {
-            //     return;
-            // }
-
-            // // Confirm submission
-            // if (!confirm('Are you sure you want to generate this debit note?')) {
-            //     return;
-            // }
-
-            // // Set submitting state
             isDebitFormSubmitting = true;
             setDebitLoadingState(true);
-
-            // Submit form after small delay to ensure UI updates
-            // setTimeout(function() {
-            //     if ($debitForm[0]) {
-            //         $debitForm[0].submit();
-            //     } else {
-            //         console.error('Form element not found');
-            //         isDebitFormSubmitting = false;
-            //         setDebitLoadingState(false);
-            //     }
-            // }, 100);
 
             const formData = new FormData($debitForm[0]);
 
@@ -737,13 +681,13 @@
                     'Accept': 'application/json'
                 },
                 success: function(response) {
-
+                    // console.log(response)
                     if (response.success) {
                         window.location.href = response.redirectUrl;
                     }
                 },
                 error: function(xhr, status, error) {
-                    let errorMessage = 'An error occurred while creating the debit note.';
+                    let errorMessage = 'An error occurred while generating the debit note.';
 
                     if (xhr.status === 422 && xhr.responseJSON && xhr.responseJSON.errors) {
                         const errors = xhr.responseJSON.errors;
@@ -758,13 +702,15 @@
                             );
                         });
 
-                        errorMessage = xhr.responseJSON.message || 'Please correct the errors and try again.';
+                        errorMessage = xhr.responseJSON.message ||
+                            'Please correct the highlighted fields and try again.';
                     } else if (xhr.responseJSON && xhr.responseJSON.message) {
                         errorMessage = xhr.responseJSON.message;
                     } else if (xhr.status === 0) {
-                        errorMessage = 'Network error. Please check your connection and try again.';
+                        errorMessage = 'Network connection error. Please check your internet and try again.';
                     } else if (xhr.status >= 500) {
-                        errorMessage = 'Server error. Please try again later or contact support.';
+                        errorMessage =
+                            'Server error occurred. Please try again later or contact technical support.';
                     }
 
                     showAlert('error', errorMessage);
@@ -776,13 +722,8 @@
             });
 
             return false;
-
         }
 
-        /**
-         * Set loading state on save button
-         * @param {boolean} loading
-         */
         function setDebitLoadingState(loading) {
             if ($debitSaveBtn.length === 0) {
                 return;
@@ -791,7 +732,7 @@
             if (loading) {
                 $debitSaveBtn
                     .prop('disabled', true)
-                    .html('<i class="fas fa-spinner fa-spin"></i> Generating...');
+                    .html('<i class="fas fa-spinner fa-spin"></i> Processing...');
             } else {
                 $debitSaveBtn
                     .prop('disabled', false)
@@ -799,56 +740,35 @@
             }
         }
 
-        /**
-         * Reset form to initial state
-         */
         function resetDebitForm() {
             if ($debitForm.length === 0) {
                 console.warn('Form not found for reset');
                 return;
             }
 
-            // Reset form fields
             $debitForm[0].reset();
 
-            // Clear validation classes
             $debitForm.find('.is-invalid').removeClass('is-invalid');
 
-            // Clear items table
             $debitItemsBody.find('.debit-item-row').remove();
             $noItemsRow.show();
 
-            // Reset total
             $totalAmount.text('0.00');
 
-            // Reset state
             debitItemIndex = 0;
             isDebitFormSubmitting = false;
 
-            // Reset button
             setDebitLoadingState(false);
-
-            console.log('Debit form reset completed');
         }
 
-        /**
-         * Show toast notification
-         * @param {string} message
-         * @param {string} type - success, error, warning, info
-         */
         function showToast(message, type) {
             type = type || 'info';
 
-            // Use toastr if available
             if (typeof toastr !== 'undefined' && toastr[type]) {
                 toastr[type](message);
-            } else {
-                // Fallback to console
-                console.log(`[${type.toUpperCase()}] ${message}`);
             }
         }
 
-        // Initialize on document ready
         $(document).ready(function() {
             setTimeout(function() {
                 initDebitModal();

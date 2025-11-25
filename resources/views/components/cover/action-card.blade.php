@@ -1,4 +1,4 @@
-@props(['cover', 'endorsementNarration', 'isTransaction' => false])
+@props(['cover', 'endorsementNarration', 'isTransaction' => false, 'isCoverStatus' => true])
 
 @php
     $isUnverified = in_array($cover->verified, [null, 'R']);
@@ -109,68 +109,75 @@
                 </button>
 
                 @if ($isTransaction)
-                    @foreach ([['label' => 'Debit', 'icon' => 'bi-file-earmark-text'], ['label' => 'Profit Commission', 'icon' => 'bi-percent'], ['label' => 'Portfolio', 'icon' => 'bi-briefcase'], ['label' => 'Commission Adjustment', 'icon' => 'bi-sliders']] as $action)
-                        <button type="button" class="btn btn-outline-dark btn-sm text-start me-1"
-                            data-action="generate-{{ Str::slug($action['label']) }}"
-                            data-endorsement="{{ $cover->endorsement_no }}">
-                            <i class="bi {{ $action['icon'] }} me-1"></i>Create {{ $action['label'] }}
-                        </button>
-                    @endforeach
+                    <button type="button" class="btn btn-outline-dark btn-sm text-start me-1" data-bs-toggle="modal"
+                        data-bs-target="#createQuarterlyFiguresModal">
+                        <i class="bi bi-calculator me-1"></i>Create Quarterly Figures
+                    </button>
+                    <button type="button" class="btn btn-outline-dark btn-sm text-start me-1" data-bs-toggle="modal"
+                        data-bs-target="#addProfitCommissionModal">
+                        <i class="bi bi-percent me-1"></i>Add Profit Commission
+                    </button>
+                    <button type="button" class="btn btn-outline-dark btn-sm text-start me-1" data-bs-toggle="modal"
+                        data-bs-target="#addPortfolioModal">
+                        <i class="bi bi-briefcase me-1"></i>Add Portfolio
+                    </button>
+                    <button type="button" class="btn btn-outline-dark btn-sm text-start me-1" data-bs-toggle="modal"
+                        data-bs-target="#adjustCommissionModal">
+                        <i class="bi bi-arrow-repeat me-1"></i>Adjust Commission
+                    </button>
                 @else
                     <button class="btn btn-outline-dark btn-sm me-2" data-bs-toggle="modal"
                         data-bs-target="#treatyDebitModal">
                         <i class="bi bi-cash-stack me-1"></i>Generate Debit
                     </button>
                 @endif
-
-
-
             @endif
         @endif
 
-        {{-- Cover Status Section --}}
-        <div class="mt-3 pt-3 border-top">
-            <span class="text-muted d-block mb-2 fs-14">
-                <i class="ri-information-line me-1 fs-14" style="vertical-align: -2px;"></i>Cover Status
-            </span>
-            <div class="row g-3">
-                <div class="col-md-6">
-                    <div class="d-flex flex-column gap-2">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <small class="text-muted">Status:</small>
-                            <span class="badge {{ $currentStatus['badge'] }}">
-                                {{ $currentStatus['text'] }}
-                            </span>
-                        </div>
-
-                        <div class="d-flex justify-content-between align-items-center">
-                            <small class="text-muted">Created:</small>
-                            <small class="fw-semibold">
-                                {{ $cover->created_at->format('d M Y') }}
-                            </small>
-                        </div>
-
-                        <div class="d-flex justify-content-between align-items-center">
-                            <small class="text-muted">Last Updated:</small>
-                            <small class="fw-semibold">
-                                {{ $cover->updated_at->diffForHumans() }}
-                            </small>
-                        </div>
-                    </div>
-                </div>
-
-                @if ($isApproved && $cover->approved_by)
+        @if ($isCoverStatus)
+            <div class="mt-3 pt-3 border-top">
+                <span class="text-muted d-block mb-2 fs-14">
+                    <i class="ri-information-line me-1 fs-14" style="vertical-align: -2px;"></i>Cover Status
+                </span>
+                <div class="row g-3">
                     <div class="col-md-6">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <small class="text-muted">Approved By:</small>
-                            <small class="fw-semibold">
-                                {{ $cover->approver->name ?? 'N/A' }}
-                            </small>
+                        <div class="d-flex flex-column gap-2">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <small class="text-muted">Status:</small>
+                                <span class="badge {{ $currentStatus['badge'] }}">
+                                    {{ $currentStatus['text'] }}
+                                </span>
+                            </div>
+
+                            <div class="d-flex justify-content-between align-items-center">
+                                <small class="text-muted">Created:</small>
+                                <small class="fw-semibold">
+                                    {{ $cover->created_at->format('d M Y') }}
+                                </small>
+                            </div>
+
+                            <div class="d-flex justify-content-between align-items-center">
+                                <small class="text-muted">Last Updated:</small>
+                                <small class="fw-semibold">
+                                    {{ $cover->updated_at->diffForHumans() }}
+                                </small>
+                            </div>
                         </div>
                     </div>
-                @endif
+
+                    @if ($isApproved && $cover->approved_by)
+                        <div class="col-md-6">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <small class="text-muted">Approved By:</small>
+                                <small class="fw-semibold">
+                                    {{ $cover->approver->name ?? 'N/A' }}
+                                </small>
+                            </div>
+                        </div>
+                    @endif
+                </div>
             </div>
-        </div>
+        @endif
     </div>
 </div>
 

@@ -331,12 +331,11 @@ class ApprovalsController extends Controller
     private function getNextIdSafe(string $table): int
     {
         return DB::transaction(function () use ($table) {
-            $nextId = DB::selectOne(
-                "SELECT nextval(pg_get_serial_sequence(?, 'id')) as next_id",
-                [$table]
-            )->next_id;
+            $result = DB::selectOne(
+                "SELECT COALESCE(MAX(id), 0) + 1 as next_id FROM {$table}"
+            );
 
-            return (int) $nextId;
+            return (int) $result->next_id;
         });
     }
 
@@ -374,8 +373,6 @@ class ApprovalsController extends Controller
         if ($cover->verified === self::STATUS_APPROVED) {
             throw new Exception('This cover has already been verified');
         }
-
-        logger($cover->type_of_bus);
 
         $data = [
             'cover_no' => $cover->cover_no,
@@ -894,12 +891,6 @@ class ApprovalsController extends Controller
         } catch (Exception $e) {
             DB::rollBack();
 
-            logger()->error('BD Approval action failed', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-                'request_id' => $request->id ?? null,
-            ]);
-
             return response()->json([
                 'status' => Response::HTTP_INTERNAL_SERVER_ERROR,
                 'message' => config('app.debug') ? $e->getMessage() : 'Failed to process approval action',
@@ -992,10 +983,6 @@ class ApprovalsController extends Controller
                 'message' => 'Approval not found'
             ], 404);
         } catch (\Exception $e) {
-            logger()->error('Failed to load approval details', [
-                'error' => $e->getMessage(),
-                'approval_id' => $id
-            ]);
 
             return response()->json([
                 'success' => false,

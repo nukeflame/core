@@ -152,11 +152,18 @@ Route::group(['prefix' => 'cover', 'middleware' => ['auth', 'check.first.login']
     Route::post('pipeline/intergrate', [CoverController::class, 'integrateCover'])->name('pipeline.create_cover');
     Route::get('prospect-data/{prospectId}', [CoverController::class, 'getProspectData'])->name('pipeline.get_prospect_data');
 
-    Route::prefix('treaty/{endorsementNo}')->name('cover.')->group(function () {
+    Route::prefix('treaty/{coverNo}')->name('cover.')->group(function () {
         Route::get('transactions', [CoverTransactionController::class, 'index'])->name('transactions.index');
-        Route::get('transactions/{debitNo}/debit', [CoverTransactionController::class, 'debit'])->name('transactions.debit');
+        Route::get('transactions/{refNo}/quarterly-figures', [CoverTransactionController::class, 'quarterlyFigures'])->name('transactions.quarterly-figures');
         Route::get('transactions/{refNo}/profit-commission', [CoverTransactionController::class, 'profitCommission'])->name('transactions.profit-commission');
     });
+
+    Route::post('treaty/quarterly-figures', [CoverTransactionController::class, 'storeQuarterlyFigures'])
+        ->name('treaty.quarterly-figures.store');
+    Route::post('treaty/profit-commission', [CoverTransactionController::class, 'storeProfitCommission'])
+        ->name('treaty.profit-commission.store');
+    Route::put('treaty/commission/adjust', [CoverTransactionController::class, 'adjustCommission'])
+        ->name('treaty.commission.adjust');
 
     Route::prefix('cedants')->name('cedant.')->group(function () {
         // Route::get('/data', [CustomerController::class, 'getData'])->name('data');

@@ -42,9 +42,13 @@
                                 'paymethods' => $paymethods,
                             ])
                         </div>
-                        <div id="distribution-summary" class="mt-2">
-                            @include('cover.modals.partials.reinsurer-distribution-summary')
-                        </div>
+
+                        {{-- @if (in_array($cover->type_of_bus, ['FPR', 'FNP']))
+                            <div id="distribution-summary" class="mt-2">
+                                @include('cover.modals.partials.reinsurer-distribution-summary')
+                            </div>
+                        @endif --}}
+
                         <div id="validation-messages" class="mt-2" style="display: none;">
                             <div class="alert alert-danger" role="alert">
                                 <i class="fa fa-exclamation-triangle"></i>

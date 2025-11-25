@@ -128,7 +128,6 @@
         <input type="hidden" name="customer_id" value="{{ $coverReg->customer_id }}" />
     </form>
 
-
     @include('cover.modals.schedules', [
         'cover' => $coverReg,
         'schedHeaders' => $schedHeaders,
@@ -179,11 +178,11 @@
         'installmentAmount' => $installmentAmount,
     ])
 
-    {{-- @include('cover.modals.treatyDebitModal', [
+    @include('cover.modals.fac-debit', [
         'cover' => $coverReg,
         'nextInstallment' => $nextInstallment,
         'installmentAmount' => $installmentAmount,
-    ]) --}}
+    ])
 
     {{-- @include('cover.modals.generate-slip', ['cover' => $coverReg])
 

@@ -721,15 +721,17 @@ class CoverController extends Controller
 
             $validated = $request->validate($rules, $messages);
 
-            $coverRegister = CoverRegister::where('endorsement_no', $request->endorsement_no)->firstOrFail();
+            $coverRegister = CoverRegister::where('endorsement_no', $validated['endorsement_no'])->firstOrFail();
 
             $this->_endorsement_no = $coverRegister->endorsement_no;
             $this->_year = now()->year;
             $this->_month = now()->month;
 
-            DB::table('coverripart')->where('endorsement_no', $coverRegister->endorsement_no)->delete();
-            DB::table('rein_notes')->where('endorsement_no', $coverRegister->endorsement_no)->delete();
-            DB::table('cover_installments')->where('endorsement_no', $coverRegister->endorsement_no)->delete();
+            if (in_array($coverRegister->type_of_bus, ['FPR', 'FNP'])) {
+                DB::table('coverripart')->where('endorsement_no', $coverRegister->endorsement_no)->delete();
+                DB::table('rein_notes')->where('endorsement_no', $coverRegister->endorsement_no)->delete();
+                DB::table('cover_installments')->where('endorsement_no', $coverRegister->endorsement_no)->delete();
+            }
 
             foreach ($request->treaty as $treatyIndex => $treaty) {
                 foreach ($treaty['reinsurers'] as $reinsurerIndex => $reinsurerData) {
@@ -804,9 +806,10 @@ class CoverController extends Controller
                         $coverRipart->fronting_amt = 0;
                         $coverRipart->wht_amt = 0;
                         $coverRipart->brokerage_comm_amt = 0;
-                        $coverRipart->brokerage_comm_rate = 0;
 
-                        logger()->debug(json_encode($reinsurerIndex, JSON_PRETTY_PRINT));
+                        // $coverRipart->compulsory_acceptance = $this->parseNumber($reinsurerData['compulsory_acceptance'] ?? 0);
+                        // $coverRipart->optional_acceptance = $this->parseNumber($reinsurerData['optional_acceptance'] ?? 0);
+                        // $coverRipart->total_acceptance = $this->parseNumber($reinsurerData['share'] ?? 0);
                     }
 
                     $coverRipart->created_by = Auth::user()->user_name;
@@ -987,8 +990,6 @@ class CoverController extends Controller
             ], Response::HTTP_UNPROCESSABLE_ENTITY);
         } catch (\Exception $e) {
             DB::rollback();
-
-            logger($e);
 
             return response()->json([
                 'status' => Response::HTTP_INTERNAL_SERVER_ERROR,
@@ -1448,108 +1449,193 @@ class CoverController extends Controller
 
     public function generateDebit(Request $request)
     {
+        DB::beginTransaction();
 
-        // DB::beginTransaction();
-        // try {
-        //     $request->validate([
-        //         'cover_no' => 'required',
-        //         'endorsement_no' => 'required',
-        //         'installment' => 'required',
-        //         'amount' => 'required',
-        //     ]);
+        try {
+            $validatedData = $request->validate([
+                'cover_no' => 'required|string',
+                'endorsement_no' => 'required|string',
+                'installment' => 'required|integer',
+                'amount' => 'required|string',
+                'type_of_bus' => 'required|in:TPR,TNP,FPR,FNP',
+            ]);
 
-        //     $CoverRegister = CoverRegister::where('endorsement_no', $request->endorsement_no)
-        //         ->first();
+            $coverRegister = CoverRegister::where('endorsement_no', $validatedData['endorsement_no'])->first();
 
-        //     $id = (int) CoverDebit::withTrashed()->max('id') + 1;
+            if (!$coverRegister) {
+                throw new \Exception("Cover register not found for endorsement: {$validatedData['endorsement_no']}");
+            }
 
-        //     $net_amt = (float) str_replace(',', '', $request->amount) ?? 0;
-        //     if ($net_amt > 0) {
-        //         $doc_type = 'DRN';
-        //         $dr_cr = 'D';
-        //     } else {
-        //         $doc_type = 'CRN';
-        //         $dr_cr = 'C';
-        //     }
-        //     $dr_cr_no = SystemSerials::nextSerial($doc_type);
+            $debitData = $this->prepareDebitData($validatedData, $coverRegister);
 
-        //     $debit = new CoverDebit();
-        //     $debit->id = $id;
-        //     $debit->dr_no = $dr_cr_no;
-        //     $debit->document = $doc_type;
-        //     $debit->cover_no = $request->cover_no;
-        //     $debit->endorsement_no = $request->endorsement_no;
-        //     $debit->period_year = $this->_year;
-        //     $debit->period_month = $this->_month;
-        //     $debit->installment = $request->installment;
-        //     $debit->gross = (float) str_replace(',', '', $request->amount) ?? 0;
-        //     $debit->net_amt = $net_amt;
-        //     $debit->created_by = Auth::user()->user_name;
-        //     $debit->updated_by = Auth::user()->user_name;
-        //     $debit->gl_updated = 'N';
-        //     $debit->gl_updated_errors = '';
-        //     $debit->premium_payment_due_date = $CoverRegister->cover_from->addDays((int) $CoverRegister->premium_payment_days);
-        //     $debit->save();
+            if ($debitData['isFacultative']) {
+                $this->createCoverDebit($debitData, $coverRegister);
+            } else if ($debitData['isTreaty']) {
+                // $this->createTreatyDebit($debitData, $coverRegister);
+            }
 
-        //     $serial_no = str_pad($debit->dr_no, 6, '0', STR_PAD_LEFT);
-        //     $custaccount = new CustomerAccDet();
-        //     $custaccount->branch = $CoverRegister->branch_code;
-        //     $custaccount->customer_id = $CoverRegister->customer_id;
-        //     $custaccount->source_code = 'U/W';
-        //     $custaccount->doc_type = $doc_type;
-        //     $custaccount->entry_type_descr = $CoverRegister->transaction_type;
-        //     $custaccount->reference = $serial_no . $this->_year;
-        //     $custaccount->account_year = $this->_year;
-        //     $custaccount->account_month = $this->_month;
-        //     $custaccount->line_no = 1;
-        //     $custaccount->cheque_no = ' ';
-        //     $custaccount->cheque_date = null;
-        //     $custaccount->cover_no = $CoverRegister->cover_no;
-        //     $custaccount->endorsement_no = $CoverRegister->endorsement_no;
-        //     $custaccount->insured = $CoverRegister->insured_name;
-        //     $custaccount->class = $CoverRegister->class_code;
-        //     $custaccount->currency_code = $CoverRegister->currency_code;
-        //     $custaccount->currency_rate = $CoverRegister->currency_rate;
-        //     $custaccount->created_by = Auth::user()->user_name;
-        //     $custaccount->created_date = Carbon::now();
-        //     $custaccount->created_time = Carbon::now();
-        //     $custaccount->updated_by = Auth::user()->user_name;
-        //     $custaccount->updated_datetime = Carbon::now();
-        //     $custaccount->dr_cr = $dr_cr;
-        //     $custaccount->foreign_basic_amount = $debit->gross;
-        //     $custaccount->local_basic_amount = $debit->gross * $CoverRegister->currency_rate;
-        //     $custaccount->foreign_taxes_amount = 0;
-        //     $custaccount->local_taxes_amount = 0;
-        //     $custaccount->foreign_nett_amount = $debit->net_amt;
-        //     $custaccount->local_nett_amount = $debit->net_amt * $CoverRegister->currency_rate;
-        //     $custaccount->allocated_amount = 0;
-        //     $custaccount->unallocated_amount = $debit->gross * $CoverRegister->currency_rate;
+            $this->createCustomerAccount($debitData, $coverRegister);
 
-        //     $custaccount->save();
+            DB::commit();
 
-        //     DB::commit();
-        //     return response()->json([
-        //         'status' => Response::HTTP_CREATED,
-        //         'message' => 'Data saved successfully'
-        //     ]);
-        // } catch (ValidationException $e) {
-        //     return response()->json([
-        //         'status' => Response::HTTP_UNPROCESSABLE_ENTITY,
-        //         'errors' => $e->errors()
-        //     ], 422);
-        // } catch (Throwable $e) {
-        //     DB::rollback();
-        //     return response()->json([
-        //         'status' => $e->getCode(),
-        //         'message' => $e->getMessage()
-        //     ]);
-        // }
+            return response()->json([
+                'success' => true,
+                'status' => Response::HTTP_CREATED,
+                'redirectUrl' => route('cover.transactions.index', [
+                    'coverNo' => $coverRegister->cover_no,
+                ]),
+                'message' => $this->getBusinessTypeLabel($debitData['typeOfBus'])
+                    . ' debit/credit note generated successfully',
+            ], 201);
+        } catch (ValidationException $e) {
+            DB::rollback();
 
-        $endorsementNo  = "CNEW0000232025";
+            return response()->json([
+                'success' => false,
+                'status' => Response::HTTP_UNPROCESSABLE_ENTITY,
+                'errors' => $e->errors(),
+            ], 422);
+        } catch (Throwable $e) {
+            DB::rollback();
 
-        $redirectUrl = route('cover.transactions.index', ['endorsementNo' => $endorsementNo, 'cover' => (object) []]);
+            return response()->json([
+                'success' => false,
+                'status' => Response::HTTP_INTERNAL_SERVER_ERROR,
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
 
-        return response()->json(['success' => true, 'redirectUrl' => $redirectUrl]);
+    private function createCoverDebit(array &$debitData, CoverRegister $coverRegister): void
+    {
+        $debitData['drCrNo'] = SystemSerials::nextSerial($debitData['docType']);
+
+        $id = (int) CoverDebit::withTrashed()->max('id') + 1;
+
+        $debit = new CoverDebit();
+        $debit->id = $id;
+        $debit->dr_no = $debitData['drCrNo'];
+        $debit->document = $debitData['docType'];
+        $debit->type_of_bus = $debitData['typeOfBus'];
+        $debit->cover_no = $debitData['coverNo'];
+        $debit->endorsement_no = $debitData['endorsementNo'];
+        $debit->period_year = $this->_year;
+        $debit->period_month = $this->_month;
+        $debit->installment = $debitData['installment'];
+        $debit->gross = $debitData['grossAmount'];
+        $debit->net_amt = $debitData['netAmount'];
+        $debit->created_by = Auth::user()->user_name;
+        $debit->updated_by = Auth::user()->user_name;
+        $debit->gl_updated = 'N';
+        $debit->gl_updated_errors = '';
+
+        if ($coverRegister->cover_from && $coverRegister->premium_payment_days) {
+            $debit->premium_payment_due_date = $coverRegister->cover_from
+                ->addDays((int) $coverRegister->premium_payment_days);
+        }
+
+        $debit->save();
+    }
+
+    private function createCustomerAccount(array &$debitData, CoverRegister $coverRegister): void
+    {
+        if (!$debitData['drCrNo']) {
+            $debitData['drCrNo'] = SystemSerials::nextSerial($debitData['docType']);
+        }
+
+        $debitData['sourceCode'] = $debitData['isTreaty'] ? 'TRT' : 'FAC';
+        $debitData['reference'] = $this->generateDebitReference($debitData, $coverRegister);
+
+        $custAccount = new CustomerAccDet();
+        $custAccount->branch = $coverRegister->branch_code;
+        $custAccount->customer_id = $coverRegister->customer_id;
+        $custAccount->source_code = $debitData['sourceCode'];
+        $custAccount->doc_type = $debitData['docType'];
+        $custAccount->entry_type_descr = $debitData['entryTypeDescr'];
+        $custAccount->reference = $debitData['reference'];
+        $custAccount->account_year = $this->_year;
+        $custAccount->account_month = $this->_month;
+        $custAccount->line_no = 1;
+        $custAccount->cheque_no = ' ';
+        $custAccount->cheque_date = null;
+        $custAccount->cover_no = $coverRegister->cover_no;
+        $custAccount->endorsement_no = $coverRegister->endorsement_no;
+        $custAccount->insured = $coverRegister->insured_name;
+        $custAccount->class = $coverRegister->class_code;
+        $custAccount->currency_code = $coverRegister->currency_code;
+        $custAccount->currency_rate = $debitData['currencyRate'];
+        $custAccount->created_by = Auth::user()->user_name;
+        $custAccount->created_date = Carbon::now();
+        $custAccount->created_time = Carbon::now();
+        $custAccount->updated_by = Auth::user()->user_name;
+        $custAccount->updated_datetime = Carbon::now();
+        $custAccount->dr_cr = $debitData['drCr'];
+        $custAccount->foreign_basic_amount = $debitData['grossAmount'];
+        $custAccount->local_basic_amount = $debitData['grossAmount'] * $debitData['currencyRate'];
+        $custAccount->foreign_taxes_amount = 0;
+        $custAccount->local_taxes_amount = 0;
+        $custAccount->foreign_nett_amount = $debitData['netAmount'];
+        $custAccount->local_nett_amount = $debitData['netAmount'] * $debitData['currencyRate'];
+        $custAccount->allocated_amount = 0;
+        $custAccount->unallocated_amount = $debitData['grossAmount'] * $debitData['currencyRate'];
+
+        $custAccount->save();
+    }
+
+    private function generateDebitReference(array $debitData, CoverRegister $coverRegister): string
+    {
+        $prefix = $this->getDebitReferencePrefix($coverRegister->treaty_type);
+        $classCode = $coverRegister->type_of_bus;
+
+        $random = random_int(1000, 9999);
+
+        return "QT1-{$prefix}-{$this->_year}-{$classCode}-{$random}";
+    }
+
+    private function getDebitReferencePrefix(?string $treatyType): string
+    {
+        return match ($treatyType) {
+            'SURP' => 'SP',
+            'QUOT' => 'QS',
+            'SPQT' => 'SP-QS',
+            default => 'UN',
+        };
+    }
+
+    private function prepareDebitData(array $validatedData, CoverRegister $coverRegister): array
+    {
+        $typeOfBus = $validatedData['type_of_bus'];
+        $netAmount = $this->parseNumber($validatedData['amount']);
+
+        return [
+            'typeOfBus' => $typeOfBus,
+            'isTreaty' => in_array($typeOfBus, ['TPR', 'TNP']),
+            'isFacultative' => in_array($typeOfBus, ['FPR', 'FNP']),
+            'isProportional' => in_array($typeOfBus, ['TPR', 'FPR']),
+            'coverNo' => $validatedData['cover_no'],
+            'endorsementNo' => $validatedData['endorsement_no'],
+            'installment' => $validatedData['installment'],
+            'grossAmount' => $netAmount,
+            'netAmount' => $netAmount,
+            'docType' => $netAmount > 0 ? 'DRN' : 'CRN',
+            'drCr' => $netAmount > 0 ? 'D' : 'C',
+            'drCrNo' => null,
+            'sourceCode' => null,
+            'reference' => null,
+            'currencyRate' => $coverRegister->currency_rate ?? 1,
+            'entryTypeDescr' => 'quarterly-figures'
+        ];
+    }
+
+    private function getBusinessTypeLabel(string $typeOfBus): string
+    {
+        return match ($typeOfBus) {
+            'TPR' => 'Treaty Proportional',
+            'TNP' => 'Treaty Non-Proportional',
+            'FPR' => 'Facultative Proportional',
+            'FNP' => 'Facultative Non-Proportional',
+            default => 'Unknown'
+        };
     }
 
     public function saveAttachment(Request $request)

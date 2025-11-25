@@ -10,6 +10,8 @@
         NOTIFICATION_DURATION: 5000,
         PERCENTAGE_MULTIPLIER: 100,
         SELECT2_INIT_DELAY: 100,
+        FPR: "FPR",
+        FNP: "FNP",
     };
 
     const DOM_SELECTORS = {
@@ -1380,25 +1382,33 @@
     }
 
     class FormSubmissionManager {
-        constructor(validationService) {
+        constructor(validationService, coverReg) {
             this.validationService = validationService;
+            this.coverReg = coverReg;
         }
 
         validateAndSubmit() {
             this.validationService.reset();
 
             let treatyNumber = 1;
-            $(DOM_SELECTORS.TREATY_SECTION).each((index, element) => {
-                const $section = $(element);
-                const treatyCounter = $section.data("counter");
 
-                this.validateTreatySection(
-                    $section,
-                    treatyCounter,
-                    treatyNumber
-                );
-                treatyNumber++;
-            });
+            if (
+                [CONSTANTS.FPR, CONSTANTS.FNP].includes(
+                    this.coverReg.type_of_bus
+                )
+            ) {
+                $(DOM_SELECTORS.TREATY_SECTION).each((index, element) => {
+                    const $section = $(element);
+                    const treatyCounter = $section.data("counter");
+
+                    this.validateTreatySection(
+                        $section,
+                        treatyCounter,
+                        treatyNumber
+                    );
+                    treatyNumber++;
+                });
+            }
 
             if (this.validationService.hasErrors()) {
                 this.validationService.displayErrors();
@@ -1483,6 +1493,7 @@
 
         handleSubmitSuccess(response, $button) {
             if (response.success) {
+                // console.log(response);
                 toastr.success("Reinsurance placement saved successfully");
 
                 setTimeout(() => {
@@ -1567,7 +1578,6 @@
                 reinsurerForm: $("#reinsurerForm"),
                 editReinsurerForm: $("#EditReinsurerForm"),
                 verifyForm: $("#verifyForm"),
-                debitForm: $("#debitForm"),
                 insuranceClassForm: $("#insuranceClassForm"),
 
                 schedulesModal: $("#schedulesModal"),
@@ -2208,20 +2218,6 @@
                 });
             }
 
-            if (this.$el.debitForm.length) {
-                this.$el.debitForm.validate({
-                    errorClass: "errorClass",
-                    rules: {
-                        endorsement_no: { required: true },
-                        installment: { required: true, min: 1 },
-                        amount: { required: true },
-                    },
-                    submitHandler: function (form) {
-                        self.handleDebitFormSubmit(form);
-                    },
-                });
-            }
-
             if (this.$el.insuranceClassForm.length) {
                 this.$el.insuranceClassForm.validate({
                     errorClass: "errorClass",
@@ -2271,10 +2267,6 @@
 
             $("#verify-save-btn").on("click", function () {
                 self.$el.verifyForm.submit();
-            });
-
-            $("#debit-save-btn").on("click", function () {
-                self.$el.debitForm.submit();
             });
 
             $("#ins-class-save-btn").on("click", function () {
@@ -2764,44 +2756,6 @@
                     }
                 },
             });
-        },
-
-        handleDebitFormSubmit: function (form) {
-            const self = this;
-            $("#debit-save-btn").prop("disabled", true).text("Generating...");
-
-            let formData = new FormData(form);
-
-            fetch(this.$el.debitForm.attr("action"), {
-                method: "POST",
-                headers: {
-                    "X-CSRF-Token": $('meta[name="csrf-token"]').attr(
-                        "content"
-                    ),
-                },
-                body: formData,
-            })
-                .then((response) => response.json())
-                .then((data) => {
-                    $("#debit-save-btn")
-                        .prop("disabled", false)
-                        .text("Generate");
-
-                    if (data.status === 201) {
-                        toastr.success("Debit note generated successfully");
-                        setTimeout(() => window.location.reload(), 2000);
-                    } else if (data.status === 422) {
-                        self.showValidationErrors(data.errors);
-                    } else {
-                        toastr.error("Failed to generate debit note");
-                    }
-                })
-                .catch((error) => {
-                    toastr.error("Failed to generate debit note");
-                    $("#debit-save-btn")
-                        .prop("disabled", false)
-                        .text("Generate");
-                });
         },
 
         handleInsuranceClassFormSubmit: function (form) {
@@ -3657,7 +3611,8 @@
                 this.calculationService
             );
             this.formSubmissionManager = new FormSubmissionManager(
-                this.validationService
+                this.validationService,
+                this.coverReg
             );
             this.retroFeeManager = new RetroFeeManager(this.calculationService);
         },
@@ -3872,6 +3827,276 @@
         },
     };
 
+    const TreatyReinsurerCalculations = {
+        init() {
+            const self = this;
+
+            $(document).on(
+                "input change",
+                ".reinsurer-compulsory-acceptance, .reinsurer-optional-acceptance",
+                function () {
+                    const $input = $(this);
+                    const treatyCounter = $input.data("treaty-counter");
+                    const counter = $input.data("counter");
+
+                    self.calculateTotalAcceptance(treatyCounter, counter);
+                    self.validateAgainstWrittenLines(treatyCounter, counter);
+                    self.updateDistributionSummary(treatyCounter);
+                }
+            );
+
+            $(document).on(
+                "input change",
+                ".treaty.reinsurer-written-share",
+                function () {
+                    const $input = $(this);
+                    const treatyCounter = $input.data("treaty-counter");
+                    const counter = $input.data("counter");
+
+                    self.validateAgainstWrittenLines(treatyCounter, counter);
+                    self.updateDistributionSummary(treatyCounter);
+                }
+            );
+        },
+
+        calculateTotalAcceptance(treatyCounter, counter) {
+            const compulsoryId = `#compulsory_acceptance-${treatyCounter}-${counter}`;
+            const optionalId = `#optional_acceptance-${treatyCounter}-${counter}`;
+            const totalId = `#total_acceptance-${treatyCounter}-${counter}`;
+
+            const compulsory = parseFloat($(compulsoryId).val()) || 0;
+            const optional = parseFloat($(optionalId).val()) || 0;
+            const total = compulsory + optional;
+
+            $(totalId).val(total.toFixed(2));
+
+            if (total > 0) {
+                $(totalId)
+                    .removeClass("bg-light")
+                    .addClass("bg-success bg-opacity-10");
+            } else {
+                $(totalId)
+                    .removeClass("bg-success bg-opacity-10")
+                    .addClass("bg-light");
+            }
+        },
+
+        validateAgainstWrittenLines(treatyCounter, counter) {
+            const writtenLinesId = `#written_share-${treatyCounter}-${counter}`;
+            const totalId = `#total_acceptance-${treatyCounter}-${counter}`;
+
+            const writtenLines = parseFloat($(writtenLinesId).val()) || 0;
+            const totalAcceptance = parseFloat($(totalId).val()) || 0;
+
+            const $totalInput = $(totalId);
+            const $writtenInput = $(writtenLinesId);
+
+            $totalInput.removeClass("is-invalid is-valid");
+            $writtenInput.removeClass("is-invalid");
+
+            if (totalAcceptance > writtenLines) {
+                $totalInput.addClass("is-invalid");
+                $writtenInput.addClass("is-invalid");
+
+                this.showValidationMessage(
+                    treatyCounter,
+                    counter,
+                    `Total Acceptance (${totalAcceptance.toFixed(
+                        2
+                    )}%) exceeds Written Lines (${writtenLines.toFixed(2)}%)`,
+                    "error"
+                );
+
+                return false;
+            } else if (totalAcceptance > 0 && totalAcceptance <= writtenLines) {
+                $totalInput.addClass("is-valid");
+                this.clearValidationMessage(treatyCounter, counter);
+                return true;
+            }
+
+            return true;
+        },
+
+        updateDistributionSummary(treatyCounter) {
+            const shareOffered =
+                parseFloat($(`#share_offered-${treatyCounter}`).val()) || 0;
+            let totalDistributed = 0;
+
+            $(
+                `.reinsurer-total-acceptance[data-treaty-counter="${treatyCounter}"]`
+            ).each(function () {
+                const value = parseFloat($(this).val()) || 0;
+                totalDistributed += value;
+            });
+
+            const remaining = shareOffered - totalDistributed;
+
+            $(`#distributed_share-${treatyCounter}`).val(
+                totalDistributed.toFixed(2)
+            );
+            const $remainingField = $(`#rem_share-${treatyCounter}`);
+            $remainingField.val(remaining.toFixed(2));
+
+            $remainingField.removeClass(
+                "bg-danger bg-warning bg-success text-white"
+            );
+
+            if (remaining < 0) {
+                $remainingField.addClass("bg-danger text-white");
+            } else if (remaining > 0) {
+                $remainingField.addClass("bg-warning");
+            } else {
+                $remainingField.addClass("bg-success text-white");
+            }
+
+            this.updateGlobalValidation();
+        },
+
+        showValidationMessage(treatyCounter, counter, message, type = "error") {
+            const messageId = `validation-msg-${treatyCounter}-${counter}`;
+            const $reinsurerSection = $(
+                `#reinsurer-div-${treatyCounter}-${counter}`
+            );
+
+            $(`#${messageId}`).remove();
+
+            const alertClass =
+                type === "error"
+                    ? "alert-danger"
+                    : type === "warning"
+                    ? "alert-warning"
+                    : "alert-success";
+
+            const icon =
+                type === "error"
+                    ? "fa-exclamation-triangle"
+                    : type === "warning"
+                    ? "fa-exclamation-circle"
+                    : "fa-check-circle";
+
+            const $message = $(`
+                <div id="${messageId}" class="alert ${alertClass} alert-dismissible fade show mt-2" role="alert">
+                    <i class="fas ${icon} me-2"></i>${message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            `);
+
+            $reinsurerSection.append($message);
+        },
+
+        clearValidationMessage(treatyCounter, counter) {
+            const messageId = `validation-msg-${treatyCounter}-${counter}`;
+            $(`#${messageId}`).fadeOut(300, function () {
+                $(this).remove();
+            });
+        },
+
+        updateGlobalValidation() {
+            const $validationMessages = $("#validation-messages");
+            const $validationList = $("#validation-list");
+            const errors = [];
+
+            $(".treaty-div-section").each(function () {
+                const counter = $(this).data("counter");
+                const remaining =
+                    parseFloat($(`#rem_share-${counter}`).val()) || 0;
+
+                if (remaining < 0) {
+                    errors.push(
+                        `Treaty Section ${
+                            parseInt(counter) + 1
+                        }: Over-distributed by ${Math.abs(remaining).toFixed(
+                            2
+                        )}%`
+                    );
+                }
+            });
+
+            $(".is-invalid").each(function () {
+                const $input = $(this);
+                if ($input.hasClass("reinsurer-total-acceptance")) {
+                    const treatyCounter = $input.data("treaty-counter");
+                    const counter = $input.data("counter");
+                    errors.push(
+                        `Treaty ${parseInt(treatyCounter) + 1}, Reinsurer ${
+                            parseInt(counter) + 1
+                        }: Total exceeds written lines`
+                    );
+                }
+            });
+
+            if (errors.length > 0) {
+                $validationList.html(
+                    errors.map((err) => `<li>${err}</li>`).join("")
+                );
+                $validationMessages.slideDown();
+
+                $("#partner-save-btn")
+                    .prop("disabled", true)
+                    .addClass("disabled");
+            } else {
+                $validationMessages.slideUp();
+
+                $("#partner-save-btn")
+                    .prop("disabled", false)
+                    .removeClass("disabled");
+            }
+        },
+
+        recalculateAllInTreaty(treatyCounter) {
+            const self = this;
+            $(
+                `.reinsurer-compulsory-acceptance[data-treaty-counter="${treatyCounter}"]`
+            ).each(function () {
+                const counter = $(this).data("counter");
+                self.calculateTotalAcceptance(treatyCounter, counter);
+                self.validateAgainstWrittenLines(treatyCounter, counter);
+            });
+
+            this.updateDistributionSummary(treatyCounter);
+        },
+
+        resetReinsurerRow(treatyCounter, counter) {
+            $(`#compulsory_acceptance-${treatyCounter}-${counter}`).val("");
+            $(`#optional_acceptance-${treatyCounter}-${counter}`).val("");
+            $(`#total_acceptance-${treatyCounter}-${counter}`).val("");
+            $(`#written_share-${treatyCounter}-${counter}`).val("");
+
+            this.clearValidationMessage(treatyCounter, counter);
+            this.updateDistributionSummary(treatyCounter);
+        },
+
+        getReinsurerData(treatyCounter, counter) {
+            return {
+                reinsurer: $(`#reinsurer-${treatyCounter}-${counter}`).val(),
+                written_share:
+                    parseFloat(
+                        $(`#written_share-${treatyCounter}-${counter}`).val()
+                    ) || 0,
+                compulsory_acceptance:
+                    parseFloat(
+                        $(
+                            `#compulsory_acceptance-${treatyCounter}-${counter}`
+                        ).val()
+                    ) || 0,
+                optional_acceptance:
+                    parseFloat(
+                        $(
+                            `#optional_acceptance-${treatyCounter}-${counter}`
+                        ).val()
+                    ) || 0,
+                total_acceptance:
+                    parseFloat(
+                        $(`#total_acceptance-${treatyCounter}-${counter}`).val()
+                    ) || 0,
+                wht_rate: $(`#wht_rate-${treatyCounter}-${counter}`).val(),
+                pay_method: $(
+                    `#reins_pay_method-${treatyCounter}-${counter}`
+                ).val(),
+            };
+        },
+    };
+
     $(document).ready(function () {
         if ($("#coverDetailsApp").length) {
             CoverDetails.init();
@@ -3879,5 +4104,8 @@
 
         window.ReinsurerPlacement = ReinsurerPlacement;
         ReinsurerPlacement.init();
+
+        window.TreatyReinsurerCalculations = TreatyReinsurerCalculations;
+        TreatyReinsurerCalculations.init();
     });
 })(jQuery);
