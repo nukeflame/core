@@ -1,18 +1,5 @@
 "use strict";
 
-/**
- * Pipeline Manager
- *
- * @description Manages the sales pipeline view including chart rendering,
- * data table management, stage transitions, document uploads, and email notifications.
- *
- * @version 1.0.0
- * @requires jQuery, DataTables, Chartist, Bootstrap, SweetAlert2, Toastr
- */
-
-/* ============================================================================
-   Constants
-   ========================================================================== */
 const STAGE_NAMES = {
     LEAD: "lead",
     PROPOSAL: "proposal",
@@ -54,15 +41,8 @@ const EXCLUDED_TERMS = [
 
 const DEDUCTIBLE_TERMS = ["Deductible/Excess"];
 
-/* ============================================================================
-   PipelineManager Class
-   ========================================================================== */
 class PipelineManager {
-    /**
-     * Creates a new PipelineManager instance
-     */
     constructor() {
-        // Core properties
         this.chartInstance = null;
         this.totalSumInsured = null;
         this.currentDealId = null;
@@ -73,7 +53,6 @@ class PipelineManager {
         this.reinsurerDataTable = null;
         this.activeFileUrls = new Set();
 
-        // Cache frequently used DOM elements
         this.$pipYearSelect = null;
         this.$loadingOverlay = null;
         this.$errorContainer = null;
@@ -82,7 +61,6 @@ class PipelineManager {
         this.$chartError = null;
         this.$pipelineChart = null;
 
-        // Configuration object with routes and stage flow
         this.config = {
             routes: {
                 pipelineData: window.pipelineRoutes?.pipelineData || "",
@@ -196,9 +174,6 @@ class PipelineManager {
         this.init();
     }
 
-    /**
-     * Initializes the pipeline manager
-     */
     init() {
         try {
             this.cacheDOMElements();
@@ -214,9 +189,6 @@ class PipelineManager {
         }
     }
 
-    /**
-     * Performs initial email connection check
-     */
     performInitialConnectionCheck() {
         if (
             typeof window.BDEmailModal !== "undefined" &&
@@ -236,9 +208,6 @@ class PipelineManager {
         }
     }
 
-    /**
-     * Cache frequently accessed DOM elements
-     */
     cacheDOMElements() {
         this.$pipYearSelect = $("#pip_year_select");
         this.$loadingOverlay = $("#loading-overlay");
@@ -249,9 +218,6 @@ class PipelineManager {
         this.$pipelineChart = $("#pipeline-chart");
     }
 
-    /**
-     * Sets up CSRF token for AJAX requests
-     */
     setupCSRF() {
         const csrfToken = $('meta[name="csrf-token"]').attr("content");
         $.ajaxSetup({
@@ -261,9 +227,6 @@ class PipelineManager {
         });
     }
 
-    /**
-     * Sets up global error handling
-     */
     setupErrorHandling() {
         window.onerror = (message, source, lineno, colno, error) => {
             this.handleError("JavaScript Error", {
@@ -275,9 +238,6 @@ class PipelineManager {
         };
     }
 
-    /**
-     * Initializes the Chartist bar chart
-     */
     initializeChart() {
         try {
             if (typeof Chartist === "undefined") {
@@ -338,35 +298,23 @@ class PipelineManager {
         }
     }
 
-    /**
-     * Shows the chart loading indicator
-     */
     showChartLoading() {
         this.$chartLoading?.removeClass("d-none");
         this.$chartError?.addClass("d-none");
         this.$pipelineChart?.addClass("d-none");
     }
 
-    /**
-     * Hides the chart loading indicator
-     */
     hideChartLoading() {
         this.$chartLoading?.addClass("d-none");
         this.$pipelineChart?.removeClass("d-none");
     }
 
-    /**
-     * Shows the chart error message
-     */
     showChartError() {
         this.$chartLoading?.addClass("d-none");
         this.$chartError?.removeClass("d-none");
         this.$pipelineChart?.addClass("d-none");
     }
 
-    /**
-     * Loads chart data from the server
-     */
     loadChartData() {
         const pipelineId = this.$pipYearSelect?.val();
 
@@ -400,11 +348,6 @@ class PipelineManager {
         });
     }
 
-    /**
-     * Updates chart with new data
-     *
-     * @param {Array<number>} data - Array of 4 numbers representing quarterly data
-     */
     updateChartData(data) {
         if (!this.chartInstance) {
             return;
@@ -428,9 +371,6 @@ class PipelineManager {
         }
     }
 
-    /**
-     * Initializes all DataTables for pipeline data
-     */
     initializeDataTables() {
         const tables = $(".pipeline-table");
 
@@ -494,12 +434,6 @@ class PipelineManager {
         });
     }
 
-    /**
-     * Handles AJAX errors from DataTables
-     *
-     * @param {Object} xhr - XMLHttpRequest object
-     * @param {string} tableId - ID of the table that experienced the error
-     */
     handleAjaxError(xhr, tableId) {
         let errorMessage = "Failed to load data";
 
@@ -514,11 +448,6 @@ class PipelineManager {
         this.showError(`${errorMessage} for ${tableId}`);
     }
 
-    /**
-     * Returns HTML for loading indicator
-     *
-     * @returns {string} HTML string for loading spinner
-     */
     getLoadingHTML() {
         return `
             <div class="d-flex justify-content-center">
@@ -528,10 +457,6 @@ class PipelineManager {
             </div>
         `;
     }
-
-    /**
-     * Binds all event handlers
-     */
     bindEvents() {
         this.$pipYearSelect?.off("change").on("change", () => {
             this.debounce(() => {
@@ -562,11 +487,7 @@ class PipelineManager {
             });
     }
 
-    /**
-     * Initializes action button handlers for pipeline operations
-     */
     initializeActionHandlers() {
-        // Remove previous handlers
         $(".stage_btn_action").off("click.pipeline");
         $(".del_opp_sales").off("click.pipeline");
         $(".update_category_action").off("click.pipeline");
@@ -574,7 +495,6 @@ class PipelineManager {
         $(".preview-pdf-btn").off("click.pipeline");
         $(".revert-pipeline").off("click.pipeline");
 
-        // Attach new handlers
         $(".stage_btn_action").on("click.pipeline", (e) => {
             e.preventDefault();
             this.handleStageAction(e.currentTarget);
@@ -606,11 +526,6 @@ class PipelineManager {
         });
     }
 
-    /**
-     * Handles stage transition button clicks
-     *
-     * @param {HTMLElement} button - The clicked button element
-     */
     handleStageAction(button) {
         try {
             this.showLoading();
@@ -687,11 +602,6 @@ class PipelineManager {
         }
     }
 
-    /**
-     * Handles category update button clicks
-     *
-     * @param {HTMLElement} button - The clicked button element
-     */
     handleCategoryUpdate(button) {
         try {
             const buttonData = $(button).data();
@@ -709,11 +619,6 @@ class PipelineManager {
         }
     }
 
-    /**
-     * Handles pipeline deletion
-     *
-     * @param {HTMLElement} button - The clicked button element
-     */
     handleDelPipeline(button) {
         try {
             const buttonData = $(button).data();
@@ -760,11 +665,6 @@ class PipelineManager {
         }
     }
 
-    /**
-     * Handles pipeline reversion
-     *
-     * @param {HTMLElement} button - The clicked button element
-     */
     handleRevertPipeline(button) {
         try {
             const buttonData = $(button).data();
@@ -830,12 +730,6 @@ class PipelineManager {
         }
     }
 
-    /**
-     * Reverts pipeline to previous stage
-     *
-     * @param {number} dealId - The deal/opportunity ID
-     * @param {string} insuredName - Name of the insured party
-     */
     revertPipeline(dealId, insuredName) {
         $.ajax({
             type: "POST",
@@ -863,12 +757,6 @@ class PipelineManager {
         });
     }
 
-    /**
-     * Deletes pipeline entry
-     *
-     * @param {number} dealId - The deal/opportunity ID
-     * @param {string} insuredName - Name of the insured party
-     */
     deletePipeline(dealId, insuredName) {
         $.ajax({
             type: "POST",
@@ -896,14 +784,6 @@ class PipelineManager {
         });
     }
 
-    /**
-     * Opens stage modal for pipeline transitions
-     *
-     * @param {string} stage - The target stage
-     * @param {string} modalId - ID of the modal to open
-     * @param {number} dealId - The deal/opportunity ID
-     * @param {Object} dealInfo - Deal information object
-     */
     openStageModal(stage, modalId, dealId, dealInfo = null) {
         try {
             this.currentDealId = dealId;
@@ -953,14 +833,6 @@ class PipelineManager {
         }
     }
 
-    /**
-     * Populates modal with deal information
-     *
-     * @param {string} modalId - ID of the modal
-     * @param {number} dealId - The deal/opportunity ID
-     * @param {string} stage - Current stage
-     * @param {Object} dealInfo - Deal information object
-     */
     populateModalData(modalId, dealId, stage, dealInfo = null) {
         try {
             const $modal = $(`#${modalId}`);
@@ -1056,11 +928,6 @@ class PipelineManager {
         }
     }
 
-    /**
-     * Loads schedule headers for the deal
-     *
-     * @param {Object} data - Data object containing deal information
-     */
     loadScheduleHeaders(data) {
         if (!data.dealId || !data.class || !data.classGroup) {
             return;
@@ -1093,11 +960,6 @@ class PipelineManager {
         });
     }
 
-    /**
-     * Loads selected reinsurers for proposal stage
-     *
-     * @param {Object} data - Data object containing deal information
-     */
     loadSelectedReinsurers(data) {
         if (!data.dealId || !data.class || !data.classGroup) {
             return;
@@ -1141,13 +1003,6 @@ class PipelineManager {
         });
     }
 
-    /**
-     * Renders reinsurers DataTable
-     *
-     * @param {Array} reinsurers - Array of reinsurer objects
-     * @param {jQuery} $table - jQuery table element
-     * @param {Object} data - Data object containing deal information
-     */
     renderReinsurersTable(reinsurers, $table, data) {
         if (!$table || $table.length === 0) {
             return;
@@ -1180,13 +1035,6 @@ class PipelineManager {
 
         this.reinsurerDataTable = dataTable;
     }
-
-    /**
-     * Transforms reinsurer data for DataTable
-     *
-     * @param {Array} reinsurers - Array of reinsurer objects
-     * @returns {Array} Transformed data array
-     */
     transformReinsurerData(reinsurers) {
         return reinsurers.map((reinsurer) => {
             return {
@@ -1208,12 +1056,6 @@ class PipelineManager {
         });
     }
 
-    /**
-     * Calculates totals for reinsurer table
-     *
-     * @param {Array} tableData - Array of reinsurer data
-     * @returns {Object} Object with totalShare and totalCommission
-     */
     calculateTotals(tableData) {
         const totalShare = tableData.reduce(
             (sum, r) => sum + parseFloat(r.written_share),
@@ -1227,11 +1069,6 @@ class PipelineManager {
         return { totalShare, totalCommission };
     }
 
-    /**
-     * Gets column configuration for reinsurer DataTable
-     *
-     * @returns {Array} Array of column configuration objects
-     */
     getReinsurerColumns() {
         return [
             {
@@ -1313,23 +1150,12 @@ class PipelineManager {
         ];
     }
 
-    /**
-     * Gets badge class based on percentage
-     *
-     * @param {number} percentage - Share percentage
-     * @returns {string} Bootstrap badge class
-     */
     getShareBadgeClass(percentage) {
         if (percentage >= 50) return "bg-success";
         if (percentage >= 25) return "bg-primary";
         return "bg-info";
     }
 
-    /**
-     * Shows loading indicator for table
-     *
-     * @param {jQuery} $table - jQuery table element
-     */
     showTableLoading($table) {
         const $tbody = $table.find("tbody");
         $tbody.html(`
@@ -1344,11 +1170,6 @@ class PipelineManager {
         `);
     }
 
-    /**
-     * Initializes event handlers for reinsurer actions
-     *
-     * @param {jQuery} $table - jQuery table element
-     */
     initializeReinsurerActions($table) {
         $table.off("click", ".edit-reinsurer-btn");
         $table.off("click", ".decline-reinsurer-btn");
@@ -1388,12 +1209,6 @@ class PipelineManager {
         });
     }
 
-    /**
-     * Handles declining a reinsurer
-     *
-     * @param {Object} reinsurerData - Reinsurer data object
-     * @param {jQuery} $table - jQuery table element
-     */
     handleDeclineReinsurer(reinsurerData, $table) {
         if ($("#declineReinsurerModal").length === 0) {
             const escapedName = this.escapeHtml(reinsurerData.reinsurerName);
@@ -1481,12 +1296,6 @@ class PipelineManager {
             });
     }
 
-    /**
-     * Handles editing reinsurer share
-     *
-     * @param {Object} reinsurerData - Reinsurer data object
-     * @param {jQuery} $table - jQuery table element
-     */
     handleEditReinsurer(reinsurerData, $table) {
         const escapedName = this.escapeHtml(reinsurerData.reinsurerName);
 
@@ -1589,12 +1398,6 @@ class PipelineManager {
         editModal.show();
     }
 
-    /**
-     * Handles removing a reinsurer
-     *
-     * @param {number} reinsurerId - Reinsurer ID
-     * @param {jQuery} $table - jQuery table element
-     */
     handleRemoveReinsurer(reinsurerId, $table) {
         Swal.fire({
             title: "Remove Reinsurer?",
@@ -1612,13 +1415,6 @@ class PipelineManager {
         });
     }
 
-    /**
-     * Updates reinsurer share in DataTable
-     *
-     * @param {number} reinsurerId - Reinsurer ID
-     * @param {string} newShare - New share value
-     * @param {jQuery} $table - jQuery table element
-     */
     updateReinsurerShare(reinsurerId, newShare, $table) {
         const dataTable = $table.DataTable();
         const rowData = dataTable.rows().data().toArray();
@@ -1648,11 +1444,6 @@ class PipelineManager {
         toastr.success("Reinsurer share updated successfully");
     }
 
-    /**
-     * Updates placed share total
-     *
-     * @param {number} totalShare - Total share value
-     */
     updatePlacedShare(totalShare) {
         const $modal = $("#proposalModal");
         const unPlacedShare = 100 - totalShare;
@@ -1719,12 +1510,6 @@ class PipelineManager {
         $("#retainedShareValue").val(totalUnplacedShares);
     }
 
-    /**
-     * Removes reinsurer from DataTable
-     *
-     * @param {number} reinsurerId - Reinsurer ID
-     * @param {jQuery} $table - jQuery table element
-     */
     removeReinsurer(reinsurerId, $table) {
         const dataTable = $table.DataTable();
         const rowData = dataTable.rows().data().toArray();
@@ -1750,11 +1535,6 @@ class PipelineManager {
         }
     }
 
-    /**
-     * Loads BD terms for lead stage
-     *
-     * @param {Object} data - Data object containing deal information
-     */
     loadBdTerms(data) {
         if (!data.dealId || !data.class || !data.classGroup) {
             return;
@@ -1782,12 +1562,6 @@ class PipelineManager {
         });
     }
 
-    /**
-     * Renders BD terms in modal
-     *
-     * @param {Array} data - Array of term objects
-     * @param {Object} dealInfo - Deal information object
-     */
     renderBdTerms(data, dealInfo) {
         const $modal = $(`#${dealInfo.modalId}`);
 
@@ -1806,12 +1580,6 @@ class PipelineManager {
             }
         }
     }
-
-    /**
-     * Loads slip documents for the current stage
-     *
-     * @param {Object} data - Data object containing deal information
-     */
     loadSlipDocuments(data) {
         if (!data.dealId) {
             return;
@@ -1871,12 +1639,6 @@ class PipelineManager {
         });
     }
 
-    /**
-     * Renders schedule headers in modal
-     *
-     * @param {Array} headers - Array of header objects
-     * @param {Object} data - Data object containing deal information
-     */
     renderScheduleHeaders(headers, data) {
         if (!data?.modalId) {
             return;
@@ -1975,12 +1737,6 @@ class PipelineManager {
         }
     }
 
-    /**
-     * Converts text to Pascal case
-     *
-     * @param {string} rawTxt - Raw text to convert
-     * @returns {string} Pascal case string
-     */
     toPascalCase(rawTxt) {
         return rawTxt
             .replace(/['"]/g, "")
@@ -1995,13 +1751,6 @@ class PipelineManager {
             .join("");
     }
 
-    /**
-     * Renders slip documents in modal
-     *
-     * @param {Object} res - Response object containing documents
-     * @param {Object} data - Data object containing deal information
-     * @param {jQuery} $modal - jQuery modal element
-     */
     renderSlipDocuments(res, data, $modal) {
         if (!res.docs || !res.docs.length) {
             const $container = $modal.find("#documentsContent");
@@ -2043,12 +1792,6 @@ class PipelineManager {
         this.generateDocumentFields(transformedDocs, $modal);
     }
 
-    /**
-     * Generates document upload fields
-     *
-     * @param {Array} documents - Array of document objects
-     * @param {jQuery} $modal - jQuery modal element
-     */
     generateDocumentFields(documents, $modal) {
         const $container = $modal.find("#documentFields");
         const $placeholder = $modal.find("#documentPlaceholder");
@@ -2137,9 +1880,6 @@ class PipelineManager {
         if ($summarySection.length) $summarySection.show();
     }
 
-    /**
-     * Initializes file upload handlers
-     */
     initializeFileUploads() {
         $(".file-upload-area").off(".fileUpload");
         $(".file-input").off(".fileUpload");
@@ -2215,13 +1955,6 @@ class PipelineManager {
         });
     }
 
-    /**
-     * Handles file selection from upload
-     *
-     * @param {FileList} files - Selected files
-     * @param {jQuery} $uploadArea - jQuery upload area element
-     * @param {jQuery} $previewContainer - jQuery preview container element
-     */
     handleFileSelection(files, $uploadArea, $previewContainer) {
         if (!files || files.length === 0) {
             return;
@@ -2268,12 +2001,6 @@ class PipelineManager {
         this.updateFileCountBadge($uploadArea, fieldId);
     }
 
-    /**
-     * Updates file count badge
-     *
-     * @param {jQuery} $uploadArea - jQuery upload area element
-     * @param {string} fieldId - Field ID
-     */
     updateFileCountBadge($uploadArea, fieldId) {
         const $badge = $uploadArea.find(".file-count-badge");
         const fileCount = this.uploadedFiles[fieldId]
@@ -2289,13 +2016,6 @@ class PipelineManager {
         }
     }
 
-    /**
-     * Creates file preview element
-     *
-     * @param {File} file - File object
-     * @param {jQuery} $container - jQuery container element
-     * @param {string} fieldId - Field ID
-     */
     createFilePreview(file, $container, fieldId) {
         const fileId =
             file.fileId ||
@@ -2361,12 +2081,6 @@ class PipelineManager {
         });
     }
 
-    /**
-     * Removes file from upload
-     *
-     * @param {string} fieldId - Field ID
-     * @param {string} fileId - File ID
-     */
     removeFile(fieldId, fileId) {
         try {
             const $previewItem = $(
@@ -2403,12 +2117,6 @@ class PipelineManager {
         }
     }
 
-    /**
-     * Views uploaded file
-     *
-     * @param {string} fieldId - Field ID
-     * @param {string} fileId - File ID
-     */
     viewFile(fieldId, fileId) {
         try {
             const fileToView = this.uploadedFiles[fieldId]?.find(
@@ -2460,23 +2168,12 @@ class PipelineManager {
         }
     }
 
-    /**
-     * Shows toast notification
-     *
-     * @param {string} type - Toast type (success, error, info, warning)
-     * @param {string} message - Toast message
-     */
     showToast(type, message) {
         if (typeof toastr !== "undefined") {
             toastr[type](message);
         }
     }
 
-    /**
-     * Revokes object URL to free memory
-     *
-     * @param {string} url - Object URL to revoke
-     */
     revokeFileUrl(url) {
         try {
             URL.revokeObjectURL(url);
@@ -2488,16 +2185,9 @@ class PipelineManager {
         }
     }
 
-    /**
-     * Shows image in modal
-     *
-     * @param {string} fileName - File name
-     * @param {string} fileUrl - File URL
-     */
     showImageModal(fileName, fileUrl) {
         $("#leadModal").modal("hide");
 
-        // XSS Protection: Escape file name
         const escapedFileName = this.escapeHtml(fileName);
 
         const modalHtml = `
@@ -2538,13 +2228,6 @@ class PipelineManager {
 
         modal.show();
     }
-
-    /**
-     * Shows text file in modal
-     *
-     * @param {File} file - File object
-     * @param {string} fileUrl - File URL
-     */
     showTextFileModal(file, fileUrl) {
         const reader = new FileReader();
         reader.onload = (e) => {
@@ -2591,12 +2274,6 @@ class PipelineManager {
         reader.readAsText(file);
     }
 
-    /**
-     * Downloads file
-     *
-     * @param {string} fileName - File name
-     * @param {string} fileUrl - File URL
-     */
     downloadFile(fileName, fileUrl) {
         const a = document.createElement("a");
         a.href = fileUrl;
@@ -2608,12 +2285,6 @@ class PipelineManager {
         setTimeout(() => URL.revokeObjectURL(fileUrl), 100);
     }
 
-    /**
-     * Escapes HTML to prevent XSS attacks
-     *
-     * @param {string} text - Text to escape
-     * @returns {string} Escaped HTML string
-     */
     escapeHtml(text) {
         if (!text) return "";
         const div = document.createElement("div");
@@ -2621,12 +2292,6 @@ class PipelineManager {
         return div.innerHTML;
     }
 
-    /**
-     * Formats file size in human-readable format
-     *
-     * @param {number} bytes - File size in bytes
-     * @returns {string} Formatted file size
-     */
     formatFileSize(bytes) {
         if (bytes === 0) return "0 Bytes";
         const k = FILE_SIZE_BASE;
@@ -2638,11 +2303,6 @@ class PipelineManager {
         );
     }
 
-    /**
-     * Gets total size of all uploaded files
-     *
-     * @returns {string} Formatted total file size
-     */
     getTotalFileSize() {
         let totalSize = 0;
         Object.values(this.uploadedFiles).forEach((files) => {
@@ -2653,13 +2313,6 @@ class PipelineManager {
         return this.formatFileSize(totalSize);
     }
 
-    /**
-     * Generates field input based on header type
-     *
-     * @param {Object} header - Header object
-     * @param {string} fieldId - Field ID
-     * @returns {string} HTML string for input field
-     */
     generateFieldInput(header, fieldId) {
         const baseInputClass = "form-control form-inputs";
         const required = header.amount_field === "Y" ? "required" : "";
@@ -2733,11 +2386,6 @@ class PipelineManager {
         }
     }
 
-    /**
-     * Sets up field validation
-     *
-     * @param {jQuery} $modal - jQuery modal element
-     */
     setupFieldValidation($modal) {
         $modal
             .find("input[required], select[required]")
@@ -2758,12 +2406,6 @@ class PipelineManager {
             });
     }
 
-    /**
-     * Validates schedule form fields
-     *
-     * @param {string} modalId - Modal ID
-     * @returns {boolean} Validation result
-     */
     validateScheduleForm(modalId) {
         const $modal = $(`#${modalId}`);
         const requiredFields = $modal.find("input[required], select[required]");
@@ -2788,9 +2430,6 @@ class PipelineManager {
         return isValid;
     }
 
-    /**
-     * Adds escape key listener for modal closing
-     */
     addEscapeKeyListener() {
         if (this.escapeKeyHandler) return;
 
@@ -2806,9 +2445,6 @@ class PipelineManager {
         document.addEventListener("keydown", this.escapeKeyHandler);
     }
 
-    /**
-     * Removes escape key listener
-     */
     removeEscapeKeyListener() {
         if (this.escapeKeyHandler) {
             document.removeEventListener("keydown", this.escapeKeyHandler);
@@ -2816,9 +2452,6 @@ class PipelineManager {
         }
     }
 
-    /**
-     * Reloads all DataTables
-     */
     reloadAllTables() {
         let reloadCount = 0;
 
@@ -2833,12 +2466,6 @@ class PipelineManager {
         });
     }
 
-    /**
-     * Gets table ID from tab ID
-     *
-     * @param {string} tabId - Tab ID
-     * @returns {string|null} Table ID or null
-     */
     getTableIdFromTab(tabId) {
         const mapping = {
             "#general_details": "all_opps",
@@ -2850,24 +2477,11 @@ class PipelineManager {
         return mapping[tabId] || null;
     }
 
-    /**
-     * Capitalizes first letter of string
-     *
-     * @param {string} str - String to capitalize
-     * @returns {string} Capitalized string
-     */
     capitalize(str) {
         if (!str || typeof str !== "string") return "";
         return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
     }
 
-    /**
-     * Debounces function execution
-     *
-     * @param {Function} func - Function to debounce
-     * @param {number} wait - Wait time in milliseconds
-     * @returns {Function} Debounced function
-     */
     debounce(func, wait) {
         let timeout;
         return function executedFunction(...args) {
@@ -2880,25 +2494,14 @@ class PipelineManager {
         };
     }
 
-    /**
-     * Shows loading overlay
-     */
     showLoading() {
         this.$loadingOverlay?.removeClass("d-none");
     }
 
-    /**
-     * Hides loading overlay
-     */
     hideLoading() {
         this.$loadingOverlay?.addClass("d-none");
     }
 
-    /**
-     * Shows error message
-     *
-     * @param {string} message - Error message
-     */
     showError(message) {
         this.$errorMessage?.text(message);
         this.$errorContainer?.removeClass("d-none");
@@ -2912,12 +2515,6 @@ class PipelineManager {
         }
     }
 
-    /**
-     * Handles errors and displays appropriate messages
-     *
-     * @param {string} context - Error context
-     * @param {Error|Object} error - Error object
-     */
     handleError(context, error) {
         let errorMessage = "An error occurred";
 
@@ -2955,12 +2552,8 @@ class PipelineManager {
         }
     }
 
-    /**
-     * Destroys the pipeline manager instance and cleans up resources
-     */
     destroy() {
         try {
-            // Destroy DataTables
             this.dataTables.forEach((dataTable, tableId) => {
                 try {
                     if ($.fn.DataTable.isDataTable(`#${tableId}`)) {
@@ -2976,7 +2569,6 @@ class PipelineManager {
 
             this.dataTables.clear();
 
-            // Remove event listeners
             this.removeEscapeKeyListener();
             $(".stage_btn_action").off(".pipeline");
             $(".update_category_action").off(".pipeline");
@@ -2992,7 +2584,6 @@ class PipelineManager {
             $(".file-remove-btn").off(".fileRemove");
             $(".file-view-btn").off(".fileView");
 
-            // Destroy chart
             if (
                 this.chartInstance &&
                 typeof this.chartInstance.detach === "function"
@@ -3000,10 +2591,8 @@ class PipelineManager {
                 this.chartInstance.detach();
             }
 
-            // Clean up uploaded files
             this.uploadedFiles = {};
 
-            // Revoke all object URLs
             $(".file-preview-item").each(function () {
                 const $img = $(this).find("img");
                 if ($img.length && $img.attr("src")) {
@@ -3026,18 +2615,10 @@ class PipelineManager {
         }
     }
 
-    /**
-     * Gets all uploaded files
-     *
-     * @returns {Object} Object containing all uploaded files
-     */
     getAllUploadedFiles() {
         return this.uploadedFiles;
     }
 
-    /**
-     * Clears all uploaded files
-     */
     clearAllFiles() {
         // Revoke all object URLs to prevent memory leaks
         if (this.activeFileUrls && this.activeFileUrls.size > 0) {
@@ -3063,11 +2644,6 @@ class PipelineManager {
             .addClass("bg-secondary");
     }
 
-    /**
-     * Handles sending BD notification email
-     *
-     * @param {HTMLElement} button - The clicked button element
-     */
     handleSendBDNotification(button) {
         try {
             this.showLoading();
@@ -3089,12 +2665,6 @@ class PipelineManager {
         }
     }
 
-    /**
-     * Checks email connection before loading BD essentials
-     *
-     * @param {number} opportunityId - Opportunity ID
-     * @param {string} currentStage - Current stage
-     */
     checkEmailConnectionBeforeLoad(opportunityId, currentStage) {
         if (
             typeof window.BDEmailModal !== "undefined" &&
@@ -3135,12 +2705,6 @@ class PipelineManager {
         }
     }
 
-    /**
-     * Handles email reconnection flow
-     *
-     * @param {number} opportunityId - Opportunity ID
-     * @param {string} currentStage - Current stage
-     */
     handleEmailReconnect(opportunityId, currentStage) {
         this.showLoading();
 
@@ -3167,11 +2731,6 @@ class PipelineManager {
         });
     }
 
-    /**
-     * Handles PDF preview
-     *
-     * @param {HTMLElement} button - The clicked button element
-     */
     handlePdfPreview(button) {
         try {
             this.showLoading();
@@ -3203,12 +2762,6 @@ class PipelineManager {
         }
     }
 
-    /**
-     * Loads BD essentials for email notification
-     *
-     * @param {number} opportunityId - Opportunity ID
-     * @param {string} currentStage - Current stage
-     */
     loadBdEssentials(opportunityId, currentStage) {
         $.ajax({
             url: "bd/bd_email_data",
@@ -3274,12 +2827,6 @@ class PipelineManager {
         });
     }
 
-    /**
-     * Prepares BD email modal with data
-     *
-     * @param {number} opportunityId - Opportunity ID
-     * @param {Object} data - Email data object
-     */
     prepareBDEmailModal(opportunityId, data) {
         try {
             const $bdMailModal = $("#sendBDEmailModal");
@@ -3415,12 +2962,6 @@ class PipelineManager {
         }
     }
 
-    /**
-     * Populates attached files list
-     *
-     * @param {Array} filesArray - Array of file objects
-     * @param {string} containerId - Container element ID
-     */
     populateAttachedFiles(filesArray, containerId = "attachedFilesList") {
         const $container = $(`#${containerId}`);
 
@@ -3451,12 +2992,6 @@ class PipelineManager {
         this.updateFileCount(filesArray.length);
     }
 
-    /**
-     * Creates file element for attached files list
-     *
-     * @param {Object} file - File object
-     * @returns {jQuery} jQuery file element
-     */
     createFileElement(file) {
         const fileUrl = file.s3_url;
         const fileName = file.original_name;
@@ -3482,7 +3017,6 @@ class PipelineManager {
 
         const $fileInfoDiv = $("<div>", { class: "file-info flex-grow-1" });
 
-        // XSS Protection: Escape file name
         const $fileName = $("<h6>", {
             class: "mb-1",
             text: fileName,
@@ -3504,13 +3038,6 @@ class PipelineManager {
         return $col;
     }
 
-    /**
-     * Gets file icon and type based on MIME type
-     *
-     * @param {string} mimeType - File MIME type
-     * @param {string} fileName - File name
-     * @returns {Object} Object with icon and displayType
-     */
     getFileIconAndType(mimeType, fileName) {
         const fileExtension = fileName.split(".").pop().toLowerCase();
 
@@ -3568,10 +3095,6 @@ class PipelineManager {
         };
     }
 
-    /**
-     *
-     * @param {jQuery} $container - jQuery container element
-     */
     addNoFilesMessage($container) {
         if ($("#additionalFilesMessage").length > 0) return;
 
@@ -3590,22 +3113,11 @@ class PipelineManager {
         $container.append($col);
     }
 
-    /**
-     * Updates file count display
-     *
-     * @param {number} dynamicCount - Dynamic file count
-     * @param {number} staticCount - Static file count
-     */
     updateFileCount(dynamicCount, staticCount = 2) {
         const totalCount = staticCount + dynamicCount;
         $("#fileCount").text(`${totalCount} files attached`);
     }
 
-    /**
-     * Checks if email service is available
-     *
-     * @returns {Promise<boolean>} Promise resolving to connection status
-     */
     async checkEmailServiceAvailability() {
         try {
             // const response = await $.ajax({
@@ -3619,12 +3131,6 @@ class PipelineManager {
             return false;
         }
     }
-
-    /**
-     * Shows email connection warning
-     *
-     * @param {Function} retryCallback - Callback function to retry after reconnection
-     */
     showEmailConnectionWarning(retryCallback) {
         Swal.fire({
             icon: "warning",
@@ -3662,11 +3168,6 @@ class PipelineManager {
         });
     }
 
-    /**
-     * Updates mail button state based on connection status
-     *
-     * @param {boolean} isConnected - Connection status
-     */
     updateMailButtonStates(isConnected) {
         const $mailButtons = $(".mail-btn");
 
@@ -3723,9 +3224,6 @@ window.addEventListener("unhandledrejection", function (event) {
     }
 });
 
-/* ============================================================================clear
-   Export for module usage (if needed)
-   ========================================================================== */
 if (typeof module !== "undefined" && module.exports) {
     module.exports = PipelineManager;
 }

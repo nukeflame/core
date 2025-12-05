@@ -20,7 +20,6 @@
                 <div class="card-title">Pipeline Details</div>
             </div>
             <div class="card-body">
-                <!-- Pipeline Year Selection -->
                 <div class="mb-4">
                     <form id="pip_year_form" action="{{ route('pipeline.view') }}" method="get">
                         <input type="hidden" id="opp_id" name="opp_id">
@@ -40,7 +39,6 @@
                     </form>
                 </div>
 
-                <!-- Chart Container -->
                 <div class="d-flex justify-content-center flex-wrap chart-container">
                     <div id="pipeline-chart" class="ct-chart-ranking ct-golden-section ct-series-a"></div>
                     <div id="chart-loading" class="d-none">
@@ -54,7 +52,6 @@
                     </div>
                 </div>
 
-                <!-- Chart Legend -->
                 <div class="row">
                     <hr>
                     <div class="d-flex justify-content-center flex-wrap">

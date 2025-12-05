@@ -2398,49 +2398,134 @@ class PipelineController
 
             SendHandOverApproverEmail::dispatch($approverEmailData);
         } catch (\Exception $e) {
-            logger($e);
         }
     }
 
     public function prospectAddToPipeline(Request $request)
     {
-        if ($request->has('revert_to_sales')) {
-            $update = DB::table('pipeline_opportunities')->where('opportunity_id', $request->prospect)->update(['pipeline_id' => null]);
+        $request->validate([
+            'prospect' => 'required|string|exists:pipeline_opportunities,opportunity_id',
+            'revert_to_sales' => 'sometimes'
+        ]);
 
-            $tempFiles = DB::table('prospect_docs')
-                ->where('prospect_id', $request->prospect)
-                ->get();
+        $prospectId = $request->prospect;
 
-            $facReinsurers = DB::table('bd_fac_reinsurers')->where('opportunity_id', $request->prospect);
+        DB::beginTransaction();
 
-            if ($facReinsurers->get()->count() > 0) {
-                DB::table('bd_fac_reinsurers')->where('opportunity_id', $request->prospect)->delete();
+        try {
+            if ($request->has('revert_to_sales')) {
+                $this->revertProspectToSales($prospectId);
+                $message = "Successfully reverted to sales";
+            } else {
+                $this->addProspectToPipeline($prospectId);
+                $message = "Successfully added to pipeline";
             }
 
-            if ($tempFiles->count() > 0) {
-                foreach ($tempFiles as $temp) {
-                    $this->s3Handler->deleteFromBothStorages($temp->s3_url, $temp->s3_path);
-                }
+            DB::commit();
 
-                DB::table('prospect_docs')
-                    ->where('prospect_id', $request->prospect)
-                    ->delete();
-            }
-        } else {
-            $stage = 1;
-            $year = DB::table('pipeline_opportunities')->where('opportunity_id', $request->prospect)->first()->pip_year;
-            $pip_id = DB::table('pipelines')->where('id', $year)->first()->id;
-            $update = DB::table('pipeline_opportunities')->where('opportunity_id', $request->prospect)
-                ->update([
-                    'pipeline_id' => $pip_id,
-                    'stage' => $stage,
-                ]);
+            return [
+                'status' => 1,
+                'message' => $message
+            ];
+        } catch (Exception $e) {
+            DB::rollBack();
+
+            return [
+                'status' => 0,
+                'message' => "Failed: " . $e->getMessage()
+            ];
+        }
+    }
+
+    protected function revertProspectToSales(string $prospectId)
+    {
+        $updated = DB::table('pipeline_opportunities')
+            ->where('opportunity_id', $prospectId)
+            ->update([
+                'pipeline_id' => null,
+                'stage' => null,
+                'category_type' => null,
+                'updated_at' => now()
+            ]);
+
+        if (!$updated) {
+            throw new Exception("Failed to update pipeline_opportunities table");
         }
 
-        if ($update) {
-            return ['status' => 1, 'message' => "Successfully added"];
-        } else {
-            return ['status' => 0, 'message' => "Failed"];
+        $facReinsurersCount = DB::table('bd_fac_reinsurers')
+            ->where('opportunity_id', $prospectId)
+            ->count();
+
+        if ($facReinsurersCount > 0) {
+            DB::table('bd_fac_reinsurers')
+                ->where('opportunity_id', $prospectId)
+                ->delete();
+        }
+
+        $this->deleteProspectDocuments($prospectId);
+    }
+
+    protected function deleteProspectDocuments(string $prospectId)
+    {
+        $documents = DB::table('prospect_docs')
+            ->where('prospect_id', $prospectId)
+            ->get();
+
+        if ($documents->isEmpty()) {
+            return;
+        }
+
+        $deletedCount = 0;
+        $failedCount = 0;
+
+        foreach ($documents as $document) {
+            try {
+                $this->s3Handler->deleteFromBothStorages(
+                    $document->s3_url,
+                    $document->s3_path
+                );
+                $deletedCount++;
+            } catch (Exception $e) {
+                $failedCount++;
+            }
+        }
+
+        DB::table('prospect_docs')->where('prospect_id', $prospectId)->delete();
+    }
+
+    protected function addProspectToPipeline(string $prospectId)
+    {
+        $opportunity = DB::table('pipeline_opportunities')
+            ->where('opportunity_id', $prospectId)
+            ->first();
+
+        if (!$opportunity) {
+            throw new Exception("Opportunity not found");
+        }
+
+        if (!$opportunity->pip_year) {
+            throw new Exception("Pipeline year not set for this opportunity");
+        }
+
+        $pipeline = DB::table('pipelines')
+            ->where('id', $opportunity->pip_year)
+            ->first();
+
+        if (!$pipeline) {
+            throw new Exception("Pipeline not found for year: " . $opportunity->pip_year);
+        }
+
+        $stage = 1;
+        $updated = DB::table('pipeline_opportunities')
+            ->where('opportunity_id', $prospectId)
+            ->update([
+                'pipeline_id' => $pipeline->id,
+                'stage' => $stage,
+                'updated_at' => now()
+            ]);
+
+        if (!$updated) {
+            throw new Exception("Failed to update pipeline_opportunities with pipeline_id");
         }
     }
 
@@ -2529,283 +2614,6 @@ class PipelineController
             }
         } catch (\Throwable $th) {
             return redirect()->back()->with("error", "verification failed");
-        }
-    }
-
-    public function CRSendMailsToClient(Request $request)
-    {
-
-        if ($request->has('isSendNow')) {
-            $isSendNow = $request->input('isSendNow');
-            $prospectId = Crypt::decrypt($request->input('qstring'));
-            $mail = Crypt::decrypt($request->input('email'));
-
-            list($key, $prospectId) = explode('=', $prospectId);
-            list($key, $mail) = explode('=', $mail);
-        } else {
-            $details = $request->query('details');
-            $decodedDetails = json_decode($details, true);
-            if ($decodedDetails) {
-                $prospectId = $decodedDetails['prospectId'];
-                $mail = $decodedDetails['mail'];
-            }
-        }
-
-        return view('Bd_views.intermediaries.showCremailtoclient', compact('mail', 'prospectId'));
-    }
-
-    public function sendDraftEmailCrClient(Request $request)
-    {
-        try {
-            $request->validate([
-                'prospectId' => 'required|string',
-                'recipient' => 'required|email',
-                'cc' => 'nullable|string',
-                'subject' => 'required|string',
-                'content' => 'required|string',
-            ]);
-
-            $recipientEmail = $request->input('recipient');
-            $ccEmails = $request->input('cc');
-
-            // Convert CC emails to an array if more than one
-            $ccEmails = $ccEmails ? explode(',', $ccEmails) : [];
-
-            $emailData = [
-                'subject' => $request->input('subject'),
-                'content' => $request->input('content'),
-            ];
-
-            $data = [
-                'recipientEmail' => $recipientEmail,
-                'emailData' => $emailData,
-                'ccEmails' => $ccEmails,
-            ];
-
-            // sendCrEmailToClient::dispatch($data);
-
-            // update prospect to status 4 to move to client listing
-            DB::table('prospect_handover')->where('prospect_id', "=", $request->input('prospectId'))->update([
-                'prospect_verification_status' => 4,
-            ]);
-
-            return response()->json(['success' => true, 'message' => 'Email sent successfully.', 'redirect' => route('client_lst')]);
-        } catch (\Exception $e) {
-            // Handle error sending email
-            return response()->json(['success' => false, 'message' => 'Failed to send email: ' . $e->getMessage()]);
-        }
-    }
-
-    public function viewSchemeAllocateBlade(Request $request)
-    {
-
-        $decrypted = Crypt::decrypt($request->input('qstring'));
-
-        parse_str($decrypted, $output);
-
-        $prospectId = $output['prospect'];
-
-        $crProspect = DB::table('prospect_handover')->where('prospect_id', "=", $prospectId)->first();
-        $crId = $crProspect->cr_handler;
-        $crHandlers = [];
-        $crCoHandlers = [];
-        $underWritters = [];
-
-        foreach (DB::table('underwriter_account_handlers')->where('divisions_id', "=", $crProspect->division)->where('account_handler', "=", 1)->get() as $cr) {
-            $crHandlers[] = DB::table('users')->where('id', "=", $cr->users_id)->first();
-        }
-
-        foreach (DB::table('underwriter_account_handlers')->where('divisions_id', "=", $crProspect->division)->where('account_handler', "=", 2)->get() as $crDiv) {
-            $crCoHandlers[] = DB::table('users')->where('id', "=", $crDiv->users_id)->first();
-        }
-
-        $underWritters = DB::table('users')
-            ->join('user_groups', 'users.user_group_id', '=', 'user_groups.id')
-            ->whereIn('user_groups.group_name', ['underwriter', 'Head-Underwriter'])
-            ->select('users.*')
-            ->get();
-
-        $bd_users = User::leftJoin('user_groups', function ($query) {
-            $query->on('users.user_group_id', '=', 'user_groups.id');
-        })
-            ->where('guard_name', 'business-development')
-            ->get();
-
-        return view('Bd_intermediaries.scheme_allocate_prospect', compact('prospectId', 'crHandlers', 'crCoHandlers', 'underWritters', 'bd_users'));
-    }
-
-    public function prospects_won(Request $request)
-    {
-
-        // check if its crm or cr logged in
-        if (count(DB::table('users')->where('user_group_id', "=", DB::table('user_groups')->where('group_name', "=", 'underwriter')->first()->id)->where('id', "=", Auth::user()->id)->get()) > 0) {
-
-            $activities = DB::table('prospect_handover')
-                ->leftJoin('pipeline_opportunities', 'pipeline_opportunities.opportunity_id', '=', 'prospect_handover.prospect_id')
-                ->where('cr_processed', '<>', 'Y')
-                ->whereIn('prospect_handover.prospect_verification_status', [2, 3])
-                ->select(
-                    'pipeline_opportunities.*',
-                    'prospect_handover.prospect_verification_status',
-                    'prospect_id',
-                    'prospect_handover.division',
-                )
-                ->get();
-
-            return Datatables::of($activities)
-                ->editColumn('client_type', function ($d) {
-                    $stage = DB::table('lead_status')->where('id', $d->stage)->first();
-                    if ($d->client_type == 'C') {
-                        return 'Corporate';
-                    } else if ($d->client_type == 'I') {
-                        return 'Retail';
-                    } else if ($d->client_type == 'N') {
-                        return 'NGO';
-                    } else if ($d->client_type == 'G') {
-                        return 'Government';
-                    } else if ($d->client_type == 'S') {
-                        return "SME's";
-                    }
-                })
-                ->editColumn('division', function ($d) {
-                    $division = DB::table('divisions')->where('id', $d->division)->first();
-                    if (is_null($division)) {
-                        return '';
-                    }
-                    return $division->name;
-                })
-                ->editColumn('premium', function ($d) {
-                    return number_format($d->premium, 2, '.', ',');
-                })
-                ->editColumn('income', function ($d) {
-                    return number_format($d->income, 2, '.', ',');
-                })
-
-                ->addColumn('action', function ($d) {
-                    if ($d->prospect_verification_status === 1) {
-                        $addUrl = route('viewSchemeAllocate', ['qstring' => Crypt::encrypt('prospect=' . $d->opportunity_id)]);
-                        return '<a href="' . $addUrl . '" class="btn btn-primary update_status" title="Allocate Scheme"><i class="fa fa-plus"></i> Allocate Scheme</a>';
-                    } elseif ($d->prospect_verification_status === 2) {
-                        $addUrl = route('prospect.view', ['qstring' => Crypt::encrypt('prospect=' . $d->opportunity_id)]);
-                        return '<a href="' . $addUrl . '" class="btn btn-info update_status" title="View handover"><i class="fa fa-file"></i> View handover</a>';
-                    } elseif ($d->prospect_verification_status === 3) {
-
-                        $addUrl = route('crSendMailToClient', [
-                            'qstring' => Crypt::encrypt('prospect=' . $d->opportunity_id),
-                            'email' => Crypt::encrypt('email=' . $d->email),
-                            'isSendNow' => 'N',
-                        ]);
-
-                        // Return the HTML anchor tag with the encrypted URL and Font Awesome icon
-                        return '<a href="' . $addUrl . '" class="btn btn-info update_status" title="Draft Mail">
-                <i class="fa fa-envelope-open"></i> Draft Mail
-            </a>';
-                    }
-                })
-                ->make(true);
-        } else {
-            $activities = DB::table('prospect_handover')
-                ->leftJoin('pipeline_opportunities', 'pipeline_opportunities.opportunity_id', '=', 'prospect_handover.prospect_id')
-                ->where('cr_processed', '<>', 'Y')
-                ->where('prospect_verification_status', "!=", 2)
-                ->select(
-                    'pipeline_opportunities.*',
-                    'prospect_handover.prospect_verification_status',
-                    'prospect_handover.division',
-                )
-                ->get();
-
-            return Datatables::of($activities)
-                ->editColumn('client_type', function ($d) {
-                    $stage = DB::table('lead_status')->where('id', $d->stage)->first();
-                    if ($d->client_type == 'C') {
-                        return 'Corporate';
-                    } else if ($d->client_type == 'I') {
-                        return 'Retail';
-                    } else if ($d->client_type == 'N') {
-                        return 'NGO';
-                    } else if ($d->client_type == 'G') {
-                        return 'Government';
-                    } else if ($d->client_type == 'S') {
-                        return "SME's";
-                    }
-                })
-                ->editColumn('division', function ($d) {
-                    $division = DB::table('divisions')->where('id', $d->division)->first();
-                    if (is_null($division)) {
-                        return '';
-                    }
-                    return $division->name;
-                })
-                ->editColumn('premium', function ($d) {
-                    return number_format($d->premium, 2, '.', ',');
-                })
-                ->editColumn('income', function ($d) {
-                    return number_format($d->income, 2, '.', ',');
-                })
-
-                ->addColumn('action', function ($d) {
-                    if ($d->prospect_verification_status === 1) {
-                        $addUrl = route('viewSchemeAllocate', ['qstring' => Crypt::encrypt('prospect=' . $d->opportunity_id)]);
-                        return '<a href="' . $addUrl . '" class="btn btn-primary update_status" title="Update status"><i class="fa fa-plus"></i> Allocate Scheme</a>';
-                    } elseif ($d->prospect_verification_status === 0) {
-                        $addUrl = route('prospect.view', ['qstring' => Crypt::encrypt('prospect=' . $d->opportunity_id)]);
-                        return '<a href="' . $addUrl . '" class="btn btn-info update_status" title="View handover"><i class="fa fa-file"></i> View handover</a>';
-                    } elseif ($d->prospect_verification_status === 3) {
-                        $addUrl = route('crSendMailToClient', [
-                            'qstring' => Crypt::encrypt('prospect=' . $d->opportunity_id),
-                            'email' => Crypt::encrypt('email=' . $d->email),
-                            'isSendNow' => 'N',
-                        ]);
-
-                        // Return the HTML anchor tag with the encrypted URL and Font Awesome icon
-                        return '<a href="' . $addUrl . '" class="btn btn-success update_status" title="Draft Mail">
-                 <i class="fa fa-envelope-open"></i> CR to Draft Mail
-             </a>';
-                    }
-                })
-                ->make(true);
-        }
-    }
-
-    public function prospects_won_view(Request $request)
-    {
-        $string = $request->qstring;
-        $request = decryptRequest($string);
-        $prospect = $request->prospect;
-
-        if ((int) DB::table('prospect_handover')->where('prospect_id', "=", $request->prospect)->first()->prospect_verification_status === (int) 0 || 2) {
-            $occupations = Occupation::all();
-
-            $salutations = Salutation::all();
-
-            $genders = Gender::all();
-            $divisions = DB::table('divisions')->get();
-
-            $statuses = Status::all();
-
-            $countries = Country::all();
-            $users = User::leftJoin('user_groups', function ($query) {
-                $query->on('users.user_group_id', '=', 'user_groups.id');
-            })
-                ->where('guard_name', 'underwriter')
-                ->get();
-
-            $bd_users = User::leftJoin('user_groups', function ($query) {
-                $query->on('users.user_group_id', '=', 'user_groups.id');
-            })
-                ->where('guard_name', 'business-development')
-                ->get();
-
-            $docs = DB::table('prospect_docs')->where('prospect_id', "=", $request->prospect)->get();
-
-            $lead = DB::table('prospect_handover')->where('prospect_id', "=", $request->prospect)->first();
-
-            $currencies = Currency::all();
-
-            return view('Bd_views.intermediaries.prospect_view', compact('lead', 'currencies', 'users', 'bd_users', 'docs', 'divisions', 'prospect', 'countries', 'statuses', 'occupations', 'genders', 'salutations'));
-        } else {
-            return redirect()->back();
         }
     }
 
