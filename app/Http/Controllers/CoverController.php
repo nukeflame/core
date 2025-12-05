@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Enums\PermissionsLevel;
+use App\Exceptions\BusinessRuleException;
 use App\Http\Requests\CoverRegistrationRequest;
+use App\Http\Requests\GenerateDebitNoteRequest;
 use App\Jobs\SendReinsurerEmailJob;
 use App\Jobs\SendRenewalNoticeJob;
 use Throwable;
@@ -37,34 +39,32 @@ use App\Models\CoverRegister;
 use App\Models\CoverReinProp;
 use App\Models\ReinsDivision;
 use App\Models\SystemSerials;
-use App\Models\CoverReinclass;
 use App\Models\CoverReinLayer;
 use App\Models\CustomerAccDet;
 use App\Models\PremiumPayTerm;
 use App\Models\CoverAttachment;
 use App\Models\EndorsementType;
-use App\Models\ApprovalsTracker;
 use App\Models\TypeOfSumInsured;
 use App\Models\CoverInstallments;
 use App\Models\ReinclassPremtype;
-use App\Models\ApprovalSourceLink;
 use App\Models\Bd\PipelineOpportunity;
 use App\Models\Company;
+use App\Models\DebitNote;
 use Illuminate\Support\Facades\DB;
-use App\Models\SystemProcessAction;
 use App\Models\EndorsementNarration;
 use App\Models\HandoverApproval;
 use App\Models\PolicyRenewal;
 use App\Models\PolicyRenewalDocument;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\File;
-use Illuminate\Support\Facades\Session;
 use Yajra\DataTables\Facades\DataTables;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\Response;
 use App\Repositories\CoverRepository;
 use App\Services\CoverService;
+use App\Services\DebitNoteService;
+use App\Services\TaxCalculationService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Exception;
 use Illuminate\Support\Facades\Storage;
@@ -78,11 +78,14 @@ class CoverController extends Controller
     protected $coverRepository;
     protected $coverService;
     protected $prospectDataService;
+    protected $debitNoteService;
+    protected $taxService;
 
     public function __construct(
         CoverService $coverService,
-        // ProspectDataService $prospectDataService,
-        CoverRepository $coverRepository
+        CoverRepository $coverRepository,
+        DebitNoteService $debitNoteService,
+        TaxCalculationService $taxService
     ) {
         $this->_year = Carbon::now()->year;
         $this->_month = Carbon::now()->month;
@@ -90,7 +93,9 @@ class CoverController extends Controller
 
         $this->coverRepository = $coverRepository;
         $this->coverService = $coverService;
-        // $this->prospectDataService = $prospectDataService;
+
+        $this->debitNoteService = $debitNoteService;
+        $this->taxService = $taxService;
     }
 
     public function getCustomers(Request $request)
@@ -271,27 +276,29 @@ class CoverController extends Controller
         try {
             $transType = $request->get('trans_type');
 
-            $cover = match ($transType) {
-                'NEW' => $this->coverService->registerNewCover($request->validated()),
-                // 'REN' => $this->coverService->renewCover($request->validated()),
-                // 'EXT' => $this->coverService->processEndorsement($request->validated(), 'EXTRA'),
-                // 'CNC' => $this->coverService->processEndorsement($request->validated(), 'CANCEL'),
-                // 'RFN' => $this->coverService->processEndorsement($request->validated(), 'REFUND'),
-                // 'NIL' => $this->coverService->processEndorsement($request->validated(), 'NIL'),
-                // 'INS' => $this->coverService->processInstallment($request->validated()),
-                default => throw new Exception('Invalid transaction type')
-            };
+            if ($request->validated()) {
+                $cover = match ($transType) {
+                    'NEW' => $this->coverService->registerNewCover($request->toArray()),
+                    // 'REN' => $this->coverService->renewCover($request->validated()),
+                    // 'EXT' => $this->coverService->processEndorsement($request->validated(), 'EXTRA'),
+                    // 'CNC' => $this->coverService->processEndorsement($request->validated(), 'CANCEL'),
+                    // 'RFN' => $this->coverService->processEndorsement($request->validated(), 'REFUND'),
+                    // 'NIL' => $this->coverService->processEndorsement($request->validated(), 'NIL'),
+                    // 'INS' => $this->coverService->processInstallment($request->validated()),
+                    default => throw new Exception('Invalid transaction type')
+                };
 
-            $redirectUrl = route('cover.CoverHome', ['endorsement_no' => $cover['endorsement_no']]);
+                $redirectUrl = route('cover.CoverHome', ['endorsement_no' => $cover['endorsement_no']]);
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Cover registration processed successfully',
-                'data' => [
-                    'trans_type' => $transType,
-                    'redirectUrl' => $redirectUrl
-                ]
-            ], 200);
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Cover registration processed successfully',
+                    'data' => [
+                        'trans_type' => $transType,
+                        'redirectUrl' => $redirectUrl
+                    ]
+                ], 200);
+            }
         } catch (Exception $e) {
             return response()->json([
                 'success' => false,
@@ -549,8 +556,8 @@ class CoverController extends Controller
         $cover = $this->coverRepository->processCoverHome($request);
 
         $summaryData = ['summaryData' => []];
-
         $data = array_merge($summaryData, $cover);
+
 
         return view('cover.cover_home', $data);
     }
@@ -690,8 +697,9 @@ class CoverController extends Controller
     public function saveReinsurerData(Request $request)
     {
         DB::beginTransaction();
-
         try {
+            logger()->debug($request->all());
+
             $rules = [
                 'endorsement_no' => 'required|exists:cover_register,endorsement_no',
                 'treaty' => 'required|array|min:1',
@@ -701,6 +709,7 @@ class CoverController extends Controller
                 'treaty.*.reinsurers.*.share' => 'required|numeric|min:0|max:100',
                 'treaty.*.reinsurers.*.written_share' => 'required|numeric|min:0|max:100',
                 'treaty.*.reinsurers.*.comm_rate' => 'nullable|numeric|min:0',
+                'treaty.*.reinsurers.*.amount_type' => 'nullable|string',
                 'treaty.*.reinsurers.*.wht_rate' => 'nullable|numeric|min:0|max:100',
                 'treaty.*.reinsurers.*.pay_method' => 'required|exists:pay_method,pay_method_code',
                 'treaty.*.reinsurers.*.no_of_installments' => 'nullable|integer|min:1|max:12',
@@ -745,6 +754,7 @@ class CoverController extends Controller
                     $coverRipart->cover_no = $coverRegister->cover_no;
                     $coverRipart->endorsement_no = $coverRegister->endorsement_no;
                     $coverRipart->tran_no = $tran_no;
+                    $coverRipart->amount_type = $reinsurerData['amount_type'];
                     $coverRipart->period_year = $this->_year;
                     $coverRipart->period_month = $this->_month;
                     $coverRipart->partner_no = $reinsurerData['reinsurer'];
@@ -1447,34 +1457,30 @@ class CoverController extends Controller
             ->make(true);
     }
 
-    public function generateDebit(Request $request)
+    public function generateDebit(GenerateDebitNoteRequest $request)
     {
         DB::beginTransaction();
 
         try {
-            $validatedData = $request->validate([
-                'cover_no' => 'required|string',
-                'endorsement_no' => 'required|string',
-                'installment' => 'required|integer',
-                'amount' => 'required|string',
-                'type_of_bus' => 'required|in:TPR,TNP,FPR,FNP',
-            ]);
+            $validatedData = $request->validated();
 
-            $coverRegister = CoverRegister::where('endorsement_no', $validatedData['endorsement_no'])->first();
+            $cover = CoverRegister::where('endorsement_no', $validatedData['endorsement_no'])->lockForUpdate()->first();
 
-            if (!$coverRegister) {
-                throw new \Exception("Cover register not found for endorsement: {$validatedData['endorsement_no']}");
+            if (!$cover) {
+                throw new Exception("Cover register not found for endorsement: {$validatedData['endorsement_no']}");
             }
 
-            $debitData = $this->prepareDebitData($validatedData, $coverRegister);
+            $this->validateBusinessRules($cover, $validatedData);
+
+            $debitData = $this->prepareDebitData($validatedData, $cover);
 
             if ($debitData['isFacultative']) {
-                $this->createCoverDebit($debitData, $coverRegister);
+                $this->createCoverDebit($debitData, $cover);
             } else if ($debitData['isTreaty']) {
-                // $this->createTreatyDebit($debitData, $coverRegister);
+                $this->createTreatyDebit($debitData, $cover);
             }
 
-            $this->createCustomerAccount($debitData, $coverRegister);
+            $this->createCustomerAccount($debitData, $cover);
 
             DB::commit();
 
@@ -1482,7 +1488,7 @@ class CoverController extends Controller
                 'success' => true,
                 'status' => Response::HTTP_CREATED,
                 'redirectUrl' => route('cover.transactions.index', [
-                    'coverNo' => $coverRegister->cover_no,
+                    'coverNo' => $cover->cover_no,
                 ]),
                 'message' => $this->getBusinessTypeLabel($debitData['typeOfBus'])
                     . ' debit/credit note generated successfully',
@@ -1495,8 +1501,20 @@ class CoverController extends Controller
                 'status' => Response::HTTP_UNPROCESSABLE_ENTITY,
                 'errors' => $e->errors(),
             ], 422);
-        } catch (Throwable $e) {
+        } catch (BusinessRuleException $e) {
+            DB::rollBack();
+
+
+            logger($e);
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+                'status' => Response::HTTP_UNPROCESSABLE_ENTITY,
+                'errors' => [],
+            ], 422);
+        } catch (Exception $e) {
             DB::rollback();
+            logger($e);
 
             return response()->json([
                 'success' => false,
@@ -1504,6 +1522,77 @@ class CoverController extends Controller
                 'message' => $e->getMessage(),
             ], 500);
         }
+    }
+
+    public function createTreatyDebit($debitData, $cover)
+    {
+        $cover->account_year = $this->_year;
+        $cover->account_month = $this->_month;
+        $cover->update();
+
+        $debitNote = $this->debitNoteService->create($debitData, $cover);
+
+        $debit = $debitNote->fresh(['items']);
+
+        return $debit;
+    }
+
+
+    protected function validateBusinessRules(CoverRegister $cover, array $data): void
+    {
+        if (!$cover->isActive()) {
+            throw BusinessRuleException::inactiveCover(
+                $cover->cover_no,
+                $cover->status
+            );
+        }
+
+        $existingDebit = DebitNote::where('cover_no', $cover->cover_no)
+            ->where('endorsement_no', $data['endorsement_no'])
+            ->where('installment_no', $data['installment'])
+            ->whereNotIn('status', [
+                DebitNote::STATUS_CANCELLED,
+                DebitNote::STATUS_REVERSED
+            ])
+            ->exists();
+
+        if ($existingDebit) {
+            throw BusinessRuleException::duplicateDebitNote(
+                $cover->cover_no,
+                $data['installment']
+            );
+        }
+
+        $postingDate = Carbon::parse($data['posting_date']);
+        $fiscalYear = (int) $data['posting_year'];
+
+        if ($postingDate->year !== $fiscalYear) {
+            throw BusinessRuleException::invalidPostingPeriod(
+                $data['posting_date'],
+                "Year {$fiscalYear}"
+            );
+        }
+
+        $expectedQuarter = $this->getQuarterFromDate($postingDate);
+        if ($expectedQuarter !== $data['posting_quarter']) {
+            throw BusinessRuleException::invalidPostingPeriod(
+                $data['posting_date'],
+                $data['posting_quarter']
+            );
+        }
+
+        $totalAmount = collect($data['items'])->sum('amount');
+        if ($totalAmount <= 0) {
+            throw new BusinessRuleException(
+                'Total transaction amount must be greater than zero',
+                'INVALID_AMOUNT'
+            );
+        }
+    }
+
+    protected function getQuarterFromDate(Carbon $date): string
+    {
+        return 'Q' . $date->quarter;
     }
 
     private function createCoverDebit(array &$debitData, CoverRegister $coverRegister): void
@@ -1566,6 +1655,7 @@ class CoverController extends Controller
         $custAccount->currency_rate = $debitData['currencyRate'];
         $custAccount->created_by = Auth::user()->user_name;
         $custAccount->created_date = Carbon::now();
+        $custAccount->created_at = Carbon::now();
         $custAccount->created_time = Carbon::now();
         $custAccount->updated_by = Auth::user()->user_name;
         $custAccount->updated_datetime = Carbon::now();
@@ -1623,7 +1713,22 @@ class CoverController extends Controller
             'sourceCode' => null,
             'reference' => null,
             'currencyRate' => $coverRegister->currency_rate ?? 1,
-            'entryTypeDescr' => 'quarterly-figures'
+            'entryTypeDescr' => 'quarterly-figures',
+            'postingYear' => $validatedData['posting_year'],
+            'postingQuarter' => $validatedData['posting_quarter'],
+            'postingDate' => $validatedData['posting_date'],
+            'brokerageRate' => $validatedData['brokerage_rate'],
+            // 'commissionRate' => $validatedData['line_rate'],
+            'comments' => $validatedData['comments'],
+            'items' => $validatedData['items'],
+            'computePremiumTax' => $validatedData['compute_premium_tax'],
+            'computeReinsuranceTax' => $validatedData['compute_reinsurance_tax'],
+            'computeWithholdingTax' => $validatedData['compute_withholding_tax'],
+            'lossParticipation' => $validatedData['loss_participation'],
+            'showCedant' => $validatedData['show_cedant'],
+            'showReinsurer' => $validatedData['show_reinsurer'],
+            'reinsurerPosting' => 'NET',
+            'premiumPayTerms' => ''
         ];
     }
 
@@ -3621,111 +3726,6 @@ class CoverController extends Controller
             ]);
         } catch (\Exception $e) {
             return response()->json(['error' => $e->getMessage()], 500);
-        }
-    }
-
-    public function integrateCover(Request $request)
-    {
-        $p = PipelineOpportunity::findOrFail($request->id);
-        $covertype = CoverType::where('short_description', 'N')->firstOrFail();
-        $pay_method = PayMethod::where('short_description', 'A')->firstOrFail();
-
-        $requestData = [
-            'customer_id' => $p->customer_id,
-            'trans_type' => 'NEW',
-            'type_of_bus' => $p->type_of_bus,
-            'covertype' => $covertype->type_id,
-            'branchcode' => $p->branchcode,
-            'broker_flag' => $p->broker_flag,
-            'prospect_id' => $p->id,
-            'division' => $p->division,
-            'pay_method' => $pay_method->pay_method_code,
-            'no_of_installments' => $p->no_of_installments,
-            'currency_code' => $p->currency_code,
-            'today_currency' => $p->today_currency,
-            'premium_payment_term' => $p->premium_payment_term,
-            'class_group' => $p->class_group,
-            'classcode' => $p->classcode,
-            'insured_name' => $p->insured_name,
-            'fac_date_offered' => $p->fac_date_offered,
-            'sum_insured_type' => $p->sum_insured_type,
-            'total_sum_insured' => $p->total_sum_insured,
-            'eml_rate' => $p->eml_rate,
-            'eml_amt' => $p->eml_amt,
-            'effective_sum_insured' => $p->effective_sum_insured,
-            'risk_details' => $p->risk_details,
-            'cede_premium' => $p->cede_premium,
-            'rein_premium' => $p->rein_premium,
-            'fac_share_offered' => $p->fac_share_offered,
-            'comm_rate' => $p->comm_rate,
-            'comm_amt' => $p->comm_amt,
-            'reins_comm_type' =>  $p->reins_comm_type,
-            'reins_comm_rate' => $p->reins_comm_rate,
-            'reins_comm_amt' => $p->reins_comm_amt,
-            'brokerage_comm_type' => $p->brokerage_comm_type,
-            'brokerage_comm_amt' => $p->brokerage_comm_amt,
-            'brokerage_comm_rate' => $p->brokerage_comm_rate,
-            'brokerage_comm_rate_amnt' => $p->brokerage_comm_rate_amnt,
-            'vat_charged' => $p->vat_charged,
-            'limit_per_reinclass' => $p->limit_per_reinclass,
-            'layer_no' => $p->layer_no,
-            'nonprop_reinclass' => $p->nonprop_reinclass,
-            'nonprop_reinclass_desc' => $p->nonprop_reinclass_desc,
-            'indemnity_treaty_limit' => $p->indemnity_treaty_limit,
-            'underlying_limit' => $p->underlying_limit,
-            'coverfrom' => $p->effective_date,
-            'coverto' => $p->closing_date,
-            'brokercode' => $p->brokercode,
-        ];
-
-        $validationRequest = new Request($requestData);
-
-        $validator = Validator::make($validationRequest->all(), [
-            'covertype' => 'required',
-            'branchcode' => 'required',
-            'customer_id' => 'required',
-            'classcode' => 'required',
-            'coverfrom' => 'required|date',
-            'coverto' => 'required|date|after:coverfrom',
-            'pay_method' => 'required',
-            'type_of_bus' => 'required',
-            'class_group' => 'required',
-        ]);
-
-        if (!$validator->fails()) {
-            try {
-                DB::beginTransaction();
-
-                $result = $this->coverRepository->registerCover($validationRequest);
-                $handover = HandoverApproval::where('prospect_id', $p->opportunity_id)->first();
-                $handover->update([
-                    'intergrate' => true,
-                ]);
-
-                DB::commit();
-
-                return response()->json(
-                    [
-                        'status' => true,
-                        'message' => 'Cover Register information saved successfully',
-                        'customerId' => $result?->customer_id,
-                        'prospectId' => $handover?->prospect_id
-                    ]
-                );
-            } catch (\Exception $e) {
-                DB::rollBack();
-                return response()->json([
-                    'status' => false,
-                    'message' => 'An error occurred while processing your request',
-                    'error' => $e->getMessage()
-                ], 500);
-            }
-        } else {
-            return response()->json([
-                'status' => false,
-                'message' => 'Validation failed',
-                'errors' => $validator->errors()
-            ], 422);
         }
     }
 

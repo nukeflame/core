@@ -5,6 +5,7 @@ namespace App\Repositories;
 use App\Models\BusinessType;
 use App\Models\ClaimRegister;
 use App\Models\Classes;
+use App\Models\ClassGroup;
 use App\Models\ClauseParam;
 use App\Models\CoverAttachment;
 use App\Models\CoverClass;
@@ -44,6 +45,7 @@ use App\Models\PremiumPayTerm;
 use App\Models\ReinclassPremtype;
 use App\Models\ReinsClass;
 use App\Models\SlipTemplate;
+use App\Models\TreatyItemCode;
 use App\Models\TreatyType;
 use App\Services\SequenceService;
 
@@ -125,6 +127,7 @@ class CoverRepository extends BaseRepository
                 $coverpart,
                 $coverReinclass,
                 $coverTreaties,
+                $treatyClasses,
                 $clauses,
                 $selected_clauses,
                 $endorsementNarration
@@ -170,6 +173,13 @@ class CoverRepository extends BaseRepository
                 'dr_cr' => self::DR
             ])->get();
 
+            $itemCodes = $this->getItemCodes();
+            $classGroups = $this->getClassGroups($endorsement_no);
+            $businessClasses = $this->getBusinessClasses($endorsement_no);
+            $taxRates = $this->getTaxRates();
+
+            $coverreinprop = $this->getCoverReinpProps($endorsement_no);
+
             return [
                 'coverReg' => $CoverRegister,
                 'coverpart' => $coverpart,
@@ -208,11 +218,92 @@ class CoverRepository extends BaseRepository
                 'paymethods' => $paymethods,
                 'isInstallment' => $isInstallment,
                 'coverInstallments' => $CoverInstallments,
-                'premiumPayTerms' => $premiumPayTerms
+                'premiumPayTerms' => $premiumPayTerms,
+                'itemCodes' => $itemCodes,
+                'classGroups' => $classGroups,
+                'businessClasses' => $businessClasses,
+                'taxRates' => $taxRates,
+                'coverreinprop' => $coverreinprop,
+                'treatyClasses' => $treatyClasses
             ];
         } catch (\Exception $e) {
             throw $e;
         }
+    }
+
+    protected function getItemCodes(): array
+    {
+        return Cache::remember('treaty_item_codes', 3600, function () {
+            return TreatyItemCode::where('is_active', true)
+                ->orderBy('sort_order')
+                ->get(['item_code', 'description', 'item_type'])
+                ->mapWithKeys(fn($item) => [
+                    $item->item_code => [
+                        'description' => $item->description,
+                        'type' => $item->item_type,
+                    ]
+                ])
+                ->toArray();
+        });
+    }
+
+    protected function getClassGroups($endorsement_no): array
+    {
+        $coverReinclass = CoverReinclass::where('endorsement_no', $endorsement_no)->get();
+        $data = [];
+
+        foreach ($coverReinclass as $rein) {
+            $reinclass = DB::table('reinsclasses')
+                ->where('class_code', $rein->reinclass)
+                ->first();
+
+            if ($reinclass) {
+                $data[] = [
+                    'group_name' => $reinclass->class_name,
+                    'group_code' => $reinclass->class_code,
+                ];
+            }
+        }
+
+        return $data;
+    }
+
+    protected function getBusinessClasses($endorsement_no): array
+    {
+        $premtypes = CoverPremtype::where('endorsement_no', $endorsement_no)->get();
+        $data = [];
+
+        foreach ($premtypes as $prem) {
+
+            $class = ReinclassPremtype::where('premtype_code', $prem->premtype_code)
+                ->with('classGroup')
+                ->first();
+
+            if (!$class || !$class->classGroup) {
+                continue;
+            }
+
+            $groupCode = $class->classGroup->class_code;
+            $code = $class->premtype_code;
+            $name = $class->premtype_name;
+
+            $data[$groupCode][$code] = $name;
+        }
+
+        return $data;
+    }
+
+
+    protected function getTaxRates(): array
+    {
+        // return Cache::remember('tax_rates_display', 3600, function () {
+        //     return TaxRate::getRatesForDisplay();
+        // });
+        return [
+            'premium_levy' => 1,
+            'reinsurance_levy' => 0.50,
+            'withholding_tax' => 5.00,
+        ];
     }
 
     public function isCoverActionable($endorsement)
@@ -375,13 +466,8 @@ class CoverRepository extends BaseRepository
     {
         DB::beginTransaction();
         try {
-            $risk_details = $data->risk_details;
-            $covertype = $data->covertype;
-            $branchcode = (int) $data->branchcode;
-            $brokercode = $data->brokercode;
             $type_of_bus = $data->type_of_bus;
             $customer_id = $data->customer_id;
-            $class_group = $data->class_group;
 
             $customer = Customer::findOrFail($customer_id);
             $treatytype = $data->treatytype ? TreatyType::where('treaty_code', $data->treatytype)->first() : null;
@@ -455,8 +541,6 @@ class CoverRepository extends BaseRepository
             ];
         } catch (\Exception $e) {
             DB::rollBack();
-
-            logger($e);
 
             throw $e;
         }
@@ -651,6 +735,14 @@ class CoverRepository extends BaseRepository
             ->distinct('cover_premtypes.treaty')
             ->get(['cover_premtypes.treaty', 'treaty_types.treaty_name']);
 
+        $treatyClasses = CoverPremtype::join('treaty_types', 'cover_premtypes.treaty', '=', 'treaty_types.treaty_code')
+            ->where('cover_premtypes.endorsement_no', $endorsement_no)
+            ->get([
+                'cover_premtypes.premtype_name as class_name',
+                'cover_premtypes.comm_rate as commission',
+                'cover_premtypes.premtype_code as class_code',
+            ]);
+
         $clauses = ClauseParam::where('status', 'A')
             ->where('class_code', $class_code)
             ->get();
@@ -658,7 +750,7 @@ class CoverRepository extends BaseRepository
         $selected_clauses = CoverClause::where('endorsement_no', $endorsement_no)->get();
         $endorsementNarration = EndorsementNarration::where('endorsement_no', $endorsement_no)->get();
 
-        return [$coverpart, $coverReinclass, $coverTreaties, $clauses, $selected_clauses, $endorsementNarration];
+        return [$coverpart, $coverReinclass, $coverTreaties, $treatyClasses, $clauses, $selected_clauses, $endorsementNarration];
     }
 
     private function getCachedInsuranceClasses()
@@ -816,6 +908,31 @@ class CoverRepository extends BaseRepository
         ];
     }
 
+    private function getCoverReinpProps($endorsement_no)
+    {
+        $coveReinProp = CoverReinProp::where('endorsement_no', $endorsement_no)->first();
+        $coverreinprop = [];
+        if ($coveReinProp) {
+            $coverreinprop = [
+                'treaty_limit' => number_format($coveReinProp->treaty_amount, 2),
+                'treaty_capacity' =>  number_format($coveReinProp->treaty_limit, 2),
+                'no_of_lines' => number_format($coveReinProp->no_of_lines, 2),
+                'item_description' => $coveReinProp->item_description,
+                'total_reinsurers' => 0
+            ];
+        } else {
+            $coverreinprop = [
+                'treaty_limit' =>  '0.00',
+                'treaty_capacity' => '0.00',
+                'no_of_lines' => '0',
+                'item_description' => '',
+                'total_reinsurers' => 0
+            ];
+        }
+
+        return $coverreinprop;
+    }
+
     private function getReinLayerDetails($cover)
     {
         $mdpAmount = CoverReinLayer::where('endorsement_no', $cover->endorsement_no)
@@ -942,7 +1059,7 @@ class CoverRepository extends BaseRepository
         ];
     }
 
-    private function isFacultativeBusiness($type_of_bus)
+    public function isFacultativeBusiness($type_of_bus)
     {
         return in_array($type_of_bus, [
             self::TYPE_FACULTATIVE_PROPORTIONAL,
@@ -950,7 +1067,7 @@ class CoverRepository extends BaseRepository
         ]);
     }
 
-    private function isTreatyBusiness($type_of_bus)
+    public function isTreatyBusiness($type_of_bus)
     {
         return in_array($type_of_bus, [
             self::TYPE_TREATY_PROPORTIONAL,
@@ -1165,12 +1282,22 @@ class CoverRepository extends BaseRepository
         $classcode = self::TREATY_CODE_TRT;
         $insured_name = $customer->name;
 
+        $type_of_treaty = $treatytype?->type_of_bus === self::TYPE_TREATY_NON_PROPORTIONAL
+            ? 'Non-Proportional'
+            : 'Proportional';
+
         $reinclass = ReinsClass::whereIn('class_code', $treaty_reinclass)
             ->pluck('class_name')
             ->toArray();
 
-        $treaty_name = implode('-', $reinclass) . ' ' .
-            ($treatytype ? $treatytype->treaty_name : '') . ' TREATY';
+        $treaty_name = sprintf(
+            '%s %s Treaty - %s',
+            $treatytype?->treaty_name ?? '',
+            $type_of_treaty,
+            implode(', ', $reinclass)
+        );
+
+        $treaty_name = ucwords(strtolower(trim(preg_replace('/\s+/', ' ', $treaty_name))));
 
         $date_offered = $data->date_offered;
         $share_offered = $data->share_offered;
@@ -1251,6 +1378,8 @@ class CoverRepository extends BaseRepository
         $CoverRegister->date_offered = $businessData['date_offered'];
         $CoverRegister->share_offered = (float) $businessData['share_offered'];
         $CoverRegister->no_of_installments = (int) $data->no_of_installments;
+        $CoverRegister->territorial_scope = $data->territorial_scope;
+        $CoverRegister->basis_of_acceptance = $data->basis_of_acceptance;
         $CoverRegister->port_prem_rate = $this->parseNumeric($data->port_prem_rate);
         $CoverRegister->port_loss_rate = $this->parseNumeric($data->port_loss_rate);
         $CoverRegister->profit_comm_rate = $this->parseNumeric($data->profit_comm_rate);
@@ -1358,6 +1487,7 @@ class CoverRepository extends BaseRepository
 
         if ($treaty_reinclass && !empty($treaty_reinclass)) {
             foreach ($treaty_reinclass as $index => $treaty_class) {
+
                 CoverReinclass::create([
                     'cover_no' => $cover_no,
                     'endorsement_no' => $endorsement_no,
@@ -1373,17 +1503,17 @@ class CoverRepository extends BaseRepository
         $this->createPremiumTypes($data, $cover_no, $endorsement_no);
     }
 
-    private function createPropRecords($request, $cover_no, $endorsement_no, $treaty_class, $index)
+    private function createPropRecords($data, $cover_no, $endorsement_no, $treaty_class, $index)
     {
-        $retention_per = $this->parseNumeric($request->retention_per[$index] ?? null);
-        $treaty_reice = $this->parseNumeric($request->treaty_reice[$index] ?? null);
-        $surp_retention_amt = $this->parseNumeric($request->surp_retention_amt[$index] ?? null);
-        $no_of_lines = $this->parseNumeric($request->no_of_lines[$index] ?? null);
-        $surp_treaty_limit = $this->parseNumeric($request->surp_treaty_limit[$index] ?? null);
-        $quota_retention_amt = $this->parseNumeric($request->quota_retention_amt[$index] ?? null);
-        $quota_share_total_limit = $this->parseNumeric($request->quota_share_total_limit[$index] ?? null);
-        $estimated_income = $this->parseNumeric($request->estimated_income[$index] ?? null);
-        $cashloss_limit = $this->parseNumeric($request->cashloss_limit[$index] ?? null);
+        $retention_per = $this->parseNumeric($data->retention_per[$index] ?? null);
+        $treaty_reice = $this->parseNumeric($data->treaty_reice[$index] ?? null);
+        $surp_retention_amt = $this->parseNumeric($data->surp_retention_amt[$index] ?? null);
+        $no_of_lines = $this->parseNumeric($data->no_of_lines[$index] ?? null);
+        $surp_treaty_limit = $this->parseNumeric($data->surp_treaty_limit[$index] ?? null);
+        $quota_retention_amt = $this->parseNumeric($data->quota_retention_amt[$index] ?? null);
+        $quota_share_total_limit = $this->parseNumeric($data->quota_share_total_limit[$index] ?? null);
+        $estimated_income = $this->parseNumeric($data->estimated_income[$index] ?? null);
+        $cashloss_limit = $this->parseNumeric($data->cashloss_limit[$index] ?? null);
 
         $count = CoverReinProp::where('cover_no', $cover_no)
             ->where('endorsement_no', $endorsement_no)
@@ -1407,7 +1537,7 @@ class CoverRepository extends BaseRepository
             'updated_by' => Auth::user()->user_name,
         ];
 
-        $treatytype = $request->treatytype;
+        $treatytype = $data->treatytype;
 
         if ($treatytype === 'SURP') {
             CoverReinProp::create(array_merge($baseData, [
@@ -1469,6 +1599,7 @@ class CoverRepository extends BaseRepository
                     'reinclass' => $reinclass,
                     'treaty' => $prem_type_treaty[$index],
                     'premtype_code' => $prem_type_code[$index],
+                    'treaty_commission_type' => $data->treaty_commission_type[$index],
                     'premtype_name' => $premtype_reinclass->premtype_name,
                     'comm_rate' => $flat_prem_type_comm_rate[$index],
                 ]);

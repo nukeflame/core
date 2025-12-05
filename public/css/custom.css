@@ -2072,3 +2072,37 @@ body::-webkit-scrollbar-thumb:hover {
     text-align: center;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
+
+.reinsurers-details-card {
+    border-bottom: 2px solid #e9ecef !important;
+    gap: 0.25rem;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+}
+
+.reinsurers-details-card::-webkit-scrollbar {
+    height: 4px;
+}
+
+.reinsurers-details-card::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+}
+
+.reinsurers-details-card .nav-link {
+    transition: all 0.2s ease;
+    /* padding: 0px;
+        margin-top: 0px; */
+}
+
+.reinsurers-details-card .nav-link:hover {
+    color: #e1251b;
+}
+
+.reinsurers-details-card .nav-link span {
+    font-size: 14px;
+    font-weight: 500;
+    margin: -15px;
+}

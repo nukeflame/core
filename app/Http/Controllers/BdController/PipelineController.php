@@ -1941,209 +1941,6 @@ class PipelineController
         return view('Bd_views.intermediaries.handover_bd');
     }
 
-    // public function handoverToCR(Request $request)
-    // {
-    //     $pipeid = $request->prospect;
-
-    //     // begin new code
-    //     $currentYear = date('Y');
-    //     $endYear = $currentYear + 10;
-    //     $years = range($currentYear, $endYear); // Generate an array of years
-    //     $customer_types = CustomerTypes::select('type_id', 'type_name')->get();
-    //     $salutations = Salutation::all();
-    //     $sources = LeadsSource::all();
-    //     $statuses = LeadStatus::wherein('id', [2, 4, 5])->get();
-    //     $engage_types = LeadsSource::all();
-    //     $industries = Occupation::all();
-    //     $divisions = DB::table('divisions')->get();
-    //     $clients = Client::select('full_name', 'global_customer_id', 'client_type', 'salutation_code', 'occupation_code')->get();
-    //     $prospProperties = DB::table('pipeline_opportunities')->where('opportunity_id', "=", $request->prospect)->first();
-    //     $users = User::all();
-    //     // dd($prospProperties);
-    //     $currencies = Currency::all();
-    //     $leadsources = DB::table('leadsources')->get();
-    //     $prospect = $request->prospect;
-    //     $countries = Country::all();
-    //     $underwriters = DB::table('companies')->get();
-    //     $branches = Branch::where('status', 'A')->get(['branch_code', 'branch_name', 'status']);
-    //     $treatytypes = TreatyType::where('status', 'A')->get();
-    //     $types_of_bus = BusinessType::get(['bus_type_id', 'bus_type_name']);
-    //     $branches = Branch::where('status', 'A')->get(['branch_code', 'branch_name', 'status']);
-    //     $brokers = Broker::where('status', 'A')->get(['broker_code', 'broker_name', 'status']);
-    //     $classes = Classes::where('status', 'A')->get(['class_code', 'class_name', 'status']);
-    //     $types_of_sum_insured = TypeOfSumInsured::where('status', 'A')->get(['sum_insured_code', 'sum_insured_name', 'status']);
-    //     $classGroups = ClassGroup::get(['group_code', 'group_name']);
-    //     $paymethods = PayMethod::all();
-    //     $premium_pay_terms = PremiumPayTerm::all();
-    //     $currency = Currency::all();
-    //     $covertypes = CoverType::all();
-    //     $quotes = Quote::where('opportunity_id', $pipeid)->get('quote_number');
-    //     $reinsdivisions = ReinsDivision::where('status', 'A')->get();
-    //     $reinsclasses = ReinsClass::where('status', 'A')->get();
-    //     $treatytypes = TreatyType::where('status', 'A')->get();
-    //     $reinPremTypes = ReinclassPremtype::where('status', 'A')->get();
-    //     $pipeYear = Pipeline::orderBy('year', 'asc')->get();
-    //     $Contact_details = DB::table('pipeline_opportunities')
-    //         ->select('contact_name', 'phone', 'email', 'telephone')
-    //         ->where('opportunity_id', "=", $request->prospect)->first();
-    //     // Convert JSON fields into arrays
-    //     $contactNames = json_decode($Contact_details->contact_name ?? '[]', true);
-    //     $emails = json_decode($Contact_details->email ?? '[]', true);
-    //     $phones = json_decode($Contact_details->phone ?? '[]', true);
-    //     $telephones = json_decode($Contact_details->telephone ?? '[]', true);
-    //     $stage = DB::table('pipeline_opportunities')
-    //         ->select('stage')
-    //         ->where('opportunity_id', "=", $request->prospect)->first();
-    //     $category_type = DB::table('pipeline_opportunities')
-    //         ->select('category_type')
-    //         ->where('opportunity_id', "=", $request->prospect)->first();
-    //     // Ensure they are always arrays and have the same length
-    //     $count = max(count($contactNames), count($emails), count($phones), count($telephones));
-
-    //     $contacts = [];
-    //     for ($i = 0; $i < $count; $i++) {
-    //         $contacts[] = [
-    //             'contact_name' => $contactNames[$i] ?? '',
-    //             'email' => $emails[$i] ?? '',
-    //             'phone' => $phones[$i] ?? '',
-    //             'telephone' => $telephones[$i] ?? '',
-    //         ];
-    //     }
-
-    //     $customers = DB::table('customers')
-    //         ->join('customer_types', function ($join) {
-    //             $join->on('customer_types.type_id', '=', DB::raw("ANY (SELECT json_array_elements_text(customers.customer_type)::int)"));
-    //         })
-    //         ->select(
-    //             DB::raw('CAST(customers.customer_id AS INT) as customer_id'),
-    //             'customers.name'
-    //         )
-    //         ->whereIn('customer_types.type_name', ['INSURANCE', 'REINSURANCE'])
-    //         ->distinct('name') // Filtering for 'insurance' or 'reinsurance'
-    //         ->get();
-
-
-
-    //     $insured = DB::table('customers')
-    //         ->join('customer_types', function ($join) {
-    //             $join->on('customer_types.type_id', '=', DB::raw("ANY (SELECT json_array_elements_text(customers.customer_type)::int)"));
-    //         })
-    //         ->select(
-    //             DB::raw('CAST(customers.customer_id AS INT) as customer_id'), // Casting customer_id as an integer
-    //             'customers.name'
-    //         )
-    //         ->where('customer_types.code', 'INSURED')
-    //         ->get();
-    //     $decline_reinsurers = ReinsurersDeclined::with('customer_name')->where('opportunity_id', $pipeid)
-    //         ->get();
-
-
-    //     $commonVariables = [
-    //         'insured' => $insured,
-    //         'types_of_bus' => $types_of_bus,
-    //         'branches' => $branches,
-    //         'brokers' => $brokers,
-    //         'classGroups' => $classGroups,
-    //         'class' => $classes,
-    //         'paymethods' => $paymethods,
-    //         'premium_pay_terms' => $premium_pay_terms,
-    //         'currencies' => $currency,
-    //         'covertypes' => $covertypes,
-    //         'types_of_sum_insured' => $types_of_sum_insured,
-    //         'reinsdivisions' => $reinsdivisions,
-    //         'reinsclasses' => $reinsclasses,
-    //         'treatytypes' => $treatytypes,
-    //         'customers' => $customers,
-    //         'contacts_det' => $contacts,
-    //         'decline_reinsurers' => $decline_reinsurers
-
-    //     ];
-    //     $otherVariabales = [
-    //         'countries' => $countries,
-    //         'prospProperties' => $prospProperties,
-    //         'underwriters' => $underwriters,
-    //         'prospect' => $prospect,
-    //         'engage_types' => $engage_types,
-    //         'divisions' => $divisions,
-    //         'leadsources' => $leadsources,
-    //         'currencies' => $currencies,
-    //         'statuses' => $statuses,
-    //         'salutations' => $salutations,
-    //         'sources' => $sources,
-    //         'industries' => $industries,
-    //         'users' => $users,
-    //         'clients' => $clients,
-    //         'years' => $years,
-    //         'customer_types' => $customer_types,
-    //         'pipeYear' => $pipeYear,
-    //         'quotes' => $quotes,
-    //         'pipeid' => $pipeid
-
-    //     ];
-    //     $allVariables = array_merge($commonVariables, $otherVariabales);
-
-    //     $prospect = $request->prospect;
-    //     $occupations = Occupation::all();
-
-    //     $salutations = Salutation::all();
-    //     $genders = Gender::all();
-    //     $divisions = DB::table('divisions')->get();
-
-    //     $statuses = Status::all();
-
-    //     $countries = Country::all();
-    //     $users = User::all();
-
-    //     $bd_users = User::all();
-
-    //     // $docs = DB::table('stage_documents')
-    //     //     ->join('doc_types', 'stage_documents.doc_type', '=', 'doc_types.id')
-    //     //     ->where('stage', 4)
-    //     //     ->select('doc_types.id', 'doc_types.doc_type', 'stage_documents.mandatory', 'stage_documents.division')
-    //     //     ->get();
-
-    //     $category = $category_type->category_type;
-    //     $stage = $stage->stage;
-    //     // dd($category);
-
-    //     // $docs = DB::table('stage_documents')
-    //     //     ->join('doc_types', 'stage_documents.doc_type', '=', 'doc_types.id')
-    //     //     ->where('stage', $stage )
-    //     //     // ->where('category_type', $category)
-    //     //     ->select('doc_types.id', 'doc_types.doc_type', 'stage_documents.mandatory', 'stage_documents.division')
-    //     //     ->get();
-
-    //     $docs = DB::table('stage_documents')
-    //         ->join('doc_types', 'stage_documents.doc_type', '=', 'doc_types.id')
-    //         ->where('stage_documents.stage', $stage)
-    //         ->where('stage_documents.category_type', $category)
-    //         ->whereJsonContains('type_of_bus', $prospProperties->type_of_bus)
-    //         ->select(
-    //             'doc_types.id',
-    //             'doc_types.doc_type',
-    //             'stage_documents.mandatory',
-    //             'stage_documents.division'
-    //         )
-    //         ->get();
-
-
-    //     $approval = $request->approval;
-    //     $handover_approval = null;
-    //     $prosp_doc = null;
-    //     $reinsurers = null;
-    //     $prosp_doc = DB::table('prospect_docs')
-    //         ->where('prospect_id', $pipeid)
-    //         ->get();
-
-    //     if ($approval == 1) {
-    //         $handover_approval = HandoverApproval::where('prospect_id', $pipeid)->first();
-    //         $reinsurers = QuoteReinsurers::where('opportunity_id', $pipeid)->where('stage', 4)->get();
-    //     }
-
-    //     $currencies = Currency::all();
-    //     return view('Bd_views.intermediaries.handover_validate', compact('currencies', 'users', 'bd_users', 'docs', 'divisions', 'prospect', 'countries', 'statuses', 'occupations', 'genders', 'salutations', 'allVariables', 'reinsurers', 'approval', 'prosp_doc', 'handover_approval'));
-    // }
-
     public function handoverToCR(Request $request)
     {
         $pipeid = $request->prospect;
@@ -2285,9 +2082,6 @@ class PipelineController
         ];
     }
 
-    /**
-     * Get document requirements based on stage and category
-     */
     private function getDocumentData($pipeid, $stage, $category, $typeOfBus)
     {
         $docs = DB::table('stage_documents')
@@ -2308,9 +2102,6 @@ class PipelineController
         ];
     }
 
-    /**
-     * Get and format contact details
-     */
     private function getContactData($pipeid)
     {
         $contactDetails = DB::table('pipeline_opportunities')
@@ -2344,9 +2135,6 @@ class PipelineController
         return ['contacts_det' => $contacts];
     }
 
-    /**
-     * Get reference/lookup data (countries, users, etc.)
-     */
     private function getReferenceData()
     {
         return [
@@ -2370,162 +2158,247 @@ class PipelineController
 
     public function handoverSave(Request $request)
     {
+        $validator = Validator::make($request->all(), [
+            'prospect_id' => 'required|exists:pipeline_opportunities,opportunity_id',
+            'effective_date' => 'required|date',
+            'closing_date' => 'required|date|after_or_equal:effective_date',
+            'excess' => 'nullable|numeric',
+            'max_min' => 'nullable|string',
+            'quote_number' => 'nullable|string|max:100',
+            'range' => 'nullable|string',
+            'handler' => 'required|exists:users,id',
+            'approver' => 'required|array',
+            'approver.*' => 'exists:users,id',
+            'client_type' => 'nullable|string',
+            'excess_type' => 'nullable|string',
+            'remarks' => 'nullable|string',
+            'document_name' => 'nullable|array',
+            'document_name.*' => 'required_with:document_file|string|max:255',
+            'document_file' => 'nullable|array',
+            'document_file.*' => 'file|mimes:pdf,doc,docx,xls,xlsx,jpg,jpeg,png|max:10240', // 10MB max
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'status' => 422,
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        DB::beginTransaction();
 
         try {
             $prospectId = $request->prospect_id;
             $uploadsPath = 'uploads';
-            DB::table('pipeline_opportunities')->where('opportunity_id', $prospectId)->update([
-                'effective_date' => $request->effective_date,
-                'closing_date' => $request->closing_date,
-            ]);
-            $exist = DB::table('handover_approvals')->where([
-                'prospect_id' => $prospectId,
-            ])->exists();
-            if ($exist) {
-                DB::beginTransaction();
-                $client = DB::table('handover_approvals')->where('prospect_id', $prospectId)
-                    ->update([
-                        'excess' => $request->excess,
-                        'max/min' => $request->max_min,
-                        'quote_number' => $request->quote_number,
-                        'range' => $request->range,
-                        'handler' => $request->handler,
-                        'approver' => json_encode($request->approver),
-                        'approval_status' => "",
-                        'client_type' => $request->client_type,
-                        'excess_type' => $request->excess_type,
-                        'inception_date' => $request->effective_date,
-                        'updated_at' => now(),
-                        'created_by' => auth()->id(),
-                        'date_created' => Carbon::today()->toDateString(),
-                        'remarks' => $request->remarks,
-                    ]);
-            } else {
 
-                DB::beginTransaction();
-                $client = DB::table('handover_approvals')->insert([
-                    'prospect_id' => $prospectId,
-                    'excess' => $request->excess,
-                    'max/min' => $request->max_min,
-                    'quote_number' => $request->quote_number,
-                    'range' => $request->range,
-                    'handler' => $request->handler,
-                    'approver' => json_encode($request->approver),
-                    'client_type' => $request->client_type,
-                    'excess_type' => $request->excess_type,
-                    'inception_date' => $request->effective_date,
-                    'created_at' => now(),
-                    'created_by' => auth()->id(),
-                    'date_created' => Carbon::today()->toDateString(),
-                    'remarks' => $request->remarks,
+            $opportunityUpdated = DB::table('pipeline_opportunities')
+                ->where('opportunity_id', $prospectId)
+                ->update([
+                    'effective_date' => $request->effective_date,
+                    'closing_date' => $request->closing_date,
+                    'updated_at' => now(),
                 ]);
+
+            if (!$opportunityUpdated) {
+                throw new \Exception("Failed to update pipeline opportunity");
             }
-            if (!empty($request->document_file)) {
-                foreach ($request->document_name as $index => $name) {
 
+            $handoverData = [
+                'excess' => $request->excess,
+                'max/min' => $request->max_min,
+                'quote_number' => $request->quote_number,
+                'range' => $request->range,
+                'handler' => $request->handler,
+                'approver' => json_encode($request->approver),
+                'approval_status' => null,
+                'client_type' => $request->client_type,
+                'excess_type' => $request->excess_type,
+                'inception_date' => $request->effective_date,
+                'remarks' => $request->remarks,
+                'created_by' => auth()->id(),
+                'date_created' => Carbon::today()->toDateString(),
+            ];
 
-                    $file = $request->file('document_file')[$index];
+            $existingHandover = DB::table('handover_approvals')
+                ->where('prospect_id', $prospectId)
+                ->first();
 
-                    if ($file->isValid()) {
-                        $originalNameWithoutExtension = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
-                        $Filename = mt_rand() . '_' . $originalNameWithoutExtension . '.' . $file->getClientOriginalExtension();
-                        $mimeType = $file->getMimeType();
+            if ($existingHandover) {
+                DB::table('handover_approvals')
+                    ->where('prospect_id', $prospectId)
+                    ->update(array_merge($handoverData, [
+                        'updated_at' => now(),
+                    ]));
+            } else {
+                DB::table('handover_approvals')->insert(array_merge($handoverData, [
+                    'prospect_id' => $prospectId,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]));
+            }
 
-                        $S3FilePath = $uploadsPath . '/' . $Filename;
+            if ($request->hasFile('document_file') && is_array($request->file('document_file'))) {
+                $uploadedFiles = $this->handleDocumentUploads(
+                    $request->file('document_file'),
+                    $request->document_name ?? [],
+                    $prospectId,
+                    $uploadsPath
+                );
 
-                        try {
-                            // Upload file to S3
-                            Storage::disk('s3')->put($S3FilePath, file_get_contents($file), [
-                                'visibility' => 'public',
-                            ]);
-
-                            // Verify the file was uploaded
-                            if (!Storage::disk('s3')->exists($S3FilePath)) {
-                                return response()->json(['error' => 'Failed to save file to S3.'], 500);
-                            }
-                        } catch (\Exception $e) {
-                            return response()->json(['error' => 'S3 upload error: ' . $e->getMessage()], 500);
-                        }
-                        $exist = DB::table('prospect_docs')->where([
-                            'prospect_id' => $prospectId,
-                            'description' => $name,
-                            'prospect_status' => 5
-
-                        ])->first();
-                        if (!$exist) {
-
-                            DB::table('prospect_docs')->insert([
-                                'description' => $name,
-                                'prospect_id' => $prospectId,
-                                'prospect_status' => 5,
-                                'mimetype' => $mimeType,
-                                'file' => $Filename
-                            ]);
-                        } else if ($exist) {
-                            DB::table('prospect_docs')->where([
-                                'prospect_id' => $prospectId,
-                                'description' => $name,
-                                'prospect_status' => 5
-                            ])->update([
-                                'description' => $name,
-                                'prospect_id' => $prospectId,
-                                'prospect_status' => 5,
-                                'mimetype' => $mimeType,
-                                'file' => $Filename
-                            ]);
-                        }
-                    }
+                if (isset($uploadedFiles['error'])) {
+                    throw new \Exception($uploadedFiles['error']);
                 }
             }
 
-            $update = DB::table('pipeline_opportunities')->where('opportunity_id', $request->prospect_id)
+            DB::table('pipeline_opportunities')
+                ->where('opportunity_id', $prospectId)
                 ->update([
                     'handed_over' => 'Y',
-                    // 'stage' => '6',
+                    'stage' => 6,
+                    'updated_at' => now(),
                 ]);
 
-            $handler_user_id = $request->handler;
-            $user_id = $request->approver;
+            $this->sendHandoverNotifications($request->handler, $request->approver, $prospectId);
 
-            $handler = User::where('id', $handler_user_id)->first();
-            $handlerContactName = $handler->name;
-            $handlerMainEmail = $handler->email;
-            $handlerCCEmail = [];
+            DB::commit();
+
+            return response()->json([
+                'status' => 200,
+                'message' => 'Handover saved successfully'
+            ], 200);
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            return response()->json([
+                'status' => 500,
+                'message' => 'Failed to save handover',
+                'error' => config('app.debug') ? $e->getMessage() : 'Internal server error'
+            ], 500);
+        }
+    }
+
+    private function handleDocumentUploads(array $files, array $names, $prospectId, string $uploadsPath): array
+    {
+        $uploadedFiles = [];
+
+        foreach ($files as $index => $file) {
+            if (!$file->isValid()) {
+                continue;
+            }
+
+            $documentName = $names[$index] ?? 'Document_' . ($index + 1);
+
+            $originalNameWithoutExtension = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
+            $filename = sprintf(
+                '%s_%s_%s.%s',
+                time(),
+                mt_rand(1000, 9999),
+                Str::slug($originalNameWithoutExtension),
+                $file->getClientOriginalExtension()
+            );
+
+            $mimeType = $file->getMimeType();
+            $s3FilePath = $uploadsPath . '/' . $filename;
+
+            try {
+                $uploaded = Storage::disk('s3')->put(
+                    $s3FilePath,
+                    file_get_contents($file),
+                    ['visibility' => 'public']
+                );
+
+                if (!$uploaded) {
+                    throw new \Exception("Failed to upload file to S3");
+                }
+
+                if (!Storage::disk('s3')->exists($s3FilePath)) {
+                    throw new \Exception("File verification failed after upload");
+                }
+
+                $existingDoc = DB::table('prospect_docs')
+                    ->where([
+                        'prospect_id' => $prospectId,
+                        'description' => $documentName,
+                        'prospect_status' => 'final_stage'
+                    ])
+                    ->first();
+
+                $docData = [
+                    'description' => $documentName,
+                    'prospect_id' => $prospectId,
+                    'prospect_status' => 'final_stage',
+                    'mimetype' => $mimeType,
+                    'file' => $filename,
+                    'type' => 'genera',
+                    'updated_at' => now(),
+                ];
+
+                if ($existingDoc) {
+                    $oldFilePath = $uploadsPath . '/' . $existingDoc->file;
+                    if (Storage::disk('s3')->exists($oldFilePath)) {
+                        Storage::disk('s3')->delete($oldFilePath);
+                    }
+
+                    DB::table('prospect_docs')
+                        ->where('id', $existingDoc->id)
+                        ->update($docData);
+                } else {
+                    DB::table('prospect_docs')->insert(array_merge($docData, [
+                        'created_at' => now(),
+                    ]));
+                }
+
+                $uploadedFiles[] = $filename;
+            } catch (\Exception $e) {
+                logger($e);
+                return ['error' => 'Document upload failed: ' . $e->getMessage()];
+            }
+        }
+
+        return $uploadedFiles;
+    }
+
+    private function sendHandoverNotifications($handlerId, array $approverIds, $prospectId): void
+    {
+        try {
+            $handler = User::findOrFail($handlerId);
 
             $handlerEmailData = [
-                'salutation' => $handlerContactName,
-                'email' => $handlerMainEmail,
-                'cc' => $handlerCCEmail,
-                'title' => 'Notification for account handler',
-                'body' => 'Kindly follow up on this prospect ' . $request->prospect_id . ' you are the account handler.'
+                'salutation' => $handler->name,
+                'email' => $handler->email,
+                'cc' => [],
+                'title' => 'Notification for Account Handler',
+                'body' => sprintf(
+                    'You have been assigned as the account handler for prospect %s. Please follow up accordingly.',
+                    $prospectId
+                )
             ];
 
-            $users = User::whereIn('id', $user_id)->get();
-
-            $contactName = $users->first()->name;
-            $mainEmail = $users->first()->email;
-
-            $ccEmails = $users->slice(1)->pluck('email')->toArray();
-            $approverEmailData = [
-                'salutation' => $contactName,
-                'email' => $mainEmail,
-                'cc' => $ccEmails ?? [],
-                'title' => 'Request for approval of handover',
-                'body' => 'Kindly approve the handover of the following prospect ' . $request->prospect_id
-            ];
             SendHandOverApproverEmail::dispatch($handlerEmailData);
-            SendHandOverApproverEmail::dispatch($approverEmailData);
 
+            $approvers = User::whereIn('id', $approverIds)->get();
 
-            if ($client && $update) {
-                DB::commit();
-                return ['status' => 200];
-            } else {
-                return ['status' => 400];
+            if ($approvers->isEmpty()) {
+                return;
             }
-        } catch (\Throwable $th) {
-            DB::rollback();
-            throw $th;
+
+            $primaryApprover = $approvers->first();
+            $ccApprovers = $approvers->slice(1)->pluck('email')->toArray();
+
+            $approverEmailData = [
+                'salutation' => $primaryApprover->name,
+                'email' => $primaryApprover->email,
+                'cc' => $ccApprovers,
+                'title' => 'Request for Approval of Handover',
+                'body' => sprintf(
+                    'Please review and approve the handover for prospect %s.',
+                    $prospectId
+                )
+            ];
+
+            SendHandOverApproverEmail::dispatch($approverEmailData);
+        } catch (\Exception $e) {
+            logger($e);
         }
     }
 
@@ -3622,22 +3495,14 @@ class PipelineController
 
     private function formatApprovalStatus($status)
     {
-        $action = '<span class="badge bg-warning text-dark"><i class="bi bi-clock"></i> Pending</span>';
-        // if ($status === 'Y') {
+        if ($status === 'Y') {
+            $action = '<span class="badge bg-success text-white"><i class="bi bi-check-circle"></i> Approved</span>';
+        } else if ($status === 'R') {
+            $action = '<span class="badge bg-warning text-dark"> <i class="bi bi-x-circle"></i> Rejected</span>';
+        } else {
+            $action = '<span class="badge bg-warning text-dark"><i class="bi bi-clock"></i> Pending</span>';
+        }
 
-        // }
-        // ? ($d->approval_status === '0'
-        //     ? '<a href="#" title="click" data-rej-text="' . $d->reason_for_rejection . '" class="btn btn-sm btn-danger rounded-pill rej-text">
-        //                 <i class="bi bi-x-circle"></i> Rejected
-        //            </a>'
-        //     : ($d->approval_status === '1'
-        //         ? '<a href="#" title="click" data-rej-text="' . $d->approval_comment . '" class="btn btn-sm btn-success rej-text">
-        //                     <i class="bi bi-check-circle"></i> Approved
-        //                </a>'
-        //         : '<span class="badge bg-warning text-dark"><i class="bi bi-clock"></i> Pending</span>'
-        //     )
-        // )
-        // : '';
         return $action;
     }
 
@@ -3652,35 +3517,6 @@ class PipelineController
         return $query;
     }
 
-    // private function getAp($status)
-    // {
-    //     $statusClasses = [
-    //         'proposal' => 'status-proposal',
-    //         'negotiation' => 'status-negotiation',
-    //         'lead' => 'status-lead',
-    //         'won' => 'status-won',
-    //         'lost' => 'status-lost',
-    //         'final_stage' => 'status-final'
-    //     ];
-
-    //     $class = $statusClasses[$status] ?? 'badge-secondary';
-    //     return "<span class='status-badge {$class}'>" . ucfirst(str_replace('_', ' ', $status)) . "</span>";
-    // }
-
-    //         return ($d->handed_over === 'Y')
-    //             ? ($d->approval_status === '0'
-    //                 ? '<a href="#" title="click" data-rej-text="' . $d->reason_for_rejection . '" class="btn btn-sm btn-danger rounded-pill rej-text">
-    //                             <i class="bi bi-x-circle"></i> Rejected
-    //                        </a>'
-    //                 : ($d->approval_status === '1'
-    //                     ? '<a href="#" title="click" data-rej-text="' . $d->approval_comment . '" class="btn btn-sm btn-success rej-text">
-    //                                 <i class="bi bi-check-circle"></i> Approved
-    //                            </a>'
-    //                     : '<span class="badge bg-warning text-dark"><i class="bi bi-clock"></i> Pending</span>'
-    //                 )
-    //             )
-    //             : '';
-
     private function formatStatus($opp)
     {
         $status = $opp->status;
@@ -3694,7 +3530,7 @@ class PipelineController
             'final_stage' => 'status-final'
         ];
 
-        $class = $statusClasses[$status] ?? 'badge-secondary';
+        $class = $statusClasses['final_stage'] ?? 'badge-secondary';
         return "<span class='status-badge {$class}'>" . ucfirst(str_replace('_', ' ', $status)) . "</span>";
     }
 
@@ -3921,7 +3757,6 @@ class PipelineController
                     }
                     return $business_class ? $business_class->class_name : 'N/A';
                 })
-
                 ->addColumn('cedant_premium', function ($d) {
                     return number_format($d->cede_premium, 2, '.', ',');
                 })
@@ -7239,8 +7074,6 @@ class PipelineController
                 try {
                     Storage::disk('s3')->put($pdfPath, $pdf->output());
 
-
-                    // Check if the PDF was saved in S3
                     if (!Storage::disk('s3')->exists($pdfPath)) {
                         return response()->json(['error' => 'Failed to save PDF to S3.'], 500);
                     }
@@ -7294,17 +7127,13 @@ class PipelineController
                         $cedant_doc_name[] = $file_name;
                     }
                 }
-
                 // }
-
-
 
                 $mainEmail = null;
                 if ($quote->main_contact_person === 'Y') {
 
                     $mainEmail = $quote->email;
                 }
-
 
                 $reinsurerCCEmails = [];
                 $contactName = $edit_contact_name ?? $quote->contact_name ?? 'Valued Customer';
@@ -7323,8 +7152,6 @@ class PipelineController
                         // }
                     }
                 }
-
-
 
                 if (
                     !empty($request->selected_dept_user_email) &&
@@ -7406,163 +7233,6 @@ class PipelineController
         ]);
 
         return $quoteId;
-    }
-
-    public function bd_handovers(Request $request)
-    {
-        return view('pipeline.bd_handovers');
-    }
-
-    public function bd_handovers_datatable(Request $request)
-    {
-        $pipelines = PipelineOpportunity::where('handed_over', 'Y')->has('handovers')->with('handovers')->get();
-
-        return Datatables::of($pipelines)
-            ->addColumn('customer_name', function ($d): mixed {
-                if (empty($d->customer_id)) {
-                    return 'N/A';
-                }
-                $lead = DB::table('customers')
-                    ->where('customer_id', (int) $d->customer_id)
-                    ->first();
-                return $lead ? $lead->name : 'N/A';
-            })
-            ->addColumn('cedant', function ($d) {
-                $customer = Customer::where('customer_id', $d->customer_id)->first(['customer_id', 'name']);
-                return $customer->name ?? '--';
-            })
-            ->addColumn('division_name', function ($d) {
-                $division = DB::table('reins_division')->where('division_code', $d->divisions)->first();
-                if (is_null($division)) {
-                    return '';
-                }
-                return $division ? $division->division_name : 'N/A';
-            })
-            ->addColumn('business_class', function ($d) {
-                $business_class = DB::table('classes')->where('class_code', $d->classcode)->first();
-                if (is_null($business_class)) {
-                    return '';
-                }
-                return $business_class ? $business_class->class_name : 'N/A';
-            })
-            ->addColumn('cedant_premium', function ($d) {
-                return number_format($d->cede_premium, 2, '.', ',');
-            })
-            ->addColumn('effective_sum_insured', function ($d) {
-                return number_format($d->effective_sum_insured, 2, '.', ',');
-            })
-            ->addColumn('action', function ($fn) {
-                $approvals = HandoverApproval::where('prospect_id', $fn->opportunity_id)
-                    ->select('approval_status', 'intergrate')
-                    ->get();
-
-                $pendingApproval = $approvals->contains(function ($approval) {
-                    return is_null($approval->approval_status) || $approval->approval_status === '';
-                });
-
-                $isApprovedNotIntegrated = $approvals->contains(function ($approval) {
-                    return $approval->approval_status === '1' && $approval->intergrate === false;
-                });
-
-                $isRejected = $approvals->contains(function ($approval) {
-                    return $approval->approval_status === '0';
-                });
-
-                $actionButtons = '';
-
-                if ($pendingApproval) {
-                    $actionButtons .= sprintf(
-                        '<button type="button" class="btn btn-sm btn-success btn-sm-action approve-btn" data-id="%s">Approve <i class="bx bx-check"></i></button> ',
-                        $fn->id
-                    );
-                }
-
-                if ($isApprovedNotIntegrated) {
-                    $actionButtons .= sprintf(
-                        '<button type="button" class="btn btn-sm btn-dark btn-sm-action rotate-fill integrate-btn" data-id="%s">Integrate <i class="bx bx-analyse"></i></button> ',
-                        $fn->id
-                    );
-                }
-
-                $actionButtons .= sprintf(
-                    '<div id="dropdown-%1$s" class="btn-group my-0">
-                        <button type="button" id="dropdown-btn-%1$s" class="btn btn-icon btn-sm btn-light p-0" data-bs-toggle="dropdown" aria-expanded="false">
-                            <i class="bi bi-three-dots-vertical"></i>
-                        </button>
-                        <ul id="dropdown-menu-%1$s" class="dropdown-menu">
-                          <li><a id="action-item-%1$s" class="dropdown-item review-btn" href="javascript:void(0);" data-url="%2$s">Review</a></li>',
-                    $fn->id,
-                    route('lead.handover', ['prospect' => $fn->opportunity_id, 'approval' => 1, 'action' => 'review'])
-                );
-
-                if ($pendingApproval) {
-                    $actionButtons .= sprintf(
-                        '<li><a id="reject-action-%s" class="dropdown-item reject-bd-btn" href="javascript:void(0);" data-id="%s">Reject</a></li>',
-                        $fn->id,
-                        $fn->id
-                    );
-                }
-
-                if ($isRejected) {
-                    $h = $fn->handovers->where('prospect_id', $fn->opportunity_id)->select('reason_for_rejection')->first();
-                    if ($h) {
-                        $reason_for_rejection = $h['reason_for_rejection'];
-                    } else {
-                        $reason_for_rejection = 'No reason provided';
-                    }
-                    $actionButtons .= sprintf(
-                        '<li><a id="rejected-comment-action-%s" class="dropdown-item rejected-bd-comment" href="javascript:void(0);" data-reason="%s">Rejected comment</a></li>',
-                        $fn->id,
-                        $reason_for_rejection
-                    );
-                }
-
-                $actionButtons .= '</ul></div>';
-
-                return $actionButtons;
-            })
-            ->addColumn('bd_status', function ($fn) {
-                $approvals = HandoverApproval::where('prospect_id', $fn->opportunity_id)
-                    ->select('approval_status', 'intergrate')
-                    ->get();
-                $status_label = '<span class="badge bg-warning rounded-pill">Pending <i class="bx bx-time"></span>';
-
-                $pendingApproval = $approvals->contains(function ($approval) {
-                    return is_null($approval->approval_status) || $approval->approval_status === '';
-                });
-
-                $isApproved = $approvals->contains(function ($approval) {
-                    return $approval->approval_status === 1;
-                });
-
-                $isApprovedAndIntergrated = $approvals->contains(function ($approval) {
-                    return $approval->approval_status === '1' && $approval->intergrate === true;
-                });
-
-                $isApprovedNotIntegrated = $approvals->contains(function ($approval) {
-                    return $approval->approval_status === '1' && $approval->intergrate === false;
-                });
-
-                $isRejected = $approvals->contains(function ($approval) {
-                    return $approval->approval_status === '0';
-                });
-
-                if ($pendingApproval) {
-                    $status_label = '<span class="badge bg-warning rounded-pill">Pending <i class="bx bx-time"></span>';
-                } else if ($isRejected) {
-                    $status_label = '<span class="badge bg-danger rounded-pill">Rejected <i class="bx bx-x"></span>';
-                } else if ($isApproved) {
-                    $status_label = '<span class="badge bg-success rounded-pill">Approved <i class="bx bx-check-circle"></i></span>';
-                } else if ($isApprovedNotIntegrated) {
-                    $status_label = '<span class="badge bg-warning rounded-pill">Waiting <i class="bx bx-time"></i></span>';
-                } else if ($isApprovedAndIntergrated) {
-                    $status_label = '<span class="badge bg-dark rounded-pill">Integrated <i class="bx bx-check"></i></span>';
-                }
-
-                return $status_label;
-            })
-            ->rawColumns(['action', 'bd_status'])
-            ->make(true);
     }
 
     public function reinsurers_declined(Request $request)

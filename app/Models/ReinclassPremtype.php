@@ -12,8 +12,13 @@ class ReinclassPremtype extends Model
     protected $table = 'reinclass_premtypes';
     public $timestamps = false;
     public $primaryKey = 'premtype_code';
-    // public $primaryKey=['reinclass','premtype_code'];
+
     public $incrementing = false;
 
     protected $guarded = [];
+
+    function classGroup()
+    {
+        return $this->belongsTo(ReinsClass::class, 'reinclass', 'class_code');
+    }
 }

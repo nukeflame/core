@@ -328,12 +328,12 @@
                     };
                 }
 
-                if (Math.abs(negotiationState.totalShare - 100) > 0.01) {
-                    return {
-                        isValid: false,
-                        message: `Total signed share must equal 100% (current: ${negotiationState.totalShare.toFixed(2)}%)`
-                    };
-                }
+                // if (Math.abs(negotiationState.totalShare - 100) > 0.01) {
+                //     return {
+                //         isValid: false,
+                //         message: `Total signed share must equal 100% (current: ${negotiationState.totalShare.toFixed(2)}%)`
+                //     };
+                // }
 
                 return {
                     isValid: true

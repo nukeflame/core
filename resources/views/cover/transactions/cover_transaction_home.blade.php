@@ -88,11 +88,14 @@
             background-color: #ffc107;
             color: #212529;
         }
+
+        .h-82 {
+            height: 82% !important;
+        }
     </style>
 @endpush
 
 @section('content')
-    <!-- Page Header -->
     <div class="d-md-flex d-block align-items-center justify-content-between my-4 page-header-breadcrumb">
         <h1 class="page-title fw-semibold fs-18 mb-0">Treaty Transaction Details</h1>
         <div class="ms-md-1 ms-0">
@@ -108,67 +111,67 @@
         </div>
     </div>
 
-    <div class="row row-cols-12 mx-0">
+    <div class="row row-cols-12 mx-0 mb-2">
         @if ($actionable)
             <x-cover.action-card :isCoverStatus="false" :cover="$cover" :endorsementNarration="$endorsementNarration" :isTransaction="$isTransaction" />
         @endif
     </div>
 
     <div class="row mb-0">
-        <div class="col-xl-3 col-md-6 mb-3">
-            <div class="card stats-card h-100">
+        <div class="col-xl-3 col-md-6 mb-0">
+            <div class="card stats-card h-82">
                 <div class="card-body">
                     <div class="d-flex align-items-center">
                         <div class="stats-icon bg-primary bg-opacity-10 text-primary me-3">
                             <i class="bx bx-file fs-30"></i>
                         </div>
                         <div>
-                            <div class="text-muted small">Total Records</div>
+                            <div class="text-muted fs-14">Total Records</div>
                             <div class="fs-4 fw-bold">{{ number_format($stats['total_records'] ?? 0) }}</div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-        <div class="col-xl-3 col-md-6 mb-3">
-            <div class="card stats-card h-100">
+        <div class="col-xl-3 col-md-6 mb-0">
+            <div class="card stats-card h-82">
                 <div class="card-body">
                     <div class="d-flex align-items-center">
                         <div class="stats-icon bg-danger bg-opacity-10 text-danger me-3">
                             <i class="bx bx-up-arrow fs-30"></i>
                         </div>
                         <div>
-                            <div class="text-muted small">Total Debits</div>
+                            <div class="text-muted fs-14">Total Debits</div>
                             <div class="fs-4 fw-bold">{{ number_format($stats['total_debits'] ?? 0, 2) }}</div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-        <div class="col-xl-3 col-md-6 mb-3">
-            <div class="card stats-card h-100">
+        <div class="col-xl-3 col-md-6 mb-0">
+            <div class="card stats-card h-82">
                 <div class="card-body">
                     <div class="d-flex align-items-center">
                         <div class="stats-icon bg-success bg-opacity-10 text-success me-3">
                             <i class="bx bx-down-arrow fs-30"></i>
                         </div>
                         <div>
-                            <div class="text-muted small">Total Credits</div>
+                            <div class="text-muted fs-14">Total Credits</div>
                             <div class="fs-4 fw-bold">{{ number_format($stats['total_credits'] ?? 0, 2) }}</div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-        <div class="col-xl-3 col-md-6 mb-3">
-            <div class="card stats-card h-100">
+        <div class="col-xl-3 col-md-6 mb-0">
+            <div class="card stats-card h-82">
                 <div class="card-body">
                     <div class="d-flex align-items-center">
                         <div class="stats-icon bg-warning bg-opacity-10 text-warning me-3">
                             <i class="bx bx-time fs-30"></i>
                         </div>
                         <div>
-                            <div class="text-muted small">Outstanding Balance</div>
+                            <div class="text-muted fs-14">Outstanding Balance</div>
                             <div class="fs-4 fw-bold">{{ number_format($stats['total_unallocated'] ?? 0, 2) }}</div>
                         </div>
                     </div>
@@ -177,7 +180,6 @@
         </div>
     </div>
 
-    {{-- Data Table --}}
     <div class="card mb-0">
         <div class="card-body">
             <div class="table-responsive">
@@ -187,16 +189,16 @@
                             <th>Reference</th>
                             <th>Treaty</th>
                             <th>Type</th>
+                            <th>Title</th>
                             <th>Endorsement</th>
-                            <th>Insured</th>
+                            {{-- <th>Insured</th> --}}
                             <th>Status</th>
                             <th>Currency</th>
-                            <th>Exch. Rate</th>
-                            <th>Foreign Amt</th>
-                            <th>Local Amt</th>
+                            <th>Amount</th>
                             <th>Amount Paid</th>
-                            <th>Outstanding Amount</th>
+                            <th>Outstanding</th>
                             <th>Period</th>
+                            <th>Created At</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
@@ -244,15 +246,20 @@
                                     </span>
                                 </td>
                                 <td>
+                                    <span class="text-dark capitalize">
+                                        {{ Str::title($cover->cover_title) }}
+                                    </span>
+                                </td>
+                                <td>
                                     <div class="fw-medium">
                                         <div class="text-dark">{{ $account->endorsement_no ?? '-' }}</div>
                                     </div>
                                 </td>
-                                <td>
+                                {{-- <td>
                                     <div class="text-truncate" title="{{ $account->insured ?? '' }}">
                                         {{ Str::limit($account->insured ?? '-', 30) }}
                                     </div>
-                                </td>
+                                </td> --}}
                                 <td>
                                     <span class="badge {{ $statusClass }}">
                                         {{ $statusText }}
@@ -262,13 +269,7 @@
                                     <span class="badge bg-secondary">{{ $account->currency_code ?? 'KES' }}</span>
                                 </td>
                                 <td>
-                                    {{ number_format($account->exchange_rate ?? 1, 4) }}
-                                </td>
-                                <td>
                                     {{ number_format($foreignNettAmount, 2) }}
-                                </td>
-                                <td>
-                                    {{ number_format($account->local_nett_amount ?? 0, 2) }}
                                 </td>
                                 <td>
                                     <span class="text-success fw-medium">
@@ -284,6 +285,9 @@
                                     <span class="badge bg-info text-dark">
                                         {{ str_pad($account->account_month ?? 1, 2, '0', STR_PAD_LEFT) }}/{{ $account->account_year ?? date('Y') }}
                                     </span>
+                                </td>
+                                <td>
+                                    {{ $account->created_at ? \Carbon\Carbon::parse($account->created_at)->format('jS M Y, H:i') : '-' }}
                                 </td>
                                 <td>
                                     <div class="btn-group btn-group-sm">
@@ -321,7 +325,7 @@
                             </tr>
                             @empty
                                 <tr>
-                                    <td colspan="14" class="text-center py-4">
+                                    <td colspan="13" class="text-center py-4">
                                         <div class="text-muted">
                                             <i class="bx bx-inbox fs-1 d-block mb-3"></i>
                                             <p class="mb-0">No transaction records found</p>
@@ -334,19 +338,17 @@
                             <tfoot class="table-light">
                                 @php
                                     $totalForeignNett = $accounts->sum('foreign_nett_amount') ?? 0;
-                                    $totalLocalNett = $accounts->sum('local_nett_amount') ?? 0;
                                     $totalUnallocated = $accounts->sum('unallocated_amount') ?? 0;
                                     $totalAmountPaid = $totalForeignNett - $totalUnallocated;
                                 @endphp
                                 <tr>
-                                    <th colspan="8" class="text-end">Page Totals:</th>
+                                    <th colspan="7" class="text-end">Page Totals:</th>
                                     <th>{{ number_format($totalForeignNett, 2) }}</th>
-                                    <th>{{ number_format($totalLocalNett, 2) }}</th>
                                     <th class="text-success">{{ number_format($totalAmountPaid, 2) }}</th>
                                     <th class="{{ $totalUnallocated > 0 ? 'text-danger' : 'text-success' }}">
                                         {{ number_format($totalUnallocated, 2) }}
                                     </th>
-                                    <th colspan="2"></th>
+                                    <th colspan="3"></th>
                                 </tr>
                             </tfoot>
                         @endif
@@ -367,18 +369,18 @@
             $(document).ready(function() {
                 var $tbody = $('#customerAccountsTable tbody');
                 var hasData = $tbody.find('tr').length > 0 &&
-                    $tbody.find('tr td[colspan="14"]').length === 0;
+                    $tbody.find('tr td[colspan="13"]').length === 0;
 
                 var table = $('#customerAccountsTable').DataTable({
                     processing: true,
                     pageLength: 25,
                     order: [
-                        [0, 'desc']
+                        [11, 'desc']
                     ],
                     columnDefs: [{
                         orderable: false,
-                        targets: [13]
-                    }, ],
+                        targets: [12]
+                    }],
                     language: {
                         processing: '<div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div>',
                         emptyTable: 'No transaction records available',

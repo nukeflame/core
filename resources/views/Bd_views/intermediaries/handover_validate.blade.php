@@ -660,7 +660,6 @@
         }
     </style>
 
-    {{-- Loading Overlay Template --}}
     <template id="loading-overlay-template">
         <div class="loading-overlay">
             <div class="spinner"></div>
@@ -676,7 +675,7 @@
                             <i class="bx bx-transfer"></i>
                             Prospect Handover -
                             <span class="insured-name">{{ $prospProperties->insured_name ?? 'N/A' }}</span>
-                            @if ($approval == 1)
+                            {{-- @if ($approval == 1)
                                 <span class="badge status-indicator approved">
                                     <i class="bx bx-check-circle"></i> Approved
                                 </span>
@@ -684,7 +683,7 @@
                                 <span class="badge status-indicator pending">
                                     <i class="bx bx-time"></i> Pending Submission
                                 </span>
-                            @endif
+                            @endif --}}
                         </h1>
                     </div>
 
@@ -692,9 +691,9 @@
                         <form id="msform" method="POST">
                             @csrf
                             <input type="hidden" name="agent_onboard_client" value="Y">
+                            <input type="hidden" name="prospect_id" value="{{ $pipeid }}">
 
                             <fieldset>
-                                {{-- Cedant Details Section --}}
                                 <div class="form-section">
                                     <h6 class="section-header">
                                         <span class="section-icon"><i class="bx bx-building"></i></span>
@@ -702,7 +701,6 @@
                                     </h6>
 
                                     <div class="data-grid">
-                                        {{-- Type of Business --}}
                                         <div class="form-group">
                                             @php
                                                 $selectedBus = $types_of_bus->firstWhere(
@@ -717,7 +715,6 @@
                                                 value="{{ $selectedBus->bus_type_id ?? '' }}">
                                         </div>
 
-                                        {{-- Cedant --}}
                                         <div class="form-group">
                                             @php
                                                 $selectedCustomer = $customers->firstWhere(
@@ -732,21 +729,18 @@
                                                 value="{{ $selectedCustomer->customer_id ?? '' }}">
                                         </div>
 
-                                        {{-- Lead Type --}}
                                         <div class="form-group">
                                             <label class="form-label">Lead Type</label>
                                             <input type="text" class="form-control"
                                                 value="{{ $prospProperties->client_type ?? 'N/A' }}" readonly />
                                         </div>
 
-                                        {{-- Reference Number --}}
                                         <div class="form-group">
                                             <label class="form-label">Reference Number</label>
                                             <input type="text" class="form-control"
                                                 value="{{ $quotes->first()->opportunity_id ?? 'N/A' }}" readonly />
                                         </div>
 
-                                        {{-- Year --}}
                                         <div class="form-group">
                                             @php
                                                 $selectedYear = $pipeYear->firstWhere(
@@ -1479,8 +1473,9 @@
                                     </div>
                                 @else
                                     <div class="text-center py-4">
-                                        <a href="{{ url()->previous() }}" class="btn btn-primary btn-lg">
-                                            <i class="bx bx-arrow-back"></i> Return to Dashboard
+                                        <a href="{{ url()->route('pipeline.bd_handovers') }}"
+                                            class="btn btn-info btn-lg">
+                                            <i class="bx bx-arrow-back"></i> Return to BD Handovers
                                         </a>
                                     </div>
                                 @endif
@@ -2466,32 +2461,31 @@
                     contentType: false,
                     timeout: 60000,
                     success: function(res) {
-                        console.log(res)
-                        // if (res.status === 200) {
-                        //     Swal.fire({
-                        //         icon: 'success',
-                        //         title: 'Handover Successful!',
-                        //         html: `
-                    //             <p>The prospect has been successfully submitted for handover.</p>
-                    //             <p>Redirecting to pipeline view...</p>
-                    //         `,
-                        //         timer: 2000,
-                        //         timerProgressBar: true,
-                        //         showConfirmButton: false,
-                        //         allowOutsideClick: false,
-                        //         allowEscapeKey: false
-                        //     }).then(() => {
-                        //         window.location.href = '/pipelines_view';
-                        //     });
-                        // } else {
-                        //     Swal.fire({
-                        //         icon: 'error',
-                        //         title: 'Submission Failed',
-                        //         text: res.message || 'An error occurred during submission',
-                        //         confirmButtonColor: '#e74c3c'
-                        //     });
-                        //     resetSubmitButton();
-                        // }
+                        if (res.status === 200) {
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Handover Successful!',
+                                html: `
+                                <p>The prospect has been successfully submitted for handover.</p>
+                                <p>Redirecting to pipeline view...</p>
+                            `,
+                                timer: 2000,
+                                timerProgressBar: true,
+                                showConfirmButton: false,
+                                allowOutsideClick: false,
+                                allowEscapeKey: false
+                            }).then(() => {
+                                window.location.href = '/bd-handovers';
+                            });
+                        } else {
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Submission Failed',
+                                text: res.message || 'An error occurred during submission',
+                                confirmButtonColor: '#e74c3c'
+                            });
+                            resetSubmitButton();
+                        }
                     },
                     error: function(xhr, status, error) {
                         let errorMessage = 'An error occurred during submission';

@@ -20,7 +20,8 @@
                 <x-cover.action-card :cover="$coverReg" :endorsementNarration="$endorsementNarration" />
             @endif
 
-            <x-cover.summary-card :cover="$coverReg" :customer="$customer" :typeOfBus="$type_of_bus" :summaryData="$summaryData" />
+            <x-cover.summary-card :cover="$coverReg" :customer="$customer" :typeOfBus="$type_of_bus" :summaryData="$summaryData"
+                :coverreinprop="$coverreinprop" />
         </div>
 
         <div class="row-cols-12">
@@ -149,7 +150,7 @@
         'paymethods' => $paymethods,
         'coverpart' => $coverpart,
         'typeOfBus' => $type_of_bus,
-        'coverTreaties' => $coverTreaties ?? null,
+        'coverTreaties' => $coverTreaties,
     ])
 
     {{-- @include('cover.modals.edit-reinsurer', [
@@ -176,6 +177,7 @@
         'cover' => $coverReg,
         'nextInstallment' => $nextInstallment,
         'installmentAmount' => $installmentAmount,
+        'treatyClasses' => $treatyClasses,
     ])
 
     @include('cover.modals.fac-debit', [

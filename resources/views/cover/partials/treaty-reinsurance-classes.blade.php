@@ -9,11 +9,11 @@
 
         <div class="row g-3">
             <div class="col-md-4">
-                <label class="form-label required">Reinsurance Class</label>
+                <label class="form-label required">Class Group</label>
                 <div class="cover-card">
                     <select class="form-control select2 treaty_reinclass required" name="treaty_reinclass[]"
                         id="treaty_reinclass-0" data-counter="0">
-                        <option value="">Choose Reinsurance Class</option>
+                        <option value="">-- Select Class Group --</option>
                         @foreach ($reinsclasses as $reinsclass)
                             <option value="{{ $reinsclass->class_code }}">
                                 {{ $reinsclass->class_code }} - {{ $reinsclass->class_name }}
@@ -70,6 +70,13 @@
                         name="quota_treaty_limit[]" data-counter="0" readonly>
                     <small class="text-muted">Calculated automatically</small>
                 </div>
+
+                {{-- <div class="col-md-3 quota_treaty_limit_div" style="display: none;">
+                    <label class="form-label">Treaty Capacity</label>
+                    <input type="text" class="form-control amount quota_treaty_limit" id="quota_treaty_limit-0"
+                        name="quota_treaty_limit[]" data-counter="0" readonly>
+                    <small class="text-muted">Calculated automatically</small>
+                </div> --}}
             </div>
         </div>
 
@@ -92,32 +99,29 @@
                     <label class="form-label required">Number of Lines</label>
                     <input type="number" class="form-control no_of_lines required" id="no_of_lines-0"
                         name="no_of_lines[]" data-counter="0" min="1" placeholder="1">
-                    <small class="text-muted">Lines above retention</small>
                 </div>
 
                 <div class="col-md-3 surp_treaty_limit_div" style="display: none;">
                     <label class="form-label">Treaty Limit</label>
                     <input type="text" class="form-control amount surp_treaty_limit" id="surp_treaty_limit-0"
                         name="surp_treaty_limit[]" data-counter="0" readonly>
-                    <small class="text-muted">Lines × Retention</small>
+                </div>
+
+                <div class="col-md-3 surp_treaty_capacity_div" style="display: none;">
+                    <label class="form-label">Treaty Capacity</label>
+                    <input type="text" class="form-control amount surp_treaty_capacity"
+                        id="surp_treaty_capacity-0" name="surp_treaty_capacity[]" data-counter="0" readonly>
                 </div>
             </div>
         </div>
 
         {{-- Financial Details --}}
-        <div class="row g-3 mt-3">
+        <div class="row g-3 mt-1">
             <div class="col-md-3 estimated_income_div">
                 <label class="form-label required">Estimated Income</label>
                 <input type="text" class="form-control amount estimated_income required" id="estimated_income-0"
                     name="estimated_income[]" data-counter="0" placeholder="0.00" required>
                 <small class="text-muted">Expected premium income</small>
-            </div>
-
-            <div class="col-md-3 cashloss_limit_div">
-                <label class="form-label required">Cash Loss Limit</label>
-                <input type="text" class="form-control amount cashloss_limit required" id="cashloss_limit-0"
-                    name="cashloss_limit[]" data-counter="0" placeholder="0.00">
-                <small class="text-muted">Maximum claim amount</small>
             </div>
         </div>
 
@@ -127,10 +131,6 @@
                 <h6 class="text-info mb-0">
                     <i class="bx bx-money me-2"></i>Commission Structure
                 </h6>
-                {{-- <button type="button" class="btn btn-outline-info btn-sm" data-bs-toggle="modal"
-                    data-bs-target="#commissionHelpModal">
-                    <i class="bx bx-help-circle me-1"></i> Commission Types Guide
-                </button> --}}
             </div>
 
             <div class="comm-sections" id="comm-section-0-0" data-class-counter="0" data-counter="0">
@@ -146,13 +146,13 @@
                     </div>
 
                     <div class="col-md-3 prem_type_code_div">
-                        <label class="form-label required">Premium Type</label>
+                        <label class="form-label required">Class Name</label>
                         <input type="hidden" class="prem_type_reinclass" id="prem_type_reinclass-0-0"
                             name="prem_type_reinclass[]">
                         <div class="cover-card">
                             <select class="form-control select2 prem_type_code required" name="prem_type_code[]"
                                 id="prem_type_code-0-0" data-class-counter="0" data-counter="0">
-                                <option value="">Select Premium Type</option>
+                                <option value="">--Select Class Name--</option>
                             </select>
                         </div>
                     </div>
@@ -182,7 +182,6 @@
                                 <i class="bx bx-plus"></i>
                             </button>
                         </div>
-                        {{-- <small class="text-muted">Fixed rate for all premiums</small> --}}
                     </div>
 
                     {{-- Sliding Scale Commission --}}
@@ -252,10 +251,10 @@
                 <div class="row g-3">
                     {{-- Reinsurance Class --}}
                     <div class="col-md-4">
-                        <label class="form-label required">Reinsurance Class</label>
+                        <label class="form-label required">Class Group</label>
                         <select class="form-control select2 treaty_reinclass" name="treaty_reinclass[]"
                             id="treaty_reinclass-{{ $index }}" data-counter="{{ $index }}" required>
-                            <option value="">Choose Reinsurance Class</option>
+                            <option value="">-- Select Class Group --</option>
                             @foreach ($reinsclasses as $reinsclass)
                                 <option value="{{ $reinsclass->class_code }}"
                                     {{ $reinsclass->class_code == $reinclass ? 'selected' : '' }}>
@@ -418,7 +417,7 @@
                                 </div>
 
                                 <div class="col-md-3 prem_type_code_div">
-                                    <label class="form-label required">Premium Type</label>
+                                    <label class="form-label required">Class Name</label>
                                     <input type="hidden" class="prem_type_reinclass"
                                         id="prem_type_reinclass-{{ $index }}-{{ $loop->index }}"
                                         name="prem_type_reinclass[]" value="{{ $reinclass }}">
@@ -571,6 +570,8 @@
     }
 
     .section-title {
+        padding: 0px;
+        margin: 0px;
         color: #2c3e50;
         font-weight: 600;
         font-size: 1.1rem;
@@ -582,9 +583,9 @@
     .quota-share-section,
     .surplus-section {
         background-color: #fff;
-        padding: 1rem;
+        padding: .75rem;
         border-radius: 8px;
-        border-left: 4px solid #007bff;
+        border-left: 2px solid #007bff;
     }
 
     .surplus-section {
@@ -593,9 +594,9 @@
 
     .commission-section {
         background-color: #fff;
-        padding: 1rem;
+        padding: .75rem;
         border-radius: 8px;
-        border-left: 4px solid #17a2b8;
+        border-left: 2px solid #17a2b8;
     }
 
     .comm-sections {

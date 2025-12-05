@@ -6,6 +6,10 @@ use App\Models\CoverRegister;
 use App\Models\Customer;
 use App\Models\CustomerAccDet;
 use App\Models\CoverDebit;
+use App\Models\CoverRipart;
+use App\Models\DebitNote;
+use App\Models\DebitNoteItem;
+use App\Models\TreatyDocument;
 use Illuminate\Http\Request;
 
 class CoverTransactionController extends Controller
@@ -40,7 +44,7 @@ class CoverTransactionController extends Controller
             $query->where('account_month', $request->account_month);
         }
 
-        $accounts = $query->orderBy('created_date', 'desc')
+        $accounts = $query->orderBy('created_at', 'desc')
             ->paginate(25)
             ->withQueryString();
 
@@ -68,7 +72,6 @@ class CoverTransactionController extends Controller
 
         $endorsementNarration = $this->getEndorsementNarration($cover);
 
-        // Determine if actions are available
         $actionable = $cover->status !== 'CANCELLED' && $cover->status !== 'EXPIRED';
         $isTransaction = true; //$transactions->count() > 0;
 
@@ -112,7 +115,19 @@ class CoverTransactionController extends Controller
             && $cover->status !== 'EXPIRED'
             && $remainingAmount > 0;
 
+        $documents = TreatyDocument::where(['cover_no' => $cover->cover_no])->get();
+
         $isTransaction = $transactions->count() > 0;
+        $totalDocuments = $documents->count();
+        $totalDebitItems = DebitNote::where([
+            'cover_no' => $cover->cover_no,
+            'endorsement_no' => $cover->endorsement_no
+        ])
+            ->withCount('items')
+            ->get()
+            ->sum('items_count');
+
+        $totalReinsurers = CoverRipart::where(['cover_no' => $cover->cover_no, 'endorsement_no' =>  $cover->endorsement_no])->count();
 
         return view('cover.transactions.cover_transaction_debit', [
             'endorsementNo' => $request->endorsementNo,
@@ -125,6 +140,9 @@ class CoverTransactionController extends Controller
             'nextInstallment' => $nextInstallment,
             'remainingAmount' => $remainingAmount,
             'totalDebited' => $totalDebited,
+            'totalDocuments' => $totalDocuments,
+            'totalDebitItems' => $totalDebitItems,
+            'totalReinsurers' => $totalReinsurers
         ]);
     }
 
@@ -152,9 +170,6 @@ class CoverTransactionController extends Controller
         ]);
     }
 
-    /**
-     * Get endorsement narration based on transaction type
-     */
     private function getEndorsementNarration($cover): array
     {
         $narration = [];

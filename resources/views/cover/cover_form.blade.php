@@ -131,17 +131,24 @@
                 </div>
             </div>
 
+            {{-- Form Actions --}}
             <div class="row mb-3">
                 <div class="col-12">
                     <div class="card">
-                        <div class="card-body d-flex justify-content-end gap-2">
-                            <a href="{{ route('customer.info') }}" class="btn btn-light">
-                                <i class="ri-close-line me-1"></i>Cancel
-                            </a>
-                            <button type="submit" class="btn btn-primary">
-                                <i
-                                    class="ri-check-line me-1"></i>{{ $trans_type === 'EDIT' ? 'Update Cover' : 'Register Cover' }}
-                            </button>
+                        <div class="card-body d-flex justify-content-between align-items-center">
+                            <small class="text-muted">
+                                <i class="ri-information-line me-1"></i>
+                                All fields marked with <span class="text-danger">*</span> are required
+                            </small>
+                            <div class="d-flex gap-2">
+                                <a href="{{ route('customer.info') }}" class="btn btn-light">
+                                    Cancel
+                                </a>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="ri-check-line me-1"></i>
+                                    {{ $trans_type === 'EDIT' ? 'Update Cover' : 'Register Cover' }}
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -214,10 +221,13 @@
                 getBinderCovers: '{{ route('get_binder_covers') }}',
                 getTodaysRate: '{{ route('get_todays_rate') }}',
                 getReinPremType: '{{ route('cover.get_reinprem_type') }}',
-                // getProspectData: 'route('cover.prospect-data', ':id')',
+                //{{-- getProspectData: '{{ route('cover.prospect-data', ':id') }}' --}}
+                getProspectData: ''
+
             },
             oldData: @json($old_endt_trans ?? null)
         };
     </script>
+
     <script src="{{ asset('js/cover-registration.js') }}"></script>
 @endpush

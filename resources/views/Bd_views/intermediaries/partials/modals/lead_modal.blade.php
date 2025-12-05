@@ -1985,11 +1985,13 @@
                 const totalWrittenShare = parseFloat($("#leadTotalReinsurerShare").val()) || 0;
                 if (totalWrittenShare === 0) {
                     errors.push("<b>Total Written Share:</b> Please enter the total written share percentage");
-                } else if (totalWrittenShare !== 100) {
-                    errors.push(
-                        `<b>Total Written Share:</b> Must be exactly 100%. Current value is ${totalWrittenShare.toFixed(2)}%`
-                    );
                 }
+                //  else
+                // if (totalWrittenShare !== 100) {
+                //     errors.push(
+                //         `<b>Total Written Share:</b> Must be exactly 100%. Current value is ${totalWrittenShare.toFixed(2)}%`
+                //     );
+                // }
 
                 const totalPlacedShares = calculateTotalPlacedShares();
                 const sharesDifference = Math.abs(totalWrittenShare - totalPlacedShares);

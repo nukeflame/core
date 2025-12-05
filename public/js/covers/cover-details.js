@@ -1175,24 +1175,42 @@
             ).length;
 
             if (remainingReinsurers <= 1) {
-                NotificationService.warning(
-                    "Cannot remove the last reinsurer. At least one is required."
-                );
+                Swal.fire({
+                    icon: "warning",
+                    title: "Cannot Remove",
+                    text: "Cannot remove the last reinsurer. At least one is required.",
+                    confirmButtonText: "OK",
+                    confirmButtonColor: "#3085d6",
+                });
                 return;
             }
 
-            if (!confirm("Are you sure you want to remove this reinsurer?")) {
-                return;
-            }
+            Swal.fire({
+                title: "Remove Reinsurer?",
+                text: "Are you sure you want to remove this reinsurer? This action cannot be undone.",
+                icon: "question",
+                showCancelButton: true,
+                confirmButtonColor: "#d33",
+                cancelButtonColor: "#6c757d",
+                confirmButtonText: "Yes, remove it",
+                cancelButtonText: "Cancel",
+                reverseButtons: true,
+                focusCancel: true,
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    const $row = $(
+                        `#reinsurer-div-${treatyCounter}-${counter}`
+                    );
 
-            const $row = $(`#reinsurer-div-${treatyCounter}-${counter}`);
-            $row.fadeOut(CONSTANTS.ANIMATION_DURATION, () => {
-                $row.remove();
-                this.updateReinsurerNumbers(treatyCounter);
-                ReinsurerPlacement.distributionManager.calculateDistribution(
-                    treatyCounter
-                );
-                this.filterSelectedReinsurers(treatyCounter);
+                    $row.fadeOut(CONSTANTS.ANIMATION_DURATION, () => {
+                        $row.remove();
+                        this.updateReinsurerNumbers(treatyCounter);
+                        ReinsurerPlacement.distributionManager.calculateDistribution(
+                            treatyCounter
+                        );
+                        this.filterSelectedReinsurers(treatyCounter);
+                    });
+                }
             });
         }
 
@@ -2958,6 +2976,8 @@
                         window.location.search +
                         "#schedules-tab"
                 );
+
+                // ins-classes-tab
             }
         },
 
@@ -3456,7 +3476,6 @@
                 }
             });
         },
-
         removeReinsurer: function (shareData) {
             const data = {
                 endorsement_no: this.state.coverData.endorsement_no,

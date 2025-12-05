@@ -794,9 +794,9 @@
                     return "<b>Total Written Share:</b> Please enter the total written share percentage";
                 }
 
-                if (totalWrittenShare !== 100) {
-                    return `<b>Total Written Share:</b> Must be exactly 100%. Current value is ${totalWrittenShare.toFixed(2)}%`;
-                }
+                // if (totalWrittenShare !== 100) {
+                //     return `<b>Total Written Share:</b> Must be exactly 100%. Current value is ${totalWrittenShare.toFixed(2)}%`;
+                // }
 
                 return null;
             }

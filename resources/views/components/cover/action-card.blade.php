@@ -111,15 +111,15 @@
                 @if ($isTransaction)
                     <button type="button" class="btn btn-outline-dark btn-sm text-start me-1" data-bs-toggle="modal"
                         data-bs-target="#createQuarterlyFiguresModal">
-                        <i class="bi bi-calculator me-1"></i>Create Quarterly Figures
+                        <i class="bi bi-calculator me-1"></i>Quarterly Figures
                     </button>
                     <button type="button" class="btn btn-outline-dark btn-sm text-start me-1" data-bs-toggle="modal"
                         data-bs-target="#addProfitCommissionModal">
-                        <i class="bi bi-percent me-1"></i>Add Profit Commission
+                        <i class="bi bi-percent me-1"></i>Profit Commission
                     </button>
                     <button type="button" class="btn btn-outline-dark btn-sm text-start me-1" data-bs-toggle="modal"
                         data-bs-target="#addPortfolioModal">
-                        <i class="bi bi-briefcase me-1"></i>Add Portfolio
+                        <i class="bi bi-briefcase me-1"></i>Portfolio
                     </button>
                     <button type="button" class="btn btn-outline-dark btn-sm text-start me-1" data-bs-toggle="modal"
                         data-bs-target="#adjustCommissionModal">

@@ -6,6 +6,7 @@ use App\Http\Controllers\CoverController;
 use App\Http\Controllers\CoverRiskController;
 use App\Http\Controllers\BdController\BdScheduleController;
 use App\Http\Controllers\CoverTransactionController;
+use App\Http\Controllers\QuarterlyDebitController;
 use Illuminate\Support\Facades\Route;
 
 
@@ -149,7 +150,6 @@ Route::group(['prefix' => 'cover', 'middleware' => ['auth', 'check.first.login']
     Route::get('/treaty-operation-checklist-data', [BdScheduleController::class, 'operationchecklist_data'])->name('operationchecklist.data');
     Route::post('/treaty-operation-checklist', [BdScheduleController::class, 'delete_operationchecklist'])->name('delete.operationchecklist');
 
-    Route::post('pipeline/intergrate', [CoverController::class, 'integrateCover'])->name('pipeline.create_cover');
     Route::get('prospect-data/{prospectId}', [CoverController::class, 'getProspectData'])->name('pipeline.get_prospect_data');
 
     Route::prefix('treaty/{coverNo}')->name('cover.')->group(function () {
@@ -158,12 +158,62 @@ Route::group(['prefix' => 'cover', 'middleware' => ['auth', 'check.first.login']
         Route::get('transactions/{refNo}/profit-commission', [CoverTransactionController::class, 'profitCommission'])->name('transactions.profit-commission');
     });
 
-    Route::post('treaty/quarterly-figures', [CoverTransactionController::class, 'storeQuarterlyFigures'])
-        ->name('treaty.quarterly-figures.store');
-    Route::post('treaty/profit-commission', [CoverTransactionController::class, 'storeProfitCommission'])
-        ->name('treaty.profit-commission.store');
-    Route::put('treaty/commission/adjust', [CoverTransactionController::class, 'adjustCommission'])
-        ->name('treaty.commission.adjust');
+    Route::prefix('treaty')->name('treaty.')->group(function () {
+
+        Route::post('quarterly-figures', [CoverTransactionController::class, 'storeQuarterlyFigures'])
+            ->name('quarterly-figures.store');
+        Route::post('profit-commission', [CoverTransactionController::class, 'storeProfitCommission'])
+            ->name('profit-commission.store');
+        Route::put('commission/adjust', [CoverTransactionController::class, 'adjustCommission'])
+            ->name('commission.adjust');
+
+
+        Route::get('/quarterly-debit/{cover}', [QuarterlyDebitController::class, 'index'])
+            ->name('quarterly-debit.index');
+
+        Route::prefix('debit-items')->name('debit-items.')->group(function () {
+            Route::get('/', [QuarterlyDebitController::class, 'getDebitItems'])
+                ->name('index');
+            Route::post('/', [QuarterlyDebitController::class, 'storeDebitItem'])
+                ->name('store');
+
+            Route::get('/{id}', [QuarterlyDebitController::class, 'showDebitItem'])
+                ->name('show');
+            Route::put('/{id}', [QuarterlyDebitController::class, 'updateDebitItem'])
+                ->name('update');
+            Route::delete('/{id}', [QuarterlyDebitController::class, 'destroyDebitItem'])
+                ->name('destroy');
+        });
+
+        Route::prefix('reinsurers')->name('reinsurers.')->group(function () {
+            Route::get('/', [QuarterlyDebitController::class, 'getReinsurers'])
+                ->name('index');
+            Route::get('/list', [QuarterlyDebitController::class, 'listReinsurers'])
+                ->name('list');
+        });
+
+        Route::get('/cedant/{cover}', [QuarterlyDebitController::class, 'getCedantDetailsApi'])
+            ->name('cedant.show');
+
+        Route::prefix('documents')->name('documents.')->group(function () {
+            Route::get('/', [QuarterlyDebitController::class, 'getDocuments'])
+                ->name('index');
+
+            Route::post('/generate', [QuarterlyDebitController::class, 'generateDocument'])
+                ->name('generate');
+
+            Route::get('/{id}/download', [QuarterlyDebitController::class, 'downloadDocument'])
+                ->name('download');
+        });
+
+        Route::get('/slip/{cover}/preview', [QuarterlyDebitController::class, 'previewSlip'])
+            ->name('slip.preview');
+        Route::post('/statement/{cover}/generate', [QuarterlyDebitController::class, 'generateStatement'])
+            ->name('statement.generate');
+
+        Route::get('/export/{cover}', [QuarterlyDebitController::class, 'exportData'])
+            ->name('export');
+    });
 
     Route::prefix('cedants')->name('cedant.')->group(function () {
         // Route::get('/data', [CustomerController::class, 'getData'])->name('data');

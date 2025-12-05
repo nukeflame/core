@@ -34,24 +34,26 @@ class Handler extends ExceptionHandler
     public function register(): void
     {
         $this->reportable(function (Exception $e) {
+            // Skip session/auth related exceptions from error notifications
+            if ($this->isSessionOrAuthException($e)) {
+                return false;
+            }
+
             if (
                 static::$sendingErrorNotification ||
                 $e instanceof \Exception &&
                 strpos($e->getFile(), 'ErrorNotification.php') !== false
             ) {
-                return;
+                return false;
             }
 
-            // Skip email for certain exception types if needed
             if (
                 $e instanceof \Illuminate\Validation\ValidationException ||
-                // $e instanceof \Illuminate\Session\TokenMismatchException ||
                 $e instanceof \Symfony\Component\HttpKernel\Exception\NotFoundHttpException ||
                 $e instanceof \Spatie\Permission\Exceptions\PermissionDoesNotExist
             ) {
-                return;
+                return false;
             }
-
 
             try {
                 static::$sendingErrorNotification = true;
@@ -61,27 +63,25 @@ class Handler extends ExceptionHandler
                         Mail::queue(new ErrorNotification($e));
                     }
                 }
-
-                static::$sendingErrorNotification = false;
             } catch (\Exception $mailException) {
+                // Silently fail
+            } finally {
                 static::$sendingErrorNotification = false;
             }
         });
 
         $this->renderable(function (Exception $e, $request) {
+            // Handle session/auth exceptions first - these should always redirect to login
+            if ($this->isSessionOrAuthException($e)) {
+                return $this->handleSessionExpired($request);
+            }
 
             if ($e instanceof AuthenticationException) {
-                return $request->expectsJson()
-                    ? response()->json(['message' => 'Unauthenticated'], 401)
-                    : redirect()->guest(route('login'));
+                return $this->handleSessionExpired($request);
             }
 
             if ($e instanceof TokenMismatchException) {
-                $request->session()->flush();
-
-                return $request->expectsJson()
-                    ? response()->json(['message' => 'CSRF token mismatch'], 419)
-                    : redirect()->route('login')->with('message', 'Your session has expired. Please log in again.');
+                return $this->handleSessionExpired($request, 'Your session has expired. Please log in again.');
             }
 
             if ($e instanceof \Symfony\Component\HttpKernel\Exception\NotFoundHttpException) {
@@ -111,10 +111,66 @@ class Handler extends ExceptionHandler
     }
 
     /**
-     * Check if there is an internet connection
-     * @return bool
+     * Check if exception is related to session or authentication
      */
-    private function hasInternetConnection()
+    private function isSessionOrAuthException(Exception $e): bool
+    {
+        $sessionExceptions = [
+            'Session store not set on request',
+            'Session store not started',
+            'Unauthenticated',
+            'Your session has expired',
+            'Session has expired',
+            'Token has expired',
+        ];
+
+        $message = $e->getMessage();
+        foreach ($sessionExceptions as $sessionMessage) {
+            if (stripos($message, $sessionMessage) !== false) {
+                return true;
+            }
+        }
+
+        // Check for session-related exception types
+        if (
+            $e instanceof \RuntimeException &&
+            stripos($e->getMessage(), 'session') !== false
+        ) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Handle expired session - redirect to login
+     */
+    private function handleSessionExpired($request, ?string $message = null)
+    {
+        // Safely try to flush session
+        try {
+            if ($request->hasSession() && $request->session()->isStarted()) {
+                $request->session()->flush();
+            }
+        } catch (\Exception $e) {
+            // Session already gone, ignore
+        }
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'message' => $message ?? 'Your session has expired. Please log in again.',
+                'redirect' => route('login')
+            ], 401);
+        }
+
+        return redirect()->guest(route('login'))
+            ->with('message', $message ?? 'Your session has expired. Please log in again.');
+    }
+
+    /**
+     * Check if there is an internet connection
+     */
+    private function hasInternetConnection(): bool
     {
         $connected = @fsockopen("www.google.com", 80, $errno, $errstr, 3);
         if ($connected) {

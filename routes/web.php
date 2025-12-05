@@ -7,6 +7,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\BdController\LeadsOnboardingController;
 use App\Http\Controllers\BdController\PipelineController;
 use App\Http\Controllers\BdController\TenderController;
+use App\Http\Controllers\BdHandoverController;
 use App\Http\Controllers\GoogleOAuthController;
 use App\Http\Controllers\MicrosoftWebhookController;
 use App\Http\Controllers\OutlookOAuthController;
@@ -60,29 +61,23 @@ Route::middleware(['auth', 'check.first.login'])->group(function () {
 
     Route::get('/generate-report', function () {
         try {
-            // Path to your compiled report (.jasper file)
             $jasperFile = storage_path('jasperreports/coa_listing.jasper');
-
-            // Output directory for generated reports
             $outputDir = storage_path('reports/output');
 
             $jasper = new PHPJasper();
             $jasper->process(
                 $jasperFile,
                 $outputDir,
-                ['format' => ['pdf']], // Output format (e.g., PDF)
-                ['parameter1' => 'value'] // Parameters for your report (if any)
+                ['format' => ['pdf']],
+                ['parameter1' => 'value']
             )->execute();
             $generatedFile = $outputDir . '/your_report.pdf';
             $pdfContent = file_get_contents($generatedFile);
 
-            // Clean up: delete the generated PDF file
             unlink($generatedFile);
 
-            // Pass the PDF content to the Blade view
             return view('reports.preview', ['pdfContent' => $pdfContent]);
         } catch (\Exception $e) {
-            // Handle any errors that occur during report generation
             return response()->json(['error' => $e->getMessage()], 500);
         }
     });
@@ -118,8 +113,6 @@ Route::middleware(['auth', 'check.first.login'])->group(function () {
     Route::post('pipelines_create_opportunity', [PipelineController::class, 'pipeline_create_opportunity'])->name('pipeline.create.opportunity');
     // Route::get('pipelines_activity', [PipelineController::class, 'pipeline_activity'])->name('pipeline.activity');
     Route::get('pipelines_activity_treaty', [PipelineController::class, 'pipeline_activity_treaty'])->name('pipeline.activity.treaty');
-    Route::get('bd_handovers', [PipelineController::class, 'bd_handovers'])->name('pipeline.bd_handovers');
-    Route::get('bd_handovers_datatable', [PipelineController::class, 'bd_handovers_datatable'])->name('pipeline.bd_handovers_datatable');
 
     Route::post('update_category_type', [PipelineController::class, 'update_category'])->name('update.category_type');
     Route::post('bd/notification/send', [PipelineController::class, 'sendBDNotification'])->name('bd.notification.send');
@@ -255,6 +248,24 @@ Route::middleware(['auth', 'check.first.login'])->group(function () {
     Route::get('/tender/cedant/contact', [PipelineController::class, 'TenderCedantContactPerson'])->name('get_cedant_contact');
     Route::post('/search', [TenderController::class, 'search'])->name('search_tender_emails');
     Route::any('/doc-attachment', [PipelineController::class, 'TenderDocAttachement'])->name('tender.docs');
+
+    Route::get('/bd-handovers', [BdHandoverController::class, 'index'])
+        ->name('pipeline.bd_handovers');
+
+    Route::get('/bd-handovers/statistics', [BdHandoverController::class, 'getStatistics'])
+        ->name('pipeline.bd_handovers_stats');
+
+    Route::get('/bd-handovers/datatable', [BdHandoverController::class, 'getDataTableData'])
+        ->name('pipeline.bd_handovers_datatable');
+
+    Route::post('/bd-handovers/create-cover', [BdHandoverController::class, 'createCover'])
+        ->name('pipeline.create_cover');
+
+    Route::get('/bd-handovers/export', [BdHandoverController::class, 'export'])
+        ->name('pipeline.bd_handovers_export');
+
+    Route::get('/bd-handovers/{id}', [BdHandoverController::class, 'show'])
+        ->name('pipeline.bd_handover_details');
 });
 
 Route::get('/auth/outlook/callback', [OutlookOAuthController::class, 'callback'])->name('admin.outlook.callback');

@@ -75,8 +75,6 @@ class CoverService
 
             $result = $this->coverRepository->registerCover((object) $repositoryData);
 
-            // logger()->debug(json_encode($result, JSON_PRETTY_PRINT));
-
             return [
                 'success' => true,
                 'endorsement_no' => $result->endorsement_no ?? null,
@@ -172,18 +170,12 @@ class CoverService
         }
     }
 
-    /**
-     * Process installment payment
-     */
     public function processInstallment(array $data)
     {
         return $this->processEndorsement($data, 'INSTALLMENT');
     }
 
-    /**
-     * Transform request data to repository format
-     */
-    protected function transformRequestData(array $data): array
+    public function transformRequestData(array $data): array
     {
         return [
             // Transaction details
@@ -199,6 +191,8 @@ class CoverService
             'covertype' => $data['covertype'],
             'class_group' => $data['class_group'] ?? null,
             'classcode' => $data['classcode'] ?? null,
+            'territorial_scope' => $data['territorial_scope'] ?? null,
+            'basis_of_acceptance' => $data['basis_of_acceptance'] ?? null,
 
             // Cover details
             'risk_details' => $data['risk_details'] ?? null,
@@ -251,8 +245,10 @@ class CoverService
             'estimated_income' => $data['estimated_income'] ?? null,
             'cashloss_limit' => $data['cashloss_limit'] ?? null,
             'no_of_lines' => $data['no_of_lines'] ?? null,
-            'surp_retention_amt' => $data['surp_retention_amt'] ?? null,
-            'surp_treaty_limit' => $data['surp_treaty_limit'] ?? null,
+            'surp_retention_amt' => $data['surp_retention_amt'] ?? 0,
+            'surp_treaty_limit' => $data['surp_treaty_limit'] ?? 0,
+            'surp_treaty_capacity' => $data['surp_treaty_capacity'] ?? 0,
+            'treaty_commission_type' => $data['treaty_commission_type'] ?? [],
 
             // Premium types
             'prem_type_code' => $data['prem_type_code'] ?? [],

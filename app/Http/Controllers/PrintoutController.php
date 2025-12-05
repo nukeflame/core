@@ -577,13 +577,6 @@ class PrintoutController extends Controller
             $view_path = 'printouts.';
             $view_name = $view_path . 'treaty_printout';
 
-            // dd($data);
-            // dd($QuoteDetailInput);
-
-
-
-
-
             if ($request->printout_flag == 1) {
                 // Create a new Word document
                 $phpWord = new PhpWord();

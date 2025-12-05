@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\Eloquent\Builder;
 
 class CoverRegister extends Model
 {
@@ -41,6 +42,10 @@ class CoverRegister extends Model
         return $this->hasMany(CoverReinclass::class, 'endorsement_no', 'endorsement_no');
     }
 
+    public function isActive(): bool
+    {
+        return $this->cancelled === 'N' && $this->status === 'A';
+    }
 
     public function uwClasses(): HasMany
     {
@@ -51,10 +56,4 @@ class CoverRegister extends Model
     {
         return $this->belongsTo(Branch::class, 'branch_code', 'branch_code');
     }
-
-    // public function reinsurers()
-    // {
-    //     return $this->hasMany(CoverRipart::class, 'endorsement_no', 'endorsement_no')
-    //         ->where('cover_no', $this->cover_no);
-    // }
 }

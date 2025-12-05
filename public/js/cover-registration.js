@@ -158,6 +158,7 @@ const CoverRegistration = (function () {
         $("#register_cover").on("submit", handleFormSubmit);
 
         $("#coverfrom, #coverto").on("change", debounce(validateDates, 300));
+        $("#coverfrom, #coverto").on("change", calculateCover);
 
         $("#add_fac_instalments").on("click", addInstallments);
         $(document).on("click", ".remove-installment", removeInstallment);
@@ -1301,6 +1302,11 @@ const CoverRegistration = (function () {
 
         const treatyLimit = lines * retention;
         $(`#surp_treaty_limit-${counter}`).val(numberWithCommas(treatyLimit));
+
+        const treatyCapacity = treatyLimit + retention;
+        $(`#surp_treaty_capacity-${counter}`).val(
+            numberWithCommas(treatyCapacity)
+        );
     }
 
     function handleCommissionTypeChange() {
@@ -1617,6 +1623,35 @@ const CoverRegistration = (function () {
         reader.readAsText(file);
     }
 
+    function calculateCover() {
+        const startVal = $("#coverfrom").val();
+        const endVal = $("#coverto").val();
+
+        if (!startVal) {
+            $("#cover_duration").val("");
+            return;
+        }
+
+        const start = new Date(startVal);
+        let end = endVal ? new Date(endVal) : null;
+
+        // If coverto is empty → generate 1 year -1 day from start
+        if (!endVal) {
+            end = new Date(start);
+            end.setFullYear(end.getFullYear() + 1);
+            end.setDate(end.getDate() - 1);
+
+            $("#coverto").val(end.toISOString().split("T")[0]);
+        }
+
+        // Recalculate duration based on dates
+        if (end && !isNaN(end.getTime())) {
+            const diffMs = end - start;
+            const days = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+            $("#cover_duration").val(days);
+        }
+    }
+
     function parseSlidingScaleCSV(csv) {
         const lines = csv.split("\n").filter((line) => line.trim() !== "");
 
@@ -1697,7 +1732,7 @@ const CoverRegistration = (function () {
         ).hide();
         $(".quota_retention_amt_div, .quota_treaty_limit_div").hide();
         $(
-            ".no_of_lines_div, .surp_retention_amt_div, .surp_treaty_limit_div"
+            ".no_of_lines_div, .surp_retention_amt_div, .surp_treaty_limit_div, .surp_treaty_capacity_div"
         ).hide();
         $("#reinsurer_per_treaty_section").hide();
         $(".quota-share-section, .surplus-section").hide();
@@ -1720,7 +1755,7 @@ const CoverRegistration = (function () {
                 $(".surplus-section").show();
                 $(".surp_header_div").show();
                 $(
-                    ".no_of_lines_div, .surp_retention_amt_div, .surp_treaty_limit_div"
+                    ".no_of_lines_div, .surp_retention_amt_div, .surp_treaty_limit_div, .surp_treaty_capacity_div"
                 ).show();
             },
             SPQT: () => {
@@ -1731,7 +1766,7 @@ const CoverRegistration = (function () {
                 ).show();
                 $(".quota_retention_amt_div, .quota_treaty_limit_div").show();
                 $(
-                    ".no_of_lines_div, .surp_retention_amt_div, .surp_treaty_limit_div"
+                    ".no_of_lines_div, .surp_retention_amt_div, .surp_treaty_limit_div, .surp_treaty_capacity_div"
                 ).show();
                 $("#reinsurer_per_treaty_section").show();
             },
@@ -2116,7 +2151,7 @@ const CoverRegistration = (function () {
                 </div>
 
                 <div class="col-md-3 prem_type_code_div">
-                    <label class="form-label required">Premium Type</label>
+                    <label class="form-label required">Class Name</label>
                     <input type="hidden"
                            class="prem_type_reinclass"
                            id="prem_type_reinclass-${classCounter}-${premCounter}"
@@ -2128,7 +2163,7 @@ const CoverRegistration = (function () {
                                 data-class-counter="${classCounter}"
                                 data-counter="${premCounter}"
                                 required>
-                            <option value="">Select Premium Type</option>
+                            <option value="">-- Select Name --</option>
                         </select>
                     </div>
                 </div>
@@ -2274,10 +2309,9 @@ const CoverRegistration = (function () {
         const $section = $(this).closest(".comm-sections");
         const $container = $section.closest("[id^='comm-section-']");
 
-        const remainingSections = $container.find(".comm-sections").length;
-
+        const remainingSections = $section.length;
         if (remainingSections > 0) {
-            $section.remove();
+            $container.remove();
         }
     }
 
@@ -2620,7 +2654,7 @@ const CoverRegistration = (function () {
                 targetSelect.append(
                     $("<option>")
                         .val("")
-                        .text("-- Select Premium Type --")
+                        .text("-- Select Class Name --")
                         .prop("disabled", true)
                         .prop("selected", true)
                 );
@@ -2689,7 +2723,7 @@ const CoverRegistration = (function () {
         if (!prospectId || prospectId.length < 3) return;
 
         if (!config.routes.getProspectData) {
-            toastr.error("Prospect data endpoint not configured");
+            // toastr.error("Prospect data endpoint not configured");
             return;
         }
 

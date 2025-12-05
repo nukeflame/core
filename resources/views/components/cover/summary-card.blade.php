@@ -5,6 +5,7 @@
     'summaryData' => null,
     'title' => null,
     'transactionInfo' => null,
+    'coverreinprop' => [],
 ])
 
 <div class="card border-0 shadow-sm mb-3">
@@ -139,17 +140,15 @@
                                 <span class="summary-value">{{ $cover->cover_title ?? 'N/A' }}</span>
                             </div>
 
-                            @if (isset($summaryData) && $summaryData)
+                            @if (isset($coverreinprop) && $coverreinprop)
+                                <div class="summary-item">
+                                    <span class="summary-label">No. of Lines</span>
+                                    <span class="summary-value">
+                                        {{ $coverreinprop['no_of_lines'] }}</span>
+                                </div>
                                 <div class="summary-item">
                                     <span class="summary-label">Reinsurers</span>
-                                    <span class="summary-value">{{ $summaryData['total_reinsurers'] ?? 0 }}</span>
-                                </div>
-
-                                <div class="summary-item">
-                                    <span class="summary-label">Total Placed</span>
-                                    <span class="summary-value">
-                                        {{ number_format($summaryData['total_placed'] ?? 0, 2) }}%
-                                    </span>
+                                    <span class="summary-value">{{ $coverreinprop['total_reinsurers'] }}</span>
                                 </div>
                             @endif
                         @endif
@@ -206,8 +205,14 @@
 
                         @if (in_array($cover->type_of_bus ?? '', ['TPR', 'TNP']))
                             <div class="summary-item">
+                                <span class="summary-label">Treaty Limit</span>
+                                <span class="summary-value">
+                                    {{ $coverreinprop ? $coverreinprop['treaty_limit'] : '' }}</span>
+                            </div>
+                            <div class="summary-item">
                                 <span class="summary-label">Treaty Capacity</span>
-                                <span class="summary-value">{{ number_format($cover->treaty_limit ?? 0, 2) }}</span>
+                                <span class="summary-value">
+                                    {{ $coverreinprop ? $coverreinprop['treaty_capacity'] : '' }}</span>
                             </div>
                         @endif
 

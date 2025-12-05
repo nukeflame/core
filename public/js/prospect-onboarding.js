@@ -43,13 +43,11 @@ const ProspectOnboarding = {
     },
 
     bindEvents() {
-        // Form submission
         this.cache.form?.addEventListener(
             "submit",
             this.handleFormSubmit.bind(this)
         );
 
-        // Button clicks
         this.cache.submitBtn?.addEventListener(
             "click",
             this.handleSubmit.bind(this)
@@ -70,13 +68,9 @@ const ProspectOnboarding = {
             this.handleBusinessTypeChange.bind(this)
         );
 
-        // Other form interactions
         this.bindMiscEvents();
     },
 
-    /**
-     * Bind contact form events
-     */
     bindContactEvents() {
         $(document).on("click", ".add-contact", this.addContact.bind(this));
         $(document).on(
@@ -86,9 +80,6 @@ const ProspectOnboarding = {
         );
     },
 
-    /**
-     * Bind insurance form events
-     */
     bindInsuranceEvents() {
         $("#class_group").on("change", this.handleClassGroupChange.bind(this));
         $("#sum_insured_type").on(
@@ -117,17 +108,11 @@ const ProspectOnboarding = {
         );
     },
 
-    /**
-     * Bind engagement form events
-     */
     bindEngagementEvents() {
         $("#effective_date").on("change", this.calculateClosingDate.bind(this));
         $("#submitToSalesBtn").on("click", this.handleSubmitToSales.bind(this));
     },
 
-    /**
-     * Bind search events
-     */
     bindSearchEvents() {
         $(document).on(
             "input",
@@ -161,18 +146,12 @@ const ProspectOnboarding = {
         );
     },
 
-    /**
-     * Bind miscellaneous events
-     */
     bindMiscEvents() {
         $("#division").on("change", this.handleDivisionChange.bind(this));
         $("#currency_code").on("change", this.handleCurrencyChange.bind(this));
         $("#country").on("change", this.handleCountryChange.bind(this));
     },
 
-    /**
-     * Initialize form sections
-     */
     initializeFormSections() {
         this.initializeBusinessType();
         this.initializeContactSection();
@@ -180,25 +159,16 @@ const ProspectOnboarding = {
         this.hideAdvancedSections();
     },
 
-    /**
-     * Initialize business type section
-     */
     initializeBusinessType() {
         $("#fac_section").hide();
         $("#trt_common").hide();
         $("#treaty_grp").hide();
     },
 
-    /**
-     * Initialize contact section
-     */
     initializeContactSection() {
         this.state.contactCounter = 0;
     },
 
-    /**
-     * Initialize insurance section
-     */
     initializeInsuranceSection() {
         $(".eml-div").hide();
         $(".brokerage_comm_amt_div").hide();
@@ -219,17 +189,11 @@ const ProspectOnboarding = {
         });
     },
 
-    /**
-     * Hide advanced sections initially
-     */
     hideAdvancedSections() {
         $("#organic_growth_div").hide();
         $(".pq_cost").hide();
     },
 
-    /**
-     * Setup form validation
-     */
     setupValidation() {
         if (
             typeof jQuery !== "undefined" &&
@@ -249,9 +213,6 @@ const ProspectOnboarding = {
         }
     },
 
-    /**
-     * Handle business type change
-     */
     handleBusinessTypeChange() {
         const busType = $("#type_of_bus").val();
 
@@ -262,9 +223,6 @@ const ProspectOnboarding = {
         }
     },
 
-    /**
-     * Show facultative section
-     */
     showFacultativeSection() {
         $(
             "#fac_section, #contactDetails, #engagementDetails, #contactDetails, #insuranceDetails"
@@ -279,9 +237,6 @@ const ProspectOnboarding = {
         $("#apply_eml").val("N").trigger("change");
     },
 
-    /**
-     * Hide facultative section
-     */
     hideFacultativeSection() {
         $(
             "#fac_section, #contactDetails, #engagementDetails, #contactDetails, #insuranceDetails"
@@ -289,9 +244,6 @@ const ProspectOnboarding = {
         this.processSections(".fac_section", ".fac_section_div", "disable");
     },
 
-    /**
-     * Process sections enable/disable
-     */
     processSections(sectionClass, sectionDivClass, action) {
         if (action === "enable") {
             $(sectionClass + ", " + sectionDivClass).each(function () {
@@ -312,9 +264,6 @@ const ProspectOnboarding = {
         }
     },
 
-    /**
-     * Add new contact
-     */
     addContact() {
         const lastContactSection = $(".contactsContainers").last();
         const prevCounter = lastContactSection.data("counter") || 0;
@@ -329,9 +278,6 @@ const ProspectOnboarding = {
         this.state.contactCounter = counter;
     },
 
-    /**
-     * Validate contact section
-     */
     validateContactSection(counter) {
         const contactName = $(`#contact_name-${counter}`).val();
         const email = $(`#email-${counter}`).val();
@@ -353,9 +299,6 @@ const ProspectOnboarding = {
         return true;
     },
 
-    /**
-     * Generate contact HTML
-     */
     generateContactHTML(counter) {
         return `
             <div class="row contactsContainers" data-counter="${counter}">
@@ -408,16 +351,10 @@ const ProspectOnboarding = {
         `;
     },
 
-    /**
-     * Remove contact
-     */
     removeContact() {
         $(event.target).closest(".contactsContainers").remove();
     },
 
-    /**
-     * Handle contact search
-     */
     handleContactSearch(e) {
         const query = $(e.target).val().trim();
         const index = $(e.target).attr("id").split("-")[1];
@@ -451,9 +388,6 @@ const ProspectOnboarding = {
         );
     },
 
-    /**
-     * Handle contact selection
-     */
     handleContactSelect(e) {
         const selectedContact = $(e.target);
         const index = selectedContact.data("index");
@@ -470,9 +404,6 @@ const ProspectOnboarding = {
         $(`#full_name_results_${index}`).hide();
     },
 
-    /**
-     * Perform AJAX search
-     */
     performSearch(url, data, callback) {
         $.ajax({
             url: url,
@@ -485,9 +416,6 @@ const ProspectOnboarding = {
         });
     },
 
-    /**
-     * Handle form submission
-     */
     handleFormSubmit(e) {
         e.preventDefault();
 
@@ -498,9 +426,6 @@ const ProspectOnboarding = {
         this.handleSubmit();
     },
 
-    /**
-     * Handle submit button click
-     */
     handleSubmit() {
         if (this.state.isSubmitting) {
             return;
@@ -508,9 +433,6 @@ const ProspectOnboarding = {
         this.handleValidatedSubmit.bind(this);
     },
 
-    /**
-     * Handle validated form submission
-     */
     handleValidatedSubmit() {
         this.showConfirmDialog(
             "Are you sure you want to submit this form?",
@@ -518,9 +440,6 @@ const ProspectOnboarding = {
         );
     },
 
-    /**
-     * Submit the form
-     */
     submitForm() {
         this.state.isSubmitting = true;
         this.showLoading(true);

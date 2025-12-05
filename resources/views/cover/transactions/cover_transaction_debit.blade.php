@@ -1,9 +1,6 @@
 @extends('layouts.app')
 
 @section('styles')
-    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css">
-    <link rel="stylesheet" href="https://cdn.datatables.net/responsive/2.5.0/css/responsive.bootstrap5.min.css">
-    <link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.4.2/css/buttons.bootstrap5.min.css">
     <style>
         :root {
             --primary-blue: #2563eb;
@@ -17,7 +14,6 @@
             --bg-subtle: #f9fafb;
         }
 
-        /* Card styling */
         .info-card {
             background: white;
             border-radius: 12px;
@@ -38,13 +34,13 @@
             gap: 0.5rem;
         }
 
-        /* Summary card styling */
         .summary-card {
             background: white;
             border-radius: 12px;
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
             padding: 1.25rem;
-            border-left: 4px solid var(--primary-blue);
+            border-left: 2px solid var(--primary-blue);
+            border-right: 2px solid var(--primary-blue);
         }
 
         .summary-grid {
@@ -83,7 +79,6 @@
             color: var(--success-green);
         }
 
-        /* Financial summary cards */
         .financial-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -112,19 +107,21 @@
         }
 
         .financial-card.debits {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #6c757d 0%, #aaa 100%);
+
         }
 
         .financial-card.commission {
-            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            background: linear-gradient(135deg, #6c757d 0%, #aaa 100%);
         }
 
         .financial-card.portfolio {
-            background: linear-gradient(135deg, #ee0979 0%, #ff6a00 100%);
+            background: linear-gradient(135deg, #6c757d 0%, #aaa 100%);
         }
 
         .financial-card.adjustments {
-            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            background: linear-gradient(135deg, #6c757d 0%, #aaa 100%);
+            =
         }
 
         .financial-label {
@@ -140,7 +137,6 @@
             font-family: 'JetBrains Mono', monospace;
         }
 
-        /* Tab styling */
         .custom-tabs {
             border-bottom: 2px solid var(--border-light);
             margin-bottom: 1.5rem;
@@ -178,7 +174,6 @@
             border-radius: 10px;
         }
 
-        /* Status badges */
         .status-badge {
             font-size: 0.6875rem;
             font-weight: 600;
@@ -188,28 +183,36 @@
             letter-spacing: 0.3px;
         }
 
-        .status-paid,
-        .status-approved,
-        .status-completed,
-        .status-active {
+        .status-badge--success {
             background-color: #dcfce7;
             color: #166534;
         }
 
-        .status-pending,
-        .status-in_progress,
-        .status-calculated {
+        .status-badge--warning {
             background-color: #fef3c7;
             color: #92400e;
         }
 
-        .status-overdue,
-        .status-rejected {
+        .status-badge--danger {
             background-color: #fee2e2;
             color: #991b1b;
         }
 
-        /* Type badges */
+        .status-badge--info {
+            background-color: #dbeafe;
+            color: #1e40af;
+        }
+
+        .status-badge--primary {
+            background-color: #d1fae5;
+            color: #065f46;
+        }
+
+        .status-badge--secondary {
+            background-color: #fce7f3;
+            color: #9d174d;
+        }
+
         .type-badge {
             font-size: 0.6875rem;
             font-weight: 500;
@@ -218,32 +221,26 @@
             text-transform: capitalize;
         }
 
-        .type-premium {
-            background-color: #dbeafe;
-            color: #1e40af;
-        }
-
-        .type-adjustment {
+        .type-badge--surplus {
             background-color: #f3e8ff;
             color: #6b21a8;
         }
 
-        .type-additional {
+        .type-badge--quota-share {
             background-color: #d1fae5;
             color: #065f46;
         }
 
-        .type-deposit {
+        .type-badge--excess-of-loss {
             background-color: #fef3c7;
             color: #92400e;
         }
 
-        .type-reinstatement {
-            background-color: #ffe4e6;
-            color: #9f1239;
+        .type-badge--premium {
+            background-color: #dbeafe;
+            color: #1e40af;
         }
 
-        /* DataTable styling */
         .dataTables_wrapper {
             padding-top: 0.5rem;
         }
@@ -267,48 +264,7 @@
             padding: 0.375rem 0.5rem;
         }
 
-        table.dataTable {
-            border-collapse: collapse !important;
-        }
-
-        table.dataTable thead th {
-            background-color: var(--bg-subtle);
-            font-weight: 600;
-            color: var(--text-dark);
-            font-size: 0.75rem;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            padding: 0.875rem 1rem;
-            border-bottom: 2px solid var(--border-light);
-        }
-
-        table.dataTable tbody td {
-            padding: 0.875rem 1rem;
-            vertical-align: middle;
-            font-size: 0.875rem;
-            color: var(--text-muted);
-            border-bottom: 1px solid #f3f4f6;
-        }
-
-        table.dataTable tbody tr:hover {
-            background-color: rgba(37, 99, 235, 0.02);
-        }
-
-        .amount-cell {
-            font-family: 'JetBrains Mono', 'Courier New', monospace;
-            font-weight: 500;
-            text-align: right;
-        }
-
-        .amount-positive {
-            color: var(--success-green);
-        }
-
-        .amount-negative {
-            color: var(--danger-red);
-        }
-
-        /* Action buttons */
+        /* Action Buttons */
         .btn-action {
             padding: 0.375rem 0.75rem;
             font-size: 0.8125rem;
@@ -323,6 +279,7 @@
             transform: translateY(-1px);
         }
 
+        /* Quick Actions */
         .quick-actions {
             display: flex;
             gap: 0.75rem;
@@ -331,38 +288,19 @@
         }
 
         .quick-action-btn {
-            padding: 0.625rem 1.25rem;
-            border-radius: 8px;
-            font-weight: 500;
-            font-size: 0.875rem;
+            padding: 0.45rem 29px;
+            font-size: 14px;
+            border-radius: 0.25rem;
             transition: all 0.2s ease;
-            border: 1px solid var(--border-light);
-            background: white;
-            color: var(--text-dark);
-            display: flex;
+            font-weight: 500;
             align-items: center;
-            gap: 0.5rem;
         }
 
-        .quick-action-btn:hover {
-            border-color: var(--primary-blue);
-            color: var(--primary-blue);
-            transform: translateY(-1px);
-            box-shadow: 0 4px 6px rgba(37, 99, 235, 0.1);
+        .quick-action-btn i {
+            vertical-align: -1px;
         }
 
-        .quick-action-btn.primary {
-            background: var(--primary-blue);
-            color: white;
-            border-color: var(--primary-blue);
-        }
-
-        .quick-action-btn.primary:hover {
-            background: var(--primary-blue-dark);
-            color: white;
-        }
-
-        /* Tab content header */
+        /* Tab Header */
         .tab-header {
             display: flex;
             justify-content: space-between;
@@ -381,7 +319,7 @@
             gap: 0.5rem;
         }
 
-        /* Empty state */
+        /* Empty State */
         .empty-state {
             text-align: center;
             padding: 3rem 1rem;
@@ -394,7 +332,115 @@
             opacity: 0.4;
         }
 
-        /* Responsive */
+        /* Cedant Info Card */
+        .cedant-info-card {
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+            border-radius: 10px;
+            padding: 1.25rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .cedant-info-card .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem 0;
+            border-bottom: 1px dashed var(--border-light);
+        }
+
+        .cedant-info-card .info-row:last-child {
+            border-bottom: none;
+        }
+
+        .cedant-info-card .info-label {
+            color: var(--text-muted);
+            font-size: 0.8125rem;
+        }
+
+        .cedant-info-card .info-value {
+            color: var(--text-dark);
+            font-weight: 500;
+            font-size: 0.875rem;
+        }
+
+        /* File Upload Area */
+        .file-upload-area {
+            border: 2px dashed var(--border-light);
+            border-radius: 10px;
+            padding: 2rem;
+            text-align: center;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+
+        .file-upload-area:hover {
+            border-color: var(--primary-blue);
+            background-color: rgba(37, 99, 235, 0.02);
+        }
+
+        .file-upload-area i {
+            font-size: 2.5rem;
+            color: var(--primary-blue);
+            margin-bottom: 0.75rem;
+        }
+
+        /* Clause Item */
+        .clause-item {
+            background: white;
+            border: 1px solid var(--border-light);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 0.75rem;
+            transition: all 0.2s ease;
+        }
+
+        .clause-item:hover {
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+
+        .clause-item .clause-title {
+            font-weight: 600;
+            color: var(--text-dark);
+            margin-bottom: 0.5rem;
+        }
+
+        .clause-item .clause-text {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+            line-height: 1.6;
+        }
+
+        /* Loading Skeleton */
+        .skeleton {
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: skeleton-loading 1.5s infinite;
+            border-radius: 4px;
+        }
+
+        @keyframes skeleton-loading {
+            0% {
+                background-position: 200% 0;
+            }
+
+            100% {
+                background-position: -200% 0;
+            }
+        }
+
+        /* Amount cell styling */
+        .amount-cell {
+            font-weight: 500;
+        }
+
+        .amount-cell--positive {
+            color: var(--success-green);
+        }
+
+        .amount-cell--negative {
+            color: var(--danger-red);
+        }
+
+        /* Responsive Styles */
         @media (max-width: 768px) {
             .quick-actions {
                 flex-direction: column;
@@ -424,1075 +470,1851 @@
 
 @section('content')
     @php
-        // Get cover and customer from controller or use defaults
-        $cover =
-            $cover ??
-            (object) [
-                'id' => 1,
-                'cover_no' => 'TRY-2024-001',
-                'policy_number' => 'POL-2024-001',
-                'treaty_name' => 'Property Treaty 2024',
-                'treaty_type' => 'Quota Share',
-                'class_of_business' => 'Property All Risks',
-                'start_date' => '2024-01-01',
-                'end_date' => '2024-12-31',
-                'sum_insured' => 150000000,
-                'premium' => 2500000,
-                'ceded_premium' => 1750000,
-                'retention_percentage' => 30.0,
-                'ceded_percentage' => 70.0,
-                'currency' => 'KES',
-                'status' => 'active',
-            ];
+        $cover = $cover ?? null;
+        $customer = $customer ?? null;
+        $debitItems = $debitItems ?? collect();
+        $reinsurers = $reinsurers ?? collect();
+        $cedantDetails = $cedantDetails ?? null;
+        $totalDocuments = $totalDocuments ?? 0;
 
-        $customer =
-            $customer ??
-            (object) [
-                'id' => 1,
-                'name' => 'Heritage Insurance Company',
-                'email' => 'underwriting@heritage.co.ke',
-                'phone' => '+254 20 123 4567',
-            ];
-
-        // Debit Items - Using realistic treaty reinsurance data
-        $debitItems =
-            $debitItems ??
-            collect([
-                (object) [
-                    'id' => 1,
-                    'item_number' => 'ITM-2024-00001',
-                    'treaty_type' => 'SURPLUS',
-                    'item_date' => '2024-01-15',
-                    'class_group' => 'FIRE',
-                    'class_name' => 'Fire Industrial',
-                    'gross_premium' => 525000,
-                    'commission_rate' => 10.0,
-                    'commission_amount' => 52500,
-                    'net_amount' => 472500,
-                    'status' => 'paid',
-                    'reinsurer' => 'Swiss Re Africa',
-                ],
-                (object) [
-                    'id' => 2,
-                    'item_number' => 'ITM-2024-00002',
-                    'treaty_type' => 'QUOTA SHARE',
-                    'item_date' => '2024-01-15',
-                    'class_group' => 'FIRE',
-                    'class_name' => 'Fire Domestic',
-                    'gross_premium' => 437500,
-                    'commission_rate' => 10.0,
-                    'commission_amount' => 43750,
-                    'net_amount' => 393750,
-                    'status' => 'paid',
-                    'reinsurer' => 'Munich Re Kenya',
-                ],
-                (object) [
-                    'id' => 3,
-                    'item_number' => 'ITM-2024-00003',
-                    'treaty_type' => 'SURPLUS',
-                    'item_date' => '2024-01-20',
-                    'class_group' => 'ENGINEERING',
-                    'class_name' => 'CAR/EAR',
-                    'gross_premium' => 262500,
-                    'commission_rate' => 12.5,
-                    'commission_amount' => 32812.5,
-                    'net_amount' => 229687.5,
-                    'status' => 'paid',
-                    'reinsurer' => 'Hannover Re',
-                ],
-                (object) [
-                    'id' => 4,
-                    'item_number' => 'ITM-2024-00004',
-                    'treaty_type' => 'QUOTA SHARE',
-                    'item_date' => '2024-02-01',
-                    'class_group' => 'MARINE',
-                    'class_name' => 'Marine Cargo',
-                    'gross_premium' => 180000,
-                    'commission_rate' => 15.0,
-                    'commission_amount' => 27000,
-                    'net_amount' => 153000,
-                    'status' => 'pending',
-                    'reinsurer' => 'Swiss Re Africa',
-                ],
-                (object) [
-                    'id' => 5,
-                    'item_number' => 'ITM-2024-00005',
-                    'treaty_type' => 'SURPLUS',
-                    'item_date' => '2024-02-15',
-                    'class_group' => 'FIRE',
-                    'class_name' => 'Fire Industrial',
-                    'gross_premium' => 750000,
-                    'commission_rate' => 10.0,
-                    'commission_amount' => 75000,
-                    'net_amount' => 675000,
-                    'status' => 'paid',
-                    'reinsurer' => 'Africa Re',
-                ],
-                (object) [
-                    'id' => 6,
-                    'item_number' => 'ITM-2024-00006',
-                    'treaty_type' => 'QUOTA SHARE',
-                    'item_date' => '2024-03-01',
-                    'class_group' => 'MOTOR',
-                    'class_name' => 'Motor Commercial',
-                    'gross_premium' => 320000,
-                    'commission_rate' => 20.0,
-                    'commission_amount' => 64000,
-                    'net_amount' => 256000,
-                    'status' => 'paid',
-                    'reinsurer' => 'Kenya Re',
-                ],
-                (object) [
-                    'id' => 7,
-                    'item_number' => 'ITM-2024-00007',
-                    'treaty_type' => 'SURPLUS',
-                    'item_date' => '2024-03-10',
-                    'class_group' => 'ENGINEERING',
-                    'class_name' => 'Machinery Breakdown',
-                    'gross_premium' => 450000,
-                    'commission_rate' => 12.5,
-                    'commission_amount' => 56250,
-                    'net_amount' => 393750,
-                    'status' => 'pending',
-                    'reinsurer' => 'Munich Re Kenya',
-                ],
-                (object) [
-                    'id' => 8,
-                    'item_number' => 'ITM-2024-00008',
-                    'treaty_type' => 'QUOTA SHARE',
-                    'item_date' => '2024-03-20',
-                    'class_group' => 'AVIATION',
-                    'class_name' => 'Aviation Hull',
-                    'gross_premium' => 1200000,
-                    'commission_rate' => 7.5,
-                    'commission_amount' => 90000,
-                    'net_amount' => 1110000,
-                    'status' => 'overdue',
-                    'reinsurer' => 'Swiss Re Africa',
-                ],
-            ]);
-
-        // Reinsurers participating in this treaty
-        $reinsurers =
-            $reinsurers ??
-            collect([
-                (object) [
-                    'id' => 1,
-                    'name' => 'Swiss Re Africa',
-                    'share_percentage' => 30.0,
-                    'share_premium' => 525000,
-                    'share_sum_insured' => 45000000,
-                    'commission_rate' => 10.0,
-                    'status' => 'active',
-                    'contact_person' => 'James Ochieng',
-                    'email' => 'james.ochieng@swissre.com',
-                ],
-                (object) [
-                    'id' => 2,
-                    'name' => 'Munich Re Kenya',
-                    'share_percentage' => 25.0,
-                    'share_premium' => 437500,
-                    'share_sum_insured' => 37500000,
-                    'commission_rate' => 10.0,
-                    'status' => 'active',
-                    'contact_person' => 'Sarah Wanjiku',
-                    'email' => 'sarah.wanjiku@munichre.com',
-                ],
-                (object) [
-                    'id' => 3,
-                    'name' => 'Hannover Re',
-                    'share_percentage' => 15.0,
-                    'share_premium' => 262500,
-                    'share_sum_insured' => 22500000,
-                    'commission_rate' => 12.5,
-                    'status' => 'active',
-                    'contact_person' => 'Peter Mwangi',
-                    'email' => 'peter.mwangi@hannover-re.com',
-                ],
-                (object) [
-                    'id' => 4,
-                    'name' => 'Africa Re',
-                    'share_percentage' => 20.0,
-                    'share_premium' => 350000,
-                    'share_sum_insured' => 30000000,
-                    'commission_rate' => 10.0,
-                    'status' => 'active',
-                    'contact_person' => 'Grace Kimani',
-                    'email' => 'grace.kimani@africa-re.com',
-                ],
-                (object) [
-                    'id' => 5,
-                    'name' => 'Kenya Re',
-                    'share_percentage' => 10.0,
-                    'share_premium' => 175000,
-                    'share_sum_insured' => 15000000,
-                    'commission_rate' => 15.0,
-                    'status' => 'active',
-                    'contact_person' => 'John Kamau',
-                    'email' => 'john.kamau@kenyare.co.ke',
-                ],
-            ]);
-
-        // Cedant (Ceding Company) Information
-        $cedantDetails =
-            $cedantDetails ??
-            (object) [
-                'name' => $customer->name ?? 'Heritage Insurance Company',
-                'registration_no' => 'IRA/2024/001',
-                'address' => 'P.O. Box 12345-00100, Nairobi, Kenya',
-                'contact_person' => 'Mary Njeri',
-                'designation' => 'Reinsurance Manager',
-                'email' => 'mary.njeri@heritage.co.ke',
-                'phone' => '+254 722 123 456',
-                'treaty_year' => '2024',
-                'treaty_period' => '01 January 2024 - 31 December 2024',
-                'retention_limit' => 50000000,
-                'treaty_capacity' => 500000000,
-            ];
-
-        // Print Outs / Documents
-        $documents =
-            $documents ??
-            collect([
-                (object) [
-                    'id' => 1,
-                    'document_type' => 'Debit Note',
-                    'reference' => 'DN-2024-001',
-                    'description' => 'Q1 2024 Treaty Premium Debit',
-                    'generated_date' => '2024-04-01',
-                    'generated_by' => 'System',
-                    'status' => 'generated',
-                ],
-                (object) [
-                    'id' => 2,
-                    'document_type' => 'Credit Note',
-                    'reference' => 'CN-2024-001',
-                    'description' => 'Q1 2024 Commission Credit',
-                    'generated_date' => '2024-04-01',
-                    'generated_by' => 'System',
-                    'status' => 'generated',
-                ],
-                (object) [
-                    'id' => 3,
-                    'document_type' => 'Statement of Account',
-                    'reference' => 'SOA-2024-001',
-                    'description' => 'Q1 2024 Account Statement',
-                    'generated_date' => '2024-04-05',
-                    'generated_by' => 'Peter Kamau',
-                    'status' => 'sent',
-                ],
-                (object) [
-                    'id' => 4,
-                    'document_type' => 'Bordereau',
-                    'reference' => 'BDX-2024-Q1',
-                    'description' => 'Q1 2024 Premium Bordereau',
-                    'generated_date' => '2024-04-10',
-                    'generated_by' => 'System',
-                    'status' => 'generated',
-                ],
-                (object) [
-                    'id' => 5,
-                    'document_type' => 'Closing Slip',
-                    'reference' => 'CS-2024-001',
-                    'description' => 'Treaty Closing Slip 2024',
-                    'generated_date' => '2024-01-15',
-                    'generated_by' => 'Mary Wanjiku',
-                    'status' => 'signed',
-                ],
-            ]);
-
-        // Calculate totals
         $totalGrossPremium = $debitItems->sum('gross_premium');
         $totalCommission = $debitItems->sum('commission_amount');
         $totalNetAmount = $debitItems->sum('net_amount');
         $totalReinsurerShare = $reinsurers->sum('share_premium');
+
+        $formatCurrency = fn($amount, $currency = 'KES') => $currency . ' ' . number_format($amount ?? 0, 2);
     @endphp
 
-    <!-- Page Header -->
     <div class="d-md-flex d-block align-items-center justify-content-between my-4 page-header-breadcrumb">
         <div>
-            <h1 class="page-title fw-semibold fs-18 mb-1">Treaty Debit Statement</h1>
-            <p class="text-muted mb-0">{{ $cover->cover_no }} - {{ $cover->treaty_name }}</p>
+            <h1 class="page-title fw-semibold fs-18 mb-1">Quarterly Debit Statement</h1>
+            <p class="text-muted mb-0 fw-medium">
+                {{ $cover->cover_no ?? 'N/A' }} - {{ $cover->cover_title ?? ($cover->treaty_name ?? 'Untitled') }}
+            </p>
         </div>
         <div class="ms-md-1 ms-0 mt-3 mt-md-0">
             <nav>
                 <ol class="breadcrumb mb-0">
-                    <li class="breadcrumb-item"><a href="{{ route('dashboard.index') ?? '#' }}">Dashboard</a></li>
+                    <li class="breadcrumb-item"><a href="{{ route('dashboard.index') }}">Dashboard</a></li>
                     <li class="breadcrumb-item"><a href="{{ route('dashboard.index') ?? '#' }}">Covers</a></li>
                     <li class="breadcrumb-item"><a href="#">Treaty</a></li>
-                    <li class="breadcrumb-item active" aria-current="page">{{ $cover->cover_no }}</li>
+                    <li class="breadcrumb-item active" aria-current="page">{{ $cover->cover_no ?? 'Details' }}</li>
                 </ol>
             </nav>
         </div>
     </div>
 
-    <!-- Quick Actions -->
-    <div class="quick-actions">
-        <button class="quick-action-btn primary" onclick="previewSlip()">
+    {{-- Quick Actions --}}
+    <div class="quick-actions" role="toolbar" aria-label="Quick actions">
+        <button type="button" class="btn btn-outline-dark quick-action-btn" id="btnPreviewSlip">
             <i class="ri-file-text-line"></i> Preview Slip
         </button>
-        <button class="quick-action-btn" data-bs-toggle="modal" data-bs-target="#addDebitItemModal">
-            <i class="ri-add-line"></i> Add Debit Item
-        </button>
-        <button class="quick-action-btn" onclick="generateStatement()">
+        <button type="button" class="btn btn-outline-primary quick-action-btn" id="btnGenerateStatement">
             <i class="ri-file-list-3-line"></i> Generate Statement
         </button>
-        <button class="quick-action-btn" onclick="exportData()">
-            <i class="ri-download-2-line"></i> Export
+        {{-- <button type="button" class="btn btn-outline-success quick-action-btn" id="btnExportData">
+            <i class="ri-download-2-line"></i> Export Data
+        </button> --}}
+        <button type="button" class="btn btn-primary quick-action-btn" data-bs-toggle="modal"
+            data-bs-target="#addDebitItemModal">
+            <i class="ri-add-line"></i> Add Debit Item
         </button>
     </div>
 
-    <!-- Financial Summary Cards -->
+    {{-- Financial Summary Cards --}}
     <div class="financial-grid">
         <div class="financial-card debits">
             <div class="financial-label">Total Gross Premium</div>
-            <div class="financial-value">{{ $cover->currency }} {{ number_format($totalGrossPremium, 2) }}</div>
+            <div class="financial-value" id="summaryGrossPremium">
+                {{ $formatCurrency($totalGrossPremium, $cover->currency ?? 'KES') }}
+            </div>
         </div>
         <div class="financial-card commission">
             <div class="financial-label">Total Commission</div>
-            <div class="financial-value">{{ $cover->currency }} {{ number_format($totalCommission, 2) }}</div>
+            <div class="financial-value" id="summaryCommission">
+                {{ $formatCurrency($totalCommission, $cover->currency ?? 'KES') }}
+            </div>
         </div>
         <div class="financial-card portfolio">
             <div class="financial-label">Net Amount Due</div>
-            <div class="financial-value">{{ $cover->currency }} {{ number_format($totalNetAmount, 2) }}</div>
+            <div class="financial-value" id="summaryNetAmount">
+                {{ $formatCurrency($totalNetAmount, $cover->currency ?? 'KES') }}
+            </div>
         </div>
         <div class="financial-card adjustments">
             <div class="financial-label">Reinsurer Share</div>
-            <div class="financial-value">{{ $cover->currency }} {{ number_format($totalReinsurerShare, 2) }}</div>
+            <div class="financial-value" id="summaryReinsurerShare">
+                {{ $formatCurrency($totalReinsurerShare, $cover->currency ?? 'KES') }}
+            </div>
         </div>
     </div>
 
-    <!-- Summary Card -->
+    {{-- Summary Card --}}
     <div class="summary-card mb-4">
         <div class="summary-grid">
             <div class="summary-item">
                 <span class="summary-label">Cedant</span>
-                <span class="summary-value highlight">{{ ucwords(strtolower($customer->name)) }}</span>
+                <span class="summary-value highlight">{{ ucwords(strtolower($customer->name ?? 'N/A')) }}</span>
             </div>
             <div class="summary-item">
                 <span class="summary-label">Treaty Type</span>
-                <span class="summary-value">{{ $cover->treaty_type }}</span>
+                <span class="summary-value">{{ $cover->treaty_type ?? 'N/A' }}</span>
             </div>
             <div class="summary-item">
-                <span class="summary-label">Class of Business</span>
-                <span class="summary-value">{{ $cover->class_of_business }}</span>
+                <span class="summary-label">Underwriting Year</span>
+                <span class="summary-value">{{ $cedantDetails->treaty_year ?? date('Y') }}</span>
             </div>
             <div class="summary-item">
                 <span class="summary-label">Policy Period</span>
-                <span class="summary-value">{{ \Carbon\Carbon::parse($cover->start_date)->format('d/m/Y') }} -
-                    {{ \Carbon\Carbon::parse($cover->end_date)->format('d/m/Y') }}</span>
+                <span class="summary-value">
+                    @if ($cover && $cover->cover_from && $cover->cover_to)
+                        {{ \Carbon\Carbon::parse($cover->cover_from)->format('d M Y') }} -
+                        {{ \Carbon\Carbon::parse($cover->cover_to)->format('d M Y') }}
+                    @else
+                        N/A
+                    @endif
+                </span>
             </div>
             <div class="summary-item">
                 <span class="summary-label">Retention</span>
-                <span class="summary-value">{{ number_format($cover->retention_percentage, 1) }}%</span>
+                <span class="summary-value">{{ number_format($cover->retention_percentage ?? 0, 1) }}%</span>
             </div>
             <div class="summary-item">
                 <span class="summary-label">Ceded</span>
-                <span class="summary-value">{{ number_format($cover->ceded_percentage, 1) }}%</span>
+                <span class="summary-value">{{ number_format($cover->ceded_percentage ?? 0, 1) }}%</span>
             </div>
             <div class="summary-item">
                 <span class="summary-label">Sum Insured</span>
-                <span class="summary-value amount">{{ $cover->currency }}
-                    {{ number_format($cover->sum_insured, 2) }}</span>
+                <span class="summary-value amount">
+                    {{ $formatCurrency($cover->sum_insured ?? 0, $cover->currency ?? 'KES') }}
+                </span>
             </div>
             <div class="summary-item">
                 <span class="summary-label">Status</span>
-                <span class="status-badge status-{{ $cover->status }}">{{ ucfirst($cover->status) }}</span>
+                @php
+                    $isActive = in_array($cover->status ?? '', ['A', 'active', 'Active']);
+                @endphp
+                <span class="status-badge {{ $isActive ? 'status-badge--success' : 'status-badge--warning' }}">
+                    {{ $isActive ? 'Active' : 'Inactive' }}
+                </span>
             </div>
         </div>
     </div>
 
-    <!-- Main Content Card with Tabs -->
-    <div class="info-card">
-        <ul class="nav nav-tabs custom-tabs" id="transactionTabs" role="tablist">
-            <li class="nav-item" role="presentation">
-                <button class="nav-link active" id="debits-tab" data-bs-toggle="tab" data-bs-target="#debits" type="button"
-                    role="tab" aria-controls="debits" aria-selected="true">
-                    <i class="ri-file-list-2-line"></i> Debit Items
-                    <span class="badge bg-primary">{{ $debitItems->count() }}</span>
-                </button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link" id="reinsurers-tab" data-bs-toggle="tab" data-bs-target="#reinsurers"
-                    type="button" role="tab" aria-controls="reinsurers" aria-selected="false">
-                    <i class="ri-building-2-line"></i> Reinsurers
-                    <span class="badge bg-secondary">{{ $reinsurers->count() }}</span>
-                </button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link" id="cedant-tab" data-bs-toggle="tab" data-bs-target="#cedant" type="button"
-                    role="tab" aria-controls="cedant" aria-selected="false">
-                    <i class="ri-briefcase-line"></i> Cedant
-                </button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link" id="documents-tab" data-bs-toggle="tab" data-bs-target="#documents"
-                    type="button" role="tab" aria-controls="documents" aria-selected="false">
-                    <i class="ri-printer-line"></i> Print Outs
-                    <span class="badge bg-secondary">{{ $documents->count() }}</span>
-                </button>
-            </li>
-        </ul>
-
-        <div class="tab-content" id="transactionTabsContent">
-            <!-- Debit Items Tab -->
-            <div class="tab-pane fade show active" id="debits" role="tabpanel" aria-labelledby="debits-tab">
-                <div class="tab-header">
-                    <h6><i class="ri-list-check-2"></i> Treaty Debit Items</h6>
-                    <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addDebitItemModal">
-                        <i class="ri-add-line"></i> Add Item
-                    </button>
-                </div>
-                <div class="table-responsive">
-                    <table class="table table-hover" id="debitItemsTable" style="width: 100%">
-                        <thead>
-                            <tr>
-                                <th>Item No.</th>
-                                <th>Treaty</th>
-                                <th>Date</th>
-                                <th>Class Group</th>
-                                <th>Class Name</th>
-                                <th>Reinsurer</th>
-                                <th>Commission %</th>
-                                <th class="text-end">Gross Premium</th>
-                                <th class="text-end">Commission</th>
-                                <th class="text-end">Net Amount</th>
-                                <th>Status</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach ($debitItems as $item)
-                                <tr>
-                                    <td><strong>{{ $item->item_number }}</strong></td>
-                                    <td><span class="type-badge type-premium">{{ $item->treaty_type }}</span></td>
-                                    <td>{{ \Carbon\Carbon::parse($item->item_date)->format('d/m/Y') }}</td>
-                                    <td>{{ $item->class_group }}</td>
-                                    <td>{{ $item->class_name }}</td>
-                                    <td>{{ $item->reinsurer }}</td>
-                                    <td class="text-center">{{ number_format($item->commission_rate, 1) }}%</td>
-                                    <td class="amount-cell">{{ number_format($item->gross_premium, 2) }}</td>
-                                    <td class="amount-cell amount-negative">
-                                        {{ number_format($item->commission_amount, 2) }}</td>
-                                    <td class="amount-cell amount-positive">{{ number_format($item->net_amount, 2) }}</td>
-                                    <td>
-                                        <span class="status-badge status-{{ $item->status }}">
-                                            {{ ucfirst($item->status) }}
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <div class="btn-group btn-group-sm">
-                                            <button class="btn btn-outline-primary btn-action"
-                                                onclick="viewItem({{ $item->id }})" title="View">
-                                                <i class="ri-eye-line"></i>
-                                            </button>
-                                            <button class="btn btn-outline-secondary btn-action"
-                                                onclick="editItem({{ $item->id }})" title="Edit">
-                                                <i class="ri-edit-line"></i>
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            @endforeach
-                        </tbody>
-                        <tfoot>
-                            <tr class="fw-bold" style="background-color: var(--bg-subtle);">
-                                <td colspan="7" class="text-end">Totals:</td>
-                                <td class="amount-cell">{{ number_format($totalGrossPremium, 2) }}</td>
-                                <td class="amount-cell amount-negative">{{ number_format($totalCommission, 2) }}</td>
-                                <td class="amount-cell amount-positive">{{ number_format($totalNetAmount, 2) }}</td>
-                                <td colspan="2"></td>
-                            </tr>
-                        </tfoot>
-                    </table>
-                </div>
-            </div>
-
-            <!-- Reinsurers Tab -->
-            <div class="tab-pane fade" id="reinsurers" role="tabpanel" aria-labelledby="reinsurers-tab">
-                <div class="tab-header">
-                    <h6><i class="ri-building-2-line"></i> Participating Reinsurers</h6>
-                    <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addReinsurerModal">
-                        <i class="ri-add-line"></i> Add Reinsurer
-                    </button>
-                </div>
-                <div class="table-responsive">
-                    <table class="table table-hover" id="reinsurersTable" style="width: 100%">
-                        <thead>
-                            <tr>
-                                <th>Reinsurer</th>
-                                <th>Contact Person</th>
-                                <th>Email</th>
-                                <th class="text-center">Share %</th>
-                                <th class="text-center">Commission %</th>
-                                <th class="text-end">Share Premium</th>
-                                <th class="text-end">Share Sum Insured</th>
-                                <th>Status</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach ($reinsurers as $reinsurer)
-                                <tr>
-                                    <td><strong>{{ $reinsurer->name }}</strong></td>
-                                    <td>{{ $reinsurer->contact_person }}</td>
-                                    <td><a href="mailto:{{ $reinsurer->email }}">{{ $reinsurer->email }}</a></td>
-                                    <td class="text-center">{{ number_format($reinsurer->share_percentage, 1) }}%</td>
-                                    <td class="text-center">{{ number_format($reinsurer->commission_rate, 1) }}%</td>
-                                    <td class="amount-cell amount-positive">
-                                        {{ number_format($reinsurer->share_premium, 2) }}</td>
-                                    <td class="amount-cell">{{ number_format($reinsurer->share_sum_insured, 2) }}</td>
-                                    <td>
-                                        <span class="status-badge status-{{ $reinsurer->status }}">
-                                            {{ ucfirst($reinsurer->status) }}
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <div class="btn-group btn-group-sm">
-                                            <button class="btn btn-outline-primary btn-action"
-                                                onclick="viewReinsurer({{ $reinsurer->id }})" title="View">
-                                                <i class="ri-eye-line"></i>
-                                            </button>
-                                            <button class="btn btn-outline-secondary btn-action"
-                                                onclick="editReinsurer({{ $reinsurer->id }})" title="Edit">
-                                                <i class="ri-edit-line"></i>
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            @endforeach
-                        </tbody>
-                        <tfoot>
-                            <tr class="fw-bold" style="background-color: var(--bg-subtle);">
-                                <td colspan="3" class="text-end">Totals:</td>
-                                <td class="text-center">{{ number_format($reinsurers->sum('share_percentage'), 1) }}%</td>
-                                <td></td>
-                                <td class="amount-cell amount-positive">
-                                    {{ number_format($reinsurers->sum('share_premium'), 2) }}</td>
-                                <td class="amount-cell">{{ number_format($reinsurers->sum('share_sum_insured'), 2) }}</td>
-                                <td colspan="2"></td>
-                            </tr>
-                        </tfoot>
-                    </table>
-                </div>
-            </div>
-
-            <!-- Cedant Tab -->
-            <div class="tab-pane fade" id="cedant" role="tabpanel" aria-labelledby="cedant-tab">
-                <div class="tab-header">
-                    <h6><i class="ri-briefcase-line"></i> Ceding Company Details</h6>
-                    <button class="btn btn-outline-primary btn-sm" onclick="editCedant()">
-                        <i class="ri-edit-line"></i> Edit Details
-                    </button>
-                </div>
-                <div class="row">
-                    <div class="col-md-6">
-                        <div class="summary-card mb-3">
-                            <h6 class="section-title" style="font-size: 1rem;"><i class="ri-building-line"></i> Company
-                                Information</h6>
-                            <div class="summary-item">
-                                <span class="summary-label">Company Name</span>
-                                <span class="summary-value">{{ $cedantDetails->name }}</span>
-                            </div>
-                            <div class="summary-item">
-                                <span class="summary-label">Registration No.</span>
-                                <span class="summary-value">{{ $cedantDetails->registration_no }}</span>
-                            </div>
-                            <div class="summary-item">
-                                <span class="summary-label">Address</span>
-                                <span class="summary-value">{{ $cedantDetails->address }}</span>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="summary-card mb-3">
-                            <h6 class="section-title" style="font-size: 1rem;"><i class="ri-user-line"></i> Contact
-                                Information</h6>
-                            <div class="summary-item">
-                                <span class="summary-label">Contact Person</span>
-                                <span class="summary-value">{{ $cedantDetails->contact_person }}</span>
-                            </div>
-                            <div class="summary-item">
-                                <span class="summary-label">Designation</span>
-                                <span class="summary-value">{{ $cedantDetails->designation }}</span>
-                            </div>
-                            <div class="summary-item">
-                                <span class="summary-label">Email</span>
-                                <span class="summary-value"><a
-                                        href="mailto:{{ $cedantDetails->email }}">{{ $cedantDetails->email }}</a></span>
-                            </div>
-                            <div class="summary-item">
-                                <span class="summary-label">Phone</span>
-                                <span class="summary-value">{{ $cedantDetails->phone }}</span>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-12">
-                        <div class="summary-card">
-                            <h6 class="section-title" style="font-size: 1rem;"><i class="ri-file-shield-line"></i> Treaty
-                                Details</h6>
-                            <div class="summary-grid">
-                                <div class="summary-item">
-                                    <span class="summary-label">Treaty Year</span>
-                                    <span class="summary-value">{{ $cedantDetails->treaty_year }}</span>
-                                </div>
-                                <div class="summary-item">
-                                    <span class="summary-label">Treaty Period</span>
-                                    <span class="summary-value">{{ $cedantDetails->treaty_period }}</span>
-                                </div>
-                                <div class="summary-item">
-                                    <span class="summary-label">Retention Limit</span>
-                                    <span class="summary-value amount">{{ $cover->currency }}
-                                        {{ number_format($cedantDetails->retention_limit, 2) }}</span>
-                                </div>
-                                <div class="summary-item">
-                                    <span class="summary-label">Treaty Capacity</span>
-                                    <span class="summary-value amount">{{ $cover->currency }}
-                                        {{ number_format($cedantDetails->treaty_capacity, 2) }}</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Documents/Print Outs Tab -->
-            <div class="tab-pane fade" id="documents" role="tabpanel" aria-labelledby="documents-tab">
-                <div class="tab-header">
-                    <h6><i class="ri-printer-line"></i> Generated Documents</h6>
-                    <div class="btn-group">
-                        <button class="btn btn-primary btn-sm dropdown-toggle" data-bs-toggle="dropdown">
-                            <i class="ri-add-line"></i> Generate New
+    {{-- Main Content Card with Tabs --}}
+    <div class="row-cols-12">
+        <div class="card mb-2 custom-card border col">
+            <div class="card-body pt-0">
+                <nav>
+                    <div class="nav nav-tabs nav-justified tab-style-4 d-sm-flex d-block reinsurers-details-card"
+                        id="nav-tab" role="tablist">
+                        <button class="nav-link active" id="nav-debit-items-tab" data-bs-toggle="tab"
+                            data-bs-target="#debit-items-tab" type="button" role="tab" aria-controls="debit-items-tab"
+                            aria-selected="true">
+                            <i class="bx bx-table me-1 align-middle"></i>Debit Items
+                            <span class="badge bg-primary ms-1" id="debitItemsCount">{{ $totalDebitItems }}</span>
                         </button>
-                        <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="#" onclick="generateDocument('debit_note')"><i
-                                        class="ri-file-text-line me-2"></i>Debit Note</a></li>
-                            <li><a class="dropdown-item" href="#" onclick="generateDocument('credit_note')"><i
-                                        class="ri-file-text-line me-2"></i>Credit Note</a></li>
-                            <li><a class="dropdown-item" href="#" onclick="generateDocument('statement')"><i
-                                        class="ri-file-list-3-line me-2"></i>Statement of Account</a></li>
-                            <li><a class="dropdown-item" href="#" onclick="generateDocument('bordereau')"><i
-                                        class="ri-table-line me-2"></i>Bordereau</a></li>
-                            <li>
-                                <hr class="dropdown-divider">
-                            </li>
-                            <li><a class="dropdown-item" href="#" onclick="generateDocument('closing_slip')"><i
-                                        class="ri-file-shield-line me-2"></i>Closing Slip</a></li>
-                        </ul>
+
+                        <button class="nav-link" id="nav-reinsurers-tab" data-bs-toggle="tab"
+                            data-bs-target="#reinsurers-tab" type="button" role="tab" aria-controls="reinsurers-tab"
+                            aria-selected="false">
+                            <i class="ri-building-2-line me-1"></i> Reinsurers
+                            <span class="badge bg-info ms-1" id="reinsurersCount">{{ $totalReinsurers }}</span>
+                        </button>
+
+                        <button class="nav-link" id="nav-cedant-tab" data-bs-toggle="tab" data-bs-target="#cedant-tab"
+                            type="button" role="tab" aria-controls="cedant-tab" aria-selected="false">
+                            <i class="bx bx-briefcase me-1"></i> Cedant
+                        </button>
+
+                        <button class="nav-link" id="nav-approvals-tab" data-bs-toggle="tab"
+                            data-bs-target="#approvals-tab" type="button" role="tab" aria-controls="approvals-tab"
+                            aria-selected="false">
+                            <i class="bx bx-medal me-1 align-middle"></i>Approvals
+                            <span class="badge bg-warning ms-1"></span>
+                        </button>
+
+                        <button class="nav-link" id="nav-docs-tab" data-bs-toggle="tab" data-bs-target="#docs-tab"
+                            type="button" role="tab" aria-controls="docs-tab" aria-selected="false">
+                            <i class="ri-printer-line me-1 align-middle"></i>Print-outs
+                            <span class="badge bg-success ms-1" id="documentsCount">{{ $totalDocuments }}</span>
+                        </button>
                     </div>
-                </div>
-                <div class="table-responsive">
-                    <table class="table table-hover" id="documentsTable" style="width: 100%">
-                        <thead>
-                            <tr>
-                                <th>Reference</th>
-                                <th>Document Type</th>
-                                <th>Description</th>
-                                <th>Generated Date</th>
-                                <th>Generated By</th>
-                                <th>Status</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach ($documents as $doc)
-                                <tr>
-                                    <td><strong>{{ $doc->reference }}</strong></td>
-                                    <td><span class="type-badge type-premium">{{ $doc->document_type }}</span></td>
-                                    <td>{{ $doc->description }}</td>
-                                    <td>{{ \Carbon\Carbon::parse($doc->generated_date)->format('d/m/Y') }}</td>
-                                    <td>{{ $doc->generated_by }}</td>
-                                    <td>
-                                        <span
-                                            class="status-badge status-{{ $doc->status == 'signed' ? 'approved' : ($doc->status == 'sent' ? 'pending' : 'active') }}">
-                                            {{ ucfirst($doc->status) }}
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <div class="btn-group btn-group-sm">
-                                            <button class="btn btn-outline-primary btn-action"
-                                                onclick="viewDocument({{ $doc->id }})" title="View">
-                                                <i class="ri-eye-line"></i>
-                                            </button>
-                                            <button class="btn btn-outline-success btn-action"
-                                                onclick="downloadDocument({{ $doc->id }})" title="Download">
-                                                <i class="ri-download-line"></i>
-                                            </button>
-                                            <button class="btn btn-outline-info btn-action"
-                                                onclick="emailDocument({{ $doc->id }})" title="Email">
-                                                <i class="ri-mail-send-line"></i>
-                                            </button>
+                </nav>
+
+                <div class="tab-content reinsurers-tabpane-card" id="tab-style-4">
+                    {{-- Debit Items Tab --}}
+                    <div class="tab-pane fade show active" id="debit-items-tab" role="tabpanel"
+                        aria-labelledby="nav-debit-items-tab">
+                        <div class="card border-0 shadow-none">
+                            <div class="card-body py-3 px-2">
+                                <div class="table-responsive">
+                                    <table id="debitItemsTable" class="table table-bordered table-hover w-100">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th width="4%">#</th>
+                                                <th width="12%">Item Number</th>
+                                                <th width="12%">Transaction Type</th>
+                                                <th width="10%">Date</th>
+                                                <th width="10%">Treaty Type</th>
+                                                <th width="10%">Class</th>
+                                                <th width="10%">Commission %</th>
+                                                <th width="10%">Gross Amount</th>
+                                                <th width="7%">Status</th>
+                                                <th width="9%">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody></tbody>
+                                        <tfoot class="table-light">
+                                            <tr class="fw-bold">
+                                                <td colspan="7" class="text-end">Totals:</td>
+                                                <td class="amount-cell amount-cell--positive" id="totalAmount">-</td>
+                                                <td colspan="2"></td>
+                                            </tr>
+                                        </tfoot>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {{-- Reinsurers Tab --}}
+                    <div class="tab-pane fade" id="reinsurers-tab" role="tabpanel" aria-labelledby="nav-reinsurers-tab">
+                        <div class="card border-0 shadow-none">
+                            <div class="card-body py-3 px-2">
+                                <div class="table-responsive">
+                                    <table id="reinsurersTable" class="table table-bordered table-hover w-100">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th width="3%">#</th>
+                                                <th width="15%">Reinsurer</th>
+                                                <th width="7%">Share %</th>
+                                                <th width="9%">Gross Premium</th>
+                                                <th width="9%">Commission</th>
+                                                <th width="9%">Brokerage</th>
+                                                <th width="9%">Prem. Tax Amount</th>
+                                                <th width="9%">WHT Amount</th>
+                                                <th width="9%">RI Tax</th>
+                                                <th width="9%">Net Amount</th>
+                                                <th width="7%">Status</th>
+                                                <th width="10%">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody></tbody>
+                                        <tfoot class="table-light">
+                                            <tr class="fw-bold">
+                                                <td colspan="2" class="text-end">Totals:</td>
+                                                <td class="amount-cell" id="totalSharePercent">-</td>
+                                                <td class="amount-cell" id="totalGrossPremium">-</td>
+                                                <td class="amount-cell" id="totalCommission">-</td>
+                                                <td class="amount-cell" id="totalBrokerage">-</td>
+                                                <td class="amount-cell" id="totalPremiumTax">-</td>
+                                                <td class="amount-cell" id="totalWHT">-</td>
+                                                <td class="amount-cell" id="totalRITax">-</td>
+                                                <td class="amount-cell amount-cell--positive" id="totalNetAmount">-</td>
+                                                <td colspan="2"></td>
+                                            </tr>
+                                        </tfoot>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {{-- Cedant Tab --}}
+                    <div class="tab-pane fade" id="cedant-tab" role="tabpanel" aria-labelledby="nav-cedant-tab">
+                        <div class="card border-0 shadow-none">
+                            <div class="card-body py-3 px-2">
+                                <div class="cedant-info-card mb-4" id="cedantDetailsCard">
+                                    <div class="row g-3">
+                                        <div class="col-md-6">
+                                            <div class="info-row">
+                                                <span class="info-label">Company Name</span>
+                                                <span class="info-value" id="cedant_name">Loading...</span>
+                                            </div>
+                                            <div class="info-row">
+                                                <span class="info-label">Registration No.</span>
+                                                <span class="info-value" id="cedant_registration">Loading...</span>
+                                            </div>
+                                            <div class="info-row">
+                                                <span class="info-label">Address</span>
+                                                <span class="info-value" id="cedant_address">Loading...</span>
+                                            </div>
+                                            <div class="info-row">
+                                                <span class="info-label">Contact Person</span>
+                                                <span class="info-value" id="cedant_contact">Loading...</span>
+                                            </div>
                                         </div>
-                                    </td>
-                                </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
+                                        <div class="col-md-6">
+                                            <div class="info-row">
+                                                <span class="info-label">Email</span>
+                                                <span class="info-value" id="cedant_email">Loading...</span>
+                                            </div>
+                                            <div class="info-row">
+                                                <span class="info-label">Phone</span>
+                                                <span class="info-value" id="cedant_phone">Loading...</span>
+                                            </div>
+                                            <div class="info-row">
+                                                <span class="info-label">Treaty Period</span>
+                                                <span class="info-value" id="cedant_treaty_period">Loading...</span>
+                                            </div>
+                                            <div class="info-row">
+                                                <span class="info-label">Treaty Capacity</span>
+                                                <span class="info-value fw-semibold text-primary"
+                                                    id="cedant_capacity">Loading...</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {{-- Approvals Tab --}}
+                    <div class="tab-pane fade" id="approvals-tab" role="tabpanel" aria-labelledby="nav-approvals-tab">
+                        <div class="card border-0 shadow-none">
+                            <div class="card-body py-3 px-2">
+                                <table id="approvalsTable" class="table table-bordered table-hover w-100">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th scope="col">ID</th>
+                                            <th scope="col">Approver</th>
+                                            <th scope="col">Comment</th>
+                                            <th scope="col">Approver Comment</th>
+                                            <th scope="col">Status</th>
+                                            <th scope="col">Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    {{-- Documents Tab --}}
+                    <div class="tab-pane fade" id="docs-tab" role="tabpanel" aria-labelledby="nav-docs-tab">
+                        <div class="card border-0 shadow-none">
+                            <div class="card-header bg-transparent border-0 p-3">
+                                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 w-100">
+                                    <h6 class="mb-0 fw-semibold">
+                                        <i class="ri-printer-line text-success me-1"></i>Generated Documents
+                                    </h6>
+                                    <div class="d-flex gap-2">
+                                        <button type="button" class="btn btn-sm btn-outline-secondary"
+                                            id="btnRefreshDocs">
+                                            <i class="ri-refresh-line"></i>
+                                        </button>
+                                        <div class="dropdown">
+                                            <button class="btn btn-sm btn-primary dropdown-toggle" type="button"
+                                                data-bs-toggle="dropdown" aria-expanded="false">
+                                                <i class="ri-file-add-line me-1"></i>Generate Document
+                                            </button>
+                                            <ul class="dropdown-menu dropdown-menu-end shadow" style="width: 230px;">
+                                                <li>
+                                                    <h6 class="dropdown-header text-dark">Financial Documents</h6>
+                                                </li>
+                                                <li>
+                                                    <hr class="dropdown-divider">
+                                                </li>
+                                                <li>
+                                                    <a class="dropdown-item" href="#" data-doc-type="debit_note">
+                                                        <i class="ri-file-text-line me-2 text-primary"></i>Debit Note
+                                                    </a>
+                                                </li>
+                                                <li>
+                                                    <a class="dropdown-item" href="#" data-doc-type="credit_note">
+                                                        <i class="ri-file-text-line me-2 text-success"></i>Credit Note
+                                                    </a>
+                                                </li>
+                                                <li>
+                                                    <a class="dropdown-item" href="#" data-doc-type="statement">
+                                                        <i class="ri-file-list-3-line me-2 text-info"></i>Statement of
+                                                        Account
+                                                    </a>
+                                                </li>
+                                                <li>
+                                                    <hr class="dropdown-divider">
+                                                </li>
+                                                <li>
+                                                    <h6 class="dropdown-header text-dark">Treaty Documents</h6>
+                                                </li>
+                                                <li>
+                                                    <a class="dropdown-item" href="#" data-doc-type="bordereau">
+                                                        <i class="ri-table-line me-2 text-warning"></i>Bordereau
+                                                    </a>
+                                                </li>
+                                                <li>
+                                                    <a class="dropdown-item" href="#" data-doc-type="closing_slip">
+                                                        <i class="ri-file-paper-2-line me-2 text-danger"></i>Closing
+                                                        Slip
+                                                    </a>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="card-body py-3 px-2">
+                                {{-- Document Stats --}}
+                                <div class="row g-3 mb-4">
+                                    <div class="col-md-2 col-4">
+                                        <div class="text-center p-2 border rounded-3">
+                                            <div class="fs-5 fw-bold text-primary" id="docGenerated">0</div>
+                                            <div class="text-muted small">Generated</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-2 col-4">
+                                        <div class="text-center p-2 border rounded-3">
+                                            <div class="fs-5 fw-bold text-info" id="docSent">0</div>
+                                            <div class="text-muted small">Sent</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-2 col-4">
+                                        <div class="text-center p-2 border rounded-3">
+                                            <div class="fs-5 fw-bold text-success" id="docSigned">0</div>
+                                            <div class="text-muted small">Signed</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="table-responsive">
+                                    <table id="documentsTable" class="table table-bordered table-hover w-100">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th width="5%">#</th>
+                                                <th width="15%">Document Type</th>
+                                                <th width="12%">Reference</th>
+                                                <th width="23%">Description</th>
+                                                <th width="12%">Generated Date</th>
+                                                <th width="12%">Generated By</th>
+                                                <th width="10%">Status</th>
+                                                <th width="11%">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Add Debit Item Modal -->
-    <div class="modal fade" id="addDebitItemModal" tabindex="-1" aria-labelledby="addDebitItemModalLabel"
-        aria-hidden="true">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="addDebitItemModalLabel">
-                        <i class="ri-add-circle-line me-2"></i>Add Debit Item
-                    </h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <form id="addDebitItemForm">
-                        @csrf
-                        <div class="row g-3">
-                            <div class="col-md-6">
-                                <label class="form-label">Treaty Type <span class="text-danger">*</span></label>
-                                <select class="form-select" name="treaty_type" required>
-                                    <option value="">Select Treaty Type</option>
-                                    <option value="SURPLUS">Surplus</option>
-                                    <option value="QUOTA SHARE">Quota Share</option>
-                                    <option value="EXCESS OF LOSS">Excess of Loss</option>
-                                </select>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Item Date <span class="text-danger">*</span></label>
-                                <input type="date" class="form-control" name="item_date" required>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Class Group <span class="text-danger">*</span></label>
-                                <select class="form-select" name="class_group" required>
-                                    <option value="">Select Class Group</option>
-                                    <option value="FIRE">Fire</option>
-                                    <option value="ENGINEERING">Engineering</option>
-                                    <option value="MARINE">Marine</option>
-                                    <option value="MOTOR">Motor</option>
-                                    <option value="AVIATION">Aviation</option>
-                                    <option value="MISCELLANEOUS">Miscellaneous</option>
-                                </select>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Class Name <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control" name="class_name"
-                                    placeholder="e.g., Fire Industrial" required>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Reinsurer <span class="text-danger">*</span></label>
-                                <select class="form-select" name="reinsurer_id" required>
-                                    <option value="">Select Reinsurer</option>
-                                    @foreach ($reinsurers as $reinsurer)
-                                        <option value="{{ $reinsurer->id }}">{{ $reinsurer->name }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Gross Premium <span class="text-danger">*</span></label>
-                                <div class="input-group">
-                                    <span class="input-group-text">{{ $cover->currency }}</span>
-                                    <input type="number" class="form-control" name="gross_premium" step="0.01"
-                                        min="0" required>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Commission Rate (%) <span class="text-danger">*</span></label>
-                                <input type="number" class="form-control" name="commission_rate" step="0.01"
-                                    min="0" max="100" required>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Commission Amount</label>
-                                <div class="input-group">
-                                    <span class="input-group-text">{{ $cover->currency }}</span>
-                                    <input type="number" class="form-control" name="commission_amount" step="0.01"
-                                        readonly>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Net Amount</label>
-                                <div class="input-group">
-                                    <span class="input-group-text">{{ $cover->currency }}</span>
-                                    <input type="number" class="form-control" name="net_amount" step="0.01"
-                                        readonly>
-                                </div>
-                            </div>
-                        </div>
-                    </form>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="button" class="btn btn-primary" onclick="saveDebitItem()">
-                        <i class="ri-save-line me-1"></i>Save Item
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
+    {{-- Add Debit Item Modal --}}
+    {{-- @include('treaty.partials.add-debit-item-modal', ['cover' => $cover]) --}}
+
+    {{-- View Item Modal --}}
+    {{-- @include('treaty.partials.view-item-modal') --}}
 @endsection
 
-@section('script')
-    <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
-    <script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
-    <script src="https://cdn.datatables.net/responsive/2.5.0/js/dataTables.responsive.min.js"></script>
-    <script src="https://cdn.datatables.net/responsive/2.5.0/js/responsive.bootstrap5.min.js"></script>
-    <script src="https://cdn.datatables.net/buttons/2.4.2/js/dataTables.buttons.min.js"></script>
-    <script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.bootstrap5.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.53/pdfmake.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.53/vfs_fonts.js"></script>
-    <script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.html5.min.js"></script>
-    <script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.print.min.js"></script>
-
+@push('script')
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // Initialize DataTables
-            const debitItemsTable = $('#debitItemsTable').DataTable({
-                responsive: true,
-                pageLength: 10,
-                lengthMenu: [
-                    [10, 25, 50, -1],
-                    [10, 25, 50, "All"]
-                ],
-                order: [
-                    [2, 'desc']
-                ], // Order by date descending
-                dom: '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>' +
-                    '<"row"<"col-sm-12"tr>>' +
-                    '<"row"<"col-sm-12 col-md-5"i><"col-sm-12 col-md-7"p>>',
-                language: {
-                    search: "_INPUT_",
-                    searchPlaceholder: "Search items...",
-                    lengthMenu: "Show _MENU_ entries",
-                    info: "Showing _START_ to _END_ of _TOTAL_ items",
-                    paginate: {
-                        first: '<i class="ri-skip-back-line"></i>',
-                        last: '<i class="ri-skip-forward-line"></i>',
-                        next: '<i class="ri-arrow-right-s-line"></i>',
-                        previous: '<i class="ri-arrow-left-s-line"></i>'
+        $(document).ready(function() {
+            'use strict';
+
+            var coverId = '{{ $cover->id ?? 0 }}';
+
+            var CONFIG = {
+                coverNo: '{{ $cover->cover_no ?? '' }}',
+                endorsementNo: '{{ $cover->endorsement_no ?? '' }}',
+                currency: '{{ $cover->currency ?? 'KES' }}',
+                csrfToken: '{{ csrf_token() }}',
+                routes: {
+                    debitItems: '{{ route('treaty.debit-items.index', ['cover' => $cover->id ?? 0]) }}',
+                    debitItemStore: '{{ route('treaty.debit-items.store') }}',
+                    debitItemShow: '{{ url('treaty/debit-items') }}/:id',
+                    debitItemUpdate: '{{ url('treaty/debit-items') }}/:id',
+                    debitItemDelete: '{{ url('treaty/debit-items') }}/:id',
+                    reinsurers: '{{ route('treaty.reinsurers.index', ['cover' => $cover->id ?? 0]) }}',
+                    reinsurersList: '{{ route('treaty.reinsurers.list', ['cover' => $cover->id ?? 0], false) ?? '' }}',
+                    cedantDetails: '{{ route('treaty.cedant.show', ['cover' => $cover->id ?? 0], false) ?? '' }}',
+                    documents: '{{ route('treaty.documents.index', ['cover' => $cover->id ?? 0]) }}',
+                    documentGenerate: '{{ route('treaty.documents.generate') }}',
+                    documentDownload: '{{ url('treaty/documents') }}/:id/download',
+                    previewSlip: '{{ route('treaty.slip.preview', ['cover' => $cover->id ?? 0]) }}',
+                    generateStatement: '{{ route('treaty.statement.generate', ['cover' => $cover->id ?? 0]) }}',
+                    exportData: '{{ route('treaty.export', ['cover' => $cover->id ?? 0]) }}'
+                },
+                dataTables: {
+                    pageLength: 10,
+                    lengthMenu: [
+                        [10, 25, 50, 100, -1],
+                        [10, 25, 50, 100, "All"]
+                    ],
+                    dom: '<"row mx-0"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>rtip'
+                }
+            };
+
+            var Utils = {
+                formatCurrency: function(amount, currency) {
+                    currency = currency || CONFIG.currency;
+                    if (amount === null || amount === undefined || isNaN(amount)) {
+                        return '-';
+                    }
+                    return currency + ' ' + parseFloat(amount).toLocaleString('en-US', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                    });
+                },
+
+                formatDate: function(dateString) {
+                    if (!dateString) return '-';
+                    try {
+                        var date = new Date(dateString);
+                        if (isNaN(date.getTime())) return '-';
+                        return date.toLocaleDateString('en-GB', {
+                            day: '2-digit',
+                            month: 'short',
+                            year: 'numeric'
+                        });
+                    } catch (e) {
+                        console.error('Date formatting error:', e);
+                        return '-';
                     }
                 },
-                columnDefs: [{
-                        targets: [7, 8, 9],
-                        className: 'text-end'
-                    },
-                    {
-                        targets: [-1],
-                        orderable: false,
-                        searchable: false
+
+                formatPercentage: function(value) {
+                    if (value === null || value === undefined || isNaN(value)) {
+                        return '-';
                     }
-                ]
-            });
-
-            const reinsurersTable = $('#reinsurersTable').DataTable({
-                responsive: true,
-                pageLength: 10,
-                order: [
-                    [3, 'desc']
-                ], // Order by share percentage
-                dom: '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>' +
-                    '<"row"<"col-sm-12"tr>>' +
-                    '<"row"<"col-sm-12 col-md-5"i><"col-sm-12 col-md-7"p>>',
-                language: {
-                    search: "_INPUT_",
-                    searchPlaceholder: "Search reinsurers...",
+                    return parseFloat(value).toFixed(2) + '%';
                 },
-                columnDefs: [{
-                        targets: [5, 6],
-                        className: 'text-end'
-                    },
-                    {
-                        targets: [-1],
-                        orderable: false,
-                        searchable: false
+
+                getStatusBadge: function(status) {
+                    var statusConfig = {
+                        paid: {
+                            modifier: 'success',
+                            label: 'Paid'
+                        },
+                        approved: {
+                            modifier: 'success',
+                            label: 'Approved'
+                        },
+                        completed: {
+                            modifier: 'success',
+                            label: 'Completed'
+                        },
+                        active: {
+                            modifier: 'success',
+                            label: 'Active'
+                        },
+                        pending: {
+                            modifier: 'warning',
+                            label: 'Pending'
+                        },
+                        in_progress: {
+                            modifier: 'warning',
+                            label: 'In Progress'
+                        },
+                        calculated: {
+                            modifier: 'warning',
+                            label: 'Calculated'
+                        },
+                        overdue: {
+                            modifier: 'danger',
+                            label: 'Overdue'
+                        },
+                        rejected: {
+                            modifier: 'danger',
+                            label: 'Rejected'
+                        },
+                        generated: {
+                            modifier: 'info',
+                            label: 'Generated'
+                        },
+                        sent: {
+                            modifier: 'primary',
+                            label: 'Sent'
+                        },
+                        signed: {
+                            modifier: 'secondary',
+                            label: 'Signed'
+                        }
+                    };
+
+                    var normalizedStatus = (status || '').toLowerCase().trim();
+                    var config = statusConfig[normalizedStatus] || {
+                        modifier: 'warning',
+                        label: status || 'Unknown'
+                    };
+
+                    return '<span class="status-badge status-badge--' + config.modifier + '">' + this
+                        .escapeHtml(config.label) + '</span>';
+                },
+
+                getTypeBadge: function(type) {
+                    var typeConfig = {
+                        surplus: 'surplus',
+                        'quota share': 'quota-share',
+                        quota_share: 'quota-share',
+                        'excess of loss': 'excess-of-loss',
+                        excess_of_loss: 'excess-of-loss',
+                        premium: 'premium'
+                    };
+
+                    var normalizedType = (type || '').toLowerCase().trim();
+                    var modifier = typeConfig[normalizedType] || 'premium';
+
+                    return '<span class="type-badge type-badge--' + modifier + '">' + this.escapeHtml(
+                        type || '-') + '</span>';
+                },
+
+                escapeHtml: function(text) {
+                    if (!text) return '';
+                    var div = document.createElement('div');
+                    div.textContent = text;
+                    return div.innerHTML;
+                },
+
+                showToast: function(message, type) {
+                    type = type || 'success';
+                    toastr[type](this.escapeHtml(message), type.toUpperCase());
+                },
+
+                showConfirm: function(title, text, confirmCallback) {
+                    var self = this;
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            title: self.escapeHtml(title),
+                            text: text,
+                            icon: 'warning',
+                            showCancelButton: true,
+                            confirmButtonColor: '#dc3545',
+                            cancelButtonColor: '#6c757d',
+                            confirmButtonText: 'Yes, proceed',
+                            cancelButtonText: 'Cancel'
+                        }).then(function(result) {
+                            if (result.isConfirmed && typeof confirmCallback === 'function') {
+                                confirmCallback();
+                            }
+                        });
+                    } else if (confirm(text)) {
+                        if (typeof confirmCallback === 'function') {
+                            confirmCallback();
+                        }
                     }
-                ]
-            });
-
-            const documentsTable = $('#documentsTable').DataTable({
-                responsive: true,
-                pageLength: 10,
-                order: [
-                    [3, 'desc']
-                ], // Order by date
-                dom: '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>' +
-                    '<"row"<"col-sm-12"tr>>' +
-                    '<"row"<"col-sm-12 col-md-5"i><"col-sm-12 col-md-7"p>>',
-                language: {
-                    search: "_INPUT_",
-                    searchPlaceholder: "Search documents...",
                 },
-                columnDefs: [{
-                    targets: [-1],
-                    orderable: false,
-                    searchable: false
-                }]
+
+                showLoading: function(show) {
+                    show = show !== false;
+                    if (typeof Swal !== 'undefined') {
+                        if (show) {
+                            Swal.fire({
+                                title: 'Processing...',
+                                allowOutsideClick: false,
+                                allowEscapeKey: false,
+                                didOpen: function() {
+                                    Swal.showLoading();
+                                }
+                            });
+                        } else {
+                            Swal.close();
+                        }
+                    }
+                },
+
+                ajax: function(options) {
+                    var defaults = {
+                        headers: {
+                            'X-CSRF-TOKEN': CONFIG.csrfToken,
+                            'Accept': 'application/json'
+                        }
+                    };
+                    return $.ajax($.extend(true, {}, defaults, options));
+                },
+
+                debounce: function(func, wait) {
+                    wait = wait || 300;
+                    var timeout;
+                    return function() {
+                        var context = this;
+                        var args = arguments;
+                        var later = function() {
+                            timeout = null;
+                            func.apply(context, args);
+                        };
+                        clearTimeout(timeout);
+                        timeout = setTimeout(later, wait);
+                    };
+                }
+            };
+
+            var DebitItemsTable = {
+                table: null,
+
+                init: function() {
+                    var self = this;
+
+                    this.table = $('#debitItemsTable').DataTable({
+                        processing: true,
+                        serverSide: true,
+                        ajax: {
+                            url: CONFIG.routes.debitItems,
+                            type: 'GET',
+                            headers: {
+                                'X-CSRF-TOKEN': CONFIG.csrfToken
+                            },
+                            data: function(d) {
+                                d.cover_no = CONFIG.coverNo;
+                                d.endorsement_no = CONFIG.endorsementNo;
+                            },
+                            error: function(xhr, error, thrown) {
+                                console.error('DebitItems DataTable Error:', {
+                                    xhr: xhr,
+                                    error: error,
+                                    thrown: thrown
+                                });
+                            }
+                        },
+                        columns: [{
+                                data: null,
+                                orderable: false,
+                                searchable: false,
+                                render: function(data, type, row, meta) {
+                                    return meta.row + meta.settings._iDisplayStart + 1;
+                                }
+                            },
+                            {
+                                data: 'item_no',
+                                name: 'item_no',
+                                defaultContent: '-'
+                            },
+                            {
+                                data: 'transaction_type',
+                                name: 'transaction_type',
+                                defaultContent: '-'
+                            },
+                            {
+                                data: 'posting_date',
+                                name: 'posting_date',
+                                render: function(data) {
+                                    return Utils.formatDate(data);
+                                },
+                                defaultContent: '-'
+                            },
+                            {
+                                data: 'treaty_type',
+                                name: 'treaty_type',
+                                render: function(data) {
+                                    return Utils.getTypeBadge(data);
+                                },
+                                defaultContent: '-'
+                            },
+                            {
+                                data: 'class_name',
+                                name: 'class_name',
+                                render: function(data, type, row) {
+                                    return '<span class="fw-medium">' + Utils.escapeHtml(row
+                                            .class_group || '') + '</span><br>' +
+                                        '<small class="text-muted">' + Utils.escapeHtml(
+                                            data || '') + '</small>';
+                                },
+                                defaultContent: '-'
+                            },
+                            {
+                                data: 'line_rate',
+                                name: 'commission_rate',
+                                render: function(data) {
+                                    return Utils.formatPercentage(data);
+                                },
+                                defaultContent: '-'
+                            },
+                            {
+                                data: 'gross_amount',
+                                name: 'amount',
+                                className: 'amount-cell amount-cell--positive',
+                                render: function(data) {
+                                    return Utils.formatCurrency(data);
+                                },
+                                defaultContent: '-'
+                            },
+                            {
+                                data: 'status',
+                                name: 'status',
+                                render: function(data) {
+                                    return Utils.getStatusBadge(data);
+                                },
+                                defaultContent: '-'
+                            },
+                            {
+                                data: null,
+                                orderable: false,
+                                searchable: false,
+                                render: function(data, type, row) {
+                                    return '<div class="btn-group btn-group-sm" role="group" aria-label="Item actions">' +
+                                        '<button type="button" class="btn btn-outline-dark btn-action btn-edit-item" data-id="' +
+                                        row.id + '" title="Edit">' +
+                                        '<i class="ri-edit-line"></i>' +
+                                        '</button>' +
+                                        '<button type="button" class="btn btn-outline-danger btn-action btn-delete-item" data-id="' +
+                                        row.id + '" title="Delete">' +
+                                        '<i class="ri-delete-bin-line"></i>' +
+                                        '</button>' +
+                                        '</div>';
+                                }
+                            }
+                        ],
+                        order: [
+                            [3, 'desc']
+                        ],
+                        pageLength: CONFIG.dataTables.pageLength,
+                        lengthMenu: CONFIG.dataTables.lengthMenu,
+                        dom: CONFIG.dataTables.dom,
+                        language: {
+                            processing: '<div class="spinner-border spinner-border-sm text-primary" role="status"><span class="visually-hidden">Loading...</span></div> Loading...',
+                            emptyTable: 'No debit items found',
+                            zeroRecords: 'No matching debit items found'
+                        },
+                        drawCallback: function(settings) {
+                            self.updateTotals();
+                        }
+                    });
+                },
+
+                updateTotals: function() {
+                    if (!this.table) return;
+
+                    var totalCommission = 0,
+                        totalAmount = 0;
+
+                    this.table.rows().every(function() {
+                        var data = this.data();
+
+                        if (data) {
+                            totalCommission += parseFloat(data.commission_amount) || 0;
+                            totalAmount += parseFloat(data.gross_amount) || 0;
+                        }
+                    });
+
+                    // $('#totalCommission').text(Utils.formatCurrency(totalCommission));
+                    $('#totalAmount').text(Utils.formatCurrency(totalAmount));
+                },
+
+                reload: function(resetPaging) {
+                    if (this.table) {
+                        this.table.ajax.reload(null, resetPaging !== false);
+                    }
+                },
+
+                adjustColumns: function() {
+                    if (this.table) {
+                        this.table.columns.adjust();
+                    }
+                }
+            };
+
+            var ReinsurersTable = {
+                table: null,
+
+                init: function() {
+                    var self = this;
+
+                    var tableConfig = {
+                        processing: true,
+                        columns: [{
+                                data: null,
+                                orderable: false,
+                                searchable: false,
+                                render: function(data, type, row, meta) {
+                                    return meta.row + meta.settings._iDisplayStart + 1;
+                                }
+                            },
+                            {
+                                data: 'name',
+                                name: 'name',
+                                render: function(data, type, row) {
+                                    return '<span class="fw-semibold">' + Utils.escapeHtml(
+                                            data || '-') + '</span><br>' +
+                                        '<small class="text-muted">' + Utils.escapeHtml(row
+                                            .email || '') + '</small>';
+                                },
+                                defaultContent: '-'
+                            },
+                            {
+                                data: 'share_percentage',
+                                name: 'share_percentage',
+                                render: function(data) {
+                                    return Utils.formatPercentage(data);
+                                },
+                                defaultContent: '-'
+                            },
+                            {
+                                data: 'gross_premium',
+                                name: 'gross_premium',
+                                className: 'amount-cell',
+                                render: function(data) {
+                                    return Utils.formatCurrency(data);
+                                },
+                                defaultContent: '-'
+                            },
+                            {
+                                data: 'commission',
+                                name: 'commission',
+                                className: 'amount-cell',
+                                render: function(data) {
+                                    return Utils.formatCurrency(data);
+                                },
+                                defaultContent: '-'
+                            },
+                            {
+                                data: 'brokerage_amount',
+                                name: 'brokerage_amount',
+                                className: 'amount-cell',
+                                render: function(data) {
+                                    return Utils.formatCurrency(data);
+                                },
+                                defaultContent: '-'
+                            },
+                            {
+                                data: 'premium_tax_amount',
+                                name: 'premium_tax_amount',
+                                className: 'amount-cell',
+                                render: function(data) {
+                                    return Utils.formatCurrency(data);
+                                },
+                                defaultContent: '-'
+                            },
+                            {
+                                data: 'wht_amount',
+                                name: 'wht_amount',
+                                className: 'amount-cell',
+                                render: function(data) {
+                                    return Utils.formatCurrency(data);
+                                },
+                                defaultContent: '-'
+                            },
+                            {
+                                data: 'ri_tax',
+                                name: 'ri_tax',
+                                className: 'amount-cell',
+                                render: function(data) {
+                                    return Utils.formatCurrency(data);
+                                },
+                                defaultContent: '-'
+                            },
+                            {
+                                data: 'net_amount',
+                                name: 'net_amount',
+                                className: 'amount-cell',
+                                render: function(data) {
+                                    return Utils.formatCurrency(data);
+                                },
+                                defaultContent: '-'
+                            },
+                            {
+                                data: 'status',
+                                name: 'status',
+                                render: function(data) {
+                                    return Utils.getStatusBadge(data);
+                                },
+                                defaultContent: '-'
+                            },
+                            {
+                                data: null,
+                                orderable: false,
+                                searchable: false,
+                                render: function(data, type, row) {
+                                    return '<div class="btn-group btn-group-sm" role="group" aria-label="Reinsurer actions">' +
+                                        '<button type="button" class="btn btn-outline-primary btn-action btn-view-reinsurer" data-id="' +
+                                        row.id + '" title="View Details">' +
+                                        '<i class="ri-eye-line"></i>' +
+                                        '</button>' +
+                                        '<button type="button" class="btn btn-outline-info btn-action btn-send-statement" data-id="' +
+                                        row.id + '" title="Send Statement">' +
+                                        '<i class="ri-mail-send-line"></i>' +
+                                        '</button>' +
+                                        '</div>';
+                                }
+                            }
+                        ],
+                        order: [
+                            [2, 'desc']
+                        ],
+                        pageLength: CONFIG.dataTables.pageLength,
+                        lengthMenu: CONFIG.dataTables.lengthMenu,
+                        dom: CONFIG.dataTables.dom,
+                        language: {
+                            processing: '<div class="spinner-border spinner-border-sm text-primary" role="status"><span class="visually-hidden">Loading...</span></div> Loading...',
+                            emptyTable: 'No reinsurers found',
+                            zeroRecords: 'No matching reinsurers found'
+                        },
+                        footerCallback: function(row, data, start, end, display) {
+                            var api = this.api();
+
+                            var parseCurrency = function(value) {
+                                if (typeof value === 'number') return value;
+                                if (typeof value === 'string') {
+                                    return parseFloat(value.replace(/[^0-9.-]+/g, '')) || 0;
+                                }
+                                return 0;
+                            };
+
+                            var sharePercentTotal = api.column(2, {
+                                page: 'current'
+                            }).data().reduce(function(a, b) {
+                                return parseCurrency(a) + parseCurrency(b);
+                            }, 0);
+
+                            var grossPremiumTotal = api.column(3, {
+                                page: 'current'
+                            }).data().reduce(function(a, b) {
+                                return parseCurrency(a) + parseCurrency(b);
+                            }, 0);
+
+                            var commissionTotal = api.column(4, {
+                                page: 'current'
+                            }).data().reduce(function(a, b) {
+                                return parseCurrency(a) + parseCurrency(b);
+                            }, 0);
+
+                            var brokerageTotal = api.column(5, {
+                                page: 'current'
+                            }).data().reduce(function(a, b) {
+                                return parseCurrency(a) + parseCurrency(b);
+                            }, 0);
+
+                            var premiumTaxTotal = api.column(6, {
+                                page: 'current'
+                            }).data().reduce(function(a, b) {
+                                return parseCurrency(a) + parseCurrency(b);
+                            }, 0);
+
+                            var whtTotal = api.column(7, {
+                                page: 'current'
+                            }).data().reduce(function(a, b) {
+                                return parseCurrency(a) + parseCurrency(b);
+                            }, 0);
+
+                            var riTaxTotal = api.column(8, {
+                                page: 'current'
+                            }).data().reduce(function(a, b) {
+                                return parseCurrency(a) + parseCurrency(b);
+                            }, 0);
+
+                            var netAmountTotal = api.column(9, {
+                                page: 'current'
+                            }).data().reduce(function(a, b) {
+                                return parseCurrency(a) + parseCurrency(b);
+                            }, 0);
+
+                            // Update footer
+                            $('#totalSharePercent').text(Utils.formatPercentage(sharePercentTotal));
+                            $('#totalGrossPremium').text(Utils.formatCurrency(grossPremiumTotal));
+                            $('#totalCommission').text(Utils.formatCurrency(commissionTotal));
+                            $('#totalBrokerage').text(Utils.formatCurrency(brokerageTotal));
+                            $('#totalPremiumTax').text(Utils.formatCurrency(premiumTaxTotal));
+                            $('#totalWHT').text(Utils.formatCurrency(whtTotal));
+                            $('#totalRITax').text(Utils.formatCurrency(riTaxTotal));
+                            $('#totalNetAmount').text(Utils.formatCurrency(netAmountTotal));
+                        }
+                    };
+
+                    if (CONFIG.routes.reinsurers && CONFIG.routes.reinsurers !== '') {
+                        tableConfig.serverSide = true;
+                        tableConfig.ajax = {
+                            url: CONFIG.routes.reinsurers,
+                            type: 'GET',
+                            headers: {
+                                'X-CSRF-TOKEN': CONFIG.csrfToken
+                            },
+                            data: function(d) {
+                                d.cover_no = CONFIG.coverNo;
+                                d.endorsement_no = CONFIG.endorsementNo;
+                            },
+                            error: function(xhr, error, thrown) {
+                                console.error('Reinsurers DataTable Error:', {
+                                    xhr: xhr,
+                                    error: error,
+                                    thrown: thrown
+                                });
+                                Utils.showToast('Failed to load reinsurers data', 'error');
+                            }
+                        };
+                    } else {
+                        tableConfig.data = [];
+                        console.warn('Reinsurers route not configured, using client-side mode');
+                    }
+
+                    this.table = $('#reinsurersTable').DataTable(tableConfig);
+                },
+
+                reload: function(resetPaging) {
+                    if (this.table) {
+                        if (this.table.ajax) {
+                            this.table.ajax.reload(null, resetPaging !== false);
+                        } else {
+                            this.table.draw(resetPaging !== false);
+                        }
+                    }
+                },
+
+                adjustColumns: function() {
+                    if (this.table) {
+                        this.table.columns.adjust().draw(false);
+                    }
+                },
+
+                destroy: function() {
+                    if (this.table) {
+                        this.table.destroy();
+                        this.table = null;
+                    }
+                }
+            };
+
+            var DocumentsTable = {
+                table: null,
+
+                init: function() {
+                    var self = this;
+                    var documentIcons = {
+                        'Debit Note': 'ri-file-text-line text-primary',
+                        'Credit Note': 'ri-file-text-line text-success',
+                        'Statement of Account': 'ri-file-list-3-line text-info',
+                        'Bordereau': 'ri-table-line text-warning',
+                        'Closing Slip': 'ri-file-paper-2-line text-danger'
+                    };
+
+                    var tableConfig = {
+                        processing: true,
+                        columns: [{
+                                data: null,
+                                orderable: false,
+                                render: function(data, type, row, meta) {
+                                    return meta.row + meta.settings._iDisplayStart + 1;
+                                }
+                            },
+                            {
+                                data: 'document_type',
+                                name: 'document_type',
+                                render: function(data) {
+                                    var icon = documentIcons[data] ||
+                                        'ri-file-line text-secondary';
+                                    return '<i class="' + icon +
+                                        ' me-2" style="vertical-align: -1.5px;"></i>' +
+                                        Utils.escapeHtml(data || '-');
+                                },
+                                defaultContent: '-'
+                            },
+                            {
+                                data: 'reference',
+                                name: 'reference',
+                                defaultContent: '-'
+                            },
+                            {
+                                data: 'description',
+                                name: 'description',
+                                defaultContent: '-'
+                            },
+                            {
+                                data: 'generated_date',
+                                name: 'generated_date',
+                                render: function(data) {
+                                    return Utils.formatDate(data);
+                                },
+                                defaultContent: '-'
+                            },
+                            {
+                                data: 'generated_by',
+                                name: 'generated_by',
+                                defaultContent: '-'
+                            },
+                            {
+                                data: 'status',
+                                name: 'status',
+                                render: function(data) {
+                                    return Utils.getStatusBadge(data);
+                                },
+                                defaultContent: '-'
+                            },
+                            {
+                                data: null,
+                                orderable: false,
+                                render: function(data, type, row) {
+                                    var fileUrl = row.file_path || '';
+                                    var rowId = row.id || '';
+                                    return '<div class="btn-group btn-group-sm">' +
+                                        '<button class="btn btn-outline-primary btn-action btn-preview-doc" data-url="' +
+                                        Utils.escapeHtml(fileUrl) + '" title="Preview">' +
+                                        '<i class="ri-eye-line"></i>' +
+                                        '</button>' +
+                                        '<button class="btn btn-outline-success btn-action btn-download-doc" data-id="' +
+                                        rowId + '" title="Download">' +
+                                        '<i class="ri-download-line"></i>' +
+                                        '</button>' +
+                                        '<button class="btn btn-outline-info btn-action btn-send-doc" data-id="' +
+                                        rowId + '" title="Send">' +
+                                        '<i class="ri-mail-send-line"></i>' +
+                                        '</button>' +
+                                        '</div>';
+                                }
+                            }
+                        ],
+                        order: [
+                            [4, 'desc']
+                        ],
+                        pageLength: CONFIG.dataTables.pageLength,
+                        lengthMenu: CONFIG.dataTables.lengthMenu,
+                        dom: CONFIG.dataTables.dom,
+                        language: {
+                            processing: '<div class="spinner-border spinner-border-sm text-primary" role="status"><span class="visually-hidden">Loading...</span></div> Loading...',
+                            emptyTable: 'No documents found',
+                            zeroRecords: 'No matching documents found'
+                        }
+                    };
+
+                    if (CONFIG.routes.documents && CONFIG.routes.documents !== '') {
+                        tableConfig.serverSide = true;
+                        tableConfig.ajax = {
+                            url: CONFIG.routes.documents,
+                            type: 'GET',
+                            headers: {
+                                'X-CSRF-TOKEN': CONFIG.csrfToken
+                            },
+                            data: function(d) {
+                                d.cover_no = CONFIG.coverNo;
+                                d.endorsement_no = CONFIG.endorsementNo;
+                            },
+                            dataSrc: function(json) {
+                                var data = json.data || json;
+                                self.updateStats(data);
+                                return data;
+                            },
+                            error: function(xhr, error) {
+                                console.error('Documents DataTable Error:', error);
+                            }
+                        };
+                    } else {
+                        tableConfig.data = [];
+                    }
+
+                    this.table = $('#documentsTable').DataTable(tableConfig);
+                },
+
+                updateStats: function(data) {
+                    var stats = {
+                        generated: 0,
+                        sent: 0,
+                        signed: 0
+                    };
+
+                    if (Array.isArray(data)) {
+                        data.forEach(function(doc) {
+                            var status = (doc.status || '').toLowerCase();
+                            if (status === 'generated') stats.generated++;
+                            else if (status === 'sent') stats.sent++;
+                            else if (status === 'signed') stats.signed++;
+                        });
+                    }
+
+                    $('#docGenerated').text(stats.generated);
+                    $('#docSent').text(stats.sent);
+                    $('#docSigned').text(stats.signed);
+                },
+
+                reload: function(resetPaging) {
+                    if (this.table) {
+                        this.table.ajax.reload(null, resetPaging !== false);
+                    }
+                },
+
+                adjustColumns: function() {
+                    if (this.table) {
+                        this.table.columns.adjust();
+                    }
+                }
+            };
+
+            var ApprovalsTable = {
+                table: null,
+
+                init: function() {
+                    var self = this;
+
+                    this.table = $('#approvalsTable').DataTable({
+                        processing: true,
+                        data: [],
+                        columns: [{
+                                data: 'id',
+                                name: 'id',
+                                defaultContent: '-'
+                            },
+                            {
+                                data: 'approver',
+                                name: 'approver',
+                                defaultContent: '-'
+                            },
+                            {
+                                data: 'comment',
+                                name: 'comment',
+                                defaultContent: '-'
+                            },
+                            {
+                                data: 'approver_comment',
+                                name: 'approver_comment',
+                                defaultContent: '-'
+                            },
+                            {
+                                data: 'status',
+                                name: 'status',
+                                render: function(data) {
+                                    return Utils.getStatusBadge(data);
+                                },
+                                defaultContent: '-'
+                            },
+                            {
+                                data: null,
+                                orderable: false,
+                                render: function(data, type, row) {
+                                    var rowId = row.id || '';
+                                    return '<div class="btn-group btn-group-sm">' +
+                                        '<button class="btn btn-outline-success btn-action btn-approve" data-id="' +
+                                        rowId + '" title="Approve">' +
+                                        '<i class="ri-check-line"></i>' +
+                                        '</button>' +
+                                        '<button class="btn btn-outline-danger btn-action btn-reject" data-id="' +
+                                        rowId + '" title="Reject">' +
+                                        '<i class="ri-close-line"></i>' +
+                                        '</button>' +
+                                        '</div>';
+                                }
+                            }
+                        ],
+                        pageLength: CONFIG.dataTables.pageLength,
+                        lengthMenu: CONFIG.dataTables.lengthMenu,
+                        dom: CONFIG.dataTables.dom,
+                        language: {
+                            processing: '<div class="spinner-border spinner-border-sm text-primary" role="status"><span class="visually-hidden">Loading...</span></div> Loading...',
+                            emptyTable: 'No approvals pending',
+                            zeroRecords: 'No matching approvals found'
+                        }
+                    });
+                },
+
+                reload: function(resetPaging) {
+                    if (this.table && this.table.ajax) {
+                        this.table.ajax.reload(null, resetPaging !== false);
+                    }
+                },
+
+                adjustColumns: function() {
+                    if (this.table) {
+                        this.table.columns.adjust();
+                    }
+                }
+            };
+
+            var DebitItemManager = {
+                view: function(id) {
+                    var modalEl = document.getElementById('viewItemModal');
+                    if (!modalEl) {
+                        console.error('View modal not found');
+                        return;
+                    }
+                    var modal = new bootstrap.Modal(modalEl);
+                    var $body = $('#viewItemModalBody');
+
+                    $body.html(
+                        '<div class="text-center py-4"><div class="spinner-border text-primary"></div></div>'
+                    );
+                    modal.show();
+
+                    Utils.ajax({
+                            url: CONFIG.routes.debitItemShow.replace(':id', id),
+                            type: 'GET'
+                        })
+                        .done(function(response) {
+                            var item = response.data || response;
+                            $('#viewItemModalTitle').text('Item: ' + (item.item_number || item
+                                .item_no || 'N/A'));
+                            $body.html(DebitItemManager.renderViewContent(item));
+                        })
+                        .fail(function(xhr) {
+                            $body.html(
+                                '<div class="alert alert-danger">Failed to load item details</div>');
+                        });
+                },
+
+                renderViewContent: function(item) {
+                    return '<div class="row g-3">' +
+                        '<div class="col-md-6">' +
+                        '<div class="cedant-info-card">' +
+                        '<div class="info-row"><span class="info-label">Item Number</span><span class="info-value">' +
+                        Utils.escapeHtml(item.item_no || '-') + '</span></div>' +
+                        '<div class="info-row"><span class="info-label">Item Date</span><span class="info-value">' +
+                        Utils.formatDate(item.item_date || item.posting_date) + '</span></div>' +
+                        '<div class="info-row"><span class="info-label">Treaty Type</span><span class="info-value">' +
+                        Utils.escapeHtml(item.treaty_type || '-') + '</span></div>' +
+                        '<div class="info-row"><span class="info-label">Class Group</span><span class="info-value">' +
+                        Utils.escapeHtml(item.class_group || '-') + '</span></div>' +
+                        '<div class="info-row"><span class="info-label">Class Name</span><span class="info-value">' +
+                        Utils.escapeHtml(item.class_name || '-') + '</span></div>' +
+                        '</div>' +
+                        '</div>' +
+                        '<div class="col-md-6">' +
+                        '<div class="cedant-info-card">' +
+                        '<div class="info-row"><span class="info-label">Reinsurer</span><span class="info-value">' +
+                        Utils.escapeHtml(item.reinsurer || '-') + '</span></div>' +
+                        '<div class="info-row"><span class="info-label">Gross Premium</span><span class="info-value fw-semibold">' +
+                        Utils.formatCurrency(item.gross_premium || item.amount) + '</span></div>' +
+                        '<div class="info-row"><span class="info-label">Commission Rate</span><span class="info-value">' +
+                        Utils.formatPercentage(item.commission_rate) + '</span></div>' +
+                        '<div class="info-row"><span class="info-label">Commission Amount</span><span class="info-value">' +
+                        Utils.formatCurrency(item.commission_amount) + '</span></div>' +
+                        '<div class="info-row"><span class="info-label">Net Amount</span><span class="info-value text-success fw-bold">' +
+                        Utils.formatCurrency(item.net_amount) + '</span></div>' +
+                        '<div class="info-row"><span class="info-label">Status</span><span class="info-value">' +
+                        Utils.getStatusBadge(item.status) + '</span></div>' +
+                        '</div>' +
+                        '</div>' +
+                        '</div>';
+                },
+
+                edit: function(id) {
+                    Utils.ajax({
+                            url: CONFIG.routes.debitItemShow.replace(':id', id),
+                            type: 'GET'
+                        })
+                        .done(function(response) {
+                            var item = response.data || response;
+                            var $form = $('#addDebitItemForm');
+
+                            $('#addDebitItemModalLabel').html(
+                                '<i class="ri-edit-line text-primary me-2"></i>Edit Debit Item');
+
+                            $form.find('[name="treaty_type"]').val(item.treaty_type);
+                            $form.find('[name="item_date"]').val(item.item_date || item.posting_date);
+                            $form.find('[name="class_group"]').val(item.class_group);
+                            $form.find('[name="class_name"]').val(item.class_name);
+                            $form.find('[name="reinsurer_id"]').val(item.reinsurer_id);
+                            $form.find('[name="gross_premium"]').val(item.gross_premium || item.amount);
+                            $form.find('[name="commission_rate"]').val(item.commission_rate);
+                            $form.find('[name="status"]').val(item.status);
+                            $form.find('#commissionAmount').val(Utils.formatCurrency(item
+                                .commission_amount));
+                            $form.find('#netAmount').val(Utils.formatCurrency(item.net_amount));
+
+                            $form.data('edit-id', id);
+
+                            var modalEl = document.getElementById('addDebitItemModal');
+                            if (modalEl) {
+                                new bootstrap.Modal(modalEl).show();
+                            }
+                        })
+                        .fail(function() {
+                            Utils.showToast('Failed to load item for editing', 'error');
+                        });
+                },
+
+                delete: function(id) {
+                    Utils.showConfirm(
+                        'Delete Item',
+                        'Are you sure you want to delete this debit item? This action cannot be undone.',
+                        function() {
+                            Utils.showLoading(true);
+
+                            Utils.ajax({
+                                    url: CONFIG.routes.debitItemDelete.replace(':id', id),
+                                    type: 'DELETE'
+                                })
+                                .done(function(response) {
+                                    Utils.showLoading(false);
+                                    Utils.showToast(response.message || 'Item deleted successfully',
+                                        'success');
+                                    DebitItemsTable.reload();
+                                })
+                                .fail(function(xhr) {
+                                    Utils.showLoading(false);
+                                    var message = 'Failed to delete item';
+                                    if (xhr.responseJSON && xhr.responseJSON.message) {
+                                        message = xhr.responseJSON.message;
+                                    }
+                                    Utils.showToast(message, 'error');
+                                });
+                        }
+                    );
+                }
+            };
+
+            var DocumentsManager = {
+                generate: function(type) {
+                    Utils.showLoading(true);
+
+                    Utils.ajax({
+                            url: CONFIG.routes.documentGenerate,
+                            type: 'POST',
+                            data: {
+                                cover_no: CONFIG.coverNo,
+                                endorsement_no: CONFIG.endorsementNo,
+                                document_type: type
+                            }
+                        })
+                        .done(function(response) {
+                            Utils.showLoading(false);
+                            Utils.showToast(response.message || 'Document generated successfully',
+                                'success');
+                            DocumentsTable.reload();
+                        })
+                        .fail(function(xhr) {
+                            Utils.showLoading(false);
+                            var message = 'Failed to generate document';
+                            if (xhr.responseJSON && xhr.responseJSON.message) {
+                                message = xhr.responseJSON.message;
+                            }
+                            Utils.showToast(message, 'error');
+                        });
+                },
+
+                preview: function(url) {
+                    if (!url) {
+                        Utils.showToast('No file URL available', 'warning');
+                        return;
+                    }
+                    window.open(url, '_blank', 'noopener,noreferrer');
+                },
+
+                download: function(id) {
+                    if (!id) {
+                        Utils.showToast('Invalid document ID', 'warning');
+                        return;
+                    }
+                    window.location.href = CONFIG.routes.documentDownload.replace(':id', id);
+                },
+
+                send: function(id) {
+                    Utils.showConfirm(
+                        'Send Document',
+                        'Send this document to the relevant parties?',
+                        function() {
+                            Utils.showToast('Document sent successfully', 'success');
+                            DocumentsTable.reload();
+                        }
+                    );
+                }
+            };
+
+            var CedantManager = {
+                load: function() {
+                    var self = this;
+
+                    // if (!CONFIG.routes.cedantDetails || CONFIG.routes.cedantDetails === '') {
+                    self.populateFromServerData();
+                    // return;
+                    // }
+
+                    // Utils.ajax({
+                    //         url: CONFIG.routes.cedantDetails,
+                    //         type: 'GET'
+                    //     })
+                    //     .done(function(response) {
+                    //         var cedant = response.data || response;
+                    //         self.populate(cedant);
+                    //     })
+                    //     .fail(function() {
+                    //         self.populateFromServerData();
+                    //     });
+                },
+
+                populateFromServerData: function() {
+                    var cedant = {
+                        name: '{{ $customer->name ?? '' }}',
+                        registration_no: '{{ $customer->registration_no ?? '' }}',
+                        address: '{{ $customer->address ?? '' }}',
+                        contact_person: '{{ $customer->contact_person ?? '' }}',
+                        designation: '{{ $customer->designation ?? '' }}',
+                        email: '{{ $customer->email ?? '' }}',
+                        phone: '{{ $customer->phone ?? '' }}',
+                        treaty_period: '{{ $cover && $cover->cover_from && $cover->cover_to ? \Carbon\Carbon::parse($cover->cover_from)->format('d M Y') . ' - ' . \Carbon\Carbon::parse($cover->cover_to)->format('d M Y') : '' }}',
+                        treaty_capacity: {{ $cover->treaty_capacity ?? 0 }}
+                    };
+
+                    this.populate(cedant);
+                },
+
+                populate: function(cedant) {
+                    $('#cedant_name').text(cedant.name || '-');
+                    $('#cedant_registration').text(cedant.registration_no || '-');
+                    $('#cedant_address').text(cedant.address || '-');
+
+                    var contactText = cedant.contact_person || '-';
+                    if (cedant.designation) {
+                        contactText += ' (' + cedant.designation + ')';
+                    }
+                    $('#cedant_contact').text(contactText);
+
+                    $('#cedant_email').text(cedant.email || '-');
+                    $('#cedant_phone').text(cedant.phone || '-');
+                    $('#cedant_treaty_period').text(cedant.treaty_period || '-');
+                    $('#cedant_capacity').text(Utils.formatCurrency(cedant.treaty_capacity));
+                }
+            };
+
+            var DebitItemForm = {
+                init: function() {
+                    this.loadReinsurers();
+                    this.bindEvents();
+                },
+
+                loadReinsurers: function() {
+                    if (!CONFIG.routes.reinsurersList || CONFIG.routes.reinsurersList === '') {
+                        console.warn('Reinsurers list route not configured');
+                        return;
+                    }
+
+                    Utils.ajax({
+                            url: CONFIG.routes.reinsurersList,
+                            type: 'GET'
+                        })
+                        .done(function(response) {
+                            var reinsurers = response.data || response;
+                            var $select = $('#reinsurerId');
+
+                            $select.find('option:not(:first)').remove();
+
+                            if (Array.isArray(reinsurers)) {
+                                reinsurers.forEach(function(r) {
+                                    $select.append('<option value="' + r.id + '">' + Utils
+                                        .escapeHtml(r.name) + '</option>');
+                                });
+                            }
+                        })
+                        .fail(function(xhr) {
+                            console.error('Failed to load reinsurers list:', xhr);
+                        });
+                },
+
+                bindEvents: function() {
+                    var self = this;
+
+                    var calculateAmounts = Utils.debounce(function() {
+                        self.calculateAmounts();
+                    }, 150);
+                    $('#grossPremium, #commissionRate').on('input', calculateAmounts);
+
+                    $('#addDebitItemForm').on('submit', function(e) {
+                        e.preventDefault();
+                        self.handleSubmit(this);
+                    });
+
+                    $('#addDebitItemModal').on('hidden.bs.modal', function() {
+                        self.resetForm();
+                    });
+                },
+
+                calculateAmounts: function() {
+                    var gross = parseFloat($('#grossPremium').val()) || 0;
+                    var rate = parseFloat($('#commissionRate').val()) || 0;
+                    var commission = gross * (rate / 100);
+                    var net = gross - commission;
+
+                    $('#commissionAmount').val(Utils.formatCurrency(commission));
+                    $('#netAmount').val(Utils.formatCurrency(net));
+                },
+
+                handleSubmit: function(form) {
+                    var self = this;
+                    var $form = $(form);
+
+                    if (!form.checkValidity()) {
+                        $form.addClass('was-validated');
+                        return;
+                    }
+
+                    var editId = $form.data('edit-id');
+                    var url = editId ?
+                        CONFIG.routes.debitItemUpdate.replace(':id', editId) :
+                        CONFIG.routes.debitItemStore;
+                    var method = editId ? 'PUT' : 'POST';
+
+                    Utils.showLoading(true);
+
+                    Utils.ajax({
+                            url: url,
+                            type: method,
+                            data: $form.serialize()
+                        })
+                        .done(function(response) {
+                            Utils.showLoading(false);
+                            Utils.showToast(response.message || 'Item saved successfully', 'success');
+                            var modalEl = document.getElementById('addDebitItemModal');
+                            if (modalEl) {
+                                var modalInstance = bootstrap.Modal.getInstance(modalEl);
+                                if (modalInstance) {
+                                    modalInstance.hide();
+                                }
+                            }
+                            DebitItemsTable.reload();
+                            self.resetForm();
+                        })
+                        .fail(function(xhr) {
+                            Utils.showLoading(false);
+                            var errors = xhr.responseJSON && xhr.responseJSON.errors;
+
+                            if (errors) {
+                                Object.keys(errors).forEach(function(key) {
+                                    var $input = $('[name="' + key + '"]');
+                                    $input.addClass('is-invalid');
+                                    $input.siblings('.invalid-feedback').text(errors[key][0]);
+                                });
+                            } else {
+                                var message = 'Failed to save item';
+                                if (xhr.responseJSON && xhr.responseJSON.message) {
+                                    message = xhr.responseJSON.message;
+                                }
+                                Utils.showToast(message, 'error');
+                            }
+                        });
+                },
+
+                resetForm: function() {
+                    var $form = $('#addDebitItemForm');
+                    if ($form.length && $form[0]) {
+                        $form[0].reset();
+                    }
+                    $form.removeClass('was-validated');
+                    $form.removeData('edit-id');
+                    $form.find('.is-invalid').removeClass('is-invalid');
+                    $('#addDebitItemModalLabel').html(
+                        '<i class="ri-add-circle-line text-primary me-2"></i>Add Debit Item');
+                    $('#commissionAmount, #netAmount').val('');
+                }
+            };
+
+            // Initialize all tables and managers
+            DebitItemsTable.init();
+            ReinsurersTable.init();
+            ApprovalsTable.init();
+            DocumentsTable.init();
+            CedantManager.load();
+            DebitItemForm.init();
+
+            // Quick action button handlers
+            $('#btnPreviewSlip').on('click', function() {
+                if (CONFIG.routes.previewSlip) {
+                    window.open(CONFIG.routes.previewSlip, '_blank');
+                }
             });
 
-            // Auto-calculate commission and net amount
-            const grossPremiumInput = document.querySelector('input[name="gross_premium"]');
-            const commissionRateInput = document.querySelector('input[name="commission_rate"]');
-            const commissionAmountInput = document.querySelector('input[name="commission_amount"]');
-            const netAmountInput = document.querySelector('input[name="net_amount"]');
+            $('#btnGenerateStatement').on('click', function() {
+                Utils.showLoading(true);
+                Utils.ajax({
+                        url: CONFIG.routes.generateStatement,
+                        type: 'POST'
+                    })
+                    .done(function(response) {
+                        Utils.showLoading(false);
+                        Utils.showToast('Statement generated successfully', 'success');
+                        if (response.download_url) {
+                            window.location.href = response.download_url;
+                        }
+                        DocumentsTable.reload();
+                    })
+                    .fail(function(xhr) {
+                        Utils.showLoading(false);
+                        var message = 'Failed to generate statement';
+                        if (xhr.responseJSON && xhr.responseJSON.message) {
+                            message = xhr.responseJSON.message;
+                        }
+                        Utils.showToast(message, 'error');
+                    });
+            });
 
-            function calculateAmounts() {
-                const grossPremium = parseFloat(grossPremiumInput.value) || 0;
-                const commissionRate = parseFloat(commissionRateInput.value) || 0;
+            $('#btnExportData').on('click', function() {
+                if (CONFIG.routes.exportData) {
+                    window.location.href = CONFIG.routes.exportData;
+                }
+            });
 
-                const commissionAmount = (grossPremium * commissionRate) / 100;
-                const netAmount = grossPremium - commissionAmount;
+            $('#btnRefreshDocs').on('click', function() {
+                DocumentsTable.reload();
+            });
 
-                commissionAmountInput.value = commissionAmount.toFixed(2);
-                netAmountInput.value = netAmount.toFixed(2);
-            }
+            $(document).on('click', '[data-doc-type]', function(e) {
+                e.preventDefault();
+                var docType = $(this).data('doc-type');
+                if (docType) {
+                    DocumentsManager.generate(docType);
+                }
+            });
 
-            if (grossPremiumInput && commissionRateInput) {
-                grossPremiumInput.addEventListener('input', calculateAmounts);
-                commissionRateInput.addEventListener('input', calculateAmounts);
-            }
+            // Debit item action handlers
+            $(document).on('click', '.btn-view-item', function() {
+                var id = $(this).data('id');
+                if (id) {
+                    DebitItemManager.view(id);
+                }
+            });
 
-            // Initialize tooltips
-            const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-            tooltipTriggerList.map(function(tooltipTriggerEl) {
-                return new bootstrap.Tooltip(tooltipTriggerEl);
+            $(document).on('click', '.btn-edit-item', function() {
+                var id = $(this).data('id');
+                if (id) {
+                    DebitItemManager.edit(id);
+                }
+            });
+
+            $(document).on('click', '.btn-delete-item', function() {
+                var id = $(this).data('id');
+                if (id) {
+                    DebitItemManager.delete(id);
+                }
+            });
+
+            // Document action handlers
+            $(document).on('click', '.btn-preview-doc', function() {
+                var url = $(this).data('url');
+                DocumentsManager.preview(url);
+            });
+
+            $(document).on('click', '.btn-download-doc', function() {
+                var id = $(this).data('id');
+                DocumentsManager.download(id);
+            });
+
+            $(document).on('click', '.btn-send-doc', function() {
+                var id = $(this).data('id');
+                if (id) {
+                    DocumentsManager.send(id);
+                }
+            });
+
+            // Reinsurer action handlers
+            $(document).on('click', '.btn-view-reinsurer', function() {
+                Utils.showToast('Reinsurer details view coming soon', 'info');
+            });
+
+            $(document).on('click', '.btn-send-statement', function() {
+                Utils.showConfirm(
+                    'Send Statement',
+                    'Send account statement to this reinsurer?',
+                    function() {
+                        Utils.showToast('Statement sent successfully', 'success');
+                    }
+                );
+            });
+
+            // Tab change handler
+            $('button[data-bs-toggle="tab"]').on('shown.bs.tab', function(e) {
+                var target = $(e.target).attr('data-bs-target');
+
+                setTimeout(function() {
+                    switch (target) {
+                        case '#reinsurers-tab':
+                            ReinsurersTable.adjustColumns();
+                            break;
+                        case '#docs-tab':
+                            DocumentsTable.adjustColumns();
+                            break;
+                        case '#debit-items-tab':
+                            DebitItemsTable.adjustColumns();
+                            break;
+                        case '#approvals-tab':
+                            ApprovalsTable.adjustColumns();
+                            break;
+                    }
+                }, 10);
             });
         });
-
-        // Preview Slip
-        function previewSlip() {
-            const coverId = {{ $cover->id ?? 1 }};
-            window.open(`/covers/${coverId}/preview-slip`, '_blank');
-        }
-
-        // Generate Statement
-        function generateStatement() {
-            const coverId = {{ $cover->id ?? 1 }};
-            if (confirm('Generate Statement of Account for this treaty?')) {
-                window.location.href = `/covers/${coverId}/generate-statement`;
-            }
-        }
-
-        // Export Data
-        function exportData() {
-            const coverId = {{ $cover->id ?? 1 }};
-            window.location.href = `/covers/${coverId}/export`;
-        }
-
-        // View Item
-        function viewItem(itemId) {
-            window.location.href = `/debit-items/${itemId}`;
-        }
-
-        // Edit Item
-        function editItem(itemId) {
-            window.location.href = `/debit-items/${itemId}/edit`;
-        }
-
-        // View Reinsurer
-        function viewReinsurer(reinsurerId) {
-            window.location.href = `/reinsurers/${reinsurerId}`;
-        }
-
-        // Edit Reinsurer
-        function editReinsurer(reinsurerId) {
-            window.location.href = `/reinsurers/${reinsurerId}/edit`;
-        }
-
-        // Edit Cedant
-        function editCedant() {
-            const customerId = {{ $customer->id ?? 1 }};
-            window.location.href = `/customers/${customerId}/edit`;
-        }
-
-        // Generate Document
-        function generateDocument(docType) {
-            const coverId = {{ $cover->id ?? 1 }};
-            if (confirm(`Generate ${docType.replace('_', ' ')} for this treaty?`)) {
-                fetch(`/covers/${coverId}/generate-document`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRF-TOKEN': '{{ csrf_token() }}'
-                        },
-                        body: JSON.stringify({
-                            document_type: docType
-                        })
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            location.reload();
-                        } else {
-                            alert('Failed to generate document: ' + data.message);
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error:', error);
-                        alert('An error occurred while generating the document.');
-                    });
-            }
-        }
-
-        // View Document
-        function viewDocument(docId) {
-            window.open(`/documents/${docId}/view`, '_blank');
-        }
-
-        // Download Document
-        function downloadDocument(docId) {
-            window.location.href = `/documents/${docId}/download`;
-        }
-
-        // Email Document
-        function emailDocument(docId) {
-            if (confirm('Send this document via email?')) {
-                fetch(`/documents/${docId}/email`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRF-TOKEN': '{{ csrf_token() }}'
-                        }
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            alert('Document sent successfully!');
-                        } else {
-                            alert('Failed to send document: ' + data.message);
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error:', error);
-                        alert('An error occurred while sending the document.');
-                    });
-            }
-        }
-
-        // Save Debit Item
-        function saveDebitItem() {
-            const form = document.getElementById('addDebitItemForm');
-            const formData = new FormData(form);
-
-            // fetch('{{-- route('debit-items.store') ?? '/debit-items' --}}', {
-            //         method: 'POST',
-            //         headers: {
-            //             'X-CSRF-TOKEN': '{{ csrf_token() }}'
-            //         },
-            //         body: formData
-            //     })
-            //     .then(response => response.json())
-            //     .then(data => {
-            //         if (data.success) {
-            //             const modal = bootstrap.Modal.getInstance(document.getElementById('addDebitItemModal'));
-            //             modal.hide();
-            //             location.reload();
-            //         } else {
-            //             alert('Failed to save item: ' + (data.message || 'Unknown error'));
-            //         }
-            //     })
-            //     .catch(error => {
-            //         console.error('Error:', error);
-            //         alert('An error occurred while saving the item.');
-            //     });
-        }
     </script>
-@endsection
+@endpush

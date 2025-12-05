@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-use App\Models\Bd\PipelineOpportunity;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -16,9 +15,4 @@ class HandoverApproval extends Model
         'intergrate',
         'reason_for_rejection'
     ];
-
-    // public function prospect()
-    // {
-    //     return $this->belongsTo(PipelineOpportunity::class, 'prospect_id', 'opportunity_id');
-    // }
 }

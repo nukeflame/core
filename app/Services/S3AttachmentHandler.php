@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use Carbon\Carbon;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Http;
@@ -42,6 +43,30 @@ class S3AttachmentHandler
                 'temp_files' => []
             ];
         }
+    }
+
+    public function storeInS3($content, string $filename): array
+    {
+        $disk = Storage::disk('s3');
+
+        if (is_object($content) && method_exists($content, 'output')) {
+            $content = $content->output();
+        }
+
+        $disk->put($filename, $content, [
+            'visibility' => 'public',
+            'ContentType' => 'application/pdf',
+            'Metadata' => [
+                'opportunity_id' => $this->requestData['opportunity_id'] ?? 'unknown',
+                'stage' => $this->requestData['current_stage'] ?? 'unknown',
+                'generated_at' => Carbon::now()->toIso8601String(),
+                'generated_by' => $this->userId ?? 'system',
+            ]
+        ]);
+
+        $s3Url = $disk->url($filename);
+
+        return ['filename' => $filename, 's3_url' => $s3Url];
     }
 
     /**

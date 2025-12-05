@@ -21,6 +21,7 @@ use App\Models\SystemProcessAction;
 use Illuminate\Support\Facades\Auth;
 use App\Models\User;
 use Exception;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\Response;
 use Yajra\DataTables\Facades\DataTables;
@@ -843,42 +844,29 @@ class ApprovalsController extends Controller
 
         try {
             $validated = $request->validate([
-                'id' => 'required|exists:bd_pipeline_opportunities,id',
+                'id' => 'required|exists:pipeline_opportunities,id',
                 'type' => 'required|in:approve,decline',
-                'action' => 'required|in:' . self::STATUS_APPROVED . ',' . self::STATUS_REJECTED,
-                'comment' => 'required|string|min:' . self::COMMENT_MIN_LENGTH . '|max:' . self::COMMENT_MAX_LENGTH,
+                'action' => 'required',
+                'comment' => 'required|string',
             ]);
 
-            $prospect = PipelineOpportunity::findOrFail($request->id);
+            $prospect = PipelineOpportunity::findOrFail($validated['id']);
+            $prospect->bd_status = 'Approved';
+            $prospect->save();
+
             $handover = HandoverApproval::where('prospect_id', $prospect->opportunity_id)->firstOrFail();
 
-            $message = null;
-
-            if ($request->type == 'approve') {
-                $handover->update([
-                    'approval_status' => $request->action,
-                    'approval_comment' => $request->comment,
-                    'approved_by' => Auth::id(),
-                    'approved_at' => now(),
-                ]);
-                $message = 'Approved successfully';
-            }
-
-            if ($request->type == 'decline') {
-                $handover->update([
-                    'approval_status' => $request->action,
-                    'reason_for_rejection' => $request->comment,
-                    'rejected_by' => Auth::id(),
-                    'rejected_at' => now(),
-                ]);
-                $message = 'Rejected successfully';
-            }
+            $message = $this->processBdApprovalAction($handover, $validated);
 
             DB::commit();
 
             return response()->json([
-                'status' => Response::HTTP_OK,
-                'message' => $message
+                'status' => Response::HTTP_CREATED,
+                'message' => $message,
+                'data' => [
+                    'handover_id' => $handover->id,
+                    'approval_status' => $handover->approval_status,
+                ]
             ], Response::HTTP_OK);
         } catch (ValidationException $e) {
             DB::rollBack();
@@ -888,14 +876,63 @@ class ApprovalsController extends Controller
                 'message' => 'Validation failed',
                 'errors' => $e->errors()
             ], Response::HTTP_UNPROCESSABLE_ENTITY);
+        } catch (ModelNotFoundException $e) {
+            DB::rollBack();
+
+            return response()->json([
+                'status' => Response::HTTP_NOT_FOUND,
+                'message' => 'Record not found',
+            ], Response::HTTP_NOT_FOUND);
         } catch (Exception $e) {
             DB::rollBack();
+            logger($e);
 
             return response()->json([
                 'status' => Response::HTTP_INTERNAL_SERVER_ERROR,
                 'message' => config('app.debug') ? $e->getMessage() : 'Failed to process approval action',
-                'error' => config('app.debug') ? $e->getTraceAsString() : null
             ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    private function processBdApprovalAction(HandoverApproval $handover, array $validated): string
+    {
+        $userId = Auth::id();
+        $timestamp = now();
+
+        switch ($validated['type']) {
+            case 'approve':
+
+                $handover->update([
+                    'approval_status' =>  1,
+                    'intergrate' => false,
+                    'approval_comment' => $validated['comment'],
+                    'approved_by' => $userId,
+                    'approved_at' => $timestamp,
+
+                    'reason_for_rejection' => null,
+                    'rejected_by' => null,
+                    'rejected_at' => null,
+                ]);
+
+                return 'Handover approved successfully';
+
+            case 'decline':
+
+                $handover->update([
+                    'approval_status' => 0,
+                    'intergrate' => false,
+                    'reason_for_rejection' => $validated['comment'],
+                    'rejected_by' => $userId,
+                    'rejected_at' => $timestamp,
+                    'approval_comment' => null,
+                    'approved_by' => null,
+                    'approved_at' => null,
+                ]);
+
+                return 'Handover rejected successfully';
+
+            default:
+                throw new Exception('Invalid approval type');
         }
     }
 
