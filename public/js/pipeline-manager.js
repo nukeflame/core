@@ -1010,9 +1010,7 @@ class PipelineManager {
                         response.data.length > 0 ? response.data : [];
 
                     $(".reinsurers_data").val(JSON.stringify(reinsurers) || []);
-                    console.log("response", response);
 
-                    console.log(reinsurers);
                     $modal
                         .find(".selected_reinsurers")
                         .val(JSON.stringify(reinsurers));

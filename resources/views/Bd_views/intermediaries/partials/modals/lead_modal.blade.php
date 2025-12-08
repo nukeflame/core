@@ -270,7 +270,7 @@
                         <div>
                             <button type="button" class="btn btn-light me-2" data-bs-dismiss="modal">Cancel</button>
                             <button type="submit" class="btn btn-dark">
-                                <i class="bx bx-save me-1"></i> Save Lead
+                                <i class="bx bx-save me-1"></i> Send Lead
                             </button>
                         </div>
                     </div>
@@ -466,7 +466,7 @@
     </div>
 </div>
 
-<form id="quoteSlipForm" method="POST" action="{{ route('quote.quotationCoverSlip') }}" target="_blank"
+<form id="proposal-quoteslip-form" method="POST" action="{{ route('quote.quotationCoverSlip') }}" target="_blank"
     style="display: none;">
     @csrf
 </form>

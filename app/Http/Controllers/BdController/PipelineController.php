@@ -76,6 +76,7 @@ use App\Services\MailService;
 use App\Services\S3AttachmentHandler;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\QueryException;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
 
 class PipelineController
@@ -5439,7 +5440,6 @@ class PipelineController
                         'unplaced_share'    => $total_unplaced_shares,
                         'updated_at'        => now(),
                         'stage'             => 2,
-                        'category_type'     => 2,
                         'status'            => Stage::PROPOSAL
                     ];
 
@@ -5571,9 +5571,6 @@ class PipelineController
                             ], 500);
                         }
                     }
-
-                    logger($request->all());
-
 
                     break;
 
@@ -5746,7 +5743,7 @@ class PipelineController
 
             GenerateBdCoverSlipJob::dispatch($requestData, auth()->id());
 
-            // DB::commit();
+            DB::commit();
 
             return response()->json([
                 'success' => true,
@@ -7603,6 +7600,7 @@ class PipelineController
                     'signed_share',
                     'brokerage_rate',
                     'reinsurer_id',
+                    'reinsurer_id as id',
                     'email',
                     'is_declined',
                     'decline_reason',

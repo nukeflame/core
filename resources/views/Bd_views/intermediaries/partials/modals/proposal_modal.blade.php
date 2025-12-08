@@ -273,7 +273,11 @@
 
                 <div class="modal-footer bg-light">
                     <div class="d-flex justify-content-between w-100">
-                        <div></div>
+                        <div>
+                            <button type="button" class="btn btn-outline-secondary me-2" id="proposal-view-slip">
+                                <i class="bx bx-file me-1"></i>Preview Slip
+                            </button>
+                        </div>
                         <div>
                             <button type="button" class="btn btn-light me-2" data-bs-dismiss="modal">Cancel</button>
                             <button type="submit" class="btn btn-dark">
@@ -580,6 +584,11 @@
         </div>
     </div>
 </div>
+
+<form id="proposal-quoteslip-form" method="POST" action="{{ route('quote.quotationCoverSlip') }}" target="_blank"
+    style="display: none;">
+    @csrf
+</form>
 
 @push('script')
     <script>
@@ -1699,7 +1708,7 @@
                 selectedReinsurers.add(reinsurerID);
                 $('#reinsurerCount').text(selectedReinsurers.size);
 
-                // updateSharesDisplay();
+                updateSharesDisplay();
 
                 $("#propAvailableReinsurers").val(null).trigger('change');
                 $("#propReinShare").val('');
@@ -1736,6 +1745,38 @@
                 return div.innerHTML;
             }
 
+            function previewCoverSlip(printoutType = 0) {
+                const sourceForm = $form
+                const postForm = $('#proposal-quoteslip-form');
+
+                postForm.find('input[type="hidden"]:not([name="_token"])').remove();
+
+                const formData = prepareFormData();
+
+                for (let [key, value] of formData.entries()) {
+                    if (value instanceof File) {
+                        continue;
+                    }
+
+                    postForm.append($('<input>', {
+                        type: 'hidden',
+                        name: key,
+                        value: value
+                    }));
+                }
+
+                postForm.append($('<input>', {
+                    type: 'hidden',
+                    name: 'printout_flag',
+                    value: printoutType
+                }));
+
+                postForm.submit();
+            }
+
+
+            $("#proposal-view-slip").on("click", () => previewCoverSlip());
+
             $(document).on('click', '.remove-reinsurer', function(e) {
                 e.preventDefault();
 
@@ -1750,8 +1791,6 @@
 
                 updateSharesDisplay();
             });
-
-
         });
     </script>
 @endpush

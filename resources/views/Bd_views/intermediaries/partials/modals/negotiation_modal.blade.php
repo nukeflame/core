@@ -246,7 +246,11 @@
 
                 <div class="modal-footer bg-light">
                     <div class="d-flex justify-content-between w-100">
-                        <div></div>
+                        <div>
+                            <button type="button" class="btn btn-outline-secondary me-2" id="negotiation-view-slip">
+                                <i class="bx bx-file me-1"></i>Preview Slip
+                            </button>
+                        </div>
                         <div>
                             <button type="button" class="btn btn-light me-2" data-bs-dismiss="modal">Cancel</button>
                             <button type="submit" class="btn btn-dark">
@@ -259,6 +263,11 @@
         </div>
     </div>
 </div>
+
+<form id="negotiation-quoteslip-form" method="POST" action="{{ route('quote.quotationCoverSlip') }}"
+    target="_blank" style="display: none;">
+    @csrf
+</form>
 
 @push('script')
     <script>
@@ -1136,6 +1145,37 @@
                 div.textContent = text;
                 return div.innerHTML;
             }
+
+            function previewCoverSlip(printoutType = 0) {
+                const sourceForm = $form
+                const postForm = $('#negotiation-quoteslip-form');
+
+                postForm.find('input[type="hidden"]:not([name="_token"])').remove();
+
+                const formData = prepareFormData();
+
+                for (let [key, value] of formData.entries()) {
+                    if (value instanceof File) {
+                        continue;
+                    }
+
+                    postForm.append($('<input>', {
+                        type: 'hidden',
+                        name: key,
+                        value: value
+                    }));
+                }
+
+                postForm.append($('<input>', {
+                    type: 'hidden',
+                    name: 'printout_flag',
+                    value: printoutType
+                }));
+
+                postForm.submit();
+            }
+
+            $("#negotiation-view-slip").on("click", () => previewCoverSlip());
         });
     </script>
 @endpush
