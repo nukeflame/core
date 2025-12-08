@@ -79,7 +79,6 @@
 
         <div class="card custom-card">
             <div class="card-body">
-                <!-- Tab Navigation -->
                 <ul class="nav nav-pills nav-style-3 mb-4 pb-1" role="tablist">
                     @php
                         $quarters = [
@@ -102,7 +101,6 @@
                     @endforeach
                 </ul>
 
-                <!-- Tab Content -->
                 <div class="tab-content p-0 mt-1 border-none">
                     @foreach ($quarters as $index => $quarter)
                         <div class="tab-pane {{ $quarter['active'] ?? false ? 'active' : '' }} border-none"

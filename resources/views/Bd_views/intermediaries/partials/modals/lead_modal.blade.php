@@ -1,7 +1,7 @@
 <!-- Lead Stage Modal -->
 <div id="leadModal" class="modal fade effect-scale md-wrapper" tabindex="-1" data-bs-backdrop="static"
     data-bs-keyboard="false" aria-labelledby="staticPropoalStageLabel" aria-hidden="true" role="dialog" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-xl" role="document">
+    <div class="modal-dialog modal-dialog-centered modal-xl" role="document" style="max-width: 60%;">
         <div class="modal-content">
             <form id="leadForm" action="{{ route('update.opp.status') }}" novalidate>
                 <input type="hidden" class="opportunity_id" id="leadOpportunityId" name="opportunity_id" />
@@ -14,6 +14,7 @@
                 <input type="hidden" name="total_placed_shares" id="totalPlacedShares">
                 <input type="hidden" name="total_unplaced_shares" class="reinsurers_data" id="totalUnplacedShares">
                 <input type="hidden" class="cedant_id" id="lead_cedant_id" name="cedant_id" />
+                <input type="hidden" class="slip_type" id="slipType" name="slip_type" />
 
                 <div class="modal-body fac-slip-container">
                     <div class="fac-slip-header">
@@ -82,7 +83,7 @@
                                             </div>
                                         </div>
                                     </div>
-                                    <div class="col-md-6">
+                                    <div class="col-md-6 fac-rates">
                                         <div class="form-group">
                                             <label class="form-label">
                                                 Premium
@@ -98,7 +99,7 @@
                                         </div>
                                     </div>
                                 </div>
-                                <div class="row">
+                                <div class="row fac-rates">
                                     <div class="col-md-6">
                                         <div class="form-group">
                                             <label class="form-label">Reinsurer Commission Rate (%)</label>
@@ -157,7 +158,7 @@
                             <div class="section-content" id="reinsurer-info">
                                 <div class="reinsurer-selection-panel mb-2">
                                     <div class="row">
-                                        <div class="col-md-6">
+                                        <div class="col-md-6 quote-rein">
                                             <div class="form-group">
                                                 <label class="form-label">Add Reinsurer</label>
                                                 <select class="sel" id="availableReinsurers"
@@ -166,7 +167,7 @@
                                                 </select>
                                             </div>
                                         </div>
-                                        <div class="col-md-3">
+                                        <div class="col-md-3 fac-rates">
                                             <div class="form-group">
                                                 <label class="form-label">
                                                     Total Written Share (%)
@@ -178,7 +179,7 @@
                                                     max="100" required value="100">
                                             </div>
                                         </div>
-                                        <div class="col-md-2">
+                                        <div class="col-md-2 fac-rates">
                                             <div class="form-group">
                                                 <label class="form-label">Share (%)</label>
                                                 <input type="number" class="form-inputs" id="reinsurerShare"
@@ -261,11 +262,15 @@
 
                 <div class="modal-footer bg-light">
                     <div class="d-flex justify-content-between w-100">
-                        <div></div>
+                        <div>
+                            <button type="button" class="btn btn-outline-secondary me-2" id="previewSlipBtn">
+                                <i class="bx bx-file me-1"></i>Preview Slip
+                            </button>
+                        </div>
                         <div>
                             <button type="button" class="btn btn-light me-2" data-bs-dismiss="modal">Cancel</button>
                             <button type="submit" class="btn btn-dark">
-                                <i class="bx bx-paper-plane me-1"></i> Update Lead
+                                <i class="bx bx-save me-1"></i> Save Lead
                             </button>
                         </div>
                     </div>
@@ -460,6 +465,11 @@
         </div>
     </div>
 </div>
+
+<form id="quoteSlipForm" method="POST" action="{{ route('quote.quotationCoverSlip') }}" target="_blank"
+    style="display: none;">
+    @csrf
+</form>
 
 <style>
     .fac-slip-container {
@@ -1414,6 +1424,7 @@
                 MAX_PERCENTAGE: 100,
                 MIN_REINSURERS: 1,
                 REQUIRED_FIELDS: ["total_sum_insured", "premium"],
+                SLIP_TYPE: 'facultative'
             };
 
             const FIELD_VALIDATORS = {
@@ -1441,6 +1452,7 @@
                 bdReinsurers: {},
                 dataTable: null,
                 breakdownEditor: null,
+                slipType: '',
             };
 
             $.ajaxSetup({
@@ -1523,11 +1535,11 @@
                 if (!reinsurer.name) return reinsurer.text;
 
                 return `
-                    <div class="reinsurer-option">
-                        <div><strong>${escapeHtml(reinsurer.name)}</strong></div>
-                        <div><small class="text-muted">${escapeHtml(reinsurer.country)} | Email: ${escapeHtml(reinsurer.email)}</small></div>
-                    </div>
-                `;
+            <div class="reinsurer-option">
+                <div><strong>${escapeHtml(reinsurer.name)}</strong></div>
+                <div><small class="text-muted">${escapeHtml(reinsurer.country)} | Email: ${escapeHtml(reinsurer.email)}</small></div>
+            </div>
+        `;
             }
 
             function formatReinsurerSelection(reinsurer) {
@@ -1543,34 +1555,38 @@
 
             function addReinsurer() {
                 const selectedOption = $("#availableReinsurers option:selected");
+                const slipType = $("#slipType").val() || state.slipType;
                 const writtenSharePercent = parseFloat($("#reinsurerShare").val());
+                const showShareColumn = slipType === VALIDATION_CONFIG.SLIP_TYPE;
 
                 if (!selectedOption.val()) {
                     toastr.warning('Please select a reinsurer from the dropdown.', 'Select Reinsurer');
                     return;
                 }
 
-                if (!writtenSharePercent || writtenSharePercent <= 0 || writtenSharePercent > 100) {
-                    Swal.fire({
-                        icon: "error",
-                        title: "Invalid Written Share",
-                        text: "Please enter a valid written share percentage between 0.01% and 100%.",
-                        confirmButtonColor: "#3085d6",
-                    });
-                    $("#reinsurerShare").focus();
-                    return;
-                }
+                if (showShareColumn) {
+                    if (!writtenSharePercent || writtenSharePercent <= 0 || writtenSharePercent > 100) {
+                        Swal.fire({
+                            icon: "error",
+                            title: "Invalid Written Share",
+                            text: "Please enter a valid written share percentage between 0.01% and 100%.",
+                            confirmButtonColor: "#3085d6",
+                        });
+                        $("#reinsurerShare").focus();
+                        return;
+                    }
 
-                const currentTotalPlacedShares = calculateTotalPlacedShares();
-                if (currentTotalPlacedShares + writtenSharePercent > 100) {
-                    const remainingCapacity = 100 - currentTotalPlacedShares;
-                    Swal.fire({
-                        icon: "warning",
-                        title: "Insufficient Capacity",
-                        text: `Maximum available share is ${remainingCapacity.toFixed(2)}%. Total placed shares cannot exceed 100%.`,
-                        confirmButtonColor: "#f39c12",
-                    });
-                    return;
+                    const currentTotalPlacedShares = calculateTotalPlacedShares();
+                    if (currentTotalPlacedShares + writtenSharePercent > 100) {
+                        const remainingCapacity = 100 - currentTotalPlacedShares;
+                        Swal.fire({
+                            icon: "warning",
+                            title: "Insufficient Capacity",
+                            text: `Maximum available share is ${remainingCapacity.toFixed(2)}%. Total placed shares cannot exceed 100%.`,
+                            confirmButtonColor: "#f39c12",
+                        });
+                        return;
+                    }
                 }
 
                 if (state.selectedReinsurers.has(selectedOption.val())) {
@@ -1588,25 +1604,58 @@
                     name: selectedOption.data("name"),
                     email: selectedOption.data("email"),
                     country: selectedOption.data("country"),
-                    writtenShare: writtenSharePercent,
+                    writtenShare: showShareColumn ? writtenSharePercent : 0,
                 };
 
-                addReinsurerToTable(reinsurerData);
+                addReinsurerToTable(reinsurerData, slipType);
                 state.selectedReinsurers.add(reinsurerData.id);
                 updateReinsurerCount();
                 resetReinsurerForm();
-                toggleTotalWrittenShareField();
-                updateSharesDisplay();
 
-                toastr.success(
-                    `${reinsurerData.name} has been successfully added with ${writtenSharePercent.toFixed(2)}% written share.`,
-                    'Reinsurer Added!'
-                );
+                if (showShareColumn) {
+                    toggleTotalWrittenShareField();
+                    updateSharesDisplay();
+                }
+
+                const successMessage = showShareColumn ?
+                    `${reinsurerData.name} has been successfully added with ${writtenSharePercent.toFixed(2)}% written share.` :
+                    `${reinsurerData.name} has been successfully added.`;
+
+                toastr.success(successMessage, 'Reinsurer Added!');
             }
 
-            function addReinsurerToTable(reinsurerData) {
+            function updateTableHeader(slipType) {
+                const showShareColumn = slipType === VALIDATION_CONFIG.SLIP_TYPE;
+
+                const headerHtml = showShareColumn ? `
+                    <tr>
+                        <th style="width: 70%">Reinsurer</th>
+                        <th style="width: 20%">Written Share (%)</th>
+                        <th style="width: 10%">Action</th>
+                    </tr>
+                ` : `
+                    <tr>
+                        <th style="width: 80%">Reinsurer</th>
+                        <th style="width: 20%">Action</th>
+                    </tr>
+                `;
+
+                $('#reinsurersTable thead').html(headerHtml);
+            }
+
+            function addReinsurerToTable(reinsurerData, slipType) {
+                const showShareColumn = slipType === VALIDATION_CONFIG.SLIP_TYPE;
+
+                const shareColumnHtml = `
+                    <td class="text-start share-column" ${!showShareColumn ? 'style="display: none;"' : ''}>
+                        <div class="share-display">
+                            <strong>${showShareColumn ? reinsurerData.writtenShare.toFixed(2) + '%' : 'N/A'}</strong>
+                        </div>
+                    </td>
+                `;
+
                 const rowHtml = `
-                    <tr data-reinsurer-id="${reinsurerData.id}" data-written-share="${reinsurerData.writtenShare}">
+                    <tr data-reinsurer-id="${reinsurerData.id}" ${showShareColumn ? `data-written-share="${reinsurerData.writtenShare}"` : 'data-written-share="0"'}>
                         <td>
                             <div class="d-flex align-items-center">
                                 <div>
@@ -1615,11 +1664,7 @@
                                 </div>
                             </div>
                         </td>
-                        <td class="text-start">
-                            <div class="share-display">
-                                <strong>${reinsurerData.writtenShare.toFixed(2)}%</strong>
-                            </div>
-                        </td>
+                        ${shareColumnHtml}
                         <td class="text-start">
                             <button type="button" class="btn btn-primary btn-sm contacts-reinsurer"
                                     data-reinsurer-id="${reinsurerData.id}"
@@ -1690,6 +1735,17 @@
                 updateProgressBar(sharesDisplay, totalPlacedShares, leadTotalReinsurerShare);
 
                 $("#retainedShareValue").val(totalUnplacedShares.toFixed(2));
+            }
+
+            function toggleShareFields(slipType) {
+                const showShareColumn = slipType === VALIDATION_CONFIG.SLIP_TYPE;
+                const $shareFields = $('.fac-rates');
+
+                if (showShareColumn) {
+                    $shareFields.show();
+                } else {
+                    $shareFields.hide();
+                }
             }
 
             function createSharesDisplayHTML() {
@@ -1859,11 +1915,11 @@
                     });
                 } else {
                     $departmentContacts.html(`
-                        <div class="text-center py-4">
-                            <i class="bx bx-info-circle bx-2x text-muted mb-2 fs-15"></i>
-                            <p class="text-muted">No department contacts found for this reinsurer.</p>
-                        </div>
-                    `);
+                <div class="text-center py-4">
+                    <i class="bx bx-info-circle bx-2x text-muted mb-2 fs-15"></i>
+                    <p class="text-muted">No department contacts found for this reinsurer.</p>
+                </div>
+            `);
                 }
             }
 
@@ -1871,32 +1927,32 @@
                 const showLabels = index === 0;
 
                 return `
-                    <div class="contact-item rounded px-3 pb-1" data-contact-id="${contact.id || index}">
-                        <div class="row align-items-center">
-                            <div class="col-md-3">
-                                ${showLabels ? '<label class="form-label fw-semibold mb-1">Contact Name</label>' : ""}
-                                <input type="text" class="form-control-plaintext contact-name"
-                                    value="${escapeHtml(contact.name || "")}" data-field="name">
-                            </div>
-                            <div class="col-md-6">
-                                ${showLabels ? '<label class="form-label fw-semibold mb-1">Email</label>' : ""}
-                                <input type="email" class="form-control-plaintext contact-email"
-                                    value="${escapeHtml(contact.email || "")}" data-field="email">
-                            </div>
-                            <div class="col-md-2">
-                                ${showLabels ? '<label class="form-label fw-semibold mb-1">CC Email</label>' : ""}
-                                <div class="form-check mt-2 px-0">
-                                    <input class="form-check-input mailc-checkbox" type="checkbox"
-                                        ${contact.cc_email ? "checked" : ""} data-field="cc_email">
-                                    <label class="form-check-label cc-email-indicator">
-                                        <i class="bx bx-envelope envlope-ico"></i>
-                                    </label>
-                                </div>
-                            </div>
-                            <div class="col-md-1"></div>
+            <div class="contact-item rounded px-3 pb-1" data-contact-id="${contact.id || index}">
+                <div class="row align-items-center">
+                    <div class="col-md-3">
+                        ${showLabels ? '<label class="form-label fw-semibold mb-1">Contact Name</label>' : ""}
+                        <input type="text" class="form-control-plaintext contact-name"
+                            value="${escapeHtml(contact.name || "")}" data-field="name">
+                    </div>
+                    <div class="col-md-6">
+                        ${showLabels ? '<label class="form-label fw-semibold mb-1">Email</label>' : ""}
+                        <input type="email" class="form-control-plaintext contact-email"
+                            value="${escapeHtml(contact.email || "")}" data-field="email">
+                    </div>
+                    <div class="col-md-2">
+                        ${showLabels ? '<label class="form-label fw-semibold mb-1">CC Email</label>' : ""}
+                        <div class="form-check mt-2 px-0">
+                            <input class="form-check-input mailc-checkbox" type="checkbox"
+                                ${contact.cc_email ? "checked" : ""} data-field="cc_email">
+                            <label class="form-check-label cc-email-indicator">
+                                <i class="bx bx-envelope envlope-ico"></i>
+                            </label>
                         </div>
                     </div>
-                `;
+                    <div class="col-md-1"></div>
+                </div>
+            </div>
+        `;
             }
 
             function saveContactsModal() {
@@ -1971,6 +2027,8 @@
             function validateLeadForm() {
                 const errors = [];
 
+                const slipType = $("#slipType").val() || state.slipType;
+
                 $("#leadForm .form-inputs").each(function() {
                     if (!validateField($(this))) {
                         const fieldLabel = getFieldLabel($(this));
@@ -1986,23 +2044,23 @@
                 if (totalWrittenShare === 0) {
                     errors.push("<b>Total Written Share:</b> Please enter the total written share percentage");
                 }
-                //  else
-                // if (totalWrittenShare !== 100) {
-                //     errors.push(
-                //         `<b>Total Written Share:</b> Must be exactly 100%. Current value is ${totalWrittenShare.toFixed(2)}%`
-                //     );
-                // }
 
                 const totalPlacedShares = calculateTotalPlacedShares();
                 const sharesDifference = Math.abs(totalWrittenShare - totalPlacedShares);
                 const TOLERANCE = 0.01;
 
-                if (sharesDifference > TOLERANCE) {
-                    const totalUnplacedShares = totalWrittenShare - totalPlacedShares;
-                    errors.push(
-                        `<b>Share Allocation Mismatch:</b> Total placed shares (${totalPlacedShares.toFixed(2)}%) must equal Total Written Share (${totalWrittenShare.toFixed(2)}%). Unplaced: ${totalUnplacedShares.toFixed(2)}%`
-                    );
+                const writtenSharePercent = parseFloat($("#reinsurerShare").val());
+                const showShareColumn = slipType === VALIDATION_CONFIG.SLIP_TYPE;
+
+                if (showShareColumn) {
+                    if (sharesDifference > TOLERANCE) {
+                        const totalUnplacedShares = totalWrittenShare - totalPlacedShares;
+                        errors.push(
+                            `<b>Share Allocation Mismatch:</b> Total placed shares (${totalPlacedShares.toFixed(2)}%) must equal Total Written Share (${totalWrittenShare.toFixed(2)}%). Unplaced: ${totalUnplacedShares.toFixed(2)}%`
+                        );
+                    }
                 }
+
 
                 if (typeof window.pipelineManager !== 'undefined' &&
                     typeof window.pipelineManager.getAllUploadedFiles === 'function') {
@@ -2212,13 +2270,11 @@
                     showConfirmButton: true,
                 }).then((result) => {
                     if (result.isConfirmed) {
-                        // Reload tables
                         if (typeof window.pipelineManager !== 'undefined' &&
                             typeof window.pipelineManager.reloadAllTables === 'function') {
                             window.pipelineManager.reloadAllTables();
                         }
 
-                        // Reload chart
                         if (typeof window.pipelineManager !== 'undefined' &&
                             typeof window.pipelineManager.loadChartData === 'function') {
                             window.pipelineManager.loadChartData();
@@ -2323,6 +2379,40 @@
                 return formData;
             }
 
+            function previewCoverSlip(printoutType = 0) {
+                const sourceForm = $('#leadForm');
+                const postForm = $('#quoteSlipForm');
+
+                postForm.find('input[type="hidden"]:not([name="_token"])').remove();
+
+                const formData = prepareFormData();
+
+                // if (state.dataTable.rows().length > 0) {
+                //     toastr.warning('Please select at least 1 reinsurer', 'Select Reinsurer');
+                //     return;
+                // }
+
+                for (let [key, value] of formData.entries()) {
+                    if (value instanceof File) {
+                        continue;
+                    }
+
+                    postForm.append($('<input>', {
+                        type: 'hidden',
+                        name: key,
+                        value: value
+                    }));
+                }
+
+                postForm.append($('<input>', {
+                    type: 'hidden',
+                    name: 'printout_flag',
+                    value: printoutType
+                }));
+
+                postForm.submit();
+            }
+
             class BreakdownEditor {
                 constructor() {
                     this.quill = null;
@@ -2381,6 +2471,8 @@
 
                     $("#saveBreakdownBtn").on("click", () => this.saveChanges());
                     $("#previewBtn").on("click", () => this.togglePreview());
+
+                    $("#previewSlipBtn").on("click", () => previewCoverSlip());
 
                     $("#breakdownModal")
                         .on("show.bs.modal", () => this.cleanupEditor())
@@ -2656,6 +2748,14 @@
                 }
             }
 
+            function toggleShareColumnVisibility(slipType) {
+                if (!state.dataTable) return;
+
+                const showShareColumn = slipType === VALIDATION_CONFIG.SLIP_TYPE;
+
+                state.dataTable.column(1).visible(showShareColumn);
+            }
+
             function resetLeadModal() {
                 $("#leadForm")[0].reset();
                 $("#leadForm .is-invalid, .is-v").removeClass("is-invalid is-v");
@@ -2696,6 +2796,9 @@
                 }
 
                 $(".deductible_excess_div").hide();
+
+                state.slipType = VALIDATION_CONFIG.SLIP_TYPE;
+                $("#slipType").val(VALIDATION_CONFIG.SLIP_TYPE);
             }
 
             function handleCategoryUpdate(e) {
@@ -2727,8 +2830,7 @@
                             showAlert("Category type updated successfully!", "success");
 
                             if (typeof window.pipelineManager !== 'undefined' &&
-                                typeof window.pipelineManager.reloadAllTables ===
-                                'function') {
+                                typeof window.pipelineManager.reloadAllTables === 'function') {
                                 window.pipelineManager.reloadAllTables();
                             } else {
                                 location.reload();
@@ -2796,6 +2898,11 @@
             });
 
             $("#leadModal").on("shown.bs.modal", function() {
+                const slipType = $("#slipType").val();
+
+                toggleShareFields(slipType);
+                updateTableHeader(slipType);
+
                 $("#leadForm .is-invalid").removeClass("is-invalid");
                 $("#leadForm .invalid-feedback, .reinsurer-validation-error").remove();
             });
@@ -2804,16 +2911,35 @@
                 $("#leadModal").modal("show");
             });
 
-            $("#updateCategoryTypeModal").on("hidden.bs.modal", resetLeadModal);
+            $("#leadModal").on("hidden.bs.modal", function() {
+                resetLeadModal();
 
-            $("#leadModal").on("click", "button[data-bs-dismiss='modal']", resetLeadModal);
+                toggleShareColumnVisibility(VALIDATION_CONFIG.SLIP_TYPE);
+                toggleShareFields(VALIDATION_CONFIG.SLIP_TYPE);
+
+                if (state.dataTable) {
+                    state.dataTable.clear().draw();
+                }
+
+                state.slipType = VALIDATION_CONFIG.SLIP_TYPE;
+                state.selectedReinsurers.clear();
+                // state.uploadedFiles = {};
+
+                updateReinsurerCount();
+
+                $(".total-shares-display").remove();
+
+                $(".quote-rein").removeClass("col-md-8 col-md-6").addClass("col-md-6");
+                $(".quote-rein").attr("data-quote", "false");
+            });
+
+            $("#updateCategoryTypeModal").on("hidden.bs.modal", resetLeadModal);
 
             try {
                 initializeReinsurerTable();
                 initializeReinsurerSelect();
                 state.breakdownEditor = new BreakdownEditor();
             } catch (error) {
-                console.error("Initialization error:", error);
                 showAlert("Failed to initialize components. Please refresh the page.", "error");
             }
         });

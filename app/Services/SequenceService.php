@@ -90,14 +90,14 @@ class SequenceService
 
     /**
      * Generate document number for endorsement narrations
-     * Format: EN{SERIAL} e.g., EN000306
+     * Format: REF{SERIAL} e.g., REF000306
      */
     public function generateDocumentNumber(): object
     {
         $result = $this->generateSequence(
             sequenceName: self::SEQ_DOCUMENT,
             year: null,
-            prefix: 'EN',
+            prefix: 'REF',
             formatter: fn($value) => sprintf(self::FORMATS['document'], $value),
             context: ['type' => 'document']
         );

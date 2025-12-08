@@ -786,16 +786,24 @@ class PipelineManager {
 
     openStageModal(stage, modalId, dealId, dealInfo = null) {
         try {
-            this.currentDealId = dealId;
-            const $modal = $(`#${modalId}`);
+            if (!dealId) {
+                throw new Error("dealId is required");
+            }
 
+            if (!dealInfo) {
+                throw new Error("dealInfo is required");
+            }
+
+            this.currentDealId = dealId;
+
+            const $modal = $(`#${modalId}`);
             if ($modal.length === 0) {
                 throw new Error(`Modal not found: ${modalId}`);
             }
 
             const data = {
                 dealId: dealId,
-                opportunityId: dealInfo.id,
+                opportunityId: dealInfo?.id,
                 typeOfBus: dealInfo?.type_of_business,
                 modalId: modalId,
                 class: dealInfo?.class,
@@ -806,15 +814,17 @@ class PipelineManager {
                 riskType: dealInfo?.risk_type,
             };
 
-            if (this.currentStage === STAGE_NAMES.LEAD) {
-                this.loadBdTerms(data);
-            } else if (
-                this.currentStage === STAGE_NAMES.PROPOSAL ||
-                this.currentStage === STAGE_NAMES.NEGOTIATION
-            ) {
-                this.loadSelectedReinsurers(data);
-            }
+            // if (this.currentStage === STAGE_NAMES.LEAD) {
+            //     this.loadBdTerms(data);
+            // } else if (
+            //     this.currentStage === STAGE_NAMES.PROPOSAL ||
+            //     this.currentStage === STAGE_NAMES.NEGOTIATION
+            // ) {
+            //     this.loadSelectedReinsurers(data);
+            // }
 
+            this.loadSelectedReinsurers(data);
+            this.loadBdTerms(data);
             this.loadSlipDocuments(data);
             this.loadScheduleHeaders(data);
             this.populateModalData(
@@ -830,6 +840,7 @@ class PipelineManager {
             this.addEscapeKeyListener();
         } catch (error) {
             this.handleError("Error opening modal", error);
+            throw error;
         }
     }
 
@@ -863,8 +874,22 @@ class PipelineManager {
             let $slipTitle = "";
             if (Number(dealInfo.category_type) === 1) {
                 $slipTitle = "Quotation Slip";
+
+                $modal.find(".slip_type").val("quotation");
+
+                $modal.find(".fac-rates").hide();
+
+                $(".quote-rein").addClass("col-md-8");
+                $(".quote-rein").attr("data-quote", "true");
             } else {
                 $slipTitle = "Facultative Slip";
+
+                $modal.find(".slip_type").val("facultative");
+
+                $modal.find(".fac-rates").show();
+
+                $(".quote-rein").addClass("col-md-6");
+                $(".quote-rein").attr("data-quote", "false");
             }
 
             $modal.find(".slip-title").text($slipTitle);
@@ -985,6 +1010,9 @@ class PipelineManager {
                         response.data.length > 0 ? response.data : [];
 
                     $(".reinsurers_data").val(JSON.stringify(reinsurers) || []);
+                    console.log("response", response);
+
+                    console.log(reinsurers);
                     $modal
                         .find(".selected_reinsurers")
                         .val(JSON.stringify(reinsurers));

@@ -3939,7 +3939,7 @@ class PipelineController
             $pipeline = DB::table('pipeline_opportunities')
                 ->where('opportunity_id', $leadId)
                 ->get();
-            // Fetch the values from the database
+
             $underwriters = DB::table('prospect_underwriters')->get();
             $quoteSchedules = DB::table('quote_schedules')->join('quote_schedule_headers', 'quote_schedules.schedule_id', '=', 'quote_schedule_headers.id')
                 ->select('quote_schedules.*', 'quote_schedule_headers.name as schedule_header_name')
@@ -3954,7 +3954,6 @@ class PipelineController
                 ->select('customer_contacts.*', 'customers.contact_name as customer_name')
                 ->get();
 
-            // Prepare the response data
             return response()->json([
                 'underwriters' => $underwriters,
                 'quote_schedules' => $quoteSchedules,
@@ -5551,7 +5550,7 @@ class PipelineController
                                 $version++;
                             }
 
-                            DB::commit();
+                            // DB::commit();
                         } catch (\Aws\S3\Exception\S3Exception $e) {
                             DB::rollBack();
                             $this->cleanupS3Files($uploadedFiles);
@@ -5572,6 +5571,9 @@ class PipelineController
                             ], 500);
                         }
                     }
+
+                    logger($request->all());
+
 
                     break;
 
@@ -5744,7 +5746,7 @@ class PipelineController
 
             GenerateBdCoverSlipJob::dispatch($requestData, auth()->id());
 
-            DB::commit();
+            // DB::commit();
 
             return response()->json([
                 'success' => true,
@@ -5763,6 +5765,8 @@ class PipelineController
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
+
+            logger($e);
             return response()->json([
                 'success' => false,
                 'message' => 'An error occurred while updating lead status',
