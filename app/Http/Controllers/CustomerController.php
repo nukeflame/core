@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StoreCustomerRequest;
 use App\Models\Classes;
 use App\Models\Country;
 use App\Models\Customer;
@@ -212,61 +213,79 @@ class CustomerController extends Controller
         return view('customer.customer_add_form', $data);
     }
 
-    public function CustomerAddData(Request $request): JsonResponse
+    public function storeCustomer(Request $request)
     {
-        try {
-            $validator = $this->validateCustomerData($request);
+        logger()->debug($request->all());
 
-            if ($validator->fails()) {
-                return response()->json([
-                    'success' => false,
-                    'status' => 422,
-                    'message' => 'Validation failed',
-                    'errors' => $validator->errors()
-                ], 422);
-            }
-
-            DB::beginTransaction();
-
-            $customer = $this->customerService->createCustomer($request->all());
-
-            if ($request->has('contacts')) {
-                $this->customerService->createCustomerContacts($customer->id, $request->input('contacts'));
-            }
-
-            DB::commit();
-
-            return response()->json([
+        return response()->json(
+            [
                 'success' => true,
                 'status' => 201,
                 'message' => 'Customer information saved successfully',
-                'data' => [
-                    'customer_id' => $customer->customer_id,
-                    'name' => $customer->name
-                ]
-            ], 201);
-        } catch (ValidationException $e) {
-            DB::rollBack();
-            return response()->json([
-                'success' => false,
-                'status' => 422,
-                'message' => 'Validation failed',
-                'errors' => $e->errors()
-            ], 422);
-        } catch (\Exception $e) {
-            DB::rollBack();
-            logger()->error('Customer creation failed', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
+            ],
+            201
+        );
 
-            return response()->json([
-                'success' => false,
-                'status' => 500,
-                'message' => 'An error occurred while saving customer information',
-                'error' => config('app.debug') ? $e->getMessage() : 'Internal server error'
-            ], 500);
-        }
+
+
+        // try {
+        //     // $validated = $request->validated();
+
+        //     // $customer = $this->customerService->createCustomer($validated);
+
+        //     // $message = __('Customer ":name" has been created successfully.', [
+        //     //     'name' => $customer->partner_name,
+        //     // ]);
+
+        //     // logger()->debug($validated);
+
+        //     //     if ($validator->fails()) {
+        //     //         return response()->json([
+        //     //             'success' => false,
+        //     //             'status' => 422,
+        //     //             'message' => 'Validation failed',
+        //     //             'errors' => $validator->errors()
+        //     //         ], 422);
+        //     //     }
+
+        //     //     DB::beginTransaction();
+
+        //     // $customer = $this->customerService->createCustomer($request->all());
+
+        //     //     if ($request->has('contacts')) {
+        //     //         $this->customerService->createCustomerContacts($customer->id, $request->input('contacts'));
+        //     //     }
+
+        //     //     DB::commit();
+
+        //     return response()->json([
+        //         'success' => true,
+        //         'status' => 201,
+        //         'message' => 'Customer information saved successfully',
+        //         // 'data' => [
+        //         //     'customer_id' => $customer->customer_id,
+        //         //     'name' => $customer->name
+        //         // ]
+        //     ], 201);
+        // } catch (ValidationException $e) {
+        //     DB::rollBack();
+        //     return response()->json([
+        //         'success' => false,
+        //         'status' => 422,
+        //         'message' => 'Validation failed',
+        //         'errors' => $e->errors()
+        //     ], 422);
+        // } catch (\Exception $e) {
+        //     DB::rollBack();
+        //     logger($e);
+
+        //     return response()->json([
+        //         'success' => false,
+        //         'status' => 500,
+        //         'message' => 'An error occurred while saving customer information',
+        //         'error' => config('app.debug') ? $e->getMessage() : 'Internal server error'
+        //     ], 500);
+        // }
     }
 
     public function customerEdit(int $customerId)
@@ -481,9 +500,9 @@ class CustomerController extends Controller
     {
         return Cache::remember('customer_form_data', 3600, function () {
             return [
-                'type_of_cust' => CustomerTypes::select(['type_id', 'type_name', 'code'])->get(),
+                'type_of_cust' => CustomerTypes::select(['type_id', 'type_name', 'code', 'slug'])->get(),
                 'countries' => Country::select(['country_iso', 'country_name'])->orderBy('country_name')->get(),
-                'partnersId' => DB::table('partner_identifications')
+                'partnersId' => DB::table('partner_identification')
                     ->select(['identification_type', 'issued_by', 'issue_date', 'description'])
                     ->get(),
             ];

@@ -2,10 +2,12 @@
 
 namespace App\Services;
 
+use App\Models\Bd\PipelineOpportunity;
 use App\Models\CoverRegister;
 use App\Models\CoverInstallment;
 use App\Models\CoverReinProp;
 use App\Models\CoverReinLayer;
+use App\Models\HandoverApproval;
 use App\Repositories\CoverRepository;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
@@ -65,15 +67,16 @@ class CoverService
         return $data;
     }
 
-    /**
-     * Register a new cover
-     */
     public function registerNewCover(array $data)
     {
         try {
             $repositoryData = $this->transformRequestData($data);
 
             $result = $this->coverRepository->registerCover((object) $repositoryData);
+
+            $prospect = HandoverApproval::where(['prospect_id' => $result->prospect_id])->first();
+            $prospect->intergrate = true;
+            $prospect->update();
 
             return [
                 'success' => true,

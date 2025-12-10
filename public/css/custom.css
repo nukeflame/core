@@ -856,7 +856,7 @@ div.dataTables_wrapper div.dataTables_length select {
     padding-left: 4px;
 }
 .input-group-text {
-    border-color: #000;
+    border-color: #00000020;
 }
 a.link,
 button.link {

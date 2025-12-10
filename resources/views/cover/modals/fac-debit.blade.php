@@ -1,4 +1,4 @@
-<div class="modal effect-scale md-wrapper" id="facDebitModal" data-bs-backdrop="static" data-bs-keyboard="false"
+<div class="modal fade effect-scale md-wrapper" id="facDebitModal" data-bs-backdrop="static" data-bs-keyboard="false"
     aria-labelledby="staticDebitLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -7,8 +7,8 @@
                 <input type="hidden" name="cover_no" value="{{ $coverReg->cover_no }}" />
                 <input type="hidden" name="endorsement_no" value="{{ $coverReg->endorsement_no }}" />
                 <div class="modal-header">
-                    <h5 class="modal-title" id="staticDebitLabel">Create A Debit Note
-                    </h5>
+                    <h6 class="modal-title" id="staticDebitLabel">Create A Debit Note
+                    </h6>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
                         aria-label="Close"></button>
                 </div>

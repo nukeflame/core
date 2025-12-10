@@ -1,9 +1,8 @@
-{{-- resources/views/cover/modals/schedules.blade.php --}}
-<div class="modal fade" id="schedulesModal" data-bs-backdrop="static" data-bs-keyboard="false"
+<div class="modal fade" id="addClauseModal" data-bs-backdrop="static" data-bs-keyboard="false"
     aria-labelledby="staticScheduleDetailsLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
-            <form method="POST" id="schedulesForm" data-post-url="{{ route('cover.add_schedule') }}"
+            {{-- <form method="POST" id="schedulesForm" data-post-url="{{ route('cover.add_schedule') }}"
                 data-put-url="{{ route('cover.amend_schedule') }}">
                 @csrf
                 @method('POST')
@@ -74,7 +73,7 @@
                         Submit
                     </button>
                 </div>
-            </form>
+            </form> --}}
         </div>
     </div>
 </div>

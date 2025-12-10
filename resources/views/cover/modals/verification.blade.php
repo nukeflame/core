@@ -4,7 +4,6 @@
         <div class="modal-content">
             <form method="POST" id="verifyForm" action="{{ route('approvals.send-for-approval') }}">
                 @csrf
-
                 <input type="hidden"name="endorsement_no" value="{{ $coverReg->endorsement_no }}" />
                 <input type="hidden" name="cover_no" value="{{ $coverReg->cover_no }}" />
                 <input type="hidden" name="process" value="{{ $process?->id ?? '' }}" />
@@ -118,7 +117,7 @@
                     <button type="button" class="btn btn-outline-light btn-sm" data-bs-dismiss="modal">
                         <i class="ri-close-line me-1"></i>Cancel
                     </button>
-                    <button type="button" id="verify-save-btn"
+                    <button type="submit" id="verify-save-btn"
                         class="btn btn-primary btn-sm btn-wave waves-effect waves-light">
                         <i class="ri-send-plane-line me-1"></i>
                         <span class="btn-text">Submit for Verification</span>

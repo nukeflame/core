@@ -75,29 +75,31 @@
                 data-treaty-counter="{{ $treatyCounterValue }}" data-counter="{{ $counterValue }}" required />
         </div>
 
-        {{-- Net/Gross Toggle --}}
-        <div class="col-md-2">
-            <label class="form-label required">Amount Type</label>
-            <div class="btn-group d-flex" role="group">
-                <input type="radio" class="btn-check"
-                    name="treaty[{{ $treatyCounterValue }}][reinsurers][{{ $counterValue }}][amount_type]"
-                    id="amount_type_net-{{ $treatyCounterValue }}-{{ $counterValue }}" value="net"
-                    data-treaty-counter="{{ $treatyCounterValue }}" data-counter="{{ $counterValue }}" checked>
-                <label class="btn btn-outline-primary"
-                    for="amount_type_net-{{ $treatyCounterValue }}-{{ $counterValue }}">
-                    Net
-                </label>
+        @if ($isTreaty)
+            {{-- Net/Gross Toggle --}}
+            <div class="col-md-2">
+                <label class="form-label required">NetPremium Type</label>
+                <div class="btn-group d-flex" role="group">
+                    <input type="radio" class="btn-check"
+                        name="treaty[{{ $treatyCounterValue }}][reinsurers][{{ $counterValue }}][amount_type]"
+                        id="amount_type_net-{{ $treatyCounterValue }}-{{ $counterValue }}" value="net"
+                        data-treaty-counter="{{ $treatyCounterValue }}" data-counter="{{ $counterValue }}" checked>
+                    <label class="btn btn-outline-primary"
+                        for="amount_type_net-{{ $treatyCounterValue }}-{{ $counterValue }}">
+                        Net
+                    </label>
 
-                <input type="radio" class="btn-check"
-                    name="treaty[{{ $treatyCounterValue }}][reinsurers][{{ $counterValue }}][amount_type]"
-                    id="amount_type_gross-{{ $treatyCounterValue }}-{{ $counterValue }}" value="gross"
-                    data-treaty-counter="{{ $treatyCounterValue }}" data-counter="{{ $counterValue }}">
-                <label class="btn btn-outline-primary"
-                    for="amount_type_gross-{{ $treatyCounterValue }}-{{ $counterValue }}">
-                    Gross
-                </label>
+                    <input type="radio" class="btn-check"
+                        name="treaty[{{ $treatyCounterValue }}][reinsurers][{{ $counterValue }}][amount_type]"
+                        id="amount_type_gross-{{ $treatyCounterValue }}-{{ $counterValue }}" value="gross"
+                        data-treaty-counter="{{ $treatyCounterValue }}" data-counter="{{ $counterValue }}">
+                    <label class="btn btn-outline-primary"
+                        for="amount_type_gross-{{ $treatyCounterValue }}-{{ $counterValue }}">
+                        Gross
+                    </label>
+                </div>
             </div>
-        </div>
+        @endif
 
         {{-- WHT Rate --}}
         <div class="col-md-2">
@@ -118,10 +120,23 @@
                 </select>
             </div>
         </div>
+
+        @if ($isFacultative)
+            <div class="col-md-2">
+                <label for="share-{{ $treatyCounterValue }}-{{ $counterValue }}" class="form-label required">
+                    Signed Lines (%)
+                </label>
+                <input type="number" step="0.01" min="0" max="100"
+                    name="treaty[{{ $treatyCounterValue }}][reinsurers][{{ $counterValue }}][share]"
+                    id="share-{{ $treatyCounterValue }}-{{ $counterValue }}"
+                    class="form-control reinsurer-share reinsurers color-blk"
+                    data-treaty-counter="{{ $treatyCounterValue }}" data-counter="{{ $counterValue }}" required />
+                <div class="invalid-feedback">Signed lines cannot exceed written lines</div>
+            </div>
+        @endif
     </div>
 
-    {{-- FACULTATIVE BUSINESS FIELDS --}}
-    @if ($isFacultative)
+    @if ($isTreaty)
         {{-- Signed Lines Row --}}
         <div class="row mt-3">
             <div class="col-md-3">
@@ -136,7 +151,10 @@
                 <div class="invalid-feedback">Signed lines cannot exceed written lines</div>
             </div>
         </div>
+    @endif
 
+    {{-- FACULTATIVE BUSINESS FIELDS --}}
+    @if ($isFacultative)
         {{-- Premium and Commission Row --}}
         <div class="row mt-3">
             <div class="col-md-3">
@@ -423,5 +441,4 @@
             </div>
         </div>
     @endif
-
 </div>

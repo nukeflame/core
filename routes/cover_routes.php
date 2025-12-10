@@ -23,7 +23,7 @@ Route::group(['prefix' => 'customer', 'middleware' => ['auth', 'check.first.logi
     Route::get('/reinsurer-data', [CustomerController::class, 'getReinsurerData'])->name('reinsurer.data');
     Route::get('/insured-data', [CustomerController::class, 'getInsuredData'])->name('insured.data');
     Route::get('/customer-new', [CustomerController::class, 'CustomerAddForm'])->name('customer.form');
-    Route::post('/customer-store', [CustomerController::class, 'CustomerAddData'])->name('customer.store');
+    Route::post('/customer-store', [CustomerController::class, 'storeCustomer'])->name('customer.store');
     Route::any('/customer-dtl', [CustomerController::class, 'CustomerDtl'])->name('customer.dtl');
     Route::get('/statement-datatable', [CustomerController::class, 'StatementDatatable'])->name('statement.datatable');
 
@@ -47,7 +47,7 @@ Route::group(['prefix' => 'customer', 'middleware' => ['auth', 'check.first.logi
 Route::group(['prefix' => 'cover', 'middleware' => ['auth', 'check.first.login']], function () {
     Route::get('/get-active-customers', [CoverController::class, 'getCustomers'])->name('cover.get-customers');
     Route::any('/cover-form', [CoverController::class, 'CoverForm'])->name('cover.form');
-    Route::any('/editCoverRegister', [CoverController::class, 'editCoverRegister'])->name('cover.editCoverRegister');
+    // Route::any('/editCoverRegister', [CoverController::class, 'editCoverRegister'])->name('cover.editCoverRegister');
     Route::any('/editCoverForm', [CoverController::class, 'CoverForm'])->name('cover.editCoverForm');
     Route::any('/cover-register', [CoverController::class, 'CoverRegister'])->name('cover.register');
     Route::get('/cover-datatable', [CoverController::class, 'CoverDatatable'])->name('cover.datatable');
@@ -188,6 +188,7 @@ Route::group(['prefix' => 'cover', 'middleware' => ['auth', 'check.first.login']
         Route::prefix('reinsurers')->name('reinsurers.')->group(function () {
             Route::get('/', [QuarterlyDebitController::class, 'getReinsurers'])
                 ->name('index');
+
             Route::get('/list', [QuarterlyDebitController::class, 'listReinsurers'])
                 ->name('list');
         });
@@ -219,4 +220,11 @@ Route::group(['prefix' => 'cover', 'middleware' => ['auth', 'check.first.login']
         // Route::get('/data', [CustomerController::class, 'getData'])->name('data');
         Route::get('/statistics', [CustomerController::class, 'getStatistics'])->name('statistics');
     });
+
+    Route::get('/{cover}/edit', [CoverController::class, 'editCoverRegister'])
+        ->name('cover.edit');
+
+
+    Route::get('cover/reinsurers/fetch', [CoverController::class, 'fetchReinsurers'])
+        ->name('cover.reinsurers.fetch');
 });

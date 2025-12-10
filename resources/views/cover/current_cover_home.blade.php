@@ -3043,7 +3043,6 @@
                 }
             });
             $('#no_of_installments').trigger('change');
-            //End of Facultative installments
 
             $(document).on('click', '#schedule-details', function() {
                 $(`#schedulesForm`)[0].reset();

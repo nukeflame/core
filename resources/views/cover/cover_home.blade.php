@@ -129,19 +129,6 @@
         <input type="hidden" name="customer_id" value="{{ $coverReg->customer_id }}" />
     </form>
 
-    @include('cover.modals.schedules', [
-        'cover' => $coverReg,
-        'schedHeaders' => $schedHeaders,
-    ])
-
-    {{-- @include('cover.modals.attachments', [
-        'cover' => $coverReg,
-    ]) --}}
-
-    {{-- @include('cover.modals.clauses', [
-        'cover' => $coverReg,
-        'clauses' => $clauses,
-    ]) --}}
 
     @include('cover.modals.reinsurer-placement', [
         'cover' => $coverReg,
@@ -186,6 +173,18 @@
         'installmentAmount' => $installmentAmount,
     ])
 
+    @include('cover.modals.schedule-details', [
+        'cover' => $coverReg,
+        'nextInstallment' => $nextInstallment,
+        'installmentAmount' => $installmentAmount,
+    ])
+
+    @include('cover.modals.add-clauses', [
+        'cover' => $coverReg,
+        'nextInstallment' => $nextInstallment,
+        'installmentAmount' => $installmentAmount,
+    ])
+
     {{-- @include('cover.modals.generate-slip', ['cover' => $coverReg])
 
     @include('cover.modals.attachment-preview')
@@ -199,4 +198,25 @@
 
 @push('script')
     <script src="{{ asset('js/covers/cover-details.js') }}"></script>
+
+    <script>
+        $(document).ready(function() {
+            if (typeof window.PlacementManager === 'undefined') {
+                console.error('PlacementManager not loaded');
+                return;
+            }
+
+            window.PlacementManager.setConfig({
+                fetchUrl: "{{ route('cover.reinsurers.fetch') }}",
+                endorsementNo: @json($coverReg->endorsement_no),
+                coverNo: @json($coverReg->cover_no),
+                cover: @json($coverReg),
+                prospectId: @json($coverReg->prospect_id ?? null),
+            });
+
+            $('#addReinsurerModal').on('shown.bs.modal', function() {
+                window.PlacementManager.init();
+            });
+        });
+    </script>
 @endpush

@@ -1224,8 +1224,6 @@ const CoverRegistration = (function () {
         $("#brokerage_comm_rate_amnt").val(numberWithCommas(brokerageCommAmt));
     }
 
-    // ==================== EML Calculations ====================
-
     function calculateEml() {
         const emlRate = parseNumber($("#eml_rate").val());
         const totalSumInsured = parseNumber($("#total_sum_insured").val());
@@ -1246,8 +1244,6 @@ const CoverRegistration = (function () {
         $("#eml_amt").val(numberWithCommas(emlAmt));
         $("#effective_sum_insured").val(numberWithCommas(emlAmt));
     }
-
-    // ==================== Quota & Surplus Calculations ====================
 
     function calculateQuotaRetention() {
         const $input = $(this);
@@ -1277,7 +1273,6 @@ const CoverRegistration = (function () {
         );
         $(`#quota_treaty_limit-${counter}`).val(numberWithCommas(treatyLimit));
 
-        // Auto-calculate surplus if present
         $(`#surp_retention_amt-${counter}`).val(numberWithCommas(retentionAmt));
         $(`#no_of_lines-${counter}`).trigger("keyup");
     }
@@ -1635,7 +1630,6 @@ const CoverRegistration = (function () {
         const start = new Date(startVal);
         let end = endVal ? new Date(endVal) : null;
 
-        // If coverto is empty → generate 1 year -1 day from start
         if (!endVal) {
             end = new Date(start);
             end.setFullYear(end.getFullYear() + 1);
@@ -1644,7 +1638,6 @@ const CoverRegistration = (function () {
             $("#coverto").val(end.toISOString().split("T")[0]);
         }
 
-        // Recalculate duration based on dates
         if (end && !isNaN(end.getTime())) {
             const diffMs = end - start;
             const days = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
@@ -1722,6 +1715,87 @@ const CoverRegistration = (function () {
         $("#sliding-csv-file").val("");
     }
 
+    $("#createNewInsurer").on("click", function (e) {
+        e.preventDefault();
+        window.open("/customer/customer-new", "_blank", "noopener,noreferrer");
+    });
+
+    $("#addInsurerModal").on("shown.bs.modal", function () {
+        $(".select2-modal").select2({
+            dropdownParent: $("#addInsurerModal"),
+            width: "100%",
+        });
+    });
+
+    $("#addInsurerForm").on("submit", function (e) {
+        e.preventDefault();
+
+        // Hide previous alerts
+        $(".alert").addClass("d-none");
+
+        // Basic validation
+        let isValid = true;
+        if ($("#insurer_name").val().trim() === "") {
+            $("#insurer_name").addClass("is-invalid");
+            isValid = false;
+        } else {
+            $("#insurer_name").removeClass("is-invalid");
+        }
+
+        if (!isValid) return false;
+
+        // Disable submit button
+        $("#saveInsurerBtn")
+            .prop("disabled", true)
+            .html('<i class="bx bx-loader bx-spin me-1"></i>Saving...');
+
+        // AJAX request
+        //{{-- $.ajax({
+        //     url: '{{ route('insured.store') }}', // Adjust route name as needed
+        //     method: 'POST',
+        //     data: $(this).serialize(),
+        //     success: function(response) {
+        //         if (response.success) {
+        //             // Show success message
+        //             $('#insurerSuccessMessage').text(response.message ||
+        //                 'Insurer added successfully!');
+        //             $('#insurerSuccessAlert').removeClass('d-none');
+
+        //             // Add new option to select
+        //             const newOption = new Option(response.insurer.name, response.insurer
+        //                 .name, true, true);
+        //             $('#insured_name').append(newOption).trigger('change');
+
+        //             // Close modal after 1.5 seconds
+        //             setTimeout(function() {
+        //                 $('#addInsurerModal').modal('hide');
+        //                 $('#addInsurerForm')[0].reset();
+        //                 $('#saveInsurerBtn').prop('disabled', false).html(
+        //                     '<i class="bx bx-save me-1"></i>Save Insurer');
+        //             }, 1500);
+        //         }
+        //     },
+        //     error: function(xhr) {
+        //         let errorMessage = 'An error occurred while saving the insurer.';
+
+        //         if (xhr.responseJSON && xhr.responseJSON.message) {
+        //             errorMessage = xhr.responseJSON.message;
+        //         } else if (xhr.responseJSON && xhr.responseJSON.errors) {
+        //             const errors = Object.values(xhr.responseJSON.errors).flat();
+        //             errorMessage = errors.join('<br>');
+        //         }
+
+        //         $('#insurerErrorMessage').html(errorMessage);
+        //         $('#insurerErrorAlert').removeClass('d-none');
+        //         $('#saveInsurerBtn').prop('disabled', false).html(
+        //             '<i class="bx bx-save me-1"></i>Save Insurer');
+        //     }
+        // }); --}}
+    });
+
+    $("#insurer_name").on("input", function () {
+        $(this).removeClass("is-invalid");
+    });
     function handleTreatyTypeChange() {
         const treatyType = $(this).val();
         const treatyTypeTxt = $(this).find("option:selected").text();
@@ -2723,7 +2797,7 @@ const CoverRegistration = (function () {
         if (!prospectId || prospectId.length < 3) return;
 
         if (!config.routes.getProspectData) {
-            // toastr.error("Prospect data endpoint not configured");
+            toastr.error("Prospect data endpoint not configured");
             return;
         }
 
@@ -2757,15 +2831,116 @@ const CoverRegistration = (function () {
             covertype: elements.coverType,
             branchcode: $("#branchcode"),
             broker_flag: elements.brokerFlag,
-            broker_code: $("#brokercode"),
-            currency_code: elements.currencyCode,
+            brokercode: $("#brokercode"),
+
+            pay_method: $("#pay_method"),
+            no_of_installments: $("#no_of_installments"),
+            currency_code: $("#currency_code"),
+            today_currency: $("#today_currency"),
+
+            class_group: $("#class_group"),
+            insured_name: $("#insured_name"),
+            fac_date_offered: $("#fac_date_offered"),
+
+            sum_insured_type: $("#sum_insured_type"),
+            total_sum_insured: $("#total_sum_insured"),
+            apply_eml: $("#apply_eml"),
+            eml_rate: $("#eml_rate"),
+            eml_amt: $("#eml_amt"),
+            effective_sum_insured: $("#effective_sum_insured"),
+
+            cede_premium: $("#cede_premium"),
+            rein_premium: $("#rein_premium"),
+            fac_share_offered: $("#fac_share_offered"),
+
+            comm_rate: $("#comm_rate"),
+            comm_amt: $("#comm_amt"),
+            reins_comm_type: $("#reins_comm_type"),
+            reins_comm_rate: $("#reins_comm_rate"),
+            reins_comm_amt: $("#reins_comm_amt"),
+
+            brokerage_comm_type: $("#brokerage_comm_type"),
+            brokerage_comm_rate: $("#brokerage_comm_rate"),
+            brokerage_comm_rate_amnt: $("#brokerage_comm_rate_amnt"),
+            brokerage_comm_amt: $("#brokerage_comm_amt"),
+
+            coverfrom: $("#coverfrom"),
+            coverto: $("#coverto"),
+            division: $("#division"),
+            vat_charged: $("#vat_charged"),
+            limit_per_reinclass: $("#limit_per_reinclass"),
+            layer_no: $("#layer_no"),
+            nonprop_reinclass: $("#nonprop_reinclass"),
+            nonprop_reinclass_desc: $("#nonprop_reinclass_desc"),
+            indemnity_treaty_limit: $("#indemnity_treaty_limit"),
+            underlying_limit: $("#underlying_limit"),
         };
 
         Object.entries(fieldMappings).forEach(([key, $element]) => {
-            if (data[key] && $element.length) {
+            if (
+                data[key] !== undefined &&
+                data[key] !== null &&
+                $element.length
+            ) {
                 $element.val(data[key]).trigger("change");
             }
         });
+
+        if (data.classcode) {
+            const populateClasscode = () => {
+                const $classcode = $("#classcode");
+                const classOption = $classcode.find(
+                    `option[value="${data.classcode}"]`
+                );
+
+                if (classOption.length > 0) {
+                    $classcode.val(data.classcode).trigger("change");
+                } else {
+                    setTimeout(populateClasscode, 200);
+                }
+            };
+
+            setTimeout(populateClasscode, 300);
+        }
+
+        if (data.premium_payment_term) {
+            const populatePremiumPaymentTerm = () => {
+                const $premiumPaymentTerm = $("#premium_payment_term");
+                const paymentTermOption = $premiumPaymentTerm.find(
+                    `option[value="${data.premium_payment_term}"]`
+                );
+
+                if (paymentTermOption.length > 0) {
+                    $premiumPaymentTerm
+                        .val(data.premium_payment_term)
+                        .trigger("change");
+                } else {
+                    setTimeout(populatePremiumPaymentTerm, 200);
+                }
+            };
+
+            setTimeout(populatePremiumPaymentTerm, 300);
+        }
+
+        if (data.risk_details) {
+            $("#risk_details_content").html(data.risk_details);
+        }
+
+        if (data.pay_method) {
+            setTimeout(() => {
+                const selectedOption = $("#pay_method").find("option:selected");
+                const shortDescription =
+                    selectedOption.attr("data-description");
+
+                if (shortDescription === "I") {
+                    $("#installments_count_section").show();
+                    $("#add_installment_btn_section").show();
+                } else {
+                    $("#installments_count_section").hide();
+                    $("#add_installment_btn_section").hide();
+                }
+            }, 100);
+        }
     }
 
     function populateExistingData() {

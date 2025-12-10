@@ -71,7 +71,7 @@
                                 id="dismiss-partner-btn">
                                 <i class="fa fa-times"></i> Cancel
                             </button>
-                            <button type="button" id="partner-save-btn" class="btn btn-primary btn-sm">
+                            <button type="submit" id="partner-save-btn" class="btn btn-primary btn-sm">
                                 <i class="fa fa-save"></i> Save Placement
                             </button>
                         </div>
@@ -119,3 +119,7 @@
         border-radius: 0px !important;
     }
 </style>
+
+
+@push('script')
+@endpush

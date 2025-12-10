@@ -5,15 +5,11 @@ namespace App\Services;
 use Carbon\Carbon;
 use App\Models\Customer;
 use App\Models\Bd\CustomerContact;
+use Exception;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Collection;
 
-/**
- * Customer Service
- *
- * Handles business logic for customer operations
- */
 class CustomerService
 {
     public function getCoversByBusinessType(array $typeOfBus): Collection
@@ -42,30 +38,53 @@ class CustomerService
 
     public function createCustomer(array $data): Customer
     {
-        $customerType = is_array($data['customerType'])
-            ? $data['customerType']
-            : explode(',', $data['customerType']);
+        DB::beginTransaction();
 
-        return Customer::create([
-            'name' => $data['partnerName'],
-            'customer_type' => $customerType,
-            'street' => $data['street'],
-            'city' => $data['city'],
-            'postal_address' => $data['postalCode'],
-            'country_iso' => $data['country'],
-            'registration_no' => $data['incorporationNo'],
-            'tax_no' => $data['taxNo'],
-            'email' => $data['email'],
-            'financial_rate' => $data['financialRating'],
-            'agency_rate' => $data['agencyRating'],
-            'website' => $data['website'] ?? null,
-            'telephone' => $data['telephone'] ?? null,
-            'identity_number_type' => $data['identityType'],
-            'identity_number' => $data['identityNo'],
-            'status' => 'A',
-            'created_by' => Auth::user()->user_name ?? 'system',
-            'created_at' => Carbon::now(),
-        ]);
+        try {
+            // Create the main customer record
+            $customer = $this->createCustomerRecord($data);
+
+            // // Attach customer types
+            // $this->attachCustomerTypes($customer, $data['customerType'] ?? []);
+
+            // // Create contacts
+            // $this->createContacts($customer, $data['contacts'] ?? []);
+
+            DB::commit();
+
+            return $customer->load(['customerTypes', 'contacts']);
+        } catch (Exception $e) {
+            DB::rollBack();
+
+            logger($e);
+
+            throw $e;
+        }
+
+        // $customerType = is_array($data['customerType'])
+        //     ? $data['customerType']
+        //     : explode(',', $data['customerType']);
+
+        // return Customer::create([
+        //     'name' => $data['partnerName'],
+        //     'customer_type' => $customerType,
+        //     'street' => $data['street'],
+        //     'city' => $data['city'],
+        //     'postal_address' => $data['postalCode'],
+        //     'country_iso' => $data['country'],
+        //     'registration_no' => $data['incorporationNo'],
+        //     'tax_no' => $data['taxNo'],
+        //     'email' => $data['email'],
+        //     'financial_rate' => $data['financialRating'],
+        //     'agency_rate' => $data['agencyRating'],
+        //     'website' => $data['website'] ?? null,
+        //     'telephone' => $data['telephone'] ?? null,
+        //     'identity_number_type' => $data['identityType'],
+        //     'identity_number' => $data['identityNo'],
+        //     'status' => 'A',
+        //     'created_by' => Auth::user()->user_name ?? 'system',
+        //     'created_at' => Carbon::now(),
+        // ]);
     }
 
     public function createCustomerContacts(int $customerId, array $contacts): void
@@ -87,6 +106,57 @@ class CustomerService
             ]);
         }
     }
+
+    protected function createCustomerRecord(array $data): Customer
+    {
+        return Customer::create([
+            'partner_name' => $data['partnerName'],
+            'email' => $data['email'],
+            'telephone' => $data['telephone'],
+
+            // Legal & Identification
+            'incorporation_no' => $data['incorporationNo'] ?? null,
+            'tax_no' => $data['taxNo'] ?? null,
+            'identity_type' => $data['identityType'] ?? null,
+            'identity_no' => $data['identityNo'] ?? null,
+            'website' => $data['website'] ?? null,
+
+            // Dynamic Fields
+            'security_rating' => $data['securityRating'] ?? null,
+            'rating_agency' => $data['ratingAgency'] ?? null,
+            'rating_date' => $data['ratingDate'] ?? null,
+            'regulator_license_no' => $data['regulatorLicenseNo'] ?? null,
+            'licensing_authority' => $data['licensingAuthority'] ?? null,
+            'licensing_territory' => $data['licensingTerritory'] ?? null,
+            'aml_details' => $data['amlDetails'] ?? null,
+            'insured_type' => $data['insuredType'] ?? null,
+            'industry_occupation' => $data['industryOccupation'] ?? null,
+            'date_of_birth_incorporation' => $data['dateOfBirthIncorporation'] ?? null,
+
+            // Address Information
+            'country' => $data['country'],
+            'street' => $data['street'],
+            'city' => $data['city'],
+            'state' => $data['state'] ?? null,
+            'postal_code' => $data['postalCode'],
+
+            // Financial Information
+            'financial_rating' => $data['financialRating'] ?? null,
+            'agency_rating' => $data['agencyRating'] ?? null,
+
+            // Metadata
+            'company_id' => $this->getCurrentCompanyId(),
+            'created_by' => Auth::id(),
+            'updated_by' => Auth::id(),
+            'status' => 'active',
+        ]);
+    }
+
+    protected function getCurrentCompanyId(): ?int
+    {
+        return Auth::user()?->company_id ?? null;
+    }
+
 
     public function getStatistics(): array
     {

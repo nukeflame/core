@@ -48,6 +48,7 @@ use App\Models\TypeOfSumInsured;
 use App\Models\CoverInstallments;
 use App\Models\ReinclassPremtype;
 use App\Models\Bd\PipelineOpportunity;
+use App\Models\BdFacReinsurer;
 use App\Models\Company;
 use App\Models\DebitNote;
 use Illuminate\Support\Facades\DB;
@@ -67,6 +68,7 @@ use App\Services\DebitNoteService;
 use App\Services\TaxCalculationService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Exception;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\Storage;
 
 class CoverController extends Controller
@@ -324,38 +326,40 @@ class CoverController extends Controller
 
     public function editCoverRegister(Request $request)
     {
-        $validator = Validator::make($request->all(), [
-            'cover_no' => 'required',
-            'endorsement_no' => 'required',
-            'covertype' => 'required',
-            'branchcode' => 'required',
-            'customer_id' => 'required',
-            'classcode' => 'required',
-            'coverfrom' => 'required',
-            'coverto' => 'required',
-            'pay_method' => 'required',
-            'type_of_bus' => 'required',
-            'class_group' => 'required',
-        ]);
+        return view('cover.edit_cover_form', []);
 
-        if (!$validator) {
-            return redirect()->route('cover.editCoverForm', [
-                'cover_no' => $request->cover_no,
-                'endorsement_no' => $request->endorsement_no,
-                'customer_id' => $request->customer_id,
-                'trans_type' => $request->trans_type,
-            ])->with('errors', $validator->errors());
-        }
+        // $validator = Validator::make($request->all(), [
+        //     'cover_no' => 'required',
+        //     'endorsement_no' => 'required',
+        //     'covertype' => 'required',
+        //     'branchcode' => 'required',
+        //     'customer_id' => 'required',
+        //     'classcode' => 'required',
+        //     'coverfrom' => 'required',
+        //     'coverto' => 'required',
+        //     'pay_method' => 'required',
+        //     'type_of_bus' => 'required',
+        //     'class_group' => 'required',
+        // ]);
 
-        DB::beginTransaction();
-        try {
-            $result = $this->coverRepository->editCoverRegister($request);
-            DB::commit();
-            return redirect()->route('cover.CoverHome', ['endorsement_no' => $result->endorsement_no])->with('success', 'Cover Register information updated successfully');
-        } catch (\Exception $e) {
-            DB::rollback();
-            return redirect()->route('cover.CoverHome', ['endorsement_no' => $request->endorsement_no])->with('error', 'Failed to update Cover information');
-        }
+        // if (!$validator) {
+        //     return redirect()->route('cover.editCoverForm', [
+        //         'cover_no' => $request->cover_no,
+        //         'endorsement_no' => $request->endorsement_no,
+        //         'customer_id' => $request->customer_id,
+        //         'trans_type' => $request->trans_type,
+        //     ])->with('errors', $validator->errors());
+        // }
+
+        // DB::beginTransaction();
+        // try {
+        //     $result = $this->coverRepository->editCoverRegister($request);
+        //     DB::commit();
+        //     return redirect()->route('cover.CoverHome', ['endorsement_no' => $result->endorsement_no])->with('success', 'Cover Register information updated successfully');
+        // } catch (\Exception $e) {
+        //     DB::rollback();
+        //     return redirect()->route('cover.CoverHome', ['endorsement_no' => $request->endorsement_no])->with('error', 'Failed to update Cover information');
+        // }
     }
 
     public function insertCoverReinProp($data)
@@ -709,7 +713,7 @@ class CoverController extends Controller
                 'treaty.*.reinsurers.*.share' => 'required|numeric|min:0|max:100',
                 'treaty.*.reinsurers.*.written_share' => 'required|numeric|min:0|max:100',
                 'treaty.*.reinsurers.*.comm_rate' => 'nullable|numeric|min:0',
-                'treaty.*.reinsurers.*.amount_type' => 'nullable|string',
+                // 'treaty.*.reinsurers.*.amount_type' => 'nullable|string',
                 'treaty.*.reinsurers.*.wht_rate' => 'nullable|numeric|min:0|max:100',
                 'treaty.*.reinsurers.*.pay_method' => 'required|exists:pay_method,pay_method_code',
                 'treaty.*.reinsurers.*.no_of_installments' => 'nullable|integer|min:1|max:12',
@@ -754,7 +758,7 @@ class CoverController extends Controller
                     $coverRipart->cover_no = $coverRegister->cover_no;
                     $coverRipart->endorsement_no = $coverRegister->endorsement_no;
                     $coverRipart->tran_no = $tran_no;
-                    $coverRipart->amount_type = $reinsurerData['amount_type'];
+                    // $coverRipart->amount_type = $reinsurerData['amount_type'];
                     $coverRipart->period_year = $this->_year;
                     $coverRipart->period_month = $this->_month;
                     $coverRipart->partner_no = $reinsurerData['reinsurer'];
@@ -3732,86 +3736,217 @@ class CoverController extends Controller
     public function getProspectData($prospectId)
     {
         try {
-            $p = PipelineOpportunity::where(['handed_over' => 'Y', 'opportunity_id' => $prospectId])->has('handovers')->with('handovers')->first();
-            if ($p) {
-                $cover = CoverRegister::where('prospect_id', $prospectId)->first();
+            $prospect = PipelineOpportunity::where([
+                'handed_over' => 'Y',
+                'opportunity_id' => $prospectId
+            ])
+                ->has('handovers')
+                ->with('handovers')
+                ->first();
 
-                if ($prospectId) {
-                    if (!empty($cover)) {
-                        return response()->json([
-                            'status' => false,
-                            'message' => 'Prospect already integrated!'
-                        ]);
-                    }
-                }
-
-                $covertype = CoverType::where('short_description', 'N')->first();
-
-                $data = [
-                    'customer_id' => $p->customer_id,
-                    'trans_type' => 'NEW',
-                    'type_of_bus' => $p->type_of_bus,
-                    'covertype' => $covertype?->type_id,
-                    'branchcode' => $p->branchcode,
-                    'broker_flag' => $p->broker_flag,
-                    'prospect_id' => $p->id,
-                    'division' => $p->division,
-                    'pay_method' => $p->pay_method,
-                    'no_of_installments' => $p->no_of_installments,
-                    'currency_code' => $p->currency_code,
-                    'today_currency' => $p->today_currency,
-                    'premium_payment_term' => $p->premium_payment_term,
-                    'class_group' => $p->class_group,
-                    'classcode' => $p->classcode,
-                    'insured_name' => $p->insured_name,
-                    'fac_date_offered' => $p->fac_date_offered,
-                    'sum_insured_type' => $p->sum_insured_type,
-                    'total_sum_insured' => $p->total_sum_insured,
-                    'eml_rate' => $p->eml_rate,
-                    'eml_amt' => $p->eml_amt,
-                    'apply_eml' => $p->apply_eml,
-                    'effective_sum_insured' => $p->effective_sum_insured,
-                    'risk_details' => $p->risk_details,
-                    'cede_premium' => $p->cede_premium,
-                    'rein_premium' => $p->rein_premium,
-                    'fac_share_offered' => $p->fac_share_offered,
-                    'comm_rate' => $p->comm_rate,
-                    'comm_amt' => $p->comm_amt,
-                    'reins_comm_type' =>  $p->reins_comm_type,
-                    'reins_comm_rate' => $p->reins_comm_rate,
-                    'reins_comm_amt' => $p->reins_comm_amt,
-                    'brokerage_comm_type' => $p->brokerage_comm_type,
-                    'brokerage_comm_amt' => $p->brokerage_comm_amt,
-                    'brokerage_comm_rate' => $p->brokerage_comm_rate,
-                    'brokerage_comm_rate_amnt' => $p->brokerage_comm_rate_amnt,
-                    'vat_charged' => $p->vat_charged,
-                    'limit_per_reinclass' => $p->limit_per_reinclass,
-                    'layer_no' => $p->layer_no,
-                    'nonprop_reinclass' => $p->nonprop_reinclass,
-                    'nonprop_reinclass_desc' => $p->nonprop_reinclass_desc,
-                    'indemnity_treaty_limit' => $p->indemnity_treaty_limit,
-                    'underlying_limit' => $p->underlying_limit,
-                    'coverfrom' => $p->effective_date,
-                    'coverto' => $p->closing_date,
-                    'brokercode' => $p->brokercode,
-                ];
-
-                return response()->json([
-                    'status' => true,
-                    'message' => 'Success',
-                    'data' => $data
-                ]);
-            } else {
+            if (!$prospect) {
                 return response()->json([
                     'status' => false,
                     'message' => 'Prospect not found'
-                ]);
+                ], 404);
             }
+
+            $existingCover = CoverRegister::where('prospect_id', $prospectId)->first();
+
+            if ($existingCover) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'Prospect already integrated!'
+                ], 409);
+            }
+
+            $coverType = CoverType::where('short_description', 'N')->first();
+
+            $data = [
+                'customer_id' => $prospect->customer_id,
+                'trans_type' => 'NEW',
+                'type_of_bus' => $prospect->type_of_bus,
+                'covertype' => $coverType?->type_id,
+                'branchcode' => $prospect->branchcode,
+                'broker_flag' => $prospect->broker_flag ?? 'N',
+                'prospect_id' => $prospect->id,
+                'division' => $prospect->divisions,
+                'pay_method' => $prospect->pay_method ?? '101',
+                'no_of_installments' => $prospect->no_of_installments,
+                'currency_code' => $prospect->currency_code,
+                'today_currency' => $prospect->today_currency,
+                'premium_payment_term' => $prospect->premium_payment_term,
+                'class_group' => $prospect->class_group,
+                'classcode' => $prospect->classcode,
+                'insured_name' => $prospect->insured_name,
+                'fac_date_offered' => Carbon::parse($prospect->fac_date_offered)->format('Y-m-d'),
+                'sum_insured_type' => $prospect->sum_insured_type,
+                'total_sum_insured' => $prospect->total_sum_insured,
+                'eml_rate' => $prospect->eml_rate,
+                'eml_amt' => $prospect->eml_amt,
+                'apply_eml' => $prospect->apply_eml,
+                'effective_sum_insured' => $prospect->effective_sum_insured,
+                'risk_details' => $prospect->risk_details,
+                'cede_premium' => $prospect->cede_premium,
+                'rein_premium' => $prospect->rein_premium,
+                'fac_share_offered' => $prospect->fac_share_offered,
+                'comm_rate' => $prospect->comm_rate,
+                'comm_amt' => $prospect->comm_amt,
+                'reins_comm_type' => $prospect->reins_comm_type,
+                'reins_comm_rate' => $prospect->reins_comm_rate,
+                'reins_comm_amt' => $prospect->reins_comm_amt,
+                'brokerage_comm_type' => $prospect->brokerage_comm_type,
+                'brokerage_comm_amt' => $prospect->brokerage_comm_amt,
+                'brokerage_comm_rate' => $prospect->brokerage_comm_rate,
+                'brokerage_comm_rate_amnt' => $prospect->brokerage_comm_rate_amnt,
+                'vat_charged' => $prospect->vat_charged,
+                'limit_per_reinclass' => $prospect->limit_per_reinclass,
+                'layer_no' => $prospect->layer_no,
+                'nonprop_reinclass' => $prospect->nonprop_reinclass,
+                'nonprop_reinclass_desc' => $prospect->nonprop_reinclass_desc,
+                'indemnity_treaty_limit' => $prospect->indemnity_treaty_limit,
+                'underlying_limit' => $prospect->underlying_limit,
+                'coverfrom' => Carbon::parse($prospect->effective_date)->format('Y-m-d'),
+                'coverto' => Carbon::parse($prospect->closing_date)->format('Y-m-d'),
+                'brokercode' => $prospect->brokercode,
+            ];
+
+            return response()->json([
+                'status' => true,
+                'message' => 'Success',
+                'data' => $data
+            ]);
         } catch (Exception $e) {
+            logger($e);
+
             return response()->json([
                 'status' => false,
                 'message' => 'An error occurred while fetching prospect data',
             ], 500);
         }
+    }
+
+    public function fetchReinsurers(Request $request)
+    {
+        try {
+            $validated = $request->validate([
+                'cover_no' => 'required|string',
+                'endorsement_no' => 'required|string',
+            ]);
+
+            $cover = CoverRegister::where('cover_no', $validated['cover_no'])->where('endorsement_no', $validated['endorsement_no'])->firstOrFail();
+
+            $isTreaty = in_array($cover->type_of_bus, ['TPR', 'TNP']);
+
+            $responseData = [];
+
+            if ($isTreaty) {
+                $responseData = $this->fetchTreatyReinsurers($cover);
+            } else {
+                $responseData = $this->fetchFacultativeReinsurers($cover);
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => $responseData,
+                'cover_type' => $cover->type_of_bus,
+            ]);
+        } catch (ModelNotFoundException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Cover not found',
+            ], 404);
+        } catch (Exception $e) {
+            logger($e);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch reinsurers data',
+            ], 500);
+        }
+    }
+
+    private function fetchTreatyReinsurers(CoverRegister $cover): array
+    {
+        // $treaties = CoverTreaty::where('cover_id', $cover->id)
+        //     ->with(['reinsurers' => function ($query) {
+        //         $query->with(['partner', 'installments']);
+        //     }])
+        //     ->get();
+
+        $treaties = collect([]);
+
+        return [
+            'treaties' => $treaties->map(function ($treaty) use ($cover) {
+                return [
+                    'treaty_id' => $treaty->treaty_id,
+                    'layer_no' => $treaty->layer_no,
+                    'reinsurers' => $treaty->reinsurers->map(function ($reinsurer) use ($cover) {
+                        return $this->mapReinsurerData($reinsurer, $cover, true);
+                    })->toArray(),
+                ];
+            })->toArray(),
+        ];
+    }
+
+    private function fetchFacultativeReinsurers(CoverRegister $cover): array
+    {
+        $reinsurers = BdFacReinsurer::where('opportunity_id', $cover->prospect_id)->get();
+
+        return [
+            'reinsurers' => $reinsurers->map(function ($reinsurer) use ($cover) {
+                return $this->mapReinsurerData($reinsurer, $cover, false);
+            })->toArray(),
+        ];
+    }
+
+    private function mapReinsurerData($reinsurer, $cover, bool $isTreaty): array
+    {
+        $data = [
+            'id' => $reinsurer->id,
+            'partner_no' => $reinsurer->reinsurer_id,
+            'reinsurer_id' => $reinsurer->reinsurer_id,
+            'reinsurer_name' => $reinsurer->reinsurer_name,
+            'written_share' => $reinsurer->updated_written_share,
+            'share' => $reinsurer->updated_signed_share,
+            'wht_rate' => $reinsurer->wht_rate ?? '0.00',
+            'premium_type' => $reinsurer->premium_type ?? 'net',
+            'pay_method' => $cover->pay_method_code,
+        ];
+
+        if ($isTreaty) {
+            $data = array_merge($data, [
+                'compulsory_acceptance' => $reinsurer->compulsory_acceptance,
+                'optional_acceptance' => $reinsurer->optional_acceptance,
+            ]);
+        } else {
+            $data = array_merge($data, [
+                'sum_insured' => $cover->total_sum_insured,
+                'premium' => $cover->cedant_premium,
+                'comm_rate' => $cover->cedant_comm_rate,
+                'comm_amt' => $cover->cedant_comm_amount,
+                'brokerage_comm_type' => $cover->brokerage_comm_type,
+                'brokerage_comm_amt' => $cover->brokerage_comm_amt,
+                'brokerage_comm_rate' => $cover->brokerage_comm_rate,
+                'brokerage_comm_rate_amnt' => 0,
+                'apply_fronting' => 'N',
+                'fronting_rate' => 0,
+                'fronting_amt' => 0,
+                'no_of_installments' => $cover->no_of_installments,
+            ]);
+
+            // if ($cover->installments && $cover->installments->count() > 0) {
+            //     $data['installments'] = $reinsurer->installments->map(function ($inst) {
+            //         return [
+            //             'due_date' => $inst->due_date?->format('Y-m-d'),
+            //             'amount' => $inst->amount,
+            //             'status' => $inst->status,
+            //         ];
+            //     })->toArray();
+            // }
+        }
+
+        logger()->debug(json_encode($reinsurer, JSON_PRETTY_PRINT));
+        return $data;
     }
 }

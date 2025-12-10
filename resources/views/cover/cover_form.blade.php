@@ -131,7 +131,6 @@
                 </div>
             </div>
 
-            {{-- Form Actions --}}
             <div class="row mb-3">
                 <div class="col-12">
                     <div class="card">
@@ -157,7 +156,7 @@
     </div>
 
     {{-- Modals --}}
-    {{-- @include('cover.modals.add-insured') --}}
+    @include('cover.modals.add-insured')
     @include('cover.partials.page-loader')
 @endsection
 
@@ -221,9 +220,7 @@
                 getBinderCovers: '{{ route('get_binder_covers') }}',
                 getTodaysRate: '{{ route('get_todays_rate') }}',
                 getReinPremType: '{{ route('cover.get_reinprem_type') }}',
-                //{{-- getProspectData: '{{ route('cover.prospect-data', ':id') }}' --}}
-                getProspectData: ''
-
+                getProspectData: '{{ route('pipeline.get_prospect_data', ':id') }}'
             },
             oldData: @json($old_endt_trans ?? null)
         };

@@ -26,6 +26,7 @@
                         Customer</button>
                     {{ csrf_field() }}
                     {{ html()->form()->close() }}
+
                     {{-- {{ html()->form('post', '/customer/customer-dtl')->id('form_customer_datatable')->open() }} --}}
                     {{-- <input type="text" id="customer_id" name="customer_id" hidden /> --}}
                     <div class="table-responsive">

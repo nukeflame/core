@@ -11,7 +11,7 @@ class CustomerTypes extends Model
 
     protected $table = 'customer_types';
     public $timestamps = false;
-    // public $primaryKey=['type_name'];
+
     public $primaryKey = 'type_id';
     public $incrementing = false;
     protected $guarded = [];

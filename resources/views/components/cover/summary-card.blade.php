@@ -187,10 +187,10 @@
                                 <span class="summary-label">Cedant's Commission</span>
                                 <div>
                                     <span class="summary-value d-block">
-                                        {{ number_format($cover->rein_comm_rate ?? 0, 2) }}%
+                                        {{ number_format($cover->cedant_comm_rate ?? 0, 2) }}%
                                     </span>
                                     <small class="text-muted">
-                                        {{ number_format($cover->rein_comm_amount ?? 0, 2) }}
+                                        {{ number_format($cover->cedant_comm_amount ?? 0, 2) }}
                                     </small>
                                 </div>
                             </div>
@@ -220,6 +220,11 @@
                             <div class="summary-item">
                                 <span class="summary-label">Insured Name</span>
                                 <span class="summary-value">{{ $cover->insured_name }}</span>
+                            </div>
+
+                            <div class="summary-item">
+                                <span class="summary-label">Prospect ID</span>
+                                <span class="summary-value">{{ $cover->prospect_id ?? '--' }}</span>
                             </div>
                         @endif
                     </div>

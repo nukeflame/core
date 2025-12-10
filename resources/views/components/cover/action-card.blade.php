@@ -42,18 +42,23 @@
             @if ($isUnverified)
                 <button type="button" class="btn btn-outline-dark btn-sm text-start me-2" data-bs-toggle="modal"
                     data-bs-target="#addScheduleModal">
-                    <i class="ri-table-line me-2"></i>Add Schedule
+                    <i class="ri-table-line me-2"></i>Add Schedule Details
                 </button>
 
                 <button type="button" class="btn btn-outline-dark btn-sm text-start me-2" data-bs-toggle="modal"
                     data-bs-target="#addClauseModal">
-                    <i class="ri-file-text-line me-2"></i>Add Clause
+                    <i class="ri-file-text-line me-2"></i>Add File &amp; Supporting Docs
                 </button>
 
                 <button type="button" class="btn btn-outline-dark btn-sm text-start me-2" data-bs-toggle="modal"
+                    data-bs-target="#addClauseModal">
+                    <i class="ri-file-text-line me-2"></i>Add Policy Clauses
+                </button>
+
+                {{-- <button type="button" class="btn btn-outline-dark btn-sm text-start me-2" data-bs-toggle="modal"
                     data-bs-target="#addAttachmentModal">
                     <i class="ri-upload-line me-2"></i>Upload Document
-                </button>
+                </button> --}}
             @endif
         @endif
 
@@ -74,7 +79,7 @@
         @if ($isUnverified)
             <button type="button" class="btn btn-outline-success btn-sm text-start me-2" data-bs-toggle="modal"
                 data-bs-target="#addReinsurerModal">
-                <i class="ri-team-line me-2"></i>Add Reinsurer
+                <i class="ri-team-line me-2"></i>Add Reinsurers
             </button>
 
             <button type="button" class="btn btn-outline-secondary btn-sm text-start me-2" data-action="generate-slip"
@@ -229,7 +234,7 @@
                 },
 
                 editCover(endorsementNo) {
-                    window.location.href = `/covers/${endorsementNo}/edit`;
+                    window.location.href = `/cover/${endorsementNo}/edit`;
                 },
 
                 generateDocument(endorsementNo, type, isPreview = false) {
