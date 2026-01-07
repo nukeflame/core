@@ -309,10 +309,10 @@ class SettingsCoverController extends Controller
 
     public function classClausesData()
     {
-        $clauses = ClauseParam::select(['clause_id', 'class_code','clause_title', 'clause_wording', 'status'])->orderBy('clause_id','asc');
+        $clauses = ClauseParam::select(['clause_id', 'class_code', 'clause_title', 'clause_wording', 'status'])->orderBy('clause_id', 'asc');
         return DataTables::Of($clauses)
             ->addColumn('class_name', function ($row) {
-                $class = Classes::where('class_code',$row->class_code)->first();
+                $class = Classes::where('class_code', $row->class_code)->first();
                 return $class->class_name;
             })
             ->addColumn('action', function ($row) {
@@ -410,7 +410,7 @@ class SettingsCoverController extends Controller
 
     public function CustomerTypeData()
     {
-        $customer = CustomerTypes::select(['type_id', 'type_name','code', 'status']);
+        $customer = CustomerTypes::select(['type_id', 'type_name', 'code', 'status']);
         return DataTables::Of($customer)
             ->addColumn('action', function ($row) {
                 if ($row->status === 'A') {
@@ -641,9 +641,7 @@ class SettingsCoverController extends Controller
         }
     }
 
-    public function BusinessTypeDeleteData(Request $request)
-    {
-    }
+    public function BusinessTypeDeleteData(Request $request) {}
 
     // BINDERS ==================================================================================================
     public function BinderInfo(Request $request)
@@ -705,9 +703,7 @@ class SettingsCoverController extends Controller
         }
     }
 
-    public function BinderDeleteData(Request $request)
-    {
-    }
+    public function BinderDeleteData(Request $request) {}
 
     // PAYMENT METHODS ==================================================================================================
     public function PayMethodInfo(Request $request)
@@ -769,11 +765,8 @@ class SettingsCoverController extends Controller
         }
     }
 
-    public function PayMethodDeleteData(Request $request)
-    {
-    }
+    public function PayMethodDeleteData(Request $request) {}
 
-    // SUM INSURANCE TYPES ==================================================================================================
     public function SumInsTypeInfo(Request $request)
     {
         return view('settings.cover.sumInsType', [
@@ -832,9 +825,7 @@ class SettingsCoverController extends Controller
         }
     }
 
-    public function SumInsTypeDeleteData(Request $request)
-    {
-    }
+    public function SumInsTypeDeleteData(Request $request) {}
 
     // REINS DIVISION ==================================================================================================
     public function ReinsDivisionInfo(Request $request)
@@ -929,12 +920,12 @@ class SettingsCoverController extends Controller
         ]);
     }
 
-    public function ReinsClassData()   
+    public function ReinsClassData()
     {
         // $ReinsClass = ReinsClass::select(['class_group','class_code', 'class_name', 'status']);
         $ReinsClass = ReinsClass::select('reinsclasses.*', 'class_groups.group_name')
-                ->join('class_groups', 'reinsclasses.class_group', '=', 'class_groups.group_code')
-                ->get();
+            ->join('class_groups', 'reinsclasses.class_group', '=', 'class_groups.group_code')
+            ->get();
         return DataTables::Of($ReinsClass)
             ->addColumn('action', function ($row) {
                 if ($row->status === 'A') {
@@ -1010,7 +1001,7 @@ class SettingsCoverController extends Controller
         }
     }
 
-    public function ReinsClass(Request $request )
+    public function ReinsClass(Request $request)
     {
         $ReinsClass = ReinsClass::where('class_group', $request->division)->get();
         return response()->json(['data' => $ReinsClass]);
@@ -1026,7 +1017,7 @@ class SettingsCoverController extends Controller
 
     public function TreatyTypeData()
     {
-        $TreatyType = TreatyType::select(['type_of_bus','treaty_code', 'treaty_name', 'status']);
+        $TreatyType = TreatyType::select(['type_of_bus', 'treaty_code', 'treaty_name', 'status']);
         return DataTables::Of($TreatyType)
             ->addColumn('type_of_bus', function ($row) {
                 // get reinclass
@@ -1106,7 +1097,7 @@ class SettingsCoverController extends Controller
         }
     }
 
-   
+
 
     // REINCLASS PREMTYPES GROUP ==================================================================================================
     public function reinsClassPremtypesInfo(Request $request)
@@ -1171,11 +1162,11 @@ class SettingsCoverController extends Controller
     {
         // dd($request);
         try {
-            $reinsClassPremtypes = ReinclassPremtype::where('reinclass',$request->ed_reinclass)
-                                                    ->where('premtype_code',$request->ed_premtype_code)
-                                                    ->update([
-                                                        'premtype_name' =>$request->ed_premtype_name
-                                                    ]);
+            $reinsClassPremtypes = ReinclassPremtype::where('reinclass', $request->ed_reinclass)
+                ->where('premtype_code', $request->ed_premtype_code)
+                ->update([
+                    'premtype_name' => $request->ed_premtype_name
+                ]);
             // $reinsClassPremtypes
             // $reinsClassPremtypes->premtype_name = $request->input('ed_premtype_name');
             // $reinsClassPremtypes->save();
@@ -1193,12 +1184,12 @@ class SettingsCoverController extends Controller
         // dd($request);
         try {
             // $reinsClassPremtypes = ReinclassPremtype::findOrFail($request->del_id);
-            $Premtype = ReinclassPremtype::where('reinclass',$request->del_reinclass)
-                                                    ->where('premtype_code',$request->del_premtype_code)
-                                                    ->first();
+            $Premtype = ReinclassPremtype::where('reinclass', $request->del_reinclass)
+                ->where('premtype_code', $request->del_premtype_code)
+                ->first();
             $Premtype_status = $Premtype->status;
             $reinClass = ReinsClass::where('class_code', $request->del_reinclass)->first();
-           
+
             if ($Premtype_status == 'A') {
                 $status = 'D';
                 $status_name = 'De Activated';
@@ -1207,14 +1198,14 @@ class SettingsCoverController extends Controller
                 $status_name = 'Activated';
             }
 
-            $reinsClassPremtypes = ReinclassPremtype::where('reinclass',$request->del_reinclass)
-                                                    ->where('premtype_code',$request->del_premtype_code)
-                                                    ->update([
-                                                        'status' =>$status
-                                                    ]);
+            $reinsClassPremtypes = ReinclassPremtype::where('reinclass', $request->del_reinclass)
+                ->where('premtype_code', $request->del_premtype_code)
+                ->update([
+                    'status' => $status
+                ]);
 
             // Redirect or return a response as needed
-            return redirect('/settings/cover/reinsClassPremtypes')->with('success', ''.$reinClass->class_name.'-'.$Premtype->premtype_name.' has been '.$status_name.' successfully');
+            return redirect('/settings/cover/reinsClassPremtypes')->with('success', '' . $reinClass->class_name . '-' . $Premtype->premtype_name . ' has been ' . $status_name . ' successfully');
         } catch (ModelNotFoundException $exception) {
             return redirect('/settings/cover/reinsClassPremtypes')->with('error', 'Specified code was not found.');
         } catch (\Throwable $e) {
@@ -1224,12 +1215,9 @@ class SettingsCoverController extends Controller
 
     public function whtRate(Request $request)
     {
-        if(!$request->ajax())
-        {
+        if (!$request->ajax()) {
             return view('settings.cover.wht_rates');
-        }
-        else
-        {
+        } else {
             $whtRates = WhtRate::all();
             return DataTables::of($whtRates)
                 ->addColumn('action', function ($data) {
@@ -1242,7 +1230,7 @@ class SettingsCoverController extends Controller
                 ->make(true);
         }
     }
-    
+
     public function saveWhtRate(Request $request)
     {
         $request->validate([
@@ -1251,7 +1239,7 @@ class SettingsCoverController extends Controller
         ]);
 
         try {
-            $id = (int)WhtRate::max('id')+1;
+            $id = (int)WhtRate::max('id') + 1;
 
             $whtRate = new WhtRate();
             $whtRate->id = $id;
@@ -1267,7 +1255,7 @@ class SettingsCoverController extends Controller
             return redirect()->route('settings.whtRate')->with('error', 'Failed to add Wht Tax');
         }
     }
-    
+
     public function editWhtRate(Request $request)
     {
         // dd($request);
@@ -1278,10 +1266,10 @@ class SettingsCoverController extends Controller
         ]);
 
         try {
-            $whtRate = WhtRate::where('id',$request->id)
+            $whtRate = WhtRate::where('id', $request->id)
                 ->update([
-                    'description' =>$request->description,
-                    'rate' =>$request->rate,
+                    'description' => $request->description,
+                    'rate' => $request->rate,
                 ]);
 
             return redirect()->route('settings.whtRate')->with('success', 'Wht Tax edited successfully');
@@ -1289,7 +1277,7 @@ class SettingsCoverController extends Controller
             return redirect()->route('settings.whtRate')->with('error', 'Failed to edit Wht Tax');
         }
     }
-    
+
     public function deleteWhtRate(Request $request)
     {
         // dd($request);
@@ -1298,7 +1286,7 @@ class SettingsCoverController extends Controller
         ]);
 
         try {
-            $whtRate = WhtRate::where('id',$request->id)->first();
+            $whtRate = WhtRate::where('id', $request->id)->first();
             $whtRate->delete();
 
             return [

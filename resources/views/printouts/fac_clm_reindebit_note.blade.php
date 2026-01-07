@@ -31,9 +31,9 @@
             page-break-before: auto;
         }
     </style>
-    @php
+    {{-- @php
         $disableAutoFooter = true;
-    @endphp
+    @endphp --}}
     @foreach ($reinsurers as $index => $reinsurer)
         @foreach ($rein_notes as $idx => $rein_note)
             @if ($index === $idx)
@@ -294,7 +294,7 @@
                             </tr>
                             <tr>
                                 <td align="left">
-                                    @stampImageOrEmpty('app/private/stamp.png')
+                                    {{-- @stampImageOrEmpty('app/private/stamp.png') --}}
                                 </td>
                                 <td align="left">&nbsp;
                                 <td>
@@ -316,14 +316,6 @@
                                 <td class="text-right courier-10">Date: {!! formatDate($debit->created_at) !!} </td>
                             </tr>
                         </table>
-
-
-                    </div>
-                    <div class="footer-wrapper">
-                        <div class="footer">
-                            <span>&copy; {{ date('Y') }} Acentriagroup. All rights reserved. | Page No: <span
-                                    class="page-number"></span></span>
-                        </div>
                     </div>
                 </div>
             @endif

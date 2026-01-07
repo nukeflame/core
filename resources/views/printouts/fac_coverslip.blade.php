@@ -10,124 +10,8 @@
             font-style: normal;
             display: block;
         }
-
-        @page {
-            margin-bottom: 6mm !important;
-            margin-top: 8.5rem;
-        }
-
-        #clause-description p br,
-        #clause-description table br {
-            display: none !important;
-        }
-
-        #clause-description figure.table {
-            margin: 0px !important;
-            padding: 0px !important;
-        }
-
-        #clause-description table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        #clause-description td {
-            vertical-align: top;
-            width: auto;
-            max-width: 100%;
-        }
-
-        #clause-description th,
-        #clause-description td {
-            text-align: left;
-            vertical-align: top;
-        }
-
-        .reinsurer-page {
-            page-break-before: auto;
-            break-inside: avoid;
-            page-break-inside: avoid;
-            font-family: "Open Sans", sans-serif;
-            font-optical-sizing: auto;
-            font-weight: 400;
-            font-style: normal;
-        }
-
-        .first-page {
-            page-break-before: auto;
-
-        }
-
-        .brief-description table,
-        .brief-description tr,
-        .brief-description td,
-        .schedule-details table,
-        .schedule-details tr,
-        .schedule-details td {
-            width: 100%;
-            font-family: inherit !important;
-        }
-
-        .schedule-details {
-            font-family: inherit !important;
-            font-size: 10pt !important;
-            color: #181212 !important;
-        }
-
-        .schedule-details ul,
-        .schedule-details ul li,
-        .schedule-details figure,
-        .schedule-details table,
-        .schedule-details table tbody tr,
-        .schedule-details table tbody tr td,
-        .schedule-details p {
-            padding: 0px !important;
-            margin: 0px !important;
-        }
-
-        .schedule-details table,
-        .schedule-details table tbody tr,
-        .schedule-details table tbody tr td {
-            width: 100%;
-            max-width: 100%;
-        }
-
-        .schedule-details table,
-        .schedule-details table tbody tr,
-        .schedule-details table tbody tr td {
-            width: 100%;
-            max-width: 100%;
-        }
-
-        .schedule-details table {
-            border-collapse: collapse;
-        }
-
-        #insurance-table {
-            font-family: "Open Sans", sans-serif;
-            font-optical-sizing: auto;
-            font-weight: 400;
-            font-style: normal;
-        }
-
-        #insurance-table th {
-            border: none;
-            background: transparent;
-        }
-
-        #insurance-table tbody tr:first-child td {
-            padding-top: 8px !important;
-        }
-
-        .logo-header::after {
-            display: block;
-            content: ''
-        }
     </style>
     @php
-        $disableAutoFooter = true;
-        $disableAutoHeader = true;
-
         $sortedSchedules = collect($schedules)->sort(function ($a, $b) {
             $aPosition =
                 $a['schedule_header']['position'] !== '0'
@@ -141,24 +25,9 @@
             return $aPosition <=> $bPosition;
         });
     @endphp
-    <header class="logo-header">
-        <div class="row-header">
-            <div class="logo">
-                <img align="left" src="data:image/png;base64,<?php echo base64_encode(file_get_contents(base_path('public/logo.png'))); ?>" alt=""
-                    style="width: 230px; height: auto;">
-            </div>
-            <div class="company-info">
-                <p>{{ $company->company_name }}</p>
-                <p>{{ $company->postal_address }}</p>
-                <p>Phone: {{ $company->mobilephone }}</p>
-                <p>Email: {{ $company->email }}</p>
-            </div>
-        </div>
-        <hr style="padding:0px; border-top: .5pt solid #ddd; margin: 10pt 1pt; margin-left: 5.5pt;" />
-    </header>
     @if (!$has_partner)
         <div style="width:100%; margin-top: 0px; padding:0px; font-size: 10pt; font-family: 'Open Sans';"
-            class="debit-reinsurer-page">
+            class="debit-reinsurer-pdage">
             <table id="slip-header">
                 <tr>
                     <td tyle="width: 40%;">
@@ -337,10 +206,10 @@
                     </td>
                 </tr>
             </table>
-            <div class="footer">
-                <span>&copy; {{ date('Y') }} Acentriagroup. All rights reserved. | Page No: <span
+            {{-- <div class="footer">
+                <span>&copy; {{ date('Y') }} Zamara Group. All rights reserved. | Page No: <span
                         class="page-number"></span></span>
-            </div>
+            </div> --}}
             <div style="width: 100%; margin-top: 5px; padding: 0; overflow: visible; page-break-before: auto; margin-bottom: 15px;"
                 id="schedule-wrapper">
                 @foreach ($sortedSchedules as $schedule)
@@ -359,7 +228,7 @@
                     </div>
                 @endforeach
             </div>
-            <div
+            {{-- <div
                 style="width: 100%; margin-top: 5px; padding: 0; overflow: visible; page-break-before: auto; margin-bottom: 10px;">
                 @foreach ($clauses as $clause)
                     <div>
@@ -368,7 +237,7 @@
                         </div>
                     </div>
                 @endforeach
-            </div>
+            </div> --}}
             <div style="page-break-before: always; margin-top:0px;"></div>
             <table style="width: 100%; margin-top: 0mm; margin-bottom: 7mm;">
                 <tr>
@@ -501,11 +370,12 @@
             </table>
         </div>
     @endif
+
     @if (!$is_cover_note)
         @if (count($reinsurers) > 0)
-            {{-- @if (!$has_partner) --}}
-            <div style="page-break-before: always;"></div>
-            {{-- @endif --}}
+            @if (!$has_partner)
+                <div style="page-break-before: always;"></div>
+            @endif
             @foreach ($reinsurers as $index => $reinsurer)
                 @php
                     $reinsurerCompany = $reinsurer->partner;
@@ -736,10 +606,10 @@
                                 </td>
                             </tr>
                         </table>
-                        <div class="footer">
-                            <span>&copy; {{ date('Y') }} Acentriagroup. All rights reserved. | Page No: <span
+                        {{-- <div class="footer">
+                            <span>&copy; {{ date('Y') }} Zamara Group. All rights reserved. | Page No: <span
                                     class="page-number"></span></span>
-                        </div>
+                        </div> --}}
                         <div style="width: 100%; margin-top: 5px; padding: 0; overflow: visible; page-break-before: auto; margin-bottom: 15px;"
                             id="schedule-wrapper">
                             @foreach ($sortedSchedules as $schedule)
@@ -893,8 +763,4 @@
             @endforeach
         @endif
     @endif
-    <div class="footer">
-        <span>&copy; {{ date('Y') }} Acentriagroup. All rights reserved. | Page No: <span
-                class="page-number"></span></span>
-    </div>
 @endsection

@@ -239,7 +239,7 @@
             </tr>
             <tr>
                 <td align="left">
-                    @stampImageOrEmpty('app/private/stamp.png')
+                    {{-- @stampImageOrEmpty('app/private/stamp.png') --}}
                 </td>
                 <td align="left">&nbsp;</td>
                 <td align="left"></td>

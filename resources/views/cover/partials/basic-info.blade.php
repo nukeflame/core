@@ -95,7 +95,7 @@
     </div>
 
     <div class="col-md-2">
-        <label class="form-label required">Prospect Ref ID</label>
+        <label class="form-label">Prospect Ref ID</label>
         <input type="text" name="prospect_id" id="prospect_id" class="form-control" placeholder="Enter Prospect ID"
             value="{{ $prospectId ?? '' }}">
         <small class="text-muted">Reference ID for tracking prospect</small>

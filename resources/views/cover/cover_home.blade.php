@@ -16,6 +16,7 @@
         <x-cover.header :cover="$coverReg" :customer="$customer" :actionable="$actionable" />
 
         <div class="row row-cols-12 mx-0">
+            {{ logger(['actionable' => $actionable]) }}
             @if ($actionable)
                 <x-cover.action-card :cover="$coverReg" :endorsementNarration="$endorsementNarration" />
             @endif
@@ -36,24 +37,15 @@
                                 @include('cover.tabs.schedules', ['cover' => $coverReg])
                             </div>
 
-                            {{-- Attachments Tab --}}
                             <div class="tab-pane fade" id="attachments-tab" role="tabpanel"
                                 aria-labelledby="nav-attachments-tab">
-                                {{-- @include('cover.tabs.attachments', ['cover' => $coverReg]) --}}
+                                @include('cover.tabs.attachments', ['cover' => $coverReg])
                             </div>
 
-                            {{-- Clauses Tab --}}
                             <div class="tab-pane fade" id="clauses-tab" role="tabpanel" aria-labelledby="nav-clauses-tab">
-                                {{-- @include('cover.tabs.clauses', ['cover' => $coverReg]) --}}
+                                @include('cover.tabs.clauses', ['cover' => $coverReg])
                             </div>
                         @endif
-
-                        {{-- @if (in_array($coverReg->type_of_bus, ['TPR', 'TNP']))
-                            <div class="tab-pane fade" id="debit-items-tab" role="tabpanel"
-                                aria-labelledby="nav-debit-items-tab">
-                                @include('cover.tabs.debit-items', ['cover' => $coverReg])
-                            </div>
-                        @endif --}}
 
                         <div class="tab-pane fade @if (in_array($coverReg->type_of_bus, ['TPR', 'TNP'])) show active @endif" id="reinsurers-tab"
                             role="tabpanel" aria-labelledby="nav-reinsurers-tab">
@@ -87,7 +79,7 @@
 
                         @if (in_array($coverReg->type_of_bus, ['FPR', 'FNP']))
                             <div class="tab-pane fade" id="debits-tab" role="tabpanel" aria-labelledby="nav-debits-tab">
-                                {{-- @include('cover.tabs.debits', ['cover' => $coverReg]) --}}
+                                @include('cover.tabs.debits', ['cover' => $coverReg])
                             </div>
                         @endif
 
@@ -180,6 +172,12 @@
     ])
 
     @include('cover.modals.add-clauses', [
+        'cover' => $coverReg,
+        'nextInstallment' => $nextInstallment,
+        'installmentAmount' => $installmentAmount,
+    ])
+
+    @include('cover.modals.attachment-preview', [
         'cover' => $coverReg,
         'nextInstallment' => $nextInstallment,
         'installmentAmount' => $installmentAmount,

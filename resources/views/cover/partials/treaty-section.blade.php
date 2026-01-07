@@ -36,19 +36,37 @@
         {{-- Territorial Scope --}}
         <div class="col-md-2">
             <label class="form-label required">Territorial Scope</label>
-            <select class="form-control select2 required" name="territorial_scope" id="territorial_scope">
+            <select class="form-control select2 required" multiple name="territorial_scope[]" id="territorial_scope">
                 <option value="">Select Option</option>
                 <option value="WORLDWIDE">WORLDWIDE</option>
                 <option value="WORLDWIDE EXCL. USA/CANADA">WORLDWIDE EXCL. USA/CANADA</option>
-                <option value="AFRICA">AFRICA</option>
-                <option value="EAST AFRICA">EAST AFRICA</option>
-                <option value="KENYA ONLY" selected>KENYA ONLY</option>
+                <option value="WEST AFRICA">WEST AFRICA</option>
+                <option value="UGANDA">UGANDA</option>
+                <option value="TANZANIA">TANZANIA</option>
+                <option value="RWANDA">RWANDA</option>
+                <option value="BURUNDI">BURUNDI</option>
+                <option value="SOUTH SUDAN">SOUTH SUDAN</option>
+                <option value="Democratic Republic of Congo (DRC)">Democratic Republic of Congo (DRC)</option>
+                <option value="KENYA" selected>KENYA</option>
             </select>
             <small class="text-muted">Geographic coverage area</small>
         </div>
 
-        {{-- Basis of Acceptance --}}
+        {{-- <div class="col-md-2">
+            <label class="form-label required">Premium Tax Rate (%)</label>
+            <input type="number" class="form-control required" id="prem_tax_rate" name="prem_tax_rate"
+                value="{{ isset($old_endt_trans) ? number_format($old_endt_trans->prem_tax_rate, 2) : '' }}">
+        </div>
+
         <div class="col-md-2">
+            <label class="form-label required">RI Tax Rate (%)</label>
+            <input type="number" class="form-control required" id="ri_tax_rate" name="ri_tax_rate" min="0"
+                max="100"
+                value="{{ isset($old_endt_trans) ? number_format($old_endt_trans->ri_tax_rate, 2) : '' }}">
+        </div> --}}
+
+        {{-- Basis of Acceptance --}}
+        {{-- <div class="col-md-2">
             <label class="form-label required">Basis of Acceptance</label>
             <select class="form-control select2 required" name="basis_of_acceptance" id="basis_of_acceptance">
                 <option value="">Select an option</option>
@@ -57,7 +75,7 @@
                 <option value="OBLIGATORY">OBLIGATORY</option>
             </select>
             <small class="text-muted">How risks are accepted under treaty</small>
-        </div>
+        </div> --}}
     </div>
 
     <div class="row g-3 mt-2">
@@ -94,8 +112,45 @@
     <hr class="my-4">
     <h6 class="mb-0">Proportional Treaty Details</h6>
     <p class="text-muted small mb-3">
-        Proportional treaties share premiums and losses between cedent and reinsurer based on agreed percentages
+        Proportional treaties distribute premiums and claims proportionally. The reinsurer receives a percentage of
+        premiums and pays the same percentage of losses based on the agreed participation rate.
     </p>
+
+    <div class="row g-3">
+        <div class="col-md-3">
+            <label class="form-label required">Portfolio Premium Rate (%)</label>
+            <input type="number" class="form-control required" id="port_prem_rate" name="port_prem_rate" max="100"
+                min="0"
+                value="{{ isset($old_endt_trans) ? number_format($old_endt_trans->port_prem_rate, 2) : '' }}">
+        </div>
+
+        <div class="col-md-3">
+            <label class="form-label required">Portfolio Loss Rate (%)</label>
+            <input type="number" class="form-control" id="port_loss_rate" name="port_loss_rate" max="100"
+                min="0"
+                value="{{ isset($old_endt_trans) ? number_format($old_endt_trans->port_loss_rate, 2) : '' }}">
+        </div>
+
+        <div class="col-md-3">
+            <label class="form-label required">Profit Commission Rate (%)</label>
+            <input type="number" class="form-control" id="profit_comm_rate" name="profit_comm_rate" max="100"
+                min="0"
+                value="{{ isset($old_endt_trans) ? number_format($old_endt_trans->profit_comm_rate, 2) : '' }}">
+        </div>
+
+        <div class="col-md-3">
+            <label class="form-label required">Management Expense Rate (%)</label>
+            <input type="number" class="form-control required" id="mgnt_exp_rate" name="mgnt_exp_rate"
+                max="100" min="0"
+                value="{{ isset($old_endt_trans) ? number_format($old_endt_trans->mgnt_exp_rate, 2) : '' }}">
+        </div>
+
+        <div class="col-md-3">
+            <label class="form-label required">Deficit C/F (years)</label>
+            <input type="number" class="form-control required" id="deficit_yrs" name="deficit_yrs" min="0"
+                max="10" value="{{ isset($old_endt_trans) ? $old_endt_trans->deficit_yrs : '' }}">
+        </div>
+    </div>
 
     {{-- Reinsurance Classes Container --}}
     <div id="reinsurance-classes-container" class="mt-3">

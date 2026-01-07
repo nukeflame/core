@@ -8,6 +8,8 @@ use App\Http\Requests\CoverRegistrationRequest;
 use App\Http\Requests\GenerateDebitNoteRequest;
 use App\Jobs\SendReinsurerEmailJob;
 use App\Jobs\SendRenewalNoticeJob;
+use App\Models\ApprovalSourceLink;
+use App\Models\ApprovalsTracker;
 use Throwable;
 use Carbon\Carbon;
 use App\Models\User;
@@ -56,6 +58,7 @@ use App\Models\EndorsementNarration;
 use App\Models\HandoverApproval;
 use App\Models\PolicyRenewal;
 use App\Models\PolicyRenewalDocument;
+use App\Models\SystemProcessAction;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\File;
 use Yajra\DataTables\Facades\DataTables;
@@ -230,6 +233,16 @@ class CoverController extends Controller
                 ->orderBy('name')
                 ->get();
 
+            $prospProperties = DB::table('pipeline_opportunities')
+                ->selectRaw('DISTINCT ON (LOWER(insured_name)) pipeline_id, insured_name')
+                ->get()
+                ->map(function ($item, $index) {
+                    return (object) [
+                        'customer_id' => 4,
+                        'name' => $item->insured_name,
+                    ];
+                });
+
             return view('cover.cover_form', [
                 'type_of_cust' => $customerTypes,
                 'country' => $countries,
@@ -250,7 +263,7 @@ class CoverController extends Controller
                 'reinsdivisions' => $reinsdivisions,
                 'reinsclasses' => $reinsclasses,
                 'treatytypes' => $treatytypes,
-                'insured' => $insured,
+                'insured' => $prospProperties,
                 'coverreinpropClasses' => $coverreinpropClasses,
                 'coverreinprops' => $coverreinprops,
                 'premtypes' => $premtypes,
@@ -562,6 +575,9 @@ class CoverController extends Controller
         $summaryData = ['summaryData' => []];
         $data = array_merge($summaryData, $cover);
 
+        if (!$cover['actionable']) {
+            return redirect()->route('cover.transactions.index', ['coverNo' => $cover['coverNo']]);
+        }
 
         return view('cover.cover_home', $data);
     }
@@ -1262,24 +1278,24 @@ class CoverController extends Controller
     public function approvals_datatable(Request $request)
     {
         $results = [];
-        // try {
-        //     $endorsement_no = $request->get('endorsement_no');
-        //     $approvalAction = SystemProcessAction::where('nice_name', 'verify_cover')->first();
-        //     $aprovalIds = ApprovalSourceLink::where('process_id', $approvalAction->process_id)
-        //         ->where('process_action', $approvalAction->id)
-        //         ->where('source_table', 'cover_register')
-        //         ->where('source_column_name', 'endorsement_no')
-        //         ->where('source_column_data', $endorsement_no)
-        //         ->pluck('approval_id');
+        try {
+            $endorsement_no = $request->get('endorsement_no');
+            $approvalAction = SystemProcessAction::where('nice_name', 'verify_cover')->first();
+            $aprovalIds = ApprovalSourceLink::where('process_id', $approvalAction->process_id)
+                ->where('process_action', $approvalAction->id)
+                ->where('source_table', 'cover_register')
+                ->where('source_column_name', 'endorsement_no')
+                ->where('source_column_data', $endorsement_no)
+                ->pluck('approval_id');
 
-        //     $results = ApprovalsTracker::query()->whereIn('id', $aprovalIds);
-        //     $actionable = static::coverDebitedCommited($endorsement_no);
+            $results = ApprovalsTracker::query()->whereIn('id', $aprovalIds);
+            $actionable = static::coverDebitedCommited($endorsement_no);
+        } catch (\Exception $e) {
 
-        // } catch (\Exception $e) {
-        //     $results = [];
-        // }
+            $results = [];
+        }
 
-        return Datatables::of([])
+        return Datatables::of($results)
             ->editColumn('approver', function ($data) {
                 $approver = User::where('id', $data->approver)->first('name');
                 return $approver->name;
@@ -1300,21 +1316,21 @@ class CoverController extends Controller
 
                 return $btn;
             })
-            ->addColumn('action', function ($data) {
+            ->addColumn('action', function ($data) use ($actionable) {
                 $btn = "";
-                // if ($actionable) {
-                //     switch ($data->status) {
-                //         case 'P':
-                //             $btn .= " <button class='btn btn-outline-dark btn-wave waves-effect waves-light edit-reinsurer datatable-action-btn' data-id='{$data->id}' id='re-escalate'>Re-escalate</button>";
-                //             break;
-                //         case 'A':
-                //             $btn .= " <span class='badge badge-success' disabled>Closed</span>";
-                //             break;
-                //         case 'R':
-                //             $btn .= " <button class='btn btn-outline-primary btn-sm' data-id='{$data->id}' id='re-send'>Re-send</button>";
-                //             break;
-                //     }
-                // }
+                if ($actionable) {
+                    switch ($data->status) {
+                        case 'P':
+                            $btn .= " <button class='btn btn-outline-dark btn-wave waves-effect waves-light edit-reinsurer datatable-action-btn' data-id='{$data->id}' id='re-escalate'>Re-escalate</button>";
+                            break;
+                        case 'A':
+                            $btn .= " <span class='badge badge-success' disabled>Closed</span>";
+                            break;
+                        case 'R':
+                            $btn .= " <button class='btn btn-outline-primary btn-sm' data-id='{$data->id}' id='re-send'>Re-send</button>";
+                            break;
+                    }
+                }
                 return $btn;
             })
             ->rawColumns(['action', 'status'])
@@ -1461,12 +1477,12 @@ class CoverController extends Controller
             ->make(true);
     }
 
-    public function generateDebit(GenerateDebitNoteRequest $request)
+    public function generateDebit(Request $request)
     {
+        // GenerateDebitNoteRequest
         DB::beginTransaction();
-
         try {
-            $validatedData = $request->validated();
+            $validatedData = $request->toArray();
 
             $cover = CoverRegister::where('endorsement_no', $validatedData['endorsement_no'])->lockForUpdate()->first();
 
@@ -1477,25 +1493,32 @@ class CoverController extends Controller
             $this->validateBusinessRules($cover, $validatedData);
 
             $debitData = $this->prepareDebitData($validatedData, $cover);
+            $redirectUrl  = null;
+
+            $message = $this->getBusinessTypeLabel($debitData['typeOfBus']) . ' debit/credit note generated successfully';
 
             if ($debitData['isFacultative']) {
+                $redirectUrl  = null;
                 $this->createCoverDebit($debitData, $cover);
             } else if ($debitData['isTreaty']) {
+                $redirectUrl  = route('cover.transactions.index', [
+                    'coverNo' => $cover->cover_no,
+                ]);
                 $this->createTreatyDebit($debitData, $cover);
             }
 
             $this->createCustomerAccount($debitData, $cover);
+
+            $cover->commited = 'Y';
+            $cover->save();
 
             DB::commit();
 
             return response()->json([
                 'success' => true,
                 'status' => Response::HTTP_CREATED,
-                'redirectUrl' => route('cover.transactions.index', [
-                    'coverNo' => $cover->cover_no,
-                ]),
-                'message' => $this->getBusinessTypeLabel($debitData['typeOfBus'])
-                    . ' debit/credit note generated successfully',
+                'redirectUrl' => $redirectUrl,
+                'message' => $message
             ], 201);
         } catch (ValidationException $e) {
             DB::rollback();
@@ -1503,7 +1526,7 @@ class CoverController extends Controller
             return response()->json([
                 'success' => false,
                 'status' => Response::HTTP_UNPROCESSABLE_ENTITY,
-                'errors' => $e->errors(),
+                'errors' => 'Internal error occured!',
             ], 422);
         } catch (BusinessRuleException $e) {
             DB::rollBack();
@@ -1551,21 +1574,21 @@ class CoverController extends Controller
             );
         }
 
-        $existingDebit = DebitNote::where('cover_no', $cover->cover_no)
-            ->where('endorsement_no', $data['endorsement_no'])
-            ->where('installment_no', $data['installment'])
-            ->whereNotIn('status', [
-                DebitNote::STATUS_CANCELLED,
-                DebitNote::STATUS_REVERSED
-            ])
-            ->exists();
+        // $existingDebit = DebitNote::where('cover_no', $cover->cover_no)
+        //     ->where('endorsement_no', $data['endorsement_no'])
+        //     ->where('installment_no', $data['installment'])
+        //     ->whereNotIn('status', [
+        //         DebitNote::STATUS_CANCELLED,
+        //         DebitNote::STATUS_REVERSED
+        //     ])
+        //     ->exists();
 
-        if ($existingDebit) {
-            throw BusinessRuleException::duplicateDebitNote(
-                $cover->cover_no,
-                $data['installment']
-            );
-        }
+        // if ($existingDebit) {
+        //     throw BusinessRuleException::duplicateDebitNote(
+        //         $cover->cover_no,
+        //         $data['installment']
+        //     );
+        // }
 
         $postingDate = Carbon::parse($data['posting_date']);
         $fiscalYear = (int) $data['posting_year'];
@@ -1577,21 +1600,21 @@ class CoverController extends Controller
             );
         }
 
-        $expectedQuarter = $this->getQuarterFromDate($postingDate);
-        if ($expectedQuarter !== $data['posting_quarter']) {
-            throw BusinessRuleException::invalidPostingPeriod(
-                $data['posting_date'],
-                $data['posting_quarter']
-            );
-        }
+        // $expectedQuarter = $this->getQuarterFromDate($postingDate);
+        // if ($expectedQuarter !== $data['posting_quarter']) {
+        //     throw BusinessRuleException::invalidPostingPeriod(
+        //         $data['posting_date'],
+        //         $data['posting_quarter']
+        //     );
+        // }
 
-        $totalAmount = collect($data['items'])->sum('amount');
-        if ($totalAmount <= 0) {
-            throw new BusinessRuleException(
-                'Total transaction amount must be greater than zero',
-                'INVALID_AMOUNT'
-            );
-        }
+        // $totalAmount = collect($data['items'])->sum('amount');
+        // if ($totalAmount <= 0) {
+        //     throw new BusinessRuleException(
+        //         'Total transaction amount must be greater than zero',
+        //         'INVALID_AMOUNT'
+        //     );
+        // }
     }
 
     protected function getQuarterFromDate(Carbon $date): string
@@ -1723,14 +1746,14 @@ class CoverController extends Controller
             'postingDate' => $validatedData['posting_date'],
             'brokerageRate' => $validatedData['brokerage_rate'],
             // 'commissionRate' => $validatedData['line_rate'],
-            'comments' => $validatedData['comments'],
-            'items' => $validatedData['items'],
-            'computePremiumTax' => $validatedData['compute_premium_tax'],
-            'computeReinsuranceTax' => $validatedData['compute_reinsurance_tax'],
-            'computeWithholdingTax' => $validatedData['compute_withholding_tax'],
-            'lossParticipation' => $validatedData['loss_participation'],
-            'showCedant' => $validatedData['show_cedant'],
-            'showReinsurer' => $validatedData['show_reinsurer'],
+            'comments' => $validatedData['comments'] ?? '',
+            'items' => $validatedData['items'] ?? [],
+            'computePremiumTax' => $validatedData['compute_premium_tax'] ?? 0,
+            'computeReinsuranceTax' => $validatedData['compute_reinsurance_tax'] ?? 0,
+            'computeWithholdingTax' => $validatedData['compute_withholding_tax'] ?? 0,
+            'lossParticipation' => $validatedData['loss_participation'] ?? 0,
+            'showCedant' => $validatedData['show_cedant'] ?? false,
+            'showReinsurer' => $validatedData['show_reinsurer'] ?? false,
             'reinsurerPosting' => 'NET',
             'premiumPayTerms' => ''
         ];
@@ -2088,8 +2111,7 @@ class CoverController extends Controller
             ->where('endorsement_no', $endorsement)
             ->first();
 
-        $debitted = CoverDebit::where('endorsement_no', $endorsement)
-            ->count();
+        $debitted = CoverDebit::where('endorsement_no', $endorsement)->count();
 
         $actionable = true;
         // if TNP| TPR inital cover commited

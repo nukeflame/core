@@ -181,6 +181,7 @@ class CoverRepository extends BaseRepository
             $coverreinprop = $this->getCoverReinpProps($endorsement_no);
 
             return [
+                'coverNo' => $CoverRegister->cover_no,
                 'coverReg' => $CoverRegister,
                 'coverpart' => $coverpart,
                 'branch' => $CoverRegister->branch,
@@ -308,7 +309,7 @@ class CoverRepository extends BaseRepository
 
     public function isCoverActionable($endorsement)
     {
-        $cover = CoverRegister::select('endorsement_no', 'cover_no', 'commited', 'verified')
+        $cover = CoverRegister::select('endorsement_no', 'cover_no', 'commited', 'verified', 'type_of_bus')
             ->where('endorsement_no', $endorsement)
             ->first();
 
@@ -316,10 +317,13 @@ class CoverRepository extends BaseRepository
             return false;
         }
 
-        // $debitted = CoverDebit::where('endorsement_no', $endorsement)->exists();
+        if ($this->isFacultativeBusiness($cover->type_of_bus)) {
+            $debitted = CoverDebit::where('endorsement_no', $endorsement)->exists();
 
-        // return !($cover->commited === 'Y' || $debitted);
-        return !($cover->commited === 'Y');
+            return !($cover->commited === 'Y' || $debitted);
+        } else {
+            return !($cover->commited === 'Y');
+        }
     }
 
     public function editReinsurer(Request $request)
@@ -1378,7 +1382,7 @@ class CoverRepository extends BaseRepository
         $CoverRegister->date_offered = $businessData['date_offered'];
         $CoverRegister->share_offered = (float) $businessData['share_offered'];
         $CoverRegister->no_of_installments = (int) $data->no_of_installments;
-        $CoverRegister->territorial_scope = $data->territorial_scope;
+        // $CoverRegister->territorial_scope = $data->territorial_scope;
         $CoverRegister->basis_of_acceptance = $data->basis_of_acceptance;
         $CoverRegister->port_prem_rate = $this->parseNumeric($data->port_prem_rate);
         $CoverRegister->port_loss_rate = $this->parseNumeric($data->port_loss_rate);

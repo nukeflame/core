@@ -826,29 +826,6 @@
                                                         <i class="ri-file-text-line me-2 text-success"></i>Credit Note
                                                     </a>
                                                 </li>
-                                                <li>
-                                                    <a class="dropdown-item" href="#" data-doc-type="statement">
-                                                        <i class="ri-file-list-3-line me-2 text-info"></i>Statement of
-                                                        Account
-                                                    </a>
-                                                </li>
-                                                <li>
-                                                    <hr class="dropdown-divider">
-                                                </li>
-                                                <li>
-                                                    <h6 class="dropdown-header text-dark">Treaty Documents</h6>
-                                                </li>
-                                                <li>
-                                                    <a class="dropdown-item" href="#" data-doc-type="bordereau">
-                                                        <i class="ri-table-line me-2 text-warning"></i>Bordereau
-                                                    </a>
-                                                </li>
-                                                <li>
-                                                    <a class="dropdown-item" href="#" data-doc-type="closing_slip">
-                                                        <i class="ri-file-paper-2-line me-2 text-danger"></i>Closing
-                                                        Slip
-                                                    </a>
-                                                </li>
                                             </ul>
                                         </div>
                                     </div>
@@ -1735,7 +1712,12 @@
 
                     this.table = $('#approvalsTable').DataTable({
                         processing: true,
-                        data: [],
+                        ajax: {
+                            url: "{!! route('cover.approvals_datatable') !!}",
+                            data: function(d) {
+                                d.endorsement_no = "{!! $cover->endorsement_no !!}";
+                            }
+                        },
                         columns: [{
                                 data: 'id',
                                 name: 'id',
@@ -1759,26 +1741,27 @@
                             {
                                 data: 'status',
                                 name: 'status',
-                                render: function(data) {
-                                    return Utils.getStatusBadge(data);
-                                },
+                                // render: function(data) {
+                                //     return Utils.getStatusBadge(data);
+                                // },
                                 defaultContent: '-'
                             },
                             {
                                 data: null,
                                 orderable: false,
                                 render: function(data, type, row) {
-                                    var rowId = row.id || '';
-                                    return '<div class="btn-group btn-group-sm">' +
-                                        '<button class="btn btn-outline-success btn-action btn-approve" data-id="' +
-                                        rowId + '" title="Approve">' +
-                                        '<i class="ri-check-line"></i>' +
-                                        '</button>' +
-                                        '<button class="btn btn-outline-danger btn-action btn-reject" data-id="' +
-                                        rowId + '" title="Reject">' +
-                                        '<i class="ri-close-line"></i>' +
-                                        '</button>' +
-                                        '</div>';
+                                    // var rowId = row.id || '';
+                                    // return '<div class="btn-group btn-group-sm">' +
+                                    //     '<button class="btn btn-outline-success btn-action btn-approve" data-id="' +
+                                    //     rowId + '" title="Approve">' +
+                                    //     '<i class="ri-check-line"></i>' +
+                                    //     '</button>' +
+                                    //     '<button class="btn btn-outline-danger btn-action btn-reject" data-id="' +
+                                    //     rowId + '" title="Reject">' +
+                                    //     '<i class="ri-close-line"></i>' +
+                                    //     '</button>' +
+                                    //     '</div>';
+                                    return '';
                                 }
                             }
                         ],

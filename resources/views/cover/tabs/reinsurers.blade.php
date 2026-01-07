@@ -16,6 +16,7 @@
                         <th scope="col">Brokerage Commission</th>
                         <th scope="col">WHT Amount</th>
                         <th scope="col">Retro Amount</th>
+                        <th scope="col">Net Amount</th>
                     @endif
                     <th scope="col">Action</th>
                 </tr>

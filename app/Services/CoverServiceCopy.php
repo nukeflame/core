@@ -10,7 +10,7 @@ use App\Repositories\CoverRepository;
 use Illuminate\Support\Facades\DB;
 use Exception;
 
-class CoverService
+class CoverServiceCopy
 {
     protected $coverRepository;
 
@@ -33,7 +33,7 @@ class CoverService
             'paymethods' => $this->coverRepository->getPaymentMethods(),
             'currencies' => $this->coverRepository->getCurrencies(),
             'premium_pay_terms' => $this->coverRepository->getPremiumPaymentTerms(),
-            'classGroups' => $this->coverRepository->getClassGroups(),
+            'classGroups' => [], //$this->coverRepository->getClassGroups(),
             'types_of_sum_insured' => $this->coverRepository->getSumInsuredTypes(),
             'treatytypes' => $this->coverRepository->getTreatyTypes(),
             'reinsclasses' => $this->coverRepository->getReinsuranceClasses(),
@@ -83,16 +83,13 @@ class CoverService
                 'created_by' => auth()->id(),
             ]));
 
-            logger()->debug(json_encode(['new cover' => $cover], JSON_PRETTY_PRINT));
+            // Process installments if payment method is installment
+            if ($this->isInstallmentPayment($data['pay_method'])) {
+                $this->processInstallments($cover, $data);
+            }
 
-
-            // // Process installments if payment method is installment
-            // if ($this->isInstallmentPayment($data['pay_method'])) {
-            //     $this->processInstallments($cover, $data);
-            // }
-
-            // // Process based on business type
-            // $this->processBusinessTypeSpecifics($cover, $data);
+            // Process based on business type
+            $this->processBusinessTypeSpecifics($cover, $data);
 
             DB::commit();
 

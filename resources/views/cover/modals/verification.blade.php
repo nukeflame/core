@@ -2,7 +2,8 @@
     aria-labelledby="verificationModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
-            <form method="POST" id="verifyForm" action="{{ route('approvals.send-for-approval') }}">
+            <form method="POST" id="verifyForm" action="{{ route('approvals.send-for-approval') }}"
+                data-post-url="{{ route('approvals.send-for-approval') }}">
                 @csrf
                 <input type="hidden"name="endorsement_no" value="{{ $coverReg->endorsement_no }}" />
                 <input type="hidden" name="cover_no" value="{{ $coverReg->cover_no }}" />

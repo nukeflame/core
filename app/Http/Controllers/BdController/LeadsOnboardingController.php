@@ -131,7 +131,7 @@ class LeadsOnboardingController
                 DB::raw('CAST(customers.customer_id AS INT) as customer_id'),
                 'customers.name'
             )
-            ->whereIn('customer_types.type_name', ['INSURANCE', 'REINSURANCE']) // Filtering for 'insurance' or 'reinsurance'
+            ->whereIn('customer_types.slug', ['reinsurer', 'cedant'])
             ->distinct('name')
             ->get();
 
@@ -147,7 +147,6 @@ class LeadsOnboardingController
             )
             ->where('customer_types.code', 'INSURED')
             ->get();
-
 
         $commonVariables = [
             'insured' => $insured,
@@ -265,7 +264,7 @@ class LeadsOnboardingController
                 DB::raw('CAST(customers.customer_id AS INT) as customer_id'),
                 'customers.name'
             )
-            ->whereIn('customer_types.type_name', ['INSURANCE', 'REINSURANCE'])
+            ->whereIn('customer_types.slug', ['reinsurer', 'cedant'])
             ->distinct('name')
             ->get();
 

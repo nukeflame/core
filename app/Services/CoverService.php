@@ -72,20 +72,43 @@ class CoverService
         try {
             $repositoryData = $this->transformRequestData($data);
 
-            $result = $this->coverRepository->registerCover((object) $repositoryData);
+            $cover = $this->coverRepository->registerCover((object) $repositoryData);
 
-            $prospect = HandoverApproval::where(['prospect_id' => $result->prospect_id])->first();
-            $prospect->intergrate = true;
-            $prospect->update();
+            // $this->processInstallments($cover, $data);
+
+            // $this->processBusinessTypeSpecifics($cover, $data);
+
+            $prospect = HandoverApproval::where(['prospect_id' => $cover->prospect_id])->first();
+            if ($prospect) {
+                $prospect->intergrate = true;
+                $prospect->update();
+            }
 
             return [
                 'success' => true,
-                'endorsement_no' => $result->endorsement_no ?? null,
-                'customer_id' => $result->customer_id ?? null,
-                'prospect_id' => $result->prospect_id ?? null,
+                'endorsement_no' => $cover->endorsement_no ?? null,
+                'customer_id' => $cover->customer_id ?? null,
+                'prospect_id' => $cover->prospect_id ?? null,
             ];
         } catch (Exception $e) {
             throw new Exception('Failed to register cover: ' . $e->getMessage());
+        }
+    }
+
+    protected function processInstallments(CoverRegister $cover, array $data): void
+    {
+        if (!isset($data['installment_date']) || !is_array($data['installment_date'])) {
+            return;
+        }
+
+        foreach ($data['installment_date'] as $index => $date) {
+            logger([$index => $date]);
+            // $this->coverRepository->saveInstallment($cover->id, [
+            //     'installment_no' => $data['installment_no'][$index],
+            //     'installment_date' => $date,
+            //     'installment_amt' => $this->parseAmount($data['installment_amt'][$index]),
+            //     'status' => 'PENDING',
+            // ]);
         }
     }
 
@@ -117,6 +140,13 @@ class CoverService
 
             throw $e;
         }
+    }
+
+    protected function isInstallmentPayment($payMethodCode): bool
+    {
+        // $payMethod = $this->coverRepository->getPaymentMethod($payMethodCode);
+        // return $payMethod && $payMethod->short_description === 'I';
+        return true;
     }
 
     /**

@@ -192,7 +192,7 @@ class PipelineController
                     ->join('customer_types', function ($join) {
                         $join->on('customer_types.type_id', '=', DB::raw("ANY (SELECT json_array_elements_text(customers.customer_type)::int)"));
                     })
-                    ->whereIn('customer_types.type_name', ['INSURANCE', 'REINSURANCE'])
+                    ->whereIn('customer_types.slug', ['reinsurer', 'cedant'])
                     ->distinct('name')
                     ->selectRaw('CAST(customers.customer_id AS INT) AS id, customers.name')
                     ->get();
@@ -719,7 +719,7 @@ class PipelineController
                     DB::raw('CAST(customers.customer_id AS INT) as customer_id'),
                     'customers.name'
                 )
-                ->whereIn('customer_types.type_name', ['INSURANCE', 'REINSURANCE'])
+                ->whereIn('customer_types.slug', ['reinsurer', 'cedant'])
                 ->distinct('name')
                 ->get();
 
@@ -1893,7 +1893,7 @@ class PipelineController
         $searchTerm = $request->input('q');
 
         $prospProperties = DB::table('pipeline_opportunities')
-            ->selectRaw('DISTINCT ON (LOWER(insured_name)) pipeline_id, insured_name') // Ensure uniqueness
+            ->selectRaw('DISTINCT ON (LOWER(insured_name)) pipeline_id, insured_name')
             ->whereRaw('LOWER(insured_name) LIKE ?', [strtolower($searchTerm) . '%'])
             ->limit(10)
             ->get();
@@ -2042,7 +2042,7 @@ class PipelineController
                 DB::raw('CAST(customers.customer_id AS INT) as customer_id'),
                 'customers.name'
             )
-            ->whereIn('customer_types.type_name', ['INSURANCE', 'REINSURANCE'])
+            ->whereIn('customer_types.slug', ['reinsurer', 'cedant'])
             ->distinct('customers.name')
             ->get();
 

@@ -1629,15 +1629,19 @@ class ClaimNotificationController extends Controller
             $pending = [];
             $verifiers = collect();
             if (Permission::where('name', 'claims.notification.verify')->exists()) {
-                $verifiers = User::permission('claims.notification.verify')
-                    ->where('user_name', '<>', Auth::user()->user_name)
+                $verifiers = User::where('user_name', '<>', Auth::user()->user_name)
                     ->get();
+                // permission('claims.notification.verify')
+
             }
+
+            // logger()->debug(User::with('permission')->get());
 
             $processSlug = SystemActionEnums::CLAIM_INTIMATION_PROCESS;
             $processActionSlug = SystemActionEnums::VERIFY_CLAIM_INTIMATION_PROCESS;
 
-            $permissionSlug = 'claims.notification.verify';
+            $permissionSlug = 'claims.notification.view';
+            // $permissionSlug = 'claims.notification.verify';
 
 
             $permission = Permission::where('name', $permissionSlug)->first();

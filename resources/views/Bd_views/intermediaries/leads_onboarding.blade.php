@@ -301,7 +301,7 @@
                                     <div class="col-sm-3 fac_section_div">
                                         <label class="form-label required">Insured Name <i
                                                 style="color:red;">*</i></label>
-                                        <input type="text" class="form-inputs section  fac_section"
+                                        <input type="text" class="form-inputs section fac_section"
                                             name="insured_name" id="insured_name" required />
                                         <div id="insured_name_results" class="dropdown-menu"
                                             style="display: none; max-width: 500px; width: 100%;">

@@ -123,6 +123,13 @@
                     name="estimated_income[]" data-counter="0" placeholder="0.00" required>
                 <small class="text-muted">Expected premium income</small>
             </div>
+
+            <div class="col-md-3 cashloss_limit_div">
+                <label class="form-label required">Cash Loss Limit</label>
+                <input type="text" class="form-control amount cashloss_limit required" id="cashloss_limit-0"
+                    name="cashloss_limit[]" data-counter="0" placeholder="0.00">
+                <small class="text-muted">Maximum claim amount</small>
+            </div>
         </div>
 
         {{-- Commission Section --}}

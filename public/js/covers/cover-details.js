@@ -1,14 +1,10 @@
 /**
  * Reinsurance Placement Management System
- * Refactored for better maintainability, performance, and reliability
- * @version 2.0.0
+ * @pk305
  */
 (function ($) {
     "use strict";
 
-    // ============================================================================
-    // CONSTANTS
-    // ============================================================================
     const CONFIG = Object.freeze({
         DECIMAL_PRECISION: 2,
         TOLERANCE: 0.001,
@@ -30,14 +26,12 @@
     });
 
     const SELECTORS = Object.freeze({
-        // Main containers
         APP: "#coverDetailsApp",
         TREATY_DIV: "#treaty-div",
         TREATY_SECTION: ".treaty-div-section",
         REINSURER_SECTION: ".reinsurer-section",
         REINSURER_ROW_TEMPLATE: "#reinsurer-row-template",
 
-        // Modal & Form
         MODAL: "#addReinsurerModal",
         FORM: "#reinsurerForm",
         SAVE_BUTTON: "#partner-save-btn",
@@ -53,6 +47,7 @@
         REINSURERS_TABLE: "#reinsurers-table",
         INSTALLMENTS_TABLE: "#installments-table",
         DEBITS_TABLE: "#debits-table",
+        APPROVALS_TABLE: "#approvals-table",
 
         // Forms
         SCHEDULES_FORM: "#schedulesForm",
@@ -61,39 +56,25 @@
         REINSURER_FORM: "#reinsurerForm",
         EDIT_REINSURER_FORM: "#EditReinsurerForm",
         VERIFY_FORM: "#verifyForm",
+        FAC_DEBIT_FORM: "#facDebitForm",
     });
 
-    // ============================================================================
-    // UTILITY FUNCTIONS
-    // ============================================================================
     const Utils = {
-        /**
-         * Remove commas from a numeric string and parse to float
-         */
         removeCommas(value) {
             if (value === null || value === undefined || value === "") return 0;
             return parseFloat(String(value).replace(/,/g, "")) || 0;
         },
 
-        /**
-         * Format number with commas and fixed decimal places
-         */
         formatNumber(value, decimals = CONFIG.DECIMAL_PRECISION) {
             const num = parseFloat(value);
             if (isNaN(num)) return "0.00";
             return num.toFixed(decimals).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
         },
 
-        /**
-         * Convert to decimal with fixed precision
-         */
         toDecimal(number, precision = CONFIG.DECIMAL_PRECISION) {
             return parseFloat(Number(number).toFixed(precision));
         },
 
-        /**
-         * Check if two decimals are equal within tolerance
-         */
         areEqual(num1, num2, tolerance = CONFIG.TOLERANCE) {
             return (
                 Math.abs(this.toDecimal(num1) - this.toDecimal(num2)) <=
@@ -101,18 +82,11 @@
             );
         },
 
-        /**
-         * Get element value with fallback
-         */
         getElementValue(selector, defaultValue = 0) {
             const $el = $(selector);
             if (!$el.length) return defaultValue;
             return this.removeCommas($el.val()) || defaultValue;
         },
-
-        /**
-         * Validate and clamp a number
-         */
         clampNumber(value, min = null, max = null, defaultValue = 0) {
             const num = this.removeCommas(value);
             if (isNaN(num)) return defaultValue;
@@ -120,10 +94,6 @@
             if (max !== null && num > max) return max;
             return num;
         },
-
-        /**
-         * Escape HTML to prevent XSS
-         */
         escapeHtml(text) {
             if (!text) return "";
             const div = document.createElement("div");
@@ -131,9 +101,6 @@
             return div.innerHTML;
         },
 
-        /**
-         * Replace placeholders in template string
-         */
         replacePlaceholders(template, replacements) {
             return Object.entries(replacements).reduce(
                 (result, [key, value]) =>
@@ -142,9 +109,6 @@
             );
         },
 
-        /**
-         * Debounce function execution
-         */
         debounce(func, wait = CONFIG.DEBOUNCE_DELAY) {
             let timeout;
             return function executedFunction(...args) {
@@ -157,26 +121,17 @@
             };
         },
 
-        /**
-         * Generate unique ID
-         */
         generateId(prefix = "id") {
             return `${prefix}-${Date.now()}-${Math.random()
                 .toString(36)
                 .substr(2, 9)}`;
         },
 
-        /**
-         * Get CSRF token
-         */
         getCsrfToken() {
             return $('meta[name="csrf-token"]').attr("content") || "";
         },
     };
 
-    // ============================================================================
-    // NOTIFICATION SERVICE
-    // ============================================================================
     const NotificationService = {
         activeNotifications: new Set(),
 
@@ -222,10 +177,8 @@
             $("body").append($notification);
             this.activeNotifications.add(id);
 
-            // Auto-remove after duration
             setTimeout(() => this.remove(id), CONFIG.NOTIFICATION_DURATION);
 
-            // Handle manual close
             $notification.on("closed.bs.alert", () =>
                 this.activeNotifications.delete(id)
             );
@@ -248,25 +201,18 @@
             $(".notification-alert").remove();
         },
 
-        // Convenience methods
         success: (msg) => NotificationService.show("success", msg),
         error: (msg) => NotificationService.show("error", msg),
         warning: (msg) => NotificationService.show("warning", msg),
         info: (msg) => NotificationService.show("info", msg),
     };
 
-    // ============================================================================
-    // SELECT2 MANAGER
-    // ============================================================================
     const Select2Manager = {
         defaultOptions: {
             width: "100%",
             allowClear: false,
         },
 
-        /**
-         * Initialize Select2 on elements
-         */
         init(selector = ".select2Placement", parentSelector = SELECTORS.MODAL) {
             if (!$.fn.select2) {
                 console.warn("Select2 not loaded");
@@ -279,7 +225,6 @@
             $elements.each(function () {
                 const $el = $(this);
 
-                // Destroy existing instance
                 if ($el.hasClass("select2-hidden-accessible")) {
                     try {
                         $el.select2("destroy");
@@ -288,7 +233,6 @@
                     }
                 }
 
-                // Initialize new instance
                 $el.select2({
                     ...Select2Manager.defaultOptions,
                     dropdownParent: $parent.length ? $parent : $("body"),
@@ -297,19 +241,12 @@
             });
         },
 
-        /**
-         * Initialize Select2 within a specific container
-         */
         initInContainer(containerSelector) {
             const $container = $(containerSelector);
             if (!$container.length) return;
 
             this.init(`${containerSelector} .select2Placement`);
         },
-
-        /**
-         * Set Select2 value properly
-         */
         setValue($element, value) {
             if (
                 !$element ||
@@ -331,7 +268,6 @@
 
             $element.val(stringValue);
 
-            // Trigger appropriate event based on Select2 state
             if ($element.hasClass("select2-hidden-accessible")) {
                 $element.trigger("change.select2");
             } else {
@@ -341,9 +277,6 @@
             return true;
         },
 
-        /**
-         * Get available options from a select
-         */
         getOptions($element) {
             return $element
                 .find("option")
@@ -353,10 +286,6 @@
                 }))
                 .get();
         },
-
-        /**
-         * Wait for Select2 to be ready
-         */
         waitForReady(selector, timeout = 2000) {
             return new Promise((resolve) => {
                 const $el = $(selector);
@@ -379,9 +308,6 @@
         },
     };
 
-    // ============================================================================
-    // CALCULATION SERVICE
-    // ============================================================================
     class CalculationService {
         constructor(coverData) {
             this.coverData = coverData;
@@ -391,9 +317,6 @@
             this.coverData = { ...this.coverData, ...data };
         }
 
-        /**
-         * Calculate share amounts based on percentage
-         */
         calculateShareAmounts(sharePercentage, commissionRate) {
             const shareDecimal = sharePercentage / CONFIG.PERCENTAGE_MULTIPLIER;
             const { total_sum_insured, rein_premium } = this.coverData;
@@ -410,18 +333,12 @@
             };
         }
 
-        /**
-         * Calculate commission amount from rate
-         */
         calculateCommissionAmount(premium, rate) {
             const p = Utils.removeCommas(premium);
             const r = Utils.removeCommas(rate);
             return Utils.toDecimal((p * r) / CONFIG.PERCENTAGE_MULTIPLIER);
         }
 
-        /**
-         * Calculate commission rate from amount
-         */
         calculateCommissionRate(premium, amount) {
             const p = Utils.removeCommas(premium);
             const a = Utils.removeCommas(amount);
@@ -430,15 +347,11 @@
                 : 0;
         }
 
-        /**
-         * Calculate brokerage commission
-         */
         calculateBrokerageCommission(premium, brokerageType, quotedAmount = 0) {
             const { cedant_comm_rate, rein_comm_rate } = this.coverData;
             const p = Utils.removeCommas(premium);
 
             if (brokerageType === "A") {
-                // Quoted amount type
                 const amount = Utils.removeCommas(quotedAmount);
                 const rate =
                     p > 0 ? (amount / p) * CONFIG.PERCENTAGE_MULTIPLIER : 0;
@@ -448,7 +361,6 @@
                 };
             }
 
-            // Rate-based type
             const brokerageRate = Math.max(
                 0,
                 Utils.removeCommas(rein_comm_rate) - cedant_comm_rate
@@ -462,9 +374,6 @@
             };
         }
 
-        /**
-         * Calculate retrocession/fronting amounts
-         */
         calculateRetroAmount(premium, rate) {
             const p = Utils.removeCommas(premium);
             const r = Utils.removeCommas(rate);
@@ -479,9 +388,6 @@
                 : 0;
         }
 
-        /**
-         * Generate installments
-         */
         generateInstallments(totalAmount, count) {
             if (count <= 0) return [];
 
@@ -496,9 +402,6 @@
         }
     }
 
-    // ============================================================================
-    // VALIDATION SERVICE
-    // ============================================================================
     class ValidationService {
         constructor(coverData) {
             this.coverData = coverData;
@@ -523,9 +426,6 @@
             return [...this.errors];
         }
 
-        /**
-         * Get business type prefix for error messages
-         */
         getPrefix(number) {
             const { type_of_bus } = this.coverData;
             const prefixes = {
@@ -537,9 +437,6 @@
             return `${prefixes[type_of_bus] || "Section"} ${number}`;
         }
 
-        /**
-         * Validate share allocation
-         */
         validateShare(share, remaining, number) {
             const prefix = this.getPrefix(number);
 
@@ -562,9 +459,6 @@
             return true;
         }
 
-        /**
-         * Validate signed vs written share
-         */
         validateSignedShare(signed, written, treatyNum, reinsurerNum) {
             if (signed > written + CONFIG.TOLERANCE) {
                 this.addError(
@@ -578,9 +472,6 @@
             return true;
         }
 
-        /**
-         * Validate distribution completion
-         */
         validateDistribution(remaining, number) {
             if (Math.abs(remaining) > CONFIG.TOLERANCE) {
                 const status = remaining > 0 ? "remaining" : "over-distributed";
@@ -593,9 +484,6 @@
             return true;
         }
 
-        /**
-         * Validate reinsurer fields
-         */
         validateReinsurerFields($section, treatyNum, reinsurerNum) {
             const prefix = `${this.getPrefix(
                 treatyNum
@@ -651,7 +539,6 @@
                 }
             );
 
-            // Check brokerage for quoted amount type
             const brokerageType = $section.find(".brokerage-comm-type").val();
             if (brokerageType === "A") {
                 const amount = Utils.removeCommas(
@@ -668,9 +555,6 @@
             return isValid;
         }
 
-        /**
-         * Display validation errors in the UI
-         */
         displayErrors() {
             const $list = $(SELECTORS.VALIDATION_LIST);
             const $container = $(SELECTORS.VALIDATION_MESSAGES);
@@ -694,9 +578,6 @@
         }
     }
 
-    // ============================================================================
-    // DISTRIBUTION MANAGER
-    // ============================================================================
     class DistributionManager {
         constructor(calculationService) {
             this.calc = calculationService;
@@ -704,9 +585,6 @@
             this.currentDistributed = 0;
         }
 
-        /**
-         * Initialize from existing partners
-         */
         initFromPartners(partners = []) {
             this.originalDistributed = partners.reduce(
                 (sum, p) => sum + Utils.removeCommas(p.share),
@@ -715,9 +593,6 @@
             this.currentDistributed = this.originalDistributed;
         }
 
-        /**
-         * Calculate distribution for a treaty section
-         */
         calculate(treatyCounter) {
             let totalDistributed = 0;
 
@@ -732,7 +607,6 @@
             );
             const remaining = offered - totalDistributed;
 
-            // Update fields
             $(`#distributed_share-${treatyCounter}`).val(
                 Utils.toDecimal(totalDistributed)
             );
@@ -744,9 +618,6 @@
             return { distributed: totalDistributed, remaining };
         }
 
-        /**
-         * Update remaining share indicator styling
-         */
         updateIndicator(treatyCounter, remaining) {
             const $field = $(`#rem_share-${treatyCounter}`);
             $field.removeClass("bg-danger bg-warning bg-success text-white");
@@ -808,9 +679,6 @@
         }
     }
 
-    // ============================================================================
-    // SUMMARY MANAGER
-    // ============================================================================
     const SummaryManager = {
         refresh() {
             let totalOffered = 0;
@@ -910,9 +778,6 @@
         },
     };
 
-    // ============================================================================
-    // BROKERAGE MANAGER
-    // ============================================================================
     class BrokerageManager {
         constructor(calculationService) {
             this.calc = calculationService;
@@ -998,9 +863,6 @@
         }
     }
 
-    // ============================================================================
-    // RETRO FEE MANAGER
-    // ============================================================================
     class RetroFeeManager {
         constructor(calculationService) {
             this.calc = calculationService;
@@ -1070,9 +932,6 @@
         }
     }
 
-    // ============================================================================
-    // COMMISSION MANAGER
-    // ============================================================================
     class CommissionManager {
         constructor(calculationService) {
             this.calc = calculationService;
@@ -1111,9 +970,6 @@
         }
     }
 
-    // ============================================================================
-    // INSTALLMENT MANAGER
-    // ============================================================================
     class InstallmentManager {
         constructor(calculationService) {
             this.calc = calculationService;
@@ -2012,6 +1868,7 @@
                     reinsurer: $(SELECTORS.REINSURER_FORM),
                     editReinsurer: $(SELECTORS.EDIT_REINSURER_FORM),
                     verify: $(SELECTORS.VERIFY_FORM),
+                    facDebitForm: $(SELECTORS.FAC_DEBIT_FORM),
                 },
                 tabNav: $(".reinsurers-details-card .nav-link"),
             };
@@ -2177,6 +2034,25 @@
                         },
                     },
                 },
+                approvals: {
+                    selector: SELECTORS.APPROVALS_TABLE,
+                    options: {
+                        ajax: baseAjaxConfig(SELECTORS.APPROVALS_TABLE),
+                        columns: [
+                            { data: "id", render: (d, t, r, m) => m.row + 1 },
+                            { data: "approver" },
+                            { data: "comment" },
+                            { data: "approver_comment" },
+                            { data: "status" },
+                            {
+                                data: "action",
+                                searchable: false,
+                                sortable: false,
+                            },
+                        ],
+                        paging: false,
+                    },
+                },
             };
         },
 
@@ -2202,6 +2078,7 @@
                     { data: "brokerage_comm_amt", render: numberRender },
                     { data: "wht_amt", render: numberRender },
                     { data: "fronting_amt", render: numberRender },
+                    { data: "net_amount", render: numberRender },
                 ]);
             }
 
@@ -2285,8 +2162,11 @@
                 if ($form.length && $.fn.validate) {
                     $form.validate({
                         errorClass: "errorClass",
-                        submitHandler: (form) =>
-                            this._handleFormSubmit(name, form),
+                        submitHandler: (form, event) => {
+                            event.preventDefault();
+
+                            this._handleFormSubmit(name, form);
+                        },
                     });
                 }
             });
@@ -2335,8 +2215,8 @@
             const method = $form.find('[name="_method"]').val() || "POST";
             const url =
                 method === "POST"
-                    ? $form.data("post-url")
-                    : $form.data("put-url");
+                    ? $form.data("post-url") || $form.attr("action")
+                    : $form.data("put-url") || $form.attr("action");
 
             if (!url) {
                 NotificationService.error("Form URL not configured");
@@ -2353,8 +2233,12 @@
                 .then((res) => res.json())
                 .then((data) => {
                     if (data.status === 201) {
-                        toastr.success(`${formName} saved successfully`);
-                        setTimeout(() => location.reload(), 1500);
+                        toastr.success(`Sumitted successfully`);
+                        if (data.redirectUrl) {
+                            window.location.href = data.redirectUrl;
+                        } else {
+                            setTimeout(() => location.reload(), 1500);
+                        }
                     } else if (data.status === 422) {
                         this._showValidationErrors(data.errors);
                     } else {

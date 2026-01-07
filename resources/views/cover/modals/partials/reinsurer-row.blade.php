@@ -78,7 +78,7 @@
         @if ($isTreaty)
             {{-- Net/Gross Toggle --}}
             <div class="col-md-2">
-                <label class="form-label required">NetPremium Type</label>
+                <label class="form-label required">Premium Type</label>
                 <div class="btn-group d-flex" role="group">
                     <input type="radio" class="btn-check"
                         name="treaty[{{ $treatyCounterValue }}][reinsurers][{{ $counterValue }}][amount_type]"
@@ -135,9 +135,8 @@
             </div>
         @endif
     </div>
-
+    {{--
     @if ($isTreaty)
-        {{-- Signed Lines Row --}}
         <div class="row mt-3">
             <div class="col-md-3">
                 <label for="share-{{ $treatyCounterValue }}-{{ $counterValue }}" class="form-label required">
@@ -151,7 +150,7 @@
                 <div class="invalid-feedback">Signed lines cannot exceed written lines</div>
             </div>
         </div>
-    @endif
+    @endif --}}
 
     {{-- FACULTATIVE BUSINESS FIELDS --}}
     @if ($isFacultative)

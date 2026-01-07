@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Storage;
 use Carbon\Carbon;
 use Exception;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Database\QueryException;
 use Illuminate\Validation\ValidationException;
 
 class QuarterlyDebitController extends Controller
@@ -111,6 +112,7 @@ class QuarterlyDebitController extends Controller
                     'tdi.status',
                     'tc.description'
                 ]);
+
             $totalRecords = (clone $query)->count();
 
             if (!empty($search)) {
@@ -156,8 +158,6 @@ class QuarterlyDebitController extends Controller
                     ];
                 });
 
-            // logger()->debug(json_encode($data, JSON_PRETTY_PRINT));
-
             return response()->json([
                 'draw' => intval($draw),
                 'recordsTotal' => $totalRecords,
@@ -165,8 +165,6 @@ class QuarterlyDebitController extends Controller
                 'data' => $data
             ]);
         } catch (Exception $e) {
-            logger($e);
-
             return response()->json([
                 'draw' => intval($request->input('draw', 1)),
                 'recordsTotal' => 0,
@@ -473,7 +471,7 @@ class QuarterlyDebitController extends Controller
                 // "amount_type": null
             });
 
-            logger()->debug(json_encode($query->get(), JSON_PRETTY_PRINT));
+            // logger()->debug(json_encode($query->get(), JSON_PRETTY_PRINT));
 
             return response()->json([
                 'draw' => $draw,
@@ -765,6 +763,8 @@ class QuarterlyDebitController extends Controller
             ]
         ];
 
+        logger()->debug(json_encode($documentData, JSON_PRETTY_PRINT));
+
         $pdf = Pdf::loadView($viewName, $documentData)->setPaper('a4', 'portrait')->setWarnings(false);
         $pdf->set_option('isHtml5ParserEnabled', true);
         $pdf->set_option('isPhpEnabled', true);
@@ -880,33 +880,38 @@ class QuarterlyDebitController extends Controller
 
         $debitItems = DB::table('debit_note_items as tdi')
             ->join('debit_notes as dn', 'tdi.debit_note_id', '=', 'dn.id')
+            ->leftJoin('treaty_item_codes as tc', 'tdi.item_code', '=', 'tc.item_code')
             ->leftJoin('class_groups as cg', 'tdi.class_group_code', '=', 'cg.group_code')
-            ->leftJoin('classes as c', 'tdi.class_code', '=', 'c.class_code')
-            ->leftJoin('treaty_item_codes as tic', 'tdi.item_code', '=', 'tic.item_code')
+            ->leftJoin('reinclass_premtypes as c', function ($join) {
+                $join->on('tdi.class_code', '=', 'c.premtype_code')
+                    ->on('tdi.class_group_code', '=', 'c.reinclass');
+            })
             ->where('dn.cover_no', $coverNo)
             ->where('dn.endorsement_no', $endorsementNo)
             ->select([
                 'tdi.id',
                 'tdi.item_code',
-                'tic.description as item_name',
+                'tdi.item_no',
                 'tdi.line_no',
-                'tdi.description',
+                'tc.description as item_name',
                 'tdi.class_group_code',
                 'cg.group_name',
                 'tdi.class_code',
-                'c.class_name',
+                'c.premtype_name as class_name',
                 'tdi.line_rate',
-                'tdi.amount as item_amount',
+                'tdi.amount as gross_amount',
                 'tdi.ledger',
                 'dn.debit_note_no',
                 'dn.posting_date',
-                'dn.gross_amount',
                 'dn.commission_amount',
-                'dn.net_amount',
-                'dn.status',
+                'tdi.net_amount',
+                'tdi.status',
+                'tdi.amount as item_amount',
+                'tc.description',
             ])
             ->orderBy('posting_date', 'desc')
             ->get();
+
 
         $totalGross = $debitNote->gross_amount;
         $totalCommission = $debitNote->commission_amount;
@@ -934,6 +939,8 @@ class QuarterlyDebitController extends Controller
                 'to' => Carbon::parse($cover->cover_to)->format('d M Y')
             ]
         ];
+
+        logger()->debug(json_encode($debitItems, JSON_PRETTY_PRINT));
 
         $pdf = Pdf::loadView($viewName, $documentData)->setPaper('a4', 'portrait')->setWarnings(false);
         $pdf->set_option('isHtml5ParserEnabled', true);
@@ -973,7 +980,7 @@ class QuarterlyDebitController extends Controller
                 'message' => 'Document generated successfully.',
                 'already_exists' => false
             ];
-        } catch (\Illuminate\Database\QueryException $e) {
+        } catch (QueryException $e) {
             if ($e->getCode() === '23505' || str_contains($e->getMessage(), 'duplicate key value')) {
                 $existingDocument = DB::table('treaty_documents')
                     ->where('reference', $referenceNo)
@@ -1041,6 +1048,39 @@ class QuarterlyDebitController extends Controller
         if (file_exists(storage_path('app/' . $filePath))) {
             return response()->download(storage_path('app/' . $filePath));
         }
+        //   $query = CoverRipart::where([
+        //         'cover_no' => $coverNo,
+        //         'endorsement_no' => $endorsementNo
+        //     ])->with('partner');
+
+        //     $debit = DebitNote::where([
+        //         'cover_no' => $coverNo,
+        //         'endorsement_no' => $endorsementNo
+        //     ])->first();
+
+        //     $recordsTotal = $query->count();
+        //     $recordsFiltered = $recordsTotal;
+
+        //     $reinsurers = $query
+        //         ->skip($start)
+        //         ->take($length)
+        //         ->get();
+
+        //     $data = $reinsurers->map(function ($rein) {
+        //         return [
+        //             'id' => $rein->id,
+        //             'name' => $rein->partner?->name ?? '',
+        //             'share_percentage' => $rein->share ?? 0,
+        //             'gross_premium' => $rein->total_premium ?? 0,
+        //             'commission' => $rein->commission ?? 0,
+        //             'brokerage_amount' => $rein->brokerage_comm_amt ?? 0,
+        //             'premium_tax_amount' => $rein->prem_tax ?? 0,
+        //             'wht_amount' => $rein->wht_amt ?? 0,
+        //             'ri_tax' => $rein->ri_tax ?? 0,
+        //             'net_amount' => $rein->net_amount ?? 0,
+        //             'status' => 'active'
+        //         ];
+
 
         abort(404, 'Document file not found');
     }
@@ -1089,10 +1129,6 @@ class QuarterlyDebitController extends Controller
                 'download_url' => route('treaty.documents.download', ['id' => $reference])
             ]);
         } catch (\Exception $e) {
-            logger()->error('Failed to generate statement', [
-                'error' => $e->getMessage()
-            ]);
-
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to generate statement'

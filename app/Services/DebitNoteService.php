@@ -79,8 +79,6 @@ class DebitNoteService
                 );
             }
 
-            // logger()->debug(json_encode($amounts, JSON_PRETTY_PRINT));
-
             $debitNoteNo = $this->generateDebitNoteNumber(
                 $cover->type_of_bus,
                 $data['postingYear']

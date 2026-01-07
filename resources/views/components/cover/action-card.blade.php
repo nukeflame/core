@@ -46,7 +46,7 @@
                 </button>
 
                 <button type="button" class="btn btn-outline-dark btn-sm text-start me-2" data-bs-toggle="modal"
-                    data-bs-target="#addClauseModal">
+                    data-bs-target="#addAttachemntModal">
                     <i class="ri-file-text-line me-2"></i>Add File &amp; Supporting Docs
                 </button>
 
