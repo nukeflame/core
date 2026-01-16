@@ -12,9 +12,9 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('cover_register', function (Blueprint $table) {
-            $table->bigIncrements('id');
-        });
+        // Schema::table('cover_register', function (Blueprint $table) {
+        //     $table->bigIncrements('id');
+        // });
     }
 
     /**
@@ -22,8 +22,8 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('cover_register', function (Blueprint $table) {
-            $table->dropColumn('id');
-        });
+        // Schema::table('cover_register', function (Blueprint $table) {
+        //     $table->dropColumn('id');
+        // });
     }
 };
