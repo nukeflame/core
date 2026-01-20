@@ -8,7 +8,22 @@
 
 @section('content')
     <!-- Dashboard Header -->
-    <div class="dashboard-header">
+    <div class="row">
+        <div class="d-md-flex d-block align-items-center justify-content-between my-4 page-header-breadcrumb bi-dashboard">
+            <div class="dashboard">
+                <div class="header">
+                    <div>
+                        <p class="fw-semibold fs-18 mb-0">Welcome back, {{ $firstName }} | {{ date('F j, Y') }}</p>
+                        <span class="fs-semibold text-muted">Easily track key metrics and monitor performance across your
+                            entire reinsurance portfolio.</span>
+                    </div>
+                    <div class="btn-list mt-md-0 mt-2"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {{-- <div class="dashboard-header">
         <div class="d-flex justify-content-between align-items-center">
             <div>
                 <h1 class="dashboard-header-title">Portfolio Dashboard</h1>
@@ -25,7 +40,7 @@
                 </div>
             </div>
         </div>
-    </div>
+    </div> --}}
 
     <!-- Key Metrics Row -->
     <div class="metrics-grid">
