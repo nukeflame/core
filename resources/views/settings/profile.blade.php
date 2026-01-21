@@ -420,19 +420,19 @@
                                 {{-- <h5 class="text-primary mb-3">Personal Information</h5> --}}
                                 <div class="mb-3">
                                     <label class="form-label">Name</label>
-                                    <input type="text" class="form-inputs" name="name" required>
+                                    <input type="text" class="form-inputs" name="name" value="{{ $user->name }}" required>
                                 </div>
                                 <div class="mb-3">
                                     <label class="form-label">Email</label>
-                                    <input type="email" class="form-inputs" name="email" required>
+                                    <input type="email" class="form-inputs" name="email" value="{{ $user->email }}" required>
                                 </div>
                                 <div class="mb-3">
                                     <label class="form-label">Phone</label>
-                                    <input type="tel" class="form-inputs" name="phone">
+                                    <input type="tel" class="form-inputs" name="phone_number" value="{{ $user->phone_number }}">
                                 </div>
                                 <div class="mb-3">
                                     <label class="form-label">Designation</label>
-                                    <input type="text" class="form-inputs" name="designation">
+                                    <input type="text" class="form-inputs" name="designation" value="{{ $user->designation }}">
                                 </div>
                             </div>
 
@@ -441,17 +441,17 @@
                                 {{-- <h5 class="text-primary mb-3">Professional Details</h5> --}}
                                 <div class="mb-3">
                                     <label class="form-label">Age</label>
-                                    <input type="number" class="form-inputs" name="age">
+                                    <input type="number" class="form-inputs" name="age" value="{{ $user->age }}">
                                 </div>
                                 <div class="mb-3">
                                     <label class="form-label">Experience (Years)</label>
-                                    <input type="number" class="form-inputs" name="experience">
+                                    <input type="number" class="form-inputs" name="experience" value="{{ $user->experience }}">
                                 </div>
                                 <div class="mb-3">
                                     <label class="form-label">Skills</label>
                                     <div class="card-md">
                                         <select class="form-inputs select2" name="skills[]" multiple>
-                                            <option value="underwriter">Underwriter</option>
+                                            <option value="underwriter" {{ in_array('underwriter', $user->skills ?? []) ? 'selected' : '' }}>Underwriter</option>
                                         </select>
                                     </div>
                                 </div>
@@ -461,7 +461,7 @@
                         <!-- Professional Bio -->
                         <div class="mb-3">
                             <label class="form-label">Professional Bio</label>
-                            <textarea class="form-control color-blk" name="professional_bio" rows="4"></textarea>
+                            <textarea class="form-control color-blk" name="professional_bio" rows="4">{{ $user->professional_bio }}</textarea>
                         </div>
 
                         <!-- Social Networks -->
@@ -473,19 +473,19 @@
                                 <div class="row">
                                     <div class="col-md-6 mb-3">
                                         <label class="form-label">Facebook URL</label>
-                                        <input type="url" class="form-inputs" name="social_networks[facebook]">
+                                        <input type="url" class="form-inputs" name="social_networks[facebook]" value="{{ $user->social_networks['facebook'] ?? '' }}">
                                     </div>
                                     <div class="col-md-6 mb-3">
                                         <label class="form-label">Twitter URL</label>
-                                        <input type="url" class="form-inputs" name="social_networks[twitter]">
+                                        <input type="url" class="form-inputs" name="social_networks[twitter]" value="{{ $user->social_networks['twitter'] ?? '' }}">
                                     </div>
                                     <div class="col-md-6 mb-3">
                                         <label class="form-label">LinkedIn URL</label>
-                                        <input type="url" class="form-inputs" name="social_networks[linkedin]">
+                                        <input type="url" class="form-inputs" name="social_networks[linkedin]" value="{{ $user->social_networks['linkedin'] ?? '' }}">
                                     </div>
                                     <div class="col-md-6 mb-3">
                                         <label class="form-label">Instagram URL</label>
-                                        <input type="url" class="form-inputs" name="social_networks[linkedin]">
+                                        <input type="url" class="form-inputs" name="social_networks[instagram]" value="{{ $user->social_networks['instagram'] ?? '' }}">
                                     </div>
                                 </div>
                             </div>
@@ -511,7 +511,6 @@
                     e.preventDefault();
                     // alert('Please fill in required fields');
                 }
-                e.preventDefault();
             });
 
             $('#editProfile').on('click', function(e) {
@@ -519,7 +518,7 @@
             });
 
             $('#passwordForm').on('submit', function(e) {
-                e.preventDefault()
+                // e.preventDefault()
             });
         });
     </script>

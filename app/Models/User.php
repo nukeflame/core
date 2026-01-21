@@ -48,6 +48,8 @@ class User extends Authenticatable
         'requires_password_reset' => 'boolean',
         'password' => 'hashed',
         'password_changed_at' => 'datetime',
+        'skills' => 'array',
+        'social_networks' => 'array',
     ];
 
     /**
