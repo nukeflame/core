@@ -19,6 +19,7 @@ Route::group(['prefix' => 'dashboard', 'middleware' => ['auth', 'sidebar.cookie'
     Route::get('/reports/facultative', [AnalyticsController::class, 'facultativeReport'])->name('reports.facultative');
 
     Route::get('appointments/data', [DashboardController::class, 'appointmentsDatatable'])->name('dashboard.appointments.data');
+    Route::get('/metrics', [DashboardController::class, 'getMetrics'])->name('dashboard.metrics');
     Route::post('appointments/store', [AppointmentController::class, 'store'])->name('dashboard.appointments.store');
 
     Route::get('/todos/load', [TodoController::class, 'load'])->name('todos.load');

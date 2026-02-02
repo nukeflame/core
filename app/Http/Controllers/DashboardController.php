@@ -6,6 +6,7 @@ use App\Enums\PermissionsLevel;
 use App\Models\CoverDebit;
 use App\Models\CoverRegister;
 use App\Models\Todo;
+use App\Services\DashboardService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -13,28 +14,69 @@ use Yajra\DataTables\Facades\DataTables;
 
 class DashboardController extends Controller
 {
+    protected DashboardService $dashboardService;
+
+    public function __construct(DashboardService $dashboardService)
+    {
+        $this->dashboardService = $dashboardService;
+    }
+
     public function index(Request $request)
     {
-        $totalCovers    = $this->totalCovers();
-        $totalFacCovers = $this->totalFacCovers();
-        $totalDebitedCovers = $this->totalDebitedCovers();
-        $totalTPRCovers = $this->totalTPRCovers();
-        $totalTNPCovers = $this->totalTNPCovers();
-
-        // Check if cookie exists
+        // Check if cookie exists for report sidebar
         if ($request->cookie('show_report_sidebar')) {
             return (new AnalyticsController)->analytics();
         }
 
+        // Get current year and period
+        $year = now()->year;
+        $period = $request->get('period', 'ytd');
+
+        // Get dashboard metrics using the service
+        $metrics = $this->dashboardService->getMetricsForPeriod($period, $year);
+        $businessMix = $this->dashboardService->getBusinessMix($year);
+        $coverCounts = $this->dashboardService->getCoverCounts($year, now()->month);
+        $recentActivity = $this->dashboardService->getRecentActivity(5);
+        $avgCommRate = $this->dashboardService->getAverageCommissionRate($year);
+
+        // Get todos
         $todos = Todo::where('user_id', Auth::id())->get();
 
         return view('dashboard', [
-            'totalCovers'        => $totalCovers,
-            'totalFacCovers'     => $totalFacCovers,
-            'totalTPRCovers'     => $totalTPRCovers,
-            'totalTNPCovers'     => $totalTNPCovers,
-            'totalDebitedCovers' => $totalDebitedCovers,
-            'todos'              => $todos
+            // Legacy format for backward compatibility
+            'totalCovers'        => $coverCounts['total'],
+            'totalFacCovers'     => $coverCounts['fac'],
+            'totalTPRCovers'     => $coverCounts['tpr'],
+            'totalTNPCovers'     => $coverCounts['tnp'],
+            'totalDebitedCovers' => $coverCounts['debited'],
+            'todos'              => $todos,
+
+            // New comprehensive data
+            'metrics'            => $metrics,
+            'businessMix'        => $businessMix,
+            'coverCounts'        => $coverCounts,
+            'recentActivity'     => $recentActivity,
+            'avgCommRate'        => $avgCommRate,
+            'currentPeriod'      => $period,
+            'currentYear'        => $year,
+        ]);
+    }
+
+    /**
+     * AJAX endpoint for period-based data refresh
+     */
+    public function getMetrics(Request $request)
+    {
+        $period = $request->get('period', 'ytd');
+        $year = $request->get('year', now()->year);
+
+        $metrics = $this->dashboardService->getMetricsForPeriod($period, $year);
+        $businessMix = $this->dashboardService->getBusinessMix($year);
+
+        return response()->json([
+            'success' => true,
+            'metrics' => $metrics,
+            'businessMix' => $businessMix,
         ]);
     }
 
@@ -125,7 +167,7 @@ class DashboardController extends Controller
 
     public function appointmentsDatatable()
     {
-        return DataTables::of([])
+        return DataTables::of(collect([]))
             ->addColumn('status', function ($data) {
                 return "";
             })

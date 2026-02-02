@@ -97,7 +97,7 @@
                     <div class="card-body p-4">
                         <div class="d-flex align-items-center justify-content-center mb-4">
                             <div class="mini-logo p-2 me-1">
-                                <img src="http://localhost:8000/logo.png" alt="logo" class="mini-logo-img">
+                                <img src="/assets/images/brand-logos/main-horizontal-logo.png" alt="logo" class="mini-logo-img">
                             </div>
                         </div>
 

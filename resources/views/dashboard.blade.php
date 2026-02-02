@@ -23,25 +23,6 @@
         </div>
     </div>
 
-    {{-- <div class="dashboard-header">
-        <div class="d-flex justify-content-between align-items-center">
-            <div>
-                <h1 class="dashboard-header-title">Portfolio Dashboard</h1>
-                <p class="dashboard-header-subtitle">Real-time insights into your portfolio performance</p>
-            </div>
-            <div class="dashboard-header-meta">
-                <div class="period-badge">
-                    <i class="ri-calendar-line"></i>
-                    <span>Period: 2025</span>
-                </div>
-                <div class="period-badge">
-                    <i class="ri-time-line"></i>
-                    <span>Last updated: {{ date('M d, Y H:i') }}</span>
-                </div>
-            </div>
-        </div>
-    </div> --}}
-
     <!-- Key Metrics Row -->
     <div class="metrics-grid">
         <!-- Gross Written Premium -->
@@ -54,11 +35,11 @@
             <div class="metric-label">Gross Written Premium (GWP)</div>
             <div class="metric-value">
                 <span class="metric-value-currency">KES</span>
-                {{ number_format(212800000, 0) }}
+                {{ number_format($metrics['gwp'] ?? 0, 0) }}
             </div>
-            <div class="metric-change positive">
-                <i class="ri-arrow-up-line"></i>
-                <span>+5.2% vs Last Year</span>
+            <div class="metric-change {{ ($metrics['gwpChange'] ?? 0) >= 0 ? 'positive' : 'negative' }}">
+                <i class="ri-arrow-{{ ($metrics['gwpChange'] ?? 0) >= 0 ? 'up' : 'down' }}-line"></i>
+                <span>{{ ($metrics['gwpChange'] ?? 0) >= 0 ? '+' : '' }}{{ number_format($metrics['gwpChange'] ?? 0, 1) }}% vs Last Year</span>
             </div>
         </div>
 
@@ -72,11 +53,11 @@
             <div class="metric-label">Net Premium Income</div>
             <div class="metric-value">
                 <span class="metric-value-currency">KES</span>
-                {{ number_format(31845000, 0) }}
+                {{ number_format($metrics['netPremium'] ?? 0, 0) }}
             </div>
-            <div class="metric-change positive">
-                <i class="ri-arrow-up-line"></i>
-                <span>+3.8% vs Budget</span>
+            <div class="metric-change {{ ($metrics['netPremiumChange'] ?? 0) >= 0 ? 'positive' : 'negative' }}">
+                <i class="ri-arrow-{{ ($metrics['netPremiumChange'] ?? 0) >= 0 ? 'up' : 'down' }}-line"></i>
+                <span>{{ ($metrics['netPremiumChange'] ?? 0) >= 0 ? '+' : '' }}{{ number_format($metrics['netPremiumChange'] ?? 0, 1) }}% vs Last Year</span>
             </div>
         </div>
 
@@ -90,11 +71,11 @@
             <div class="metric-label">Commission Income</div>
             <div class="metric-value">
                 <span class="metric-value-currency">KES</span>
-                {{ number_format(21280000, 0) }}
+                {{ number_format($metrics['commissionIncome'] ?? 0, 0) }}
             </div>
             <div class="metric-change neutral">
                 <i class="ri-subtract-line"></i>
-                <span>15% Avg Rate</span>
+                <span>{{ number_format($avgCommRate ?? 0, 1) }}% Avg Rate</span>
             </div>
         </div>
 
@@ -106,10 +87,10 @@
                 </div>
             </div>
             <div class="metric-label">Portfolio Loss Ratio</div>
-            <div class="metric-value">63.2<span style="font-size: 20px;">%</span></div>
-            <div class="metric-change positive">
-                <i class="ri-arrow-down-line"></i>
-                <span>-4.1% vs Target</span>
+            <div class="metric-value">{{ number_format($metrics['lossRatio'] ?? 0, 1) }}<span style="font-size: 20px;">%</span></div>
+            <div class="metric-change {{ ($metrics['lossRatioChange'] ?? 0) <= 0 ? 'positive' : 'negative' }}">
+                <i class="ri-arrow-{{ ($metrics['lossRatioChange'] ?? 0) <= 0 ? 'down' : 'up' }}-line"></i>
+                <span>{{ number_format(abs($metrics['lossRatioChange'] ?? 0), 1) }}% vs Last Year</span>
             </div>
         </div>
 
@@ -121,7 +102,7 @@
                 </div>
             </div>
             <div class="metric-label">Active Covers</div>
-            <div class="metric-value">{{ $totalCovers['amount'] ?? 1 }}</div>
+            <div class="metric-value">{{ $totalCovers['amount'] ?? 0 }}</div>
             <div class="metric-change positive">
                 <i class="ri-arrow-up-line"></i>
                 <span>{{ $totalDebitedCovers['amount'] ?? 0 }} Debited</span>
@@ -136,10 +117,10 @@
                 </div>
             </div>
             <div class="metric-label">Renewal Rate</div>
-            <div class="metric-value">87<span style="font-size: 20px;">%</span></div>
-            <div class="metric-change positive">
-                <i class="ri-arrow-up-line"></i>
-                <span>Above Industry Avg (84%)</span>
+            <div class="metric-value">{{ number_format($metrics['renewalRate'] ?? 0, 0) }}<span style="font-size: 20px;">%</span></div>
+            <div class="metric-change {{ ($metrics['renewalRate'] ?? 0) >= 84 ? 'positive' : 'neutral' }}">
+                <i class="ri-arrow-{{ ($metrics['renewalRate'] ?? 0) >= 84 ? 'up' : 'right' }}-line"></i>
+                <span>{{ ($metrics['renewalRate'] ?? 0) >= 84 ? 'Above' : 'Below' }} Industry Avg (84%)</span>
             </div>
         </div>
     </div>
@@ -149,23 +130,23 @@
         <div class="section-header">
             <h2 class="section-title">Business Mix Overview</h2>
             <div class="section-actions">
-                <button class="btn-filter active" data-period="ytd">YTD</button>
-                <button class="btn-filter" data-period="quarter">Q4</button>
-                <button class="btn-filter" data-period="month">Nov</button>
+                <button class="btn-filter {{ ($currentPeriod ?? 'ytd') === 'ytd' ? 'active' : '' }}" data-period="ytd">YTD</button>
+                <button class="btn-filter {{ ($currentPeriod ?? 'ytd') === 'quarter' ? 'active' : '' }}" data-period="quarter">Q{{ now()->quarter }}</button>
+                <button class="btn-filter {{ ($currentPeriod ?? 'ytd') === 'month' ? 'active' : '' }}" data-period="month">{{ now()->format('M') }}</button>
             </div>
         </div>
         <div class="section-body">
             <div class="business-split">
                 <div class="business-split-item">
-                    <div class="business-split-value">KES 127.4M</div>
+                    <div class="business-split-value">KES {{ number_format(($businessMix['facultative']['total'] ?? 0) / 1000000, 1) }}M</div>
                     <div class="business-split-label">Facultative</div>
-                    <div class="business-split-percentage">59.8%</div>
+                    <div class="business-split-percentage">{{ number_format($businessMix['facultative']['percentage'] ?? 0, 1) }}%</div>
                 </div>
                 <div class="business-split-divider"></div>
                 <div class="business-split-item">
-                    <div class="business-split-value">KES 85.4M</div>
+                    <div class="business-split-value">KES {{ number_format(($businessMix['treaty']['total'] ?? 0) / 1000000, 1) }}M</div>
                     <div class="business-split-label">Treaty</div>
-                    <div class="business-split-percentage">40.2%</div>
+                    <div class="business-split-percentage">{{ number_format($businessMix['treaty']['percentage'] ?? 0, 1) }}%</div>
                 </div>
             </div>
 
@@ -174,25 +155,28 @@
                 <div class="portfolio-item">
                     <div class="portfolio-item-header">
                         <span class="portfolio-type">Facultative - Proportional</span>
-                        <span class="portfolio-count">{{ $totalTPRCovers['amount'] ?? 0 }}</span>
+                        <span class="portfolio-count">{{ $coverCounts['fpr']['amount'] ?? 0 }}</span>
                     </div>
                     <div class="portfolio-metrics">
                         <div>
                             <div class="portfolio-metric-label">GWP</div>
-                            <div class="portfolio-metric-value">KES 75.3M</div>
+                            <div class="portfolio-metric-value">KES {{ number_format(($businessMix['fpr']['gwp'] ?? 0) / 1000000, 1) }}M</div>
                         </div>
                         <div>
                             <div class="portfolio-metric-label">Income</div>
-                            <div class="portfolio-metric-value">KES 11.3M</div>
+                            <div class="portfolio-metric-value">KES {{ number_format(($businessMix['fpr']['income'] ?? 0) / 1000000, 1) }}M</div>
                         </div>
                     </div>
+                    @php
+                        $fprPercentage = $businessMix['fpr']['percentage'] ?? 0;
+                    @endphp
                     <div class="portfolio-progress">
                         <div class="portfolio-progress-label">
-                            <span>Budget Achievement</span>
-                            <span class="fw-semibold">72%</span>
+                            <span>Portfolio Share</span>
+                            <span class="fw-semibold">{{ number_format($fprPercentage, 0) }}%</span>
                         </div>
                         <div class="progress-bar-modern">
-                            <div class="progress-bar-fill" style="width: 72%"></div>
+                            <div class="progress-bar-fill" style="width: {{ min($fprPercentage, 100) }}%"></div>
                         </div>
                     </div>
                 </div>
@@ -201,25 +185,28 @@
                 <div class="portfolio-item">
                     <div class="portfolio-item-header">
                         <span class="portfolio-type">Facultative - Non-Proportional</span>
-                        <span class="portfolio-count">{{ $totalFacCovers['amount'] ?? 0 }}</span>
+                        <span class="portfolio-count">{{ $coverCounts['fnp']['amount'] ?? 0 }}</span>
                     </div>
                     <div class="portfolio-metrics">
                         <div>
                             <div class="portfolio-metric-label">GWP</div>
-                            <div class="portfolio-metric-value">KES 52.1M</div>
+                            <div class="portfolio-metric-value">KES {{ number_format(($businessMix['fnp']['gwp'] ?? 0) / 1000000, 1) }}M</div>
                         </div>
                         <div>
                             <div class="portfolio-metric-label">Income</div>
-                            <div class="portfolio-metric-value">KES 7.8M</div>
+                            <div class="portfolio-metric-value">KES {{ number_format(($businessMix['fnp']['income'] ?? 0) / 1000000, 1) }}M</div>
                         </div>
                     </div>
+                    @php
+                        $fnpPercentage = $businessMix['fnp']['percentage'] ?? 0;
+                    @endphp
                     <div class="portfolio-progress">
                         <div class="portfolio-progress-label">
-                            <span>Budget Achievement</span>
-                            <span class="fw-semibold">68%</span>
+                            <span>Portfolio Share</span>
+                            <span class="fw-semibold">{{ number_format($fnpPercentage, 0) }}%</span>
                         </div>
                         <div class="progress-bar-modern">
-                            <div class="progress-bar-fill" style="width: 68%"></div>
+                            <div class="progress-bar-fill" style="width: {{ min($fnpPercentage, 100) }}%"></div>
                         </div>
                     </div>
                 </div>
@@ -228,25 +215,28 @@
                 <div class="portfolio-item">
                     <div class="portfolio-item-header">
                         <span class="portfolio-type">Treaty - Proportional</span>
-                        <span class="portfolio-count">{{ $totalTPRCovers['amount'] ?? 0 }}</span>
+                        <span class="portfolio-count">{{ $coverCounts['tpr']['amount'] ?? 0 }}</span>
                     </div>
                     <div class="portfolio-metrics">
                         <div>
                             <div class="portfolio-metric-label">GWP</div>
-                            <div class="portfolio-metric-value">KES 60.3M</div>
+                            <div class="portfolio-metric-value">KES {{ number_format(($businessMix['tpr']['gwp'] ?? 0) / 1000000, 1) }}M</div>
                         </div>
                         <div>
                             <div class="portfolio-metric-label">Income</div>
-                            <div class="portfolio-metric-value">KES 9.0M</div>
+                            <div class="portfolio-metric-value">KES {{ number_format(($businessMix['tpr']['income'] ?? 0) / 1000000, 1) }}M</div>
                         </div>
                     </div>
+                    @php
+                        $tprPercentage = $businessMix['tpr']['percentage'] ?? 0;
+                    @endphp
                     <div class="portfolio-progress">
                         <div class="portfolio-progress-label">
-                            <span>Budget Achievement</span>
-                            <span class="fw-semibold">60%</span>
+                            <span>Portfolio Share</span>
+                            <span class="fw-semibold">{{ number_format($tprPercentage, 0) }}%</span>
                         </div>
                         <div class="progress-bar-modern">
-                            <div class="progress-bar-fill" style="width: 60%"></div>
+                            <div class="progress-bar-fill" style="width: {{ min($tprPercentage, 100) }}%"></div>
                         </div>
                     </div>
                 </div>
@@ -255,25 +245,28 @@
                 <div class="portfolio-item">
                     <div class="portfolio-item-header">
                         <span class="portfolio-type">Treaty - Non-Proportional</span>
-                        <span class="portfolio-count">{{ $totalTNPCovers['amount'] ?? 0 }}</span>
+                        <span class="portfolio-count">{{ $coverCounts['tnp']['amount'] ?? 0 }}</span>
                     </div>
                     <div class="portfolio-metrics">
                         <div>
                             <div class="portfolio-metric-label">GWP</div>
-                            <div class="portfolio-metric-value">KES 25.1M</div>
+                            <div class="portfolio-metric-value">KES {{ number_format(($businessMix['tnp']['gwp'] ?? 0) / 1000000, 1) }}M</div>
                         </div>
                         <div>
                             <div class="portfolio-metric-label">Income</div>
-                            <div class="portfolio-metric-value">KES 3.8M</div>
+                            <div class="portfolio-metric-value">KES {{ number_format(($businessMix['tnp']['income'] ?? 0) / 1000000, 1) }}M</div>
                         </div>
                     </div>
+                    @php
+                        $tnpPercentage = $businessMix['tnp']['percentage'] ?? 0;
+                    @endphp
                     <div class="portfolio-progress">
                         <div class="portfolio-progress-label">
-                            <span>Budget Achievement</span>
-                            <span class="fw-semibold">70%</span>
+                            <span>Portfolio Share</span>
+                            <span class="fw-semibold">{{ number_format($tnpPercentage, 0) }}%</span>
                         </div>
                         <div class="progress-bar-modern">
-                            <div class="progress-bar-fill" style="width: 70%"></div>
+                            <div class="progress-bar-fill" style="width: {{ min($tnpPercentage, 100) }}%"></div>
                         </div>
                     </div>
                 </div>
@@ -339,53 +332,30 @@
         </div>
         <div class="section-body">
             <div class="activity-feed">
-                <div class="activity-item">
-                    <div class="activity-icon new-cover">
-                        <i class="ri-file-add-line"></i>
+                @forelse($recentActivity ?? [] as $activity)
+                    <div class="activity-item">
+                        <div class="activity-icon {{ $activity['iconClass'] ?? 'new-cover' }}">
+                            <i class="{{ $activity['icon'] ?? 'ri-file-add-line' }}"></i>
+                        </div>
+                        <div class="activity-content">
+                            <div class="activity-title">{{ $activity['title'] ?? 'Activity' }}</div>
+                            <div class="activity-description">{{ $activity['description'] ?? '' }}</div>
+                            <div class="activity-time">{{ $activity['time'] ?? 'Recently' }}</div>
+                        </div>
+                        <div class="activity-amount">{{ $activity['amount'] ?? '' }}</div>
                     </div>
-                    <div class="activity-content">
-                        <div class="activity-title">New Facultative Cover Created</div>
-                        <div class="activity-description">Property - Commercial Building, Nairobi</div>
-                        <div class="activity-time">2 hours ago</div>
+                @empty
+                    <div class="activity-item">
+                        <div class="activity-icon new-cover">
+                            <i class="ri-information-line"></i>
+                        </div>
+                        <div class="activity-content">
+                            <div class="activity-title">No Recent Activity</div>
+                            <div class="activity-description">Your recent activities will appear here</div>
+                            <div class="activity-time">-</div>
+                        </div>
                     </div>
-                    <div class="activity-amount">KES 15.5M</div>
-                </div>
-
-                <div class="activity-item">
-                    <div class="activity-icon renewal">
-                        <i class="ri-repeat-line"></i>
-                    </div>
-                    <div class="activity-content">
-                        <div class="activity-title">Treaty Renewed</div>
-                        <div class="activity-description">Quota Share Treaty - 30% Participation</div>
-                        <div class="activity-time">5 hours ago</div>
-                    </div>
-                    <div class="activity-amount">KES 45.2M</div>
-                </div>
-
-                <div class="activity-item">
-                    <div class="activity-icon payment">
-                        <i class="ri-money-dollar-circle-line"></i>
-                    </div>
-                    <div class="activity-content">
-                        <div class="activity-title">Commission Received</div>
-                        <div class="activity-description">Q4 Commission Payment - Multiple Treaties</div>
-                        <div class="activity-time">1 day ago</div>
-                    </div>
-                    <div class="activity-amount">KES 2.8M</div>
-                </div>
-
-                <div class="activity-item">
-                    <div class="activity-icon claim">
-                        <i class="ri-alert-line"></i>
-                    </div>
-                    <div class="activity-content">
-                        <div class="activity-title">Claim Notification</div>
-                        <div class="activity-description">Motor Fleet - Excess of Loss Layer</div>
-                        <div class="activity-time">2 days ago</div>
-                    </div>
-                    <div class="activity-amount">KES 8.5M</div>
-                </div>
+                @endforelse
             </div>
         </div>
     </div>
@@ -399,18 +369,51 @@
                 $(this).addClass('active');
 
                 const period = $(this).data('period');
-                console.log('Loading data for period:', period);
-                // Add AJAX call to reload data for selected period
+                
+                $('.business-split-value, .portfolio-metric-value').addClass('loading');
+                
+                $.ajax({
+                    url: '{{ route("dashboard.metrics") }}',
+                    method: 'GET',
+                    data: { period: period },
+                    success: function(response) {
+                        if (response.success) {
+                            updateDashboardMetrics(response.metrics, response.businessMix);
+                        }
+                    },
+                    error: function(xhr) {
+                        console.error('Failed to load metrics:', xhr);
+                    },
+                    complete: function() {
+                        $('.business-split-value, .portfolio-metric-value').removeClass('loading');
+                    }
+                });
             });
 
-            // Animate progress bars on page load
+            function updateDashboardMetrics(metrics, businessMix) {
+                const facTotal = (businessMix.facultative?.total || 0) / 1000000;
+                const treatyTotal = (businessMix.treaty?.total || 0) / 1000000;
+                
+                $('.business-split-item:first .business-split-value').text('KES ' + facTotal.toFixed(1) + 'M');
+                $('.business-split-item:first .business-split-percentage').text((businessMix.facultative?.percentage || 0).toFixed(1) + '%');
+                
+                $('.business-split-item:last .business-split-value').text('KES ' + treatyTotal.toFixed(1) + 'M');
+                $('.business-split-item:last .business-split-percentage').text((businessMix.treaty?.percentage || 0).toFixed(1) + '%');
+            }
+
             setTimeout(function() {
                 $('.progress-bar-fill').each(function() {
-                    const width = $(this).attr('style').match(/width:\s*(\d+)%/)[1];
-                    $(this).css('width', '0%');
-                    setTimeout(() => {
-                        $(this).css('width', width + '%');
-                    }, 100);
+                    const style = $(this).attr('style');
+                    if (style) {
+                        const match = style.match(/width:\s*([\d.]+)%/);
+                        if (match) {
+                            const width = match[1];
+                            $(this).css('width', '0%');
+                            setTimeout(() => {
+                                $(this).css('width', width + '%');
+                            }, 100);
+                        }
+                    }
                 });
             }, 300);
 
