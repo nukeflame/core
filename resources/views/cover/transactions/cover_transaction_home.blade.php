@@ -192,11 +192,11 @@
                             <th>Title</th>
                             <th>Endorsement</th>
                             {{-- <th>Insured</th> --}}
-                            <th>Status</th>
+                            <!-- <th>Status</th> -->
                             <th>Currency</th>
                             <th>Amount</th>
-                            <th>Amount Paid</th>
-                            <th>Outstanding</th>
+                            <!-- <th>Amount Paid</th> -->
+                            <!-- <th>Outstanding</th> -->
                             <th>Period</th>
                             <th>Created At</th>
                             <th>Actions</th>
@@ -260,18 +260,18 @@
                                         {{ Str::limit($account->insured ?? '-', 30) }}
                                     </div>
                                 </td> --}}
-                                <td>
+                                <!-- <td>
                                     <span class="badge {{ $statusClass }}">
                                         {{ $statusText }}
                                     </span>
-                                </td>
+                                </td> -->
                                 <td>
                                     <span class="badge bg-secondary">{{ $account->currency_code ?? 'KES' }}</span>
                                 </td>
                                 <td>
                                     {{ number_format($foreignNettAmount, 2) }}
                                 </td>
-                                <td>
+                                <!-- <td>
                                     <span class="text-success fw-medium">
                                         {{ number_format($amountPaid, 2) }}
                                     </span>
@@ -280,7 +280,7 @@
                                     <span class="{{ $outstandingAmount > 0 ? 'text-danger' : 'text-success' }} fw-medium">
                                         {{ number_format($outstandingAmount, 2) }}
                                     </span>
-                                </td>
+                                </td> -->
                                 <td>
                                     <span class="badge bg-info text-dark">
                                         {{ str_pad($account->account_month ?? 1, 2, '0', STR_PAD_LEFT) }}/{{ $account->account_year ?? date('Y') }}
@@ -379,7 +379,7 @@
                     ],
                     columnDefs: [{
                         orderable: false,
-                        targets: [12]
+                        targets: [9]
                     }],
                     language: {
                         processing: '<div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div>',

@@ -138,7 +138,7 @@
 
         function handleSSOLogin() {
             console.log('SSO login initiated');
-            window.location.href = '/auth/sso';
+            // window.location.href = '/auth/sso';
         }
 
         const inputs = document.querySelectorAll('.form-input');

@@ -1572,7 +1572,12 @@
                     searching: false,
                     info: false,
                     ordering: false,
-                    destroy: true
+                    destroy: true,
+                    columns: [
+                        { data: null, defaultContent: '' },
+                        { data: null, defaultContent: '' },
+                        { data: null, defaultContent: '' }
+                    ]
                 });
             }
 

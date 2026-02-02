@@ -506,19 +506,19 @@
 
     {{-- Quick Actions --}}
     <div class="quick-actions" role="toolbar" aria-label="Quick actions">
-        <button type="button" class="btn btn-outline-dark quick-action-btn" id="btnPreviewSlip">
+        <!-- <button type="button" class="btn btn-outline-dark quick-action-btn" id="btnPreviewSlip">
             <i class="ri-file-text-line"></i> Preview Slip
-        </button>
-        <button type="button" class="btn btn-outline-primary quick-action-btn" id="btnGenerateStatement">
+        </button> -->
+        <!-- <button type="button" class="btn btn-outline-primary quick-action-btn" id="btnGenerateStatement">
             <i class="ri-file-list-3-line"></i> Generate Statement
-        </button>
+        </button> -->
         {{-- <button type="button" class="btn btn-outline-success quick-action-btn" id="btnExportData">
             <i class="ri-download-2-line"></i> Export Data
         </button> --}}
-        <button type="button" class="btn btn-primary quick-action-btn" data-bs-toggle="modal"
+        <!-- <button type="button" class="btn btn-primary quick-action-btn" data-bs-toggle="modal"
             data-bs-target="#addDebitItemModal">
             <i class="ri-add-line"></i> Add Debit Item
-        </button>
+        </button> -->
     </div>
 
     {{-- Financial Summary Cards --}}
@@ -725,46 +725,24 @@
                     <div class="tab-pane fade" id="cedant-tab" role="tabpanel" aria-labelledby="nav-cedant-tab">
                         <div class="card border-0 shadow-none">
                             <div class="card-body py-3 px-2">
-                                <div class="cedant-info-card mb-4" id="cedantDetailsCard">
-                                    <div class="row g-3">
-                                        <div class="col-md-6">
-                                            <div class="info-row">
-                                                <span class="info-label">Company Name</span>
-                                                <span class="info-value" id="cedant_name">Loading...</span>
-                                            </div>
-                                            <div class="info-row">
-                                                <span class="info-label">Registration No.</span>
-                                                <span class="info-value" id="cedant_registration">Loading...</span>
-                                            </div>
-                                            <div class="info-row">
-                                                <span class="info-label">Address</span>
-                                                <span class="info-value" id="cedant_address">Loading...</span>
-                                            </div>
-                                            <div class="info-row">
-                                                <span class="info-label">Contact Person</span>
-                                                <span class="info-value" id="cedant_contact">Loading...</span>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <div class="info-row">
-                                                <span class="info-label">Email</span>
-                                                <span class="info-value" id="cedant_email">Loading...</span>
-                                            </div>
-                                            <div class="info-row">
-                                                <span class="info-label">Phone</span>
-                                                <span class="info-value" id="cedant_phone">Loading...</span>
-                                            </div>
-                                            <div class="info-row">
-                                                <span class="info-label">Treaty Period</span>
-                                                <span class="info-value" id="cedant_treaty_period">Loading...</span>
-                                            </div>
-                                            <div class="info-row">
-                                                <span class="info-label">Treaty Capacity</span>
-                                                <span class="info-value fw-semibold text-primary"
-                                                    id="cedant_capacity">Loading...</span>
-                                            </div>
-                                        </div>
-                                    </div>
+                                <div class="table-responsive">
+                                    <table id="cedantTable" class="table table-bordered table-hover w-100">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th width="3%">#</th>
+                                                <th width="15%">Company Name</th>
+                                                <th width="10%">Registration No.</th>
+                                                <th width="15%">Address</th>
+                                                <th width="12%">Contact Person</th>
+                                                <th width="12%">Email</th>
+                                                <th width="10%">Phone</th>
+                                                <th width="12%">Treaty Period</th>
+                                                <th width="10%">Treaty Capacity</th>
+                                                <th width="7%">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody></tbody>
+                                    </table>
                                 </div>
                             </div>
                         </div>
@@ -1978,30 +1956,15 @@
                 }
             };
 
-            var CedantManager = {
-                load: function() {
+            var CedantTable = {
+                table: null,
+
+                init: function() {
                     var self = this;
 
-                    // if (!CONFIG.routes.cedantDetails || CONFIG.routes.cedantDetails === '') {
-                    self.populateFromServerData();
-                    // return;
-                    // }
-
-                    // Utils.ajax({
-                    //         url: CONFIG.routes.cedantDetails,
-                    //         type: 'GET'
-                    //     })
-                    //     .done(function(response) {
-                    //         var cedant = response.data || response;
-                    //         self.populate(cedant);
-                    //     })
-                    //     .fail(function() {
-                    //         self.populateFromServerData();
-                    //     });
-                },
-
-                populateFromServerData: function() {
-                    var cedant = {
+                    // Prepare cedant data from server-side variables
+                    var cedantData = [{
+                        id: 1,
                         name: '{{ $customer->name ?? '' }}',
                         registration_no: '{{ $customer->registration_no ?? '' }}',
                         address: '{{ $customer->address ?? '' }}',
@@ -2011,26 +1974,127 @@
                         phone: '{{ $customer->phone ?? '' }}',
                         treaty_period: '{{ $cover && $cover->cover_from && $cover->cover_to ? \Carbon\Carbon::parse($cover->cover_from)->format('d M Y') . ' - ' . \Carbon\Carbon::parse($cover->cover_to)->format('d M Y') : '' }}',
                         treaty_capacity: {{ $cover->treaty_capacity ?? 0 }}
-                    };
+                    }];
 
-                    this.populate(cedant);
+                    this.table = $('#cedantTable').DataTable({
+                        processing: true,
+                        data: cedantData,
+                        columns: [{
+                                data: null,
+                                orderable: false,
+                                searchable: false,
+                                render: function(data, type, row, meta) {
+                                    return meta.row + meta.settings._iDisplayStart + 1;
+                                }
+                            },
+                            {
+                                data: 'name',
+                                name: 'name',
+                                render: function(data, type, row) {
+                                    return '<span class="fw-semibold">' + Utils.escapeHtml(data || '-') + '</span>';
+                                },
+                                defaultContent: '-'
+                            },
+                            {
+                                data: 'registration_no',
+                                name: 'registration_no',
+                                defaultContent: '-'
+                            },
+                            {
+                                data: 'address',
+                                name: 'address',
+                                defaultContent: '-'
+                            },
+                            {
+                                data: 'contact_person',
+                                name: 'contact_person',
+                                render: function(data, type, row) {
+                                    var contactText = Utils.escapeHtml(data || '-');
+                                    if (row.designation) {
+                                        contactText += '<br><small class="text-muted">' + Utils.escapeHtml(row.designation) + '</small>';
+                                    }
+                                    return contactText;
+                                },
+                                defaultContent: '-'
+                            },
+                            {
+                                data: 'email',
+                                name: 'email',
+                                render: function(data) {
+                                    if (data) {
+                                        return '<a href="mailto:' + Utils.escapeHtml(data) + '">' + Utils.escapeHtml(data) + '</a>';
+                                    }
+                                    return '-';
+                                },
+                                defaultContent: '-'
+                            },
+                            {
+                                data: 'phone',
+                                name: 'phone',
+                                defaultContent: '-'
+                            },
+                            {
+                                data: 'treaty_period',
+                                name: 'treaty_period',
+                                defaultContent: '-'
+                            },
+                            {
+                                data: 'treaty_capacity',
+                                name: 'treaty_capacity',
+                                className: 'amount-cell fw-semibold text-primary',
+                                render: function(data) {
+                                    return Utils.formatCurrency(data);
+                                },
+                                defaultContent: '-'
+                            },
+                            {
+                                data: null,
+                                orderable: false,
+                                searchable: false,
+                                render: function(data, type, row) {
+                                    return '<div class="btn-group btn-group-sm" role="group" aria-label="Cedant actions">' +
+                                        '<button type="button" class="btn btn-outline-primary btn-action btn-view-cedant" data-id="' +
+                                        row.id + '" title="View Details">' +
+                                        '<i class="ri-eye-line"></i>' +
+                                        '</button>' +
+                                        '</div>';
+                                }
+                            }
+                        ],
+                        order: [[1, 'asc']],
+                        pageLength: CONFIG.dataTables.pageLength,
+                        lengthMenu: CONFIG.dataTables.lengthMenu,
+                        dom: CONFIG.dataTables.dom,
+                        language: {
+                            processing: '<div class="spinner-border spinner-border-sm text-primary" role="status"><span class="visually-hidden">Loading...</span></div> Loading...',
+                            emptyTable: 'No cedant information found',
+                            zeroRecords: 'No matching cedant found'
+                        }
+                    });
+
+                    this.bindEvents();
                 },
 
-                populate: function(cedant) {
-                    $('#cedant_name').text(cedant.name || '-');
-                    $('#cedant_registration').text(cedant.registration_no || '-');
-                    $('#cedant_address').text(cedant.address || '-');
+                bindEvents: function() {
+                    var self = this;
 
-                    var contactText = cedant.contact_person || '-';
-                    if (cedant.designation) {
-                        contactText += ' (' + cedant.designation + ')';
+                    $('#cedantTable').on('click', '.btn-view-cedant', function() {
+                        var id = $(this).data('id');
+                        Utils.showToast('Viewing cedant details...', 'info');
+                        // Add view cedant logic here if needed
+                    });
+                },
+
+                refresh: function() {
+                    if (this.table) {
+                        this.table.ajax.reload(null, false);
                     }
-                    $('#cedant_contact').text(contactText);
+                },
 
-                    $('#cedant_email').text(cedant.email || '-');
-                    $('#cedant_phone').text(cedant.phone || '-');
-                    $('#cedant_treaty_period').text(cedant.treaty_period || '-');
-                    $('#cedant_capacity').text(Utils.formatCurrency(cedant.treaty_capacity));
+                adjustColumns: function() {
+                    if (this.table) {
+                        this.table.columns.adjust();
+                    }
                 }
             };
 
@@ -2170,7 +2234,7 @@
             ReinsurersTable.init();
             ApprovalsTable.init();
             DocumentsTable.init();
-            CedantManager.load();
+            CedantTable.init();
             DebitItemForm.init();
 
             // Quick action button handlers
