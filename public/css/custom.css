@@ -83,7 +83,7 @@ select {
 }
 
 .app-sidebar {
-    background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%) !important;
+    background: linear-gradient(180deg, #141414 0%, #0f172a 100%) !important;
     transition: all 0.3s ease;
     box-shadow: 4px 0 20px rgba(0, 0, 0, 0.15) !important;
 }
@@ -1376,7 +1376,10 @@ footer {
 }
 .performance-wrapper .nav.nav-tabs .nav-item.show .nav-link,
 .performance-wrapper .nav.nav-tabs .nav-link.active {
-    box-shadow: 0 0 #0000, 0 0 #0000, 0 1px 3px 0 rgba(0, 0, 0, 0.1),
+    box-shadow:
+        0 0 #0000,
+        0 0 #0000,
+        0 1px 3px 0 rgba(0, 0, 0, 0.1),
         0 1px 2px -1px rgba(0, 0, 0, 0.1);
     color: #030712;
     background-color: #fff;
@@ -1996,7 +1999,9 @@ body::-webkit-scrollbar-thumb:hover {
     background-color: #fff;
     border: 1px solid #3634346e;
     border-radius: 0.375rem;
-    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+    transition:
+        border-color 0.15s ease-in-out,
+        box-shadow 0.15s ease-in-out;
     outline: none !important;
 }
 
