@@ -101,12 +101,14 @@
                     <div class="header-element">
                         <div class="horizontal-logo">
                             <a href="javascript:void(0);" class="header-logo">
-                                <img src="{{ asset('logo.png') }}" alt="" class="desktop-logo" />
-                                <img src="{{ asset('logo.png') }}" alt="" class="desktop-dark"
-                                    {{-- style="filter: grayscale(1);" --}} />
-                                <img src="{{ asset('logo.png') }}" alt="" class="toggle-logo" />
-                                <img src="{{ asset('logo.png') }}" alt="" class="toggle-dark"
-                                    {{-- style="filter: grayscale(1);"  --}} />
+                                <img src="{{ asset('assets/images/brand-logos/main-horizontal-logo.png') }}" alt=""
+                                    class="desktop-logo" />
+                                <img src="{{ asset('assets/images/brand-logos/main-horizontal-black.png') }}" alt=""
+                                    class="desktop-dark" {{-- style="filter: grayscale(1);" --}} />
+                                <img src="{{ asset('assets/images/brand-logos/main-horizontal-logo.png') }}" alt=""
+                                    class="toggle-logo" />
+                                <img src="{{ asset('assets/images/brand-logos/main-horizontal-black.png') }}" alt=""
+                                    class="toggle-dark" {{-- style="filter: grayscale(1);"  --}} />
                             </a>
                         </div>
                     </div>
@@ -325,11 +327,11 @@
         <aside class="app-sidebar sticky" id="sidebar">
             <div class="main-sidebar-header header-logo">
                 <a href="javascript:void(0);" class="header-logo logo-link">
-                    <img src="{{ asset('logo.png') }}" alt="" class="desktop-logo" />
-                    <img src="{{ asset('logo-small.png') }}" alt="" alt="logo" class="toggle-logo" />
-                    <img src="{{ asset('logo.png') }}" alt="" alt="logo" class="desktop-dark"
+                    <img src="{{ asset('assets/images/brand-logos/main-horizontal-logo.png') }}" alt="" class="desktop-logo" />
+                    <img src="{{ asset('assets/images/brand-logos/logo-small.png') }}" alt="" class="toggle-logo" />
+                    <img src="{{ asset('assets/images/brand-logos/main-horizontal-logo.png') }}" alt="" class="desktop-dark"
                         {{-- style="filter: grayscale(1);" --}} />
-                    <img src="{{ asset('logo-small.png') }}" alt="" alt="logo" class="toggle-dark"
+                    <img src="{{ asset('assets/images/brand-logos/logo-small.png') }}" alt="" class="toggle-dark"
                         {{-- style="filter: grayscale(1);"  --}} />
                 </a>
             </div>
