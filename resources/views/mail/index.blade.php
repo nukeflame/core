@@ -123,9 +123,12 @@
                     case 'completed':
                         $btnLoader.addClass("d-none");
                         setTimeout(() => {
-                            window.location.reload();
-
-                        }, 2000);
+                            if (typeof mailApp !== 'undefined') {
+                                mailApp.refreshEmailList();
+                            } else {
+                                window.location.reload();
+                            }
+                        }, 1000);
                         break;
 
                     case 'failed':

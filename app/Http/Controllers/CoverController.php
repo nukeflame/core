@@ -1490,7 +1490,7 @@ class CoverController extends Controller
                 throw new Exception("Cover register not found for endorsement: {$validatedData['endorsement_no']}");
             }
 
-            $this->validateBusinessRules($cover, $validatedData);
+            // $this->validateBusinessRules($cover, $validatedData);
 
             $debitData = $this->prepareDebitData($validatedData, $cover);
             $redirectUrl  = null;
@@ -1530,7 +1530,6 @@ class CoverController extends Controller
             ], 422);
         } catch (BusinessRuleException $e) {
             DB::rollBack();
-
 
             logger($e);
             return response()->json([
