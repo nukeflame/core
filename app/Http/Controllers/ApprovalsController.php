@@ -292,7 +292,7 @@ class ApprovalsController extends Controller
             'created_by' => $user->id,
             'updated_by' => $user->id,
             'title' => $message['title'],
-            'link' => '/approvals/index',
+            'link' => '/approvals',
             'message' => $message['text'],
             'type' => $approvalAction->nice_name,
             'effective_from' => Carbon::now(),

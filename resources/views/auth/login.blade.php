@@ -24,7 +24,7 @@
             <div class="image-side-overlay">
                 <img src="/assets/images/brand-logos/logo-graphic-transparent.png" alt="" class="">
             </div>
-            <div class="halftone-pattern"></div>
+            <!-- <div class="halftone-pattern"></div> -->
         </div>
 
         <!-- Right Side - Image with Overlays -->
@@ -80,8 +80,14 @@
                     <span>Or continue with</span>
                 </div>
 
+                @error('outlook')
+                    <div class="alert alert-danger" style="padding: 10px; margin-bottom: 15px; background: #fee2e2; border: 1px solid #ef4444; border-radius: 8px; color: #991b1b; font-size: 14px;">
+                        {{ $message }}
+                    </div>
+                @enderror
+
                 <div class="social-buttons">
-                    <button type="button" class="btn-social" onclick="handleGoogleLogin()">
+                    <button type="button" class="btn-social" onclick="handleOutlookLogin()">
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
                             <path fill="#0078D4"
                                 d="M24 7.875v8.25A3.375 3.375 0 0 1 20.625 19.5h-9.75L7.5 16.125V7.875L10.875 4.5h9.75A3.375 3.375 0 0 1 24 7.875z" />
@@ -126,9 +132,8 @@
             btn.textContent = 'Logging in...';
         });
 
-        function handleGoogleLogin() {
-            console.log('Google login initiated');
-            window.location.href = '/auth/google';
+        function handleOutlookLogin() {
+            window.location.href = '{{ route("auth.outlook") }}';
         }
 
         function handleSSOLogin() {
