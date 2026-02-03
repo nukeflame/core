@@ -76,7 +76,7 @@ class OutlookOAuthController extends Controller
                 'connected' => true,
                 'user' => $userProfile
             ]);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return redirect()->route('mail.index')->withErrors([
                 'errors' => 'Failed to complete connection',
                 'message' => 'Failed to process authentication callback',
@@ -85,9 +85,6 @@ class OutlookOAuthController extends Controller
         }
     }
 
-    /**
-     * Handle OAuth errors
-     */
     private function handleError(Request $request)
     {
         $error = $request->get('error');
@@ -114,9 +111,6 @@ class OutlookOAuthController extends Controller
         );
     }
 
-    /**
-     * Initiate Outlook connection
-     */
     public function connect(Request $request): JsonResponse
     {
         try {
@@ -158,9 +152,6 @@ class OutlookOAuthController extends Controller
         }
     }
 
-    /**
-     * Check connection status
-     */
     public function status(): JsonResponse
     {
         try {
@@ -199,7 +190,6 @@ class OutlookOAuthController extends Controller
 
             $profile = $this->outlookService->getUserProfile($user);
             // $profilePhoto = $this->outlookService->getUserPhoto($user);
-            // Cache user profile for 15 minutes
             if ($profile) {
                 $cacheKey = "outlook_profile_{$user->email}";
                 $userProfile = Cache::remember($cacheKey, 900, function () use ($profile) {
@@ -230,9 +220,6 @@ class OutlookOAuthController extends Controller
         }
     }
 
-    /**
-     * Disconnect Outlook
-     */
     public function disconnect(): JsonResponse
     {
         try {
@@ -271,9 +258,6 @@ class OutlookOAuthController extends Controller
         }
     }
 
-    /**
-     * Test the current connection
-     */
     public function test(): JsonResponse
     {
         try {
@@ -326,7 +310,6 @@ class OutlookOAuthController extends Controller
             ], 409);
         }
 
-        // Dispatch sync job
         SyncUserEmails::dispatch($userId, $syncType);
 
         return response()->json([

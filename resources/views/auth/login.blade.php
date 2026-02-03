@@ -81,7 +81,8 @@
                 </div>
 
                 @error('outlook')
-                    <div class="alert alert-danger" style="padding: 10px; margin-bottom: 15px; background: #fee2e2; border: 1px solid #ef4444; border-radius: 8px; color: #991b1b; font-size: 14px;">
+                    <div class="alert alert-danger"
+                        style="padding: 10px; margin-bottom: 15px; background: #fee2e2; border: 1px solid #ef4444; border-radius: 8px; color: #991b1b; font-size: 14px;">
                         {{ $message }}
                     </div>
                 @enderror
@@ -102,7 +103,7 @@
                         </svg>
                         Outlook
                     </button>
-<!-- 
+                    <!--
                     <button type="button" class="btn-social" onclick="handleSSOLogin()">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <circle cx="12" cy="12" r="10" />
@@ -133,7 +134,7 @@
         });
 
         function handleOutlookLogin() {
-            window.location.href = '{{ route("auth.outlook") }}';
+            window.location.href = '{{ route('auth.outlook') }}';
         }
 
         function handleSSOLogin() {

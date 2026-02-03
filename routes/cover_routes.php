@@ -81,8 +81,7 @@ Route::group(['prefix' => 'cover', 'middleware' => ['auth', 'check.first.login']
     Route::post('/add_clauses', [CoverController::class, 'saveClauses'])->name('cover.save_clauses');
     Route::match(['put', 'post'], '/amend_clauses', [CoverController::class, 'amendClauses'])->name('cover.amend_clauses');
     Route::post('/delete_clauses', [CoverController::class, 'deleteClause'])->name('cover.delete_clause');
-    Route::post('/generate-debit', [CoverController::class, 'generateDebit'])->name('cover.generate-debit');
-    Route::post('/generate-credit', [CoverController::class, 'generateCredit'])->name('cover.generate-credit');
+    Route::post('/generate-debit', [CoverController::class, 'generateDebitAndCredit'])->name('cover.generate-debit');
     Route::post('/save_insurance_class', [CoverController::class, 'saveInsuranceClasses'])->name('cover.save_insurance_class');
     Route::get('/classes_datatable', [CoverController::class, 'classes_datatable'])->name('cover.classes_datatable');
     Route::get('/get_reinprem_type', [CoverController::class, 'getReinpremType'])->name('cover.get_reinprem_type');

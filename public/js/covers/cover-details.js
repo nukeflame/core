@@ -36,11 +36,9 @@
         FORM: "#reinsurerForm",
         SAVE_BUTTON: "#partner-save-btn",
 
-        // Validation
         VALIDATION_MESSAGES: "#validation-messages",
         VALIDATION_LIST: "#validation-list",
 
-        // Tables
         SCHEDULES_TABLE: "#schedules-table",
         ATTACHMENTS_TABLE: "#attachments-table",
         CLAUSES_TABLE: "#clauses-table",
@@ -49,7 +47,6 @@
         DEBITS_TABLE: "#debits-table",
         APPROVALS_TABLE: "#approvals-table",
 
-        // Forms
         SCHEDULES_FORM: "#schedulesForm",
         ATTACHMENTS_FORM: "#attachmentsForm",
         CLAUSES_FORM: "#clausesForm",
@@ -105,7 +102,7 @@
             return Object.entries(replacements).reduce(
                 (result, [key, value]) =>
                     result.replace(new RegExp(key, "g"), value),
-                template
+                template,
             );
         },
 
@@ -153,8 +150,8 @@
             const id = Utils.generateId("notification");
             const $notification = $(`
                 <div id="${id}" class="alert ${
-                alertClasses[type] || alertClasses.info
-            } alert-dismissible fade show position-fixed notification-alert"
+                    alertClasses[type] || alertClasses.info
+                } alert-dismissible fade show position-fixed notification-alert"
                     style="top: 20px; right: 20px; z-index: 9999; min-width: 300px; max-width: 500px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);"
                     role="alert">
                     <i class="fa ${
@@ -171,7 +168,7 @@
         show(type, message) {
             const { id, $notification } = this._createNotification(
                 type,
-                message
+                message,
             );
 
             $("body").append($notification);
@@ -180,7 +177,7 @@
             setTimeout(() => this.remove(id), CONFIG.NOTIFICATION_DURATION);
 
             $notification.on("closed.bs.alert", () =>
-                this.activeNotifications.delete(id)
+                this.activeNotifications.delete(id),
             );
 
             return id;
@@ -363,7 +360,7 @@
 
             const brokerageRate = Math.max(
                 0,
-                Utils.removeCommas(rein_comm_rate) - cedant_comm_rate
+                Utils.removeCommas(rein_comm_rate) - cedant_comm_rate,
             );
             const brokerageAmount =
                 (brokerageRate / CONFIG.PERCENTAGE_MULTIPLIER) * p;
@@ -442,7 +439,7 @@
 
             if (share <= 0) {
                 this.addError(
-                    `${prefix}: Share percentage must be greater than 0`
+                    `${prefix}: Share percentage must be greater than 0`,
                 );
                 return false;
             }
@@ -450,8 +447,8 @@
             if (share > remaining + CONFIG.TOLERANCE) {
                 this.addError(
                     `${prefix}: Share (${share.toFixed(
-                        2
-                    )}%) exceeds remaining (${remaining.toFixed(2)}%)`
+                        2,
+                    )}%) exceeds remaining (${remaining.toFixed(2)}%)`,
                 );
                 return false;
             }
@@ -463,9 +460,9 @@
             if (signed > written + CONFIG.TOLERANCE) {
                 this.addError(
                     `${this.getPrefix(
-                        treatyNum
+                        treatyNum,
                     )}, Reinsurer ${reinsurerNum}: ` +
-                        `Signed share (${signed}%) cannot exceed written share (${written}%)`
+                        `Signed share (${signed}%) cannot exceed written share (${written}%)`,
                 );
                 return false;
             }
@@ -477,7 +474,7 @@
                 const status = remaining > 0 ? "remaining" : "over-distributed";
                 this.addError(
                     `${this.getPrefix(number)}: Distribution incomplete ` +
-                        `(${Math.abs(remaining).toFixed(2)}% ${status})`
+                        `(${Math.abs(remaining).toFixed(2)}% ${status})`,
                 );
                 return false;
             }
@@ -486,7 +483,7 @@
 
         validateReinsurerFields($section, treatyNum, reinsurerNum) {
             const prefix = `${this.getPrefix(
-                treatyNum
+                treatyNum,
             )}, Reinsurer ${reinsurerNum}`;
             let isValid = true;
 
@@ -536,17 +533,17 @@
                         this.addError(`${prefix}: ${message}`);
                         isValid = false;
                     }
-                }
+                },
             );
 
             const brokerageType = $section.find(".brokerage-comm-type").val();
             if (brokerageType === "A") {
                 const amount = Utils.removeCommas(
-                    $section.find(".reinsurer-brokerage-comm-amt").val()
+                    $section.find(".reinsurer-brokerage-comm-amt").val(),
                 );
                 if (amount <= 0) {
                     this.addError(
-                        `${prefix}: Brokerage commission amount is required for Quoted Amount type`
+                        `${prefix}: Brokerage commission amount is required for Quoted Amount type`,
                     );
                     isValid = false;
                 }
@@ -569,7 +566,7 @@
                 $container.fadeIn(() => {
                     $("html, body").animate(
                         { scrollTop: $container.offset().top - 100 },
-                        500
+                        500,
                     );
                 });
             } else {
@@ -588,7 +585,7 @@
         initFromPartners(partners = []) {
             this.originalDistributed = partners.reduce(
                 (sum, p) => sum + Utils.removeCommas(p.share),
-                0
+                0,
             );
             this.currentDistributed = this.originalDistributed;
         }
@@ -599,16 +596,16 @@
             $(`#reinsurer-div-${treatyCounter} .reinsurer-share`).each(
                 function () {
                     totalDistributed += Utils.clampNumber($(this).val(), 0);
-                }
+                },
             );
 
             const offered = Utils.getElementValue(
-                `#share_offered-${treatyCounter}`
+                `#share_offered-${treatyCounter}`,
             );
             const remaining = offered - totalDistributed;
 
             $(`#distributed_share-${treatyCounter}`).val(
-                Utils.toDecimal(totalDistributed)
+                Utils.toDecimal(totalDistributed),
             );
             $(`#rem_share-${treatyCounter}`).val(Utils.toDecimal(remaining));
 
@@ -639,19 +636,19 @@
             const sharePercentage = Utils.clampNumber(
                 $shareInput.val(),
                 0,
-                100
+                100,
             );
 
             if (sharePercentage <= 0) return;
 
             const commRate = Utils.getElementValue(
                 `#reinsurer-comm_rate-${treatyCounter}-${counter}`,
-                this.calc.coverData.cedant_comm_rate
+                this.calc.coverData.cedant_comm_rate,
             );
 
             const amounts = this.calc.calculateShareAmounts(
                 sharePercentage,
-                commRate
+                commRate,
             );
             this.updateShareFields(treatyCounter, counter, amounts, commRate);
             this.calculate(treatyCounter);
@@ -688,13 +685,13 @@
             $(SELECTORS.TREATY_SECTION).each(function () {
                 const $section = $(this);
                 totalOffered += Utils.getElementValue(
-                    $section.find(".share_offered")
+                    $section.find(".share_offered"),
                 );
                 totalDistributed += Utils.getElementValue(
-                    $section.find(".distributed-share")
+                    $section.find(".distributed-share"),
                 );
                 totalReinsurers += $section.find(
-                    SELECTORS.REINSURER_SECTION
+                    SELECTORS.REINSURER_SECTION,
                 ).length;
             });
 
@@ -718,7 +715,7 @@
             const elements = {
                 "#summary-total-offered": `${Utils.toDecimal(offered)}%`,
                 "#summary-total-distributed": `${Utils.toDecimal(
-                    distributed
+                    distributed,
                 )}%`,
                 "#summary-reinsurer-count": count,
             };
@@ -728,7 +725,7 @@
             });
 
             $("#summary-total-remaining .remaining-value").text(
-                `${Math.abs(Utils.toDecimal(remaining))}%`
+                `${Math.abs(Utils.toDecimal(remaining))}%`,
             );
 
             // Update progress bar
@@ -746,14 +743,14 @@
             if (!$alert.length) return;
 
             $alert.removeClass(
-                "alert-success alert-warning alert-danger alert-info"
+                "alert-success alert-warning alert-danger alert-info",
             );
 
             if (Math.abs(remaining) < CONFIG.TOLERANCE) {
                 $alert
                     .addClass("alert-success")
                     .html(
-                        '<i class="fa fa-check-circle"></i> <strong>Perfect!</strong> All shares fully distributed.'
+                        '<i class="fa fa-check-circle"></i> <strong>Perfect!</strong> All shares fully distributed.',
                     )
                     .fadeIn();
             } else if (remaining > 0) {
@@ -761,8 +758,8 @@
                     .addClass("alert-warning")
                     .html(
                         `<i class="fa fa-exclamation-triangle"></i> <strong>Incomplete:</strong> ${Utils.toDecimal(
-                            remaining
-                        )}% not yet distributed.`
+                            remaining,
+                        )}% not yet distributed.`,
                     )
                     .fadeIn();
             } else {
@@ -770,8 +767,8 @@
                     .addClass("alert-danger")
                     .html(
                         `<i class="fa fa-times-circle"></i> <strong>Over-distributed:</strong> ${Math.abs(
-                            Utils.toDecimal(remaining)
-                        )}% excess.`
+                            Utils.toDecimal(remaining),
+                        )}% excess.`,
                     )
                     .fadeIn();
             }
@@ -794,13 +791,13 @@
             const $amountDiv = $section.find(".brokerage_comm_amt_div");
 
             const $rateInput = $(
-                `#brokerage_comm_rate-${treatyCounter}-${counter}`
+                `#brokerage_comm_rate-${treatyCounter}-${counter}`,
             );
             const $rateAmountInput = $(
-                `#brokerage_comm_rate_amnt-${treatyCounter}-${counter}`
+                `#brokerage_comm_rate_amnt-${treatyCounter}-${counter}`,
             );
             const $quotedInput = $(
-                `#reinsurer-brokerage_comm_amt-${treatyCounter}-${counter}`
+                `#reinsurer-brokerage_comm_amt-${treatyCounter}-${counter}`,
             );
 
             // Reset and show/hide based on type
@@ -831,34 +828,34 @@
             const $section = $(`#reinsurer-div-${treatyCounter}-${counter}`);
             const type = $section.find(".brokerage-comm-type").val();
             const premium = Utils.getElementValue(
-                `#reinsurer-premium-${treatyCounter}-${counter}`
+                `#reinsurer-premium-${treatyCounter}-${counter}`,
             );
 
             let brokerage;
 
             if (type === "A") {
                 const quotedAmount = Utils.getElementValue(
-                    `#reinsurer-brokerage_comm_amt-${treatyCounter}-${counter}`
+                    `#reinsurer-brokerage_comm_amt-${treatyCounter}-${counter}`,
                 );
                 brokerage = this.calc.calculateBrokerageCommission(
                     premium,
                     "A",
-                    quotedAmount
+                    quotedAmount,
                 );
             } else if (type === "R") {
                 brokerage = this.calc.calculateBrokerageCommission(
                     premium,
-                    "R"
+                    "R",
                 );
             } else {
                 return;
             }
 
             $(`#brokerage_comm_rate-${treatyCounter}-${counter}`).val(
-                Utils.formatNumber(brokerage.rate)
+                Utils.formatNumber(brokerage.rate),
             );
             $(`#brokerage_comm_rate_amnt-${treatyCounter}-${counter}`).val(
-                Utils.formatNumber(brokerage.amount)
+                Utils.formatNumber(brokerage.amount),
             );
         }
     }
@@ -876,14 +873,14 @@
             const applyRetro = $section.find(".apply-fronting").val();
 
             const $rateDiv = $(
-                `#fronting_rate_div-${treatyCounter}-${counter}`
+                `#fronting_rate_div-${treatyCounter}-${counter}`,
             );
             const $amtDiv = $(`#fronting_amt_div-${treatyCounter}-${counter}`);
             const $rateInput = $(
-                `#reinsurer-fronting_rate-${treatyCounter}-${counter}`
+                `#reinsurer-fronting_rate-${treatyCounter}-${counter}`,
             );
             const $amtInput = $(
-                `#reinsurer-fronting_amt-${treatyCounter}-${counter}`
+                `#reinsurer-fronting_amt-${treatyCounter}-${counter}`,
             );
 
             if (applyRetro === "Y") {
@@ -904,14 +901,14 @@
          */
         calculateAmount(treatyCounter, counter) {
             const rate = Utils.getElementValue(
-                `#reinsurer-fronting_rate-${treatyCounter}-${counter}`
+                `#reinsurer-fronting_rate-${treatyCounter}-${counter}`,
             );
             const premium = Utils.getElementValue(
-                `#reinsurer-premium-${treatyCounter}-${counter}`
+                `#reinsurer-premium-${treatyCounter}-${counter}`,
             );
             const amount = this.calc.calculateRetroAmount(premium, rate);
             $(`#reinsurer-fronting_amt-${treatyCounter}-${counter}`).val(
-                Utils.formatNumber(amount)
+                Utils.formatNumber(amount),
             );
         }
 
@@ -920,14 +917,14 @@
          */
         calculateRate(treatyCounter, counter) {
             const amount = Utils.getElementValue(
-                `#reinsurer-fronting_amt-${treatyCounter}-${counter}`
+                `#reinsurer-fronting_amt-${treatyCounter}-${counter}`,
             );
             const premium = Utils.getElementValue(
-                `#reinsurer-premium-${treatyCounter}-${counter}`
+                `#reinsurer-premium-${treatyCounter}-${counter}`,
             );
             const rate = this.calc.calculateRetroRate(premium, amount);
             $(`#reinsurer-fronting_rate-${treatyCounter}-${counter}`).val(
-                Utils.formatNumber(rate)
+                Utils.formatNumber(rate),
             );
         }
     }
@@ -937,35 +934,29 @@
             this.calc = calculationService;
         }
 
-        /**
-         * Calculate commission from rate
-         */
         calculate(treatyCounter, counter) {
             const premium = Utils.getElementValue(
-                `#reinsurer-premium-${treatyCounter}-${counter}`
+                `#reinsurer-premium-${treatyCounter}-${counter}`,
             );
             const rate = Utils.getElementValue(
-                `#reinsurer-comm_rate-${treatyCounter}-${counter}`
+                `#reinsurer-comm_rate-${treatyCounter}-${counter}`,
             );
             const amount = this.calc.calculateCommissionAmount(premium, rate);
             $(`#reinsurer-comm_amt-${treatyCounter}-${counter}`).val(
-                Utils.formatNumber(amount)
+                Utils.formatNumber(amount),
             );
         }
 
-        /**
-         * Calculate commission rate from amount
-         */
         calculateRate(treatyCounter, counter) {
             const premium = Utils.getElementValue(
-                `#reinsurer-premium-${treatyCounter}-${counter}`
+                `#reinsurer-premium-${treatyCounter}-${counter}`,
             );
             const amount = Utils.getElementValue(
-                `#reinsurer-comm_amt-${treatyCounter}-${counter}`
+                `#reinsurer-comm_amt-${treatyCounter}-${counter}`,
             );
             const rate = this.calc.calculateCommissionRate(premium, amount);
             $(`#reinsurer-comm_rate-${treatyCounter}-${counter}`).val(
-                Utils.formatNumber(rate)
+                Utils.formatNumber(rate),
             );
         }
     }
@@ -975,15 +966,12 @@
             this.calc = calculationService;
         }
 
-        /**
-         * Generate installment rows
-         */
         generate(treatyCounter, counter) {
             const $row = $(`#reinsurer-div-${treatyCounter}-${counter}`);
             const numInstallments =
                 parseInt($row.find(".no-of-installments").val()) || 1;
             const premium = Utils.getElementValue(
-                `#reinsurer-premium-${treatyCounter}-${counter}`
+                `#reinsurer-premium-${treatyCounter}-${counter}`,
             );
 
             // Validate
@@ -992,33 +980,33 @@
                 numInstallments > CONFIG.MAX_INSTALLMENTS
             ) {
                 NotificationService.warning(
-                    `Installments must be between ${CONFIG.MIN_INSTALLMENTS} and ${CONFIG.MAX_INSTALLMENTS}`
+                    `Installments must be between ${CONFIG.MIN_INSTALLMENTS} and ${CONFIG.MAX_INSTALLMENTS}`,
                 );
                 return;
             }
 
             if (premium <= 0) {
                 NotificationService.warning(
-                    "Please enter reinsurer premium first"
+                    "Please enter reinsurer premium first",
                 );
                 return;
             }
 
             const installments = this.calc.generateInstallments(
                 premium,
-                numInstallments
+                numInstallments,
             );
             const $container = $row.find(".reinsurer-plan-section").empty();
 
             installments.forEach((inst, idx) => {
                 $container.append(
-                    this._createRow(treatyCounter, counter, inst, idx)
+                    this._createRow(treatyCounter, counter, inst, idx),
                 );
             });
 
             $row.find(".installments-box").fadeIn(CONFIG.ANIMATION_DURATION);
             NotificationService.success(
-                `${numInstallments} installments generated`
+                `${numInstallments} installments generated`,
             );
         }
 
@@ -1034,8 +1022,8 @@
                             installment.number
                         }" readonly />
                         <input type="hidden" name="${prefix}[number]" value="${
-                installment.number
-            }" />
+                            installment.number
+                        }" />
                     </div>
                     <div class="col-md-4">
                         <label class="form-label">Due Date</label>
@@ -1045,22 +1033,19 @@
                         <label class="form-label">Amount</label>
                         <input type="number" step="0.01" class="form-control installment-amount"
                                name="${prefix}[amount]" value="${
-                installment.amount
-            }" required />
+                                   installment.amount
+                               }" required />
                     </div>
                     <div class="col-md-2">
                         <label class="form-label">Percentage</label>
                         <input type="text" class="form-control" value="${installment.percentage.toFixed(
-                            2
+                            2,
                         )}%" readonly />
                     </div>
                 </div>
             `;
         }
 
-        /**
-         * Handle payment method change
-         */
         handlePaymentMethodChange(treatyCounter, counter, method) {
             const $row = $(`#reinsurer-div-${treatyCounter}-${counter}`);
             const isInstallment = method === "INS" || method === "INST";
@@ -1070,15 +1055,11 @@
 
             if (!isInstallment) {
                 $row.find(".installments-box").fadeOut(
-                    CONFIG.ANIMATION_DURATION
+                    CONFIG.ANIMATION_DURATION,
                 );
             }
         }
     }
-
-    // ============================================================================
-    // REINSURER MANAGER
-    // ============================================================================
     class ReinsurerManager {
         constructor(calculationService, validationService, brokerageManager) {
             this.calc = calculationService;
@@ -1087,11 +1068,7 @@
             this.counters = {};
         }
 
-        /**
-         * Add a new reinsurer row
-         */
         addRow(treatyCounter) {
-            // Initialize counter if needed
             if (this.counters[treatyCounter] === undefined) {
                 this.counters[treatyCounter] = 0;
             }
@@ -1119,16 +1096,15 @@
 
             $container.append(newRow);
 
-            // Initialize after DOM update
             requestAnimationFrame(() => {
                 setTimeout(() => {
                     Select2Manager.initInContainer(
-                        `#reinsurer-div-${treatyCounter}-${counter}`
+                        `#reinsurer-div-${treatyCounter}-${counter}`,
                     );
                     this.updateNumbers(treatyCounter);
                     this.brokerageManager.handleTypeChange(
                         treatyCounter,
-                        counter
+                        counter,
                     );
                 }, CONFIG.SELECT2_INIT_DELAY);
             });
@@ -1136,13 +1112,10 @@
             return counter;
         }
 
-        /**
-         * Remove a reinsurer row
-         */
         removeRow(treatyCounter, counter) {
             const $container = $(`#reinsurer-div-${treatyCounter}`);
             const remaining = $container.find(
-                SELECTORS.REINSURER_SECTION
+                SELECTORS.REINSURER_SECTION,
             ).length;
 
             if (remaining <= 1) {
@@ -1176,7 +1149,7 @@
                             $(document).trigger("reinsurer:removed", [
                                 treatyCounter,
                             ]);
-                        }
+                        },
                     );
                 }
             });
@@ -1187,7 +1160,7 @@
          */
         updateNumbers(treatyCounter) {
             $(
-                `#reinsurer-div-${treatyCounter} ${SELECTORS.REINSURER_SECTION}`
+                `#reinsurer-div-${treatyCounter} ${SELECTORS.REINSURER_SECTION}`,
             ).each(function (index) {
                 $(this)
                     .find(".reinsurer-number")
@@ -1267,7 +1240,7 @@
          */
         addSection() {
             const $lastSection = $(
-                `${SELECTORS.TREATY_DIV} ${SELECTORS.TREATY_SECTION}`
+                `${SELECTORS.TREATY_DIV} ${SELECTORS.TREATY_SECTION}`,
             ).last();
 
             if (!$lastSection.length) {
@@ -1278,12 +1251,12 @@
             const currentCounter =
                 parseInt($lastSection.attr("data-counter")) || 0;
             const currentTreaty = $(
-                `#reinsurer-treaty-${currentCounter}`
+                `#reinsurer-treaty-${currentCounter}`,
             ).val();
 
             if (!currentTreaty) {
                 NotificationService.error(
-                    "Please select a treaty before adding a new section"
+                    "Please select a treaty before adding a new section",
                 );
                 return;
             }
@@ -1319,7 +1292,7 @@
                         function () {
                             $(this).remove();
                             SummaryManager.refresh();
-                        }
+                        },
                     );
                     delete this.reinsurerManager.counters[counter];
                 }
@@ -1344,7 +1317,7 @@
             $section.find("[id]").each(function () {
                 const id = $(this).attr("id");
                 const newId = id.replace(/(-\d+)(-\d+)?$/, (match, p1, p2) =>
-                    p2 ? `-${counter}-${counter}` : `-${counter}`
+                    p2 ? `-${counter}-${counter}` : `-${counter}`,
                 );
                 $(this).attr({
                     id: newId,
@@ -1360,8 +1333,8 @@
                     "name",
                     name.replace(
                         new RegExp(`\\[${oldCounter}\\]`, "g"),
-                        `[${counter}]`
-                    )
+                        `[${counter}]`,
+                    ),
                 );
             });
         }
@@ -1395,7 +1368,7 @@
                     this._validateTreatySection(
                         $section,
                         treatyCounter,
-                        treatyNumber++
+                        treatyNumber++,
                     );
                 });
             }
@@ -1413,25 +1386,25 @@
             const $treatySelect = $section.find(".reinsurer-treaty");
             if ($treatySelect.length && !$treatySelect.val()) {
                 this.validation.addError(
-                    `Treaty section ${treatyNumber}: Please select a treaty`
+                    `Treaty section ${treatyNumber}: Please select a treaty`,
                 );
             }
 
             // Validate distribution
             const remaining = Utils.getElementValue(
-                `#rem_share-${treatyCounter}`
+                `#rem_share-${treatyCounter}`,
             );
             this.validation.validateDistribution(remaining, treatyNumber);
 
             // Validate each reinsurer
             let reinsurerNumber = 1;
             $(
-                `#reinsurer-div-${treatyCounter} ${SELECTORS.REINSURER_SECTION}`
+                `#reinsurer-div-${treatyCounter} ${SELECTORS.REINSURER_SECTION}`,
             ).each((_, element) => {
                 this.validation.validateReinsurerFields(
                     $(element),
                     treatyNumber,
-                    reinsurerNumber++
+                    reinsurerNumber++,
                 );
             });
         }
@@ -1475,7 +1448,7 @@
                 }, 1500);
             } else {
                 toastr.error(
-                    response.message || "An error occurred while saving"
+                    response.message || "An error occurred while saving",
                 );
                 this._resetButton($button);
             }
@@ -1637,7 +1610,7 @@
                 if (j > 0 && reinsurerManager) {
                     reinsurerManager.addRow(treatyIndex);
                     await this._waitForElement(
-                        `#reinsurer-div-${treatyIndex}-${j}`
+                        `#reinsurer-div-${treatyIndex}-${j}`,
                     );
                 }
 
@@ -1651,7 +1624,7 @@
             if (treaty.treaty_id) {
                 Select2Manager.setValue(
                     $(`select[name="${prefix}[treaty_id]"]`),
-                    treaty.treaty_id
+                    treaty.treaty_id,
                 );
             }
             if (treaty.layer_no) {
@@ -1663,12 +1636,12 @@
             const { brokerageManager, retroFeeManager } = this._getManagers();
             const prefix = `treaty[${treatyIndex}][reinsurers][${reinsurerIndex}]`;
             const $section = $(
-                `#reinsurer-div-${treatyIndex}-${reinsurerIndex}`
+                `#reinsurer-div-${treatyIndex}-${reinsurerIndex}`,
             );
 
             if (!$section.length) {
                 console.error(
-                    `PlacementManager: Section not found - reinsurer-div-${treatyIndex}-${reinsurerIndex}`
+                    `PlacementManager: Section not found - reinsurer-div-${treatyIndex}-${reinsurerIndex}`,
                 );
                 return;
             }
@@ -1689,16 +1662,16 @@
 
             // Set reinsurer select (FIXED: Using direct ID and proper Select2 trigger)
             const $reinsurerSelect = $(
-                `#reinsurer-${treatyIndex}-${reinsurerIndex}`
+                `#reinsurer-${treatyIndex}-${reinsurerIndex}`,
             );
             if ($reinsurerSelect.length && reinsurerId) {
                 const success = Select2Manager.setValue(
                     $reinsurerSelect,
-                    reinsurerId
+                    reinsurerId,
                 );
                 console.log(
                     `PlacementManager: Set reinsurer value ${reinsurerId}:`,
-                    success
+                    success,
                 );
             }
 
@@ -1717,7 +1690,7 @@
                 if (value !== null && value !== undefined) {
                     Select2Manager.setValue(
                         $section.find(`select[name="${prefix}[${name}]"]`),
-                        value
+                        value,
                     );
                 }
             });
@@ -1794,7 +1767,7 @@
                     } else if (Date.now() - startTime > timeout) {
                         clearInterval(interval);
                         console.warn(
-                            `PlacementManager: Element ${selector} not found within timeout`
+                            `PlacementManager: Element ${selector} not found within timeout`,
                         );
                         resolve(null);
                     }
@@ -1808,7 +1781,7 @@
 
         _triggerCalculations() {
             $(
-                ".reinsurer-written-share, .reinsurer-share, .reinsurer-premium, .reinsurer-comm-rate"
+                ".reinsurer-written-share, .reinsurer-share, .reinsurer-premium, .reinsurer-comm-rate",
             ).trigger("input");
         },
 
@@ -1833,7 +1806,7 @@
                     ".refresh-reinsurers-btn",
                     function () {
                         self.fetchExisting();
-                    }
+                    },
                 );
         },
     };
@@ -1971,7 +1944,7 @@
                         drawCallback: function (settings) {
                             self._calculateTableFooter(
                                 this.api(),
-                                "reinsurers"
+                                "reinsurers",
                             );
                         },
                     },
@@ -1992,7 +1965,7 @@
                                     ",",
                                     ".",
                                     2,
-                                    ""
+                                    "",
                                 ),
                             },
                             {
@@ -2001,7 +1974,7 @@
                                     ",",
                                     ".",
                                     2,
-                                    ""
+                                    "",
                                 ),
                             },
                             {
@@ -2010,7 +1983,7 @@
                                     ",",
                                     ".",
                                     2,
-                                    ""
+                                    "",
                                 ),
                             },
                             {
@@ -2019,7 +1992,7 @@
                                     ",",
                                     ".",
                                     2,
-                                    ""
+                                    "",
                                 ),
                             },
                             {
@@ -2116,10 +2089,10 @@
                         .reduce(
                             (a, b) =>
                                 Utils.removeCommas(a) + Utils.removeCommas(b),
-                            0
+                            0,
                         );
                     footerHtml += `<td style="font-weight:bold;">${Utils.formatNumber(
-                        sum
+                        sum,
                     )}</td>`;
                 } else {
                     footerHtml += "<td></td>";
@@ -2148,7 +2121,9 @@
                     window.history.pushState(
                         null,
                         null,
-                        window.location.pathname + window.location.search + hash
+                        window.location.pathname +
+                            window.location.search +
+                            hash,
                     );
                 }
             });
@@ -2192,12 +2167,12 @@
                     const type = $(this).hasClass("remove-schedule")
                         ? "schedule"
                         : $(this).hasClass("remove-attachment")
-                        ? "attachment"
-                        : $(this).hasClass("remove-clause")
-                        ? "clause"
-                        : "reinsurer";
+                          ? "attachment"
+                          : $(this).hasClass("remove-clause")
+                            ? "clause"
+                            : "reinsurer";
                     self._confirmRemove(type, $(this).data());
-                }
+                },
             );
         },
 
@@ -2264,25 +2239,25 @@
 
             $("#edtran_no").val(reinsurerData.tran_no);
             $("#edreinsurer-share").val(
-                parseFloat(reinsurerData.share).toFixed(2)
+                parseFloat(reinsurerData.share).toFixed(2),
             );
             $("#edreinsurer-written-share").val(
-                parseFloat(reinsurerData.written_lines).toFixed(2)
+                parseFloat(reinsurerData.written_lines).toFixed(2),
             );
             $("#edreinsurer-wht_rate")
                 .val(parseFloat(reinsurerData.wht_rate).toFixed(2))
                 .trigger("change");
             $("#edreinsurer-sum_insured").val(
-                Utils.formatNumber(reinsurerData.sum_insured)
+                Utils.formatNumber(reinsurerData.sum_insured),
             );
             $("#edreinsurer-premium").val(
-                parseFloat(reinsurerData.premium).toFixed(2)
+                parseFloat(reinsurerData.premium).toFixed(2),
             );
             $("#edreinsurer-comm_rate").val(
-                Utils.formatNumber(reinsurerData.comm_rate)
+                Utils.formatNumber(reinsurerData.comm_rate),
             );
             $("#edreinsurer-comm_amt").val(
-                parseFloat(reinsurerData.commission).toFixed(2)
+                parseFloat(reinsurerData.commission).toFixed(2),
             );
             $("#edreinsurer").val(reinsurer.customer_id);
         },
@@ -2408,7 +2383,7 @@
                 rein_comm_amount: Utils.getElementValue("#rein_comm_amount"),
                 cedant_comm_rate: Utils.getElementValue("#cedant_comm_rate"),
                 brokerage_comm_rate: Utils.getElementValue(
-                    "#brokerage_comm_rate"
+                    "#brokerage_comm_rate",
                 ),
                 rein_comm_rate: $("#rein_comm_rate").val() || 0,
                 brokerage_comm_type: $("#brokerage_comm_type").val() || "R",
@@ -2423,30 +2398,30 @@
 
             // Managers
             this.brokerageManager = new BrokerageManager(
-                this.calculationService
+                this.calculationService,
             );
             this.retroFeeManager = new RetroFeeManager(this.calculationService);
             this.commissionManager = new CommissionManager(
-                this.calculationService
+                this.calculationService,
             );
             this.installmentManager = new InstallmentManager(
-                this.calculationService
+                this.calculationService,
             );
             this.distributionManager = new DistributionManager(
-                this.calculationService
+                this.calculationService,
             );
 
             this.reinsurerManager = new ReinsurerManager(
                 this.calculationService,
                 this.validationService,
-                this.brokerageManager
+                this.brokerageManager,
             );
 
             this.treatyManager = new TreatyManager(this.reinsurerManager);
 
             this.formSubmissionManager = new FormSubmissionManager(
                 this.validationService,
-                this.coverData
+                this.coverData,
             );
 
             // PlacementManager is a standalone object exposed globally
@@ -2478,13 +2453,13 @@
                 const $btn = $(this);
                 self.reinsurerManager.removeRow(
                     $btn.data("treaty-counter"),
-                    $btn.data("counter")
+                    $btn.data("counter"),
                 );
             });
 
             $(document).on("change", ".reinsurer", function () {
                 self.reinsurerManager.filterSelected(
-                    $(this).data("treaty-counter")
+                    $(this).data("treaty-counter"),
                 );
             });
 
@@ -2502,7 +2477,7 @@
             $(document).on(
                 "input",
                 ".reinsurer-written-share, .reinsurer-share",
-                handleShareInput
+                handleShareInput,
             );
 
             // Commission events
@@ -2514,14 +2489,14 @@
                     const c = $(this).data("counter");
                     self.commissionManager.calculate(tc, c);
                     self.brokerageManager.calculate(tc, c);
-                }
+                },
             );
 
             // Brokerage events
             $(document).on("change", ".brokerage-comm-type", function () {
                 self.brokerageManager.handleTypeChange(
                     $(this).data("treaty-counter"),
-                    $(this).data("counter")
+                    $(this).data("counter"),
                 );
             });
 
@@ -2531,30 +2506,30 @@
                 function () {
                     self.brokerageManager.calculate(
                         $(this).data("treaty-counter"),
-                        $(this).data("counter")
+                        $(this).data("counter"),
                     );
-                }
+                },
             );
 
             // Retro/fronting events
             $(document).on("change", ".apply-fronting", function () {
                 self.retroFeeManager.handleToggle(
                     $(this).data("treaty-counter"),
-                    $(this).data("counter")
+                    $(this).data("counter"),
                 );
             });
 
             $(document).on("input", ".reinsurer-fronting-rate", function () {
                 self.retroFeeManager.calculateAmount(
                     $(this).data("treaty-counter"),
-                    $(this).data("counter")
+                    $(this).data("counter"),
                 );
             });
 
             $(document).on("input", ".reinsurer-fronting-amt", function () {
                 self.retroFeeManager.calculateRate(
                     $(this).data("treaty-counter"),
-                    $(this).data("counter")
+                    $(this).data("counter"),
                 );
             });
 
@@ -2563,7 +2538,7 @@
                 self.installmentManager.handlePaymentMethodChange(
                     $(this).data("treaty-counter"),
                     $(this).data("counter"),
-                    $(this).val()
+                    $(this).val(),
                 );
             });
 
@@ -2574,9 +2549,9 @@
                     e.preventDefault();
                     self.installmentManager.generate(
                         $(this).data("treaty-counter"),
-                        $(this).data("counter")
+                        $(this).data("counter"),
                     );
-                }
+                },
             );
 
             // Modal events
@@ -2595,7 +2570,7 @@
         _initializeUI() {
             Select2Manager.init();
             this.distributionManager.initFromPartners(
-                window.coverpartners || []
+                window.coverpartners || [],
             );
             this.distributionManager.calculate(0);
             this._initializeDisplays();
@@ -2615,10 +2590,10 @@
 
         _validateSignedVsWritten(treatyCounter, counter) {
             const written = Utils.getElementValue(
-                `#written_share-${treatyCounter}-${counter}`
+                `#written_share-${treatyCounter}-${counter}`,
             );
             const signed = Utils.getElementValue(
-                `#share-${treatyCounter}-${counter}`
+                `#share-${treatyCounter}-${counter}`,
             );
             const $signedInput = $(`#share-${treatyCounter}-${counter}`);
 
@@ -2627,7 +2602,7 @@
                     .addClass("is-invalid")
                     .val(Utils.toDecimal(written));
                 NotificationService.warning(
-                    "Signed share cannot exceed written share"
+                    "Signed share cannot exceed written share",
                 );
             } else {
                 $signedInput.removeClass("is-invalid");
@@ -2655,16 +2630,16 @@
                     self._calculateTotalAcceptance(tc, c);
                     self._validateAgainstWritten(tc, c);
                     self._updateDistributionSummary(tc);
-                }
+                },
             );
         },
 
         _calculateTotalAcceptance(tc, c) {
             const compulsory = Utils.getElementValue(
-                `#compulsory_acceptance-${tc}-${c}`
+                `#compulsory_acceptance-${tc}-${c}`,
             );
             const optional = Utils.getElementValue(
-                `#optional_acceptance-${tc}-${c}`
+                `#optional_acceptance-${tc}-${c}`,
             );
             const total = compulsory + optional;
 
@@ -2705,7 +2680,7 @@
             $(`.reinsurer-total-acceptance[data-treaty-counter="${tc}"]`).each(
                 function () {
                     distributed += Utils.removeCommas($(this).val());
-                }
+                },
             );
 
             const remaining = offered - distributed;
@@ -2715,7 +2690,7 @@
             $remainingField.val(remaining.toFixed(2));
 
             $remainingField.removeClass(
-                "bg-danger bg-warning bg-success text-white"
+                "bg-danger bg-warning bg-success text-white",
             );
             if (remaining < -CONFIG.TOLERANCE) {
                 $remainingField.addClass("bg-danger text-white");

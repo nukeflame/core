@@ -13,10 +13,6 @@ use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Cache;
 
-/**
- * Complete OutlookService Implementation
- * Version 2.0 - Full Microsoft 365 Integration
- */
 class FirstOutlookServiceMain
 {
     private string $graphEndpoint = 'https://graph.microsoft.com/v1.0';
@@ -26,7 +22,6 @@ class FirstOutlookServiceMain
     private int $timeout;
     protected $auth = null;
 
-    // All 200+ delegated permissions
     private array $requiredScopes = [
         'openid',
         'offline_access',
@@ -71,7 +66,6 @@ class FirstOutlookServiceMain
         'Presence.ReadWrite',
         'OnlineMeetings.Read',
         'OnlineMeetings.ReadWrite',
-        // ... (full list of 200+ permissions as shown earlier)
     ];
 
     public function __construct(int $timeout = 60)
@@ -86,11 +80,6 @@ class FirstOutlookServiceMain
         $this->validateConfig();
     }
 
-    // SECTION 1: AUTHENTICATION & TOKEN MANAGEMENT
-    /**
-     * Validate configuration parameters
-     * Ensures all required Azure AD configuration is present
-     */
     private function validateConfig(): void
     {
         $required = ['client_id', 'client_secret', 'redirect_uri'];
