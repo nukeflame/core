@@ -940,8 +940,6 @@ class QuarterlyDebitController extends Controller
             ]
         ];
 
-        logger()->debug(json_encode($debitItems, JSON_PRETTY_PRINT));
-
         $pdf = Pdf::loadView($viewName, $documentData)->setPaper('a4', 'portrait')->setWarnings(false);
         $pdf->set_option('isHtml5ParserEnabled', true);
         $pdf->set_option('isPhpEnabled', true);

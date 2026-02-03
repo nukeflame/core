@@ -1506,26 +1506,26 @@ class CoverController extends Controller
 
             $message = $this->getBusinessTypeLabel($debitData['typeOfBus']) . ' debit/credit note generated successfully';
 
-            logger()->debug(json_encode($debitData, JSON_PRETTY_PRINT));
+            if ($debitData['isFacultative']) {
+                $redirectUrl  = null;
+                // $this->createCoverDebit($debitData, $cover);
+            } else if ($debitData['isTreaty']) {
+                $redirectUrl  = route('cover.transactions.index', [
+                    'coverNo' => $cover->cover_no,
+                ]);
 
-            // if ($debitData['isFacultative']) {
-            //     $redirectUrl  = null;
-            //     $this->createCoverDebit($debitData, $cover);
-            // } else if ($debitData['isTreaty']) {
-            //     $redirectUrl  = route('cover.transactions.index', [
-            //         'coverNo' => $cover->cover_no,
-            //     ]);
-                
-            //     $this->createTreatyDebit($debitData, $cover);
-            //     // $this->createTreatyCredit($debitData, $cover);
-            // }
+                $this->createTreatyDebit($debitData, $cover);
+            }
 
-            // $this->createCustomerAccount($debitData, $cover);
+            $this->createCustomerAccount($debitData, $cover);
 
             // $cover->commited = 'Y';
             // $cover->save();
 
-            // DB::commit();
+
+            DB::commit();
+
+            logger()->debug(json_encode($redirectUrl, JSON_PRETTY_PRINT));
 
             return response()->json([
                 'success' => true,
@@ -1573,10 +1573,127 @@ class CoverController extends Controller
 
         $debit = $debitNote->fresh(['items']);
 
+        logger()->debug(json_encode($debit, JSON_PRETTY_PRINT));
+
         return $debit;
     }
 
-      public function createTreatyCredit($creditData, $cover)
+    public function generateCredit(Request $request)
+    {
+        DB::beginTransaction();
+        try {
+            $validatedData = $request->toArray();
+
+            $cover = CoverRegister::where('endorsement_no', $validatedData['endorsement_no'])->lockForUpdate()->first();
+
+            if (!$cover) {
+                throw new Exception("Cover register not found for endorsement: {$validatedData['endorsement_no']}");
+            }
+
+            $creditData = $this->prepareCreditData($validatedData, $cover);
+
+            if ($creditData['isTreaty']) {
+                $this->validateBusinessRules($cover, $validatedData);
+            }
+
+            $redirectUrl = null;
+
+            $message = $this->getBusinessTypeLabel($creditData['typeOfBus']) . ' credit note generated successfully';
+
+            if ($creditData['isFacultative']) {
+                $redirectUrl = null;
+                // TODO: Implement createCoverCredit for facultative credit notes
+            } else if ($creditData['isTreaty']) {
+                $redirectUrl = route('cover.transactions.index', [
+                    'coverNo' => $cover->cover_no,
+                ]);
+
+                $this->createTreatyCredit($creditData, $cover);
+            }
+
+            $this->createCustomerAccount($creditData, $cover);
+
+            $cover->commited = 'Y';
+            $cover->save();
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'status' => Response::HTTP_CREATED,
+                'redirectUrl' => $redirectUrl,
+                'message' => $message
+            ], 201);
+        } catch (ValidationException $e) {
+            DB::rollback();
+
+            return response()->json([
+                'success' => false,
+                'status' => Response::HTTP_UNPROCESSABLE_ENTITY,
+                'errors' => 'Internal error occurred!',
+            ], 422);
+        } catch (BusinessRuleException $e) {
+            DB::rollBack();
+
+            logger($e);
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+                'status' => Response::HTTP_UNPROCESSABLE_ENTITY,
+                'errors' => [],
+            ], 422);
+        } catch (Exception $e) {
+            DB::rollback();
+            logger($e);
+
+            return response()->json([
+                'success' => false,
+                'status' => Response::HTTP_INTERNAL_SERVER_ERROR,
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    private function prepareCreditData(array $validatedData, CoverRegister $coverRegister): array
+    {
+        $typeOfBus = $validatedData['type_of_bus'];
+        $netAmount = $this->parseNumber($validatedData['amount']);
+
+        return [
+            'typeOfBus' => $typeOfBus,
+            'isTreaty' => in_array($typeOfBus, ['TPR', 'TNP']),
+            'isFacultative' => in_array($typeOfBus, ['FPR', 'FNP']),
+            'isProportional' => in_array($typeOfBus, ['TPR', 'FPR']),
+            'coverNo' => $validatedData['cover_no'],
+            'endorsementNo' => $validatedData['endorsement_no'],
+            'installment' => $validatedData['installment'],
+            'grossAmount' => $netAmount,
+            'netAmount' => $netAmount,
+            'docType' => 'CRN',
+            'drCr' => 'C',
+            'drCrNo' => null,
+            'sourceCode' => null,
+            'reference' => null,
+            'currencyRate' => $coverRegister->currency_rate ?? 1,
+            'entryTypeDescr' => 'quarterly-figures',
+            'postingYear' => $validatedData['posting_year'],
+            'postingQuarter' => $validatedData['posting_quarter'],
+            'postingDate' => $validatedData['posting_date'],
+            'brokerageRate' => $validatedData['brokerage_rate'],
+            'comments' => $validatedData['comments'] ?? '',
+            'items' => $validatedData['items'] ?? [],
+            'computePremiumTax' => $validatedData['compute_premium_tax'] ?? 0,
+            'computeReinsuranceTax' => $validatedData['compute_reinsurance_tax'] ?? 0,
+            'computeWithholdingTax' => $validatedData['compute_withholding_tax'] ?? 0,
+            'lossParticipation' => $validatedData['loss_participation'] ?? 0,
+            'showCedant' => $validatedData['show_cedant'] ?? false,
+            'showReinsurer' => $validatedData['show_reinsurer'] ?? false,
+            'reinsurerPosting' => 'NET',
+            'premiumPayTerms' => ''
+        ];
+    }
+
+    public function createTreatyCredit($creditData, $cover)
     {
         $cover->account_year = $this->_year;
         $cover->account_month = $this->_month;

@@ -141,10 +141,10 @@
             <div class="row">
                 <div class="logo">
                     <?php
-                    $logoPath = public_path('logo.png');
-                    
+                    $logoPath = public_path('/assets/images/brand-logos/main-horizontal-logo.png');
+
                     $imgSrc = '';
-                    
+
                     if (file_exists($logoPath) && is_readable($logoPath)) {
                         $imageData = file_get_contents($logoPath);
                         if ($imageData !== false) {
@@ -723,10 +723,10 @@
         <div class="row">
             <div class="logo">
                 <?php
-                $logoPath = public_path('logo.png');
-                
+                $logoPath = public_path('/assets/images/brand-logos/main-horizontal-logo.png');
+
                 $imgSrc = '';
-                
+
                 if (file_exists($logoPath) && is_readable($logoPath)) {
                     $imageData = file_get_contents($logoPath);
                     if ($imageData !== false) {
@@ -1237,10 +1237,10 @@
         <div class="row">
             <div class="logo">
                 <?php
-                $logoPath = public_path('logo.png');
-                
+                $logoPath = public_path('/assets/images/brand-logos/main-horizontal-logo.png');
+
                 $imgSrc = '';
-                
+
                 if (file_exists($logoPath) && is_readable($logoPath)) {
                     $imageData = file_get_contents($logoPath);
                     if ($imageData !== false) {

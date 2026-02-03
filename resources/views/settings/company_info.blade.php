@@ -305,7 +305,8 @@
             </div>
             <div class="card-content">
                 <div class="company-logo">
-                    <img src="{{ asset('logo.png') }}" alt="" class="desktop-logo" />
+                    <img src="{{ asset('/assets/images/brand-logos/main-horizontal-logo.png') }}" alt=""
+                        class="desktop-logo" />
                     {{-- <div class="logo-placeholder">A</div> --}}
                     {{-- <button class="upload-btn">Upload Logo</button> --}}
                 </div>

@@ -9,53 +9,66 @@
     <style>
         header {
             /* background-color: #f0f0f0;  */
-            padding: 0px 0px; 
-            text-align: right; 
+            padding: 0px 0px;
+            text-align: right;
             margin: 0;
         }
-        p{
+
+        p {
             margin: 0;
         }
+
         table {
             /* border-collapse: collapse; */
         }
 
         th {
-            background-color: #dad4d4; /* Set your desired background color here */
+            background-color: #dad4d4;
+            /* Set your desired background color here */
             border: 1px solid #181212;
             padding: 8px;
             text-align: left;
         }
+
         .receipt-table {
             width: 100%;
             font-size: 10.0pt;
             font-family: 'Calibri';
         }
+
         .receipt-table td {
             margin-bottom: 1px;
             padding-bottom: 1px;
         }
+
         .bold {
             font-weight: bold;
         }
+
         .underline {
             text-decoration: underline;
         }
+
         .border-bottom {
             border-bottom: 1px solid black;
         }
+
         .spacing-top {
             padding-top: 10px;
         }
+
         .spacing-large-top {
             padding-top: 90px;
         }
+
         .spacing-large-bottom {
             padding-bottom: 50px;
         }
+
         .spacing-bottom {
             padding-bottom: 10px;
         }
+
         .prepared-by {
             position: absolute;
             bottom: 0;
@@ -68,7 +81,7 @@
     {{-- <header>
         <div class="row">
             <div class="logo">
-                <img align="left" src="{{ asset('logo.png')}}" alt="" style="width: 230px; height: auto;">  
+                <img align="left" src="{{ asset('/assets/images/brand-logos/main-horizontal-logo.png')}}" alt="" style="width: 230px; height: auto;">
             </div>
             <div class="company-info">
                 <p>{{ $company->company_name }}</p>

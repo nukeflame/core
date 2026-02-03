@@ -173,7 +173,8 @@
                     <div class="contact-info">📧 info@acentriagroup.com | 🌐 www.acentriagroup.com</div>
                 </div>
                 <div class="company-logo">
-                    <img src="{{ config('app.url') . '/logo.png' }}" alt="Acentria Logo" class="logo">
+                    <img src="{{ config('app.url') . '/assets/images/brand-logos/main-horizontal-logo.png' }}"
+                        alt="Acentria Logo" class="logo">
                     {{-- <div class="social-icons">
                         <a href="https://facebook.com/acentriagroup"><img
                                 src="https://hrms.acentriagroup.com/images/icons/facebook.png" alt="Facebook"

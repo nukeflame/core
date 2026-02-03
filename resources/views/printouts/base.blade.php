@@ -395,7 +395,7 @@
         <header class="logo-header">
             <div class="row-table">
                 <div class="logo">
-                    <img class="brand-logo" src="data:image/png;base64,<?php echo base64_encode(file_get_contents(base_path('public/logo.png'))); ?>" alt=""
+                    <img class="brand-logo" src="data:image/png;base64,<?php echo base64_encode(file_get_contents(base_path('public/assets/images/brand-logos/main-horizontal-logo.png'))); ?>" alt=""
                         style="width: 230px; height: auto;" />
                 </div>
                 <div class="company-info">

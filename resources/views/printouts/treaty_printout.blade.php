@@ -141,7 +141,7 @@
             <div class="row">
                 <div class="logo">
                     <?php
-                    $logoPath = public_path('logo.png');
+                    $logoPath = public_path('/assets/images/brand-logos/main-horizontal-logo.png');
                     
                     $imgSrc = '';
                     
@@ -564,7 +564,7 @@
         <div class="row">
             <div class="logo">
                 <?php
-                $logoPath = public_path('logo.png');
+                $logoPath = public_path('/assets/images/brand-logos/main-horizontal-logo.png');
                 
                 $imgSrc = '';
                 
@@ -943,7 +943,7 @@
         <div class="row">
             <div class="logo">
                 <?php
-                $logoPath = public_path('logo.png');
+                $logoPath = public_path('/assets/images/brand-logos/main-horizontal-logo.png');
                 
                 $imgSrc = '';
                 

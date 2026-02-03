@@ -89,7 +89,7 @@
 <body>
     <div class="header">
         @if (isset($companyLogo))
-            <img src="https://sandbox.finance.acentriagroup.com/logo.png" height="83" width="auto"
+            <img src="/assets/images/brand-logos/main-horizontal-logo.png" height="83" width="auto"
                 alt="Acentria International Logo" class="logo">
         @endif
         <h1>Welcome to {{ config('app.name') }}</h1>

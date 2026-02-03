@@ -1072,16 +1072,16 @@
                         <div class="col-6">
                             <div class="d-flex justify-content-end gap-3">
                                 <div class="form-check">
-                                    <input class="form-check-input main-email-radio" type="radio" 
+                                    <input class="form-check-input main-email-radio" type="radio"
                                            name="mainEmail" value="${email}" id="main_${index}"
-                                           data-name="${name}" data-type="${type}" 
+                                           data-name="${name}" data-type="${type}"
                                            ${isMainSelected ? 'checked' : ''}>
                                     <label class="form-check-label small text-success fw-bold" for="main_${index}">
                                         Main Email
                                     </label>
                                 </div>
                                 <div class="form-check">
-                                    <input class="form-check-input cc-email-checkbox" type="checkbox" 
+                                    <input class="form-check-input cc-email-checkbox" type="checkbox"
                                            value="${email}" id="cc_${index}" data-name="${name}" data-type="${type}"
                                            ${isCcSelected ? 'checked' : ''}>
                                     <label class="form-check-label small text-info" for="cc_${index}">
@@ -1330,7 +1330,7 @@
                 let yPosition = height - 210;
 
                 // Company logo
-                const logoBlob = await loadImage(public_path('logo.png'));
+                const logoBlob = await loadImage(public_path('/assets/images/brand-logos/main-horizontal-logo.png'));
                 if (logoBlob) {
                     const logoBytes = await logoBlob.arrayBuffer();
                     const logo = await pdfDoc.embedPng(logoBytes);
@@ -2032,7 +2032,7 @@
                 function openRemarksModal(action, isRequired) {
                     $('#remarksAction').val(action);
                     // $('#remarksRequired').text(isRequired ? '*' : '(Optional)');
-                    $('#remarksRequired').text(isRequired ? '*' :'' );
+                    $('#remarksRequired').text(isRequired ? '*' : '');
                     $('#remarks').prop('required', isRequired);
                     $('#remarksModalLabel').text(action === 'send_email' ? 'Add Remarks for Email' : action ===
                         'reject' ? 'Add Remarks for Rejection' : 'Add Remarks');
@@ -2262,7 +2262,7 @@
                         counter = counter + 1;
                         $('#subcatdetails').append(
                             `<div class="row mt-2 mx-0">
-                       
+
                         <div class="col-6">
                             <div class="input-group">
                                 <select name="subattach[]" id="subattach${counter}" class="select2 form-control">
@@ -2300,12 +2300,12 @@
                 var counter = 0;
 
                 $('body').on('click', '#addsubcatEdit', function() {
-                alert('in')
+                    alert('in')
 
                     counter = counter + 1;
                     $('#edsubcats').append(
                         `<div class="row mt-2 mx-0">
-                       
+
                         <div class="col-6">
                             <div class="input-group">
                                 <select name="subattach[]" id="subattach${counter}" class="select2 form-control">
@@ -2643,7 +2643,7 @@
                             return;
                         }
                         const payload = {
-                            approval_id:'{{$approval->id ?? ''}}',
+                            approval_id: '{{ $approval->id ?? '' }}',
                             tender_id: '{{ $tender->id }}',
                             tender_no: '{{ $tender->tender_no }}',
                             stage_id: $('input[name="stage_id"]').val(),
