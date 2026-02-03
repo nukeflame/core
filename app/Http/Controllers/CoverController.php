@@ -1485,7 +1485,6 @@ class CoverController extends Controller
 
     public function generateDebitAndCredit(Request $request)
     {
-        // GenerateDebitNoteRequest
         DB::beginTransaction();
         try {
             $validatedData = $request->toArray();
@@ -1497,6 +1496,7 @@ class CoverController extends Controller
             }
 
             $debitData = $this->prepareDebitData($validatedData, $cover);
+            $creditData = $this->prepareCreditData($validatedData, $cover);
 
             if ($debitData['isTreaty']) {
                 $this->validateBusinessRules($cover, $validatedData);
@@ -1515,17 +1515,18 @@ class CoverController extends Controller
                 ]);
 
                 $this->createTreatyDebit($debitData, $cover);
+                $this->createTreatyCredit($creditData, $cover);
             }
 
             $this->createCustomerAccount($debitData, $cover);
 
-            // $cover->commited = 'Y';
-            // $cover->save();
+            $cover->commited = 'Y';
+            $cover->save();
 
 
             DB::commit();
 
-            logger()->debug(json_encode($redirectUrl, JSON_PRETTY_PRINT));
+            // logger()->debug(json_encode($creditData, JSON_PRETTY_PRINT));
 
             return response()->json([
                 'success' => true,
@@ -1570,88 +1571,9 @@ class CoverController extends Controller
         $cover->update();
 
         $debitNote = $this->debitNoteService->create($debitData, $cover);
-
         $debit = $debitNote->fresh(['items']);
 
-        logger()->debug(json_encode($debit, JSON_PRETTY_PRINT));
-
         return $debit;
-    }
-
-    public function generateCredit(Request $request)
-    {
-        DB::beginTransaction();
-        try {
-            $validatedData = $request->toArray();
-
-            $cover = CoverRegister::where('endorsement_no', $validatedData['endorsement_no'])->lockForUpdate()->first();
-
-            if (!$cover) {
-                throw new Exception("Cover register not found for endorsement: {$validatedData['endorsement_no']}");
-            }
-
-            $creditData = $this->prepareCreditData($validatedData, $cover);
-
-            if ($creditData['isTreaty']) {
-                $this->validateBusinessRules($cover, $validatedData);
-            }
-
-            $redirectUrl = null;
-
-            $message = $this->getBusinessTypeLabel($creditData['typeOfBus']) . ' credit note generated successfully';
-
-            if ($creditData['isFacultative']) {
-                $redirectUrl = null;
-                // TODO: Implement createCoverCredit for facultative credit notes
-            } else if ($creditData['isTreaty']) {
-                $redirectUrl = route('cover.transactions.index', [
-                    'coverNo' => $cover->cover_no,
-                ]);
-
-                $this->createTreatyCredit($creditData, $cover);
-            }
-
-            $this->createCustomerAccount($creditData, $cover);
-
-            $cover->commited = 'Y';
-            $cover->save();
-
-            DB::commit();
-
-            return response()->json([
-                'success' => true,
-                'status' => Response::HTTP_CREATED,
-                'redirectUrl' => $redirectUrl,
-                'message' => $message
-            ], 201);
-        } catch (ValidationException $e) {
-            DB::rollback();
-
-            return response()->json([
-                'success' => false,
-                'status' => Response::HTTP_UNPROCESSABLE_ENTITY,
-                'errors' => 'Internal error occurred!',
-            ], 422);
-        } catch (BusinessRuleException $e) {
-            DB::rollBack();
-
-            logger($e);
-            return response()->json([
-                'success' => false,
-                'message' => $e->getMessage(),
-                'status' => Response::HTTP_UNPROCESSABLE_ENTITY,
-                'errors' => [],
-            ], 422);
-        } catch (Exception $e) {
-            DB::rollback();
-            logger($e);
-
-            return response()->json([
-                'success' => false,
-                'status' => Response::HTTP_INTERNAL_SERVER_ERROR,
-                'message' => $e->getMessage(),
-            ], 500);
-        }
     }
 
     private function prepareCreditData(array $validatedData, CoverRegister $coverRegister): array
@@ -1700,7 +1622,6 @@ class CoverController extends Controller
         $cover->update();
 
         $creditNote = $this->creditNoteService->create($creditData, $cover);
-
         $credit = $creditNote->fresh(['items']);
 
         return $credit;

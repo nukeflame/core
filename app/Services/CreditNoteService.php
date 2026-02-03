@@ -114,6 +114,8 @@ class CreditNoteService
 
             $this->logTransaction($creditNote, 'CREATE');
 
+            logger()->debug(json_encode($creditNote, JSON_PRETTY_PRINT));
+
             return $creditNote->fresh(['items']);
         });
     }
