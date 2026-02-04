@@ -5,88 +5,93 @@ namespace App\Http\Controllers;
 use App\Enums\PermissionsLevel;
 use App\Exceptions\BusinessRuleException;
 use App\Http\Requests\CoverRegistrationRequest;
-use App\Http\Requests\GenerateDebitNoteRequest;
 use App\Jobs\SendReinsurerEmailJob;
 use App\Jobs\SendRenewalNoticeJob;
 use App\Models\ApprovalSourceLink;
 use App\Models\ApprovalsTracker;
-use App\Services\CreditNoteService;
-use Illuminate\Http\JsonResponse;
-use Throwable;
-use Carbon\Carbon;
-use App\Models\User;
-use App\Models\Branch;
-use App\Models\Broker;
-use App\Models\Classes;
-use App\Models\Country;
-use App\Models\Currency;
-use App\Models\Customer;
-use App\Models\ReinNote;
-use App\Models\CoverRisk;
-use App\Models\CoverType;
-use App\Models\PayMethod;
-use App\Models\ClassGroup;
-use App\Models\CoverClass;
-use App\Models\CoverDebit;
-use App\Models\ReinsClass;
-use App\Models\TreatyType;
-use App\Models\BinderCover;
-use App\Models\ClauseParam;
-use App\Models\CoverClause;
-use App\Models\CoverRipart;
-use App\Models\BusinessType;
-use App\Models\CoverPremium;
-use App\Models\CurrencyRate;
-use Illuminate\Http\Request;
-use App\Models\CoverPremtype;
-use App\Models\CoverRegister;
-use App\Models\CoverReinProp;
-use App\Models\ReinsDivision;
-use App\Models\SystemSerials;
-use App\Models\CoverReinLayer;
-use App\Models\CustomerAccDet;
-use App\Models\PremiumPayTerm;
-use App\Models\CoverAttachment;
-use App\Models\EndorsementType;
-use App\Models\TypeOfSumInsured;
-use App\Models\CoverInstallments;
-use App\Models\ReinclassPremtype;
 use App\Models\Bd\PipelineOpportunity;
 use App\Models\BdFacReinsurer;
+use App\Models\BinderCover;
+use App\Models\Branch;
+use App\Models\Broker;
+use App\Models\BusinessType;
+use App\Models\Classes;
+use App\Models\ClassGroup;
+use App\Models\ClauseParam;
 use App\Models\Company;
-use App\Models\DebitNote;
-use Illuminate\Support\Facades\DB;
+use App\Models\Country;
+use App\Models\CoverAttachment;
+use App\Models\CoverClass;
+use App\Models\CoverClause;
+use App\Models\CoverDebit;
+use App\Models\CoverInstallments;
+use App\Models\CoverPremium;
+use App\Models\CoverPremtype;
+use App\Models\CoverRegister;
+use App\Models\CoverReinLayer;
+use App\Models\CoverReinProp;
+use App\Models\CoverRipart;
+use App\Models\CoverRisk;
+use App\Models\CoverType;
+use App\Models\Currency;
+use App\Models\CurrencyRate;
+use App\Models\Customer;
+use App\Models\CustomerAccDet;
 use App\Models\EndorsementNarration;
-use App\Models\HandoverApproval;
+use App\Models\EndorsementType;
+use App\Models\PayMethod;
 use App\Models\PolicyRenewal;
 use App\Models\PolicyRenewalDocument;
+use App\Models\PremiumPayTerm;
+use App\Models\ReinclassPremtype;
+use App\Models\ReinNote;
+use App\Models\ReinsClass;
+use App\Models\ReinsDivision;
 use App\Models\SystemProcessAction;
+use App\Models\SystemSerials;
+use App\Models\TreatyType;
+use App\Models\TypeOfSumInsured;
+use App\Models\User;
+use App\Repositories\CoverRepository;
+use App\Services\CoverService;
+use App\Services\CreditNoteService;
+use App\Services\TaxCalculationService;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Carbon\Carbon;
+use Exception;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
-use Yajra\DataTables\Facades\DataTables;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\Response;
-use App\Repositories\CoverRepository;
-use App\Services\CoverService;
+use Throwable;
+use Yajra\DataTables\Facades\DataTables;
 use App\Services\DebitNoteService;
-use App\Services\TaxCalculationService;
-use Barryvdh\DomPDF\Facade\Pdf;
-use Exception;
-use Illuminate\Database\Eloquent\ModelNotFoundException;
-use Illuminate\Support\Facades\Storage;
 
 class CoverController extends Controller
 {
     private $_year;
+
     private $_month;
+
     private $_quarter;
+
     private $_endorsement_no;
+
     protected $coverRepository;
+
     protected $coverService;
+
     protected $prospectDataService;
+
     protected $debitNoteService;
+
     protected $creditNoteService;
+
     protected $taxService;
 
     public function __construct(
@@ -113,7 +118,7 @@ class CoverController extends Controller
     {
         $customers = DB::table('customers')
             ->join('customer_types', function ($join) {
-                $join->on('customer_types.type_id', '=', DB::raw("ANY (SELECT json_array_elements_text(customers.customer_type)::int)"));
+                $join->on('customer_types.type_id', '=', DB::raw('ANY (SELECT json_array_elements_text(customers.customer_type)::int)'));
             })
             ->select('customers.customer_id', 'customers.name')
             ->whereIn('customer_types.code', ['INSCO', 'REINCO'])
@@ -129,7 +134,7 @@ class CoverController extends Controller
             $type_of_bus = $request->type_of_bus;
             $prospect_id = $request->has('prospect_id') ? $request->prospect_id : null;
 
-            if (!$request->customer_id) {
+            if (! $request->customer_id) {
                 return back()->with('error', 'Customer ID is required');
             }
 
@@ -137,13 +142,13 @@ class CoverController extends Controller
                 $cover_no = $request->cover_no;
                 $endorsement_no = $request->endorsement_no;
 
-                if (!$cover_no || !$endorsement_no) {
+                if (! $cover_no || ! $endorsement_no) {
                     return back()->with('error', 'Cover number and endorsement number are required for non-NEW transactions');
                 }
 
                 $old_endt_trans = CoverRegister::where('endorseu8ment_no', $endorsement_no)->first();
                 if ($old_endt_trans) {
-                    if (!in_array($old_endt_trans?->transaction_type, ['NEW', 'REN']) && $trans_type == 'EDIT') {
+                    if (! in_array($old_endt_trans?->transaction_type, ['NEW', 'REN']) && $trans_type == 'EDIT') {
                         return back()->with('error', 'You can only edit New covers or Renewals');
                     }
 
@@ -180,13 +185,13 @@ class CoverController extends Controller
                 ->select(['customer_id', 'name', 'postal_address', 'postal_town', 'city', 'email', 'telephone', 'country_iso', 'customer_type'])
                 ->first();
 
-            if (!$customer) {
+            if (! $customer) {
                 return back()->with('error', 'Customer not found');
             }
 
             $insured = DB::table('customers')
                 ->join('customer_types', function ($join) {
-                    $join->on('customer_types.type_id', '=', DB::raw("ANY (SELECT json_array_elements_text(customers.customer_type)::int)"));
+                    $join->on('customer_types.type_id', '=', DB::raw('ANY (SELECT json_array_elements_text(customers.customer_type)::int)'));
                 })
                 ->select('customers.customer_id', 'customers.name')
                 ->where('customer_types.code', 'INSURED')
@@ -196,8 +201,8 @@ class CoverController extends Controller
                 ->select(['country_iso', 'country_name'])
                 ->first();
 
-            if (!$countries) {
-                $countries = (object)['country_iso' => $customer->country_iso, 'country_name' => 'Unknown'];
+            if (! $countries) {
+                $countries = (object) ['country_iso' => $customer->country_iso, 'country_name' => 'Unknown'];
             }
 
             $customerTypes = [];
@@ -230,7 +235,7 @@ class CoverController extends Controller
             $selected_pay_method = null;
             if ($old_endt_trans) {
                 $selected_pay_method = collect($paymethods)->first(
-                    fn($item) => $item->pay_method_code == $old_endt_trans->pay_method_code,
+                    fn ($item) => $item->pay_method_code == $old_endt_trans->pay_method_code,
                 );
             }
 
@@ -278,7 +283,7 @@ class CoverController extends Controller
                 'coverInstallments' => $coverInstallments,
                 'selected_pay_method' => $selected_pay_method,
                 'prospectId' => $prospect_id,
-                'staff' => $allActiveStaff
+                'staff' => $allActiveStaff,
             ]);
         } catch (\Exception $e) {
             return back()->withErros(['An error occurred while loading the cover form']);
@@ -289,6 +294,7 @@ class CoverController extends Controller
     {
         $type_of_bus = $request->type_of_bus;
         $result = TreatyType::where('type_of_bus', $type_of_bus)->where('status', 'A')->get();
+
         return response()->json($result);
     }
 
@@ -316,15 +322,15 @@ class CoverController extends Controller
                     'message' => 'Cover registration processed successfully',
                     'data' => [
                         'trans_type' => $transType,
-                        'redirectUrl' => $redirectUrl
-                    ]
+                        'redirectUrl' => $redirectUrl,
+                    ],
                 ], 200);
             }
         } catch (Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'An error occurred while processing the cover registration',
-                'error' => config('app.debug') ? $e->getMessage() : 'Server error'
+                'error' => config('app.debug') ? $e->getMessage() : 'Server error',
             ], 500);
         }
     }
@@ -336,6 +342,7 @@ class CoverController extends Controller
             $result = $this->coverRepository->saveCoverEndorsement($request);
 
             DB::commit();
+
             return redirect()->route('cover.CoverHome', ['endorsement_no' => $result['endorsement_no']])->with('success', 'Cover Endorsement information updated successfully');
         } catch (\Exception $e) {
             DB::rollback();
@@ -397,7 +404,7 @@ class CoverController extends Controller
                 ->count();
             $count = $count + 1;
 
-            $CoverReinProp = new CoverReinProp();
+            $CoverReinProp = new CoverReinProp;
             $CoverReinProp->cover_no = $CoverRegister->cover_no;
             $CoverReinProp->endorsement_no = $CoverRegister->endorsement_no;
             $CoverReinProp->item_no = $count;
@@ -427,7 +434,7 @@ class CoverController extends Controller
     public function CoverDatatable(Request $request)
     {
         $customer_id = $request->get('customer_id');
-        if (!$customer_id) {
+        if (! $customer_id) {
             return response()->json(['error' => 'Customer ID is required'], 400);
         }
 
@@ -447,7 +454,7 @@ class CoverController extends Controller
 
             $results = collect($query->get())->sortByDesc('created_at')->values();
         } catch (\Exception $e) {
-            return response()->json(['error' => 'Database query failed: ' . $e->getMessage()], 500);
+            return response()->json(['error' => 'Database query failed: '.$e->getMessage()], 500);
         }
 
         return datatables::of($results)
@@ -456,12 +463,14 @@ class CoverController extends Controller
             })
             ->editColumn('cover_type', function ($fn) {
                 $coverType = CoverType::where('type_id', $fn->cover_type)->first();
+
                 return $coverType ? $coverType->type_name : 'Unknown Type';
             })
             ->editColumn('class_desc', function ($fn) {
                 if (in_array($fn->type_of_bus, ['FPR', 'FNP'])) {
                     $classDesc = Classes::where('class_code', $fn->class_code)->first();
-                    return $classDesc ? 'FACULTATIVE - ' . $classDesc->class_name : 'Unknown Class';
+
+                    return $classDesc ? 'FACULTATIVE - '.$classDesc->class_name : 'Unknown Class';
                 } elseif ($fn->type_of_bus == 'TPR') {
                     return 'TREATY - PROPORTIONAL';
                 } elseif ($fn->type_of_bus == 'TNP') {
@@ -476,24 +485,26 @@ class CoverController extends Controller
             ->editColumn('status', function ($fn) {
                 $badge = '';
                 switch ($fn->verified) {
-                    case ('P'):
+                    case 'P':
                         $badge = '<span class="badge bg-danger-gradient badge-sm-action"> Inactive</span>';
                         break;
-                    case ('A'):
+                    case 'A':
                         $badge = '<span class="badge bg-success-gradient badge-sm-action"> Active</span>';
                         break;
-                    case ('R'):
+                    case 'R':
                         $badge = '<span class="badge bg-danger-gradient badge-sm-action"> Rejected</span>';
                         break;
                     default:
                         $badge = '<span class="badge bg-danger-gradient badge-sm-action"> Inactive</span>';
                         break;
                 }
+
                 return $badge;
             })
             ->editColumn('actions', function ($fn) {
                 $viewUrl = '#';
-                return '<a href="' . $viewUrl . '" class="btn btn-sm btn-primary btn-sm-action"  id="view-coverlist-table">View <i class="bx bx-send"></i></a>';
+
+                return '<a href="'.$viewUrl.'" class="btn btn-sm btn-primary btn-sm-action"  id="view-coverlist-table">View <i class="bx bx-send"></i></a>';
             })
             ->rawColumns(['status', 'actions'])
             ->make(true);
@@ -525,6 +536,7 @@ class CoverController extends Controller
                         $trans_type = 'ENDORSEMENT';
                         break;
                 }
+
                 return $trans_type;
             })
             ->editColumn('cover_from', function ($fn) {
@@ -553,22 +565,23 @@ class CoverController extends Controller
                 return $trans_type;
             })
             ->editColumn('actions', function ($fn) {
-                $btn = "";
+                $btn = '';
                 $btn .= "<button class='btn btn-sm btn-primary btn-sm-action view-endorsement-table' data-customer_id='{$fn->customer_id}' data-cover_no='{$fn->cover_no}'  data-endorsement_no='{$fn->endorsement_no}' >View <i class='bx bx-send'></i></button>";
                 $btn .= " <button class='btn btn-danger btn-sm btn-sm-action remove-endorsement-table' data-cover_no='{$fn->cover_no}' data-customer_id='{$fn->customer_id}' data-endorsement_no='{$fn->endorsement_no}' data-endorsement_no='{$fn->endorsement_no}' data-endorsement_no='{$fn->endorsement_no}'><i class='bx bx-trash'></i> Remove</button>";
+
                 return $btn;
             })
             ->rawColumns(['actions', 'id_no', 'status_verification'])
             ->make(true);
     }
 
-    function GetSpecificClasses(Request $request)
+    public function GetSpecificClasses(Request $request)
     {
         $class = Classes::where('class_group_code', $request->class_group)->where('status', 'A')->get();
         echo json_encode($class);
     }
 
-    function GetBinderCovers(Request $request)
+    public function GetBinderCovers(Request $request)
     {
         $binders = BinderCover::all();
         echo json_encode($binders);
@@ -581,7 +594,7 @@ class CoverController extends Controller
         $summaryData = ['summaryData' => []];
         $data = array_merge($summaryData, $cover);
 
-        if (!$cover['actionable']) {
+        if (! $cover['actionable']) {
             return redirect()->route('cover.transactions.index', ['coverNo' => $cover['coverNo']]);
         }
 
@@ -598,7 +611,7 @@ class CoverController extends Controller
 
         if ($currency->base_currency == 'Y') {
 
-            $result = array('valid' => 2, 'rate' => 1);
+            $result = ['valid' => 2, 'rate' => 1];
             echo json_encode($result);
         } else {
             $count_curr = CurrencyRate::where('currency_code', $selected_currency)
@@ -609,10 +622,10 @@ class CoverController extends Controller
                 $rate = CurrencyRate::where('currency_code', $selected_currency)
                     ->where('currency_date', $date)
                     ->get();
-                $result = array('valid' => 1, 'rate' => $rate[0]->currency_rate);
+                $result = ['valid' => 1, 'rate' => $rate[0]->currency_rate];
                 echo json_encode($result);
             } else {
-                $result = array('valid' => 0, 'short_descr' => $currency->currency_code);
+                $result = ['valid' => 0, 'short_descr' => $currency->currency_code];
                 echo json_encode($result);
             }
         }
@@ -620,7 +633,7 @@ class CoverController extends Controller
 
     public function yesterdayRate(Request $request)
     {
-        $jana = Carbon::yesterday()->format('Y-m-d H:i:s');;
+        $jana = Carbon::yesterday()->format('Y-m-d H:i:s');
         $query = CurrencyRate::where('currency_date', $jana)->where('currency_code', $request->currency_code);
         $check = $query->count();
 
@@ -628,6 +641,7 @@ class CoverController extends Controller
             return $check;
         } else {
             $rate = $query->first();
+
             return $rate;
         }
     }
@@ -773,10 +787,11 @@ class CoverController extends Controller
 
                     $tran_no = DB::transaction(function () {
                         $max = (int) CoverRipart::withTrashed()->max('tran_no');
+
                         return $max + 1;
                     });
 
-                    $coverRipart = new CoverRipart();
+                    $coverRipart = new CoverRipart;
                     $coverRipart->cover_no = $coverRegister->cover_no;
                     $coverRipart->endorsement_no = $coverRegister->endorsement_no;
                     $coverRipart->tran_no = $tran_no;
@@ -856,7 +871,7 @@ class CoverController extends Controller
                     $payMethodCode = $reinsurerData['pay_method'];
                     $payMethod = PayMethod::where('pay_method_code', $payMethodCode)->first();
 
-                    if (!$payMethod) {
+                    if (! $payMethod) {
                         throw new \Exception("Payment method {$payMethodCode} not found");
                     }
 
@@ -865,7 +880,7 @@ class CoverController extends Controller
                         $installments = $reinsurerData['installments'] ?? [];
 
                         if (empty($installments)) {
-                            throw new \Exception("Installments are required for installment payment method");
+                            throw new \Exception('Installments are required for installment payment method');
                         }
 
                         foreach ($installments as $installment) {
@@ -971,6 +986,7 @@ class CoverController extends Controller
                             $reinTranNo = DB::transaction(function () use ($coverRegister) {
                                 $max = ReinNote::where('endorsement_no', $coverRegister->endorsement_no)
                                     ->max('tran_no');
+
                                 return ($max ?? 0) + 1;
                             });
 
@@ -979,10 +995,11 @@ class CoverController extends Controller
                                     ->where('transaction_type', $coverRegister->transaction_type)
                                     ->where('entry_type_descr', $key)
                                     ->count();
+
                                 return $count + 1;
                             });
 
-                            $reinNote = new ReinNote();
+                            $reinNote = new ReinNote;
                             $reinNote->cover_no = $coverRegister->cover_no;
                             $reinNote->endorsement_no = $coverRegister->endorsement_no;
                             $reinNote->partner_no = $coverRipart->partner_no;
@@ -1013,7 +1030,7 @@ class CoverController extends Controller
             return response()->json([
                 'status' => Response::HTTP_CREATED,
                 'success' => true,
-                'message' => "Reinsurer placement saved successfully"
+                'message' => 'Reinsurer placement saved successfully',
             ], Response::HTTP_CREATED);
         } catch (ValidationException $e) {
             DB::rollback();
@@ -1022,7 +1039,7 @@ class CoverController extends Controller
                 'status' => Response::HTTP_UNPROCESSABLE_ENTITY,
                 'success' => false,
                 'message' => 'Validation failed',
-                'errors' => $e->errors()
+                'errors' => $e->errors(),
             ], Response::HTTP_UNPROCESSABLE_ENTITY);
         } catch (\Exception $e) {
             DB::rollback();
@@ -1030,7 +1047,7 @@ class CoverController extends Controller
             return response()->json([
                 'status' => Response::HTTP_INTERNAL_SERVER_ERROR,
                 'success' => false,
-                'message' => 'Failed to save reinsurer data: ' . $e->getMessage()
+                'message' => 'Failed to save reinsurer data: '.$e->getMessage(),
             ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -1051,12 +1068,12 @@ class CoverController extends Controller
         } catch (ValidationException $e) {
             return response()->json([
                 'status' => Response::HTTP_UNPROCESSABLE_ENTITY,
-                'errors' => $e->errors()
+                'errors' => $e->errors(),
             ], 422);
         } catch (Exception $e) {
             return response()->json([
                 'status' => $e->getCode(),
-                'message' => 'Failed to save'
+                'message' => 'Failed to save',
             ]);
         }
     }
@@ -1087,17 +1104,17 @@ class CoverController extends Controller
 
             return response()->json([
                 'status' => Response::HTTP_CREATED,
-                'message' => 'Reinsurer removed successfully'
+                'message' => 'Reinsurer removed successfully',
             ]);
         } catch (ValidationException $e) {
             return response()->json([
                 'status' => Response::HTTP_UNPROCESSABLE_ENTITY,
-                'errors' => $e->errors()
+                'errors' => $e->errors(),
             ], 422);
         } catch (Exception $e) {
             return response()->json([
                 'status' => $e->getCode(),
-                'message' => 'Failed to Remove Reinsurer'
+                'message' => 'Failed to Remove Reinsurer',
             ]);
         }
     }
@@ -1115,11 +1132,12 @@ class CoverController extends Controller
             })
             ->addColumn('action', function ($data) use ($actionable) {
                 $result = json_decode($data);
-                $btn = "";
+                $btn = '';
                 if ($actionable) {
                     $btn .= "<button class='btn btn-outline-dark btn-sm btn-sm-action edit-schedule me-2' data-title='{$result->title}' data-sum_insured='{$result->sum_insured}' data-header='{$result?->schedule_header?->name}' data-details='{$result?->details}' data-schedule_id='{$result?->schedule_header?->id}' data-id='{$data?->id}' data-bs-toggle='modal' data-bs-target='#schedulesModal'>Edit <i class='bx bx-edit'></i></button>";
                     $btn .= "<button class='btn btn-outline-danger btn-sm btn-sm-action remove-schedule' data-name='{$data?->schedule_header?->name}' data-id='{$data->id}'>Remove <i class='bx bx-trash'></i></button>";
                 }
+
                 return $btn;
             })
             ->rawColumns(['details', 'action'])
@@ -1131,14 +1149,16 @@ class CoverController extends Controller
         $endorsement_no = $request->get('endorsement_no');
         $query = CoverInstallments::where(['endorsement_no' => $endorsement_no, 'dr_cr' => 'DR'])->orderBy('installment_no', 'ASC');
         $actionable = static::coverDebitedCommited($endorsement_no);
+
         return datatables::of($query)
             ->addColumn('action', function ($data) use ($actionable) {
-                $btn = "";
+                $btn = '';
                 if ($actionable) {
                     // $btn .= "<button class='btn btn-outline-primary btn-sm edit-installment' data-data='{$data}' data-id='{$data->id}'
                     //         data-bs-toggle='modal' data-bs-target='#installmentModal' >Edit</button>";
                     // $btn .= " <button class='btn btn-outline-danger btn-sm remove-installment' data-data='{$data}' data-id='{$data->id}'>Remove</button>";
                 }
+
                 return $btn;
             })
             ->rawColumns(['details', 'action'])
@@ -1160,15 +1180,16 @@ class CoverController extends Controller
 
         return datatables::of($query)
             ->addColumn('action', function ($data) use ($actionable, $CoverRegister) {
-                $btn = "";
+                $btn = '';
                 if ($actionable) {
                     if ($CoverRegister->transaction_type == 'EXT' || $CoverRegister->transaction_type == 'RFN' || $CoverRegister->transaction_type == 'CNC' || $CoverRegister->transaction_type == 'NEW' || $CoverRegister->transaction_type == 'REN') {
                         //  $btn .= "<button class='btn btn-outline-primary btn-sm' data-id='{$data->id}'>Edit</button>";
                         $btn .= " <button class='btn btn-outline-danger btn-sm' data-id='{$data->id}'>Remove</button>";
                     } else {
-                        $btn .= " ";
+                        $btn .= ' ';
                     }
                 }
+
                 return $btn;
             })
             ->make(true);
@@ -1181,14 +1202,14 @@ class CoverController extends Controller
         $cover = CoverRegister::where('endorsement_no', $endorsement_no)->first();
         $actionable = static::coverDebitedCommited($endorsement_no);
 
-
         return datatables::of($query)
             ->addColumn('partner_name', function ($data) {
                 $part = Customer::where('customer_id', $data->partner_no)->first();
+
                 return $part->name;
             })
             ->addColumn('action', function ($data) use ($actionable, $endorsement_no, $cover) {
-                $btn = "";
+                $btn = '';
                 $partner_emails = [];
                 $partner_emails[] = $data?->partner?->email;
                 if ($actionable) {
@@ -1209,7 +1230,7 @@ class CoverController extends Controller
                         $btn .= "<button class='btn btn-outline-dark btn-wave waves-effect waves-light edit-reinsurer datatable-action-btn' data-distributed-share='{$distributedShare}' data-reinsurer='{$reinsurer}' data-data='{$data}' data-bs-toggle='modal' data-bs-target='#edit-reinsurer-modal'>Edit</button>";
                         $btn .= "<button class='btn btn-outline-danger btn-wave waves-effect waves-light remove-reinsurer datatable-action-btn mx-2' data-reinsurer='{$reinsurer}' data-data='{$data}'>Remove</button>";
                     } else {
-                        $btn .= "";
+                        $btn .= '';
                     }
                 } else {
                     $creditNoteUrl = route('docs.reincreditnotes', ['endorsement_no' => $endorsement_no, 'partner_no' => $data->partner_no]);
@@ -1222,7 +1243,7 @@ class CoverController extends Controller
                     $tmp_attachments = json_encode(['attachments' => []]);
 
                     if (($cover->type_of_bus == 'TPR' || $cover->type_of_bus == 'TNP') && ($cover->transaction_type == 'NEW' || $cover->transaction_type == 'REN')) {
-                        $btn .= "";
+                        $btn .= '';
                     } else {
                         $btn .= "<a href='{$creditNoteUrl}' data-endorsementno='{$endorsementNo}' data-partnerno='{$data->partner_no}' target='_blank' rel='noopener noreferrer' class='print-out-link pr-3 rein_credit_note_btn'><i class='bx bx-file me-1 align-middle'></i>Credit Note</a>";
                         $btn .= "<a href='{$coverSlipUrl}' target='_blank' rel='noopener noreferrer' class='print-out-link pr-3 rein_cover_slip_btn'>
@@ -1232,6 +1253,7 @@ class CoverController extends Controller
                         //             <i class='bx bx-mail-send' style='font-size: 15px; vertical-align: -2px;'></i> Send E-Mail</a>";
                     }
                 }
+
                 return $btn;
             })
             ->rawColumns(['action'])
@@ -1246,7 +1268,7 @@ class CoverController extends Controller
 
         return datatables::of($query)
             ->addColumn('action', function ($data) use ($actionable) {
-                $btn = "";
+                $btn = '';
                 if ($actionable) {
                     $btn .= " <button class='btn btn-outline-dark btn-sm view-attachment' data-id='{$data->id}' data-mime='{$data->mime_type}' data-base64='{$data->file_base64}'
                         data-bs-target='#attachment-document-modal' data-bs-toggle='modal'>View <i class='bx bx-send'></i></button>";
@@ -1254,6 +1276,7 @@ class CoverController extends Controller
                         data-bs-toggle='modal' data-bs-target='#attachments-modal'>Edit</button>";
                     $btn .= " <button class='btn btn-outline-danger btn-sm remove-attachment' data-title='{$data->title}' data-id='{$data->id}'>Remove</button>";
                 }
+
                 return $btn;
             })
             ->make(true);
@@ -1271,10 +1294,11 @@ class CoverController extends Controller
                 return '---';
             })
             ->addColumn('action', function ($data) use ($actionable) {
-                $btn = "";
+                $btn = '';
                 if ($actionable) {
                     $btn .= " <button class='btn btn-outline-danger btn-sm remove-clause' data-title='{$data->clause_title}' data-id='{$data->clause_id}'>Remove</button>";
                 }
+
                 return $btn;
             })
             ->rawColumns(['clause_wording', 'action'])
@@ -1304,10 +1328,11 @@ class CoverController extends Controller
         return Datatables::of($results)
             ->editColumn('approver', function ($data) {
                 $approver = User::where('id', $data->approver)->first('name');
+
                 return $approver->name;
             })
             ->addColumn('status', function ($data) {
-                $btn = "";
+                $btn = '';
                 switch ($data->status) {
                     case 'P':
                         $btn .= " <span class='badge bg-danger-gradient'>Pending</span>";
@@ -1323,7 +1348,7 @@ class CoverController extends Controller
                 return $btn;
             })
             ->addColumn('action', function ($data) use ($actionable) {
-                $btn = "";
+                $btn = '';
                 if ($actionable) {
                     switch ($data->status) {
                         case 'P':
@@ -1337,6 +1362,7 @@ class CoverController extends Controller
                             break;
                     }
                 }
+
                 return $btn;
             })
             ->rawColumns(['action', 'status'])
@@ -1353,10 +1379,11 @@ class CoverController extends Controller
         return datatables::of($query)
             ->addColumn('cedant', function ($data) use ($cover) {
                 $customer_name = $cover?->customer?->name;
+
                 return $customer_name;
             })
             ->editColumn('dr_no', function ($data) {
-                return $data->document . '/' . $data->dr_no . '/' . $data->period_year;
+                return $data->document.'/'.$data->dr_no.'/'.$data->period_year;
             })
             ->addColumn('sum_insured', function () use ($cover) {
                 return $cover?->total_sum_insured;
@@ -1371,7 +1398,7 @@ class CoverController extends Controller
                 return $cover?->cedant_premium;
             })
             ->addColumn('action', function ($data) use ($actionable, $endorsement_no, $cover) {
-                $btn = "";
+                $btn = '';
                 $partner_emails = [];
                 $partner_emails[] = $cover?->customer?->email;
                 $user = auth()->user()->name;
@@ -1394,7 +1421,7 @@ class CoverController extends Controller
                         $btn .= "<button class='btn btn-outline-dark btn-wave waves-effect waves-light edit-reinsurer datatable-action-btn' data-distributed-share='{$distributedShare}' data-reinsurer='{$reinsurer}' data-data='{$data}' data-bs-toggle='modal' data-bs-target='#edit-reinsurer-modal'>Edit</button>";
                         $btn .= "<button class='btn btn-outline-danger btn-wave waves-effect waves-light remove-reinsurer datatable-action-btn mx-2' data-reinsurer='{$reinsurer}' data-data='{$data}'>Remove</button>";
                     } else {
-                        $btn .= "";
+                        $btn .= '';
                     }
                 } else {
                     $dbtNoteUrl = route('docs.coverdebitnote', ['endorsement_no' => $endorsement_no]);
@@ -1406,7 +1433,7 @@ class CoverController extends Controller
                     $tmp_attachments = json_encode(['attachments' => []]);
 
                     if (($cover->type_of_bus == 'TPR' || $cover->type_of_bus == 'TNP') && ($cover->transaction_type == 'NEW' || $cover->transaction_type == 'REN')) {
-                        $btn .= "";
+                        $btn .= '';
                     } else {
                         $btn .= "<a href='{$dbtNoteUrl}' target='_blank' rel='noopener noreferrer' class='print-out-link pr-3'><i class='bx bx-file me-1 align-middle'></i>Debit Note</a>";
                         $btn .= "<a href='{$coverNoteUrl}' target='_blank' rel='noopener noreferrer' class='print-out-link pr-3'>
@@ -1415,6 +1442,7 @@ class CoverController extends Controller
                         //             <i class='bx bx-mail-send' style='font-size: 15px; vertical-align: -2px;'></i> Send E-Mail</a>";
                     }
                 }
+
                 return $btn;
             })
             ->rawColumns(['action'])
@@ -1453,7 +1481,7 @@ class CoverController extends Controller
                 return Carbon::parse($data->last_notice_sent)->format('Y-m-d');
             })
             ->addColumn('actions', function ($data) use ($attachments, $reinsurers_emails) {
-                $btn = "";
+                $btn = '';
                 $downloadDocUrl = route('docs.download.renewal_notice', ['policy_number' => $data->policy_number]);
                 $viewDocUrl = route('docs.view.renewal_notice', ['policy_number' => $data->policy_number]);
                 $cedant_email = ['text' => $data->client_email, 'value' => $data->client_email];
@@ -1466,7 +1494,7 @@ class CoverController extends Controller
                         $attachments[] = [
                             'name' => $document->doc_name,
                             'size' => (float) $pdfSizeMb,
-                            'url' => $document->doc_path
+                            'url' => $document->doc_path,
                         ];
                     }
                 }
@@ -1477,6 +1505,7 @@ class CoverController extends Controller
                 $btn .= " <a href='{$viewDocUrl}' data-policy_no={$data->policy_number} target='_blank' rel='noreferrer' class='btn btn-outline-dark btn-wave waves-effect waves-light renewal-view_doc datatable-action-btn' data-id='{$data->id}' id='view_doc'><i class='bx bx-file me-1'></i>View</a>";
                 $btn .= " <a href='{$downloadDocUrl}' data-policy_no={$data->policy_number} class='btn btn-outline-dark btn-wave waves-effect waves-light renewal-doc_download datatable-action-btn' data-id='{$data->id}' id='doc_download'><i class='bx bx-download me-1'></i>Download</a>";
                 $btn .= " <button class='btn btn-outline-danger btn-wave waves-effect waves-light remove-renewal_doc datatable-action-btn' data-title='{$data->doc_name}' data-id='{$data->id}'><i class='bx bx-trash'></i></button>";
+
                 return $btn;
             })
             ->rawColumns(['expires', 'renewal_notice', 'actions'])
@@ -1491,7 +1520,7 @@ class CoverController extends Controller
 
             $cover = CoverRegister::where('endorsement_no', $validatedData['endorsement_no'])->lockForUpdate()->first();
 
-            if (!$cover) {
+            if (! $cover) {
                 throw new Exception("Cover register not found for endorsement: {$validatedData['endorsement_no']}");
             }
 
@@ -1502,35 +1531,34 @@ class CoverController extends Controller
                 $this->validateBusinessRules($cover, $validatedData);
             }
 
-            $redirectUrl  = null;
+            $redirectUrl = null;
 
-            $message = $this->getBusinessTypeLabel($debitData['typeOfBus']) . ' debit/credit note generated successfully';
+            $message = $this->getBusinessTypeLabel($debitData['typeOfBus']).' Debit/Credit note generated successfully';
 
             if ($debitData['isFacultative']) {
-                $redirectUrl  = null;
+                $redirectUrl = null;
                 $this->createCoverDebit($debitData, $cover);
-            } else if ($debitData['isTreaty']) {
-                $redirectUrl  = route('cover.transactions.index', [
+            } elseif ($debitData['isTreaty']) {
+                $redirectUrl = route('cover.transactions.index', [
                     'coverNo' => $cover->cover_no,
                 ]);
 
                 $this->createTreatyDebit($debitData, $cover);
-                $this->createTreatyCredit($creditData, $cover);
+                // $this->createTreatyCredit($creditData, $cover);
             }
 
-            $this->createCustomerAccount($debitData, $cover);
+            // $this->createCustomerAccount($debitData, $cover);
 
             // $cover->commited = 'Y';
             // $cover->save();
 
-
-            DB::commit();
+            // DB::commit();
 
             return response()->json([
                 'success' => true,
                 'status' => Response::HTTP_CREATED,
                 'redirectUrl' => $redirectUrl,
-                'message' => $message
+                'message' => $message,
             ], 201);
         } catch (ValidationException $e) {
             DB::rollback();
@@ -1544,6 +1572,7 @@ class CoverController extends Controller
             DB::rollBack();
 
             logger($e);
+
             return response()->json([
                 'success' => false,
                 'message' => $e->getMessage(),
@@ -1619,7 +1648,7 @@ class CoverController extends Controller
             'showCedant' => $validatedData['show_cedant'] ?? false,
             'showReinsurer' => $validatedData['show_reinsurer'] ?? false,
             'reinsurerPosting' => 'NET',
-            'premiumPayTerms' => ''
+            'premiumPayTerms' => '',
         ];
     }
 
@@ -1635,10 +1664,9 @@ class CoverController extends Controller
         return $credit;
     }
 
-
     protected function validateBusinessRules(CoverRegister $cover, array $data): void
     {
-        if (!$cover->isActive()) {
+        if (! $cover->isActive()) {
             throw BusinessRuleException::inactiveCover(
                 $cover->cover_no,
                 $cover->status
@@ -1690,7 +1718,7 @@ class CoverController extends Controller
 
     protected function getQuarterFromDate(Carbon $date): string
     {
-        return 'Q' . $date->quarter;
+        return 'Q'.$date->quarter;
     }
 
     private function createCoverDebit(array &$debitData, CoverRegister $coverRegister): void
@@ -1699,7 +1727,7 @@ class CoverController extends Controller
 
         $id = (int) CoverDebit::withTrashed()->max('id') + 1;
 
-        $debit = new CoverDebit();
+        $debit = new CoverDebit;
         $debit->id = $id;
         $debit->dr_no = $debitData['drCrNo'];
         $debit->document = $debitData['docType'];
@@ -1726,14 +1754,14 @@ class CoverController extends Controller
 
     private function createCustomerAccount(array &$debitData, CoverRegister $coverRegister): void
     {
-        if (!$debitData['drCrNo']) {
+        if (! $debitData['drCrNo']) {
             $debitData['drCrNo'] = SystemSerials::nextSerial($debitData['docType']);
         }
 
         $debitData['sourceCode'] = $debitData['isTreaty'] ? 'TRT' : 'FAC';
         $debitData['reference'] = $this->generateDebitReference($debitData, $coverRegister);
 
-        $custAccount = new CustomerAccDet();
+        $custAccount = new CustomerAccDet;
         $custAccount->branch = $coverRegister->branch_code;
         $custAccount->customer_id = $coverRegister->customer_id;
         $custAccount->source_code = $debitData['sourceCode'];
@@ -1791,24 +1819,23 @@ class CoverController extends Controller
     }
 
     private function enhanceItemsWithDeductions(
-        array $items, 
-        float $brokerageRate, 
+        array $items,
+        float $brokerageRate,
         float $premiumTaxRate = 0,
         float $commissionRate = 0
-    ): array
-    {
+    ): array {
         $expandedItems = [];
-        
+
         foreach ($items as $item) {
             $amount = (float) ($item['amount'] ?? 0);
-            $lineRate = (float) ($item['line_rate'] ?? 0); 
+            $lineRate = (float) ($item['line_rate'] ?? 0);
             $ledger = $item['ledger'] ?? 'DR';
             $classGroup = $item['class_group'] ?? null;
             $className = $item['class_name'] ?? null;
-            
+
             if ($ledger === 'DR' && $amount > 0) {
                 $sharedAmount = $amount * ($lineRate / 100);
-                
+
                 // 1. Add the Gross Premium item
                 $expandedItems[] = [
                     'item_type' => 'DEBIT',
@@ -1839,8 +1866,8 @@ class CoverController extends Controller
                         'class_name' => $className,
                         'line_rate' => $commissionRate,
                         'ledger' => 'CR',
-                        'amount' => $sharedAmount, 
-                        'item_amount' => $commissionOnShare, 
+                        'amount' => $sharedAmount,
+                        'item_amount' => $commissionOnShare,
                         'commission' => $commissionOnShare,
                         'brokerage' => 0,
                         'premium_tax' => 0,
@@ -1861,7 +1888,7 @@ class CoverController extends Controller
                         'class_name' => $className,
                         'line_rate' => $premiumTaxRate,
                         'ledger' => 'CR',
-                        'amount' => $sharedAmount, 
+                        'amount' => $sharedAmount,
                         'item_amount' => $premiumTaxAmount,
                         'commission' => 0,
                         'brokerage' => 0,
@@ -1900,8 +1927,8 @@ class CoverController extends Controller
                         'class_name' => $className,
                         'line_rate' => $brokerageRate,
                         'ledger' => 'CR',
-                        'amount' => $sharedAmount, 
-                        'item_amount' => $brokerageOnShare, 
+                        'amount' => $sharedAmount,
+                        'item_amount' => $brokerageOnShare,
                         'commission' => 0,
                         'brokerage' => $brokerageOnShare,
                         'premium_tax' => 0,
@@ -1929,7 +1956,6 @@ class CoverController extends Controller
             $premiumTaxRate,
             $commissionRate
         );
-
 
         return [
             'typeOfBus' => $typeOfBus,
@@ -1961,7 +1987,7 @@ class CoverController extends Controller
             'showCedant' => $validatedData['show_cedant'] ?? false,
             'showReinsurer' => $validatedData['show_reinsurer'] ?? false,
             'reinsurerPosting' => 'NET',
-            'premiumPayTerms' => ''
+            'premiumPayTerms' => '',
         ];
     }
 
@@ -1987,7 +2013,7 @@ class CoverController extends Controller
             ]);
 
             $file = $request->file('file');
-            $fileName = date('dmYhis') . '_' . $file->getClientOriginalName();
+            $fileName = date('dmYhis').'_'.$file->getClientOriginalName();
             $file->storeAs('cover_attachments', $fileName, 'public');
             $mimeType = $file->getClientMimeType();
             // Read the file contents and encode it to base64
@@ -2009,20 +2035,22 @@ class CoverController extends Controller
                 'updated_by' => Auth::user()->user_name,
             ]);
             DB::commit();
+
             return response()->json([
                 'status' => Response::HTTP_CREATED,
-                'message' => 'Data saved successfully'
+                'message' => 'Data saved successfully',
             ]);
         } catch (ValidationException $e) {
             return response()->json([
                 'status' => Response::HTTP_UNPROCESSABLE_ENTITY,
-                'errors' => $e->errors()
+                'errors' => $e->errors(),
             ], 422);
         } catch (\Exception $e) {
             DB::rollBack();
+
             return response()->json([
                 'status' => $e->getCode(),
-                'message' => $e->getMessage()
+                'message' => $e->getMessage(),
             ]);
         }
     }
@@ -2040,7 +2068,7 @@ class CoverController extends Controller
             ]);
 
             $file = $request->file('file');
-            $fileName = date('dmYhis') . '_' . $file->getClientOriginalName();
+            $fileName = date('dmYhis').'_'.$file->getClientOriginalName();
             $mimeType = $file->getClientMimeType();
             $file->storeAs('cover_attachments', $fileName, 'public');
 
@@ -2061,19 +2089,20 @@ class CoverController extends Controller
 
             return response()->json([
                 'status' => Response::HTTP_CREATED,
-                'message' => 'Data saved successfully'
+                'message' => 'Data saved successfully',
             ]);
         } catch (ValidationException $e) {
             return response()->json([
                 'status' => Response::HTTP_UNPROCESSABLE_ENTITY,
-                'errors' => $e->errors()
+                'errors' => $e->errors(),
             ], 422);
         } catch (Throwable $e) {
             DB::rollBack();
+
             // dd($e);
             return response()->json([
                 'status' => $e->getCode(),
-                'message' => $e->getMessage()
+                'message' => $e->getMessage(),
             ]);
         }
     }
@@ -2092,20 +2121,22 @@ class CoverController extends Controller
             $attachment->delete();
 
             DB::commit();
+
             return response()->json([
                 'status' => Response::HTTP_CREATED,
-                'message' => 'Item deleted successfully'
+                'message' => 'Item deleted successfully',
             ]);
         } catch (ValidationException $e) {
             return response()->json([
                 'status' => Response::HTTP_UNPROCESSABLE_ENTITY,
-                'errors' => $e->errors()
+                'errors' => $e->errors(),
             ], 422);
         } catch (Throwable $e) {
             DB::rollBack();
+
             return response()->json([
                 'status' => $e->getCode(),
-                'message' => $e->getMessage()
+                'message' => $e->getMessage(),
             ]);
         }
     }
@@ -2135,20 +2166,22 @@ class CoverController extends Controller
             }
 
             DB::commit();
+
             return response()->json([
                 'status' => Response::HTTP_CREATED,
-                'message' => 'Data saved successfully'
+                'message' => 'Data saved successfully',
             ]);
         } catch (ValidationException $e) {
             return response()->json([
                 'status' => Response::HTTP_UNPROCESSABLE_ENTITY,
-                'errors' => $e->errors()
+                'errors' => $e->errors(),
             ], 422);
         } catch (Throwable $e) {
             DB::rollBack();
+
             return response()->json([
                 'status' => $e->getCode(),
-                'message' => $e->getMessage()
+                'message' => $e->getMessage(),
             ]);
         }
     }
@@ -2182,18 +2215,19 @@ class CoverController extends Controller
 
             return response()->json([
                 'status' => Response::HTTP_CREATED,
-                'message' => 'Data saved successfully'
+                'message' => 'Data saved successfully',
             ]);
         } catch (ValidationException $e) {
             return response()->json([
                 'status' => Response::HTTP_UNPROCESSABLE_ENTITY,
-                'errors' => $e->errors()
+                'errors' => $e->errors(),
             ], 422);
         } catch (Throwable $e) {
             DB::rollBack();
+
             return response()->json([
                 'status' => $e->getCode(),
-                'message' => $e->getMessage()
+                'message' => $e->getMessage(),
             ]);
         }
     }
@@ -2211,23 +2245,24 @@ class CoverController extends Controller
 
             $del_clause = CoverClause::where('endorsement_no', $request->endorsement_no)->where('clause_id', $request->clause_id)->delete();
 
-
             DB::commit();
+
             return response()->json([
                 'status' => Response::HTTP_CREATED,
-                'message' => 'clause deleted successfully'
+                'message' => 'clause deleted successfully',
             ]);
         } catch (ValidationException $e) {
             return response()->json([
                 'status' => Response::HTTP_UNPROCESSABLE_ENTITY,
-                'errors' => $e->errors()
+                'errors' => $e->errors(),
             ], 422);
         } catch (Throwable $e) {
             DB::rollBack();
             dd($e);
+
             return response()->json([
                 'status' => $e->getCode(),
-                'message' => $e->getMessage()
+                'message' => $e->getMessage(),
             ]);
         }
     }
@@ -2260,19 +2295,20 @@ class CoverController extends Controller
 
             return response()->json([
                 'status' => Response::HTTP_CREATED,
-                'message' => 'Data saved successfully'
+                'message' => 'Data saved successfully',
             ]);
         } catch (ValidationException $e) {
             return response()->json([
                 'status' => Response::HTTP_UNPROCESSABLE_ENTITY,
-                'errors' => $e->errors()
+                'errors' => $e->errors(),
             ], 422);
         } catch (Throwable $e) {
             DB::rollBack();
             dd($e);
+
             return response()->json([
                 'status' => $e->getCode(),
-                'message' => $e->getMessage()
+                'message' => $e->getMessage(),
             ]);
         }
     }
@@ -2285,6 +2321,7 @@ class CoverController extends Controller
         $result = ReinclassPremtype::where('reinclass', $reinsclass)
             ->whereNotIn('premtype_code', $selectedCodes)
             ->get();
+
         return response()->json($result);
     }
 
@@ -2296,17 +2333,17 @@ class CoverController extends Controller
                 ->update([
                     'commited' => 'Y',
                     'commited_by' => Auth::user()->user_name,
-                    'updated_by' => Auth::user()->user_name
+                    'updated_by' => Auth::user()->user_name,
                 ]);
 
             return response()->json([
                 'status' => Response::HTTP_CREATED,
-                'message' => 'Data saved successfully'
+                'message' => 'Data saved successfully',
             ]);
         } catch (\Throwable $th) {
             return response()->json([
                 'status' => Response::HTTP_UNPROCESSABLE_ENTITY,
-                'message' => 'Failed to save'
+                'message' => 'Failed to save',
             ]);
         }
     }
@@ -2367,7 +2404,7 @@ class CoverController extends Controller
             $cover->endorsement_no = $new_endorsement_no;
             $cover->orig_endorsement_no = $base_cover->endorsement_no;
             $cover->transaction_type = $trans_type;
-            $cover->cover_title = 'TREATY PROPORTIONAL ACCOUNT ' . trim($quarter_name) . '-' . $request->cover_year;
+            $cover->cover_title = 'TREATY PROPORTIONAL ACCOUNT '.trim($quarter_name).'-'.$request->cover_year;
             $cover->verified = null;
             $cover->status = 'A';
             $cover->commited = null;
@@ -2388,8 +2425,8 @@ class CoverController extends Controller
 
             foreach ($premtype_codes as $index => $premtype_code) {
                 if ($basic_amount[$index] != 0) {
-                    //Premiums
-                    $CoverPremium = new CoverPremium();
+                    // Premiums
+                    $CoverPremium = new CoverPremium;
                     $CoverPremium->cover_no = $request->cover_no;
                     $CoverPremium->endorsement_no = $new_endorsement_no;
                     $CoverPremium->orig_endorsement_no = $prev_endorsement_no;
@@ -2418,10 +2455,10 @@ class CoverController extends Controller
                     $CoverPremium->updated_by = Auth::user()->user_name;
                     $CoverPremium->save();
 
-                    //Commissions
+                    // Commissions
                     $rate = (float) $comm_rate[$index] ? $comm_rate[$index] : 0;
 
-                    $CoverPremium = new CoverPremium();
+                    $CoverPremium = new CoverPremium;
                     $CoverPremium->cover_no = $request->cover_no;
                     $CoverPremium->endorsement_no = $new_endorsement_no;
                     $CoverPremium->orig_endorsement_no = $prev_endorsement_no;
@@ -2450,8 +2487,8 @@ class CoverController extends Controller
                     $CoverPremium->updated_by = Auth::user()->user_name;
                     $CoverPremium->save();
 
-                    //Premium Tax
-                    $CoverPremium = new CoverPremium();
+                    // Premium Tax
+                    $CoverPremium = new CoverPremium;
                     $CoverPremium->cover_no = $request->cover_no;
                     $CoverPremium->endorsement_no = $new_endorsement_no;
                     $CoverPremium->orig_endorsement_no = $prev_endorsement_no;
@@ -2480,8 +2517,8 @@ class CoverController extends Controller
                     $CoverPremium->updated_by = Auth::user()->user_name;
                     $CoverPremium->save();
 
-                    //Reinsurance Tax
-                    $CoverPremium = new CoverPremium();
+                    // Reinsurance Tax
+                    $CoverPremium = new CoverPremium;
                     $CoverPremium->cover_no = $request->cover_no;
                     $CoverPremium->endorsement_no = $new_endorsement_no;
                     $CoverPremium->orig_endorsement_no = $prev_endorsement_no;
@@ -2513,7 +2550,7 @@ class CoverController extends Controller
 
                 if ($claim_amt[$index] != 0) {
                     // claim
-                    $CoverPremium = new CoverPremium();
+                    $CoverPremium = new CoverPremium;
                     $CoverPremium->cover_no = $request->cover_no;
                     $CoverPremium->endorsement_no = $new_endorsement_no;
                     $CoverPremium->orig_endorsement_no = $prev_endorsement_no;
@@ -2552,19 +2589,21 @@ class CoverController extends Controller
             DB::commit();
 
             $redirectUrl = route('cover.CoverHome', ['endorsement_no' => $new_endorsement_no]);
+
             // Redirect back with success message and endorsement data as a request parameter
             return redirect($redirectUrl)->with('success', 'Quarterly Figures information saved successfully');
         } catch (ValidationException $e) {
             return response()->json([
                 'status' => Response::HTTP_UNPROCESSABLE_ENTITY,
-                'errors' => $e->errors()
+                'errors' => $e->errors(),
             ], 422);
         } catch (Throwable $e) {
             DB::rollBack();
+
             // dd($e);
             return response()->json([
                 'status' => $e->getCode(),
-                'message' => $e->getMessage()
+                'message' => $e->getMessage(),
             ]);
         }
     }
@@ -2623,7 +2662,7 @@ class CoverController extends Controller
             $totalReinsuranceTax = 0;
             $totalClaim = 0;
             $mgnt_exp_amt = 0;
-            //Premiums
+            // Premiums
 
             foreach ($premiums as $index => $premium) {
                 if ($premium != 0) {
@@ -2656,7 +2695,7 @@ class CoverController extends Controller
                     'updated_by' => Auth::user()->user_name,
                 ]);
             }
-            //Commissions
+            // Commissions
             foreach ($commissions as $index => $commission) {
                 if ($commission != 0) {
                     $commission = (int) str_replace(',', '', $commission);
@@ -2688,7 +2727,7 @@ class CoverController extends Controller
                     'updated_by' => Auth::user()->user_name,
                 ]);
             }
-            //Premium_taxes
+            // Premium_taxes
             foreach ($premium_taxes as $index => $premium_tax) {
                 if ($premium_tax != 0) {
                     $premium_tax = (int) str_replace(',', '', $premium_tax);
@@ -2720,7 +2759,7 @@ class CoverController extends Controller
                     'updated_by' => Auth::user()->user_name,
                 ]);
             }
-            //reinsurance_taxes
+            // reinsurance_taxes
             foreach ($reinsurance_taxes as $index => $reinsurance_tax) {
                 if ($reinsurance_tax != 0) {
                     $reinsurance_tax = (int) str_replace(',', '', $reinsurance_tax);
@@ -2752,7 +2791,7 @@ class CoverController extends Controller
                     'updated_by' => Auth::user()->user_name,
                 ]);
             }
-            //claims
+            // claims
             foreach ($claim_amounts as $index => $claim) {
                 if ($claim != 0) {
                     $claim = (int) str_replace(',', '', $claim);
@@ -2784,7 +2823,7 @@ class CoverController extends Controller
                     'updated_by' => Auth::user()->user_name,
                 ]);
             }
-            //port_entry_prems
+            // port_entry_prems
             // foreach ($port_entry_prems as $index => $port_entry_prem) {
             if ($port_entry_prem != 0) {
 
@@ -2813,7 +2852,7 @@ class CoverController extends Controller
             }
             // }
 
-            //port_entry_prems
+            // port_entry_prems
             // foreach ($port_entry_losses as $index => $port_entry_loss) {
             if ($port_entry_loss != 0) {
 
@@ -2841,7 +2880,7 @@ class CoverController extends Controller
                 ]);
             }
             // }
-            //port_withdrawal_prems
+            // port_withdrawal_prems
             // foreach ($port_withdrawal_prems as $index => $port_withdrawal_prem) {
             if ($port_withdrawal_prem != 0) {
 
@@ -2897,7 +2936,7 @@ class CoverController extends Controller
                 ]);
             }
 
-            //Management Expenses
+            // Management Expenses
             if ($mgnt_exp_amt != 0) {
 
                 CoverPremium::create([
@@ -2931,19 +2970,22 @@ class CoverController extends Controller
             DB::commit();
 
             $redirectUrl = route('cover.CoverHome', ['endorsement_no' => $new_endorsement_no]);
+
             // Redirect back with success message and endorsement data as a request parameter
             return redirect($redirectUrl)->with('success', 'Profit Commission information saved successfully');
         } catch (ValidationException $e) {
             DB::rollBack();
+
             return response()->json([
                 'status' => Response::HTTP_UNPROCESSABLE_ENTITY,
-                'errors' => $e->errors()
+                'errors' => $e->errors(),
             ], 422);
         } catch (Throwable $e) {
             DB::rollBack();
+
             return response()->json([
                 'status' => $e->getCode(),
-                'message' => $e->getMessage()
+                'message' => $e->getMessage(),
             ]);
         }
     }
@@ -3037,21 +3079,23 @@ class CoverController extends Controller
             }
 
             DB::commit();
+
             return response()->json([
                 'status' => Response::HTTP_CREATED,
-                'message' => 'Data saved successfully'
+                'message' => 'Data saved successfully',
             ]);
         } catch (ValidationException $e) {
             return response()->json([
                 'status' => Response::HTTP_UNPROCESSABLE_ENTITY,
-                'errors' => $e->errors()
+                'errors' => $e->errors(),
             ], 422);
         } catch (Throwable $e) {
             dd($e);
             DB::rollback();
+
             return response()->json([
                 'status' => $e->getCode(),
-                'message' => 'Failed to save'
+                'message' => 'Failed to save',
             ]);
         }
     }
@@ -3099,20 +3143,21 @@ class CoverController extends Controller
             // DB::commit();
             return response()->json([
                 'status' => Response::HTTP_CREATED,
-                'message' => 'Data saved successfully'
+                'message' => 'Data saved successfully',
             ]);
         } catch (ValidationException $e) {
             // If validation fails, return a JSON response with errors
             return response()->json([
                 'status' => Response::HTTP_UNPROCESSABLE_ENTITY,
-                'errors' => $e->errors()
+                'errors' => $e->errors(),
             ], 422);
         } catch (Throwable $e) {
             dd($e);
             DB::rollback();
+
             return response()->json([
                 'status' => $e->getCode(),
-                'message' => 'Failed to save'
+                'message' => 'Failed to save',
             ]);
         }
     }
@@ -3135,26 +3180,28 @@ class CoverController extends Controller
                 $installment = CoverInstallments::where([
                     'cover_no' => $request->cover_no,
                     'endorsement_no' => $request->endorsement_no,
-                    'installment_no' => $request->installment_no
+                    'installment_no' => $request->installment_no,
                 ])
                     ->delete();
             }
 
             DB::commit();
+
             return response()->json([
                 'status' => Response::HTTP_CREATED,
-                'message' => 'Record Deleted successfully'
+                'message' => 'Record Deleted successfully',
             ]);
         } catch (ValidationException $e) {
             return response()->json([
                 'status' => Response::HTTP_UNPROCESSABLE_ENTITY,
-                'errors' => $e->errors()
+                'errors' => $e->errors(),
             ], 422);
         } catch (Throwable $e) {
             DB::rollback();
+
             return response()->json([
                 'status' => $e->getCode(),
-                'message' => 'Failed to Delete'
+                'message' => 'Failed to Delete',
             ]);
         }
     }
@@ -3224,7 +3271,7 @@ class CoverController extends Controller
             $cover->endorsement_no = $new_endorsement_no;
             $cover->transaction_type = $trans_type;
             $cover->verified = null;
-            $cover->cover_title = 'TREATY NON PROPORTIONAL ACCOUNT - MDP(' . $installment_name . ')';
+            $cover->cover_title = 'TREATY NON PROPORTIONAL ACCOUNT - MDP('.$installment_name.')';
             $cover->status = 'A';
             $cover->commited = null;
             $cover->account_year = $this->_year;
@@ -3238,7 +3285,7 @@ class CoverController extends Controller
                 'cover_no' => $request->cover_no,
                 'endorsement_no' => $newCover->endorsement_no,
                 'installment_no' => $request->installment_no,
-                'dr_cr' => 'DR'
+                'dr_cr' => 'DR',
             ])
                 ->get();
 
@@ -3264,7 +3311,6 @@ class CoverController extends Controller
                 //     'dr_cr' => 'CR',
                 // ],
             ];
-
 
             foreach ($mdpInstallments as $mdpInstallment) {
                 foreach ($premItemTypes as $key => $premItemType) {
@@ -3319,6 +3365,7 @@ class CoverController extends Controller
             return redirect()->route('cover.CoverHome', ['endorsement_no' => $new_endorsement_no])->with('success', 'MDP installemnt information saved successfully');
         } catch (Throwable $e) {
             DB::rollback();
+
             return redirect()->back()->with('error', 'MDP installemnt information Failed to save');
         }
     }
@@ -3406,7 +3453,6 @@ class CoverController extends Controller
             $data['gross'] = $gross;
             $data['net_amt'] = $net_amt;
 
-
             ReinNote::create($data);
         }
     }
@@ -3474,7 +3520,7 @@ class CoverController extends Controller
             $totalReinsuranceTax = 0;
             $totalClaim = 0;
             $mgnt_exp_amt = 0;
-            //Premiums
+            // Premiums
             if ($port_prm_amt != 0) {
                 CoverPremium::create([
                     'cover_no' => $request->cover_no,
@@ -3499,7 +3545,7 @@ class CoverController extends Controller
                     'updated_by' => Auth::user()->user_name,
                 ]);
             }
-            //Losses
+            // Losses
             if ($port_loss_amt != 0) {
                 CoverPremium::create([
                     'cover_no' => $request->cover_no,
@@ -3567,7 +3613,7 @@ class CoverController extends Controller
                 $reinsurer = Customer::where('customer_id', $port_reinsurer)->first();
                 $tran_no = (int) CoverRipart::withTrashed()->max('tran_no') + 1;
 
-                $coverRipart = new CoverRipart();
+                $coverRipart = new CoverRipart;
 
                 // Assign values from the request to the model attributes
                 $coverRipart->cover_no = $CoverRegister->cover_no;
@@ -3607,21 +3653,24 @@ class CoverController extends Controller
             DB::commit();
 
             $redirectUrl = route('cover.CoverHome', ['endorsement_no' => $new_endorsement_no]);
+
             // Redirect back with success message and endorsement data as a request parameter
             return redirect($redirectUrl)->with('success', 'Profit Commission information saved successfully');
         } catch (ValidationException $e) {
             DB::rollBack();
             dd($e);
+
             return response()->json([
                 'status' => Response::HTTP_UNPROCESSABLE_ENTITY,
-                'errors' => $e->errors()
+                'errors' => $e->errors(),
             ], 422);
         } catch (Throwable $e) {
             DB::rollBack();
             dd($e);
+
             return response()->json([
                 'status' => $e->getCode(),
-                'message' => $e->getMessage()
+                'message' => $e->getMessage(),
             ]);
         }
     }
@@ -3651,7 +3700,7 @@ class CoverController extends Controller
             if ($portfolio_type == 'IN') {
                 $cusTypes = ['REINCO'];
                 $cusTypes_str = implode(',', array_map(function ($item) {
-                    return "'" . $item . "'";
+                    return "'".$item."'";
                 }, $cusTypes));
 
                 $reinsurers = DB::select("
@@ -3664,7 +3713,7 @@ class CoverController extends Controller
             } elseif ($portfolio_type == 'OUT') {
                 $partner_nos = CoverRipart::where('endorsement_no', $orig_endorsement)->pluck('partner_no')->toArray();
                 $partner_nos_str = implode(',', array_map(function ($item) {
-                    return "'" . $item . "'";
+                    return "'".$item."'";
                 }, $partner_nos));
 
                 $reinsurers = DB::select("
@@ -3699,7 +3748,7 @@ class CoverController extends Controller
             return view('cover.renewal_notice', [
                 'policies' => $policies,
                 'cover_no' => $cover?->cover_no,
-                'customer_id' => $cover?->customer_id
+                'customer_id' => $cover?->customer_id,
             ]);
         } catch (\Exception $th) {
             return response()->json([
@@ -3717,7 +3766,7 @@ class CoverController extends Controller
             $customer = Customer::where('customer_id', $request->customer_id)
                 ->first(['customer_id', 'name', 'postal_address', 'postal_town', 'city', 'email', 'telephone', 'country_iso', 'customer_type']);
 
-            if (!$customer) {
+            if (! $customer) {
                 return response()->json(['message' => 'Customer not found'], Response::HTTP_NOT_FOUND);
             }
             $cover = CoverRegister::with('customer')
@@ -3726,7 +3775,7 @@ class CoverController extends Controller
                 ->latest()
                 ->first();
 
-            if (!$cover) {
+            if (! $cover) {
                 return response()->json(['message' => 'Cover not found'], Response::HTTP_NOT_FOUND);
             }
 
@@ -3749,13 +3798,13 @@ class CoverController extends Controller
                 [
                     'view_name' => 'printouts.fac_debit_renewal_notice',
                     'type' => 'cedant',
-                    'prefix' => 'Cedant_Renewal_Notice'
+                    'prefix' => 'Cedant_Renewal_Notice',
                 ],
                 [
                     'view_name' => 'printouts.fac_rein_renewal_notice',
                     'type' => 'reinsurer',
-                    'prefix' => 'Reinsurer_Renewal_Notice'
-                ]
+                    'prefix' => 'Reinsurer_Renewal_Notice',
+                ],
             ];
 
             $yearThreshold = 1;
@@ -3767,8 +3816,8 @@ class CoverController extends Controller
             if ($prevPolicy) {
                 // Delete associated documents
                 foreach ($prevPolicy->documents as $document) {
-                    if (File::exists(storage_path('/app/public/renewals/' . $document->doc_name))) {
-                        File::delete(storage_path('/app/public/renewals/' . $document->doc_name));
+                    if (File::exists(storage_path('/app/public/renewals/'.$document->doc_name))) {
+                        File::delete(storage_path('/app/public/renewals/'.$document->doc_name));
                     }
                     $document->delete();
                 }
@@ -3779,11 +3828,11 @@ class CoverController extends Controller
                 ['policy_number' => $cover->cover_no],
                 [
                     'client_name' => $cover->customer->name ?? null,
-                    'doc_name' => "Renewal_Notice_" . time() . ".pdf",
+                    'doc_name' => 'Renewal_Notice_'.time().'.pdf',
                     'client_email' => $cover->customer->email ?? null,
                     'renewal_date' => Carbon::parse($created_at)->addYears(1)->format('d-M-Y'),
                     'last_notice_sent' => Carbon::parse($created_at)->format('d-M-Y'),
-                    'notice_status' => 'Option to renew'
+                    'notice_status' => 'Option to renew',
                 ]
             );
 
@@ -3796,19 +3845,19 @@ class CoverController extends Controller
                 $pdf->set_option('isPhpEnabled', true);
                 $pdf->set_option('isRemoteEnabled', true);
 
-                $pdfFilename = $document['prefix'] . '_' . time() . '.pdf';
-                $pdfPath = storage_path('app/public/renewals/' . $pdfFilename);
+                $pdfFilename = $document['prefix'].'_'.time().'.pdf';
+                $pdfPath = storage_path('app/public/renewals/'.$pdfFilename);
 
-                Storage::put('public/renewals/' . $pdfFilename, $pdf->output());
+                Storage::put('public/renewals/'.$pdfFilename, $pdf->output());
                 $pdfSize = filesize($pdfPath);
 
                 // Create document record
                 PolicyRenewalDocument::create([
                     'policy_renewal_id' => $policyRenewal->id,
                     'doc_name' => $pdfFilename,
-                    'doc_path' => "/uploads/renewals/" . $pdfFilename,
+                    'doc_path' => '/uploads/renewals/'.$pdfFilename,
                     'doc_size' => $pdfSize,
-                    'doc_type' => $document['type']
+                    'doc_type' => $document['type'],
                 ]);
             }
 
@@ -3833,19 +3882,19 @@ class CoverController extends Controller
             if ($policy) {
                 $results = [
                     'policy' => $policy,
-                    'request' => $request->all()
+                    'request' => $request->all(),
                 ];
                 SendRenewalNoticeJob::dispatch($results);
             }
 
             return response()->json([
                 'status' => Response::HTTP_CREATED,
-                'message' => 'Renewal notice has been sent'
+                'message' => 'Renewal notice has been sent',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Failed to queue renewal notice',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -3865,17 +3914,17 @@ class CoverController extends Controller
 
             return response()->json([
                 'status' => Response::HTTP_CREATED,
-                'message' => 'Renewal notice deleted successfully'
+                'message' => 'Renewal notice deleted successfully',
             ]);
         } catch (ValidationException $e) {
             return response()->json([
                 'status' => Response::HTTP_UNPROCESSABLE_ENTITY,
-                'errors' => $e->errors()
+                'errors' => $e->errors(),
             ], 422);
         } catch (Exception $e) {
             return response()->json([
                 'status' => $e->getCode(),
-                'message' => 'Failed to delete renewal notice'
+                'message' => 'Failed to delete renewal notice',
             ]);
         }
     }
@@ -3905,17 +3954,17 @@ class CoverController extends Controller
 
             return response()->json([
                 'status' => Response::HTTP_CREATED,
-                'message' => 'Cover deleted successfully'
+                'message' => 'Cover deleted successfully',
             ]);
         } catch (ValidationException $e) {
             return response()->json([
                 'status' => Response::HTTP_UNPROCESSABLE_ENTITY,
-                'errors' => $e->errors()
+                'errors' => $e->errors(),
             ], 422);
         } catch (Exception $e) {
             return response()->json([
                 'status' => $e->getCode(),
-                'message' => 'Failed to delete cover'
+                'message' => 'Failed to delete cover',
             ]);
         }
     }
@@ -3954,7 +4003,7 @@ class CoverController extends Controller
 
             return response()->json([
                 'status' => Response::HTTP_CREATED,
-                'message' => 'Email sent notice has been sent to reinsurer'
+                'message' => 'Email sent notice has been sent to reinsurer',
             ]);
         } catch (\Exception $e) {
             return response()->json(['error' => $e->getMessage()], 500);
@@ -3966,16 +4015,16 @@ class CoverController extends Controller
         try {
             $prospect = PipelineOpportunity::where([
                 'handed_over' => 'Y',
-                'opportunity_id' => $prospectId
+                'opportunity_id' => $prospectId,
             ])
                 ->has('handovers')
                 ->with('handovers')
                 ->first();
 
-            if (!$prospect) {
+            if (! $prospect) {
                 return response()->json([
                     'status' => false,
-                    'message' => 'Prospect not found'
+                    'message' => 'Prospect not found',
                 ], 404);
             }
 
@@ -3984,7 +4033,7 @@ class CoverController extends Controller
             if ($existingCover) {
                 return response()->json([
                     'status' => false,
-                    'message' => 'Prospect already integrated!'
+                    'message' => 'Prospect already integrated!',
                 ], 409);
             }
 
@@ -4042,7 +4091,7 @@ class CoverController extends Controller
             return response()->json([
                 'status' => true,
                 'message' => 'Success',
-                'data' => $data
+                'data' => $data,
             ]);
         } catch (Exception $e) {
             logger($e);

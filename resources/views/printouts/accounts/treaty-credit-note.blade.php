@@ -2,21 +2,6 @@
 
 @section('content')
     <style>
-        .reinsurer-page {
-            page-break-after: always;
-            page-break-inside: avoid;
-            min-height: 0;
-            position: relative;
-            font-family: 'Aptos', sans-serif;
-            font-optical-sizing: auto;
-            font-weight: 400;
-            font-style: normal;
-        }
-
-        .reinsurer-page:last-child {
-            page-break-after: auto;
-        }
-
         #particular-details td,
         #particular-details th {
             padding: 6px 8px;
@@ -47,25 +32,63 @@
         .no-border-right {
             border-left: none !important;
         }
+
+        .reinsurer-page {
+            min-height: 0;
+            position: relative;
+            font-family: 'Aptos', sans-serif;
+            font-optical-sizing: auto;
+            font-weight: 400;
+            font-style: normal;
+            page-break-after: always;
+        }
+
+        .reinsurer-page:last-child {
+            page-break-after: auto;
+        }
+
+        .reinsurer-page.first-page {
+            page-break-before: avoid !important;
+        }
+
+        .reinsurer-page:not(.first-page) {
+            page-break-before: always;
+            page-break-inside: avoid;
+        }
     </style>
 
     @foreach ($reinsurers as $index => $reinsurer)
         @php
-            // Calculate reinsurer's share of credit items
             $reinsurerShare = $reinsurer->share / 100;
-            $reinsurerCreditItems = collect($credit_items)->map(function ($item) use ($reinsurerShare) {
+
+            // Filter out brokerage items if with_brokerage is false
+            $filteredCreditItems = collect($credit_items);
+            if (!($with_brokerage ?? true)) {
+                $filteredCreditItems = $filteredCreditItems->filter(function ($item) {
+                    // IT06 is Brokerage Fee item code
+                    return !in_array($item->item_code, ['IT06', 'BROK']);
+                });
+            }
+
+            $reinsurerCreditItems = $filteredCreditItems->map(function ($item) use ($reinsurerShare) {
                 $clone = clone $item;
                 $clone->item_amount = $item->item_amount * $reinsurerShare;
                 return $clone;
             });
-            
+
+            // Calculate totals from filtered items
+            $totalDebit = $reinsurerCreditItems->filter(fn($item) => $item->ledger === 'DR')->sum('item_amount');
+            $totalCredit = $reinsurerCreditItems->filter(fn($item) => $item->ledger === 'CR')->sum('item_amount');
+            $netAmount = $totalDebit - $totalCredit;
+
             $reinsurerTotals = (object) [
                 'gross_premium' => $totals->gross_premium * $reinsurerShare,
                 'commission' => $totals->commission * $reinsurerShare,
-                'net_amount' => $totals->net_amount * $reinsurerShare
+                'net_amount' => $netAmount,
             ];
         @endphp
-        <div class="reinsurer-page">
+
+        <div class="reinsurer-page {{ $index === 0 ? 'first-page' : '' }}">
             <div style="width:100%; margin-top: 0px; padding:0px; font-size: 9pt; font-family: 'Aptos';">
                 <table id="cover-header">
                     <tr>
@@ -139,7 +162,7 @@
                         </td>
                     </tr>
                 </table>
-                
+
                 <table id="cover-details">
                     <tr>
                         <td valign="top">
@@ -166,12 +189,15 @@
                                 </tr>
                                 <tr>
                                     <td class="pt-4 courier-9"><strong>Underwriting Quarter</strong></td>
-                                    <td class="pt-4 courier-9">Q{{ $credit->posting_quarter ?? '1' }} - {{ $credit->posting_year ?? date('Y') }}</td>
+                                    <td class="pt-4 courier-9">Q{{ $credit->posting_quarter ?? '1' }} -
+                                        {{ $credit->posting_year ?? date('Y') }}
+                                    </td>
                                 </tr>
                                 <tr>
                                     <td class="pt-4 courier-9"><strong>Period of Cover</strong></td>
                                     <td class="pt-4 courier-9">From: {{ formatDate($cover->cover_from) }} To:
-                                        {{ formatDate($cover->cover_to) }}</td>
+                                        {{ formatDate($cover->cover_to) }}
+                                    </td>
                                 </tr>
                                 <tr>
                                     <td class="pt-4 courier-9"><strong>Payment Terms</strong></td>
@@ -180,7 +206,9 @@
                                     </td>
                                 </tr>
                                 <tr>
-                                    <td class="pt-4 courier-9"><strong> Your share S.I ({{ number_format($reinsurer->share, 2) }}%)</strong>
+                                    <td class="pt-4 courier-9"><strong> Your share S.I
+                                            ({{ number_format($reinsurer->share, 2) }}%)
+                                        </strong>
                                     </td>
                                     <td class="pt-4 courier-9">
                                         {{ number_format($reinsurer->sum_insured ?? 0, 2) }}
@@ -206,10 +234,12 @@
                         @foreach ($reinsurerCreditItems as $item)
                             <tr>
                                 <td class="no-border align-left">
-                                    {{ ucwords(strtolower($item->item_name)) }} - {{ ucwords(strtolower($item->class_name ?? '')) }}
+                                    {{ ucwords(strtolower($item->item_name)) }} -
+                                    {{ ucwords(strtolower($item->class_name ?? '')) }}
                                 </td>
                                 <td class="align-left">
-                                    {{ number_format($item->item_amount, 2) }} @ {{ number_format($item->line_rate, 2) }}%
+                                    {{ number_format($item->item_amount, 2) }}
+                                    {{ $item->line_rate > 0 ? '@' . number_format($item->line_rate, 2) . '%' : '' }}
                                 </td>
                                 {{-- DEBIT column: For credit notes, CR items (claims/deductions) go here --}}
                                 <td class="float-right">
@@ -241,7 +271,7 @@
                         </tr>
                     </tbody>
                 </table>
-                
+
                 <table
                     style="width:100%; border: 1px solid #181212; border-collapse: collapse; margin-bottom: 10px; font-size:8pt;">
                     <thead>
@@ -258,25 +288,24 @@
                 </table>
 
                 <br />
-                <br />
-                <br />
-                <table style="width: 100%; margin-bottom: 10px;">
+                <table style="width: 100%;">
                     <tr>
                         <td align="left" style="font-size: 10.0pt; font-family: 'Aptos';">
-                            {{ $company->company_name }}</td>
+                            {{ $company->company_name }}
+                        </td>
                         <td align="left">&nbsp;</td>
                         <td align="left"></td>
                     </tr>
                     <tr>
                         <td align="left">
-                            {{-- @stampImageOrEmpty('app/private/stamp.png') --}}
+                            <br />
+                            @stampImageOrEmpty('app/private/sample-sign.png')
                         </td>
                         <td align="left">&nbsp;</td>
                         <td align="left"></td>
                     </tr>
-                    <tr rowspan=5></tr>
                 </table>
-                
+
                 <table style="width: 100%;">
                     <tr>
                         <td align="left">________________________</td>
@@ -289,7 +318,7 @@
                         <td class="text-right courier-10">Date: {!! formatDate($credit->created_at) !!} </td>
                     </tr>
                 </table>
-            </div> 
+            </div>
         </div>
     @endforeach
 @endsection

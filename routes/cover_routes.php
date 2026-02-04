@@ -185,16 +185,27 @@ Route::group(['prefix' => 'cover', 'middleware' => ['auth', 'check.first.login']
                 ->name('destroy');
         });
 
+        Route::prefix('credit-items')->name('credit-items.')->group(function () {
+            Route::get('/', [QuarterlyDebitController::class, 'getCreditItems'])
+                ->name('index');
+        });
+
         Route::prefix('reinsurers')->name('reinsurers.')->group(function () {
             Route::get('/', [QuarterlyDebitController::class, 'getReinsurers'])
                 ->name('index');
 
             Route::get('/list', [QuarterlyDebitController::class, 'listReinsurers'])
                 ->name('list');
+
+            Route::get('/credit-note/view', [QuarterlyDebitController::class, 'viewReinsurerCreditNote'])
+                ->name('credit-note.view');
         });
 
         Route::get('/cedant/{cover}', [QuarterlyDebitController::class, 'getCedantDetailsApi'])
             ->name('cedant.show');
+
+        Route::get('/cedant/debit-note/view', [QuarterlyDebitController::class, 'viewCedantDebitNote'])
+            ->name('cedant.debit-note.view');
 
         Route::prefix('documents')->name('documents.')->group(function () {
             Route::get('/', [QuarterlyDebitController::class, 'getDocuments'])
@@ -214,6 +225,10 @@ Route::group(['prefix' => 'cover', 'middleware' => ['auth', 'check.first.login']
 
         Route::get('/export/{cover}', [QuarterlyDebitController::class, 'exportData'])
             ->name('export');
+
+        // Real-time summary statistics endpoint
+        Route::get('/summary-stats', [QuarterlyDebitController::class, 'getSummaryStats'])
+            ->name('summary-stats');
     });
 
     Route::prefix('cedants')->name('cedant.')->group(function () {

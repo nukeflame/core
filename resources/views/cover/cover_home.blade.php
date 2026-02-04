@@ -16,7 +16,6 @@
         <x-cover.header :cover="$coverReg" :customer="$customer" :actionable="$actionable" />
 
         <div class="row row-cols-12 mx-0">
-            {{ logger(['actionable' => $actionable]) }}
             @if ($actionable)
                 <x-cover.action-card :cover="$coverReg" :endorsementNarration="$endorsementNarration" />
             @endif

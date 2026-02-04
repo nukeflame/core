@@ -465,6 +465,49 @@
                 grid-template-columns: 1fr;
             }
         }
+
+        /* Spinning animation for refresh buttons */
+        .spin {
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            from {
+                transform: rotate(0deg);
+            }
+
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Pulse animation for real-time update indicator */
+        .pulse-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            background-color: #10b981;
+            border-radius: 50%;
+            margin-right: 6px;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+                opacity: 1;
+            }
+
+            50% {
+                transform: scale(1.2);
+                opacity: 0.7;
+            }
+
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
     </style>
 @endsection
 
@@ -506,19 +549,24 @@
 
     {{-- Quick Actions --}}
     <div class="quick-actions" role="toolbar" aria-label="Quick actions">
+        {{-- <button type="button" class="btn btn-outline-secondary quick-action-btn" id="btnRefreshSummary"
+            title="Refresh Data">
+            <i class="ri-refresh-line"></i> Refresh Data
+        </button> --}}
         <!-- <button type="button" class="btn btn-outline-dark quick-action-btn" id="btnPreviewSlip">
-            <i class="ri-file-text-line"></i> Preview Slip
-        </button> -->
+                                                                                                        <i class="ri-file-text-line"></i> Preview Slip
+                                                                                                    </button> -->
         <!-- <button type="button" class="btn btn-outline-primary quick-action-btn" id="btnGenerateStatement">
-            <i class="ri-file-list-3-line"></i> Generate Statement
-        </button> -->
+                                                                                                        <i class="ri-file-list-3-line"></i> Generate Statement
+                                                                                                    </button> -->
         {{-- <button type="button" class="btn btn-outline-success quick-action-btn" id="btnExportData">
             <i class="ri-download-2-line"></i> Export Data
         </button> --}}
         <!-- <button type="button" class="btn btn-primary quick-action-btn" data-bs-toggle="modal"
-            data-bs-target="#addDebitItemModal">
-            <i class="ri-add-line"></i> Add Debit Item
-        </button> -->
+                                                                                                        data-bs-target="#addDebitItemModal">
+                                                                                                        <i class="ri-add-line"></i> Add Debit Item
+                                                                                                    </button> -->
+        <small class="text-muted ms-auto align-self-center" id="lastUpdatedTime"></small>
     </div>
 
     {{-- Financial Summary Cards --}}
@@ -615,6 +663,13 @@
                             <span class="badge bg-primary ms-1" id="debitItemsCount">{{ $totalDebitItems }}</span>
                         </button>
 
+                        {{-- <button class="nav-link" id="nav-credit-items-tab" data-bs-toggle="tab"
+                            data-bs-target="#credit-items-tab" type="button" role="tab"
+                            aria-controls="credit-items-tab" aria-selected="false">
+                            <i class="bx bx-table me-1 align-middle"></i>Credit Items
+                            <span class="badge bg-danger ms-1" id="creditItemsCount">0</span>
+                        </button> --}}
+
                         <button class="nav-link" id="nav-reinsurers-tab" data-bs-toggle="tab"
                             data-bs-target="#reinsurers-tab" type="button" role="tab" aria-controls="reinsurers-tab"
                             aria-selected="false">
@@ -677,6 +732,42 @@
                             </div>
                         </div>
                     </div>
+
+                    {{-- Credit Items Tab --}}
+                    {{-- <div class="tab-pane fade" id="credit-items-tab" role="tabpanel"
+                        aria-labelledby="nav-credit-items-tab">
+                        <div class="card border-0 shadow-none">
+                            <div class="card-body py-3 px-2">
+                                <div class="table-responsive">
+                                    <table id="creditItemsTable" class="table table-bordered table-hover w-100">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th width="4%">#</th>
+                                                <th width="12%">Item Number</th>
+                                                <th width="12%">Transaction Type</th>
+                                                <th width="10%">Date</th>
+                                                <th width="10%">Treaty Type</th>
+                                                <th width="10%">Class</th>
+                                                <th width="10%">Commission %</th>
+                                                <th width="10%">Gross Amount</th>
+                                                <th width="7%">Status</th>
+                                                <th width="9%">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody></tbody>
+                                        <tfoot class="table-light">
+                                            <tr class="fw-bold">
+                                                <td colspan="7" class="text-end">Totals:</td>
+                                                <td class="amount-cell amount-cell--negative" id="totalCreditAmount">-
+                                                </td>
+                                                <td colspan="2"></td>
+                                            </tr>
+                                        </tfoot>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div> --}}
 
                     {{-- Reinsurers Tab --}}
                     <div class="tab-pane fade" id="reinsurers-tab" role="tabpanel" aria-labelledby="nav-reinsurers-tab">
@@ -878,6 +969,7 @@
                 csrfToken: '{{ csrf_token() }}',
                 routes: {
                     debitItems: '{{ route('treaty.debit-items.index', ['cover' => $cover->id ?? 0]) }}',
+                    creditItems: '{{ route('treaty.credit-items.index', ['cover' => $cover->id ?? 0]) }}',
                     debitItemStore: '{{ route('treaty.debit-items.store') }}',
                     debitItemShow: '{{ url('treaty/debit-items') }}/:id',
                     debitItemUpdate: '{{ url('treaty/debit-items') }}/:id',
@@ -890,7 +982,11 @@
                     documentDownload: '{{ url('treaty/documents') }}/:id/download',
                     previewSlip: '{{ route('treaty.slip.preview', ['cover' => $cover->id ?? 0]) }}',
                     generateStatement: '{{ route('treaty.statement.generate', ['cover' => $cover->id ?? 0]) }}',
-                    exportData: '{{ route('treaty.export', ['cover' => $cover->id ?? 0]) }}'
+                    exportData: '{{ route('treaty.export', ['cover' => $cover->id ?? 0]) }}',
+                    summaryStats: '{{ route('treaty.summary-stats') }}',
+                    summaryStats: '{{ route('treaty.summary-stats') }}',
+                    reinsurerCreditNoteView: '{{ route('treaty.reinsurers.credit-note.view') }}',
+                    cedantDebitNoteView: '{{ route('treaty.cedant.debit-note.view') }}'
                 },
                 dataTables: {
                     pageLength: 10,
@@ -1224,6 +1320,11 @@
                         },
                         drawCallback: function(settings) {
                             self.updateTotals();
+                            // Refresh summary stats after table data loads
+                            if (typeof SummaryManager !== 'undefined' && SummaryManager
+                                .triggerRefresh) {
+                                SummaryManager.triggerRefresh();
+                            }
                         }
                     });
                 },
@@ -1245,6 +1346,167 @@
 
                     // $('#totalCommission').text(Utils.formatCurrency(totalCommission));
                     $('#totalAmount').text(Utils.formatCurrency(totalAmount));
+                },
+
+                reload: function(resetPaging) {
+                    if (this.table) {
+                        this.table.ajax.reload(null, resetPaging !== false);
+                    }
+                },
+
+                adjustColumns: function() {
+                    if (this.table) {
+                        this.table.columns.adjust();
+                    }
+                }
+            };
+
+            var CreditItemsTable = {
+                table: null,
+
+                init: function() {
+                    var self = this;
+
+                    this.table = $('#creditItemsTable').DataTable({
+                        processing: true,
+                        serverSide: true,
+                        ajax: {
+                            url: CONFIG.routes.creditItems,
+                            type: 'GET',
+                            headers: {
+                                'X-CSRF-TOKEN': CONFIG.csrfToken
+                            },
+                            data: function(d) {
+                                d.cover_no = CONFIG.coverNo;
+                                d.endorsement_no = CONFIG.endorsementNo;
+                            },
+                            error: function(xhr, error, thrown) {
+                                console.error('CreditItems DataTable Error:', {
+                                    xhr: xhr,
+                                    error: error,
+                                    thrown: thrown
+                                });
+                            }
+                        },
+                        columns: [{
+                                data: null,
+                                orderable: false,
+                                searchable: false,
+                                render: function(data, type, row, meta) {
+                                    return meta.row + meta.settings._iDisplayStart + 1;
+                                }
+                            },
+                            {
+                                data: 'item_no',
+                                name: 'item_no',
+                                defaultContent: '-'
+                            },
+                            {
+                                data: 'transaction_type',
+                                name: 'transaction_type',
+                                defaultContent: '-'
+                            },
+                            {
+                                data: 'posting_date',
+                                name: 'posting_date',
+                                render: function(data) {
+                                    return Utils.formatDate(data);
+                                },
+                                defaultContent: '-'
+                            },
+                            {
+                                data: 'treaty_type',
+                                name: 'treaty_type',
+                                render: function(data) {
+                                    return Utils.getTypeBadge(data);
+                                },
+                                defaultContent: '-'
+                            },
+                            {
+                                data: 'class_name',
+                                name: 'class_name',
+                                render: function(data, type, row) {
+                                    return '<span class="fw-medium">' + Utils.escapeHtml(row
+                                            .class_group || '') + '</span><br>' +
+                                        '<small class="text-muted">' + Utils.escapeHtml(
+                                            data || '') + '</small>';
+                                },
+                                defaultContent: '-'
+                            },
+                            {
+                                data: 'line_rate',
+                                name: 'commission_rate',
+                                render: function(data) {
+                                    return Utils.formatPercentage(data);
+                                },
+                                defaultContent: '-'
+                            },
+                            {
+                                data: 'gross_amount',
+                                name: 'amount',
+                                className: 'amount-cell amount-cell--negative',
+                                render: function(data) {
+                                    return Utils.formatCurrency(data);
+                                },
+                                defaultContent: '-'
+                            },
+                            {
+                                data: 'status',
+                                name: 'status',
+                                render: function(data) {
+                                    return Utils.getStatusBadge(data);
+                                },
+                                defaultContent: '-'
+                            },
+                            {
+                                data: null,
+                                orderable: false,
+                                searchable: false,
+                                render: function(data, type, row) {
+                                    return '<div class="btn-group btn-group-sm" role="group" aria-label="Item actions">' +
+                                        '<button type="button" class="btn btn-outline-dark btn-action btn-view-item" data-id="' +
+                                        row.id + '" title="View">' +
+                                        '<i class="ri-eye-line"></i>' +
+                                        '</button>' +
+                                        '</div>';
+                                }
+                            }
+                        ],
+                        order: [
+                            [3, 'desc']
+                        ],
+                        pageLength: CONFIG.dataTables.pageLength,
+                        lengthMenu: CONFIG.dataTables.lengthMenu,
+                        dom: CONFIG.dataTables.dom,
+                        language: {
+                            processing: '<div class="spinner-border spinner-border-sm text-primary" role="status"><span class="visually-hidden">Loading...</span></div> Loading...',
+                            emptyTable: 'No credit items found',
+                            zeroRecords: 'No matching credit items found'
+                        },
+                        drawCallback: function(settings) {
+                            self.updateTotals();
+
+                            // Update count badge
+                            var totalRecords = settings.json ? settings.json.recordsTotal : 0;
+                            $('#creditItemsCount').text(totalRecords);
+                        }
+                    });
+                },
+
+                updateTotals: function() {
+                    if (!this.table) return;
+
+                    var totalAmount = 0;
+
+                    this.table.rows().every(function() {
+                        var data = this.data();
+
+                        if (data) {
+                            totalAmount += parseFloat(data.gross_amount) || 0;
+                        }
+                    });
+
+                    $('#totalCreditAmount').text(Utils.formatCurrency(totalAmount));
                 },
 
                 reload: function(resetPaging) {
@@ -1373,7 +1635,8 @@
                                 render: function(data, type, row) {
                                     return '<div class="btn-group btn-group-sm" role="group" aria-label="Reinsurer actions">' +
                                         '<button type="button" class="btn btn-outline-primary btn-action btn-view-reinsurer" data-id="' +
-                                        row.id + '" title="View Details">' +
+                                        row.id + '" data-partner-no="' + row.partner_no +
+                                        '" title="View Details">' +
                                         '<i class="ri-eye-line"></i>' +
                                         '</button>' +
                                         '<button type="button" class="btn btn-outline-info btn-action btn-send-statement" data-id="' +
@@ -1962,9 +2225,8 @@
                 init: function() {
                     var self = this;
 
-                    // Prepare cedant data from server-side variables
                     var cedantData = [{
-                        id: 1,
+                        id: '{{ $customer->id ?? '' }}',
                         name: '{{ $customer->name ?? '' }}',
                         registration_no: '{{ $customer->registration_no ?? '' }}',
                         address: '{{ $customer->address ?? '' }}',
@@ -1991,7 +2253,8 @@
                                 data: 'name',
                                 name: 'name',
                                 render: function(data, type, row) {
-                                    return '<span class="fw-semibold">' + Utils.escapeHtml(data || '-') + '</span>';
+                                    return '<span class="fw-semibold">' + Utils.escapeHtml(
+                                        data || '-') + '</span>';
                                 },
                                 defaultContent: '-'
                             },
@@ -2011,7 +2274,8 @@
                                 render: function(data, type, row) {
                                     var contactText = Utils.escapeHtml(data || '-');
                                     if (row.designation) {
-                                        contactText += '<br><small class="text-muted">' + Utils.escapeHtml(row.designation) + '</small>';
+                                        contactText += '<br><small class="text-muted">' +
+                                            Utils.escapeHtml(row.designation) + '</small>';
                                     }
                                     return contactText;
                                 },
@@ -2022,7 +2286,8 @@
                                 name: 'email',
                                 render: function(data) {
                                     if (data) {
-                                        return '<a href="mailto:' + Utils.escapeHtml(data) + '">' + Utils.escapeHtml(data) + '</a>';
+                                        return '<a href="mailto:' + Utils.escapeHtml(data) +
+                                            '">' + Utils.escapeHtml(data) + '</a>';
                                     }
                                     return '-';
                                 },
@@ -2057,11 +2322,17 @@
                                         row.id + '" title="View Details">' +
                                         '<i class="ri-eye-line"></i>' +
                                         '</button>' +
+                                        '<button type="button" class="btn btn-outline-info btn-action btn-send-cedant-statement" data-id="' +
+                                        row.id + '" title="Send Statement">' +
+                                        '<i class="ri-mail-send-line"></i>' +
+                                        '</button>' +
                                         '</div>';
                                 }
                             }
                         ],
-                        order: [[1, 'asc']],
+                        order: [
+                            [1, 'asc']
+                        ],
                         pageLength: CONFIG.dataTables.pageLength,
                         lengthMenu: CONFIG.dataTables.lengthMenu,
                         dom: CONFIG.dataTables.dom,
@@ -2080,8 +2351,55 @@
 
                     $('#cedantTable').on('click', '.btn-view-cedant', function() {
                         var id = $(this).data('id');
-                        Utils.showToast('Viewing cedant details...', 'info');
-                        // Add view cedant logic here if needed
+                        if (id) {
+                            Swal.fire({
+                                title: 'Generate Debit Note',
+                                html: `
+                            <div class="text-start">
+                                <p class="mb-3">Do you want to include brokerage in the debit note?</p>
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="radio" name="brokerageOption" id="withBrokerage" value="1" checked>
+                                    <label class="form-check-label" for="withBrokerage">
+                                        <i class="ri-check-line text-success me-1"></i> With Brokerage
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="brokerageOption" id="withoutBrokerage" value="0">
+                                    <label class="form-check-label" for="withoutBrokerage">
+                                        <i class="ri-close-line text-danger me-1"></i> Without Brokerage
+                                    </label>
+                                </div>
+                            </div>
+                        `,
+                                icon: 'question',
+                                showCancelButton: true,
+                                confirmButtonText: '<i class="ri-file-pdf-line me-1"></i> Generate PDF',
+                                cancelButtonText: 'Cancel',
+                                confirmButtonColor: '#3085d6',
+                                cancelButtonColor: '#6c757d',
+                                customClass: {
+                                    popup: 'swal-wide'
+                                },
+                                preConfirm: () => {
+                                    const withBrokerage = document.querySelector(
+                                            'input[name="brokerageOption"]:checked')
+                                        .value;
+                                    return {
+                                        withBrokerage: withBrokerage
+                                    };
+                                }
+                            }).then((result) => {
+                                if (result.isConfirmed) {
+                                    var url = CONFIG.routes.cedantDebitNoteView +
+                                        '?cover_no=' + encodeURIComponent(CONFIG.coverNo) +
+                                        '&endorsement_no=' + encodeURIComponent(CONFIG
+                                            .endorsementNo) +
+                                        '&cedant_id=' + encodeURIComponent(id) +
+                                        '&with_brokerage=' + result.value.withBrokerage;
+                                    window.open(url, '_blank');
+                                }
+                            });
+                        }
                     });
                 },
 
@@ -2229,15 +2547,113 @@
                 }
             };
 
-            // Initialize all tables and managers
+            var SummaryManager = {
+                refreshInterval: null,
+                isLoading: false,
+                autoRefreshEnabled: false,
+                autoRefreshIntervalMs: 60000,
+
+                init: function() {
+                    var self = this;
+                    this.fetchStats();
+
+                    if (this.autoRefreshEnabled) {
+                        this.startAutoRefresh();
+                    }
+                },
+
+                fetchStats: function(callback) {
+                    var self = this;
+
+                    if (this.isLoading) {
+                        return;
+                    }
+
+                    this.isLoading = true;
+
+                    Utils.ajax({
+                            url: CONFIG.routes.summaryStats,
+                            type: 'GET',
+                            data: {
+                                cover_no: CONFIG.coverNo,
+                                endorsement_no: CONFIG.endorsementNo
+                            }
+                        })
+                        .done(function(response) {
+                            if (response.success && response.data) {
+                                self.updateUI(response.data);
+                            }
+                            if (typeof callback === 'function') {
+                                callback(response);
+                            }
+                        })
+                        .fail(function(xhr) {
+                            console.error('Failed to fetch summary stats:', xhr);
+                        })
+                        .always(function() {
+                            self.isLoading = false;
+                        });
+                },
+
+                updateUI: function(data) {
+                    var financial = data.financial || {};
+                    var counts = data.counts || {};
+
+                    $('#summaryGrossPremium').text(Utils.formatCurrency(financial.total_gross_premium ||
+                        0));
+                    $('#summaryCommission').text(Utils.formatCurrency(financial.total_commission || 0));
+                    $('#summaryNetAmount').text(Utils.formatCurrency(financial.total_net_amount || 0));
+                    $('#summaryReinsurerShare').text(Utils.formatCurrency(financial.total_reinsurer_share ||
+                        0));
+
+                    $('#debitItemsCount').text(counts.debit_items || 0);
+                    $('#reinsurersCount').text(counts.reinsurers || 0);
+                    $('#documentsCount').text(counts.documents || 0);
+                    $('#docGenerated').text(counts.documents_generated || 0);
+                    $('#docSent').text(counts.documents_sent || 0);
+                    $('#docSigned').text(counts.documents_signed || 0);
+
+                    if (data.last_updated) {
+                        var lastUpdated = new Date(data.last_updated);
+                        var formattedTime = lastUpdated.toLocaleTimeString('en-US', {
+                            hour: '2-digit',
+                            minute: '2-digit'
+                        });
+                        $('#lastUpdatedTime').text('Last updated: ' + formattedTime);
+                    }
+                },
+
+                startAutoRefresh: function() {
+                    var self = this;
+                    if (this.refreshInterval) {
+                        clearInterval(this.refreshInterval);
+                    }
+                    this.refreshInterval = setInterval(function() {
+                        self.fetchStats();
+                    }, this.autoRefreshIntervalMs);
+                },
+
+                stopAutoRefresh: function() {
+                    if (this.refreshInterval) {
+                        clearInterval(this.refreshInterval);
+                        this.refreshInterval = null;
+                    }
+                },
+
+                triggerRefresh: function() {
+                    this.fetchStats();
+                }
+            };
+
             DebitItemsTable.init();
+            CreditItemsTable.init();
             ReinsurersTable.init();
             ApprovalsTable.init();
             DocumentsTable.init();
             CedantTable.init();
             DebitItemForm.init();
+            SummaryManager.init();
 
-            // Quick action button handlers
             $('#btnPreviewSlip').on('click', function() {
                 if (CONFIG.routes.previewSlip) {
                     window.open(CONFIG.routes.previewSlip, '_blank');
@@ -2278,6 +2694,25 @@
                 DocumentsTable.reload();
             });
 
+            $('#btnRefreshSummary').on('click', function() {
+                var $btn = $(this);
+                var originalHtml = $btn.html();
+                $btn.prop('disabled', true).html('<i class="ri-loader-4-line spin"></i> Refreshing...');
+
+                // Refresh all tables
+                DebitItemsTable.reload(false);
+                CreditItemsTable.reload(false);
+                ReinsurersTable.reload(false);
+                DocumentsTable.reload(false);
+
+                SummaryManager.fetchStats(function() {
+                    setTimeout(function() {
+                        $btn.prop('disabled', false).html(originalHtml);
+                        Utils.showToast('Data refreshed successfully', 'success');
+                    }, 500);
+                });
+            });
+
             $(document).on('click', '[data-doc-type]', function(e) {
                 e.preventDefault();
                 var docType = $(this).data('doc-type');
@@ -2286,7 +2721,6 @@
                 }
             });
 
-            // Debit item action handlers
             $(document).on('click', '.btn-view-item', function() {
                 var id = $(this).data('id');
                 if (id) {
@@ -2308,7 +2742,6 @@
                 }
             });
 
-            // Document action handlers
             $(document).on('click', '.btn-preview-doc', function() {
                 var url = $(this).data('url');
                 DocumentsManager.preview(url);
@@ -2326,9 +2759,55 @@
                 }
             });
 
-            // Reinsurer action handlers
             $(document).on('click', '.btn-view-reinsurer', function() {
-                Utils.showToast('Reinsurer details view coming soon', 'info');
+                var partnerNo = $(this).data('partner-no');
+                if (partnerNo) {
+                    Swal.fire({
+                        title: 'Generate Credit Note',
+                        html: `
+                            <div class="text-start">
+                                <p class="mb-3">Do you want to include brokerage in the credit note?</p>
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="radio" name="brokerageOption" id="withBrokerage" value="1" checked>
+                                    <label class="form-check-label" for="withBrokerage">
+                                        <i class="ri-check-line text-success me-1"></i> With Brokerage
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="brokerageOption" id="withoutBrokerage" value="0">
+                                    <label class="form-check-label" for="withoutBrokerage">
+                                        <i class="ri-close-line text-danger me-1"></i> Without Brokerage
+                                    </label>
+                                </div>
+                            </div>
+                        `,
+                        icon: 'question',
+                        showCancelButton: true,
+                        confirmButtonText: '<i class="ri-file-pdf-line me-1"></i> Generate PDF',
+                        cancelButtonText: 'Cancel',
+                        confirmButtonColor: '#3085d6',
+                        cancelButtonColor: '#6c757d',
+                        customClass: {
+                            popup: 'swal-wide'
+                        },
+                        preConfirm: () => {
+                            const withBrokerage = document.querySelector(
+                                'input[name="brokerageOption"]:checked').value;
+                            return {
+                                withBrokerage: withBrokerage
+                            };
+                        }
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            var url = CONFIG.routes.reinsurerCreditNoteView +
+                                '?cover_no=' + encodeURIComponent(CONFIG.coverNo) +
+                                '&endorsement_no=' + encodeURIComponent(CONFIG.endorsementNo) +
+                                '&partner_no=' + encodeURIComponent(partnerNo) +
+                                '&with_brokerage=' + result.value.withBrokerage;
+                            window.open(url, '_blank');
+                        }
+                    });
+                }
             });
 
             $(document).on('click', '.btn-send-statement', function() {
@@ -2341,7 +2820,16 @@
                 );
             });
 
-            // Tab change handler
+            $(document).on('click', '.btn-send-cedant-statement', function() {
+                Utils.showConfirm(
+                    'Send Statement',
+                    'Send account statement to this cedant?',
+                    function() {
+                        Utils.showToast('Statement sent successfully', 'success');
+                    }
+                );
+            });
+
             $('button[data-bs-toggle="tab"]').on('shown.bs.tab', function(e) {
                 var target = $(e.target).attr('data-bs-target');
 
