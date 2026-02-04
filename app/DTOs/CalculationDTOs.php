@@ -3,32 +3,35 @@
 namespace App\DTOs;
 
 /**
- * Represents the complete calculation result for a debit note
+ * Represents calculation for cedant's retained share
  */
-class DebitNoteCalculationResult
+readonly class CedantShareCalculation
 {
     public function __construct(
-        public readonly float $grossAmount,
-        public readonly float $creditAmount,
-        public readonly float $commissionAmount,
-        public readonly float $brokerageRate,
-        public readonly float $brokerageAmount,
-        public readonly float $premiumTax,
-        public readonly float $reinsuranceTax,
-        public readonly float $withholdingTax,
-        public readonly float $otherDeductions,
-        public readonly float $totalDeductions,
-        public readonly float $netAmount,
-        public readonly array $reinsurers,
-        public readonly ?CedantShareCalculation $cedant = null
+        public string $coverNo,
+        public string $endorsementNo,
+        public string $cedantName,
+        public float $share,
+        public float $grossAmount,
+        public float $creditAmount,
+        public float $commissionAmount,
+        public float $brokerageRate,
+        public float $brokerageAmount,
+        public float $premiumTax,
+        public float $reinsuranceTax,
+        public float $withholdingTax,
+        public float $otherDeductions,
+        public float $totalDeductions,
+        public float $netAmount
     ) {}
 
-    /**
-     * Convert to array for JSON serialization
-     */
     public function toArray(): array
     {
         return [
+            'cover_no' => $this->coverNo,
+            'endorsement_no' => $this->endorsementNo,
+            'cedant_name' => $this->cedantName,
+            'share' => $this->share,
             'gross_amount' => $this->grossAmount,
             'credit_amount' => $this->creditAmount,
             'commission_amount' => $this->commissionAmount,
@@ -40,21 +43,6 @@ class DebitNoteCalculationResult
             'other_deductions' => $this->otherDeductions,
             'total_deductions' => $this->totalDeductions,
             'net_amount' => $this->netAmount,
-            'reinsurers' => array_map(fn ($r) => $r->toArray(), $this->reinsurers),
-            'cedant' => $this->cedant?->toArray(),
-        ];
-    }
-
-    /**
-     * Get balance summary
-     */
-    public function getBalanceSummary(): array
-    {
-        return [
-            'total_credits' => $this->grossAmount,
-            'total_debits' => $this->totalDeductions,
-            'balance' => $this->netAmount,
-            'balance_type' => $this->netAmount > 0 ? 'DUE_FROM' : 'DUE_TO',
         ];
     }
 }
@@ -62,33 +50,30 @@ class DebitNoteCalculationResult
 /**
  * Represents calculation for a single reinsurer's share
  */
-class ReinsurerShareCalculation
+readonly class ReinsurerShareCalculation
 {
     public function __construct(
-        public readonly string $coverNo,
-        public readonly string $endorsementNo,
-        public readonly string $partnerCode,
-        public readonly string $reinsurerName,
-        public readonly float $share,
-        public readonly string $amountType,
-        public readonly float $grossAmount,
-        public readonly float $creditAmount,
-        public readonly float $commissionRate,
-        public readonly float $commissionAmount,
-        public readonly float $brokerageRate,
-        public readonly float $brokerageAmount,
-        public readonly float $premiumTax,
-        public readonly string $premiumTaxBase,
-        public readonly float $reinsuranceTax,
-        public readonly float $withholdingTax,
-        public readonly float $otherDeductions,
-        public readonly float $totalDeductions,
-        public readonly float $netAmount
+        public string $coverNo,
+        public string $endorsementNo,
+        public string $partnerCode,
+        public string $reinsurerName,
+        public float $share,
+        public string $amountType,
+        public float $grossAmount,
+        public float $creditAmount,
+        public float $commissionRate,
+        public float $commissionAmount,
+        public float $brokerageRate,
+        public float $brokerageAmount,
+        public float $premiumTax,
+        public string $premiumTaxBase,
+        public float $reinsuranceTax,
+        public float $withholdingTax,
+        public float $otherDeductions,
+        public float $totalDeductions,
+        public float $netAmount
     ) {}
 
-    /**
-     * Convert to array
-     */
     public function toArray(): array
     {
         return [
@@ -114,9 +99,6 @@ class ReinsurerShareCalculation
         ];
     }
 
-    /**
-     * Get breakdown by category
-     */
     public function getBreakdown(): array
     {
         return [
@@ -138,38 +120,29 @@ class ReinsurerShareCalculation
 }
 
 /**
- * Represents calculation for cedant's retained share
+ * Represents the complete calculation result for a debit note
  */
-class CedantShareCalculation
+readonly class DebitNoteCalculationResult
 {
     public function __construct(
-        public readonly string $coverNo,
-        public readonly string $endorsementNo,
-        public readonly string $cedantName,
-        public readonly float $share,
-        public readonly float $grossAmount,
-        public readonly float $creditAmount,
-        public readonly float $commissionAmount,
-        public readonly float $brokerageRate,
-        public readonly float $brokerageAmount,
-        public readonly float $premiumTax,
-        public readonly float $reinsuranceTax,
-        public readonly float $withholdingTax,
-        public readonly float $otherDeductions,
-        public readonly float $totalDeductions,
-        public readonly float $netAmount
+        public float $grossAmount,
+        public float $creditAmount,
+        public float $commissionAmount,
+        public float $brokerageRate,
+        public float $brokerageAmount,
+        public float $premiumTax,
+        public float $reinsuranceTax,
+        public float $withholdingTax,
+        public float $otherDeductions,
+        public float $totalDeductions,
+        public float $netAmount,
+        public array $reinsurers,
+        public ?CedantShareCalculation $cedant = null
     ) {}
 
-    /**
-     * Convert to array
-     */
     public function toArray(): array
     {
         return [
-            'cover_no' => $this->coverNo,
-            'endorsement_no' => $this->endorsementNo,
-            'cedant_name' => $this->cedantName,
-            'share' => $this->share,
             'gross_amount' => $this->grossAmount,
             'credit_amount' => $this->creditAmount,
             'commission_amount' => $this->commissionAmount,
@@ -181,6 +154,18 @@ class CedantShareCalculation
             'other_deductions' => $this->otherDeductions,
             'total_deductions' => $this->totalDeductions,
             'net_amount' => $this->netAmount,
+            'reinsurers' => array_map(fn($r) => $r->toArray(), $this->reinsurers),
+            'cedant' => $this->cedant?->toArray(),
+        ];
+    }
+
+    public function getBalanceSummary(): array
+    {
+        return [
+            'total_credits' => $this->grossAmount,
+            'total_debits' => $this->totalDeductions,
+            'balance' => $this->netAmount,
+            'balance_type' => $this->netAmount > 0 ? 'DUE_FROM' : 'DUE_TO',
         ];
     }
 }

@@ -6,6 +6,7 @@ use App\DTOs\DebitNoteCalculationResult;
 use App\Exceptions\BusinessRuleException;
 use App\Models\CoverRegister;
 use App\Models\DebitNote;
+use App\Models\TransactionLog;
 use App\Repositories\CoverRepository;
 use App\Services\DebitNote\AmountCalculator;
 use App\Services\DebitNote\LineItemProcessor;
@@ -49,26 +50,33 @@ class DebitNoteService
 
     public function create(array $data, CoverRegister $cover): DebitNote
     {
+
         return DB::transaction(function () use ($data, $cover) {
 
             $this->validateCreateData($data);
 
-            $calculation = $this->amountCalculator->calculate($data, $cover);
-            $debitNoteNo = $this->generateDebitNoteNumber(
-                $cover->type_of_bus,
-                $data['postingYear'] ?? now()->year
-            );
+            $this->amountCalculator->calculate($data, $cover);
 
-            $debitNote = $this->createDebitNoteRecord($debitNoteNo, $data, $cover, $calculation);
-            $this->lineItemProcessor->createLineItems($debitNote, $data['items'] ?? []);
+            // $calculation = $this->amountCalculator->calculate($data, $cover);
+            // $debitNoteNo = $this->generateDebitNoteNumber(
+            //     $cover->type_of_bus,
+            //     $data['postingYear'] ?? now()->year
+            // );
 
-            if ($data['updateRipart'] ?? false) {
-                $this->updateReinsurerParticipation($calculation->reinsurers);
-            }
-            
-            $this->transactionLogger->log($debitNote, 'CREATE');
+            // $debitNote = $this->createDebitNoteRecord($debitNoteNo, $data, $cover, $calculation);
+            // $this->lineItemProcessor->createLineItems($debitNote, $data['items'] ?? []);
 
-            return $debitNote->fresh(['items', 'cover', 'cover.customer']);
+            // if ($data['updateRipart'] ?? false) {
+            //     $this->updateReinsurerParticipation($calculation->reinsurers);
+            // }
+
+            // $this->transactionLogger->log($debitNote, 'CREATE');
+
+            // logger()->debug(json_encode($calculation, JSON_PRETTY_PRINT));
+
+            // return $debitNote->fresh(['items', 'cover', 'cover.customer']);
+
+            return new DebitNote();
         });
     }
 
@@ -105,49 +113,31 @@ class DebitNoteService
         });
     }
 
-    /**
-     * Submit debit note for approval
-     */
     public function submit(DebitNote $debitNote): DebitNote
     {
         return $this->statusManager->submit($debitNote);
     }
 
-    /**
-     * Approve debit note
-     */
     public function approve(DebitNote $debitNote): DebitNote
     {
         return $this->statusManager->approve($debitNote);
     }
 
-    /**
-     * Reject debit note
-     */
     public function reject(DebitNote $debitNote, string $reason): DebitNote
     {
         return $this->statusManager->reject($debitNote, $reason);
     }
 
-    /**
-     * Revert rejected debit note to draft
-     */
     public function revertToDraft(DebitNote $debitNote): DebitNote
     {
         return $this->statusManager->revertToDraft($debitNote);
     }
 
-    /**
-     * Cancel debit note
-     */
     public function cancel(DebitNote $debitNote, string $reason): DebitNote
     {
         return $this->statusManager->cancel($debitNote, $reason);
     }
 
-    /**
-     * Post debit note to accounting
-     */
     public function post(DebitNote $debitNote): DebitNote
     {
         return DB::transaction(function () use ($debitNote) {
@@ -178,9 +168,6 @@ class DebitNoteService
         });
     }
 
-    /**
-     * Delete debit note (soft delete)
-     */
     public function delete(DebitNote $debitNote): bool
     {
         return DB::transaction(function () use ($debitNote) {
@@ -195,10 +182,7 @@ class DebitNoteService
 
             $oldValues = $debitNote->toArray();
 
-            // Delete related items
             $debitNote->items()->delete();
-
-            // Soft delete debit note
             $debitNote->delete();
 
             $this->transactionLogger->log($debitNote, 'DELETE', $oldValues);
@@ -207,9 +191,6 @@ class DebitNoteService
         });
     }
 
-    /**
-     * Duplicate existing debit note
-     */
     public function duplicate(DebitNote $original): DebitNote
     {
         return DB::transaction(function () use ($original) {
@@ -222,14 +203,10 @@ class DebitNoteService
         });
     }
 
-    /**
-     * Get debit note statistics
-     */
     public function getStatistics(array $filters = []): array
     {
         $query = DebitNote::query();
 
-        // Apply filters
         $this->applyFilters($query, $filters);
 
         return [
@@ -243,21 +220,11 @@ class DebitNoteService
         ];
     }
 
-    /**
-     * Calculate amounts for preview (without saving)
-     */
     public function calculateAmounts(array $data, ?CoverRegister $cover = null): DebitNoteCalculationResult
     {
         return $this->amountCalculator->calculate($data, $cover);
     }
 
-    // =====================================
-    // Protected Helper Methods
-    // =====================================
-
-    /**
-     * Validate creation data
-     */
     protected function validateCreateData(array $data): void
     {
         $required = ['postingDate', 'postingYear', 'postingQuarter', 'items'];
@@ -273,9 +240,6 @@ class DebitNoteService
         }
     }
 
-    /**
-     * Create debit note database record
-     */
     protected function createDebitNoteRecord(
         string $debitNoteNo,
         array $data,
@@ -364,12 +328,12 @@ class DebitNoteService
             'postingQuarter' => $this->getCurrentQuarter(),
             'brokerageRate' => $original->brokerage_rate,
             'reinsurerPosting' => $original->reinsurer_posting,
-            'comments' => 'Duplicated from: '.$original->debit_note_no,
+            'comments' => 'Duplicated from: ' . $original->debit_note_no,
             'showCedant' => $original->show_cedant,
             'showReinsurer' => $original->show_reinsurer,
             'lossParticipation' => $original->loss_participation,
             'slidingCommission' => $original->sliding_commission,
-            'items' => $original->items->map(fn ($item) => [
+            'items' => $original->items->map(fn($item) => [
                 'item_code' => $item->item_code,
                 'description' => $item->description,
                 'class_group' => $item->class_group_code,
@@ -452,7 +416,7 @@ class DebitNoteService
             ->selectRaw('status, COUNT(*) as count, SUM(gross_amount) as gross_amount, SUM(net_amount) as net_amount')
             ->groupBy('status')
             ->get()
-            ->mapWithKeys(fn ($item) => [
+            ->mapWithKeys(fn($item) => [
                 $item->status => [
                     'count' => $item->count,
                     'gross_amount' => round((float) $item->gross_amount, 2),
@@ -468,9 +432,5 @@ class DebitNoteService
     protected function getCurrentQuarter(): int
     {
         return (int) ceil(now()->month / 3);
-    }
-}
-catch (\Exception $e) {
-        }
     }
 }

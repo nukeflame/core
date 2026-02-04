@@ -235,7 +235,7 @@ class CoverController extends Controller
             $selected_pay_method = null;
             if ($old_endt_trans) {
                 $selected_pay_method = collect($paymethods)->first(
-                    fn ($item) => $item->pay_method_code == $old_endt_trans->pay_method_code,
+                    fn($item) => $item->pay_method_code == $old_endt_trans->pay_method_code,
                 );
             }
 
@@ -454,7 +454,7 @@ class CoverController extends Controller
 
             $results = collect($query->get())->sortByDesc('created_at')->values();
         } catch (\Exception $e) {
-            return response()->json(['error' => 'Database query failed: '.$e->getMessage()], 500);
+            return response()->json(['error' => 'Database query failed: ' . $e->getMessage()], 500);
         }
 
         return datatables::of($results)
@@ -470,7 +470,7 @@ class CoverController extends Controller
                 if (in_array($fn->type_of_bus, ['FPR', 'FNP'])) {
                     $classDesc = Classes::where('class_code', $fn->class_code)->first();
 
-                    return $classDesc ? 'FACULTATIVE - '.$classDesc->class_name : 'Unknown Class';
+                    return $classDesc ? 'FACULTATIVE - ' . $classDesc->class_name : 'Unknown Class';
                 } elseif ($fn->type_of_bus == 'TPR') {
                     return 'TREATY - PROPORTIONAL';
                 } elseif ($fn->type_of_bus == 'TNP') {
@@ -504,7 +504,7 @@ class CoverController extends Controller
             ->editColumn('actions', function ($fn) {
                 $viewUrl = '#';
 
-                return '<a href="'.$viewUrl.'" class="btn btn-sm btn-primary btn-sm-action"  id="view-coverlist-table">View <i class="bx bx-send"></i></a>';
+                return '<a href="' . $viewUrl . '" class="btn btn-sm btn-primary btn-sm-action"  id="view-coverlist-table">View <i class="bx bx-send"></i></a>';
             })
             ->rawColumns(['status', 'actions'])
             ->make(true);
@@ -1047,7 +1047,7 @@ class CoverController extends Controller
             return response()->json([
                 'status' => Response::HTTP_INTERNAL_SERVER_ERROR,
                 'success' => false,
-                'message' => 'Failed to save reinsurer data: '.$e->getMessage(),
+                'message' => 'Failed to save reinsurer data: ' . $e->getMessage(),
             ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -1383,7 +1383,7 @@ class CoverController extends Controller
                 return $customer_name;
             })
             ->editColumn('dr_no', function ($data) {
-                return $data->document.'/'.$data->dr_no.'/'.$data->period_year;
+                return $data->document . '/' . $data->dr_no . '/' . $data->period_year;
             })
             ->addColumn('sum_insured', function () use ($cover) {
                 return $cover?->total_sum_insured;
@@ -1533,7 +1533,7 @@ class CoverController extends Controller
 
             $redirectUrl = null;
 
-            $message = $this->getBusinessTypeLabel($debitData['typeOfBus']).' Debit/Credit note generated successfully';
+            $message = $this->getBusinessTypeLabel($debitData['typeOfBus']) . ' Debit/Credit note generated successfully';
 
             if ($debitData['isFacultative']) {
                 $redirectUrl = null;
@@ -1552,7 +1552,7 @@ class CoverController extends Controller
             // $cover->commited = 'Y';
             // $cover->save();
 
-            // DB::commit();
+            DB::commit();
 
             return response()->json([
                 'success' => true,
@@ -1718,7 +1718,7 @@ class CoverController extends Controller
 
     protected function getQuarterFromDate(Carbon $date): string
     {
-        return 'Q'.$date->quarter;
+        return 'Q' . $date->quarter;
     }
 
     private function createCoverDebit(array &$debitData, CoverRegister $coverRegister): void
@@ -1935,7 +1935,6 @@ class CoverController extends Controller
                         'net_amount' => $brokerageOnShare,
                     ];
                 }
-
             }
         }
 
@@ -2013,7 +2012,7 @@ class CoverController extends Controller
             ]);
 
             $file = $request->file('file');
-            $fileName = date('dmYhis').'_'.$file->getClientOriginalName();
+            $fileName = date('dmYhis') . '_' . $file->getClientOriginalName();
             $file->storeAs('cover_attachments', $fileName, 'public');
             $mimeType = $file->getClientMimeType();
             // Read the file contents and encode it to base64
@@ -2068,7 +2067,7 @@ class CoverController extends Controller
             ]);
 
             $file = $request->file('file');
-            $fileName = date('dmYhis').'_'.$file->getClientOriginalName();
+            $fileName = date('dmYhis') . '_' . $file->getClientOriginalName();
             $mimeType = $file->getClientMimeType();
             $file->storeAs('cover_attachments', $fileName, 'public');
 
@@ -2404,7 +2403,7 @@ class CoverController extends Controller
             $cover->endorsement_no = $new_endorsement_no;
             $cover->orig_endorsement_no = $base_cover->endorsement_no;
             $cover->transaction_type = $trans_type;
-            $cover->cover_title = 'TREATY PROPORTIONAL ACCOUNT '.trim($quarter_name).'-'.$request->cover_year;
+            $cover->cover_title = 'TREATY PROPORTIONAL ACCOUNT ' . trim($quarter_name) . '-' . $request->cover_year;
             $cover->verified = null;
             $cover->status = 'A';
             $cover->commited = null;
@@ -3271,7 +3270,7 @@ class CoverController extends Controller
             $cover->endorsement_no = $new_endorsement_no;
             $cover->transaction_type = $trans_type;
             $cover->verified = null;
-            $cover->cover_title = 'TREATY NON PROPORTIONAL ACCOUNT - MDP('.$installment_name.')';
+            $cover->cover_title = 'TREATY NON PROPORTIONAL ACCOUNT - MDP(' . $installment_name . ')';
             $cover->status = 'A';
             $cover->commited = null;
             $cover->account_year = $this->_year;
@@ -3700,7 +3699,7 @@ class CoverController extends Controller
             if ($portfolio_type == 'IN') {
                 $cusTypes = ['REINCO'];
                 $cusTypes_str = implode(',', array_map(function ($item) {
-                    return "'".$item."'";
+                    return "'" . $item . "'";
                 }, $cusTypes));
 
                 $reinsurers = DB::select("
@@ -3713,7 +3712,7 @@ class CoverController extends Controller
             } elseif ($portfolio_type == 'OUT') {
                 $partner_nos = CoverRipart::where('endorsement_no', $orig_endorsement)->pluck('partner_no')->toArray();
                 $partner_nos_str = implode(',', array_map(function ($item) {
-                    return "'".$item."'";
+                    return "'" . $item . "'";
                 }, $partner_nos));
 
                 $reinsurers = DB::select("
@@ -3816,8 +3815,8 @@ class CoverController extends Controller
             if ($prevPolicy) {
                 // Delete associated documents
                 foreach ($prevPolicy->documents as $document) {
-                    if (File::exists(storage_path('/app/public/renewals/'.$document->doc_name))) {
-                        File::delete(storage_path('/app/public/renewals/'.$document->doc_name));
+                    if (File::exists(storage_path('/app/public/renewals/' . $document->doc_name))) {
+                        File::delete(storage_path('/app/public/renewals/' . $document->doc_name));
                     }
                     $document->delete();
                 }
@@ -3828,7 +3827,7 @@ class CoverController extends Controller
                 ['policy_number' => $cover->cover_no],
                 [
                     'client_name' => $cover->customer->name ?? null,
-                    'doc_name' => 'Renewal_Notice_'.time().'.pdf',
+                    'doc_name' => 'Renewal_Notice_' . time() . '.pdf',
                     'client_email' => $cover->customer->email ?? null,
                     'renewal_date' => Carbon::parse($created_at)->addYears(1)->format('d-M-Y'),
                     'last_notice_sent' => Carbon::parse($created_at)->format('d-M-Y'),
@@ -3845,17 +3844,17 @@ class CoverController extends Controller
                 $pdf->set_option('isPhpEnabled', true);
                 $pdf->set_option('isRemoteEnabled', true);
 
-                $pdfFilename = $document['prefix'].'_'.time().'.pdf';
-                $pdfPath = storage_path('app/public/renewals/'.$pdfFilename);
+                $pdfFilename = $document['prefix'] . '_' . time() . '.pdf';
+                $pdfPath = storage_path('app/public/renewals/' . $pdfFilename);
 
-                Storage::put('public/renewals/'.$pdfFilename, $pdf->output());
+                Storage::put('public/renewals/' . $pdfFilename, $pdf->output());
                 $pdfSize = filesize($pdfPath);
 
                 // Create document record
                 PolicyRenewalDocument::create([
                     'policy_renewal_id' => $policyRenewal->id,
                     'doc_name' => $pdfFilename,
-                    'doc_path' => '/uploads/renewals/'.$pdfFilename,
+                    'doc_path' => '/uploads/renewals/' . $pdfFilename,
                     'doc_size' => $pdfSize,
                     'doc_type' => $document['type'],
                 ]);

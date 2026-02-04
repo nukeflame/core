@@ -2,29 +2,15 @@
 
 namespace App\Services\DebitNote;
 
-use App\DTOs\DebitNoteCalculationResult;
-use App\DTOs\ReinsurerShareCalculation;
-use App\DTOs\CedantShareCalculation;
 use App\Models\CoverRegister;
 use App\Models\CoverRipart;
 use App\Services\TaxCalculationService;
 
-/**
- * Handles all amount calculations for debit notes
- * 
- * Implements the proper reinsurance treaty proportional account calculations:
- * 1. Premium Share = Gross Premium × Share Percentage
- * 2. Commission = Premium Share × Commission Rate
- * 3. Brokerage = Premium Share × Brokerage Rate
- * 4. Premium Tax = Premium Share × Tax Rate (or Net Premium for net basis)
- * 5. Claims Share = Gross Claims × Share Percentage
- * 6. Net Amount = Premium Share - All Deductions
- */
 class AmountCalculator
 {
     // Debit item codes (income/premium items)
     private const DEBIT_CODES = ['IT01', 'IT11', 'IT20', 'IT26'];
-    
+
     // Credit item codes (deductions/claims)
     private const CREDIT_CODES = ['IT02', 'IT03', 'IT04', 'IT05', 'IT06', 'IT07', 'IT08', 'IT10', 'IT21', 'IT27', 'IT29', 'IT30'];
 
@@ -32,50 +18,42 @@ class AmountCalculator
         private readonly TaxCalculationService $taxService
     ) {}
 
-    /**
-     * Calculate all amounts for a debit note
-     * 
-     * @param array $data Input data containing items and rates
-     * @param CoverRegister|null $cover Cover register for reinsurer shares
-     * @return DebitNoteCalculationResult Complete calculation result
-     */
-    public function calculate(array $data, ?CoverRegister $cover = null): DebitNoteCalculationResult
+
+    public function calculate(array $data, ?CoverRegister $cover = null)
     {
         $items = $data['items'] ?? [];
         $brokerageRate = (float) ($data['brokerageRate'] ?? 0);
 
-        // Get reinsurers participating in this cover
         $reinsurers = $this->getReinsurers($cover);
-        
-        // Calculate for each reinsurer
-        $reinsurerCalculations = $this->calculateReinsurerShares($items, $reinsurers, $brokerageRate);
-        
-        // Calculate cedant share if applicable
-        $cedantCalculation = $this->calculateCedantShare($items, $cover, $brokerageRate);
-        
-        // Aggregate totals
-        $totals = $this->aggregateTotals($reinsurerCalculations);
 
-        return new DebitNoteCalculationResult(
-            grossAmount: $totals['gross'],
-            creditAmount: $totals['credit'],
-            commissionAmount: $totals['commission'],
-            brokerageRate: $brokerageRate,
-            brokerageAmount: $totals['brokerage'],
-            premiumTax: $totals['premium_tax'],
-            reinsuranceTax: $totals['reinsurance_tax'],
-            withholdingTax: $totals['withholding_tax'],
-            otherDeductions: $totals['other_deductions'],
-            totalDeductions: $totals['total_deductions'],
-            netAmount: $totals['net'],
-            reinsurers: $reinsurerCalculations,
-            cedant: $cedantCalculation
-        );
+        $reinsurerCalculations = $this->calculateReinsurerShares($items, $reinsurers, $brokerageRate);
+
+        // $cedantCalculation = $this->calculateCedantShare($items, $cover, $brokerageRate);
+
+        // $totals = $this->aggregateTotals($reinsurerCalculations);
+
+        // return new DebitNoteCalculationResult(
+        //     grossAmount: $totals['gross'],
+        //     creditAmount: $totals['credit'],
+        //     commissionAmount: $totals['commission'],
+        //     brokerageRate: $brokerageRate,
+        //     brokerageAmount: $totals['brokerage'],
+        //     premiumTax: $totals['premium_tax'],
+        //     reinsuranceTax: $totals['reinsurance_tax'],
+        //     withholdingTax: $totals['withholding_tax'],
+        //     otherDeductions: $totals['other_deductions'],
+        //     totalDeductions: $totals['total_deductions'],
+        //     netAmount: $totals['net'],
+        //     reinsurers: $reinsurerCalculations,
+        //     cedant: $cedantCalculation
+        // );
+
+        // logger()->debug(json_encode($reinsurerCalculations, JSON_PRETTY_PRINT));
+
+
+        return [];
     }
 
-    /**
-     * Calculate amounts for each reinsurer's share
-     */
     protected function calculateReinsurerShares(
         array $items,
         $reinsurers,
@@ -85,7 +63,7 @@ class AmountCalculator
 
         foreach ($reinsurers as $reinsurer) {
             $share = (float) ($reinsurer->share ?? 0);
-            
+
             if ($share <= 0) {
                 continue;
             }
@@ -93,7 +71,6 @@ class AmountCalculator
             $amountType = strtolower($reinsurer->amount_type ?? 'gross');
             $commissionRate = (float) ($reinsurer->commission_rate ?? 0);
 
-            // Initialize amounts
             $amounts = [
                 'gross' => 0,
                 'credit' => 0,
@@ -101,21 +78,18 @@ class AmountCalculator
                 'brokerage' => 0,
             ];
 
-            // Process each line item
             foreach ($items as $item) {
                 $this->processLineItem($item, $share, $commissionRate, $brokerageRate, $amounts);
             }
 
-            // Calculate taxes based on amount type
             $taxBase = $this->calculateTaxBase($amounts, $amountType);
-            
+
             $amounts['premium_tax'] = $this->taxService->calculatePremiumLevy($taxBase);
             $amounts['reinsurance_tax'] = $this->calculateReinsuranceTax($amounts['gross']);
             $amounts['withholding_tax'] = $this->calculateWithholdingTax($amounts['gross']);
 
-            // Calculate total deductions and net amount
-            $totalDeductions = $amounts['commission'] 
-                + $amounts['brokerage'] 
+            $totalDeductions = $amounts['commission']
+                + $amounts['brokerage']
                 + $amounts['premium_tax']
                 + $amounts['reinsurance_tax']
                 + $amounts['withholding_tax']
@@ -123,11 +97,12 @@ class AmountCalculator
 
             $netAmount = $amounts['gross'] - $totalDeductions;
 
+
             $calculations[] = new ReinsurerShareCalculation(
                 coverNo: $reinsurer->cover_no,
                 endorsementNo: $reinsurer->endorsement_no,
                 partnerCode: $reinsurer->partner_code,
-                reinsurerName: $reinsurer->partner?->name ?? 'Unknown',
+                reinsurerName: $reinsurer->partner?->name,
                 share: round($share, 4),
                 amountType: $amountType,
                 grossAmount: round($amounts['gross'], 2),
@@ -146,12 +121,11 @@ class AmountCalculator
             );
         }
 
+        logger()->debug(json_encode($calculations, JSON_PRETTY_PRINT));
+
         return $calculations;
     }
 
-    /**
-     * Process a single line item
-     */
     protected function processLineItem(
         array $item,
         float $sharePercentage,
@@ -167,18 +141,15 @@ class AmountCalculator
         $ledger = $this->determineLedger($item);
         $lineCommissionRate = (float) ($item['line_rate'] ?? $commissionRate);
 
-        // Calculate share of this item
+
         $shareAmount = $this->calculatePercentage($amount, $sharePercentage);
 
         if ($ledger === 'DR') {
-            // Debit items = Premium income
             $amounts['gross'] += $shareAmount;
-            
-            // Calculate commission and brokerage on the share amount
+
             $amounts['commission'] += $this->calculatePercentage($shareAmount, $lineCommissionRate);
             $amounts['brokerage'] += $this->calculatePercentage($shareAmount, $brokerageRate);
         } else {
-            // Credit items = Claims/Deductions
             $amounts['credit'] += $shareAmount;
         }
     }
@@ -196,7 +167,7 @@ class AmountCalculator
         }
 
         $cedantShare = (float) ($cover->share_offered ?? 0);
-        
+
         if ($cedantShare <= 0) {
             return null;
         }
@@ -289,7 +260,7 @@ class AmountCalculator
             $totals['net'] += $calc->netAmount;
         }
 
-        $totals['total_deductions'] = 
+        $totals['total_deductions'] =
             $totals['commission'] +
             $totals['brokerage'] +
             $totals['premium_tax'] +
@@ -300,9 +271,6 @@ class AmountCalculator
         return array_map(fn($value) => round($value, 2), $totals);
     }
 
-    /**
-     * Calculate tax base depending on amount type
-     */
     protected function calculateTaxBase(array $amounts, string $amountType): float
     {
         if ($amountType === 'net') {
@@ -314,9 +282,6 @@ class AmountCalculator
         return $amounts['gross'];
     }
 
-    /**
-     * Calculate percentage of an amount
-     */
     protected function calculatePercentage(float $amount, float $rate): float
     {
         if ($amount <= 0 || $rate <= 0) {
@@ -326,9 +291,6 @@ class AmountCalculator
         return round($amount * ($rate / 100), 2);
     }
 
-    /**
-     * Determine if item is debit (DR) or credit (CR)
-     */
     protected function determineLedger(array $item): string
     {
         // Check explicit ledger assignment
@@ -338,13 +300,10 @@ class AmountCalculator
 
         // Determine from item code
         $itemCode = $item['item_code'] ?? $item['description'] ?? '';
-        
+
         return in_array($itemCode, self::DEBIT_CODES) ? 'DR' : 'CR';
     }
 
-    /**
-     * Get reinsurers for a cover
-     */
     protected function getReinsurers(?CoverRegister $cover)
     {
         if (!$cover) {
@@ -358,25 +317,15 @@ class AmountCalculator
             ->get();
     }
 
-    /**
-     * Calculate reinsurance tax
-     * Override this method to implement specific reinsurance tax logic
-     */
     protected function calculateReinsuranceTax(float $grossAmount): float
     {
-        // Implement if reinsurance tax applies
-        // Example: return $this->taxService->calculateReinsuranceLevy($grossAmount);
+        // return $this->taxService->calculateReinsuranceLevy($grossAmount);
         return 0;
     }
 
-    /**
-     * Calculate withholding tax
-     * Override this method to implement specific WHT logic
-     */
     protected function calculateWithholdingTax(float $grossAmount): float
     {
-        // Implement if withholding tax applies
-        // Example: return $this->taxService->calculateWithholdingTax($grossAmount);
+        // return $this->taxService->calculateWithholdingTax($grossAmount);
         return 0;
     }
 }
