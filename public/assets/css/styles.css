@@ -54,10 +54,8 @@ opacity
 typography
 */
 /* FONT */
-/* inter */
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap");
-/* Montserrat */
-@import url("https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600&display=swap");
+/* Aptos Fonts - Local */
+@import url("aptos-fonts.css");
 :root {
     --body-bg-rgb: 240, 241, 247;
     --primary-rgb: 132, 90, 223;
@@ -85,7 +83,7 @@ typography
     --primary08: rgba(var(--primary-rgb), 0.8);
     --primary09: rgba(var(--primary-rgb), 0.9);
     --primary005: rgba(var(--primary-rgb), 0.05);
-    --default-font-family: "Inter", sans-serif;
+    --default-font-family: "Aptos", sans-serif;
     --default-font-weight: 400;
     --default-text-color: #333335;
     --default-border: #f3f3f3;
@@ -21903,7 +21901,7 @@ code[class*="language-"] {
     position: fixed;
     inset-block-start: 0;
     inset-inline-start: 0;
-    font-family: "Montserrat", sans-serif;
+    font-family: "Aptos Display", sans-serif;
     z-index: 103;
     transition: all 0.05s ease;
 }

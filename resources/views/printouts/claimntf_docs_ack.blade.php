@@ -6,7 +6,7 @@
     <style>
         .courier-10 {
             font-size: 10pt;
-            font-family: 'Open Sans', sans-serif;
+            font-family: 'Aptos', sans-serif;
         }
 
         .letterhead {
@@ -44,13 +44,13 @@
 
         p {
             font-size: 10pt;
-            font-family: 'Open Sans', sans-serif;
+            font-family: 'Aptos', sans-serif;
         }
     </style>
 
     <div class="claim-page"
-        style="width:100%;margin-top: 0px; padding:0px; font-size: 10pt; font-family: 'Open Sans',sans-serif;">
-        <div style="width:100%; margin-top: 0px; padding:0px; font-size: 10pt; font-family: 'Open Sans',sans-serif;"
+        style="width:100%;margin-top: 0px; padding:0px; font-size: 10pt; font-family: 'Aptos', sans-serif;">
+        <div style="width:100%; margin-top: 0px; padding:0px; font-size: 10pt; font-family: 'Aptos', sans-serif;"
             class="debit-reinsurer-page">
             {{-- <br /> --}}
             <table id="slip-header">
@@ -172,10 +172,10 @@
                     <td align="left"></td>
                 </tr>
                 <tr>
-                    <td align="left" style="font-size: 10.0pt; font-family: 'Open Sans', sans-serif;">Signature</td>
+                    <td align="left" style="font-size: 10.0pt; font-family: 'Aptos', sans-serif;">Signature</td>
                     <td align="left">&nbsp;
                     <td>
-                    <td align="left" style="font-size: 10.0pt; font-family: 'Open Sans', sans-serif;">
+                    <td align="left" style="font-size: 10.0pt; font-family: 'Aptos', sans-serif;">
                         Date:{!! formatDate(date('Ymd')) !!} </td>
                 </tr>
             </table>

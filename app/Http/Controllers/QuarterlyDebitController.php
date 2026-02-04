@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Controller;
 use App\Models\CoverRipart;
 use App\Models\DebitNote;
+use App\Models\Company;
 use App\Services\S3AttachmentHandler;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
@@ -246,7 +247,7 @@ class QuarterlyDebitController extends Controller
                 'message' => 'Debit item created successfully',
                 'data' => ['id' => $id, 'item_number' => $itemNumber]
             ], 201);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to create debit item'
@@ -277,7 +278,7 @@ class QuarterlyDebitController extends Controller
                 'success' => true,
                 'data' => $item
             ]);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
 
             return response()->json([
                 'success' => false,
@@ -341,14 +342,13 @@ class QuarterlyDebitController extends Controller
                 'success' => true,
                 'message' => 'Debit item updated successfully'
             ]);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to update item'
             ], 500);
         }
     }
-
     public function destroyDebitItem($id): JsonResponse
     {
         try {
@@ -365,7 +365,7 @@ class QuarterlyDebitController extends Controller
                 'success' => true,
                 'message' => 'Debit item deleted successfully'
             ]);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to delete item'
@@ -487,7 +487,7 @@ class QuarterlyDebitController extends Controller
                 'data' => [],
                 'error' => 'Invalid request parameters'
             ], 422);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
 
             return response()->json([
                 'draw' => (int) $request->input('draw', 1),
@@ -506,7 +506,7 @@ class QuarterlyDebitController extends Controller
                 'success' => true,
                 'data' => []
             ]);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
 
             return response()->json([
                 'success' => false,
@@ -531,7 +531,7 @@ class QuarterlyDebitController extends Controller
                 'success' => true,
                 'data' => []
             ]);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
 
             return response()->json([
                 'success' => false,
@@ -614,7 +614,7 @@ class QuarterlyDebitController extends Controller
                 'recordsFiltered' => $filteredRecords,
                 'data' => $data
             ]);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
 
             return response()->json([
                 'draw' => 1,
@@ -659,7 +659,7 @@ class QuarterlyDebitController extends Controller
                 'message' => 'Document generated successfully',
                 'data' => $result
             ]);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to generate document: ' . $e->getMessage()
@@ -716,7 +716,7 @@ class QuarterlyDebitController extends Controller
             ->select([
                 'tci.id',
                 'tci.item_code',
-                'tic.description as item_name',
+                DB::raw('COALESCE(tic.description, tci.description) as item_name'),
                 'tci.line_no',
                 'tci.description',
                 'tci.class_group_code',
@@ -743,6 +743,14 @@ class QuarterlyDebitController extends Controller
         $referenceNo = $creditNote->credit_note_no;
         $viewName = 'printouts.accounts.treaty-credit-note';
 
+        $company = Company::first();
+
+        // Fetch reinsurers for this cover
+        $reinsurers = CoverRipart::where([
+            'cover_no' => $coverNo,
+            'endorsement_no' => $endorsementNo
+        ])->with('partner')->get();
+
         $documentData = [
             'reference_no' => $referenceNo,
             'document_type' => 'Credit Note',
@@ -750,7 +758,10 @@ class QuarterlyDebitController extends Controller
             'cover' => $cover,
             'customer' => $cedant,
             'credit' => $creditNote,
+            'debit' => $creditNote,
             'credit_items' => $creditItems,
+            'reinsurers' => $reinsurers,
+            'company' => $company,
             'totals' => (object) [
                 'gross_premium' => $totalGross,
                 'commission' => $totalCommission,
@@ -762,8 +773,6 @@ class QuarterlyDebitController extends Controller
                 'to' => Carbon::parse($cover->cover_to)->format('d M Y')
             ]
         ];
-
-        logger()->debug(json_encode($documentData, JSON_PRETTY_PRINT));
 
         $pdf = Pdf::loadView($viewName, $documentData)->setPaper('a4', 'portrait')->setWarnings(false);
         $pdf->set_option('isHtml5ParserEnabled', true);
@@ -803,7 +812,7 @@ class QuarterlyDebitController extends Controller
                 'message' => 'Document generated successfully.',
                 'already_exists' => false
             ];
-        } catch (\Illuminate\Database\QueryException $e) {
+        } catch (QueryException $e) {
             if ($e->getCode() === '23505' || str_contains($e->getMessage(), 'duplicate key value')) {
                 $existingDocument = DB::table('treaty_documents')
                     ->where('reference', $referenceNo)
@@ -893,7 +902,7 @@ class QuarterlyDebitController extends Controller
                 'tdi.item_code',
                 'tdi.item_no',
                 'tdi.line_no',
-                'tc.description as item_name',
+                DB::raw('COALESCE(tc.description, tdi.description) as item_name'),
                 'tdi.class_group_code',
                 'cg.group_name',
                 'tdi.class_code',
@@ -907,7 +916,7 @@ class QuarterlyDebitController extends Controller
                 'tdi.net_amount',
                 'tdi.status',
                 'tdi.amount as item_amount',
-                'tc.description',
+                'tdi.description',
             ])
             ->orderBy('posting_date', 'desc')
             ->get();
@@ -1126,7 +1135,7 @@ class QuarterlyDebitController extends Controller
                 'message' => 'Statement generated successfully',
                 'download_url' => route('treaty.documents.download', ['id' => $reference])
             ]);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to generate statement'

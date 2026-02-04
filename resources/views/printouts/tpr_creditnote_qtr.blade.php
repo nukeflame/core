@@ -26,7 +26,7 @@
         #cover-details td {
             font-size: 10.0pt;
             padding: 4px;
-            font-family: 'Courier New';
+            font-family: 'Aptos Mono';
         }
 
         #reinsurer-details td,
@@ -35,7 +35,7 @@
         #breakdown-details td {
             text-align: left;
             font-size: 9.0pt;
-            font-family: 'Courier New';
+            font-family: 'Aptos Mono';
         }
 
         #credit-details td {
@@ -78,7 +78,7 @@
 
     @foreach ($reinsurers as $index => $reinsurer)
         <div class="reinsurer-page  {{ $index === 0 ? 'first-page' : '' }}"
-            style="width:100%;margin-top: 100px;padding:0px; font-size: 10.0pt; font-family: 'Courier New';">
+            style="width:100%;margin-top: 100px;padding:0px; font-size: 10.0pt; font-family: 'Aptos Mono';">
             <table style="width: 100%;">
                 <tr>
                     <td>
@@ -102,7 +102,7 @@
                     </td>
                     <td>
                         <table
-                            style="width:100%; margin-top: 0px;padding-left:300px; font-size: 10.0pt; font-family: 'Courier New';">
+                            style="width:100%; margin-top: 0px;padding-left:300px; font-size: 10.0pt; font-family: 'Aptos Mono';">
                             <tr>
                                 <td>
                                     @if ($debit->document == 'CRN')
@@ -140,48 +140,48 @@
                     <td valign="top">
                         <table style="width:100%;">
                             <tr>
-                                <td style="font-size: 10.0pt; font-family: 'Courier New';">Cover Number</td>
-                                <td style="font-size: 10.0pt; font-family: 'Courier New';">{{ $cover->cover_no }}</td>
+                                <td style="font-size: 10.0pt; font-family: 'Aptos Mono';">Cover Number</td>
+                                <td style="font-size: 10.0pt; font-family: 'Aptos Mono';">{{ $cover->cover_no }}</td>
                             </tr>
                             <tr>
-                                <td style="font-size: 10.0pt; font-family: 'Courier New';">Cover Reference</td>
-                                <td style="font-size: 10.0pt; font-family: 'Courier New';">{{ $cover->endorsement_no }}
+                                <td style="font-size: 10.0pt; font-family: 'Aptos Mono';">Cover Reference</td>
+                                <td style="font-size: 10.0pt; font-family: 'Aptos Mono';">{{ $cover->endorsement_no }}
                                 </td>
                             </tr>
                             <tr>
-                                <td style="font-size: 10.0pt; font-family: 'Courier New';">Sub class of Risk</td>
-                                <td style="font-size: 10.0pt; font-family: 'Courier New';">{{ firstUpper($class_name) }}
+                                <td style="font-size: 10.0pt; font-family: 'Aptos Mono';">Sub class of Risk</td>
+                                <td style="font-size: 10.0pt; font-family: 'Aptos Mono';">{{ firstUpper($class_name) }}
                                 </td>
                             </tr>
                             <tr>
-                                <td style="font-size: 10.0pt; font-family: 'Courier New';">Reinsured Name</td>
-                                <td style="font-size: 10.0pt; font-family: 'Courier New';">
+                                <td style="font-size: 10.0pt; font-family: 'Aptos Mono';">Reinsured Name</td>
+                                <td style="font-size: 10.0pt; font-family: 'Aptos Mono';">
                                     {{ firstUpper($cover->customer->name) }}</td>
                             </tr>
                             <tr>
-                                <td style="font-size: 10.0pt; font-family: 'Courier New';">Insured Name</td>
-                                <td style="font-size: 10.0pt; font-family: 'Courier New';">
+                                <td style="font-size: 10.0pt; font-family: 'Aptos Mono';">Insured Name</td>
+                                <td style="font-size: 10.0pt; font-family: 'Aptos Mono';">
                                     {{ firstUpper($cover->insured_name) }}</td>
                             </tr>
                             <tr>
-                                <td style="font-size: 10.0pt; font-family: 'Courier New';">Period of Cover</td>
-                                <td style="font-size: 10.0pt; font-family: 'Courier New';">
+                                <td style="font-size: 10.0pt; font-family: 'Aptos Mono';">Period of Cover</td>
+                                <td style="font-size: 10.0pt; font-family: 'Aptos Mono';">
                                     From:{{ formatDate($cover->cover_from) }} To:{{ formatDate($cover->cover_to) }}</td>
                             </tr>
                             <tr>
-                                <td style="font-size: 10.0pt; font-family: 'Courier New';">Payment Terms</td>
-                                <td style="font-size: 10.0pt; font-family: 'Courier New';">
+                                <td style="font-size: 10.0pt; font-family: 'Aptos Mono';">Payment Terms</td>
+                                <td style="font-size: 10.0pt; font-family: 'Aptos Mono';">
                                     {{ $ppw ? firstUpper($ppw->pay_term_desc) : ' ' }}</td>
                             </tr>
                             <tr>
-                                <td style="font-size: 10.0pt; font-family: 'Courier New';">Brief Description </td>
-                                <td style="font-size: 10.0pt; font-family: 'Courier New';">
+                                <td style="font-size: 10.0pt; font-family: 'Aptos Mono';">Brief Description </td>
+                                <td style="font-size: 10.0pt; font-family: 'Aptos Mono';">
                                     {{ firstUpper($cover->insured_name) }}-{{ $cover->type_of_bus }}-{{ firstUpper($cover->customer->name) }}
                                 </td>
                             </tr>
                             <tr>
-                                <td style="font-size: 10.0pt; font-family: 'Courier New';">Description </td>
-                                <td style="font-size: 10.0pt; font-family: 'Courier New';">
+                                <td style="font-size: 10.0pt; font-family: 'Aptos Mono';">Description </td>
+                                <td style="font-size: 10.0pt; font-family: 'Aptos Mono';">
                                     {{ date('Y', strtotime(formatDate($cover->cover_from))) }}-{{ firstUpper($cover->cover_title) }}-{{ firstUpper($cover->customer->name) }}
                                 </td>
                             </tr>

@@ -2,7 +2,7 @@
 
 namespace App\Services;
 
-use App\Exceptions\BusinessRuleException;
+// use App\Exceptions\BusinessRuleException;
 use App\Models\CoverRegister;
 use App\Models\CoverRipart;
 use App\Models\DebitNote;
@@ -98,7 +98,6 @@ class DebitNoteService
                 'posting_quarter' => $data['postingQuarter'],
                 'posting_date' => $data['postingDate'],
                 'brokerage_rate' => $data['brokerageRate'] ?? 0,
-                'brokerage_amount' => $amounts['brokerage_amount'],
                 'premium_tax' => $amounts['premium_tax'],
                 'reinsurance_tax' => $amounts['reinsurance_tax'],
                 'withholding_tax' => $amounts['withholding_tax'],
@@ -111,7 +110,6 @@ class DebitNoteService
                 'sliding_commission' => $data['slidingCommission'] ?? false,
                 'status' => DebitNote::STATUS_DRAFT,
                 'created_by' => auth()->id(),
-                // 'premium_levy' => $data['premium_levy']
             ]);
 
             $this->createLineItems($debitNote, $data['items']);
@@ -520,7 +518,7 @@ class DebitNoteService
             $itemCode = $item['item_code'] ?? $item['description'] ?? null;
             $ledger = $item['ledger'] ?? $this->determineLedger($itemCode);
             $itemNo = 'ITM-' . date('Y') . '-' . str_pad($lineNo, 4, '0', STR_PAD_LEFT);
-            $netAmount = '0.00';
+            $netAmount = $item['net_amount'] ?? $amount;
 
             $insertData[] = [
                 'debit_note_id' => $debitNote->id,
@@ -528,12 +526,14 @@ class DebitNoteService
                 'item_code' => $itemCode,
                 'item_no' => $itemNo,
                 'status' => DebitNote::STATUS_POSTED,
-                'description' => $item['description'] ?? $itemCode,
+                'description' => $item['description'],
                 'class_group_code' => $item['class_group'] ?? null,
                 'class_code' => $item['class_name'] ?? null,
                 'line_rate' => $item['line_rate'] ?? null,
                 'ledger' => $ledger,
                 'amount' => $amount,
+                'commission' => $item['commission'] ?? 0,
+                'premium_tax' => $item['premium_tax'] ?? 0,
                 'net_amount' => $netAmount,
                 'created_at' => now(),
                 'updated_at' => now(),
@@ -565,18 +565,14 @@ class DebitNoteService
                 // );
             }
 
-            // Store old values for audit
             $oldValues = $debitNote->toArray();
 
-            // Validate items
             if (isset($data['items'])) {
                 // $this->validateItems($data['items']);
             }
 
-            // Recalculate amounts
             $amounts = $this->calculateAmounts($data);
 
-            // Update debit note
             $debitNote->update([
                 'posting_year' => $data['posting_year'] ?? $debitNote->posting_year,
                 'posting_quarter' => $data['posting_quarter'] ?? $debitNote->posting_quarter,
@@ -598,13 +594,11 @@ class DebitNoteService
                 'updated_by' => auth()->id(),
             ]);
 
-            // Recreate line items
             if (isset($data['items'])) {
                 $debitNote->items()->delete();
                 $this->createLineItems($debitNote, $data['items']);
             }
 
-            // Log transaction
             $this->logTransaction($debitNote, 'UPDATE', $oldValues);
 
             return $debitNote->fresh(['items']);

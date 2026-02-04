@@ -3,13 +3,13 @@
 @section('content')
     <style>
         .debit-reinsurer-page {
-            font-family: "Open Sans", sans-serif;
+            font-family: 'Aptos', sans-serif;
             font-optical-sizing: auto;
             font-weight: 400;
             font-style: normal;
         }
     </style>
-    <div style="width:100%; margin-top: 0px; padding:0px; font-size: 9pt; font-family: 'Open Sans';"
+    <div style="width:100%; margin-top: 0px; padding:0px; font-size: 9pt; font-family: 'Aptos';"
         class="debit-reinsurer-page">
         <table id="cover-header">
             <tr>
@@ -216,7 +216,7 @@
             </thead>
         </table>
         <table
-            style="width:100%; border-collapse: collapse; font-size: 8pt; font-family: 'Open Sans'; margin-bottom: 10px;">
+            style="width:100%; border-collapse: collapse; font-size: 8pt; font-family: 'Aptos'; margin-bottom: 10px;">
             <thead>
                 <tr style="border: 1px solid #181212;">
                     <th colspan="1" class="no-border text-left p-3 p-9-l"> PREMIUM DUE DATE</th>
@@ -239,7 +239,7 @@
         <br />
         <table style="width: 100%; margin-bottom: 10px;">
             <tr>
-                <td align="left" style="font-size: 10.0pt; font-family: 'Open Sans';">
+                <td align="left" style="font-size: 10.0pt; font-family: 'Aptos';">
                     {{ $company->company_name }}</td>
                 <td align="left">&nbsp;</td>
                 <td align="left"></td>

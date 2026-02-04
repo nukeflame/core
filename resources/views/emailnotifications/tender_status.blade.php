@@ -5,7 +5,7 @@
     <title>Tender Status Update</title>
     <style>
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Aptos', Arial, sans-serif;
             line-height: 1.6;
             color: #333;
         }

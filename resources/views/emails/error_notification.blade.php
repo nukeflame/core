@@ -5,7 +5,7 @@
     <title>Application Error Notification</title>
     <style>
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Aptos', Arial, sans-serif;
             line-height: 1.6;
             color: #333;
         }

@@ -147,12 +147,18 @@ class SequenceService
         $this->validateInSet($businessType, self::VALID_BUSINESS_TYPES, 'business type');
 
         $year = $year ?? now()->year;
+        $type = 'R';
+        if ($businessType == self::BUSINESS_TYPE_TREATY) {
+            $type = 'T';
+        } elseif ($businessType == self::BUSINESS_TYPE_TREATY) {
+            $type = 'F';
+        }
 
         $result = $this->generateSequence(
             sequenceName: $this->buildSequenceName(self::SEQ_CREDIT_NOTE, $year, $businessType),
             year: $year,
             prefix: 'CN',
-            formatter: fn($value) => sprintf(self::FORMATS['credit_note'], $businessType, $year, $value),
+            formatter: fn($value) => sprintf(self::FORMATS['credit_note'], $type, $year, $value),
             context: ['type' => 'credit_note', 'business_type' => $businessType]
         );
 

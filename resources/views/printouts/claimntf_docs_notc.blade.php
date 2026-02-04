@@ -6,7 +6,7 @@
     <style>
         .courier-10 {
             font-size: 10pt;
-            font-family: 'Open Sans', sans-serif;
+            font-family: 'Aptos', sans-serif;
         }
 
         .letterhead {
@@ -44,14 +44,14 @@
 
         p {
             font-size: 10pt;
-            font-family: 'Open Sans', sans-serif;
+            font-family: 'Aptos', sans-serif;
         }
 
           .claim-page {
                 page-break-before: always;
                 break-inside: avoid;
                 page-break-inside: avoid;
-                font-family: "Open Sans", sans-serif;
+                font-family: 'Aptos', sans-serif;
                 font-optical-sizing: auto;
                 font-weight: 400;
                 font-style: normal;
@@ -64,8 +64,8 @@
     </style>
     @if ($reinsurers->count() > 0)
         @foreach ($reinsurers as $index => $reinsurer)
-            <div class="claim-page{{ $index === 0 ? 'first-page' : '' }}" style="width:100%; margin-top: 0px; padding:0px; font-size: 10pt; font-family: 'Open Sans',sans-serif;">
-                <div style="width:100%; margin-top: 0px; padding:0px; font-size: 10pt; font-family: 'Open Sans',sans-serif;" class="debit-reinsurer-page">
+            <div class="claim-page{{ $index === 0 ? 'first-page' : '' }}" style="width:100%; margin-top: 0px; padding:0px; font-size: 10pt; font-family: 'Aptos', sans-serif;">
+                <div style="width:100%; margin-top: 0px; padding:0px; font-size: 10pt; font-family: 'Aptos', sans-serif;" class="debit-reinsurer-page">
                     <table id="slip-header">
                         <tr>
                             <td style="width: 100%;">
@@ -150,9 +150,9 @@
                             <td align="left"></td>
                         </tr>
                         <tr>
-                            <td align="left" style="font-size: 10.0pt; font-family: 'Open Sans', sans-serif;">Signature</td>
+                            <td align="left" style="font-size: 10.0pt; font-family: 'Aptos', sans-serif;">Signature</td>
                             <td align="left">&nbsp;</td>
-                            <td align="left" style="font-size: 10.0pt; font-family: 'Open Sans', sans-serif;">Date:{!! formatDate(date('Ymd')) !!} </td>
+                            <td align="left" style="font-size: 10.0pt; font-family: 'Aptos', sans-serif;">Date:{!! formatDate(date('Ymd')) !!} </td>
                         </tr>
                     </table>
                 </div>

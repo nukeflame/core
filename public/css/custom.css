@@ -64,9 +64,11 @@
         url("../assets/fonts/open-sans/open-sans-600.woff") format("woff");
 } */
 body {
-    font-family: "Open sans", sans-serif;
-    font-weight: 300;
+    font-family: "Aptos", sans-serif;
+    font-weight: 400;
     visibility: hidden;
+    font-size: 14px;
+    line-height: 1.5;
 }
 b,
 strong {
@@ -89,8 +91,10 @@ select {
 }
 
 .app-sidebar .side-menu__item {
-    font-family: "Open sans", sans-serif;
-    font-weight: 300 !important;
+    font-family: "Aptos", sans-serif;
+    font-weight: 400 !important;
+    font-size: 14px !important;
+    line-height: 1.5;
 }
 
 .lh-20 {

@@ -114,8 +114,6 @@ class CreditNoteService
 
             $this->logTransaction($creditNote, 'CREATE');
 
-            logger()->debug(json_encode($creditNote, JSON_PRETTY_PRINT));
-
             return $creditNote->fresh(['items']);
         });
     }
@@ -499,7 +497,7 @@ class CreditNoteService
             $itemCode = $item['item_code'] ?? $item['description'] ?? null;
             $ledger = $item['ledger'] ?? $this->determineLedger($itemCode);
             $itemNo = 'CRN-' . date('Y') . '-' . str_pad($lineNo, 4, '0', STR_PAD_LEFT);
-            $netAmount = '0.00';
+            $netAmount = $item['net_amount'] ?? $amount;
 
             $insertData[] = [
                 'credit_note_id' => $creditNote->id,
@@ -513,6 +511,9 @@ class CreditNoteService
                 'line_rate' => $item['line_rate'] ?? null,
                 'ledger' => $ledger,
                 'amount' => $amount,
+                'commission' => $item['commission'] ?? 0,
+                'brokerage' => $item['brokerage'] ?? 0,
+                'premium_tax' => $item['premium_tax'] ?? 0,
                 'net_amount' => $netAmount,
                 'created_at' => now(),
                 'updated_at' => now(),

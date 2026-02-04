@@ -21,12 +21,12 @@
     #cover-details td {
         font-size: 10.0pt; 
         padding: 4px;
-        font-family: 'Courier New';
+        font-family: 'Aptos Mono';
     }
     #reinsurer-details td,#cover-details td,#credit-details td,#breakdown-details td{
         text-align:left; 
         font-size: 9.0pt; 
-        font-family: 'Courier New';
+        font-family: 'Aptos Mono';
     }
     /* #credit-details td{
         border: 1px solid black;
@@ -42,8 +42,8 @@
 .text-center{ text-align: center;}
 .hr-line{ border: 0.8px solid #3D3D3D;padding: 0;margin: 2px;}
 .calibri-10{font-size: 10.0pt;font-family: 'Calibri';}
-.courier-9{font-size: 9.0pt; font-family: 'Courier New';}
-.courier-10{font-size: 10.0pt; font-family: 'Courier New';}
+.courier-9{font-size: 9.0pt; font-family: 'Aptos Mono';}
+.courier-10{font-size: 10.0pt; font-family: 'Aptos Mono';}
 .w-100{width: 100%;}
 .no-border{border: none;}
 .text-right{ text-align: right;}
@@ -83,7 +83,7 @@
 }
 </style>
 @foreach($reinsurers as $index => $reinsurer)
-<div class="reinsurer-page  {{ $index === 0 ? 'first-page' : '' }}" style="width:100%;margin-top: 100px;padding:0px; font-size: 10.0pt; font-family: 'Courier New';">
+<div class="reinsurer-page  {{ $index === 0 ? 'first-page' : '' }}" style="width:100%;margin-top: 100px;padding:0px; font-size: 10.0pt; font-family: 'Aptos Mono';">
 
 <table class="w-100 courier-10 p-0">
     <tr>

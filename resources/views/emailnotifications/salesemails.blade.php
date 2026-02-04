@@ -5,7 +5,7 @@
     {{-- <title style="font-size: 10px;">{{ $title }}</title> --}}
     <style>
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Aptos', Arial, sans-serif;
             background-color: #f4f4f4;
             margin: 0;
             padding: 20px;
@@ -33,7 +33,7 @@
             margin-top: 30px;
             padding-top: 20px;
             border-top: 1px solid #e0e0e0;
-            font-family: Arial, sans-serif;
+            font-family: 'Aptos', Arial, sans-serif;
             font-size: 12px;
             color: #777;
         }
@@ -46,7 +46,7 @@
         {{-- <h2>{{ $title }}</h2> --}}
 
         <p
-            style="font-family: Arial, sans-serif; font-size: 14px; color: #000; margin: 0; padding: 0; line-height: 1.0;">
+            style="font-family: 'Aptos', Arial, sans-serif; font-size: 14px; color: #000; margin: 0; padding: 0; line-height: 1.0;">
             Dear {{ $salutation }},</p>
 
         <p style="margin: 0; padding: 0; line-height: 2.0;">{!! html_entity_decode($body) !!}</p>

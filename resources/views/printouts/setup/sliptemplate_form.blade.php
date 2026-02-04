@@ -126,7 +126,7 @@
                 contextmenu: 'link image table',
                 skin: 'oxide',
                 content_css: 'default',
-                content_style: 'body { font-family:Open Sans,Arial,sans-serif; font-size:15px }'
+                content_style: 'body { font-family:Aptos,Arial,sans-serif; font-size:15px }'
             });
 
             $("form#register_clause").validate({

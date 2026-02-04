@@ -6,7 +6,7 @@
             page-break-before: always;
             break-inside: avoid;
             page-break-inside: avoid;
-            font-family: "Open Sans", sans-serif;
+            font-family: 'Aptos', sans-serif;
             font-optical-sizing: auto;
             font-weight: 400;
             font-style: normal;
@@ -18,7 +18,7 @@
 
         .renewal-page,
         #insurance-table {
-            font-family: "Open Sans", sans-serif;
+            font-family: 'Aptos', sans-serif;
             font-optical-sizing: auto;
             font-weight: 400;
             font-style: normal;
@@ -53,7 +53,7 @@
                 </div>
                 <hr style="padding:0px; border-top: .5pt solid #ddd; margin: 10pt 1pt; margin-left: 5.5pt;" />
             </header>
-            <div style="width:100%; margin-top: 110px; padding:0px; font-size: 9pt; font-family: 'Open Sans';"
+            <div style="width:100%; margin-top: 110px; padding:0px; font-size: 9pt; font-family: 'Aptos';"
                 class="renewal-page">
                 <table id="cover-header">
                     <tr>

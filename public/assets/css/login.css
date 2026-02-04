@@ -16,11 +16,7 @@
 }
 
 body {
-    font-family:
-        "Outfit",
-        -apple-system,
-        BlinkMacSystemFont,
-        sans-serif;
+    font-family: "Aptos", sans-serif;
     overflow-x: hidden;
     background: var(--bg-light);
 }

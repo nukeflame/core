@@ -83,7 +83,7 @@
         .receipt-table {
             width: 100%;
             font-size: 10.0pt;
-            font-family: 'Open Sans', sans-serif;
+            font-family: 'Aptos', sans-serif;
         }
 
         .receipt-table td {
@@ -151,7 +151,7 @@
         #cover-s {
             padding: 0px;
             font-size: 10.0pt;
-            font-family: 'Open Sans', sans-serif;
+            font-family: 'Aptos', sans-serif;
             width: 100%;
         }
 
@@ -196,7 +196,7 @@
         #cover-details td {
             font-size: 8pt;
             padding: 4px;
-            font-family: 'Open Sans', sans-serif;
+            font-family: 'Aptos', sans-serif;
         }
 
         .reinsurer-details td,
@@ -206,7 +206,7 @@
         #breakdown-details td {
             text-align: left;
             font-size: 8pt;
-            font-family: 'Open Sans', sans-serif;
+            font-family: 'Aptos', sans-serif;
         }
 
         #particular-details {
@@ -278,27 +278,27 @@
 
         .calibri-10 {
             font-size: 10.0pt;
-            font-family: 'Open Sans', sans-serif;
+            font-family: 'Aptos', sans-serif;
         }
 
         .courier-9 {
             font-size: 9.0pt;
-            font-family: 'Open Sans', sans-serif;
+            font-family: 'Aptos', sans-serif;
         }
 
         .courier-10 {
             font-size: 10.0pt;
-            font-family: 'Open Sans', sans-serif;
+            font-family: 'Aptos', sans-serif;
         }
 
         .courier-7 {
             font-size: 7pt;
-            font-family: 'Open Sans', sans-serif;
+            font-family: 'Aptos', sans-serif;
         }
 
         .courier-8 {
             font-size: 8pt;
-            font-family: 'Open Sans', sans-serif;
+            font-family: 'Aptos', sans-serif;
         }
 
         .w-100 {
@@ -395,7 +395,7 @@
         <header class="logo-header">
             <div class="row-table">
                 <div class="logo">
-                    <img class="brand-logo" src="data:image/png;base64,<?php echo base64_encode(file_get_contents(base_path('public/assets/images/brand-logos/main-horizontal-logo.png'))); ?>" alt=""
+                    <img class="brand-logo" src="data:image/png;base64,<?php echo base64_encode(file_get_contents(base_path('public/assets/images/brand-logos/default-logo.png'))); ?>" alt=""
                         style="width: 230px; height: auto;" />
                 </div>
                 <div class="company-info">

@@ -11,7 +11,7 @@
         body {
             background-color: #f8fafc;
             color: #636b6f;
-            font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+            font-family: "Aptos", sans-serif;
             font-weight: 400;
             height: 100vh;
             margin: 0;

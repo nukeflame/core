@@ -13,7 +13,7 @@
         body {
             background-color: red;
             color: #636b6f;
-            font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+            font-family: "Aptos", sans-serif;
             font-weight: 100;
             height: 100vh;
             margin: 0;

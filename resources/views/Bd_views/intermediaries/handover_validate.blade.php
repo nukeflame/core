@@ -196,7 +196,7 @@
         .financial-value {
             font-size: 1.25rem;
             font-weight: 700;
-            font-family: 'Courier New', monospace;
+            font-family: 'Aptos Mono', monospace;
         }
 
         .table-container {

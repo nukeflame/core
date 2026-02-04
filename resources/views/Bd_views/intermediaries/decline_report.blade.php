@@ -7,7 +7,7 @@
         #client-table {
             width: 100%;
             border-collapse: collapse;
-            font-family: Arial, sans-serif;
+            font-family: 'Aptos', Arial, sans-serif;
             font-size: 14px;
             color: #333;
             background-color: #fff;

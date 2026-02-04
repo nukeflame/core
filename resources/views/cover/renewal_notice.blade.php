@@ -240,7 +240,7 @@
                 content_css: 'default',
                 quickbars_insert_toolbar: false,
                 quickbars_selection_toolbar: false,
-                content_style: 'body { font-family:Open Sans,Arial,sans-serif; font-size:15px } p,h1 {margin: 0px; padding:0px;}'
+                content_style: 'body { font-family:Aptos,Arial,sans-serif; font-size:15px } p,h1 {margin: 0px; padding:0px;}'
             });
 
             const renewalTbl = $('#renewal-table').DataTable({

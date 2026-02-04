@@ -5,7 +5,7 @@
         <title>Tender Print out</title>
         <style>
             body {
-                font-family: Arial, sans-serif;
+                font-family: 'Aptos', Arial, sans-serif;
                 margin: 0;
                 padding: 0;
                 top: 0;

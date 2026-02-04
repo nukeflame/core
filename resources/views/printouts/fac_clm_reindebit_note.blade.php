@@ -21,7 +21,7 @@
             page-break-before: always;
             break-inside: avoid;
             page-break-inside: avoid;
-            font-family: "Open Sans", sans-serif;
+            font-family: 'Aptos', sans-serif;
             font-optical-sizing: auto;
             font-weight: 400;
             font-style: normal;
@@ -41,7 +41,7 @@
                     $credit_partner = $credits->where('partner_no', $reinsurer->partner_no);
                 @endphp
                 <div class="reinsurer-page{{ $index === 0 ? 'first-page' : '' }}">
-                    <div style="width:100%; margin-top: 0px; padding:0px; font-size: 9pt; font-family: 'Open Sans';">
+                    <div style="width:100%; margin-top: 0px; padding:0px; font-size: 9pt; font-family: 'Aptos';">
                         <table id="cover-header">
                             <tr>
                                 <td>
@@ -287,7 +287,7 @@
                         <br />
                         <table style="width: 100%; margin-bottom: 10px;">
                             <tr>
-                                <td align="left" style="font-size: 10.0pt; font-family: 'Open Sans';">
+                                <td align="left" style="font-size: 10.0pt; font-family: 'Aptos';">
                                     {{ $company->company_name }}</td>
                                 <td align="left">&nbsp;</td>
                                 <td align="left"></td>

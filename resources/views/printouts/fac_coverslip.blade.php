@@ -4,7 +4,7 @@
     <style>
         .debit-reinsurer-page,
         .row-header {
-            font-family: "Open Sans", sans-serif;
+            font-family: 'Aptos', sans-serif;
             font-optical-sizing: auto;
             font-weight: 400;
             font-style: normal;
@@ -26,7 +26,7 @@
         });
     @endphp
     @if (!$has_partner)
-        <div style="width:100%; margin-top: 0px; padding:0px; font-size: 10pt; font-family: 'Open Sans';"
+        <div style="width:100%; margin-top: 0px; padding:0px; font-size: 10pt; font-family: 'Aptos';"
             class="debit-reinsurer-pdage">
             <table id="slip-header">
                 <tr>
@@ -381,7 +381,7 @@
                     $reinsurerCompany = $reinsurer->partner;
                 @endphp
                 <div class="reinsurer-page{{ $index === 0 ? 'first-page' : '' }}">
-                    <div style="width:100%; margin-top: 0px; padding:0px; font-size: 10pt; font-family: 'Open Sans';"
+                    <div style="width:100%; margin-top: 0px; padding:0px; font-size: 10pt; font-family: 'Aptos';"
                         class="debit-reinsurer-page">
                         <table id="slip-header">
                             <tr>

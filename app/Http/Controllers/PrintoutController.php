@@ -1413,7 +1413,7 @@ class PrintoutController extends Controller
                     'application/pdf'
                 )
                 ->header('Content-Disposition', 'inline; filename="Credit_Note_' . time() . '.pdf"');
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return response()->json([
                 'status' => Response::HTTP_INTERNAL_SERVER_ERROR,
                 'message' => 'An internal server error occurred.',

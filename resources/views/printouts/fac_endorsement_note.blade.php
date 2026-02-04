@@ -3,7 +3,7 @@
 @section('content')
     <style>
         .endorsement-page {
-            font-family: "Open Sans", sans-serif;
+            font-family: 'Aptos', sans-serif;
             font-optical-sizing: auto;
             font-weight: 400;
             font-style: normal;

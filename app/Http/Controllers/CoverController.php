@@ -1508,7 +1508,7 @@ class CoverController extends Controller
 
             if ($debitData['isFacultative']) {
                 $redirectUrl  = null;
-                // $this->createCoverDebit($debitData, $cover);
+                $this->createCoverDebit($debitData, $cover);
             } else if ($debitData['isTreaty']) {
                 $redirectUrl  = route('cover.transactions.index', [
                     'coverNo' => $cover->cover_no,
@@ -1520,13 +1520,11 @@ class CoverController extends Controller
 
             $this->createCustomerAccount($debitData, $cover);
 
-            $cover->commited = 'Y';
-            $cover->save();
+            // $cover->commited = 'Y';
+            // $cover->save();
 
 
             DB::commit();
-
-            // logger()->debug(json_encode($creditData, JSON_PRETTY_PRINT));
 
             return response()->json([
                 'success' => true,
@@ -1580,6 +1578,16 @@ class CoverController extends Controller
     {
         $typeOfBus = $validatedData['type_of_bus'];
         $netAmount = $this->parseNumber($validatedData['amount']);
+        $brokerageRate = (float) ($validatedData['brokerage_rate'] ?? 0);
+        $premiumTaxRate = (float) ($validatedData['premium_levy'] ?? 0);
+        $commissionRate = (float) ($coverRegister->comm_rate ?? 0);
+
+        $enhancedItems = $this->enhanceItemsWithDeductions(
+            $validatedData['items'] ?? [],
+            $brokerageRate,
+            $premiumTaxRate,
+            $commissionRate
+        );
 
         return [
             'typeOfBus' => $typeOfBus,
@@ -1601,12 +1609,12 @@ class CoverController extends Controller
             'postingYear' => $validatedData['posting_year'],
             'postingQuarter' => $validatedData['posting_quarter'],
             'postingDate' => $validatedData['posting_date'],
-            'brokerageRate' => $validatedData['brokerage_rate'],
+            'brokerageRate' => $brokerageRate,
             'comments' => $validatedData['comments'] ?? '',
-            'items' => $validatedData['items'] ?? [],
-            'computePremiumTax' => $validatedData['compute_premium_tax'] ?? 0,
-            'computeReinsuranceTax' => $validatedData['compute_reinsurance_tax'] ?? 0,
-            'computeWithholdingTax' => $validatedData['compute_withholding_tax'] ?? 0,
+            'items' => $enhancedItems,
+            'computePremiumTax' => $premiumTaxRate,
+            'computeReinsuranceTax' => $validatedData['reinsurance_levy'] ?? 0,
+            'computeWithholdingTax' => $validatedData['wht_rate'] ?? 0,
             'lossParticipation' => $validatedData['loss_participation'] ?? 0,
             'showCedant' => $validatedData['show_cedant'] ?? false,
             'showReinsurer' => $validatedData['show_reinsurer'] ?? false,
@@ -1782,10 +1790,146 @@ class CoverController extends Controller
         };
     }
 
+    private function enhanceItemsWithDeductions(
+        array $items, 
+        float $brokerageRate, 
+        float $premiumTaxRate = 0,
+        float $commissionRate = 0
+    ): array
+    {
+        $expandedItems = [];
+        
+        foreach ($items as $item) {
+            $amount = (float) ($item['amount'] ?? 0);
+            $lineRate = (float) ($item['line_rate'] ?? 0); 
+            $ledger = $item['ledger'] ?? 'DR';
+            $classGroup = $item['class_group'] ?? null;
+            $className = $item['class_name'] ?? null;
+            
+            if ($ledger === 'DR' && $amount > 0) {
+                $sharedAmount = $amount * ($lineRate / 100);
+                
+                // 1. Add the Gross Premium item
+                $expandedItems[] = [
+                    'item_type' => 'DEBIT',
+                    'item_code' => 'IT01',
+                    'description' => 'Gross Premium',
+                    'class_group' => $classGroup,
+                    'class_name' => $className,
+                    'line_rate' => $lineRate,
+                    'ledger' => 'DR',
+                    'amount' => $amount,
+                    'item_amount' => $sharedAmount,
+                    'commission' => 0,
+                    'brokerage' => 0,
+                    'premium_tax' => 0,
+                    'net_amount' => $sharedAmount,
+                ];
+
+                // Calculate commission
+                $commissionOnShare = $sharedAmount * ($commissionRate / 100);
+
+                // 2. Add Commission item (if applicable)
+                if ($commissionOnShare > 0) {
+                    $expandedItems[] = [
+                        'item_type' => 'CREDIT',
+                        'item_code' => 'IT03',
+                        'description' => 'Commission',
+                        'class_group' => $classGroup,
+                        'class_name' => $className,
+                        'line_rate' => $commissionRate,
+                        'ledger' => 'CR',
+                        'amount' => $sharedAmount, 
+                        'item_amount' => $commissionOnShare, 
+                        'commission' => $commissionOnShare,
+                        'brokerage' => 0,
+                        'premium_tax' => 0,
+                        'net_amount' => $commissionOnShare,
+                    ];
+                }
+
+                // Calculate premium tax on shared amount
+                $premiumTaxAmount = $sharedAmount * ($premiumTaxRate / 100);
+
+                // 4. Add Premium Tax item (if applicable)
+                if ($premiumTaxAmount > 0) {
+                    $expandedItems[] = [
+                        'item_type' => 'CREDIT',
+                        'item_code' => 'IT05',
+                        'description' => 'Premium Tax',
+                        'class_group' => $classGroup,
+                        'class_name' => $className,
+                        'line_rate' => $premiumTaxRate,
+                        'ledger' => 'CR',
+                        'amount' => $sharedAmount, 
+                        'item_amount' => $premiumTaxAmount,
+                        'commission' => 0,
+                        'brokerage' => 0,
+                        'premium_tax' => $premiumTaxAmount,
+                        'net_amount' => $premiumTaxAmount,
+                    ];
+                }
+            } else {
+                // CR items (claims) - add as-is with shared calculation
+                $sharedAmount = $amount * ($lineRate / 100);
+                $brokerageOnShare = $sharedAmount * ($brokerageRate / 100);
+
+                $expandedItems[] = [
+                    'item_type' => 'CREDIT',
+                    'item_code' => $item['item_code'],
+                    'description' => 'Claims',
+                    'class_group' => $classGroup,
+                    'class_name' => $className,
+                    'line_rate' => $lineRate,
+                    'ledger' => 'CR',
+                    'amount' => $amount,
+                    'item_amount' => $sharedAmount,
+                    'commission' => 0,
+                    'brokerage' => 0,
+                    'premium_tax' => 0,
+                    'net_amount' => $sharedAmount,
+                ];
+
+                // Add Brokerage item
+                if ($brokerageOnShare > 0) {
+                    $expandedItems[] = [
+                        'item_type' => 'CREDIT',
+                        'item_code' => 'IT04',
+                        'description' => 'Brokerage',
+                        'class_group' => $classGroup,
+                        'class_name' => $className,
+                        'line_rate' => $brokerageRate,
+                        'ledger' => 'CR',
+                        'amount' => $sharedAmount, 
+                        'item_amount' => $brokerageOnShare, 
+                        'commission' => 0,
+                        'brokerage' => $brokerageOnShare,
+                        'premium_tax' => 0,
+                        'net_amount' => $brokerageOnShare,
+                    ];
+                }
+
+            }
+        }
+
+        return $expandedItems;
+    }
+
     private function prepareDebitData(array $validatedData, CoverRegister $coverRegister): array
     {
         $typeOfBus = $validatedData['type_of_bus'];
         $netAmount = $this->parseNumber($validatedData['amount']);
+        $brokerageRate = (float) ($validatedData['brokerage_rate'] ?? 0);
+        $premiumTaxRate = (float) ($validatedData['premium_levy'] ?? 0);
+        $commissionRate = (float) ($coverRegister->comm_rate ?? 0);
+
+        $enhancedItems = $this->enhanceItemsWithDeductions(
+            $validatedData['items'] ?? [],
+            $brokerageRate,
+            $premiumTaxRate,
+            $commissionRate
+        );
+
 
         return [
             'typeOfBus' => $typeOfBus,
@@ -1807,13 +1951,12 @@ class CoverController extends Controller
             'postingYear' => $validatedData['posting_year'],
             'postingQuarter' => $validatedData['posting_quarter'],
             'postingDate' => $validatedData['posting_date'],
-            'brokerageRate' => $validatedData['brokerage_rate'],
-            // 'commissionRate' => $validatedData['line_rate'],
+            'brokerageRate' => $brokerageRate,
             'comments' => $validatedData['comments'] ?? '',
-            'items' => $validatedData['items'] ?? [],
-            'computePremiumTax' => $validatedData['compute_premium_tax'] ?? 0,
-            'computeReinsuranceTax' => $validatedData['compute_reinsurance_tax'] ?? 0,
-            'computeWithholdingTax' => $validatedData['compute_withholding_tax'] ?? 0,
+            'items' => $enhancedItems,
+            'computePremiumTax' => $premiumTaxRate,
+            'computeReinsuranceTax' => $validatedData['reinsurance_levy'] ?? 0,
+            'computeWithholdingTax' => $validatedData['wht_rate'] ?? 0,
             'lossParticipation' => $validatedData['loss_participation'] ?? 0,
             'showCedant' => $validatedData['show_cedant'] ?? false,
             'showReinsurer' => $validatedData['show_reinsurer'] ?? false,
@@ -4031,7 +4174,6 @@ class CoverController extends Controller
             // }
         }
 
-        logger()->debug(json_encode($reinsurer, JSON_PRETTY_PRINT));
         return $data;
     }
 }

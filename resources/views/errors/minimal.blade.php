@@ -23,7 +23,7 @@
         }
 
         code {
-            font-family: monospace, monospace;
+            font-family: "Aptos Mono", monospace;
             font-size: 1em
         }
 
@@ -32,7 +32,7 @@
         }
 
         html {
-            font-family: system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica Neue, Arial, Noto Sans, sans-serif, Apple Color Emoji, Segoe UI Emoji, Segoe UI Symbol, Noto Color Emoji;
+            font-family: "Aptos", sans-serif;
             line-height: 1.5
         }
 
@@ -49,7 +49,7 @@
         }
 
         code {
-            font-family: Menlo, Monaco, Consolas, Liberation Mono, Courier New, monospace
+            font-family: "Aptos Mono", monospace
         }
 
         svg,
@@ -527,7 +527,7 @@
 
     <style>
         body {
-            font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+            font-family: "Aptos", sans-serif;
         }
     </style>
 </head>

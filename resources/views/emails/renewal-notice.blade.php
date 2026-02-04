@@ -4,7 +4,7 @@
 <head>
     <style>
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Aptos', Arial, sans-serif;
         }
 
         .header {

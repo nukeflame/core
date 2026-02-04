@@ -5,7 +5,7 @@
         .fac-page {
             page-break-after: always;
             page-break-inside: avoid;
-            font-family: "Open Sans", sans-serif;
+            font-family: 'Aptos', sans-serif;
             font-optical-sizing: auto;
             font-weight: 400;
             font-style: normal;
@@ -29,7 +29,7 @@
 
         .opensans-10,
         .opensans-9 {
-            font-family: 'Open Sans';
+            font-family: 'Aptos';
             vertical-align: top;
             padding: 5px;
             font-size: 9pt;
@@ -117,7 +117,7 @@
         @foreach ($reinsurersToDisplay as $index => $reinsurer)
             {{-- <div class="watermark">PROVISIONAL SLIP</div> --}}
             <div class="fac-page{{ $index === 0 ? ' first-page' : '' }}">
-                <div style="width:100%; margin-top: 0; padding:0; font-size: 10pt; font-family: 'Open Sans';"
+                <div style="width:100%; margin-top: 0; padding:0; font-size: 10pt; font-family: 'Aptos';"
                     class="debit-reinsurer-page">
 
                     <table id="slip-header" style="width: 100%; margin-bottom: 20px;">
@@ -351,7 +351,7 @@
         @endforeach
     @else
         <div class="fac-page">
-            <div style="width:100%; margin-top: 0; padding:0; font-size: 10pt; font-family: 'Open Sans';"
+            <div style="width:100%; margin-top: 0; padding:0; font-size: 10pt; font-family: 'Aptos';"
                 class="debit-reinsurer-page">
 
                 <table id="slip-header" style="width: 100%; margin-bottom: 20px;">

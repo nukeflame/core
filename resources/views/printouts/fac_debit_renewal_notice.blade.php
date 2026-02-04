@@ -4,7 +4,7 @@
     <style>
         .renewal-page,
         #insurance-table {
-            font-family: "Open Sans", sans-serif;
+            font-family: 'Aptos', sans-serif;
             font-optical-sizing: auto;
             font-weight: 400;
             font-style: normal;
@@ -19,7 +19,7 @@
             padding-top: 8px !important;
         }
     </style>
-    <div style="width:100%; margin-top: 110px; padding:0px; font-size: 9pt; font-family: 'Open Sans';" class="renewal-page">
+    <div style="width:100%; margin-top: 110px; padding:0px; font-size: 9pt; font-family: 'Aptos';" class="renewal-page">
         <table id="cover-header">
             <tr>
                 <td colspan="2" class="text-center">

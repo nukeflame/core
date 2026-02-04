@@ -4,7 +4,7 @@
 <head>
     <style>
         body {
-            font-family: Arial, sans-serif;
+            font-family: "Aptos", Arial, sans-serif;
             background-color: #f4f4f4;
             margin: 0;
             padding: 20px;
