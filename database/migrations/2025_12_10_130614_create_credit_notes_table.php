@@ -24,18 +24,18 @@ return new class extends Migration
             $table->string('posting_quarter', 5)->comment('Q1, Q2, Q3, Q4');
             $table->date('posting_date');
             $table->string('currency', 3)->default('KES');
-            $table->decimal('exchange_rate', 12, 6)->default(1.000000);
+            $table->decimal('exchange_rate', 24, 12)->default(1.000000);
 
-            $table->decimal('gross_amount', 18, 2)->default(0);
-            $table->decimal('commission_rate', 8, 4)->default(0);
-            $table->decimal('commission_amount', 18, 2)->default(0);
-            $table->decimal('brokerage_rate', 8, 4)->default(0);
-            $table->decimal('brokerage_amount', 18, 2)->default(0);
-            $table->decimal('premium_levy', 18, 2)->default(0);
-            $table->decimal('reinsurance_levy', 18, 2)->default(0);
-            $table->decimal('withholding_tax', 18, 2)->default(0);
-            $table->decimal('other_deductions', 18, 2)->default(0);
-            $table->decimal('net_amount', 18, 2)->default(0);
+            $table->decimal('gross_amount', 28, 12)->default(0);
+            $table->decimal('commission_rate', 24, 12)->default(0);
+            $table->decimal('commission_amount', 28, 12)->default(0);
+            $table->decimal('brokerage_rate', 24, 12)->default(0);
+            $table->decimal('brokerage_amount', 28, 12)->default(0);
+            $table->decimal('premium_levy', 28, 12)->default(0);
+            $table->decimal('reinsurance_levy', 28, 12)->default(0);
+            $table->decimal('withholding_tax', 28, 12)->default(0);
+            $table->decimal('other_deductions', 28, 12)->default(0);
+            $table->decimal('net_amount', 28, 12)->default(0);
 
             $table->boolean('compute_premium_tax')->default(false);
             $table->boolean('compute_reinsurance_tax')->default(false);

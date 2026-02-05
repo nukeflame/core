@@ -21,17 +21,17 @@ return new class extends Migration
             $table->string('class_group_code', 10)->nullable();
             $table->string('class_code', 10)->nullable();
 
-            $table->decimal('line_rate', 8, 4)->nullable()->comment('Commission/rate %');
+            $table->decimal('line_rate', 24, 12)->nullable()->comment('Commission/rate %');
             $table->enum('ledger', ['DR', 'CR'])->default('DR')->comment('Debit or Credit');
-            $table->decimal('amount', 18, 2)->default(0);
-            $table->decimal('original_amount', 18, 2)->nullable()->comment('Amount in original currency');
+            $table->decimal('amount', 28, 12)->default(0);
+            $table->decimal('original_amount', 28, 12)->nullable()->comment('Amount in original currency');
             $table->string('original_currency', 3)->nullable();
 
             $table->string('reference', 100)->nullable()->comment('External reference');
             $table->text('remarks')->nullable();
 
             $table->string('item_no')->nullable();
-            $table->double('net_amount', 2)->nullable();
+            $table->decimal('net_amount', 28, 12)->nullable();
             $table->string('status')->nullable();
 
             $table->timestamps();

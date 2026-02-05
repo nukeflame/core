@@ -13,15 +13,15 @@ return new class extends Migration
     {
         // Add deduction columns to debit_note_items
         Schema::table('debit_note_items', function (Blueprint $table) {
-            $table->decimal('commission', 18, 2)->default(0)->after('amount');
-            $table->decimal('premium_tax', 18, 2)->default(0)->after('commission');
+            $table->decimal('commission', 28, 12)->default(0)->after('amount');
+            $table->decimal('premium_tax', 28, 12)->default(0)->after('commission');
         });
 
         // Add deduction columns to credit_note_items
         Schema::table('credit_note_items', function (Blueprint $table) {
-            $table->decimal('commission', 18, 2)->default(0)->after('amount');
-            $table->decimal('brokerage', 18, 2)->default(0)->after('commission');
-            $table->decimal('premium_tax', 18, 2)->default(0)->after('brokerage');
+            $table->decimal('commission', 28, 12)->default(0)->after('amount');
+            $table->decimal('brokerage', 28, 12)->default(0)->after('commission');
+            $table->decimal('premium_tax', 28, 12)->default(0)->after('brokerage');
         });
     }
 

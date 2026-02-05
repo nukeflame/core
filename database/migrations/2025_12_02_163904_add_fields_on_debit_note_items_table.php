@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::table('debit_note_items', function (Blueprint $table) {
             $table->string('item_no')->nullable();
-            $table->double('net_amount', 2)->nullable();
+            $table->decimal('net_amount', 28, 12)->nullable();
             $table->string('status')->nullable();
         });
     }
