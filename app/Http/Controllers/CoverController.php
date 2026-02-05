@@ -1544,15 +1544,15 @@ class CoverController extends Controller
                 ]);
 
                 $this->createTreatyDebit($debitData, $cover);
-                // $this->createTreatyCredit($creditData, $cover);
+                $this->createTreatyCredit($creditData, $cover);
             }
 
-            // $this->createCustomerAccount($debitData, $cover);
+            $this->createCustomerAccount($debitData, $cover);
 
             // $cover->commited = 'Y';
             // $cover->save();
 
-            DB::commit();
+            // DB::commit();
 
             return response()->json([
                 'success' => true,
@@ -1570,9 +1570,6 @@ class CoverController extends Controller
             ], 422);
         } catch (BusinessRuleException $e) {
             DB::rollBack();
-
-            logger($e);
-
             return response()->json([
                 'success' => false,
                 'message' => $e->getMessage(),

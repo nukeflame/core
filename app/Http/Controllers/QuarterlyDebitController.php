@@ -171,7 +171,7 @@ class QuarterlyDebitController extends Controller
                 'recordsTotal' => 0,
                 'recordsFiltered' => 0,
                 'data' => [],
-                'error' => 'Failed to fetch debit items: '.$e->getMessage(),
+                'error' => 'Failed to fetch debit items: ' . $e->getMessage(),
             ], 500);
         }
     }
@@ -303,7 +303,7 @@ class QuarterlyDebitController extends Controller
                 'recordsTotal' => 0,
                 'recordsFiltered' => 0,
                 'data' => [],
-                'error' => 'Failed to fetch credit items: '.$e->getMessage(),
+                'error' => 'Failed to fetch credit items: ' . $e->getMessage(),
             ], 500);
         }
     }
@@ -325,7 +325,7 @@ class QuarterlyDebitController extends Controller
 
         $normalizedStatus = strtoupper(trim($status));
 
-        return $badges[$normalizedStatus] ?? '<span class="badge bg-secondary">'.e($status).'</span>';
+        return $badges[$normalizedStatus] ?? '<span class="badge bg-secondary">' . e($status) . '</span>';
     }
 
     public function storeDebitItem(Request $request): JsonResponse
@@ -797,7 +797,7 @@ class QuarterlyDebitController extends Controller
         } catch (Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to generate document: '.$e->getMessage(),
+                'message' => 'Failed to generate document: ' . $e->getMessage(),
             ], 500);
         }
     }
@@ -1052,6 +1052,7 @@ class QuarterlyDebitController extends Controller
                 'tdi.status',
                 'tdi.amount as item_amount',
                 'tdi.description',
+                'tdi.original_amount'
             ])
             ->orderBy('posting_date', 'desc')
             ->get();
@@ -1153,7 +1154,7 @@ class QuarterlyDebitController extends Controller
 
     protected function saveDocumentFile($pdf, $referenceNo, $type)
     {
-        $fileName = "{$referenceNo}_{$type}_".Carbon::now()->format('YmdHis').'.pdf';
+        $fileName = "{$referenceNo}_{$type}_" . Carbon::now()->format('YmdHis') . '.pdf';
 
         $pdfContent = $pdf->output();
 
@@ -1186,8 +1187,8 @@ class QuarterlyDebitController extends Controller
             return Storage::download($filePath);
         }
 
-        if (file_exists(storage_path('app/'.$filePath))) {
-            return response()->download(storage_path('app/'.$filePath));
+        if (file_exists(storage_path('app/' . $filePath))) {
+            return response()->download(storage_path('app/' . $filePath));
         }
         //   $query = CoverRipart::where([
         //         'cover_no' => $coverNo,
@@ -1248,14 +1249,14 @@ class QuarterlyDebitController extends Controller
                 ], 404);
             }
 
-            $reference = 'SOA-'.date('Y').'-'.str_pad(rand(1, 999), 3, '0', STR_PAD_LEFT);
+            $reference = 'SOA-' . date('Y') . '-' . str_pad(rand(1, 999), 3, '0', STR_PAD_LEFT);
 
             DB::table('treaty_documents')->insert([
                 'cover_no' => $cover->cover_no,
                 'endorsement_no' => $cover->endorsement_no,
                 'document_type' => 'Statement of Account',
                 'reference' => $reference,
-                'description' => 'Quarterly Statement - '.date('F Y'),
+                'description' => 'Quarterly Statement - ' . date('F Y'),
                 'generated_date' => now()->toDateString(),
                 'generated_by' => auth()->user()->user_name ?? 'System',
                 'status' => 'generated',
@@ -1302,7 +1303,7 @@ class QuarterlyDebitController extends Controller
             ])
             ->get();
 
-        $filename = 'debit_items_'.$cover->cover_no.'_'.date('Y-m-d').'.csv';
+        $filename = 'debit_items_' . $cover->cover_no . '_' . date('Y-m-d') . '.csv';
 
         $headers = [
             'Content-Type' => 'text/csv',
@@ -1436,7 +1437,7 @@ class QuarterlyDebitController extends Controller
         } catch (Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to fetch summary stats: '.$e->getMessage(),
+                'message' => 'Failed to fetch summary stats: ' . $e->getMessage(),
             ], 500);
         }
     }
@@ -1468,7 +1469,7 @@ class QuarterlyDebitController extends Controller
             'email' => $customer->email ?? 'N/A',
             'phone' => $customer->phone ?? 'N/A',
             'treaty_year' => Carbon::parse($cover->cover_from)->format('Y'),
-            'treaty_period' => Carbon::parse($cover->cover_from)->format('d M Y').' - '.Carbon::parse($cover->cover_to)->format('d M Y'),
+            'treaty_period' => Carbon::parse($cover->cover_from)->format('d M Y') . ' - ' . Carbon::parse($cover->cover_to)->format('d M Y'),
             'retention_limit' => $cover->retention_limit ?? 0,
             'treaty_capacity' => $cover->treaty_capacity ?? $cover->sum_insured ?? 0,
         ];
@@ -1491,7 +1492,7 @@ class QuarterlyDebitController extends Controller
                 $newNumber = 1;
             }
 
-            return 'ITM-'.$year.'-'.str_pad($newNumber, 5, '0', STR_PAD_LEFT);
+            return 'ITM-' . $year . '-' . str_pad($newNumber, 5, '0', STR_PAD_LEFT);
         });
     }
 
@@ -1603,10 +1604,11 @@ class QuarterlyDebitController extends Controller
                 'cover' => $cover,
                 'customer' => $cedant,
                 'credit' => $creditNote,
-                'debit' => $creditNote,
                 'credit_items' => $creditItems,
                 'reinsurers' => $reinsurers,
                 'company' => $company,
+                'treat_type' => 'Surplus Treaty',
+                'bus_class' => 'Fire',
                 'totals' => (object) [
                     'gross_premium' => $totalGross,
                     'commission' => $totalCommission,
@@ -1627,7 +1629,7 @@ class QuarterlyDebitController extends Controller
             $pdf->set_option('isPhpEnabled', true);
             $pdf->set_option('isRemoteEnabled', true);
 
-            $filename = 'credit-note-'.$creditNote->credit_note_no.'-'.$reinsurer->partner_no.'.pdf';
+            $filename = 'credit-note-' . $creditNote->credit_note_no . '-' . $reinsurer->partner_no . '.pdf';
 
             return $pdf->stream($filename);
         } catch (ValidationException $e) {
@@ -1636,7 +1638,7 @@ class QuarterlyDebitController extends Controller
         } catch (Exception $e) {
             logger($e);
 
-            abort(500, 'Failed to generate credit note: '.$e->getMessage());
+            abort(500, 'Failed to generate credit note: ' . $e->getMessage());
         }
     }
     public function viewCedantDebitNote(Request $request)
@@ -1646,12 +1648,10 @@ class QuarterlyDebitController extends Controller
                 'cover_no' => 'required|string',
                 'endorsement_no' => 'required|string',
                 'cedant_id' => 'required|string',
-                'with_brokerage' => 'nullable|in:0,1',
             ]);
 
             $coverNo = $validated['cover_no'];
             $endorsementNo = $validated['endorsement_no'];
-            $withBrokerage = ($request->input('with_brokerage', '1') === '1');
 
             $cover = DB::table('cover_register')
                 ->where('endorsement_no', $endorsementNo)
@@ -1690,7 +1690,7 @@ class QuarterlyDebitController extends Controller
 
             $debitItems = DB::table('debit_note_items as tdi')
                 ->join('debit_notes as dn', 'tdi.debit_note_id', '=', 'dn.id')
-                ->leftJoin('treaty_item_codes as tic', 'tdi.item_code', '=', 'tic.item_code')
+                ->leftJoin('treaty_item_codes as tc', 'tdi.item_code', '=', 'tc.item_code')
                 ->leftJoin('class_groups as cg', 'tdi.class_group_code', '=', 'cg.group_code')
                 ->leftJoin('reinclass_premtypes as c', function ($join) {
                     $join->on('tdi.class_code', '=', 'c.premtype_code')
@@ -1701,24 +1701,26 @@ class QuarterlyDebitController extends Controller
                 ->select([
                     'tdi.id',
                     'tdi.item_code',
-                    DB::raw('COALESCE(tic.description, tdi.description) as item_name'),
+                    'tdi.item_no',
                     'tdi.line_no',
-                    'tdi.description',
+                    DB::raw('COALESCE(tc.description, tdi.description) as item_name'),
                     'tdi.class_group_code',
                     'cg.group_name',
                     'tdi.class_code',
                     'c.premtype_name as class_name',
                     'tdi.line_rate',
-                    'tdi.amount as item_amount',
+                    'tdi.amount as gross_amount',
                     'tdi.ledger',
                     'dn.debit_note_no',
                     'dn.posting_date',
-                    'dn.gross_amount',
                     'dn.commission_amount',
-                    'dn.net_amount',
-                    'dn.status',
+                    'tdi.net_amount',
+                    'tdi.status',
+                    'tdi.amount as item_amount',
+                    'tdi.description',
+                    'tdi.original_amount'
                 ])
-                ->orderBy('posting_date', 'desc')
+                ->orderBy('line_no', 'asc')
                 ->get();
 
             $totalGross = $debitNote->gross_amount;
@@ -1734,7 +1736,7 @@ class QuarterlyDebitController extends Controller
                 'cover' => $cover,
                 'customer' => $cedant,
                 'debit' => $debitNote,
-                'items' => $debitItems,
+                'debit_items' => $debitItems,
                 'company' => $company,
                 'totals' => (object) [
                     'gross_premium' => $totalGross,
@@ -1746,8 +1748,9 @@ class QuarterlyDebitController extends Controller
                     'from' => Carbon::parse($cover->cover_from)->format('d M Y'),
                     'to' => Carbon::parse($cover->cover_to)->format('d M Y'),
                 ],
-                'with_brokerage' => $withBrokerage,
             ];
+
+            // logger()->debug(json_encode($debitItems, JSON_PRETTY_PRINT));
 
             $pdf = Pdf::loadView('printouts.accounts.treaty-debit-note', $documentData)
                 ->setPaper('a4', 'portrait')
@@ -1756,7 +1759,7 @@ class QuarterlyDebitController extends Controller
             $pdf->set_option('isPhpEnabled', true);
             $pdf->set_option('isRemoteEnabled', true);
 
-            $filename = 'debit-note-'.$debitNote->debit_note_no.'-cedant.pdf';
+            $filename = 'debit-note-' . $debitNote->debit_note_no . '-cedant.pdf';
 
             return $pdf->stream($filename);
         } catch (ValidationException $e) {
@@ -1764,7 +1767,7 @@ class QuarterlyDebitController extends Controller
             abort(422, 'Invalid request parameters');
         } catch (Exception $e) {
             logger($e);
-            abort(500, 'Failed to generate debit note: '.$e->getMessage());
+            abort(500, 'Failed to generate debit note: ' . $e->getMessage());
         }
     }
 }

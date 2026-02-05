@@ -5,22 +5,23 @@ namespace App\Services\DebitNote;
 use App\Models\DebitNote;
 use App\Models\DebitNoteItem;
 
-/**
- * Handles creation and management of debit note line items
- */
 class LineItemProcessor
 {
+    protected $sorter;
+
+    public function __construct(DebitNoteParticularsSorter $sorter)
+    {
+        $this->sorter = $sorter;
+    }
+
     private const DEBIT_CODES = ['IT01', 'IT11', 'IT20', 'IT26'];
 
-    /**
-     * Create line items for a debit note
-     */
-    public function createLineItems(DebitNote $debitNote, array $items): void
+    public function createLineItems(DebitNote $debitNote, $items): void
     {
         $lineNo = 1;
         $insertData = [];
 
-        foreach ($items as $item) {
+        foreach ($items['cedant']['items'] ?? [] as $item) {
             $itemData = $this->prepareLineItem($debitNote, $item, $lineNo);
 
             if ($itemData) {
@@ -30,35 +31,27 @@ class LineItemProcessor
         }
 
         if (! empty($insertData)) {
-            DebitNoteItem::insert($insertData);
+            $arrangedParticulars = $this->sorter->arrangeParticulars($insertData);
+
+            DebitNoteItem::insert($arrangedParticulars);
         }
     }
 
-    /**
-     * Replace all line items for a debit note
-     */
     public function replaceLineItems(DebitNote $debitNote, array $items): void
     {
-        // Delete existing items
         $debitNote->items()->delete();
 
-        // Create new items
         $this->createLineItems($debitNote, $items);
     }
 
-    /**
-     * Update specific line items
-     */
     public function updateLineItems(DebitNote $debitNote, array $items): void
     {
         foreach ($items as $item) {
             if (isset($item['id'])) {
-                // Update existing item
                 DebitNoteItem::where('id', $item['id'])
                     ->where('debit_note_id', $debitNote->id)
                     ->update($this->prepareUpdateData($item));
             } else {
-                // Create new item
                 $lineNo = $debitNote->items()->max('line_no') + 1;
                 $itemData = $this->prepareLineItem($debitNote, $item, $lineNo);
 
@@ -69,20 +62,15 @@ class LineItemProcessor
         }
     }
 
-    /**
-     * Prepare line item data for insertion
-     */
     protected function prepareLineItem(DebitNote $debitNote, array $item, int $lineNo): ?array
     {
         $amount = (float) ($item['amount'] ?? 0);
 
-        // Skip empty items
         if ($amount <= 0 && empty($item['description']) && empty($item['item_code'])) {
             return null;
         }
 
         $itemCode = $item['item_code'] ?? $item['description'] ?? null;
-        $ledger = $item['ledger'] ?? $this->determineLedger($itemCode);
         $itemNo = $this->generateItemNumber($lineNo);
 
         return [
@@ -92,22 +80,20 @@ class LineItemProcessor
             'item_no' => $itemNo,
             'status' => DebitNote::STATUS_POSTED,
             'description' => $item['description'] ?? '',
-            'class_group_code' => $item['class_group'] ?? null,
-            'class_code' => $item['class_name'] ?? null,
+            'class_group_code' => $item['class_group_code'] ?? null,
+            'class_code' => $item['class_code'] ?? null,
             'line_rate' => $item['line_rate'] ?? 0,
-            'ledger' => $ledger,
+            'ledger' => $item['ledger'],
             'amount' => $amount,
             'commission' => $item['commission'] ?? 0,
             'premium_tax' => $item['premium_tax'] ?? 0,
-            'net_amount' => $item['net_amount'] ?? $amount,
+            'net_amount' =>  $amount,
+            'original_amount' => $item['original_amount'] ?? 0,
             'created_at' => now(),
             'updated_at' => now(),
         ];
     }
 
-    /**
-     * Prepare data for update
-     */
     protected function prepareUpdateData(array $item): array
     {
         $data = [];
@@ -137,9 +123,6 @@ class LineItemProcessor
         return $data;
     }
 
-    /**
-     * Determine ledger type (DR or CR)
-     */
     protected function determineLedger(?string $itemCode): string
     {
         if (empty($itemCode)) {
@@ -149,17 +132,11 @@ class LineItemProcessor
         return in_array($itemCode, self::DEBIT_CODES) ? 'DR' : 'CR';
     }
 
-    /**
-     * Generate unique item number
-     */
     protected function generateItemNumber(int $lineNo): string
     {
-        return 'ITM-'.date('Y').'-'.str_pad($lineNo, 4, '0', STR_PAD_LEFT);
+        return 'ITM-' . date('Y') . '-' . str_pad($lineNo, 4, '0', STR_PAD_LEFT);
     }
 
-    /**
-     * Validate line items
-     */
     public function validateItems(array $items): array
     {
         $errors = [];
@@ -167,17 +144,14 @@ class LineItemProcessor
         foreach ($items as $index => $item) {
             $itemErrors = [];
 
-            // Validate amount
             if (! isset($item['amount']) || ! is_numeric($item['amount'])) {
                 $itemErrors[] = 'Amount is required and must be numeric';
             }
 
-            // Validate description or item code
             if (empty($item['description']) && empty($item['item_code'])) {
                 $itemErrors[] = 'Description or item code is required';
             }
 
-            // Validate line rate if provided
             if (isset($item['line_rate']) && (! is_numeric($item['line_rate']) || $item['line_rate'] < 0 || $item['line_rate'] > 100)) {
                 $itemErrors[] = 'Line rate must be between 0 and 100';
             }

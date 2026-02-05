@@ -554,18 +554,18 @@
             <i class="ri-refresh-line"></i> Refresh Data
         </button> --}}
         <!-- <button type="button" class="btn btn-outline-dark quick-action-btn" id="btnPreviewSlip">
-                                                                                                        <i class="ri-file-text-line"></i> Preview Slip
-                                                                                                    </button> -->
+                                                                                                                                                                                                        <i class="ri-file-text-line"></i> Preview Slip
+                                                                                                                                                                                                    </button> -->
         <!-- <button type="button" class="btn btn-outline-primary quick-action-btn" id="btnGenerateStatement">
-                                                                                                        <i class="ri-file-list-3-line"></i> Generate Statement
-                                                                                                    </button> -->
+                                                                                                                                                                                                        <i class="ri-file-list-3-line"></i> Generate Statement
+                                                                                                                                                                                                    </button> -->
         {{-- <button type="button" class="btn btn-outline-success quick-action-btn" id="btnExportData">
             <i class="ri-download-2-line"></i> Export Data
         </button> --}}
         <!-- <button type="button" class="btn btn-primary quick-action-btn" data-bs-toggle="modal"
-                                                                                                        data-bs-target="#addDebitItemModal">
-                                                                                                        <i class="ri-add-line"></i> Add Debit Item
-                                                                                                    </button> -->
+                                                                                                                                                                                                        data-bs-target="#addDebitItemModal">
+                                                                                                                                                                                                        <i class="ri-add-line"></i> Add Debit Item
+                                                                                                                                                                                                    </button> -->
         <small class="text-muted ms-auto align-self-center" id="lastUpdatedTime"></small>
     </div>
 
@@ -2226,7 +2226,7 @@
                     var self = this;
 
                     var cedantData = [{
-                        id: '{{ $customer->id ?? '' }}',
+                        id: '{{ $customer->customer_id ?? '' }}',
                         name: '{{ $customer->name ?? '' }}',
                         registration_no: '{{ $customer->registration_no ?? '' }}',
                         address: '{{ $customer->address ?? '' }}',
@@ -2235,7 +2235,8 @@
                         email: '{{ $customer->email ?? '' }}',
                         phone: '{{ $customer->phone ?? '' }}',
                         treaty_period: '{{ $cover && $cover->cover_from && $cover->cover_to ? \Carbon\Carbon::parse($cover->cover_from)->format('d M Y') . ' - ' . \Carbon\Carbon::parse($cover->cover_to)->format('d M Y') : '' }}',
-                        treaty_capacity: {{ $cover->treaty_capacity ?? 0 }}
+                        treaty_capacity: {{ $cover->treaty_capacity ?? 0 }},
+                        partner_no: '{{ $customer->customer_id ?? '' }}',
                     }];
 
                     this.table = $('#cedantTable').DataTable({
@@ -2317,13 +2318,14 @@
                                 orderable: false,
                                 searchable: false,
                                 render: function(data, type, row) {
+
                                     return '<div class="btn-group btn-group-sm" role="group" aria-label="Cedant actions">' +
-                                        '<button type="button" class="btn btn-outline-primary btn-action btn-view-cedant" data-id="' +
-                                        row.id + '" title="View Details">' +
+                                        '<button type="button" class="btn btn-outline-primary btn-action btn-view-cedant" data-partner_no="' +
+                                        row.partner_no + '" title="View Details">' +
                                         '<i class="ri-eye-line"></i>' +
                                         '</button>' +
-                                        '<button type="button" class="btn btn-outline-info btn-action btn-send-cedant-statement" data-id="' +
-                                        row.id + '" title="Send Statement">' +
+                                        '<button type="button" class="btn btn-outline-info btn-action btn-send-cedant-statement" data-partner_no="' +
+                                        row.partner_no + '" title="Send Statement">' +
                                         '<i class="ri-mail-send-line"></i>' +
                                         '</button>' +
                                         '</div>';
@@ -2350,56 +2352,17 @@
                     var self = this;
 
                     $('#cedantTable').on('click', '.btn-view-cedant', function() {
-                        var id = $(this).data('id');
-                        if (id) {
-                            Swal.fire({
-                                title: 'Generate Debit Note',
-                                html: `
-                            <div class="text-start">
-                                <p class="mb-3">Do you want to include brokerage in the debit note?</p>
-                                <div class="form-check mb-2">
-                                    <input class="form-check-input" type="radio" name="brokerageOption" id="withBrokerage" value="1" checked>
-                                    <label class="form-check-label" for="withBrokerage">
-                                        <i class="ri-check-line text-success me-1"></i> With Brokerage
-                                    </label>
-                                </div>
-                                <div class="form-check">
-                                    <input class="form-check-input" type="radio" name="brokerageOption" id="withoutBrokerage" value="0">
-                                    <label class="form-check-label" for="withoutBrokerage">
-                                        <i class="ri-close-line text-danger me-1"></i> Without Brokerage
-                                    </label>
-                                </div>
-                            </div>
-                        `,
-                                icon: 'question',
-                                showCancelButton: true,
-                                confirmButtonText: '<i class="ri-file-pdf-line me-1"></i> Generate PDF',
-                                cancelButtonText: 'Cancel',
-                                confirmButtonColor: '#3085d6',
-                                cancelButtonColor: '#6c757d',
-                                customClass: {
-                                    popup: 'swal-wide'
-                                },
-                                preConfirm: () => {
-                                    const withBrokerage = document.querySelector(
-                                            'input[name="brokerageOption"]:checked')
-                                        .value;
-                                    return {
-                                        withBrokerage: withBrokerage
-                                    };
-                                }
-                            }).then((result) => {
-                                if (result.isConfirmed) {
-                                    var url = CONFIG.routes.cedantDebitNoteView +
-                                        '?cover_no=' + encodeURIComponent(CONFIG.coverNo) +
-                                        '&endorsement_no=' + encodeURIComponent(CONFIG
-                                            .endorsementNo) +
-                                        '&cedant_id=' + encodeURIComponent(id) +
-                                        '&with_brokerage=' + result.value.withBrokerage;
-                                    window.open(url, '_blank');
-                                }
-                            });
+                        var partnerNo = $(this).data('partner_no');
+
+                        if (partnerNo) {
+                            var url = CONFIG.routes.cedantDebitNoteView +
+                                '?cover_no=' + encodeURIComponent(CONFIG.coverNo) +
+                                '&endorsement_no=' + encodeURIComponent(CONFIG
+                                    .endorsementNo) +
+                                '&cedant_id=' + encodeURIComponent(partnerNo);
+                            window.open(url, '_blank');
                         }
+
                     });
                 },
 
@@ -2648,7 +2611,8 @@
             DebitItemsTable.init();
             CreditItemsTable.init();
             ReinsurersTable.init();
-            ApprovalsTable.init();
+            ApprovalsTable
+                .init();
             DocumentsTable.init();
             CedantTable.init();
             DebitItemForm.init();

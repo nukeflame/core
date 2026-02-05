@@ -14,16 +14,6 @@
             padding: 6px 8px;
         }
 
-        #particular-details thead th {
-            border-bottom: 1px solid #181212;
-        }
-
-        #particular-details tbody tr td {
-            border-bottom: 1px solid #ddd;
-            border-right: 1px solid transparent;
-            border-left: 1px solid transparent;
-        }
-
         .align-right {
             text-align: right;
         }
@@ -37,11 +27,14 @@
         }
 
         .no-border-right {
-            border-left: none !important;
+            border-right: none !important;
+        }
+
+        .no-border {
+            border: none !important;
         }
     </style>
-    <div style="width:100%; margin-top: 0px; padding:0px; font-size: 9pt; font-family: 'Aptos';"
-        class="debit-reinsurer-page">
+    <div style="width:100%; margin-top: 0px; padding:0px; font-size: 9pt; font-family: 'Aptos';" class="debit-reinsurer-page">
         <table id="cover-header">
             <tr>
                 <td>
@@ -166,50 +159,52 @@
             </tr>
         </table>
 
-        <table id="particular-details"
-            style="width: 100%; border: 1px solid #181212; border-collapse: collapse; margin-bottom: 10px; font-size: 8pt;">
+        <table id="particular-details" style="width: 100%; border-collapse: collapse; margin-bottom: 10px; font-size: 8pt;">
             <thead style="border: 1px solid #181212; padding:0px; margin: 0px;">
                 <tr>
-                    <th class="no-border align-left" style="width: 45%;">PARTICULARS</th>
-                    <th class="no-border align-left" style="width: 20%;"></th>
-                    <th class="no-border align-left" style="width: 17.5%;">DEBIT</th>
-                    <th class="no-border align-left" style="width: 17.5%;">CREDIT</th>
+                    <th class="no-border align-left" style="width: 43%;">PARTICULARS</th>
+                    <th class="no-border align-right" style="width: 20%;"></th>
+                    <th class="no-border align-right" style="width: 17.5%;">DEBIT</th>
+                    <th class="no-border align-right" style="width: 17.5%;">CREDIT</th>
+                    <th class="no-border align-right" style="width: 2%;"></th>
                 </tr>
             </thead>
             <tbody>
                 @foreach (collect($debit_items)->all() as $item)
                     <tr>
-                        <td class="no-border align-left">
+                        <td class="no-border align-left" style="width: 43%;">
                             {{ ucwords(strtolower($item->item_name)) }} - {{ ucwords(strtolower($item->class_name)) }}
                         </td>
-                        <td class="align-left">
-                            {{ number_format($item->item_amount, 2) }} @ {{ number_format($item->line_rate, 2) }}%
+                        <td class="no-border align-right" style="width: 20%; text-align: right;">
+                            {{ number_format($item->original_amount, 2) }} @ {{ number_format($item->line_rate, 2) }}%
                         </td>
-                        <td class="float-right">
+                        <td class="no-border align-right" style="width: 17.5%; text-align: right;">
                             @if (in_array($item->ledger, ['DR']))
                                 {{ number_format($item->item_amount, 2) }}
                             @else
                                 0.00
                             @endif
                         </td>
-                        <td class="float-right">
+                        <td class="no-border align-right" style="width: 17.5%; text-align: right;">
                             @if (in_array($item->ledger, ['CR']))
                                 {{ number_format($item->item_amount, 2) }}
                             @else
                                 0.00
                             @endif
                         </td>
+                        <td class="no-border" style="width: 2%;">&nbsp;</td>
                     </tr>
                 @endforeach
                 <tr style="border-top: 2px solid #181212;">
-                    <td class="no-border align-left" style="font-weight: bold;">TOTAL</td>
-                    <td class="no-border align-left">&nbsp;</td>
-                    <td class="no-border align-right" style="font-weight: bold;">
+                    <td class="no-border align-left" style="font-weight: bold; width: 43%;">TOTAL</td>
+                    <td class="no-border" style="width: 20%;">&nbsp;</td>
+                    <td class="no-border align-right" style="font-weight: bold; width: 17.5%; text-align: right;">
                         {{ number_format($totals->net_amount, 2) }}
                     </td>
-                    <td class="no-border align-right" style="font-weight: bold;">
+                    <td class="no-border align-right" style="font-weight: bold; width: 17.5%; text-align: right;">
                         {{ number_format($totals->net_amount, 2) }}
                     </td>
+                    <td class="no-border">&nbsp;</td>
                 </tr>
             </tbody>
         </table>
@@ -218,13 +213,14 @@
             style="width:100%; border: 1px solid #181212; border-collapse: collapse; margin-bottom: 10px; font-size:8pt;">
             <thead>
                 <tr>
-                    <th class="no-border align-left" style="padding: 6px 8px; width: 45%;"><strong>BALANCE DUE FROM
+                    <th class="no-border align-left" style="padding: 6px 8px; width: 43%;"><strong>BALANCE DUE FROM
                             YOU</strong></th>
                     <th class="no-border" style="padding: 6px 8px; width: 20%;">&nbsp;</th>
                     <th class="no-border" style="padding: 6px 8px; width: 17.5%;">&nbsp;</th>
-                    <th class="no-border align-right" style="padding: 6px 8px; width: 17.5%;">
+                    <th class="no-border align-right" style="padding: 6px 8px; width: 17.5%; text-align: right;">
                         <strong>{{ number_format($debit->net_amount, 2) }}</strong>
                     </th>
+                    <th class="no-border" style="padding: 6px 8px; width: 2%;">&nbsp;</th>
                 </tr>
             </thead>
         </table>

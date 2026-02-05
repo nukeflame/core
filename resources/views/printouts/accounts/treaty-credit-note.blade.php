@@ -30,7 +30,11 @@
         }
 
         .no-border-right {
-            border-left: none !important;
+            border-right: none !important;
+        }
+
+        .no-border {
+            border: none !important;
         }
 
         .reinsurer-page {
@@ -61,11 +65,9 @@
         @php
             $reinsurerShare = $reinsurer->share / 100;
 
-            // Filter out brokerage items if with_brokerage is false
             $filteredCreditItems = collect($credit_items);
             if (!($with_brokerage ?? true)) {
                 $filteredCreditItems = $filteredCreditItems->filter(function ($item) {
-                    // IT06 is Brokerage Fee item code
                     return !in_array($item->item_code, ['IT06', 'BROK']);
                 });
             }
@@ -76,7 +78,6 @@
                 return $clone;
             });
 
-            // Calculate totals from filtered items
             $totalDebit = $reinsurerCreditItems->filter(fn($item) => $item->ledger === 'DR')->sum('item_amount');
             $totalCredit = $reinsurerCreditItems->filter(fn($item) => $item->ledger === 'CR')->sum('item_amount');
             $netAmount = $totalDebit - $totalCredit;
@@ -177,11 +178,11 @@
                                 </tr>
                                 <tr>
                                     <td class="pt-4 courier-9"><strong>Business Class</strong></td>
-                                    <td class="pt-4 courier-9">{{ $cover->type_of_bus ?? 'Surplus Treaty' }}</td>
+                                    <td class="pt-4 courier-9">{{ firstUpper($bus_class) }}</td>
                                 </tr>
                                 <tr>
                                     <td class="pt-4 courier-9"><strong>Treaty Type</strong></td>
-                                    <td class="pt-4 courier-9">{{ $reinsurer->treaty_code ?? 'Surplus Treaty' }}</td>
+                                    <td class="pt-4 courier-9">{{ firstUpper($treat_type) }}</td>
                                 </tr>
                                 <tr>
                                     <td class="pt-4 courier-9"><strong>Reinsured Name</strong></td>
@@ -189,8 +190,8 @@
                                 </tr>
                                 <tr>
                                     <td class="pt-4 courier-9"><strong>Underwriting Quarter</strong></td>
-                                    <td class="pt-4 courier-9">Q{{ $credit->posting_quarter ?? '1' }} -
-                                        {{ $credit->posting_year ?? date('Y') }}
+                                    <td class="pt-4 courier-9">{{ $credit->posting_quarter }} -
+                                        {{ $credit->posting_year }}
                                     </td>
                                 </tr>
                                 <tr>
@@ -211,7 +212,7 @@
                                         </strong>
                                     </td>
                                     <td class="pt-4 courier-9">
-                                        {{ number_format($reinsurer->sum_insured ?? 0, 2) }}
+                                        {{ number_format($reinsurer->brokerage_comm_amt ?? 0, 2) }}
                                     </td>
                                 </tr>
                             </table>
@@ -224,33 +225,31 @@
                     style="width: 100%; border: 1px solid #181212; border-collapse: collapse; margin-bottom: 10px; font-size: 8pt;">
                     <thead style="border: 1px solid #181212; padding:0px; margin: 0px;">
                         <tr>
-                            <th class="no-border align-left" style="width: 45%;">PARTICULARS</th>
-                            <th class="no-border align-left" style="width: 20%;"></th>
-                            <th class="no-border align-left" style="width: 17.5%;">DEBIT</th>
-                            <th class="no-border align-left" style="width: 17.5%;">CREDIT</th>
+                            <th class="no-border align-left" style="width: 32.5%;">PARTICULARS</th>
+                            <th class="no-border align-right" style="width: 32.5%;"></th>
+                            <th class="no-border align-right" style="width: 17.5%;">DEBIT</th>
+                            <th class="no-border align-right" style="width: 17.5%;">CREDIT</th>
                         </tr>
                     </thead>
                     <tbody>
                         @foreach ($reinsurerCreditItems as $item)
                             <tr>
-                                <td class="no-border align-left">
+                                <td class="no-border align-left" style="width: 32.5%;">
                                     {{ ucwords(strtolower($item->item_name)) }} -
                                     {{ ucwords(strtolower($item->class_name ?? '')) }}
                                 </td>
-                                <td class="align-left">
-                                    {{ number_format($item->item_amount, 2) }}
+                                <td class="no-border align-right" style="width: 32.5%; text-align: right;">
+                                    {{ number_format($item->original_amount, 2) }}
                                     {{ $item->line_rate > 0 ? '@' . number_format($item->line_rate, 2) . '%' : '' }}
                                 </td>
-                                {{-- DEBIT column: For credit notes, CR items (claims/deductions) go here --}}
-                                <td class="float-right">
+                                <td class="no-border align-right" style="width: 17.5%; text-align: right;">
                                     @if (in_array($item->ledger, ['CR']))
                                         {{ number_format($item->item_amount, 2) }}
                                     @else
                                         0.00
                                     @endif
                                 </td>
-                                {{-- CREDIT column: For credit notes, DR items (premium) go here --}}
-                                <td class="float-right">
+                                <td class="no-border align-right" style="width: 17.5%; text-align: right;">
                                     @if (in_array($item->ledger, ['DR']))
                                         {{ number_format($item->item_amount, 2) }}
                                     @else
@@ -260,12 +259,12 @@
                             </tr>
                         @endforeach
                         <tr style="border-top: 2px solid #181212;">
-                            <td class="no-border align-left" style="font-weight: bold;">TOTAL</td>
-                            <td class="no-border align-left">&nbsp;</td>
-                            <td class="no-border align-right" style="font-weight: bold;">
+                            <td class="no-border align-left" style="font-weight: bold; width: 32.5%;">TOTAL</td>
+                            <td class="no-border" style="width: 32.5%;">&nbsp;</td>
+                            <td class="no-border align-right" style="font-weight: bold; width: 17.5%; text-align: right;">
                                 {{ number_format($reinsurerTotals->net_amount, 2) }}
                             </td>
-                            <td class="no-border align-right" style="font-weight: bold;">
+                            <td class="no-border align-right" style="font-weight: bold; width: 17.5%; text-align: right;">
                                 {{ number_format($reinsurerTotals->net_amount, 2) }}
                             </td>
                         </tr>
@@ -276,11 +275,12 @@
                     style="width:100%; border: 1px solid #181212; border-collapse: collapse; margin-bottom: 10px; font-size:8pt;">
                     <thead>
                         <tr>
-                            <th class="no-border align-left" style="padding: 6px 8px; width: 45%;"><strong>BALANCE DUE FROM
+                            <th class="no-border align-left" style="padding: 6px 8px; width: 32.5%;"><strong>BALANCE DUE
+                                    FROM
                                     YOU</strong></th>
-                            <th class="no-border" style="padding: 6px 8px; width: 20%;">&nbsp;</th>
+                            <th class="no-border" style="padding: 6px 8px; width: 32.5%;">&nbsp;</th>
                             <th class="no-border" style="padding: 6px 8px; width: 17.5%;">&nbsp;</th>
-                            <th class="no-border align-right" style="padding: 6px 8px; width: 17.5%;">
+                            <th class="no-border align-right" style="padding: 6px 8px; width: 17.5%; text-align: right;">
                                 <strong>{{ number_format($reinsurerTotals->net_amount, 2) }}</strong>
                             </th>
                         </tr>
