@@ -13,7 +13,7 @@ class AmountCalculator
     private const CREDIT_CODES = ['IT02', 'IT03', 'IT04', 'IT05', 'IT06', 'IT07', 'IT08', 'IT10', 'IT21', 'IT27', 'IT29', 'IT30'];
     private const PRECISION = 12;
     private const COMMISSION_ITEM_CODE = 'IT03';
-    private const TAX_LEVY_ITEM_CODE = 'IT02';
+    private const TAX_LEVY_ITEM_CODE = 'IT05';
 
     public function __construct(
         private readonly TaxCalculationService $taxService
@@ -28,6 +28,8 @@ class AmountCalculator
         $reinsurerCalculations = $this->calculateReinsurerShares($items, $reinsurers, $brokerageRate);
         $cedantCalculation = $this->calculateCedantShare($items, $cover, $brokerageRate);
         $totals = $this->aggregateTotals($reinsurerCalculations);
+
+        // logger()->debug(json_encode($reinsurerCalculations, JSON_PRETTY_PRINT));
 
         return $this->buildDebitNoteResult($totals, $brokerageRate, $reinsurerCalculations, $cedantCalculation);
     }
@@ -61,6 +63,7 @@ class AmountCalculator
     ): array {
         $amountType = strtolower($reinsurer->amount_type ?? 'gross');
         $commissionRate = (float) ($reinsurer->commission_rate ?? 0);
+        $commissionMode = strtolower($reinsurer->commission_mode ?? 'gross'); // 'gross' or 'net'
 
         $amounts = AmountAccumulator::create();
 
@@ -69,21 +72,34 @@ class AmountCalculator
                 $item,
                 $sharePercentage,
                 $commissionRate,
+                $commissionMode,
                 $brokerageRate,
                 $amounts
             );
         }
 
-        $this->applyTaxes($amounts, $amountType);
+        // Apply taxes BEFORE calculating net (taxes need the gross amount)
+        // $this->applyTaxes($amounts, $amountType);
+
+        // Now calculate net amount
         $amounts->calculateNet();
 
-        return $this->buildReinsurerCalculation($reinsurer, $sharePercentage, $amountType, $commissionRate, $brokerageRate, $amounts);
+        return $this->buildReinsurerCalculation(
+            $reinsurer,
+            $sharePercentage,
+            $amountType,
+            $commissionRate,
+            $commissionMode,
+            $brokerageRate,
+            $amounts
+        );
     }
 
     protected function processReinsurerLineItem(
         array $item,
         float $sharePercentage,
         float $commissionRate,
+        string $commissionMode,
         float $brokerageRate,
         AmountAccumulator $amounts
     ): void {
@@ -97,9 +113,23 @@ class AmountCalculator
 
         $shareAmount = $this->percentage($amount, $sharePercentage);
 
+        logger()->debug(json_encode($shareAmount, JSON_PRETTY_PRINT));
+
+
         if ($ledger === LedgerType::DEBIT) {
             $amounts->addGross($shareAmount);
-            $amounts->addCommission($this->percentage($shareAmount, $lineCommissionRate));
+
+            // Calculate commission based on mode
+            if ($commissionMode === 'net') {
+                // Commission on net = gross - brokerage
+                $netBase = $shareAmount - $this->percentage($shareAmount, $brokerageRate);
+                $commissionAmount = $this->percentage($netBase, $lineCommissionRate);
+            } else {
+                // Commission on gross (default)
+                $commissionAmount = $this->percentage($shareAmount, $lineCommissionRate);
+            }
+
+            $amounts->addCommission($commissionAmount);
             $amounts->addBrokerage($this->percentage($shareAmount, $brokerageRate));
         } else {
             $amounts->addCredit($shareAmount);
@@ -121,6 +151,8 @@ class AmountCalculator
             return null;
         }
 
+        $commissionMode = strtolower($cover->commission_mode ?? 'gross');
+
         $amounts = AmountAccumulator::create();
         $lineItems = [];
         $lastDebitItem = null;
@@ -133,7 +165,7 @@ class AmountCalculator
             $processedItems = $this->processCedantLineItem(
                 $item,
                 $cedantShare,
-                $brokerageRate,
+                $commissionMode,
                 $amounts,
                 $lastDebitItem
             );
@@ -141,19 +173,18 @@ class AmountCalculator
             $lineItems = array_merge($lineItems, $processedItems);
         }
 
-        $this->applyTaxes($amounts, 'gross');
         $this->distributeTaxesToLineItems($lineItems, $amounts);
+
+        $amounts->setPremiumTax(1);
         $amounts->calculateNet();
 
-        logger()->debug(json_encode($lineItems, JSON_PRETTY_PRINT));
-
-        return $this->buildCedantCalculation($cover, $cedantShare, $brokerageRate, $amounts, $lineItems);
+        return $this->buildCedantCalculation($cover, $cedantShare, $commissionMode, $brokerageRate, $amounts, $lineItems);
     }
 
     protected function processCedantLineItem(
         array $item,
         float $cedantShare,
-        float $brokerageRate,
+        string $commissionMode,
         AmountAccumulator $amounts,
         ?array &$lastDebitItem
     ): array {
@@ -162,8 +193,13 @@ class AmountCalculator
         $commissionRate = (float) ($item['line_rate'] ?? 0);
 
         $shareAmount = $this->percentage($amount, $cedantShare);
-        $commissionAmount = $this->percentage($shareAmount, $commissionRate);
-        $brokerageAmount = $this->percentage($shareAmount, $brokerageRate);
+
+        if ($commissionMode === 'net') {
+            $netBase = $shareAmount * 0.99;
+            $commissionAmount = $this->percentage($netBase, $commissionRate);
+        } else {
+            $commissionAmount = $this->percentage($shareAmount, $commissionRate);
+        }
 
         $lineItems = [];
 
@@ -173,30 +209,34 @@ class AmountCalculator
                 'share_amount' => $shareAmount,
             ];
 
-            // Add premium line item
             $lineItems[] = $this->buildLineItem(
                 $item,
                 $shareAmount,
                 $commissionAmount,
-                $brokerageAmount,
+                0,
                 LedgerType::DEBIT,
                 $cedantShare,
                 $amount
             );
 
-            // Add commission line item
-            $lineItems[] = $this->buildCommissionLineItem(
-                $item,
-                $commissionAmount,
-                $commissionRate,
-                $shareAmount
-            );
+            if ($commissionAmount > 0) {
+                $lineItems[] = $this->buildCommissionLineItem(
+                    $item,
+                    $commissionAmount,
+                    $commissionRate,
+                    $shareAmount
+                );
+            }
 
-            $amounts->addGross($shareAmount);
+            if ($item['item_code'] === 'IT01') {
+                $amounts->addGross($shareAmount);
+            }
+
             $amounts->addCommission($commissionAmount);
-            $amounts->addBrokerage($brokerageAmount);
         } else {
+            $originalAmount = ($item['item_code'] === 'IT02') ? $amount : ($lastDebitItem['share_amount'] ?? $shareAmount);
             $creditAmount = $this->calculateCreditAmount($item, $shareAmount, $lastDebitItem);
+            $lineRate = $this->calculateLineRate($item, $cedantShare);
 
             $lineItems[] = $this->buildLineItem(
                 $item,
@@ -204,14 +244,24 @@ class AmountCalculator
                 0,
                 0,
                 LedgerType::CREDIT,
-                $cedantShare,
-                $amount
+                $lineRate,
+                $originalAmount
             );
 
-            $amounts->addCredit($creditAmount);
+            if ($item['item_code'] !== 'IT04') {
+                $amounts->addCredit($creditAmount);
+            }
+        }
+        return $lineItems;
+    }
+
+    protected function calculateLineRate(array $item, float $cedantShare): float
+    {
+        if ($item['item_code'] === self::TAX_LEVY_ITEM_CODE) {
+            return (float) $item['line_rate'];
         }
 
-        return $lineItems;
+        return $cedantShare;
     }
 
     protected function calculateCreditAmount(array $item, float $shareAmount, ?array $lastDebitItem): float
@@ -227,21 +277,24 @@ class AmountCalculator
     {
         $taxBase = $this->determineTaxBase($amounts, $amountType);
 
-        $amounts->setPremiumTax($this->taxService->calculatePremiumLevy($taxBase));
+        $premiumTax = $this->taxService->calculatePremiumLevy($taxBase);
+        $amounts->setPremiumTax($premiumTax);
+
         $amounts->setReinsuranceTax($this->calculateReinsuranceTax($amounts->gross()));
         $amounts->setWithholdingTax($this->calculateWithholdingTax($amounts->gross()));
     }
 
     protected function distributeTaxesToLineItems(array &$lineItems, AmountAccumulator $amounts): void
     {
-        $debitItemFound = false;
+        $taxesDistributed = false;
 
         foreach ($lineItems as &$lineItem) {
-            if ($lineItem['ledger'] === LedgerType::DEBIT && !$debitItemFound) {
+            if ($lineItem['ledger'] === LedgerType::DEBIT && !$taxesDistributed) {
                 $lineItem['premium_tax'] = $amounts->premiumTax();
                 $lineItem['reinsurance_tax'] = $amounts->reinsuranceTax();
                 $lineItem['withholding_tax'] = $amounts->withholdingTax();
-                $debitItemFound = true;
+                $taxesDistributed = true;
+                break;
             }
         }
     }
@@ -267,10 +320,12 @@ class AmountCalculator
 
     protected function determineTaxBase(AmountAccumulator $amounts, string $amountType): float
     {
+        // If amount type is 'net', premium tax is calculated on net premium (gross - commission - brokerage)
         if ($amountType === 'net') {
-            return $amounts->gross() - $amounts->commission() - $amounts->brokerage();
+            return $amounts->gross() - $amounts->credit() - $amounts->brokerage();
         }
 
+        // Default: premium tax on gross amount
         return $amounts->gross();
     }
 
@@ -328,6 +383,7 @@ class AmountCalculator
         float $share,
         string $amountType,
         float $commissionRate,
+        string $commissionMode,
         float $brokerageRate,
         AmountAccumulator $amounts
     ): array {
@@ -338,6 +394,7 @@ class AmountCalculator
             'reinsurer_name' => $reinsurer->partner?->name ?? '',
             'share' => $share,
             'amount_type' => $amountType,
+            'commission_mode' => $commissionMode,
             'gross_amount' => $amounts->gross(),
             'credit_amount' => $amounts->credit(),
             'commission_rate' => $commissionRate,
@@ -372,6 +429,7 @@ class AmountCalculator
     protected function buildCedantCalculation(
         CoverRegister $cover,
         float $share,
+        string $commissionMode,
         float $brokerageRate,
         AmountAccumulator $amounts,
         array $lineItems
@@ -381,16 +439,17 @@ class AmountCalculator
             'endorsement_no' => $cover->endorsement_no ?? '',
             'cedant_name' => $cover->customer?->name ?? '',
             'share' => $share,
+            'commission_mode' => $commissionMode,
             'gross_amount' => $amounts->gross(),
             'credit_amount' => $amounts->credit(),
             'commission_amount' => $amounts->commission(),
-            'brokerage_rate' => $brokerageRate,
-            'brokerage_amount' => $amounts->brokerage(),
+            'brokerage_rate' => 0,
+            'brokerage_amount' => 0,
             'premium_tax' => $amounts->premiumTax(),
             'reinsurance_tax' => $amounts->reinsuranceTax(),
             'withholding_tax' => $amounts->withholdingTax(),
             'other_deductions' => $amounts->credit(),
-            'total_deductions' => $amounts->totalDeductions(),
+            'total_deductions' => $amounts->credit(),
             'net_amount' => $amounts->net(),
             'items' => $lineItems,
         ];
@@ -467,12 +526,16 @@ class AmountCalculator
 
     protected function calculateReinsuranceTax(float $grossAmount): float
     {
-        return 0.0;
+        // Implement reinsurance tax calculation
+        // Example: 0.5% of gross amount
+        return $this->percentage($grossAmount, 0.5);
     }
 
     protected function calculateWithholdingTax(float $grossAmount): float
     {
-        return 0.0;
+        // Implement withholding tax calculation
+        // Example: 5% of gross amount (or commission)
+        return $this->percentage($grossAmount, 5.0);
     }
 
     public function roundForDisplay(array $data, int $decimals = 2): array
@@ -488,6 +551,7 @@ class AmountCalculator
         return $data;
     }
 }
+
 class AmountAccumulator
 {
     private float $gross = 0.0;

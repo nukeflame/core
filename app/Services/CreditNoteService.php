@@ -9,7 +9,9 @@ use App\Models\CreditNote;
 use App\Models\CreditNoteItem;
 use App\Models\TransactionLog;
 use App\Repositories\CoverRepository;
+use App\Services\DebitNote\AmountCalculator;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class CreditNoteService
 {
@@ -17,31 +19,24 @@ class CreditNoteService
     public const TYPE_TREATY = SequenceService::BUSINESS_TYPE_TREATY;
     public const TYPE_RETRO = SequenceService::BUSINESS_TYPE_RETRO;
 
-    // Debit item codes
     public const DEBIT_CODES = ['IT01', 'IT11', 'IT20', 'IT26'];
-
-    // Credit item codes
     public const CREDIT_CODES = ['IT02', 'IT03', 'IT04', 'IT05', 'IT06', 'IT07', 'IT08', 'IT10', 'IT21', 'IT27', 'IT29', 'IT30'];
 
-    private SequenceService $sequenceService;
-    private CoverRepository $coverRepository;
-    private TaxCalculationService $taxService;
+    public function __construct(
+        private readonly SequenceService $sequenceService,
+        private readonly CoverRepository $coverRepository,
+        private readonly TaxCalculationService $taxService,
+        private readonly AmountCalculator $amountCalculator,
 
-    public function __construct(SequenceService $sequenceService, CoverRepository $coverRepository, TaxCalculationService $taxService)
-    {
-        $this->sequenceService = $sequenceService;
-        $this->coverRepository = $coverRepository;
-        $this->taxService = $taxService;
-    }
+    ) {}
 
     public function generateCreditNoteNumber(string $businessType, ?int $year = null): string
     {
-        $typeOfBus = 'RETRO';
-        if ($this->coverRepository->isTreatyBusiness($businessType)) {
-            $typeOfBus = 'TREATY';
-        } elseif ($this->coverRepository->isFacultativeBusiness($businessType)) {
-            $typeOfBus = 'FAC';
-        }
+        $typeOfBus = match (true) {
+            $this->coverRepository->isTreatyBusiness($businessType) => 'TREATY',
+            $this->coverRepository->isFacultativeBusiness($businessType) => 'FAC',
+            default => 'RETRO',
+        };
 
         return (string) $this->sequenceService->generateCreditNoteNumber($typeOfBus, $year)->credit_no;
     }
@@ -54,67 +49,144 @@ class CreditNoteService
     public function create(array $data, CoverRegister $cover): CreditNote
     {
         return DB::transaction(function () use ($data, $cover) {
-            $amounts = $this->calculateAmounts($data, $cover);
 
-            foreach ($amounts['reinsurers'] as $re) {
-                DB::table('coverripart')->updateOrInsert(
-                    [
-                        'endorsement_no' => $re['endorsement_no'],
-                        'cover_no' => $re['cover_no'],
-                    ],
-                    [
-                        'share'                => $re['share'],
-                        'premium'              => $re['gross_amount'],
-                        'total_premium'        => $re['gross_amount'],
-                        'commission'           => $re['commission_amount'],
-                        'brokerage_comm_rate'  => $re['brokerage_rate'],
-                        'brokerage_comm_amt'   => $re['brokerage_amount'],
-                        'prem_tax'             => $re['premium_tax'],
-                        'ri_tax'               => $re['reinsurance_tax'],
-                        'wht_amt'              => $re['withholding_tax'],
-                        'net_amount'           => $re['net_amount'],
-                        'updated_at'           => now(),
-                    ]
-                );
-            }
+            $this->validateCreateData($data);
+
+            $calculation = $this->amountCalculator->calculate($data, $cover);
+
+            // $amounts = $this->calculateAmounts($data, $cover);
+
+            // foreach ($amounts['reinsurers'] as $re) {
+            //     DB::table('coverripart')->updateOrInsert(
+            //         [
+            //             'endorsement_no' => $re['endorsement_no'],
+            //             'cover_no' => $re['cover_no'],
+            //         ],
+            //         [
+            //             'share' => $re['share'],
+            //             'premium' => $re['gross_amount'],
+            //             'total_premium' => $re['gross_amount'],
+            //             'commission' => $re['commission_amount'],
+            //             'brokerage_comm_rate' => $re['brokerage_rate'],
+            //             'brokerage_comm_amt' => $re['brokerage_amount'],
+            //             'prem_tax' => $re['premium_tax'],
+            //             'ri_tax' => $re['reinsurance_tax'],
+            //             'wht_amt' => $re['withholding_tax'],
+            //             'net_amount' => $re['net_amount'],
+            //             'updated_at' => now(),
+            //         ]
+            //     );
+            // }
 
             $creditNoteNo = $this->generateCreditNoteNumber(
                 $cover->type_of_bus,
-                $data['postingYear']
+                $data['postingYear'] ?? now()->year
             );
+            $creditNote = new CreditNote();
+            // $creditNote = CreditNote::create([
+            //     'credit_note_no' => $creditNoteNo,
+            //     'cover_no' => $cover->cover_no,
+            //     'endorsement_no' => $cover->endorsement_no,
+            //     'type_of_bus' => $cover->type_of_bus,
+            //     'installment_no' => $data['installment'] ?? $this->getNextInstallment($cover),
+            //     'posting_year' => $data['postingYear'],
+            //     'posting_quarter' => $data['postingQuarter'],
+            //     'posting_date' => $data['postingDate'],
+            //     'brokerage_rate' => $data['brokerageRate'] ?? 0,
+            //     'brokerage_amount' => $amounts['brokerage_amount'],
+            //     'premium_levy' => $amounts['premium_tax'],
+            //     'reinsurance_levy' => $amounts['reinsurance_tax'],
+            //     'withholding_tax' => $amounts['withholding_tax'],
+            //     'gross_amount' => $amounts['gross_amount'],
+            //     'net_amount' => $amounts['net_amount'],
+            //     'comments' => $data['comments'] ?? null,
+            //     'show_cedant' => $data['showCedant'] ?? false,
+            //     'show_reinsurer' => $data['showReinsurer'] ?? false,
+            //     'loss_participation' => $data['lossParticipation'] ?? false,
+            //     'sliding_commission' => $data['slidingCommission'] ?? false,
+            //     'status' => CreditNote::STATUS_DRAFT,
+            //     'created_by' => auth()->id(),
+            // ]);
 
-            $ppw = $cover->premium_payment_code;
+            // $this->createLineItems($creditNote, $data['items']);
 
-            $creditNote = CreditNote::create([
-                'credit_note_no' => $creditNoteNo,
-                'cover_no' => $cover->cover_no,
-                'endorsement_no' => $cover->endorsement_no,
-                'type_of_bus' => $data['typeOfBus'],
-                'installment_no' => $data['installment'] ?? $this->getNextInstallment($cover),
-                'posting_year' => $data['postingYear'],
-                'posting_quarter' => $data['postingQuarter'],
-                'posting_date' => $data['postingDate'],
-                'brokerage_rate' => $data['brokerageRate'] ?? 0,
+            // $this->logTransaction($creditNote, 'CREATE');
+
+            return $creditNote->fresh(['items', 'cover']);
+        });
+    }
+
+    public function update(CreditNote $creditNote, array $data): CreditNote
+    {
+        return DB::transaction(function () use ($creditNote, $data) {
+            $creditNote = CreditNote::lockForUpdate()->findOrFail($creditNote->id);
+
+            if (!$creditNote->isEditable()) {
+                throw BusinessRuleException::invalidStatusTransition(
+                    $creditNote->status,
+                    'EDIT'
+                );
+            }
+
+            $oldValues = $creditNote->toArray();
+
+            // FIX: Pass cover parameter
+            $amounts = $this->calculateAmounts($data, $creditNote->cover);
+
+            // FIX: Use consistent field names and remove non-existent fields
+            $creditNote->update([
+                'posting_year' => $data['postingYear'] ?? $creditNote->posting_year,
+                'posting_quarter' => $data['postingQuarter'] ?? $creditNote->posting_quarter,
+                'posting_date' => $data['postingDate'] ?? $creditNote->posting_date,
+                'brokerage_rate' => $data['brokerageRate'] ?? $creditNote->brokerage_rate,
+                'gross_amount' => $amounts['gross_amount'],
                 'brokerage_amount' => $amounts['brokerage_amount'],
                 'premium_levy' => $amounts['premium_tax'],
                 'reinsurance_levy' => $amounts['reinsurance_tax'],
                 'withholding_tax' => $amounts['withholding_tax'],
-                'gross_amount' => $amounts['gross_amount'],
                 'net_amount' => $amounts['net_amount'],
-                'comments' => $data['comments'] ?? null,
-                'show_cedant' => $data['showCedant'] ?? false,
-                'show_reinsurer' => $data['showReinsurer'] ?? false,
-                'loss_participation' => $data['lossParticipation'] ?? false,
-                'sliding_commission' => $data['slidingCommission'] ?? false,
-                'status' => CreditNote::STATUS_DRAFT,
-                'created_by' => auth()->id(),
+                'comments' => $data['comments'] ?? $creditNote->comments,
+                'updated_by' => auth()->id(),
             ]);
 
-            $this->createLineItems($creditNote, $data['items']);
+            if (isset($data['items'])) {
+                $creditNote->items()->delete();
+                $this->createLineItems($creditNote, $data['items']);
+            }
 
-            $this->logTransaction($creditNote, 'CREATE');
+            $this->logTransaction($creditNote, 'UPDATE', $oldValues);
 
-            return $creditNote->fresh(['items']);
+            return $creditNote->fresh(['items', 'cover']);
+        });
+    }
+
+    public function submit(CreditNote $creditNote): CreditNote
+    {
+        return DB::transaction(function () use ($creditNote) {
+            $creditNote = CreditNote::lockForUpdate()->findOrFail($creditNote->id);
+
+            if (!$creditNote->canSubmit()) {
+                throw BusinessRuleException::invalidStatusTransition(
+                    $creditNote->status,
+                    CreditNote::STATUS_PENDING
+                );
+            }
+
+            if ($creditNote->items()->count() === 0) {
+                throw BusinessRuleException::missingItems();
+            }
+
+            $oldValues = $creditNote->toArray();
+
+            $creditNote->update([
+                'status' => CreditNote::STATUS_PENDING,
+                'submitted_at' => now(),
+                'submitted_by' => auth()->id(),
+            ]);
+
+            $this->logTransaction($creditNote, 'SUBMIT', $oldValues);
+
+            return $creditNote->fresh();
         });
     }
 
@@ -124,10 +196,10 @@ class CreditNoteService
             $creditNote = CreditNote::lockForUpdate()->findOrFail($creditNote->id);
 
             if (!$creditNote->canApprove()) {
-                // throw BusinessRuleException::invalidStatusTransition(
-                //     $creditNote->status,
-                //     CreditNote::STATUS_APPROVED
-                // );
+                throw BusinessRuleException::invalidStatusTransition(
+                    $creditNote->status,
+                    CreditNote::STATUS_APPROVED
+                );
             }
 
             $oldValues = $creditNote->toArray();
@@ -150,10 +222,10 @@ class CreditNoteService
             $creditNote = CreditNote::lockForUpdate()->findOrFail($creditNote->id);
 
             if (!$creditNote->canApprove()) {
-                // throw BusinessRuleException::invalidStatusTransition(
-                //     $creditNote->status,
-                //     CreditNote::STATUS_REJECTED
-                // );
+                throw BusinessRuleException::invalidStatusTransition(
+                    $creditNote->status,
+                    CreditNote::STATUS_REJECTED
+                );
             }
 
             $oldValues = $creditNote->toArray();
@@ -171,53 +243,16 @@ class CreditNoteService
         });
     }
 
-    public function cancel(CreditNote $creditNote, string $reason): CreditNote
-    {
-        return DB::transaction(function () use ($creditNote, $reason) {
-            $creditNote = CreditNote::lockForUpdate()->findOrFail($creditNote->id);
-
-            if (!$creditNote->canCancel()) {
-                // throw BusinessRuleException::invalidStatusTransition(
-                //     $creditNote->status,
-                //     CreditNote::STATUS_CANCELLED
-                // );
-            }
-
-            $oldValues = $creditNote->toArray();
-
-            $creditNote->update([
-                'status' => CreditNote::STATUS_CANCELLED,
-                'cancelled_at' => now(),
-                'cancelled_by' => auth()->id(),
-                'cancellation_reason' => $reason,
-            ]);
-
-            $this->logTransaction($creditNote, 'CANCEL', $oldValues);
-
-            return $creditNote->fresh();
-        });
-    }
-
-    protected function getNextInstallment(CoverRegister $cover): int
-    {
-        $lastInstallment = CreditNote::where('cover_no', $cover->cover_no)
-            ->where('endorsement_no', $cover->endorsement_no)
-            ->whereNotIn('status', [CreditNote::STATUS_CANCELLED])
-            ->max('installment_no');
-
-        return ($lastInstallment ?? 0) + 1;
-    }
-
     public function revertToDraft(CreditNote $creditNote): CreditNote
     {
         return DB::transaction(function () use ($creditNote) {
             $creditNote = CreditNote::lockForUpdate()->findOrFail($creditNote->id);
 
             if ($creditNote->status !== CreditNote::STATUS_REJECTED) {
-                // throw BusinessRuleException::invalidStatusTransition(
-                //     $creditNote->status,
-                //     CreditNote::STATUS_DRAFT
-                // );
+                throw BusinessRuleException::invalidStatusTransition(
+                    $creditNote->status,
+                    CreditNote::STATUS_DRAFT
+                );
             }
 
             $oldValues = $creditNote->toArray();
@@ -235,16 +270,43 @@ class CreditNoteService
         });
     }
 
+    public function cancel(CreditNote $creditNote, string $reason): CreditNote
+    {
+        return DB::transaction(function () use ($creditNote, $reason) {
+            $creditNote = CreditNote::lockForUpdate()->findOrFail($creditNote->id);
+
+            if (!$creditNote->canCancel()) {
+                throw BusinessRuleException::invalidStatusTransition(
+                    $creditNote->status,
+                    CreditNote::STATUS_CANCELLED
+                );
+            }
+
+            $oldValues = $creditNote->toArray();
+
+            $creditNote->update([
+                'status' => CreditNote::STATUS_CANCELLED,
+                'cancelled_at' => now(),
+                'cancelled_by' => auth()->id(),
+                'cancellation_reason' => $reason,
+            ]);
+
+            $this->logTransaction($creditNote, 'CANCEL', $oldValues);
+
+            return $creditNote->fresh();
+        });
+    }
+
     public function post(CreditNote $creditNote): CreditNote
     {
         return DB::transaction(function () use ($creditNote) {
             $creditNote = CreditNote::lockForUpdate()->findOrFail($creditNote->id);
 
             if (!$creditNote->canPost()) {
-                // throw BusinessRuleException::invalidStatusTransition(
-                //     $creditNote->status,
-                //     CreditNote::STATUS_POSTED
-                // );
+                throw BusinessRuleException::invalidStatusTransition(
+                    $creditNote->status,
+                    CreditNote::STATUS_POSTED
+                );
             }
 
             $oldValues = $creditNote->toArray();
@@ -261,72 +323,101 @@ class CreditNoteService
         });
     }
 
-    public function getStatistics(array $filters = []): array
+    public function delete(CreditNote $creditNote): bool
     {
-        $query = CreditNote::query();
+        return DB::transaction(function () use ($creditNote) {
+            $creditNote = CreditNote::lockForUpdate()->findOrFail($creditNote->id);
 
-        if (!empty($filters['year'])) {
-            $query->where('posting_year', $filters['year']);
-        }
-        if (!empty($filters['quarter'])) {
-            $query->where('posting_quarter', $filters['quarter']);
-        }
-        if (!empty($filters['from_date'])) {
-            $query->whereDate('posting_date', '>=', $filters['from_date']);
-        }
-        if (!empty($filters['to_date'])) {
-            $query->whereDate('posting_date', '<=', $filters['to_date']);
-        }
+            if (!$creditNote->isEditable()) {
+                throw BusinessRuleException::invalidStatusTransition(
+                    $creditNote->status,
+                    'DELETE'
+                );
+            }
 
-        $total = $query->count();
-        $totalGross = $query->sum('gross_amount');
-        $totalNet = $query->sum('net_amount');
+            $oldValues = $creditNote->toArray();
 
-        $byStatus = CreditNote::query()
-            ->when(!empty($filters['year']), fn($q) => $q->where('posting_year', $filters['year']))
-            ->selectRaw('status, COUNT(*) as count, SUM(gross_amount) as gross')
-            ->groupBy('status')
-            ->pluck('gross', 'status')
-            ->toArray();
+            $creditNote->items()->delete();
+            $creditNote->delete();
 
-        return [
-            'total_count' => $total,
-            'total_gross' => round((float) $totalGross, 2),
-            'total_net' => round((float) $totalNet, 2),
-            'by_status' => $byStatus,
-            'pending_count' => CreditNote::pending()->count(),
-            'approved_count' => CreditNote::approved()->count(),
-        ];
+            $this->logTransaction($creditNote, 'DELETE', $oldValues);
+
+            return true;
+        });
     }
 
     public function duplicate(CreditNote $original): CreditNote
     {
         return DB::transaction(function () use ($original) {
-            $cover = CoverRegister::find($original->cover_no);
+            $cover = $original->cover;
 
-            $newData = $original->toArray();
-            unset($newData['id'], $newData['credit_note_no'], $newData['created_at'], $newData['updated_at']);
+            if (!$cover) {
+                throw new \RuntimeException('Original credit note has no associated cover');
+            }
 
-            $newData['installment_no'] = $this->getNextInstallment($cover);
-            $newData['posting_date'] = now()->toDateString();
-            $newData['posting_year'] = now()->year;
-
-            $newData['items'] = $original->items->map(fn($item) => [
-                'item_code' => $item->item_code,
-                'description' => $item->description,
-                'class_group' => $item->class_group_code,
-                'class_name' => $item->class_code,
-                'line_rate' => $item->line_rate,
-                'ledger' => $item->ledger,
-                'amount' => $item->amount,
-            ])->toArray();
+            $newData = [
+                'postingDate' => now()->toDateString(),
+                'postingYear' => now()->year,
+                'postingQuarter' => $this->getCurrentQuarter(),
+                'brokerageRate' => $original->brokerage_rate,
+                'comments' => 'Duplicated from: ' . $original->credit_note_no,
+                'showCedant' => $original->show_cedant,
+                'showReinsurer' => $original->show_reinsurer,
+                'lossParticipation' => $original->loss_participation,
+                'slidingCommission' => $original->sliding_commission,
+                'items' => $original->items->map(fn($item) => [
+                    'item_code' => $item->item_code,
+                    'description' => $item->description,
+                    'class_group' => $item->class_group_code,
+                    'class_name' => $item->class_code,
+                    'line_rate' => $item->line_rate,
+                    'ledger' => $item->ledger,
+                    'amount' => $item->amount,
+                ])->toArray(),
+            ];
 
             return $this->create($newData, $cover);
         });
     }
 
+    public function getStatistics(array $filters = []): array
+    {
+        $query = CreditNote::query();
+        $this->applyFilters($query, $filters);
+
+        // FIX: Get both count and sum properly
+        $byStatus = CreditNote::query()
+            ->when(!empty($filters['year']), fn($q) => $q->where('posting_year', $filters['year']))
+            ->when(!empty($filters['quarter']), fn($q) => $q->where('posting_quarter', $filters['quarter']))
+            ->selectRaw('status, COUNT(*) as count, SUM(gross_amount) as gross_amount, SUM(net_amount) as net_amount')
+            ->groupBy('status')
+            ->get()
+            ->mapWithKeys(fn($item) => [
+                $item->status => [
+                    'count' => $item->count,
+                    'gross_amount' => round((float) $item->gross_amount, 2),
+                    'net_amount' => round((float) $item->net_amount, 2),
+                ],
+            ])
+            ->toArray();
+
+        return [
+            'total_count' => $query->count(),
+            'total_gross' => round((float) $query->sum('gross_amount'), 2),
+            'total_net' => round((float) $query->sum('net_amount'), 2),
+            'by_status' => $byStatus,
+            'pending_count' => CreditNote::pending()->count(),
+            'approved_count' => CreditNote::approved()->count(),
+            'posted_count' => CreditNote::posted()->count(),
+        ];
+    }
+
     public function calculateAmounts(array $data, ?CoverRegister $cover = null): array
     {
+        if (!$cover) {
+            throw new \InvalidArgumentException('Cover is required for amount calculation');
+        }
+
         $items = $data['items'] ?? [];
         $brokerageRate = (float) ($data['brokerageRate'] ?? 0);
 
@@ -336,6 +427,10 @@ class CreditNoteService
                 'endorsement_no' => $cover->endorsement_no
             ])
             ->get();
+
+        if ($reinsurers->isEmpty()) {
+            throw new \RuntimeException('No reinsurers found for cover');
+        }
 
         $totals = [
             'gross' => 0,
@@ -384,14 +479,11 @@ class CreditNoteService
                 $commission = $this->calculatePercentage($sharedAmount, $commissionRate);
                 $brokerage = $this->calculatePercentage($sharedAmount, $brokerageRate);
 
-                // For credit notes, default ledger is CR
                 if ($ledger === 'CR') {
-                    // Credit items (main amounts for credit notes)
                     $reinsurerAmounts['gross'] += $sharedAmount;
                     $reinsurerAmounts['commission'] += $commission;
                     $reinsurerAmounts['brokerage'] += $brokerage;
                 } else {
-                    // Debit items (deductions for credit notes)
                     $reinsurerAmounts['credit'] += $sharedAmount;
                 }
             }
@@ -475,12 +567,41 @@ class CreditNoteService
         ];
     }
 
-    protected function calculatePercentage(float $amount, float $rate): float
+    public function determineLedger(?string $itemCode): string
     {
-        if ($amount <= 0 || $rate <= 0) {
-            return 0;
+        if (empty($itemCode)) {
+            return 'CR';
         }
-        return round($amount * ($rate / 100), 2);
+        return in_array($itemCode, self::DEBIT_CODES) ? 'DR' : 'CR';
+    }
+
+    protected function validateCreateData(array $data): void
+    {
+        $required = ['postingDate', 'postingYear', 'postingQuarter', 'items'];
+
+        foreach ($required as $field) {
+            if (!isset($data[$field])) {
+                throw new \InvalidArgumentException("Missing required field: {$field}");
+            }
+        }
+
+        if (empty($data['items'])) {
+            throw BusinessRuleException::missingItems();
+        }
+
+        // if ($data['postingQuarter'] < 1 || $data['postingQuarter'] > 4) {
+        //     throw new \InvalidArgumentException('Posting quarter must be between 1 and 4');
+        // }
+    }
+
+    protected function getNextInstallment(CoverRegister $cover): int
+    {
+        $lastInstallment = CreditNote::where('cover_no', $cover->cover_no)
+            ->where('endorsement_no', $cover->endorsement_no)
+            ->whereNotIn('status', [CreditNote::STATUS_CANCELLED])
+            ->max('installment_no');
+
+        return ($lastInstallment ?? 0) + 1;
     }
 
     protected function createLineItems(CreditNote $creditNote, array $items): void
@@ -490,6 +611,8 @@ class CreditNoteService
 
         foreach ($items as $item) {
             $amount = (float) ($item['amount'] ?? 0);
+
+            // Skip empty items
             if ($amount <= 0 && empty($item['description']) && empty($item['item_code'])) {
                 continue;
             }
@@ -504,7 +627,7 @@ class CreditNoteService
                 'line_no' => $lineNo++,
                 'item_code' => $itemCode,
                 'item_no' => $itemNo,
-                'status' => CreditNote::STATUS_POSTED,
+                'status' => CreditNote::STATUS_DRAFT, // FIX: Use DRAFT for new items
                 'description' => $item['description'] ?? $itemCode,
                 'class_group_code' => $item['class_group'] ?? null,
                 'class_code' => $item['class_name'] ?? null,
@@ -525,114 +648,44 @@ class CreditNoteService
         }
     }
 
-    public function determineLedger(?string $itemCode): string
+    protected function calculatePercentage(float $amount, float $rate): float
     {
-        if (empty($itemCode)) {
-            return 'CR';
+        if ($amount <= 0 || $rate <= 0) {
+            return 0;
         }
-        // For credit notes, default to CR unless explicitly a debit code
-        return in_array($itemCode, self::DEBIT_CODES) ? 'DR' : 'CR';
+        return round($amount * ($rate / 100), 2);
     }
 
-    public function update(CreditNote $creditNote, array $data): CreditNote
+    protected function applyFilters($query, array $filters): void
     {
-        return DB::transaction(function () use ($creditNote, $data) {
-            $creditNote = CreditNote::lockForUpdate()->findOrFail($creditNote->id);
+        if (!empty($filters['year'])) {
+            $query->where('posting_year', $filters['year']);
+        }
 
-            if (!$creditNote->isEditable()) {
-                // throw BusinessRuleException::invalidStatusTransition(
-                //     $creditNote->status,
-                //     'EDIT'
-                // );
-            }
+        if (!empty($filters['quarter'])) {
+            $query->where('posting_quarter', $filters['quarter']);
+        }
 
-            $oldValues = $creditNote->toArray();
+        if (!empty($filters['from_date'])) {
+            $query->whereDate('posting_date', '>=', $filters['from_date']);
+        }
 
-            $amounts = $this->calculateAmounts($data);
+        if (!empty($filters['to_date'])) {
+            $query->whereDate('posting_date', '<=', $filters['to_date']);
+        }
 
-            $creditNote->update([
-                'posting_year' => $data['posting_year'] ?? $creditNote->posting_year,
-                'posting_quarter' => $data['posting_quarter'] ?? $creditNote->posting_quarter,
-                'posting_date' => $data['posting_date'] ?? $creditNote->posting_date,
-                'gross_amount' => $amounts['gross_amount'],
-                'commission_rate' => $amounts['commission_rate'] ?? 0,
-                'commission_amount' => $amounts['commission_amount'],
-                'brokerage_rate' => $amounts['brokerage_rate'],
-                'brokerage_amount' => $amounts['brokerage_amount'],
-                'premium_levy' => $amounts['premium_tax'],
-                'reinsurance_levy' => $amounts['reinsurance_tax'],
-                'withholding_tax' => $amounts['withholding_tax'],
-                'other_deductions' => $amounts['other_deductions'],
-                'net_amount' => $amounts['net_amount'],
-                'compute_premium_tax' => $data['compute_premium_tax'] ?? $creditNote->compute_premium_tax,
-                'compute_reinsurance_tax' => $data['compute_reinsurance_tax'] ?? $creditNote->compute_reinsurance_tax,
-                'compute_withholding_tax' => $data['compute_withholding_tax'] ?? $creditNote->compute_withholding_tax,
-                'comments' => $data['comments'] ?? $creditNote->comments,
-                'updated_by' => auth()->id(),
-            ]);
+        if (!empty($filters['status'])) {
+            $query->where('status', $filters['status']);
+        }
 
-            if (isset($data['items'])) {
-                $creditNote->items()->delete();
-                $this->createLineItems($creditNote, $data['items']);
-            }
-
-            $this->logTransaction($creditNote, 'UPDATE', $oldValues);
-
-            return $creditNote->fresh(['items']);
-        });
+        if (!empty($filters['type_of_bus'])) {
+            $query->where('type_of_bus', $filters['type_of_bus']);
+        }
     }
 
-    public function delete(CreditNote $creditNote): bool
+    protected function getCurrentQuarter(): int
     {
-        return DB::transaction(function () use ($creditNote) {
-            $creditNote = CreditNote::lockForUpdate()->findOrFail($creditNote->id);
-
-            if (!$creditNote->isEditable()) {
-                // throw BusinessRuleException::invalidStatusTransition(
-                //     $creditNote->status,
-                //     'DELETE'
-                // );
-            }
-
-            $oldValues = $creditNote->toArray();
-
-            $creditNote->items()->delete();
-            $creditNote->delete();
-
-            $this->logTransaction($creditNote, 'DELETE', $oldValues);
-
-            return true;
-        });
-    }
-
-    public function submit(CreditNote $creditNote): CreditNote
-    {
-        return DB::transaction(function () use ($creditNote) {
-            $creditNote = CreditNote::lockForUpdate()->findOrFail($creditNote->id);
-
-            if (!$creditNote->canSubmit()) {
-                // throw BusinessRuleException::invalidStatusTransition(
-                //     $creditNote->status,
-                //     CreditNote::STATUS_PENDING
-                // );
-            }
-
-            if ($creditNote->items()->count() === 0) {
-                // throw BusinessRuleException::missingItems();
-            }
-
-            $oldValues = $creditNote->toArray();
-
-            $creditNote->update([
-                'status' => CreditNote::STATUS_PENDING,
-                'submitted_at' => now(),
-                'submitted_by' => auth()->id(),
-            ]);
-
-            $this->logTransaction($creditNote, 'SUBMIT', $oldValues);
-
-            return $creditNote->fresh();
-        });
+        return (int) ceil(now()->month / 3);
     }
 
     protected function logTransaction(CreditNote $creditNote, string $action, ?array $oldValues = null): void
@@ -649,6 +702,11 @@ class CreditNoteService
                 'user_agent' => request()->userAgent(),
             ]);
         } catch (\Exception $e) {
+            Log::error('Failed to log credit note transaction', [
+                'credit_note_id' => $creditNote->id,
+                'action' => $action,
+                'error' => $e->getMessage(),
+            ]);
         }
     }
 }

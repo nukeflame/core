@@ -396,7 +396,7 @@
             <div class="row-table">
                 <div class="logo">
                     <img class="brand-logo" src="data:image/png;base64,<?php echo base64_encode(file_get_contents(base_path('public/assets/images/brand-logos/default-logo.png'))); ?>" alt=""
-                        style="width: 230px; height: auto;" />
+                        style="width: 210px; height: auto;" />
                 </div>
                 <div class="company-info">
                     <p>{{ $company->company_name }}</p>

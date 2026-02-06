@@ -1681,6 +1681,7 @@ class QuarterlyDebitController extends Controller
                     'net_amount',
                     'commission_amount',
                     'created_at',
+                    'other_deductions'
                 ])
                 ->first();
 
@@ -1726,6 +1727,7 @@ class QuarterlyDebitController extends Controller
             $totalGross = $debitNote->gross_amount;
             $totalCommission = $debitNote->commission_amount;
             $totalNet = $debitNote->net_amount;
+            $otherDeductions = $debitNote->other_deductions;
 
             $company = Company::first();
 
@@ -1742,6 +1744,8 @@ class QuarterlyDebitController extends Controller
                     'gross_premium' => $totalGross,
                     'commission' => $totalCommission,
                     'net_amount' => $totalNet,
+                    'total_debits' => $totalGross,
+                    'total_credits' => $otherDeductions + $totalCommission,
                 ],
                 'currency' => $cover->currency ?? 'KES',
                 'period' => [
@@ -1750,7 +1754,7 @@ class QuarterlyDebitController extends Controller
                 ],
             ];
 
-            // logger()->debug(json_encode($debitItems, JSON_PRETTY_PRINT));
+            logger()->debug(json_encode($documentData, JSON_PRETTY_PRINT));
 
             $pdf = Pdf::loadView('printouts.accounts.treaty-debit-note', $documentData)
                 ->setPaper('a4', 'portrait')

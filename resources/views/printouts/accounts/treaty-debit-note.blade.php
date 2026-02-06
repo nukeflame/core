@@ -147,11 +147,9 @@
                             </td>
                         </tr>
                         <tr>
-                            <td class="pt-4 courier-9"><strong> Our share S.I (2.00%)</strong>
+                            <td class="pt-4 courier-9"><strong> Our share</strong>
                             </td>
-                            <td class="pt-4 courier-9">
-                                1,000,000.00
-                            </td>
+                            <td class="pt-4 courier-9">{{ number_format($cover->share_offered, 2) }}%</td>
                         </tr>
                     </table>
                 </td>
@@ -199,10 +197,10 @@
                     <td class="no-border align-left" style="font-weight: bold; width: 43%;">TOTAL</td>
                     <td class="no-border" style="width: 20%;">&nbsp;</td>
                     <td class="no-border align-right" style="font-weight: bold; width: 17.5%; text-align: right;">
-                        {{ number_format($totals->net_amount, 2) }}
+                        {{ number_format($totals->total_debits, 2) }}
                     </td>
                     <td class="no-border align-right" style="font-weight: bold; width: 17.5%; text-align: right;">
-                        {{ number_format($totals->net_amount, 2) }}
+                        {{ number_format($totals->total_credits, 2) }}
                     </td>
                     <td class="no-border">&nbsp;</td>
                 </tr>
@@ -226,7 +224,7 @@
         </table>
 
         <br />
-        <table style="width: 100%; margin-bottom: 10px;">
+        <table style="width: 100%;">
             <tr>
                 <td align="left" style="font-size: 10.0pt; font-family: 'Aptos';">
                     {{ $company->company_name }}</td>
@@ -235,7 +233,7 @@
             </tr>
             <tr>
                 <td align="left">
-                    {{-- @stampImageOrEmpty('app/private/stamp.png') --}}
+                    @stampImageOrEmpty('app/private/sample-sign.png')
                 </td>
                 <td align="left">&nbsp;</td>
                 <td align="left"></td>
