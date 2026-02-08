@@ -157,6 +157,18 @@
             </div>
         </div>
     </div>
+
+    @include('cover.modals.endorsement-modals', [
+        'latest_endorsement' => $latest_endorsement,
+        'year' => $year,
+        'coverpremtypes' => $coverpremtypes,
+        'treaty_years' => $treaty_years,
+        'reinLayersCount' => $reinLayersCount,
+        'mdpAmount' => $mdpAmount,
+        'mdpInstallments' => $mdpInstallments,
+        'EndorsementTypes' => $EndorsementTypes,
+        'premium_due_date' => $premium_due_date,
+    ])
 @endsection
 
 @push('script')
@@ -176,6 +188,7 @@
                     coverNo: @json($cover_no),
                     latestEndorsement: @json($latest_endorsement),
                     premiumDueDate: @json($premium_due_date ?? null),
+                    mdpInsLayerwise: @json($mdpInsLayerwise ?? []),
                     routes: {
                         endorseDatatable: @json(route('endorse.datatable')),
                         coverHome: @json(route('cover.CoverHome')),

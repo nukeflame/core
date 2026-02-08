@@ -1,308 +1,154 @@
 /**
  * Cover Endorsement Configuration
+ * Updated to work with endorsement-modals.blade.php structure
  * @pk305
  */
 
 (function (window) {
     "use strict";
 
+    /**
+     * Field configuration for each endorsement type
+     * Keys are endorsement slugs, values contain which fields to show
+     */
     const ENDORSEMENT_FIELD_CONFIG = {
         "change-brokerage-rate": {
             show: [
-                "brokerage-comm-type",
-                "brokerage-comm-rate",
-                "brokerage-comm-amt",
-            ],
-            hide: [
-                "start-date",
-                "ppw-days",
-                "extension-days",
-                "premium-due-date",
-                "new-premium-due-date",
-                "cover-from",
-                "cover-to",
-                "insured-name",
-                "new-insured-name",
-                "current-cede-premium",
-                "current-rein-premium",
-                "current-share-offered",
-                "current-sum-insured",
-                "new-sum-insured",
-                "apply-eml",
-                "eml-rate",
-                "eml-amount",
-                "effective-sum-insured",
-                "new-effective-sum-insured",
-                "new-cover-from",
-                "new-cover-to",
-                "new-rein-premium",
-                "endorsed-sum-insured",
-                "endorsed-cede-premium",
-                "change-type",
-                "new-share-offered",
-                "new-cede-premium",
+                "brokerage_comm_type",
+                "brokerage_comm_rate",
+                "brokerage_comm_amt",
             ],
             showCurrentSection: true,
         },
 
         "change-due-date": {
             show: [
-                "start-date",
-                "ppw-days",
-                "extension-days",
-                "premium-due-date",
-                "new-premium-due-date",
-            ],
-            hide: [
-                "cover-from",
-                "cover-to",
-                "brokerage-comm-type",
-                "brokerage-comm-rate",
-                "brokerage-comm-amt",
-                "insured-name",
-                "new-insured-name",
-                "new-cede-premium",
-                "current-cede-premium",
-                "current-rein-premium",
-                "current-share-offered",
-                "new-share-offered",
-                "new-rein-premium",
-                "current-sum-insured",
-                "new-sum-insured",
-                "apply-eml",
-                "eml-rate",
-                "eml-amount",
-                "effective-sum-insured",
-                "new-effective-sum-insured",
-                "new-cover-from",
-                "new-cover-to",
-                "endorsed-sum-insured",
-                "endorsed-cede-premium",
-                "change-type",
+                "start_date",
+                "ppw_days",
+                "extension_days",
+                "premium_due_date",
+                "new_premium_due_date",
             ],
             showCurrentSection: true,
         },
 
         "change-premium": {
             show: [
-                "current-sum-insured",
-                "new-sum-insured",
-                "apply-eml",
-                "eml-rate",
-                "eml-amount",
-                "effective-sum-insured",
-                "new-effective-sum-insured",
-                "current-cede-premium",
-                "new-cede-premium",
-                "endorsed-sum-insured",
-                "endorsed-cede-premium",
-                "current-share-offered",
-                "current-rein-premium",
-                "change-type",
-                "new-share-offered",
-            ],
-            hide: [
-                "start-date",
-                "ppw-days",
-                "extension-days",
-                "premium-due-date",
-                "new-premium-due-date",
-                "insured-name",
-                "new-insured-name",
-                "cover-from",
-                "cover-to",
-                "brokerage-comm-type",
-                "brokerage-comm-rate",
-                "brokerage-comm-amt",
-                "new-cover-from",
-                "new-cover-to",
-                "new-rein-premium",
+                "change_in_sum_insured_type",
+                "current_total_sum_insured",
+                "new_total_sum_insured",
+                "apply_eml",
+                "eml_rate",
+                "eml_amt",
+                "effective_sum_insured",
+                "new_effective_sum_insured",
+                "current_cede_premium",
+                "new_cede_premium",
+                "endorsed_total_sum_insured",
+                "endorsed_cede_premium",
+                "current_fac_share_offered",
+                "current_rein_premium",
+                "new_fac_share_offered",
             ],
             showCurrentSection: true,
         },
 
         "change-inception-date": {
-            show: ["cover-from", "cover-to", "new-cover-from", "new-cover-to"],
-            hide: [
-                "start-date",
-                "ppw-days",
-                "extension-days",
-                "premium-due-date",
-                "new-premium-due-date",
-                "brokerage-comm-type",
-                "brokerage-comm-rate",
-                "brokerage-comm-amt",
-                "insured-name",
-                "new-insured-name",
-                "current-share-offered",
-                "current-sum-insured",
-                "new-sum-insured",
-                "apply-eml",
-                "eml-rate",
-                "eml-amount",
-                "effective-sum-insured",
-                "new-effective-sum-insured",
-                "current-rein-premium",
-                "new-rein-premium",
-                "new-share-offered",
-                "endorsed-sum-insured",
-                "endorsed-cede-premium",
-                "change-type",
-                "current-cede-premium",
-                "new-cede-premium",
-            ],
+            show: ["coverfrom", "coverto", "new_coverfrom", "new_coverto"],
             showCurrentSection: true,
         },
 
         "change-insured": {
-            show: ["insured-name", "new-insured-name"],
-            hide: [
-                "start-date",
-                "ppw-days",
-                "extension-days",
-                "premium-due-date",
-                "new-premium-due-date",
-                "cover-from",
-                "cover-to",
-                "brokerage-comm-type",
-                "brokerage-comm-rate",
-                "brokerage-comm-amt",
-                "current-rein-premium",
-                "current-share-offered",
-                "new-share-offered",
-                "new-rein-premium",
-                "current-sum-insured",
-                "apply-eml",
-                "eml-rate",
-                "eml-amount",
-                "effective-sum-insured",
-                "new-effective-sum-insured",
-                "new-cover-from",
-                "new-cover-to",
-                "endorsed-sum-insured",
-                "endorsed-cede-premium",
-                "change-type",
-                "new-sum-insured",
-                "current-cede-premium",
-                "new-cede-premium",
-            ],
+            show: ["insured_name", "new_insured_name"],
             showCurrentSection: true,
         },
 
         "cancel-policy": {
             show: [],
-            hide: [
-                "new-cede-premium",
-                "current-cede-premium",
-                "current-rein-premium",
-                "current-share-offered",
-                "new-share-offered",
-                "new-rein-premium",
-                "start-date",
-                "ppw-days",
-                "extension-days",
-                "premium-due-date",
-                "new-premium-due-date",
-                "insured-name",
-                "new-insured-name",
-                "cover-from",
-                "cover-to",
-                "brokerage-comm-type",
-                "brokerage-comm-rate",
-                "brokerage-comm-amt",
-                "new-sum-insured",
-                "apply-eml",
-                "eml-rate",
-                "eml-amount",
-                "effective-sum-insured",
-                "new-effective-sum-insured",
-                "new-cover-from",
-                "new-cover-to",
-                "endorsed-sum-insured",
-                "endorsed-cede-premium",
-                "change-type",
-                "current-sum-insured",
-            ],
             showCurrentSection: false,
         },
 
         "change-sum-insured": {
             show: [
-                "current-sum-insured",
-                "new-sum-insured",
-                "apply-eml",
-                "eml-rate",
-                "eml-amount",
-                "effective-sum-insured",
-                "new-effective-sum-insured",
-                "current-cede-premium",
-                "new-cede-premium",
-                "endorsed-sum-insured",
-                "endorsed-cede-premium",
-                "current-share-offered",
-                "current-rein-premium",
-                "change-type",
-                "new-share-offered",
-            ],
-            hide: [
-                "start-date",
-                "ppw-days",
-                "extension-days",
-                "premium-due-date",
-                "new-premium-due-date",
-                "insured-name",
-                "new-insured-name",
-                "cover-from",
-                "cover-to",
-                "brokerage-comm-type",
-                "brokerage-comm-rate",
-                "brokerage-comm-amt",
-                "new-cover-from",
-                "new-cover-to",
-                "new-rein-premium",
+                "change_in_sum_insured_type",
+                "current_total_sum_insured",
+                "new_total_sum_insured",
+                "apply_eml",
+                "eml_rate",
+                "eml_amt",
+                "effective_sum_insured",
+                "new_effective_sum_insured",
+                "current_cede_premium",
+                "new_cede_premium",
+                "endorsed_total_sum_insured",
+                "endorsed_cede_premium",
+                "current_fac_share_offered",
+                "current_rein_premium",
+                "new_fac_share_offered",
             ],
             showCurrentSection: true,
         },
 
         "refund-endorsement": {
             show: [
-                "current-sum-insured",
-                "new-sum-insured",
-                "apply-eml",
-                "eml-rate",
-                "eml-amount",
-                "effective-sum-insured",
-                "new-effective-sum-insured",
-                "current-cede-premium",
-                "new-cede-premium",
-                "endorsed-sum-insured",
-                "endorsed-cede-premium",
-                "current-share-offered",
-                "current-rein-premium",
-                "new-share-offered",
-            ],
-            hide: [
-                "change-type",
-                "start-date",
-                "ppw-days",
-                "extension-days",
-                "premium-due-date",
-                "new-premium-due-date",
-                "insured-name",
-                "new-insured-name",
-                "cover-from",
-                "cover-to",
-                "brokerage-comm-type",
-                "brokerage-comm-rate",
-                "brokerage-comm-amt",
-                "new-cover-from",
-                "new-cover-to",
-                "new-rein-premium",
+                "current_total_sum_insured",
+                "new_total_sum_insured",
+                "apply_eml",
+                "eml_rate",
+                "eml_amt",
+                "effective_sum_insured",
+                "new_effective_sum_insured",
+                "current_cede_premium",
+                "new_cede_premium",
+                "endorsed_total_sum_insured",
+                "endorsed_cede_premium",
+                "current_fac_share_offered",
+                "current_rein_premium",
+                "new_fac_share_offered",
             ],
             showCurrentSection: true,
         },
     };
 
+    /**
+     * All possible field names for hiding
+     */
+    const ALL_FIELD_NAMES = [
+        "change_in_sum_insured_type",
+        "current_total_sum_insured",
+        "effective_sum_insured",
+        "current_fac_share_offered",
+        "current_cede_premium",
+        "current_rein_premium",
+        "start_date",
+        "ppw_days",
+        "premium_due_date",
+        "coverfrom",
+        "coverto",
+        "insured_name",
+        "new_insured_name",
+        "endorsed_total_sum_insured",
+        "endorsed_cede_premium",
+        "new_fac_share_offered",
+        "apply_eml",
+        "eml_rate",
+        "eml_amt",
+        "new_total_sum_insured",
+        "new_cede_premium",
+        "new_effective_sum_insured",
+        "new_rein_premium",
+        "brokerage_comm_type",
+        "brokerage_comm_rate",
+        "brokerage_comm_amt",
+        "new_coverfrom",
+        "new_coverto",
+        "extension_days",
+        "new_premium_due_date",
+    ];
+
+    /**
+     * CoverEndorsement Main Object
+     */
     const CoverEndorsement = {
         config: null,
         elements: {},
@@ -311,7 +157,11 @@
             currentPremium: 0,
             currentReinsurerPremium: 0,
         },
+        dataTable: null,
 
+        /**
+         * Initialize the endorsement module
+         */
         init: function (serverConfig) {
             this.config = serverConfig;
             this.state.currentSumInsured =
@@ -327,42 +177,96 @@
             this.bindEvents();
             this.initSelect2Modals();
             this.initFormValidation();
+            this.initPortfolioHandlers();
+            this.initQuarterlyFiguresHandlers();
+            this.initMDPHandlers();
         },
 
+        /**
+         * Cache DOM elements for performance
+         */
         cacheElements: function () {
             this.elements = {
+                // Tables
                 endorsementTable: $("#endorsement-list-table"),
+
+                // Modals
                 endorseModal: $("#endorse-cover-modal"),
-                endorseForm: $("#cover-endorsement-form"),
-                coverActionForm: $("#cover-action-form"),
-                renewalNoticeForm: $("#renewal-notice-form"),
-                endorseType: $("#endorse-type"),
-                currentSection: $("#current-values-section"),
+                quarterlyFiguresModal: $("#quarterly-figures-modal"),
+                profitCommissionModal: $("#profit-commission-modal"),
+                portfolioModal: $("#portfolio-modal"),
+                mdpInstallmentModal: $("#mdpInstallmentModal"),
 
-                endorsedSumInsured: $("#endorsed-total-sum-insured"),
-                endorsedPremium: $("#endorsed-cede-premium"),
-                newSumInsured: $("#new-total-sum-insured"),
-                newPremium: $("#new-cede-premium"),
-                newEffectiveSumInsured: $("#new-effective-sum-insured"),
-                changeType: $("#change-in-sum-insured-type"),
-                applyEml: $("#apply-eml"),
-                emlRate: $("#eml-rate"),
-                emlAmt: $("#eml-amt"),
+                // Forms
+                endorseForm: $("#coverEndorsementForm"),
+                coverActionForm: $("#new_cover_form"),
+                renewalNoticeForm: $("#new_renewal_notice"),
+                quarterlyFiguresForm: $("#QuarterlyFiguresForm"),
+                profitCommissionForm: $("#ProfitCommissionForm"),
+                portfolioForm: $("#PortfolioForm"),
+                mdpInstallmentForm: $("#mdpInstallmentForm"),
 
-                premiumDueDate: $("#premium-due-date"),
-                newPremiumDueDate: $("#new-premium-due-date"),
-                extensionDays: $("#extension-days"),
-                newCoverFrom: $("#new-cover-from"),
-                newCoverTo: $("#new-cover-to"),
+                // Endorsement Type
+                endorseType: $("#endorse_type"),
+                currentSection: $("#current_section_div"),
 
-                brokerageCommType: $("#brokerage-comm-type"),
-                brokerageCommRate: $("#brokerage-comm-rate"),
-                brokerageCommAmt: $("#brokerage-comm-amt"),
+                // Sum Insured Fields
+                endorsedSumInsured: $("#endorsed_total_sum_insured"),
+                endorsedPremium: $("#endorsed_cede_premium"),
+                newSumInsured: $("#new_total_sum_insured"),
+                newPremium: $("#new_cede_premium"),
+                newEffectiveSumInsured: $("#new_effective_sum_insured"),
+                changeType: $("#change_in_sum_insured_type"),
+                currentSumInsured: $("#current_total_sum_insured"),
+                effectiveSumInsured: $("#effective_sum_insured"),
 
-                endorseNarration: $("#endorse-narration"),
+                // EML Fields
+                applyEml: $("#apply_eml"),
+                emlRate: $("#eml_rate"),
+                emlAmt: $("#eml_amt"),
+
+                // Date Fields
+                premiumDueDate: $("#premium_due_date"),
+                newPremiumDueDate: $("#new_premium_due_date"),
+                extensionDays: $("#extension_days"),
+                newCoverFrom: $("#new_coverfrom"),
+                newCoverTo: $("#new_coverto"),
+                coverFrom: $("#coverfrom"),
+                coverTo: $("#coverto"),
+                startDate: $("#start_date"),
+
+                // Brokerage Fields
+                brokerageCommType: $("#brokerage_comm_type"),
+                brokerageCommRate: $("#brokerage_comm_rate"),
+                brokerageCommAmt: $("#brokerage_comm_amt"),
+
+                // Narration
+                endorseNarration: $("#endorse_narration"),
+
+                // Portfolio Fields
+                portfolioYear: $("#portfolio_year"),
+                origEndorsement: $("#orig_endorsement"),
+                portReinsurer: $("#port_reinsurer"),
+                portfolioAddReinsurer: $("#portfolio_add_reinsurer"),
+                portShare: $("#port_share"),
+                portAmt: $("#port_amt"),
+                portPrmRate: $("#port_prm_rate"),
+                portLossRate: $("#port_loss_rate"),
+                portfolioType: $("#portfolio_type"),
+
+                // Profit Commission
+                treatyYear: $("#treaty_year"),
+                profitCommissionDiv: $("#ProfitCommissionDiv"),
+
+                // MDP
+                mdpInstallment: $("#mdp-installment"),
+                mdpInstallmentsSection: $("#mdp-installments-section"),
             };
         },
 
+        /**
+         * Initialize DataTable for endorsement list
+         */
         initDataTable: function () {
             const self = this;
 
@@ -403,28 +307,46 @@
                 ],
             });
         },
+
+        /**
+         * Initialize Select2 for modals
+         */
         initSelect2Modals: function () {
             const modals = [
                 "#quarterly-figures-modal",
                 "#profit-commission-modal",
                 "#portfolio-modal",
                 "#endorse-cover-modal",
+                "#mdpInstallmentModal",
             ];
 
             modals.forEach(function (modalId) {
                 $(modalId).on("shown.bs.modal", function () {
-                    $(".select2", this).select2({
+                    $(".select2.form-inputs, .select2", this).select2({
                         dropdownParent: $(this),
                     });
                 });
             });
         },
 
+        /**
+         * Get field configuration for endorsement types
+         */
         getFieldConfig: function () {
             return ENDORSEMENT_FIELD_CONFIG;
         },
+
+        /**
+         * Get all field names
+         */
+        getAllFieldNames: function () {
+            return ALL_FIELD_NAMES;
+        },
     };
 
+    /**
+     * Utility functions
+     */
     window.CoverUtils = {
         numberWithCommas: function (x) {
             if (x === null || x === undefined || isNaN(x)) return "0.00";
@@ -463,6 +385,16 @@
                 },
             };
             return $.ajax(url, $.extend(true, defaults, options));
+        },
+
+        fetchWithCsrf: function (url, options) {
+            const defaults = {
+                headers: {
+                    "X-CSRF-TOKEN": window.CoverEndorsement.config.csrfToken,
+                    "Content-Type": "application/json",
+                },
+            };
+            return fetch(url, Object.assign({}, defaults, options));
         },
     };
 

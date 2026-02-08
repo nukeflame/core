@@ -26,7 +26,8 @@
 @else
     <div class="row">
         @if ($type_of_bus->bus_type_id == 'FPR' || $type_of_bus->bus_type_id == 'FNP')
-            <button class="btn btn-sm btn-dark btn-wave waves-effect waves-light col-md-2 m-2" id="endorse_cover">
+            <button class="btn btn-sm btn-dark btn-wave waves-effect waves-light col-md-2 m-2" id="endorse_cover"
+                data-bs-toggle="modal" data-bs-target="#endorse-cover-modal">
                 <i class="bx bx-plus me-1"></i> Endorse Cover</button>
             {{-- <button class="btn btn-sm btn-dark btn-wave waves-effect waves-light col-md-2 m-2 custom-btn" id="debtor_state"> <span class="fa fa-pencil-square-o" onclick="processCNC()"></span>Cancel Cover</button> --}}
             <button class="process_cover btn btn-sm btn-dark btn-wave waves-effect waves-light col-md-2 m-2 custom-btn"
