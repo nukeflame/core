@@ -1,71 +1,102 @@
+@props([
+    'cover',
+    'endorsementNarration' => [],
+    'endorsementCount' => null,
+    'claimsCount' => null,
+    'statementsCount' => null,
+])
+
 <nav>
     <div class="nav nav-tabs nav-justified tab-style-4 d-sm-flex d-block reinsurers-details-card" id="nav-tab"
         role="tablist">
 
-        @if (in_array($cover->type_of_bus, ['FPR', 'FNP']))
-            <button class="nav-link active" id="nav-schedules-tab" data-bs-toggle="tab" data-bs-target="#schedules-tab"
-                type="button" role="tab" aria-selected="true">
-                <i class="bx bx-table me-1 align-middle"></i>Schedule Details
+        @if (isset($endorsementCount))
+            <button class="nav-link active" id="nav-endorsement-list" data-bs-toggle="tab"
+                data-bs-target="#endorsement-list" type="button" role="tab" aria-controls="endorsement-list"
+                aria-selected="true">
+                <i class="bx bx-table me-1 align-middle"></i>Endorsements List
+                <span class="badge bg-primary ms-1" id="endorsmentListCount">{{ $endorsementCount }}</span>
             </button>
 
-            <button class="nav-link" id="nav-attachments-tab" data-bs-toggle="tab" data-bs-target="#attachments-tab"
-                type="button" role="tab" aria-selected="false" tabindex="-1">
-                <i class="bx bx-file me-1 align-middle"></i>File & Support Docs
+            <button class="nav-link" id="nav-claimlist-tab" data-bs-toggle="tab" data-bs-target="#claimlist-tab"
+                type="button" role="tab" aria-controls="claimlist-tab" aria-selected="false">
+                <i class="bx bx-table me-1 align-middle"></i>Claim List
+                <span class="badge bg-danger ms-1" id="claimListCount">{{ $claimsCount }}</span>
             </button>
 
-            <button class="nav-link" id="nav-clauses-tab" data-bs-toggle="tab" data-bs-target="#clauses-tab"
+            <button class="nav-link" id="nav-statement-tab" data-bs-toggle="tab" data-bs-target="#statement-tab"
+                type="button" role="tab" aria-controls="statement-tab" aria-selected="false">
+                <i class="ri-building-2-line me-1"></i> Statement
+                <span class="badge bg-info ms-1" id="statementListCount">{{ $statementsCount }}</span>
+            </button>
+        @else
+            @if (in_array($cover->type_of_bus, ['FPR', 'FNP']))
+                <button class="nav-link active" id="nav-schedules-tab" data-bs-toggle="tab"
+                    data-bs-target="#schedules-tab" type="button" role="tab" aria-selected="true">
+                    <i class="bx bx-table me-1 align-middle"></i>Schedule Details
+                </button>
+
+                <button class="nav-link" id="nav-attachments-tab" data-bs-toggle="tab" data-bs-target="#attachments-tab"
+                    type="button" role="tab" aria-selected="false" tabindex="-1">
+                    <i class="bx bx-file me-1 align-middle"></i>File & Support Docs
+                </button>
+
+                <button class="nav-link" id="nav-clauses-tab" data-bs-toggle="tab" data-bs-target="#clauses-tab"
+                    type="button" role="tab" aria-selected="false" tabindex="-1">
+                    <i class="bx bx-medal me-1 align-middle"></i>Policy Clauses
+                </button>
+            @endif
+
+            @if (in_array($cover->type_of_bus, ['TPR', 'TNP']))
+                <button class="nav-link" id="nav-ins-classes-tab" data-bs-toggle="tab" data-bs-target="#ins-classes-tab"
+                    type="button" role="tab" aria-selected="false" tabindex="-1">
+                    <i class="ri-award-line me-1 align-middle"></i>Classes
+                </button>
+            @endif
+
+            <button class="nav-link @if (in_array($cover->type_of_bus, ['TPR', 'TNP'])) active @endif" id="nav-reinsurers-tab"
+                data-bs-toggle="tab" data-bs-target="#reinsurers-tab" type="button" role="tab"
+                aria-selected="@if (in_array($cover->type_of_bus, ['TPR', 'TNP'])) true @else false @endif"
+                @if (!in_array($cover->type_of_bus, ['TPR', 'TNP'])) tabindex="-1" @endif>
+                <i class="ri-team-line me-1 align-middle"></i>Reinsurers
+            </button>
+
+            @if ($cover->no_of_installments > 1)
+                <button class="nav-link" id="nav-installments-tab" data-bs-toggle="tab"
+                    data-bs-target="#installments-tab" type="button" role="tab" aria-selected="false"
+                    tabindex="-1">
+                    <i class="bi bi-archive me-1 align-middle"></i>Installment Details
+                </button>
+            @endif
+
+            @if (count($endorsementNarration) > 0)
+                <button class="nav-link" id="nav-endorse-narration-tab" data-bs-toggle="tab"
+                    data-bs-target="#endorse-narration-tab" type="button" role="tab" aria-selected="false"
+                    tabindex="-1">
+                    <i class="bx bx-file-blank me-1 align-middle"></i>Narration
+                </button>
+            @endif
+
+            <button class="nav-link" id="nav-approvals-tab" data-bs-toggle="tab" data-bs-target="#approvals-tab"
                 type="button" role="tab" aria-selected="false" tabindex="-1">
-                <i class="bx bx-medal me-1 align-middle"></i>Policy Clauses
+                <i class="bx bx-check me-1 align-middle"></i>Approvals
+            </button>
+
+            @if (in_array($cover->type_of_bus, ['FPR', 'FNP']))
+                <button class="nav-link" id="nav-debits-tab" data-bs-toggle="tab" data-bs-target="#debits-tab"
+                    type="button" role="tab" aria-selected="false" tabindex="-1">
+                    <i class="bx bx-credit-card me-1 align-middle"></i>Cedant
+                </button>
+            @endif
+
+            <button class="nav-link" id="nav-docs-tab" data-bs-toggle="tab" data-bs-target="#docs-tab"
+                type="button" role="tab" aria-selected="false" tabindex="-1">
+                <i class="ri-printer-line me-1 align-middle"></i>Print-outs
             </button>
         @endif
-
-        @if (in_array($cover->type_of_bus, ['TPR', 'TNP']))
-            <button class="nav-link" id="nav-ins-classes-tab" data-bs-toggle="tab" data-bs-target="#ins-classes-tab"
-                type="button" role="tab" aria-selected="false" tabindex="-1">
-                <i class="ri-award-line me-1 align-middle"></i>Classes
-            </button>
-        @endif
-
-        <button class="nav-link @if (in_array($cover->type_of_bus, ['TPR', 'TNP'])) active @endif" id="nav-reinsurers-tab"
-            data-bs-toggle="tab" data-bs-target="#reinsurers-tab" type="button" role="tab"
-            aria-selected="@if (in_array($cover->type_of_bus, ['TPR', 'TNP'])) true @else false @endif"
-            @if (!in_array($cover->type_of_bus, ['TPR', 'TNP'])) tabindex="-1" @endif>
-            <i class="ri-team-line me-1 align-middle"></i>Reinsurers
-        </button>
-
-        @if ($cover->no_of_installments > 1)
-            <button class="nav-link" id="nav-installments-tab" data-bs-toggle="tab" data-bs-target="#installments-tab"
-                type="button" role="tab" aria-selected="false" tabindex="-1">
-                <i class="bi bi-archive me-1 align-middle"></i>Installment Details
-            </button>
-        @endif
-
-        @if (count($endorsementNarration) > 0)
-            <button class="nav-link" id="nav-endorse-narration-tab" data-bs-toggle="tab"
-                data-bs-target="#endorse-narration-tab" type="button" role="tab" aria-selected="false"
-                tabindex="-1">
-                <i class="bx bx-file-blank me-1 align-middle"></i>Narration
-            </button>
-        @endif
-
-        <button class="nav-link" id="nav-approvals-tab" data-bs-toggle="tab" data-bs-target="#approvals-tab"
-            type="button" role="tab" aria-selected="false" tabindex="-1">
-            <i class="bx bx-check me-1 align-middle"></i>Approvals
-        </button>
-
-        @if (in_array($cover->type_of_bus, ['FPR', 'FNP']))
-            <button class="nav-link" id="nav-debits-tab" data-bs-toggle="tab" data-bs-target="#debits-tab"
-                type="button" role="tab" aria-selected="false" tabindex="-1">
-                <i class="bx bx-credit-card me-1 align-middle"></i>Cedant
-            </button>
-        @endif
-
-        <button class="nav-link" id="nav-docs-tab" data-bs-toggle="tab" data-bs-target="#docs-tab" type="button"
-            role="tab" aria-selected="false" tabindex="-1">
-            <i class="ri-printer-line me-1 align-middle"></i>Print-outs
-        </button>
     </div>
 </nav>
+
 
 {{-- <nav>
     <div class="nav nav-tabs nav-justified tab-style-4 d-sm-flex d-block reinsurers-details-card" id="nav-tab"

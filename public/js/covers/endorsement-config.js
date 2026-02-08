@@ -1,6 +1,6 @@
 /**
  * Cover Endorsement Configuration
- *
+ * @pk305
  */
 
 (function (window) {

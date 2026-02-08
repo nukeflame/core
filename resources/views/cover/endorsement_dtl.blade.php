@@ -73,31 +73,8 @@
     <div class="row-cols-12">
         <div class="card mb-2 custom-card border col">
             <div class="card-body pt-0">
-                <nav>
-                    <div class="nav nav-tabs nav-justified tab-style-4 d-sm-flex d-block reinsurers-details-card"
-                        id="nav-tab" role="tablist">
-                        <button class="nav-link active" id="nav-endorsement-list" data-bs-toggle="tab"
-                            data-bs-target="#endorsement-list" type="button" role="tab"
-                            aria-controls="endorsement-list" aria-selected="true">
-                            <i class="bx bx-table me-1 align-middle"></i>Endorsements List
-                            <span class="badge bg-primary ms-1"
-                                id="endorsmentListCount">{{ $all_endorsements->count() }}</span>
-                        </button>
+                <x-cover.tabs-navigation :cover="$latest_endorsement" :endorsementCount="$all_endorsements->count()" :claimsCount="$claims->count()" :statementsCount="$reinsurerStatements->count()" />
 
-                        <button class="nav-link" id="nav-claimlist-tab" data-bs-toggle="tab" data-bs-target="#claimlist-tab"
-                            type="button" role="tab" aria-controls="claimlist-tab" aria-selected="false">
-                            <i class="bx bx-table me-1 align-middle"></i>Claim List
-                            <span class="badge bg-danger ms-1" id="claimListCount">{{ $claims->count() }}</span>
-                        </button>
-
-                        <button class="nav-link" id="nav-statement-tab" data-bs-toggle="tab" data-bs-target="#statement-tab"
-                            type="button" role="tab" aria-controls="statement-tab" aria-selected="false">
-                            <i class="ri-building-2-line me-1"></i> Statement
-                            <span class="badge bg-info ms-1"
-                                id="statementListCount">{{ $reinsurerStatements->count() }}</span>
-                        </button>
-                    </div>
-                </nav>
 
                 <div class="tab-content reinsurers-tabpane-card" id="tab-style-4">
                     <div class="tab-pane fade show active" id="endorsement-list" role="tabpanel"

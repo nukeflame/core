@@ -467,6 +467,14 @@
                     }
                 },
             );
+
+            // Add dblclick support for table rows
+            $(document).on("dblclick", "#claimsTable tbody tr", function () {
+                const rowData = self.tables.claims.row(this).data();
+                if (rowData && rowData.claim_no) {
+                    self.viewClaimDetails(rowData.claim_no);
+                }
+            });
         },
 
         /**
@@ -503,6 +511,18 @@
                         $(this).hasClass("btn-outline-danger")
                     ) {
                         self.deleteStatement(tranNo);
+                    }
+                },
+            );
+
+            // Add dblclick support for table rows
+            $(document).on(
+                "dblclick",
+                "#reinsurersTable tbody tr",
+                function () {
+                    const rowData = self.tables.statements.row(this).data();
+                    if (rowData && rowData.tran_no) {
+                        self.viewStatementDetails(rowData.tran_no);
                     }
                 },
             );

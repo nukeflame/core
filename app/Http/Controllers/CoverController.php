@@ -567,9 +567,10 @@ class CoverController extends Controller
                 return $trans_type;
             })
             ->editColumn('actions', function ($fn) {
-                $btn = '';
-                $btn .= "<button class='btn btn-sm btn-primary btn-sm-action view-endorsement-table me-1' data-customer_id='{$fn->customer_id}' data-cover_no='{$fn->cover_no}' data-endorsement_no='{$fn->endorsement_no}' title='View'><i class='bx bx-show'></i></button>";
-                $btn .= "<button class='btn btn-sm btn-danger btn-sm-action remove-endorsement-table' data-cover_no='{$fn->cover_no}' data-customer_id='{$fn->customer_id}' data-endorsement_no='{$fn->endorsement_no}' title='Remove'><i class='bx bx-trash'></i></button>";
+                $btn = '<div class="btn-group btn-group-sm" role="group" aria-label="Endorsement actions">';
+                $btn .= "<button type='button' class='btn btn-outline-primary view-endorsement-table' data-customer_id='{$fn->customer_id}' data-cover_no='{$fn->cover_no}' data-endorsement_no='{$fn->endorsement_no}' title='View details'><i class='bi bi-eye'></i></button>";
+                $btn .= "<button type='button' class='btn btn-outline-danger remove-endorsement-table' data-customer_id='{$fn->customer_id}' data-cover_no='{$fn->cover_no}' data-endorsement_no='{$fn->endorsement_no}' title='Remove'><i class='bi bi-trash'></i></button>";
+                $btn .= '</div>';
 
                 return $btn;
             })
@@ -596,9 +597,14 @@ class CoverController extends Controller
         $summaryData = ['summaryData' => []];
         $data = array_merge($summaryData, $cover);
 
-        if (! $cover['actionable']) {
-            return redirect()->route('cover.transactions.index', ['coverNo' => $cover['coverNo']]);
-        }
+        // if (! $cover['actionable']) {
+           
+        // }
+
+        $isTreaty = in_array($cover['type_of_bus']['bus_type_id'], ['TPR', 'TNP']);
+        if ($isTreaty) {
+            return redirect()->route('cover.transactions.index', ['coverNo' => $cover['coverNo']]);        
+        } 
 
         return view('cover.cover_home', $data);
     }

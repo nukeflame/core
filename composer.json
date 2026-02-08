@@ -21,7 +21,6 @@
         "laravel/reverb": "^1.4",
         "laravel/sanctum": "^3.3",
         "laravel/tinker": "^2.8",
-        "laravelcollective/html": "^6.0",
         "league/flysystem-aws-s3-v3": "^3.0",
         "league/oauth2-client": "^2.8",
         "league/oauth2-google": "^4.0",

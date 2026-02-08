@@ -22,13 +22,13 @@
 @endphp
 
 <div class="card border-0 shadow-sm mb-3">
-    <div class="card-header bg-white border-0 pb-2 px-0 pt-2">
+    <div class="card-header bg-white border-0 pb-2 px-0 pt-4">
         <h6 class="mb-0 fw-semibold">
             <i class="bi bi-lightning-charge-fill"></i> Quick Actions
         </h6>
     </div>
 
-    <div class="card-body px-0 pt-2 mx-0 cover-info-wrapper"
+    <div class="card-body px-2 pt-2 mx-0 cover-info-wrapper"
         style="background-color:var(--cover-bg);border-radius:0.375rem;">
 
         @if ($isUnverified)

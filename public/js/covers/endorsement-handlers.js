@@ -1,6 +1,6 @@
 /**
  * Cover Endorsement Event Handlers
- *
+ * @pk305
  */
 
 (function ($, CoverEndorsement, CoverUtils) {
@@ -58,7 +58,7 @@
             if (!config) {
                 console.warn(
                     "No configuration found for endorsement type:",
-                    slug
+                    slug,
                 );
                 return;
             }
@@ -150,13 +150,13 @@
             $(this).val(emlRate);
 
             const totalSumInsured = CoverUtils.parseAmount(
-                self.elements.newSumInsured.val()
+                self.elements.newSumInsured.val(),
             );
             const emlAmt = totalSumInsured * (emlRate / 100);
 
             self.elements.emlAmt.val(CoverUtils.numberWithCommas(emlAmt));
             self.elements.newEffectiveSumInsured.val(
-                CoverUtils.numberWithCommas(emlAmt)
+                CoverUtils.numberWithCommas(emlAmt),
             );
         });
 
@@ -165,7 +165,7 @@
 
             let emlAmt = CoverUtils.parseAmount($(this).val());
             const totalSumInsured = CoverUtils.parseAmount(
-                self.elements.newSumInsured.val()
+                self.elements.newSumInsured.val(),
             );
 
             emlAmt = Math.min(totalSumInsured, Math.max(0, emlAmt));
@@ -175,7 +175,7 @@
             self.elements.emlRate.val(emlRate.toFixed(2));
             self.elements.emlAmt.val(CoverUtils.numberWithCommas(emlAmt));
             self.elements.newEffectiveSumInsured.val(
-                CoverUtils.numberWithCommas(emlAmt)
+                CoverUtils.numberWithCommas(emlAmt),
             );
         });
 
@@ -192,10 +192,10 @@
     CoverEndorsement.calculateNewValues = function () {
         const changeType = this.elements.changeType.val();
         const endorsedSumInsured = CoverUtils.parseAmount(
-            this.elements.endorsedSumInsured.val()
+            this.elements.endorsedSumInsured.val(),
         );
         const endorsedPremium = CoverUtils.parseAmount(
-            this.elements.endorsedPremium.val()
+            this.elements.endorsedPremium.val(),
         );
         const emlRate = parseFloat(this.elements.emlRate.val()) || 0;
         const applyEml = this.elements.applyEml.val();
@@ -205,24 +205,24 @@
 
         if (changeType === "increase") {
             newSumInsured = Math.ceil(
-                Math.max(0, this.state.currentSumInsured + endorsedSumInsured)
+                Math.max(0, this.state.currentSumInsured + endorsedSumInsured),
             );
             newPremium = Math.ceil(
-                Math.max(0, this.state.currentPremium + endorsedPremium)
+                Math.max(0, this.state.currentPremium + endorsedPremium),
             );
         } else if (changeType === "decrease") {
             if (endorsedSumInsured > this.state.currentSumInsured) {
                 toastr.error(
-                    "Decrease amount cannot be greater than current sum insured"
+                    "Decrease amount cannot be greater than current sum insured",
                 );
                 this.elements.endorsedSumInsured.val("");
                 return;
             }
             newSumInsured = Math.ceil(
-                Math.max(0, this.state.currentSumInsured - endorsedSumInsured)
+                Math.max(0, this.state.currentSumInsured - endorsedSumInsured),
             );
             newPremium = Math.ceil(
-                Math.max(0, this.state.currentPremium - endorsedPremium)
+                Math.max(0, this.state.currentPremium - endorsedPremium),
             );
         }
 
@@ -231,19 +231,19 @@
         if (applyEml === "Y" && emlRate > 0) {
             effectiveSumInsured = newSumInsured * (emlRate / 100);
             this.elements.emlAmt.val(
-                CoverUtils.numberWithCommas(effectiveSumInsured)
+                CoverUtils.numberWithCommas(effectiveSumInsured),
             );
         }
 
         this.elements.newPremium.val(CoverUtils.numberWithCommas(newPremium));
         this.elements.newSumInsured.val(
-            CoverUtils.numberWithCommas(newSumInsured)
+            CoverUtils.numberWithCommas(newSumInsured),
         );
         this.elements.newEffectiveSumInsured.val(
-            CoverUtils.numberWithCommas(effectiveSumInsured)
+            CoverUtils.numberWithCommas(effectiveSumInsured),
         );
         $("#endorsed-effective-sum-insured").val(
-            CoverUtils.numberWithCommas(effectiveSumInsured)
+            CoverUtils.numberWithCommas(effectiveSumInsured),
         );
     };
 
@@ -292,10 +292,10 @@
             const commType = $(this).val();
 
             $(`.field-group[data-field="brokerage-comm-rate"]`).addClass(
-                "d-none"
+                "d-none",
             );
             $(`.field-group[data-field="brokerage-comm-amt"]`).addClass(
-                "d-none"
+                "d-none",
             );
             self.elements.brokerageCommRate.prop("disabled", true).val("");
             self.elements.brokerageCommAmt.prop("disabled", true).val("");
@@ -317,7 +317,7 @@
             const data = $(this).data();
             const baseUrl = self.config.routes.coverHome;
             const newUrl = `${baseUrl}?endorsement_no=${encodeURIComponent(
-                data.endorsement_no
+                data.endorsement_no,
             )}`;
 
             CoverUtils.ajax(newUrl, {
@@ -336,6 +336,17 @@
                 .fail(function (xhr, status, error) {
                     toastr.error("Failed to load endorsement details");
                 });
+        });
+
+        // Add dblclick support for table rows
+        this.elements.endorsementTable.on("dblclick", "tbody tr", function () {
+            const rowData = self.dataTable.row(this).data();
+            if (rowData) {
+                const $viewBtn = $(this).find(".view-endorsement-table");
+                if ($viewBtn.length) {
+                    $viewBtn.trigger("click");
+                }
+            }
         });
 
         $(document).on("click", ".remove-endorsement-table", function (e) {
@@ -365,7 +376,7 @@
                         if (response.status === 201) {
                             toastr.success(
                                 "Action was successful",
-                                "Successful"
+                                "Successful",
                             );
                             self.dataTable.ajax.reload();
                             setTimeout(function () {
@@ -419,7 +430,7 @@
                 error.insertAfter(
                     element.closest(".field-group").length
                         ? element
-                        : element.parent()
+                        : element.parent(),
                 );
             },
             submitHandler: function (form) {
@@ -434,7 +445,7 @@
         const endorseType = this.elements.endorseType.val();
         const changeType = this.elements.changeType.val();
         const endorsedSumInsured = CoverUtils.parseAmount(
-            this.elements.endorsedSumInsured.val()
+            this.elements.endorsedSumInsured.val(),
         );
         const narration = this.elements.endorseNarration.val();
 
@@ -448,7 +459,7 @@
             endorsedSumInsured > this.state.currentSumInsured
         ) {
             toastr.error(
-                "Decrease amount cannot be greater than current sum insured"
+                "Decrease amount cannot be greater than current sum insured",
             );
             this.elements.endorsedSumInsured.val("").focus();
             return false;

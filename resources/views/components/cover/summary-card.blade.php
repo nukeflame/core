@@ -9,12 +9,12 @@
 ])
 
 <div class="card border-0 shadow-sm mb-3">
-    <div class="card-header bg-white border-0 pb-2 px-0 pt-2">
+    <div class="card-header bg-white border-0 pb-2 px-2 pt-4">
         <h6 class="mb-0 fw-semibold">
             <i class="ri-information-line me-1" style="vertical-align: -2px;"></i> {{ $title ?? 'Cover Summary' }}
         </h6>
     </div>
-    <div class="card-body pt-2 px-0">
+    <div class="card-body pt-2 px-2">
         @if ($transactionInfo)
             <div class="row">
                 <div class="col-md-12">
