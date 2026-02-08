@@ -17,6 +17,8 @@ use App\Models\Broker;
 use App\Models\BusinessType;
 use App\Models\Classes;
 use App\Models\ClassGroup;
+use App\Models\ClaimDebit;
+use App\Models\ClaimRegister;
 use App\Models\ClauseParam;
 use App\Models\Company;
 use App\Models\Country;
@@ -714,6 +716,25 @@ class CoverController extends Controller
 
         $premium_due_date = Carbon::parse($cover_installments?->installment_date)->format('Y-m-d');
 
+        // Fetch claims for this cover
+        $claims = ClaimRegister::where('cover_no', $cover_no)
+            ->where('endorsement_no', $latest_endorsement->endorsement_no)
+            ->orderByDesc('claim_serial_no')
+            ->get();
+
+        // Fetch claim debits (claim statements) for this cover
+        $claimDebits = ClaimDebit::where('cover_no', $cover_no)
+            ->where('endorsement_no', $latest_endorsement->endorsement_no)
+            ->orderByDesc('created_at')
+            ->get();
+
+        // Fetch reinsurer statements (premium statements) for this cover
+        $reinsurerStatements = CoverRipart::where('cover_no', $cover_no)
+            ->where('endorsement_no', $latest_endorsement->endorsement_no)
+            ->with(['partner'])
+            ->orderBy('tran_no')
+            ->get();
+
         return view('cover.endorsement_dtl', [
             'latest_endorsement' => $latest_endorsement,
             'all_endorsements' => $all_endorsements,
@@ -731,6 +752,9 @@ class CoverController extends Controller
             'mdpAmount' => $mdpAmount,
             'EndorsementTypes' => $EndorsementTypes,
             'premium_due_date' => $premium_due_date,
+            'claims' => $claims,
+            'claimDebits' => $claimDebits,
+            'reinsurerStatements' => $reinsurerStatements,
         ]);
     }
 
@@ -1549,8 +1573,8 @@ class CoverController extends Controller
 
             $this->createCustomerAccount($debitData, $cover);
 
-            // $cover->commited = 'Y';
-            // $cover->save();
+            $cover->commited = 'Y';
+            $cover->save();
 
             DB::commit();
 
@@ -1655,9 +1679,7 @@ class CoverController extends Controller
         $cover->account_month = $this->_month;
         $cover->update();
 
-        $creditNote = $this->creditNoteService->create($creditData, $cover);
-
-        return $creditNote->fresh(['items']);
+        return $this->creditNoteService->create($creditData, $cover);
     }
 
     protected function validateBusinessRules(CoverRegister $cover, array $data): void

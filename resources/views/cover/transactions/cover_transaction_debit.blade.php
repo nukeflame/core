@@ -554,22 +554,21 @@
             <i class="ri-refresh-line"></i> Refresh Data
         </button> --}}
         <!-- <button type="button" class="btn btn-outline-dark quick-action-btn" id="btnPreviewSlip">
-                                                                                                                                                                                                        <i class="ri-file-text-line"></i> Preview Slip
-                                                                                                                                                                                                    </button> -->
+                                                                                                                                                                                                            <i class="ri-file-text-line"></i> Preview Slip
+                                                                                                                                                                                                        </button> -->
         <!-- <button type="button" class="btn btn-outline-primary quick-action-btn" id="btnGenerateStatement">
-                                                                                                                                                                                                        <i class="ri-file-list-3-line"></i> Generate Statement
-                                                                                                                                                                                                    </button> -->
+                                                                                                                                                                                                            <i class="ri-file-list-3-line"></i> Generate Statement
+                                                                                                                                                                                                        </button> -->
         {{-- <button type="button" class="btn btn-outline-success quick-action-btn" id="btnExportData">
             <i class="ri-download-2-line"></i> Export Data
         </button> --}}
         <!-- <button type="button" class="btn btn-primary quick-action-btn" data-bs-toggle="modal"
-                                                                                                                                                                                                        data-bs-target="#addDebitItemModal">
-                                                                                                                                                                                                        <i class="ri-add-line"></i> Add Debit Item
-                                                                                                                                                                                                    </button> -->
+                                                                                                                                                                                                            data-bs-target="#addDebitItemModal">
+                                                                                                                                                                                                            <i class="ri-add-line"></i> Add Debit Item
+                                                                                                                                                                                                        </button> -->
         <small class="text-muted ms-auto align-self-center" id="lastUpdatedTime"></small>
     </div>
 
-    {{-- Financial Summary Cards --}}
     <div class="financial-grid">
         <div class="financial-card debits">
             <div class="financial-label">Total Gross Premium</div>
@@ -597,7 +596,6 @@
         </div>
     </div>
 
-    {{-- Summary Card --}}
     <div class="summary-card mb-4">
         <div class="summary-grid">
             <div class="summary-item">
@@ -649,7 +647,6 @@
         </div>
     </div>
 
-    {{-- Main Content Card with Tabs --}}
     <div class="row-cols-12">
         <div class="card mb-2 custom-card border col">
             <div class="card-body pt-0">

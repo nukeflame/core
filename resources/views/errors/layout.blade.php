@@ -13,7 +13,7 @@
         body {
             background-color: red;
             color: #636b6f;
-            ont-family: "Acumin Pro", sans-serif;
+            font-family: "Open Sans", sans-serif;
             font-weight: 100;
             height: 100vh;
             margin: 0;

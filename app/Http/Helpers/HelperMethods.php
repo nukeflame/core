@@ -234,3 +234,13 @@ function pendingApprovalsCount()
         ->where('status', 'P')
         ->count();
 }
+
+function formatCurrency($amount, $currency = 'KES', $decimals = 2)
+{
+    if (is_null($amount)) {
+        return $currency . ' 0.00';
+    }
+
+    $formatted = number_format($amount, $decimals, '.', ',');
+    return $currency . ' ' . $formatted;
+}

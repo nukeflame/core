@@ -44,13 +44,14 @@ class CreditNoteService
         return $this->sequenceService->parseNoteNumber($creditNoteNo);
     }
 
-    public function create(array $data, CoverRegister $cover): CreditNote
+    public function create(array $data, CoverRegister $cover): array
     {
         return DB::transaction(function () use ($data, $cover) {
             $this->validateCreateData($data);
 
             $calculation = $this->amountCalculator->calculate($data, $cover);
 
+            $creditNotes = [];
 
             if (!empty($calculation['reinsurers'])) {
                 foreach ($calculation['reinsurers'] as $reinsurer) {
@@ -83,7 +84,7 @@ class CreditNoteService
 
             $this->updateReinsurerParticipation($calculation['reinsurers']);
 
-            return $creditNote->fresh(['items', 'cover', 'cover.customer']);
+            return $creditNotes;
         });
     }
 

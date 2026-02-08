@@ -25,6 +25,11 @@ class CoverRipart extends Model
         return $this->belongsTo(Customer::class, 'partner_no', 'customer_id');
     }
 
+    public function customer(): BelongsTo
+    {
+        return $this->belongsTo(Customer::class, 'partner_no', 'customer_id');
+    }
+
     public function contacts(): HasMany
     {
         return $this->hasMany(CustomerContact::class, 'customer_id', 'partner_no');

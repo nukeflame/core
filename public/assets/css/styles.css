@@ -2,7 +2,7 @@
 [Master Stylesheet]
 
 ------------------------------------------------------------------*/
-/* Table Of Content 
+/* Table Of Content
 variables
 switcher
 accordion
@@ -55,8 +55,8 @@ typography
 */
 
 /* FONT */
+@import url("open-sans-fonts.css");
 @import url("aptos-fonts.css");
-/* @import url("acumin-fonts.css"); */
 @import url("manrope-fonts.css");
 
 :root {

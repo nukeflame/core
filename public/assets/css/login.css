@@ -16,7 +16,7 @@
 }
 
 body {
-    ont-family: "Acumin Pro", sans-serif;
+    font-family: "Open Sans", sans-serif;
     overflow-x: hidden;
     background: var(--bg-light);
 }

@@ -32,7 +32,7 @@
         }
 
         html {
-            ont-family: "Acumin Pro", sans-serif;
+            font-family: "Open Sans", sans-serif;
             line-height: 1.5
         }
 
@@ -527,7 +527,7 @@
 
     <style>
         body {
-            ont-family: "Acumin Pro", sans-serif;
+            font-family: "Open Sans", sans-serif;
         }
     </style>
 </head>
