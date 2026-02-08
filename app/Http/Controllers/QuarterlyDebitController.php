@@ -1575,8 +1575,9 @@ class QuarterlyDebitController extends Controller
                     'cn.commission_amount',
                     'cn.net_amount',
                     'cn.status',
+                    'tci.original_amount'
                 ])
-                ->orderBy('posting_date', 'desc')
+                ->orderBy('id', 'asc')
                 ->get();
 
             $totalGross = $creditNote->gross_amount;
@@ -1622,6 +1623,9 @@ class QuarterlyDebitController extends Controller
                 'with_brokerage' => $withBrokerage,
             ];
 
+            logger()->debug(json_encode($documentData, JSON_PRETTY_PRINT));
+
+
             $pdf = Pdf::loadView('printouts.accounts.treaty-credit-note', $documentData)
                 ->setPaper('a4', 'portrait')
                 ->setWarnings(false);
@@ -1633,14 +1637,12 @@ class QuarterlyDebitController extends Controller
 
             return $pdf->stream($filename);
         } catch (ValidationException $e) {
-            logger($e);
             abort(422, 'Invalid request parameters');
         } catch (Exception $e) {
-            logger($e);
-
             abort(500, 'Failed to generate credit note: ' . $e->getMessage());
         }
     }
+
     public function viewCedantDebitNote(Request $request)
     {
         try {
@@ -1721,7 +1723,7 @@ class QuarterlyDebitController extends Controller
                     'tdi.description',
                     'tdi.original_amount'
                 ])
-                ->orderBy('line_no', 'asc')
+                ->orderBy('id', 'asc')
                 ->get();
 
             $totalGross = $debitNote->gross_amount;
@@ -1754,8 +1756,6 @@ class QuarterlyDebitController extends Controller
                 ],
             ];
 
-            logger()->debug(json_encode($documentData, JSON_PRETTY_PRINT));
-
             $pdf = Pdf::loadView('printouts.accounts.treaty-debit-note', $documentData)
                 ->setPaper('a4', 'portrait')
                 ->setWarnings(false);
@@ -1767,10 +1767,8 @@ class QuarterlyDebitController extends Controller
 
             return $pdf->stream($filename);
         } catch (ValidationException $e) {
-            logger($e);
             abort(422, 'Invalid request parameters');
         } catch (Exception $e) {
-            logger($e);
             abort(500, 'Failed to generate debit note: ' . $e->getMessage());
         }
     }

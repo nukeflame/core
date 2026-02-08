@@ -4,6 +4,8 @@ namespace App\Services\DebitNote;
 
 use App\Models\DebitNote;
 use App\Models\DebitNoteItem;
+use App\Models\CreditNote;
+use App\Models\CreditNoteItem;
 
 class LineItemProcessor
 {
@@ -16,13 +18,13 @@ class LineItemProcessor
 
     private const DEBIT_CODES = ['IT01', 'IT11', 'IT20', 'IT26'];
 
-    public function createLineItems(DebitNote $debitNote, $items): void
+    public function createDebitNoteLineItems(DebitNote $debitNote, array $items): void
     {
         $lineNo = 1;
         $insertData = [];
 
         foreach ($items['cedant']['items'] ?? [] as $item) {
-            $itemData = $this->prepareLineItem($debitNote, $item, $lineNo);
+            $itemData = $this->prepareDebitNoteLineItem($debitNote, $item, $lineNo);
 
             if ($itemData) {
                 $insertData[] = $itemData;
@@ -30,21 +32,19 @@ class LineItemProcessor
             }
         }
 
-        if (! empty($insertData)) {
+        if (!empty($insertData)) {
             $arrangedParticulars = $this->sorter->arrangeParticulars($insertData);
-
             DebitNoteItem::insert($arrangedParticulars);
         }
     }
 
-    public function replaceLineItems(DebitNote $debitNote, array $items): void
+    public function replaceDebitNoteLineItems(DebitNote $debitNote, array $items): void
     {
         $debitNote->items()->delete();
-
-        $this->createLineItems($debitNote, $items);
+        $this->createDebitNoteLineItems($debitNote, $items);
     }
 
-    public function updateLineItems(DebitNote $debitNote, array $items): void
+    public function updateDebitNoteLineItems(DebitNote $debitNote, array $items): void
     {
         foreach ($items as $item) {
             if (isset($item['id'])) {
@@ -53,7 +53,7 @@ class LineItemProcessor
                     ->update($this->prepareUpdateData($item));
             } else {
                 $lineNo = $debitNote->items()->max('line_no') + 1;
-                $itemData = $this->prepareLineItem($debitNote, $item, $lineNo);
+                $itemData = $this->prepareDebitNoteLineItem($debitNote, $item, $lineNo);
 
                 if ($itemData) {
                     DebitNoteItem::create($itemData);
@@ -62,7 +62,7 @@ class LineItemProcessor
         }
     }
 
-    protected function prepareLineItem(DebitNote $debitNote, array $item, int $lineNo): ?array
+    protected function prepareDebitNoteLineItem(DebitNote $debitNote, array $item, int $lineNo): ?array
     {
         $amount = (float) ($item['amount'] ?? 0);
 
@@ -71,7 +71,7 @@ class LineItemProcessor
         }
 
         $itemCode = $item['item_code'] ?? $item['description'] ?? null;
-        $itemNo = $this->generateItemNumber($lineNo);
+        $itemNo = $this->generateDebitNoteItemNumber($lineNo);
 
         return [
             'debit_note_id' => $debitNote->id,
@@ -83,15 +83,110 @@ class LineItemProcessor
             'class_group_code' => $item['class_group_code'] ?? null,
             'class_code' => $item['class_code'] ?? null,
             'line_rate' => $item['line_rate'] ?? 0,
-            'ledger' => $item['ledger'],
+            'ledger' => $item['ledger'] ?? $this->determineLedger($itemCode),
             'amount' => $amount,
             'commission' => $item['commission'] ?? 0,
             'premium_tax' => $item['premium_tax'] ?? 0,
-            'net_amount' =>  $amount,
+            'net_amount' => $amount,
             'original_amount' => $item['original_amount'] ?? 0,
             'created_at' => now(),
             'updated_at' => now(),
         ];
+    }
+
+    protected function generateDebitNoteItemNumber(int $lineNo): string
+    {
+        return 'DN-ITM-' . date('Y') . '-' . str_pad($lineNo, 4, '0', STR_PAD_LEFT);
+    }
+
+
+    public function createCreditNoteLineItems(CreditNote $creditNote, array $items): void
+    {
+        $lineNo = 1;
+        $insertData = [];
+
+        foreach ($items as $item) {
+            $itemData = $this->prepareCreditNoteLineItem($creditNote, $item, $lineNo);
+
+            if ($itemData) {
+                $insertData[] = $itemData;
+                $lineNo++;
+            }
+        }
+
+        if (!empty($insertData)) {
+            // $filteredData = array_filter($insertData, function ($item) {
+            //     return isset($item['description']) && strpos($item['description'], 'Claims') !== false;
+            // });
+
+            // logger()->debug(json_encode($filteredData, JSON_PRETTY_PRINT));
+
+            $arrangedParticulars = $this->sorter->arrangeParticulars($insertData);
+            CreditNoteItem::insert($arrangedParticulars);
+        }
+    }
+
+    public function replaceCreditNoteLineItems(CreditNote $creditNote, array $items): void
+    {
+        $creditNote->items()->delete();
+
+        $lineNo = 1;
+        $insertData = [];
+
+        foreach ($items as $item) {
+            $itemData = $this->prepareCreditNoteLineItem($creditNote, $item, $lineNo);
+
+            if ($itemData) {
+                $insertData[] = $itemData;
+                $lineNo++;
+            }
+        }
+
+        if (!empty($insertData)) {
+            CreditNoteItem::insert($insertData);
+        }
+    }
+
+    protected function prepareCreditNoteLineItem(CreditNote $creditNote, array $item, int $lineNo): ?array
+    {
+        $amount = (float) ($item['amount'] ?? 0);
+
+        if ($amount <= 0 && empty($item['description']) && empty($item['item_code'])) {
+            return null;
+        }
+
+        $itemCode = $item['item_code'] ?? null;
+        $ledger = $item['ledger'] ?? $this->determineLedger($itemCode);
+        $itemNo = $this->generateCreditNoteItemNumber($lineNo);
+        $netAmount = $item['net_amount'] ?? $amount;
+
+        return [
+            'credit_note_id' => $creditNote->id,
+            'line_no' => $lineNo,
+            'item_code' => $itemCode,
+            'item_no' => $itemNo,
+            'status' => CreditNote::STATUS_DRAFT,
+            'description' => $item['description'] ?? $itemCode ?? '',
+            'class_group_code' => $item['class_group_code'] ?? $item['class_group'] ?? null,
+            'class_code' => $item['class_code'] ?? $item['class_name'] ?? null,
+            'line_rate' => $item['line_rate'] ?? 0,
+            'ledger' => $ledger,
+            'amount' => $amount,
+            'commission' => $item['commission'] ?? 0,
+            'brokerage' => $item['brokerage'] ?? 0,
+            'premium_tax' => $item['premium_tax'] ?? 0,
+            'reinsurance_tax' => $item['reinsurance_tax'] ?? 0,
+            'withholding_tax' => $item['withholding_tax'] ?? 0,
+            'original_amount' => $item['original_amount'] ?? 0,
+            'net_amount' => $netAmount,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ];
+    }
+
+    protected function generateCreditNoteItemNumber(int $lineNo): string
+    {
+        return 'CN-ITM-' . date('Y') . '-' . str_pad($lineNo, 4, '0', STR_PAD_LEFT);
     }
 
     protected function prepareUpdateData(array $item): array
@@ -99,22 +194,20 @@ class LineItemProcessor
         $data = [];
 
         $updatableFields = [
-            'description',
+            'description' => 'description',
             'class_group_code' => 'class_group',
             'class_code' => 'class_name',
-            'line_rate',
-            'amount',
-            'commission',
-            'premium_tax',
-            'net_amount',
+            'line_rate' => 'line_rate',
+            'amount' => 'amount',
+            'commission' => 'commission',
+            'brokerage' => 'brokerage',
+            'premium_tax' => 'premium_tax',
+            'net_amount' => 'net_amount',
         ];
 
         foreach ($updatableFields as $dbField => $inputField) {
-            $field = is_numeric($dbField) ? $inputField : $dbField;
-            $input = is_numeric($dbField) ? $inputField : $inputField;
-
-            if (isset($item[$input])) {
-                $data[$field] = $item[$input];
+            if (isset($item[$inputField])) {
+                $data[$dbField] = $item[$inputField];
             }
         }
 
@@ -132,11 +225,6 @@ class LineItemProcessor
         return in_array($itemCode, self::DEBIT_CODES) ? 'DR' : 'CR';
     }
 
-    protected function generateItemNumber(int $lineNo): string
-    {
-        return 'ITM-' . date('Y') . '-' . str_pad($lineNo, 4, '0', STR_PAD_LEFT);
-    }
-
     public function validateItems(array $items): array
     {
         $errors = [];
@@ -144,7 +232,7 @@ class LineItemProcessor
         foreach ($items as $index => $item) {
             $itemErrors = [];
 
-            if (! isset($item['amount']) || ! is_numeric($item['amount'])) {
+            if (!isset($item['amount']) || !is_numeric($item['amount'])) {
                 $itemErrors[] = 'Amount is required and must be numeric';
             }
 
@@ -152,11 +240,11 @@ class LineItemProcessor
                 $itemErrors[] = 'Description or item code is required';
             }
 
-            if (isset($item['line_rate']) && (! is_numeric($item['line_rate']) || $item['line_rate'] < 0 || $item['line_rate'] > 100)) {
+            if (isset($item['line_rate']) && (!is_numeric($item['line_rate']) || $item['line_rate'] < 0 || $item['line_rate'] > 100)) {
                 $itemErrors[] = 'Line rate must be between 0 and 100';
             }
 
-            if (! empty($itemErrors)) {
+            if (!empty($itemErrors)) {
                 $errors["item_{$index}"] = $itemErrors;
             }
         }

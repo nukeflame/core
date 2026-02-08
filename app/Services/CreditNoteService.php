@@ -4,14 +4,12 @@ namespace App\Services;
 
 use App\Exceptions\BusinessRuleException;
 use App\Models\CoverRegister;
-use App\Models\CoverRipart;
 use App\Models\CreditNote;
-use App\Models\CreditNoteItem;
-use App\Models\TransactionLog;
 use App\Repositories\CoverRepository;
 use App\Services\DebitNote\AmountCalculator;
+use App\Services\DebitNote\LineItemProcessor;
+use App\Services\DebitNote\StatusManager;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 
 class CreditNoteService
 {
@@ -25,9 +23,9 @@ class CreditNoteService
     public function __construct(
         private readonly SequenceService $sequenceService,
         private readonly CoverRepository $coverRepository,
-        private readonly TaxCalculationService $taxService,
         private readonly AmountCalculator $amountCalculator,
-
+        private readonly LineItemProcessor $lineItemProcessor,
+        private readonly StatusManager $statusManager,
     ) {}
 
     public function generateCreditNoteNumber(string $businessType, ?int $year = null): string
@@ -49,70 +47,43 @@ class CreditNoteService
     public function create(array $data, CoverRegister $cover): CreditNote
     {
         return DB::transaction(function () use ($data, $cover) {
-
             $this->validateCreateData($data);
 
             $calculation = $this->amountCalculator->calculate($data, $cover);
 
-            // $amounts = $this->calculateAmounts($data, $cover);
 
-            // foreach ($amounts['reinsurers'] as $re) {
-            //     DB::table('coverripart')->updateOrInsert(
-            //         [
-            //             'endorsement_no' => $re['endorsement_no'],
-            //             'cover_no' => $re['cover_no'],
-            //         ],
-            //         [
-            //             'share' => $re['share'],
-            //             'premium' => $re['gross_amount'],
-            //             'total_premium' => $re['gross_amount'],
-            //             'commission' => $re['commission_amount'],
-            //             'brokerage_comm_rate' => $re['brokerage_rate'],
-            //             'brokerage_comm_amt' => $re['brokerage_amount'],
-            //             'prem_tax' => $re['premium_tax'],
-            //             'ri_tax' => $re['reinsurance_tax'],
-            //             'wht_amt' => $re['withholding_tax'],
-            //             'net_amount' => $re['net_amount'],
-            //             'updated_at' => now(),
-            //         ]
-            //     );
-            // }
+            if (!empty($calculation['reinsurers'])) {
+                foreach ($calculation['reinsurers'] as $reinsurer) {
 
-            $creditNoteNo = $this->generateCreditNoteNumber(
-                $cover->type_of_bus,
-                $data['postingYear'] ?? now()->year
-            );
-            $creditNote = new CreditNote();
-            // $creditNote = CreditNote::create([
-            //     'credit_note_no' => $creditNoteNo,
-            //     'cover_no' => $cover->cover_no,
-            //     'endorsement_no' => $cover->endorsement_no,
-            //     'type_of_bus' => $cover->type_of_bus,
-            //     'installment_no' => $data['installment'] ?? $this->getNextInstallment($cover),
-            //     'posting_year' => $data['postingYear'],
-            //     'posting_quarter' => $data['postingQuarter'],
-            //     'posting_date' => $data['postingDate'],
-            //     'brokerage_rate' => $data['brokerageRate'] ?? 0,
-            //     'brokerage_amount' => $amounts['brokerage_amount'],
-            //     'premium_levy' => $amounts['premium_tax'],
-            //     'reinsurance_levy' => $amounts['reinsurance_tax'],
-            //     'withholding_tax' => $amounts['withholding_tax'],
-            //     'gross_amount' => $amounts['gross_amount'],
-            //     'net_amount' => $amounts['net_amount'],
-            //     'comments' => $data['comments'] ?? null,
-            //     'show_cedant' => $data['showCedant'] ?? false,
-            //     'show_reinsurer' => $data['showReinsurer'] ?? false,
-            //     'loss_participation' => $data['lossParticipation'] ?? false,
-            //     'sliding_commission' => $data['slidingCommission'] ?? false,
-            //     'status' => CreditNote::STATUS_DRAFT,
-            //     'created_by' => auth()->id(),
-            // ]);
+                    $creditNoteNo = $this->generateCreditNoteNumber(
+                        $cover->type_of_bus,
+                        $data['postingYear'] ?? now()->year
+                    );
 
-            // $this->createLineItems($creditNote, $data['items']);
+                    $filteredData = array_filter($reinsurer['items'], function ($item) {
+                        return isset($item['description']) && strpos($item['description'], 'Commission') !== false;
+                    });
 
-            // $this->logTransaction($creditNote, 'CREATE');
 
-            return $creditNote->fresh(['items', 'cover']);
+                    // logger()->debug(json_encode($filteredData, JSON_PRETTY_PRINT));
+
+
+                    $creditNote = $this->createCreditNoteRecord(
+                        $creditNoteNo,
+                        $data,
+                        $cover,
+                        $reinsurer
+                    );
+
+                    $this->lineItemProcessor->createCreditNoteLineItems($creditNote, $reinsurer['items']);
+
+                    $creditNotes[] = $creditNote;
+                }
+            }
+
+            $this->updateReinsurerParticipation($calculation['reinsurers']);
+
+            return $creditNote->fresh(['items', 'cover', 'cover.customer']);
         });
     }
 
@@ -130,172 +101,42 @@ class CreditNoteService
 
             $oldValues = $creditNote->toArray();
 
-            // FIX: Pass cover parameter
-            $amounts = $this->calculateAmounts($data, $creditNote->cover);
+            $calculation = $this->amountCalculator->calculate($data, $creditNote->cover);
 
-            // FIX: Use consistent field names and remove non-existent fields
-            $creditNote->update([
-                'posting_year' => $data['postingYear'] ?? $creditNote->posting_year,
-                'posting_quarter' => $data['postingQuarter'] ?? $creditNote->posting_quarter,
-                'posting_date' => $data['postingDate'] ?? $creditNote->posting_date,
-                'brokerage_rate' => $data['brokerageRate'] ?? $creditNote->brokerage_rate,
-                'gross_amount' => $amounts['gross_amount'],
-                'brokerage_amount' => $amounts['brokerage_amount'],
-                'premium_levy' => $amounts['premium_tax'],
-                'reinsurance_levy' => $amounts['reinsurance_tax'],
-                'withholding_tax' => $amounts['withholding_tax'],
-                'net_amount' => $amounts['net_amount'],
-                'comments' => $data['comments'] ?? $creditNote->comments,
-                'updated_by' => auth()->id(),
-            ]);
+            $this->updateCreditNoteRecord($creditNote, $data, $calculation);
 
             if (isset($data['items'])) {
-                $creditNote->items()->delete();
-                $this->createLineItems($creditNote, $data['items']);
+                $this->lineItemProcessor->replaceCreditNoteLineItems($creditNote, $data['items']);
             }
-
-            $this->logTransaction($creditNote, 'UPDATE', $oldValues);
 
             return $creditNote->fresh(['items', 'cover']);
         });
     }
 
-    public function submit(CreditNote $creditNote): CreditNote
-    {
-        return DB::transaction(function () use ($creditNote) {
-            $creditNote = CreditNote::lockForUpdate()->findOrFail($creditNote->id);
+    // public function submit(CreditNote $creditNote): CreditNote
+    // {
+    //     return $this->statusManager->submit($creditNote);
+    // }
 
-            if (!$creditNote->canSubmit()) {
-                throw BusinessRuleException::invalidStatusTransition(
-                    $creditNote->status,
-                    CreditNote::STATUS_PENDING
-                );
-            }
+    // public function approve(CreditNote $creditNote): CreditNote
+    // {
+    //     return $this->statusManager->approve($creditNote);
+    // }
 
-            if ($creditNote->items()->count() === 0) {
-                throw BusinessRuleException::missingItems();
-            }
+    // public function reject(CreditNote $creditNote, string $reason): CreditNote
+    // {
+    //     return $this->statusManager->reject($creditNote, $reason);
+    // }
 
-            $oldValues = $creditNote->toArray();
+    // public function revertToDraft(CreditNote $creditNote): CreditNote
+    // {
+    //     return $this->statusManager->revertToDraft($creditNote);
+    // }
 
-            $creditNote->update([
-                'status' => CreditNote::STATUS_PENDING,
-                'submitted_at' => now(),
-                'submitted_by' => auth()->id(),
-            ]);
-
-            $this->logTransaction($creditNote, 'SUBMIT', $oldValues);
-
-            return $creditNote->fresh();
-        });
-    }
-
-    public function approve(CreditNote $creditNote): CreditNote
-    {
-        return DB::transaction(function () use ($creditNote) {
-            $creditNote = CreditNote::lockForUpdate()->findOrFail($creditNote->id);
-
-            if (!$creditNote->canApprove()) {
-                throw BusinessRuleException::invalidStatusTransition(
-                    $creditNote->status,
-                    CreditNote::STATUS_APPROVED
-                );
-            }
-
-            $oldValues = $creditNote->toArray();
-
-            $creditNote->update([
-                'status' => CreditNote::STATUS_APPROVED,
-                'approved_at' => now(),
-                'approved_by' => auth()->id(),
-            ]);
-
-            $this->logTransaction($creditNote, 'APPROVE', $oldValues);
-
-            return $creditNote->fresh();
-        });
-    }
-
-    public function reject(CreditNote $creditNote, string $reason): CreditNote
-    {
-        return DB::transaction(function () use ($creditNote, $reason) {
-            $creditNote = CreditNote::lockForUpdate()->findOrFail($creditNote->id);
-
-            if (!$creditNote->canApprove()) {
-                throw BusinessRuleException::invalidStatusTransition(
-                    $creditNote->status,
-                    CreditNote::STATUS_REJECTED
-                );
-            }
-
-            $oldValues = $creditNote->toArray();
-
-            $creditNote->update([
-                'status' => CreditNote::STATUS_REJECTED,
-                'rejected_at' => now(),
-                'rejected_by' => auth()->id(),
-                'rejection_reason' => $reason,
-            ]);
-
-            $this->logTransaction($creditNote, 'REJECT', $oldValues);
-
-            return $creditNote->fresh();
-        });
-    }
-
-    public function revertToDraft(CreditNote $creditNote): CreditNote
-    {
-        return DB::transaction(function () use ($creditNote) {
-            $creditNote = CreditNote::lockForUpdate()->findOrFail($creditNote->id);
-
-            if ($creditNote->status !== CreditNote::STATUS_REJECTED) {
-                throw BusinessRuleException::invalidStatusTransition(
-                    $creditNote->status,
-                    CreditNote::STATUS_DRAFT
-                );
-            }
-
-            $oldValues = $creditNote->toArray();
-
-            $creditNote->update([
-                'status' => CreditNote::STATUS_DRAFT,
-                'rejected_at' => null,
-                'rejected_by' => null,
-                'rejection_reason' => null,
-            ]);
-
-            $this->logTransaction($creditNote, 'REVERT_DRAFT', $oldValues);
-
-            return $creditNote->fresh();
-        });
-    }
-
-    public function cancel(CreditNote $creditNote, string $reason): CreditNote
-    {
-        return DB::transaction(function () use ($creditNote, $reason) {
-            $creditNote = CreditNote::lockForUpdate()->findOrFail($creditNote->id);
-
-            if (!$creditNote->canCancel()) {
-                throw BusinessRuleException::invalidStatusTransition(
-                    $creditNote->status,
-                    CreditNote::STATUS_CANCELLED
-                );
-            }
-
-            $oldValues = $creditNote->toArray();
-
-            $creditNote->update([
-                'status' => CreditNote::STATUS_CANCELLED,
-                'cancelled_at' => now(),
-                'cancelled_by' => auth()->id(),
-                'cancellation_reason' => $reason,
-            ]);
-
-            $this->logTransaction($creditNote, 'CANCEL', $oldValues);
-
-            return $creditNote->fresh();
-        });
-    }
+    // public function cancel(CreditNote $creditNote, string $reason): CreditNote
+    // {
+    //     return $this->statusManager->cancel($creditNote, $reason);
+    // }
 
     public function post(CreditNote $creditNote): CreditNote
     {
@@ -317,7 +158,9 @@ class CreditNoteService
                 'posted_by' => auth()->id(),
             ]);
 
-            $this->logTransaction($creditNote, 'POST', $oldValues);
+            // Create accounting entries
+            // TODO: Implement accounting integration
+            // $this->accountingService->createEntries($creditNote);
 
             return $creditNote->fresh();
         });
@@ -340,8 +183,6 @@ class CreditNoteService
             $creditNote->items()->delete();
             $creditNote->delete();
 
-            $this->logTransaction($creditNote, 'DELETE', $oldValues);
-
             return true;
         });
     }
@@ -355,26 +196,7 @@ class CreditNoteService
                 throw new \RuntimeException('Original credit note has no associated cover');
             }
 
-            $newData = [
-                'postingDate' => now()->toDateString(),
-                'postingYear' => now()->year,
-                'postingQuarter' => $this->getCurrentQuarter(),
-                'brokerageRate' => $original->brokerage_rate,
-                'comments' => 'Duplicated from: ' . $original->credit_note_no,
-                'showCedant' => $original->show_cedant,
-                'showReinsurer' => $original->show_reinsurer,
-                'lossParticipation' => $original->loss_participation,
-                'slidingCommission' => $original->sliding_commission,
-                'items' => $original->items->map(fn($item) => [
-                    'item_code' => $item->item_code,
-                    'description' => $item->description,
-                    'class_group' => $item->class_group_code,
-                    'class_name' => $item->class_code,
-                    'line_rate' => $item->line_rate,
-                    'ledger' => $item->ledger,
-                    'amount' => $item->amount,
-                ])->toArray(),
-            ];
+            $newData = $this->prepareDuplicateData($original);
 
             return $this->create($newData, $cover);
         });
@@ -383,29 +205,14 @@ class CreditNoteService
     public function getStatistics(array $filters = []): array
     {
         $query = CreditNote::query();
-        $this->applyFilters($query, $filters);
 
-        // FIX: Get both count and sum properly
-        $byStatus = CreditNote::query()
-            ->when(!empty($filters['year']), fn($q) => $q->where('posting_year', $filters['year']))
-            ->when(!empty($filters['quarter']), fn($q) => $q->where('posting_quarter', $filters['quarter']))
-            ->selectRaw('status, COUNT(*) as count, SUM(gross_amount) as gross_amount, SUM(net_amount) as net_amount')
-            ->groupBy('status')
-            ->get()
-            ->mapWithKeys(fn($item) => [
-                $item->status => [
-                    'count' => $item->count,
-                    'gross_amount' => round((float) $item->gross_amount, 2),
-                    'net_amount' => round((float) $item->net_amount, 2),
-                ],
-            ])
-            ->toArray();
+        $this->applyFilters($query, $filters);
 
         return [
             'total_count' => $query->count(),
             'total_gross' => round((float) $query->sum('gross_amount'), 2),
             'total_net' => round((float) $query->sum('net_amount'), 2),
-            'by_status' => $byStatus,
+            'by_status' => $this->getStatusBreakdown($filters),
             'pending_count' => CreditNote::pending()->count(),
             'approved_count' => CreditNote::approved()->count(),
             'posted_count' => CreditNote::posted()->count(),
@@ -414,165 +221,7 @@ class CreditNoteService
 
     public function calculateAmounts(array $data, ?CoverRegister $cover = null): array
     {
-        if (!$cover) {
-            throw new \InvalidArgumentException('Cover is required for amount calculation');
-        }
-
-        $items = $data['items'] ?? [];
-        $brokerageRate = (float) ($data['brokerageRate'] ?? 0);
-
-        $reinsurers = CoverRipart::with('partner')
-            ->where([
-                'cover_no' => $cover->cover_no,
-                'endorsement_no' => $cover->endorsement_no
-            ])
-            ->get();
-
-        if ($reinsurers->isEmpty()) {
-            throw new \RuntimeException('No reinsurers found for cover');
-        }
-
-        $totals = [
-            'gross' => 0,
-            'credit' => 0,
-            'commission' => 0,
-            'brokerage' => 0,
-            'premium_tax' => 0,
-            'reinsurance_tax' => 0,
-            'withholding_tax' => 0,
-            'other_deductions' => 0,
-            'net' => 0,
-        ];
-
-        $reinsurerBreakdown = [];
-
-        foreach ($reinsurers as $reinsurer) {
-            $share = (float) ($reinsurer->share ?? 0);
-            $amountType = strtolower($reinsurer->amount_type ?? 'gross');
-
-            if ($share == 0) {
-                continue;
-            }
-
-            $reinsurerAmounts = [
-                'gross' => 0,
-                'credit' => 0,
-                'commission' => 0,
-                'brokerage' => 0,
-                'premium_tax' => 0,
-                'reinsurance_tax' => 0,
-                'withholding_tax' => 0,
-            ];
-
-            foreach ($items as $item) {
-                if (!isset($item['amount'])) {
-                    continue;
-                }
-
-                $amount = (float) $item['amount'];
-                $ledger = $item['ledger'] ?? $this->determineLedger(
-                    $item['item_code'] ?? $item['description'] ?? ''
-                );
-                $commissionRate = (float) ($item['line_rate'] ?? 0);
-
-                $sharedAmount = $this->calculatePercentage($amount, $share);
-                $commission = $this->calculatePercentage($sharedAmount, $commissionRate);
-                $brokerage = $this->calculatePercentage($sharedAmount, $brokerageRate);
-
-                if ($ledger === 'CR') {
-                    $reinsurerAmounts['gross'] += $sharedAmount;
-                    $reinsurerAmounts['commission'] += $commission;
-                    $reinsurerAmounts['brokerage'] += $brokerage;
-                } else {
-                    $reinsurerAmounts['credit'] += $sharedAmount;
-                }
-            }
-
-            if ($amountType === 'net') {
-                $netPremium = $reinsurerAmounts['gross']
-                    - $reinsurerAmounts['commission']
-                    - $reinsurerAmounts['brokerage'];
-
-                $reinsurerAmounts['premium_tax'] = $this->taxService->calculatePremiumLevy($netPremium);
-            } else {
-                $reinsurerAmounts['premium_tax'] = $this->taxService->calculatePremiumLevy(
-                    $reinsurerAmounts['gross']
-                );
-            }
-
-            $reinsurerOtherDeductions = $reinsurerAmounts['credit'];
-
-            $totalDeductions =
-                $reinsurerAmounts['commission'] +
-                $reinsurerAmounts['brokerage'] +
-                $reinsurerAmounts['premium_tax'] +
-                $reinsurerAmounts['reinsurance_tax'] +
-                $reinsurerAmounts['withholding_tax'] +
-                $reinsurerOtherDeductions;
-
-            $netAmount = $reinsurerAmounts['gross'] - $totalDeductions;
-
-            $reinsurerBreakdown[] = [
-                'cover_no' => $reinsurer->cover_no,
-                'endorsement_no' => $reinsurer->endorsement_no,
-                'reinsurer_name' => $reinsurer->partner?->name ?? 'Unknown',
-                'share' => round($share, 4),
-                'amount_type' => $amountType,
-                'gross_amount' => round($reinsurerAmounts['gross'], 2),
-                'credit_amount' => round($reinsurerAmounts['credit'], 2),
-                'commission_amount' => round($reinsurerAmounts['commission'], 2),
-                'brokerage_rate' => $brokerageRate,
-                'brokerage_amount' => round($reinsurerAmounts['brokerage'], 2),
-                'premium_tax' => round($reinsurerAmounts['premium_tax'], 2),
-                'premium_tax_base' => $amountType,
-                'reinsurance_tax' => round($reinsurerAmounts['reinsurance_tax'], 2),
-                'withholding_tax' => round($reinsurerAmounts['withholding_tax'], 2),
-                'other_deductions' => round($reinsurerOtherDeductions, 2),
-                'total_deductions' => round($totalDeductions, 2),
-                'net_amount' => round($netAmount, 2),
-            ];
-
-            $totals['gross'] += $reinsurerAmounts['gross'];
-            $totals['credit'] += $reinsurerAmounts['credit'];
-            $totals['commission'] += $reinsurerAmounts['commission'];
-            $totals['brokerage'] += $reinsurerAmounts['brokerage'];
-            $totals['premium_tax'] += $reinsurerAmounts['premium_tax'];
-            $totals['reinsurance_tax'] += $reinsurerAmounts['reinsurance_tax'];
-            $totals['withholding_tax'] += $reinsurerAmounts['withholding_tax'];
-            $totals['other_deductions'] += $reinsurerOtherDeductions;
-            $totals['net'] += $netAmount;
-        }
-
-        $finalTotalDeductions =
-            $totals['commission'] +
-            $totals['brokerage'] +
-            $totals['premium_tax'] +
-            $totals['reinsurance_tax'] +
-            $totals['withholding_tax'] +
-            $totals['other_deductions'];
-
-        return [
-            'gross_amount' => round($totals['gross'], 2),
-            'credit_amount' => round($totals['credit'], 2),
-            'commission_amount' => round($totals['commission'], 2),
-            'brokerage_rate' => $brokerageRate,
-            'brokerage_amount' => round($totals['brokerage'], 2),
-            'premium_tax' => round($totals['premium_tax'], 2),
-            'reinsurance_tax' => round($totals['reinsurance_tax'], 2),
-            'withholding_tax' => round($totals['withholding_tax'], 2),
-            'other_deductions' => round($totals['other_deductions'], 2),
-            'total_deductions' => round($finalTotalDeductions, 2),
-            'net_amount' => round($totals['net'], 2),
-            'reinsurers' => $reinsurerBreakdown,
-        ];
-    }
-
-    public function determineLedger(?string $itemCode): string
-    {
-        if (empty($itemCode)) {
-            return 'CR';
-        }
-        return in_array($itemCode, self::DEBIT_CODES) ? 'DR' : 'CR';
+        return $this->amountCalculator->calculate($data, $cover);
     }
 
     protected function validateCreateData(array $data): void
@@ -588,10 +237,76 @@ class CreditNoteService
         if (empty($data['items'])) {
             throw BusinessRuleException::missingItems();
         }
+    }
 
-        // if ($data['postingQuarter'] < 1 || $data['postingQuarter'] > 4) {
-        //     throw new \InvalidArgumentException('Posting quarter must be between 1 and 4');
-        // }
+    protected function createCreditNoteRecord(
+        string $creditNoteNo,
+        array $data,
+        CoverRegister $cover,
+        array $calculation
+    ): CreditNote {
+
+        return CreditNote::create([
+            'credit_note_no' => $creditNoteNo,
+            'cover_no' => $cover->cover_no,
+            'endorsement_no' => $cover->endorsement_no,
+            'type_of_bus' => $cover->type_of_bus,
+            'installment_no' => $data['installment'] ?? $this->getNextInstallment($cover),
+            'reinsurer_posting' => $data['reinsurerPosting'] ?? null,
+            'premium_pay_terms' => $cover->premium_payment_code,
+            'posting_year' => $data['postingYear'],
+            'posting_quarter' => $data['postingQuarter'],
+            'posting_date' => $data['postingDate'],
+            'brokerage_rate' => $data['brokerageRate'] ?? 0,
+            'gross_amount' => $calculation['gross_amount'],
+            'commission_amount' => $calculation['commission_amount'],
+            'brokerage_amount' => $calculation['brokerage_amount'],
+            'premium_levy' => $calculation['premium_tax'],
+            'reinsurance_levy' => $calculation['reinsurance_tax'],
+            'withholding_tax' => $calculation['withholding_tax'],
+            'other_deductions' => $calculation['other_deductions'],
+            'total_deductions' => $calculation['total_deductions'],
+            'net_amount' => $calculation['net_amount'],
+            'comments' => $data['comments'] ?? null,
+            'show_cedant' => $data['showCedant'] ?? false,
+            'show_reinsurer' => $data['showReinsurer'] ?? false,
+            'loss_participation' => $data['lossParticipation'] ?? false,
+            'sliding_commission' => $data['slidingCommission'] ?? false,
+            'status' => CreditNote::STATUS_DRAFT,
+            'created_by' => auth()->id(),
+        ]);
+    }
+
+    protected function updateCreditNoteRecord(
+        CreditNote $creditNote,
+        array $data,
+        array $calculation
+    ): void {
+        $financialData = $calculation['cedant'] ?? $calculation;
+
+        $creditNote->update([
+            'posting_year' => $data['postingYear'] ?? $creditNote->posting_year,
+            'posting_quarter' => $data['postingQuarter'] ?? $creditNote->posting_quarter,
+            'posting_date' => $data['postingDate'] ?? $creditNote->posting_date,
+            'brokerage_rate' => $data['brokerageRate'] ?? $creditNote->brokerage_rate,
+
+            // Financial amounts
+            'gross_amount' => $financialData['gross_amount'] ?? $creditNote->gross_amount,
+            'credit_amount' => $financialData['credit_amount'] ?? $creditNote->credit_amount,
+            'commission_amount' => $financialData['commission_amount'] ?? $creditNote->commission_amount,
+            'brokerage_amount' => $financialData['brokerage_amount'] ?? $creditNote->brokerage_amount,
+
+            // Taxes
+            'premium_levy' => $financialData['premium_tax'] ?? $creditNote->premium_levy,
+            'reinsurance_levy' => $financialData['reinsurance_tax'] ?? $creditNote->reinsurance_levy,
+            'withholding_tax' => $financialData['withholding_tax'] ?? $creditNote->withholding_tax,
+            'other_deductions' => $financialData['other_deductions'] ?? $creditNote->other_deductions,
+            'total_deductions' => $financialData['total_deductions'] ?? $creditNote->total_deductions,
+            'net_amount' => $financialData['net_amount'] ?? $creditNote->net_amount,
+
+            'comments' => $data['comments'] ?? $creditNote->comments,
+            'updated_by' => auth()->id(),
+        ]);
     }
 
     protected function getNextInstallment(CoverRegister $cover): int
@@ -604,56 +319,54 @@ class CreditNoteService
         return ($lastInstallment ?? 0) + 1;
     }
 
-    protected function createLineItems(CreditNote $creditNote, array $items): void
+    protected function prepareDuplicateData(CreditNote $original): array
     {
-        $lineNo = 1;
-        $insertData = [];
-
-        foreach ($items as $item) {
-            $amount = (float) ($item['amount'] ?? 0);
-
-            // Skip empty items
-            if ($amount <= 0 && empty($item['description']) && empty($item['item_code'])) {
-                continue;
-            }
-
-            $itemCode = $item['item_code'] ?? $item['description'] ?? null;
-            $ledger = $item['ledger'] ?? $this->determineLedger($itemCode);
-            $itemNo = 'CRN-' . date('Y') . '-' . str_pad($lineNo, 4, '0', STR_PAD_LEFT);
-            $netAmount = $item['net_amount'] ?? $amount;
-
-            $insertData[] = [
-                'credit_note_id' => $creditNote->id,
-                'line_no' => $lineNo++,
-                'item_code' => $itemCode,
-                'item_no' => $itemNo,
-                'status' => CreditNote::STATUS_DRAFT, // FIX: Use DRAFT for new items
-                'description' => $item['description'] ?? $itemCode,
-                'class_group_code' => $item['class_group'] ?? null,
-                'class_code' => $item['class_name'] ?? null,
-                'line_rate' => $item['line_rate'] ?? null,
-                'ledger' => $ledger,
-                'amount' => $amount,
-                'commission' => $item['commission'] ?? 0,
-                'brokerage' => $item['brokerage'] ?? 0,
-                'premium_tax' => $item['premium_tax'] ?? 0,
-                'net_amount' => $netAmount,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ];
-        }
-
-        if (!empty($insertData)) {
-            CreditNoteItem::insert($insertData);
-        }
+        return [
+            'postingDate' => now()->toDateString(),
+            'postingYear' => now()->year,
+            'postingQuarter' => $this->getCurrentQuarter(),
+            'brokerageRate' => $original->brokerage_rate,
+            'reinsurerPosting' => $original->reinsurer_posting,
+            'comments' => 'Duplicated from: ' . $original->credit_note_no,
+            'showCedant' => $original->show_cedant,
+            'showReinsurer' => $original->show_reinsurer,
+            'lossParticipation' => $original->loss_participation,
+            'slidingCommission' => $original->sliding_commission,
+            'items' => $original->items->map(fn($item) => [
+                'item_code' => $item->item_code,
+                'description' => $item->description,
+                'class_group' => $item->class_group_code,
+                'class_name' => $item->class_code,
+                'line_rate' => $item->line_rate,
+                'ledger' => $item->ledger,
+                'amount' => $item->amount,
+            ])->toArray(),
+        ];
     }
 
-    protected function calculatePercentage(float $amount, float $rate): float
+    protected function updateReinsurerParticipation(array $reinsurers): void
     {
-        if ($amount <= 0 || $rate <= 0) {
-            return 0;
+        foreach ($reinsurers as $reinsurer) {
+            DB::table('coverripart')->updateOrInsert(
+                [
+                    'endorsement_no' => $reinsurer['endorsement_no'],
+                    'cover_no' => $reinsurer['cover_no'],
+                ],
+                [
+                    'share' => $reinsurer['share'],
+                    'premium' => $reinsurer['gross_amount'],
+                    'total_premium' => $reinsurer['gross_amount'],
+                    'commission' => $reinsurer['commission_amount'],
+                    'brokerage_comm_rate' => $reinsurer['brokerage_rate'],
+                    'brokerage_comm_amt' => $reinsurer['brokerage_amount'],
+                    'prem_tax' => $reinsurer['premium_tax'],
+                    'ri_tax' => $reinsurer['reinsurance_tax'],
+                    'wht_amt' => $reinsurer['withholding_tax'],
+                    'net_amount' => $reinsurer['net_amount'],
+                    'updated_at' => now(),
+                ]
+            );
         }
-        return round($amount * ($rate / 100), 2);
     }
 
     protected function applyFilters($query, array $filters): void
@@ -683,30 +396,27 @@ class CreditNoteService
         }
     }
 
+    protected function getStatusBreakdown(array $filters): array
+    {
+        $query = CreditNote::query();
+        $this->applyFilters($query, $filters);
+
+        return $query
+            ->selectRaw('status, COUNT(*) as count, SUM(gross_amount) as gross_amount, SUM(net_amount) as net_amount')
+            ->groupBy('status')
+            ->get()
+            ->mapWithKeys(fn($item) => [
+                $item->status => [
+                    'count' => $item->count,
+                    'gross_amount' => round((float) $item->gross_amount, 2),
+                    'net_amount' => round((float) $item->net_amount, 2),
+                ],
+            ])
+            ->toArray();
+    }
+
     protected function getCurrentQuarter(): int
     {
         return (int) ceil(now()->month / 3);
-    }
-
-    protected function logTransaction(CreditNote $creditNote, string $action, ?array $oldValues = null): void
-    {
-        try {
-            TransactionLog::create([
-                'entity_type' => 'credit_note',
-                'entity_id' => $creditNote->id,
-                'action' => $action,
-                'old_values' => $oldValues,
-                'new_values' => $creditNote->fresh()->toArray(),
-                'user_id' => auth()->id(),
-                'ip_address' => request()->ip(),
-                'user_agent' => request()->userAgent(),
-            ]);
-        } catch (\Exception $e) {
-            Log::error('Failed to log credit note transaction', [
-                'credit_note_id' => $creditNote->id,
-                'action' => $action,
-                'error' => $e->getMessage(),
-            ]);
-        }
     }
 }

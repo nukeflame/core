@@ -63,7 +63,7 @@ class DebitNoteService
 
             $debitNote = $this->createDebitNoteRecord($debitNoteNo, $data, $cover, $calculation);
 
-            $this->lineItemProcessor->createLineItems($debitNote, $calculation);
+            $this->lineItemProcessor->createDebitNoteLineItems($debitNote, $calculation);
 
             if ($data['updateRipart'] ?? false) {
                 $this->updateReinsurerParticipation($calculation['reinsurers']);
@@ -94,7 +94,7 @@ class DebitNoteService
             $this->updateDebitNoteRecord($debitNote, $data, $calculation);
 
             if (isset($data['items'])) {
-                $this->lineItemProcessor->replaceLineItems($debitNote, $data['items']);
+                $this->lineItemProcessor->replaceDebitNoteLineItems($debitNote, $data['items']);
             }
 
             // $this->transactionLogger->log($debitNote, 'UPDATE', $oldValues);

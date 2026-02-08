@@ -7,16 +7,6 @@
             padding: 6px 8px;
         }
 
-        #particular-details thead th {
-            border-bottom: 1px solid #181212;
-        }
-
-        #particular-details tbody tr td {
-            border-bottom: 1px solid #ddd;
-            border-right: 1px solid transparent;
-            border-left: 1px solid transparent;
-        }
-
         .align-right {
             text-align: right;
         }
@@ -63,7 +53,7 @@
 
     @foreach ($reinsurers as $index => $reinsurer)
         @php
-            $reinsurerShare = $reinsurer->share / 100;
+            $reinsurerShare = $reinsurer->share;
 
             $filteredCreditItems = collect($credit_items);
             if (!($with_brokerage ?? true)) {
@@ -72,14 +62,8 @@
                 });
             }
 
-            $reinsurerCreditItems = $filteredCreditItems->map(function ($item) use ($reinsurerShare) {
-                $clone = clone $item;
-                $clone->item_amount = $item->item_amount * $reinsurerShare;
-                return $clone;
-            });
-
-            $totalDebit = $reinsurerCreditItems->filter(fn($item) => $item->ledger === 'DR')->sum('item_amount');
-            $totalCredit = $reinsurerCreditItems->filter(fn($item) => $item->ledger === 'CR')->sum('item_amount');
+            $totalDebit = $filteredCreditItems->filter(fn($item) => $item->ledger === 'DR')->sum('item_amount');
+            $totalCredit = $filteredCreditItems->filter(fn($item) => $item->ledger === 'CR')->sum('item_amount');
             $netAmount = $totalDebit - $totalCredit;
 
             $reinsurerTotals = (object) [
@@ -222,7 +206,7 @@
                 </table>
 
                 <table id="particular-details"
-                    style="width: 100%; border: 1px solid #181212; border-collapse: collapse; margin-bottom: 10px; font-size: 8pt;">
+                    style="width: 100%; border-collapse: collapse; margin-bottom: 10px; font-size: 8pt;">
                     <thead style="border: 1px solid #181212; padding:0px; margin: 0px;">
                         <tr>
                             <th class="no-border align-left" style="width: 32.5%;">PARTICULARS</th>
@@ -232,7 +216,7 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach ($reinsurerCreditItems as $item)
+                        @foreach (collect($filteredCreditItems)->all() as $item)
                             <tr>
                                 <td class="no-border align-left" style="width: 32.5%;">
                                     {{ ucwords(strtolower($item->item_name)) }} -
@@ -243,14 +227,14 @@
                                     {{ $item->line_rate > 0 ? '@' . number_format($item->line_rate, 2) . '%' : '' }}
                                 </td>
                                 <td class="no-border align-right" style="width: 17.5%; text-align: right;">
-                                    @if (in_array($item->ledger, ['CR']))
+                                    @if (in_array($item->ledger, ['DR']))
                                         {{ number_format($item->item_amount, 2) }}
                                     @else
                                         0.00
                                     @endif
                                 </td>
                                 <td class="no-border align-right" style="width: 17.5%; text-align: right;">
-                                    @if (in_array($item->ledger, ['DR']))
+                                    @if (in_array($item->ledger, ['CR']))
                                         {{ number_format($item->item_amount, 2) }}
                                     @else
                                         0.00

@@ -40,31 +40,8 @@
     --input-text-color: #fff;
 }
 
-/* @font-face {
-    font-family: "Open Sans";
-    font-style: normal;
-    font-weight: 400;
-    src: url("../assets/fonts/open-sans/open-sans-400.woff2") format("woff2"),
-        url("../assets/fonts/open-sans/open-sans-400.woff") format("woff");
-}
-
-@font-face {
-    font-family: "Open Sans";
-    font-style: normal;
-    font-weight: 500;
-    src: url("../assets/fonts/open-sans/open-sans-500.woff2") format("woff2"),
-        url("../assets/fonts/open-sans/open-sans-500.woff") format("woff");
-}
-
-@font-face {
-    font-family: "Open Sans";
-    font-style: normal;
-    font-weight: 600;
-    src: url("../assets/fonts/open-sans/open-sans-600.woff2") format("woff2"),
-        url("../assets/fonts/open-sans/open-sans-600.woff") format("woff");
-} */
 body {
-    font-family: "Aptos", sans-serif;
+    font-family: "Acumin Pro", sans-serif;
     font-weight: 400;
     visibility: hidden;
     font-size: 14px;
@@ -85,13 +62,13 @@ select {
 }
 
 .app-sidebar {
-    background: linear-gradient(180deg, #141414 0%, #0f172a 100%) !important;
+    background: #141414 !important;
     transition: all 0.3s ease;
     box-shadow: 4px 0 20px rgba(0, 0, 0, 0.15) !important;
 }
 
 .app-sidebar .side-menu__item {
-    font-family: "Aptos", sans-serif;
+    font-family: "Acumin Pro", sans-serif;
     font-weight: 400 !important;
     font-size: 14px !important;
     line-height: 1.5;

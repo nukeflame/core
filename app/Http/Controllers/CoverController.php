@@ -1552,7 +1552,7 @@ class CoverController extends Controller
             // $cover->commited = 'Y';
             // $cover->save();
 
-            // DB::commit();
+            DB::commit();
 
             return response()->json([
                 'success' => true,
@@ -1656,9 +1656,8 @@ class CoverController extends Controller
         $cover->update();
 
         $creditNote = $this->creditNoteService->create($creditData, $cover);
-        $credit = $creditNote->fresh(['items']);
 
-        return $credit;
+        return $creditNote->fresh(['items']);
     }
 
     protected function validateBusinessRules(CoverRegister $cover, array $data): void

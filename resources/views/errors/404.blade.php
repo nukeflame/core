@@ -11,7 +11,7 @@
         body {
             background-color: #f8fafc;
             color: #636b6f;
-            font-family: "Aptos", sans-serif;
+            ont-family: "Acumin Pro", sans-serif;
             font-weight: 400;
             height: 100vh;
             margin: 0;
