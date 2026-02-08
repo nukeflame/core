@@ -242,4 +242,7 @@ Route::group(['prefix' => 'cover', 'middleware' => ['auth', 'check.first.login']
 
     Route::get('cover/reinsurers/fetch', [CoverController::class, 'fetchReinsurers'])
         ->name('cover.reinsurers.fetch');
+
+    Route::get('/claims-datatable', [CoverController::class, 'claims_datatable'])->name('cover.claims_datatable');
+    Route::get('/statements-datatable', [CoverController::class, 'statements_datatable'])->name('cover.statements_datatable');
 });

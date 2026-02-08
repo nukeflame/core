@@ -568,8 +568,8 @@ class CoverController extends Controller
             })
             ->editColumn('actions', function ($fn) {
                 $btn = '';
-                $btn .= "<button class='btn btn-sm btn-primary btn-sm-action view-endorsement-table' data-customer_id='{$fn->customer_id}' data-cover_no='{$fn->cover_no}'  data-endorsement_no='{$fn->endorsement_no}' >View <i class='bx bx-send'></i></button>";
-                $btn .= " <button class='btn btn-danger btn-sm btn-sm-action remove-endorsement-table' data-cover_no='{$fn->cover_no}' data-customer_id='{$fn->customer_id}' data-endorsement_no='{$fn->endorsement_no}' data-endorsement_no='{$fn->endorsement_no}' data-endorsement_no='{$fn->endorsement_no}'><i class='bx bx-trash'></i> Remove</button>";
+                $btn .= "<button class='btn btn-sm btn-primary btn-sm-action view-endorsement-table me-1' data-customer_id='{$fn->customer_id}' data-cover_no='{$fn->cover_no}' data-endorsement_no='{$fn->endorsement_no}' title='View'><i class='bx bx-show'></i></button>";
+                $btn .= "<button class='btn btn-sm btn-danger btn-sm-action remove-endorsement-table' data-cover_no='{$fn->cover_no}' data-customer_id='{$fn->customer_id}' data-endorsement_no='{$fn->endorsement_no}' title='Remove'><i class='bx bx-trash'></i></button>";
 
                 return $btn;
             })
@@ -4002,6 +4002,118 @@ class CoverController extends Controller
                 return '';
             })
             ->rawColumns(['action'])
+            ->make(true);
+    }
+
+    public function claims_datatable(Request $request)
+    {
+        $cover_no = $request->get('cover_no');
+        $endorsement_no = $request->get('endorsement_no');
+
+        $query = ClaimRegister::query()
+            ->where('cover_no', $cover_no)
+            ->where('endorsement_no', $endorsement_no)
+            ->orderByDesc('claim_serial_no');
+
+        return datatables::of($query)
+            ->editColumn('claim_no', function ($data) {
+                return $data->claim_no;
+            })
+            ->editColumn('claim_date', function ($data) {
+                return $data->created_date ? formatDate($data->created_date) : 'N/A';
+            })
+            ->editColumn('date_of_loss', function ($data) {
+                return $data->date_of_loss ? formatDate($data->date_of_loss) : 'N/A';
+            })
+            ->editColumn('claim_amount', function ($data) {
+                return formatCurrency($data->claim_amount ?? 0);
+            })
+            ->editColumn('claimed_amount', function ($data) {
+                return formatCurrency($data->claimed_amount ?? 0);
+            })
+            ->editColumn('status', function ($data) {
+                $status = $data->status;
+                $badge = '';
+                switch ($status) {
+                    case 'A':
+                        $badge = '<span class="badge bg-success-gradient">Active</span>';
+                        break;
+                    case 'C':
+                        $badge = '<span class="badge bg-danger-gradient">Closed</span>';
+                        break;
+                    default:
+                        $badge = '<span class="badge bg-info-gradient">' . ($status ?: 'Pending') . '</span>';
+                        break;
+                }
+
+                return $badge;
+            })
+            ->addColumn('actions', function ($data) {
+                $btn = '<div class="btn-list">';
+                $btn .= '<a href="javascript:void(0);" data-claim-no="' . $data->claim_no . '" class="btn btn-sm btn-outline-primary btn-wave view-claim"><i class="ri-eye-line me-1"></i>View</a>';
+                $btn .= '</div>';
+
+                return $btn;
+            })
+            ->rawColumns(['status', 'actions'])
+            ->make(true);
+    }
+
+    public function statements_datatable(Request $request)
+    {
+        $endorsement_no = $request->get('endorsement_no');
+
+        $query = CoverRipart::query()
+            ->where('endorsement_no', $endorsement_no)
+            ->with(['partner'])
+            ->orderBy('tran_no');
+
+        return datatables::of($query)
+            ->addColumn('partner_name', function ($data) {
+                return $data->partner->name ?? 'N/A';
+            })
+            ->editColumn('share', function ($data) {
+                return number_format($data->share ?? 0, 2) . '%';
+            })
+            ->editColumn('gross_premium', function ($data) {
+                return formatCurrency($data->gross_premium ?? 0);
+            })
+            ->editColumn('commission', function ($data) {
+                return formatCurrency($data->commission ?? 0);
+            })
+            ->editColumn('brokerage', function ($data) {
+                return formatCurrency($data->brokerage ?? 0);
+            })
+            ->editColumn('premium_tax', function ($data) {
+                return formatCurrency($data->premium_tax ?? 0);
+            })
+            ->editColumn('wht_amount', function ($data) {
+                return formatCurrency($data->wht_amount ?? 0);
+            })
+            ->editColumn('ri_tax', function ($data) {
+                return formatCurrency($data->ri_tax ?? 0);
+            })
+            ->addColumn('net_amount', function ($data) {
+                $net = ($data->gross_premium ?? 0)
+                    - ($data->commission ?? 0)
+                    - ($data->brokerage ?? 0)
+                    + ($data->premium_tax ?? 0)
+                    + ($data->wht_amount ?? 0)
+                    + ($data->ri_tax ?? 0);
+
+                return formatCurrency($net);
+            })
+            ->addColumn('status', function ($data) {
+                return '<span class="badge bg-success-gradient">Active</span>';
+            })
+            ->addColumn('actions', function ($data) {
+                $btn = '<div class="btn-list">';
+                $btn .= '<a href="javascript:void(0);" data-tran-no="' . $data->tran_no . '" class="btn btn-sm btn-outline-primary btn-wave view-statement"><i class="ri-eye-line me-1"></i>View</a>';
+                $btn .= '</div>';
+
+                return $btn;
+            })
+            ->rawColumns(['status', 'actions'])
             ->make(true);
     }
 

@@ -1,7 +1,6 @@
 @extends('layouts.app')
 
 @section('content')
-    {{-- Page Header --}}
     <div class="d-md-flex d-block align-items-center justify-content-between my-4 page-header-breadcrumb">
         <h1 class="page-title fw-semibold fs-18 mb-0">Policy ({{ $cover_no }}) Details</h1>
         <nav class="ms-md-1 ms-0">
@@ -22,7 +21,6 @@
     <div class="form-group">
         <div class="gy-4">
             <div class="customer-endorsement row">
-                {{-- Cover Details --}}
                 <div class="col-sm-7">
                     <table class="table table-responsive">
                         <tbody>
@@ -44,7 +42,6 @@
                     </table>
                 </div>
 
-                {{-- Cover Period & Status --}}
                 <div class="col-sm-5">
                     <table class="table table-responsive">
                         <tbody>
@@ -83,7 +80,8 @@
                             data-bs-target="#endorsement-list" type="button" role="tab"
                             aria-controls="endorsement-list" aria-selected="true">
                             <i class="bx bx-table me-1 align-middle"></i>Endorsements List
-                            <span class="badge bg-primary ms-1" id="endorsmentListCount">0</span>
+                            <span class="badge bg-primary ms-1"
+                                id="endorsmentListCount">{{ $all_endorsements->count() }}</span>
                         </button>
 
                         <button class="nav-link" id="nav-claimlist-tab" data-bs-toggle="tab" data-bs-target="#claimlist-tab"
@@ -144,18 +142,6 @@
                                             </tr>
                                         </thead>
                                         <tbody></tbody>
-                                        <tfoot class="table-light">
-                                            <tr class="fw-bold">
-                                                <td colspan="4" class="text-end">Total Claims:</td>
-                                                <td class="amount-cell text-end">
-                                                    {{ formatCurrency($claims->sum('claim_amount')) }}
-                                                </td>
-                                                <td class="amount-cell text-end">
-                                                    {{ formatCurrency($claims->sum('claimed_amount')) }}
-                                                </td>
-                                                <td colspan="2"></td>
-                                            </tr>
-                                        </tfoot>
                                     </table>
                                 </div>
                             </div>
@@ -184,45 +170,6 @@
                                             </tr>
                                         </thead>
                                         <tbody></tbody>
-                                        <tfoot class="table-light">
-                                            <tr class="fw-bold">
-                                                <td colspan="2" class="text-end">Totals:</td>
-                                                <td class="amount-cell text-end">
-                                                    {{ number_format($reinsurerStatements->sum('share_percent') ?? 0, 2) }}%
-                                                </td>
-                                                <td class="amount-cell text-end">
-                                                    {{ formatCurrency($reinsurerStatements->sum('gross_premium') ?? 0) }}
-                                                </td>
-                                                <td class="amount-cell text-end">
-                                                    {{ formatCurrency($reinsurerStatements->sum('commission') ?? 0) }}
-                                                </td>
-                                                <td class="amount-cell text-end">
-                                                    {{ formatCurrency($reinsurerStatements->sum('brokerage') ?? 0) }}
-                                                </td>
-                                                <td class="amount-cell text-end">
-                                                    {{ formatCurrency($reinsurerStatements->sum('premium_tax') ?? 0) }}
-                                                </td>
-                                                <td class="amount-cell text-end">
-                                                    {{ formatCurrency($reinsurerStatements->sum('wht_amount') ?? 0) }}
-                                                </td>
-                                                <td class="amount-cell text-end">
-                                                    {{ formatCurrency($reinsurerStatements->sum('ri_tax') ?? 0) }}
-                                                </td>
-                                                <td class="amount-cell amount-cell--positive text-end">
-                                                    @php
-                                                        $totalNet =
-                                                            $reinsurerStatements->sum('gross_premium') -
-                                                            $reinsurerStatements->sum('commission') -
-                                                            $reinsurerStatements->sum('brokerage') +
-                                                            $reinsurerStatements->sum('premium_tax') +
-                                                            $reinsurerStatements->sum('wht_amount') +
-                                                            $reinsurerStatements->sum('ri_tax');
-                                                    @endphp
-                                                    {{ formatCurrency($totalNet) }}
-                                                </td>
-                                                <td colspan="2"></td>
-                                            </tr>
-                                        </tfoot>
                                     </table>
                                 </div>
                             </div>
@@ -240,20 +187,33 @@
     <script src="{{ asset('js/covers/endorsement-handlers.js') }}"></script>
     <script src="{{ asset('js/covers/claims-statements.js') }}"></script>
     <script>
-        window.CoverEndorsement.init({
-            customerId: @json($customer->customer_id),
-            coverNo: @json($cover_no),
-            latestEndorsement: @json($latest_endorsement),
-            premiumDueDate: @json($premium_due_date),
-            routes: {
-                endorseDatatable: @json(route('endorse.datatable')),
-                coverHome: @json(route('cover.CoverHome')),
-                deleteCover: @json(route('cover.delete_cover')),
-                getTreatyYearCover: @json(route('cover.get_treaty_year_cover')),
-                getReinsurersOrigEndorsement: @json(route('cover.get_reinsurers_orig_endorsement')),
-                getQuarterlyFigures: @json(route('cover.get_quarterly_figures'))
-            },
-            csrfToken: @json(csrf_token())
-        });
+        (function() {
+            try {
+                if (typeof window.CoverEndorsement === 'undefined') {
+                    console.error('CoverEndorsement not loaded');
+                    return;
+                }
+
+                window.CoverEndorsement.init({
+                    customerId: @json($customer->customer_id),
+                    coverNo: @json($cover_no),
+                    latestEndorsement: @json($latest_endorsement),
+                    premiumDueDate: @json($premium_due_date ?? null),
+                    routes: {
+                        endorseDatatable: @json(route('endorse.datatable')),
+                        coverHome: @json(route('cover.CoverHome')),
+                        deleteCover: @json(route('cover.delete_cover')),
+                        getTreatyYearCover: @json(route('cover.get_treaty_year_cover')),
+                        getReinsurersOrigEndorsement: @json(route('cover.get_reinsurers_orig_endorsement')),
+                        getQuarterlyFigures: @json(route('cover.get_quarterly_figures')),
+                        claimsDatatable: @json(route('cover.claims_datatable')),
+                        statementsDatatable: @json(route('cover.statements_datatable'))
+                    },
+                    csrfToken: @json(csrf_token())
+                });
+            } catch (error) {
+                console.error('Error initializing CoverEndorsement:', error);
+            }
+        })();
     </script>
 @endpush

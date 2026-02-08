@@ -2702,26 +2702,15 @@
         },
     };
 
-    // ============================================================================
-    // INITIALIZATION
-    // ============================================================================
     $(document).ready(function () {
-        // Initialize Cover Details if on that page
         if ($(SELECTORS.APP).length) {
             CoverDetails.init();
         }
 
-        // Initialize Reinsurer Placement
         window.ReinsurerPlacement = ReinsurerPlacement;
         ReinsurerPlacement.init();
 
-        // Initialize Treaty Calculations
         window.TreatyCalculations = TreatyCalculations;
         TreatyCalculations.init();
-
-        // PlacementManager is already exposed globally above
-        // Usage:
-        //   window.PlacementManager.setConfig({...});
-        //   window.PlacementManager.init();
     });
 })(jQuery);
