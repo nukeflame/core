@@ -76,11 +76,11 @@ const CoverRegistration = (function () {
 
             config.maxInstallments = Math.min(
                 Math.max(1, config.maxInstallments || 100),
-                100
+                100,
             );
             config.maxLayers = Math.min(
                 Math.max(1, config.maxLayers || 20),
-                20
+                20,
             );
         }
     }
@@ -119,12 +119,12 @@ const CoverRegistration = (function () {
             "pageLoader",
         ];
         const missingElements = requiredElements.filter(
-            (key) => !elements[key].length
+            (key) => !elements[key].length,
         );
 
         if (missingElements.length > 0) {
             throw new Error(
-                `Required elements not found: ${missingElements.join(", ")}`
+                `Required elements not found: ${missingElements.join(", ")}`,
             );
         }
     }
@@ -166,11 +166,11 @@ const CoverRegistration = (function () {
         $("#comm_rate").on("keyup", debounce(calculateCedantCommission, 300));
         $("#reins_comm_rate").on(
             "keyup",
-            debounce(calculateReinsurerCommission, 300)
+            debounce(calculateReinsurerCommission, 300),
         );
         $("#cede_premium").on(
             "keyup",
-            debounce(handleCedantPremiumChange, 300)
+            debounce(handleCedantPremiumChange, 300),
         );
 
         $("#reins_comm_type").on("change", handleReinsurerCommTypeChange);
@@ -178,7 +178,7 @@ const CoverRegistration = (function () {
 
         $("#eml_rate, #total_sum_insured").on(
             "keyup",
-            debounce(calculateEml, 300)
+            debounce(calculateEml, 300),
         );
 
         $(document).on("change", ".treaty_reinclass", handleReinclassChange);
@@ -187,19 +187,19 @@ const CoverRegistration = (function () {
         $(document).on(
             "click",
             ".remove-comm-section",
-            removeCommissionSection
+            removeCommissionSection,
         );
         $(document).on("click", ".remove-rein-class", removeReinClass);
 
         $(document).on(
             "change",
             ".commission_type",
-            handleCommissionTypeChange
+            handleCommissionTypeChange,
         );
         $(document).on(
             "click",
             ".configure-sliding-btn",
-            handleSlidingScaleConfig
+            handleSlidingScaleConfig,
         );
         $("#save-sliding-scale").on("click", saveSlidingScale);
         $("#add-scale-tier").on("click", addSlidingScaleTier);
@@ -207,7 +207,7 @@ const CoverRegistration = (function () {
         $(document).on("click", ".load-template", loadSlidingTemplate);
 
         $("#import-sliding-csv").on("click", () =>
-            $("#sliding-csv-file").click()
+            $("#sliding-csv-file").click(),
         );
         $("#sliding-csv-file").on("change", handleSlidingCSVImport);
 
@@ -216,7 +216,7 @@ const CoverRegistration = (function () {
         $(document).on(
             "change",
             ".limit_per_reinclass",
-            handleLimitPerReinclassChange
+            handleLimitPerReinclassChange,
         );
 
         $("#treatytype").on("change", handleTreatyTypeChange);
@@ -229,11 +229,11 @@ const CoverRegistration = (function () {
                 if (prospectId && prospectId.length >= 3) {
                     loadProspectData(prospectId);
                 }
-            }, 500)
+            }, 500),
         );
 
         $("#addInsuredData").on("click", () =>
-            $("#addInsuredDataModal").modal("show")
+            $("#addInsuredDataModal").modal("show"),
         );
 
         $("#risk_details_content").on("paste", handleRiskDetailsPaste);
@@ -243,12 +243,12 @@ const CoverRegistration = (function () {
         $(document).on(
             "keyup",
             ".retention_per, .quota_share_total_limit",
-            debounce(calculateQuotaRetention, 300)
+            debounce(calculateQuotaRetention, 300),
         );
         $(document).on(
             "keyup",
             ".no_of_lines",
-            debounce(calculateSurplusLimit, 300)
+            debounce(calculateSurplusLimit, 300),
         );
 
         elements.form.on("change", "input, select, textarea", () => {
@@ -394,14 +394,14 @@ const CoverRegistration = (function () {
 
                 if (xhr.status === 403) {
                     toastr.error(
-                        "You do not have permission to perform this action"
+                        "You do not have permission to perform this action",
                     );
                     return;
                 }
 
                 if (xhr.status === 419) {
                     toastr.error(
-                        "CSRF token mismatch. Please refresh the page."
+                        "CSRF token mismatch. Please refresh the page.",
                     );
                     return;
                 }
@@ -591,7 +591,7 @@ const CoverRegistration = (function () {
 
                 if (!classes || classes.length === 0) {
                     elements.classCode.append(
-                        '<option value="">No classes available</option>'
+                        '<option value="">No classes available</option>',
                     );
                     return;
                 }
@@ -600,7 +600,7 @@ const CoverRegistration = (function () {
                     elements.classCode.append(
                         $("<option>")
                             .val(cls.class_code)
-                            .text(`${cls.class_code} - ${cls.class_name}`)
+                            .text(`${cls.class_code} - ${cls.class_name}`),
                     );
                 });
 
@@ -805,7 +805,7 @@ const CoverRegistration = (function () {
                 {
                     scrollTop: $firstError.offset().top - 100,
                 },
-                500
+                500,
             );
             $firstError.focus();
         }
@@ -900,7 +900,7 @@ const CoverRegistration = (function () {
                 {
                     scrollTop: $firstError.offset().top - 100,
                 },
-                500
+                500,
             );
             $firstError.focus();
         }
@@ -940,7 +940,7 @@ const CoverRegistration = (function () {
 
         if (noOfInstallments > config.maxInstallments) {
             toastr.error(
-                `Maximum ${config.maxInstallments} installments allowed`
+                `Maximum ${config.maxInstallments} installments allowed`,
             );
             return false;
         }
@@ -1059,11 +1059,11 @@ const CoverRegistration = (function () {
         if (!areDecimalsEqual(expectedAmount, totalInstallments, 0.5)) {
             toastr.error(
                 `Total installment amount (${numberWithCommas(
-                    totalInstallments
+                    totalInstallments,
                 )}) ` +
                     `does not match expected amount (${numberWithCommas(
-                        expectedAmount
-                    )})`
+                        expectedAmount,
+                    )})`,
             );
             return false;
         }
@@ -1194,7 +1194,7 @@ const CoverRegistration = (function () {
         const brokerageCommType = $(this).val();
 
         $(
-            ".brokerage-amount-field, .brokerage-rate-field, .brokerage-rate-amount-field"
+            ".brokerage-amount-field, .brokerage-rate-field, .brokerage-rate-amount-field",
         ).hide();
         $("#brokerage_comm_amt").prop("disabled", true);
         $("#brokerage_comm_rate, #brokerage_comm_rate_amnt").val("");
@@ -1252,7 +1252,7 @@ const CoverRegistration = (function () {
 
         const retentionPer = parseNumber($(`#retention_per-${counter}`).val());
         const quotaLimit = parseNumber(
-            $(`#quota_share_total_limit-${counter}`).val()
+            $(`#quota_share_total_limit-${counter}`).val(),
         );
 
         if (!retentionPer || !quotaLimit) return;
@@ -1269,7 +1269,7 @@ const CoverRegistration = (function () {
 
         $(`#treaty_reice-${counter}`).val(treatyPer.toFixed(2));
         $(`#quota_retention_amt-${counter}`).val(
-            numberWithCommas(retentionAmt)
+            numberWithCommas(retentionAmt),
         );
         $(`#quota_treaty_limit-${counter}`).val(numberWithCommas(treatyLimit));
 
@@ -1284,7 +1284,7 @@ const CoverRegistration = (function () {
 
         const lines = parseNumber($(`#no_of_lines-${counter}`).val());
         const retention = parseNumber(
-            $(`#surp_retention_amt-${counter}`).val()
+            $(`#surp_retention_amt-${counter}`).val(),
         );
 
         if (!lines || !retention) return;
@@ -1300,7 +1300,7 @@ const CoverRegistration = (function () {
 
         const treatyCapacity = treatyLimit + retention;
         $(`#surp_treaty_capacity-${counter}`).val(
-            numberWithCommas(treatyCapacity)
+            numberWithCommas(treatyCapacity),
         );
     }
 
@@ -1477,7 +1477,7 @@ const CoverRegistration = (function () {
 
             if (minRatio >= maxRatio) {
                 toastr.error(
-                    "Loss Ratio Min must be less than Loss Ratio Max."
+                    "Loss Ratio Min must be less than Loss Ratio Max.",
                 );
                 isValid = false;
                 return false;
@@ -1517,7 +1517,7 @@ const CoverRegistration = (function () {
             .closest(".sliding_scale_div")
             .find(".configure-sliding-btn");
         $btn.html(
-            `<i class="bx bx-trending-up me-1"></i> Edit Scale (${tiers.length} tiers)`
+            `<i class="bx bx-trending-up me-1"></i> Edit Scale (${tiers.length} tiers)`,
         );
 
         createSlidingScalePreview(config.currentModalTarget, tiers);
@@ -1537,8 +1537,8 @@ const CoverRegistration = (function () {
         tiers.forEach((tier) => {
             html += `<span class="badge bg-success me-1">
                 ${tier.loss_ratio_min.toFixed(2)}-${tier.loss_ratio_max.toFixed(
-                2
-            )}%:
+                    2,
+                )}%:
                 ${tier.commission_rate.toFixed(2)}%
             </span>`;
         });
@@ -1582,7 +1582,7 @@ const CoverRegistration = (function () {
             toastr.success(
                 `${
                     template.charAt(0).toUpperCase() + template.slice(1)
-                } template loaded!`
+                } template loaded!`,
             );
         }
     }
@@ -1800,18 +1800,20 @@ const CoverRegistration = (function () {
         const treatyType = $(this).val();
         const treatyTypeTxt = $(this).find("option:selected").text();
 
+        // Target ALL sections instead of just the first one
         $(".quota_header_div, .surp_header_div").hide();
         $(
-            ".quota_share_total_limit_div, .retention_per_div, .treaty_reice_div"
+            ".quota_share_total_limit_div, .retention_per_div, .treaty_reice_div",
         ).hide();
         $(".quota_retention_amt_div, .quota_treaty_limit_div").hide();
         $(
-            ".no_of_lines_div, .surp_retention_amt_div, .surp_treaty_limit_div, .surp_treaty_capacity_div"
+            ".no_of_lines_div, .surp_retention_amt_div, .surp_treaty_limit_div, .surp_treaty_capacity_div",
         ).hide();
         $("#reinsurer_per_treaty_section").hide();
         $(".quota-share-section, .surplus-section").hide();
 
-        $(`#prem_type_treaty-0-0`)
+        // Update treaty dropdown for ALL commission sections across ALL sections
+        $(`.prem_type_treaty`)
             .empty()
             .append($("<option>").text(treatyTypeTxt).attr("value", treatyType))
             .trigger("change");
@@ -1821,7 +1823,7 @@ const CoverRegistration = (function () {
                 $(".quota-share-section").show();
                 $(".quota_header_div").show();
                 $(
-                    ".quota_share_total_limit_div, .retention_per_div, .treaty_reice_div"
+                    ".quota_share_total_limit_div, .retention_per_div, .treaty_reice_div",
                 ).show();
                 $(".quota_retention_amt_div, .quota_treaty_limit_div").show();
             },
@@ -1829,18 +1831,18 @@ const CoverRegistration = (function () {
                 $(".surplus-section").show();
                 $(".surp_header_div").show();
                 $(
-                    ".no_of_lines_div, .surp_retention_amt_div, .surp_treaty_limit_div, .surp_treaty_capacity_div"
+                    ".no_of_lines_div, .surp_retention_amt_div, .surp_treaty_limit_div, .surp_treaty_capacity_div",
                 ).show();
             },
             SPQT: () => {
                 $(".quota-share-section, .surplus-section").show();
                 $(".quota_header_div, .surp_header_div").show();
                 $(
-                    ".quota_share_total_limit_div, .retention_per_div, .treaty_reice_div"
+                    ".quota_share_total_limit_div, .retention_per_div, .treaty_reice_div",
                 ).show();
                 $(".quota_retention_amt_div, .quota_treaty_limit_div").show();
                 $(
-                    ".no_of_lines_div, .surp_retention_amt_div, .surp_treaty_limit_div, .surp_treaty_capacity_div"
+                    ".no_of_lines_div, .surp_retention_amt_div, .surp_treaty_limit_div, .surp_treaty_capacity_div",
                 ).show();
                 $("#reinsurer_per_treaty_section").show();
             },
@@ -1875,7 +1877,7 @@ const CoverRegistration = (function () {
 
         if (!treatyType) {
             toastr.error("Please select treaty type first");
-            $select.val("");
+            $select.val("").trigger("change.select2");
             return false;
         }
 
@@ -1883,10 +1885,32 @@ const CoverRegistration = (function () {
             return;
         }
 
+        // Check for duplicates
+        if (isReinclassAlreadySelected(reinclass, counter)) {
+            toastr.error(
+                "This Reinsurance Class Group is already selected in another section",
+            );
+            $select.val("").trigger("change.select2");
+            return false;
+        }
+
         $(`#prem_type_reinclass-${counter}-0`).val(reinclass);
 
         populateTreatyDropdown(counter, treatyType);
         loadPremTypesData(treatyType, counter, reinclass);
+    }
+
+    function isReinclassAlreadySelected(reinclass, currentCounter) {
+        let isSelected = false;
+        $(".treaty_reinclass").each(function () {
+            const $this = $(this);
+            const counter = $this.data("counter");
+            if (counter !== currentCounter && $this.val() === reinclass) {
+                isSelected = true;
+                return false; // Exit each
+            }
+        });
+        return isSelected;
     }
 
     function populateTreatyDropdown(counter, treatyType) {
@@ -1910,7 +1934,7 @@ const CoverRegistration = (function () {
             $("<option>")
                 .val(treatyCode)
                 .text(treatyName)
-                .prop("selected", true)
+                .prop("selected", true),
         );
 
         $treatySelect.trigger("change.select2");
@@ -1924,7 +1948,7 @@ const CoverRegistration = (function () {
         if (!reinClassVal) {
             const sectionLabel = String.fromCharCode(65 + prevCounter);
             toastr.error(
-                `Please select reinsurance class in Section ${sectionLabel}`
+                `Please select reinsurance class in Section ${sectionLabel}`,
             );
             return false;
         }
@@ -1932,7 +1956,7 @@ const CoverRegistration = (function () {
         const currentSections = $(".reinclass-section").length;
         if (currentSections >= config.maxReinClasses) {
             toastr.error(
-                `Maximum ${config.maxReinClasses} reinsurance classes allowed`
+                `Maximum ${config.maxReinClasses} reinsurance classes allowed`,
             );
             return false;
         }
@@ -1967,9 +1991,15 @@ const CoverRegistration = (function () {
 
         lastSection.after(newSection);
 
-        newSection.find(".select2").select2({
-            width: "100%",
-            theme: "bootstrap-5",
+        // Re-initialize Select2 with explicit width for proper alignment
+        newSection.find(".select2").each(function () {
+            $(this).select2({
+                width: "100%",
+                theme: "bootstrap-5",
+                dropdownParent: $(this).closest(".cover-card").length
+                    ? $(this).closest(".cover-card")
+                    : null,
+            });
         });
 
         toastr.success(`Section ${sectionLabel} added`);
@@ -2014,8 +2044,19 @@ const CoverRegistration = (function () {
 
                 const id = $el.attr("id");
                 if (id) {
-                    const newId = id.replace(/-\d+-/, `-${counter}-`);
-                    $el.attr("id", newId);
+                    // Match prefix-DIGIT-DIGIT and replace only the first index (section index)
+                    if (id.match(/-\d+-\d+$/)) {
+                        const newId = id.replace(
+                            /-(\d+)-(\d+)$/,
+                            `-${counter}-$2`,
+                        );
+                        $el.attr("id", newId);
+                    }
+                    // Match prefix-DIGIT and replace it
+                    else if (id.match(/-\d+$/)) {
+                        const newId = id.replace(/-\d+$/, `-${counter}`);
+                        $el.attr("id", newId);
+                    }
                 }
 
                 if ($el.attr("data-counter") !== undefined) {
@@ -2049,7 +2090,7 @@ const CoverRegistration = (function () {
         }
 
         const prevCommType = $(
-            `#commission_type-${classCounter}-${prevCounter}`
+            `#commission_type-${classCounter}-${prevCounter}`,
         ).val();
         if (!prevCommType) {
             toastr.error("Please select commission type in previous section");
@@ -2058,17 +2099,17 @@ const CoverRegistration = (function () {
 
         if (prevCommType === "FLAT") {
             const prevCommRate = $(
-                `#prem_type_comm_rate-${classCounter}-${prevCounter}`
+                `#prem_type_comm_rate-${classCounter}-${prevCounter}`,
             ).val();
             if (!prevCommRate || parseFloat(prevCommRate) <= 0) {
                 toastr.error(
-                    "Please enter commission rate in previous section"
+                    "Please enter commission rate in previous section",
                 );
                 return false;
             }
         } else if (prevCommType === "SLIDING") {
             const prevSlidingData = $(
-                `#sliding_scale_data-${classCounter}-${prevCounter}`
+                `#sliding_scale_data-${classCounter}-${prevCounter}`,
             ).val();
             if (
                 !prevSlidingData ||
@@ -2076,14 +2117,14 @@ const CoverRegistration = (function () {
                 prevSlidingData === ""
             ) {
                 toastr.error(
-                    "Please configure sliding scale in previous section"
+                    "Please configure sliding scale in previous section",
                 );
                 return false;
             }
         }
 
         const prevPremType = $(
-            `#prem_type_code-${classCounter}-${prevCounter}`
+            `#prem_type_code-${classCounter}-${prevCounter}`,
         ).val();
 
         if (!prevPremType) {
@@ -2095,7 +2136,7 @@ const CoverRegistration = (function () {
         $commContainer.append(newSection);
 
         $(
-            `#prem_type_treaty-${classCounter}-${counter}, #prem_type_code-${classCounter}-${counter}, #commission_type-${classCounter}-${counter}`
+            `#prem_type_treaty-${classCounter}-${counter}, #prem_type_code-${classCounter}-${counter}, #commission_type-${classCounter}-${counter}`,
         ).select2({
             width: "100%",
         });
@@ -2109,7 +2150,7 @@ const CoverRegistration = (function () {
             counter,
             treatyType,
             reinclass,
-            prevCounter
+            prevCounter,
         );
 
         toastr.success("Commission section added");
@@ -2117,7 +2158,7 @@ const CoverRegistration = (function () {
 
     function loadPremTypeTreaty(classCounter, premCounter, treatyType) {
         const $treatySelect = $(
-            `#prem_type_treaty-${classCounter}-${premCounter}`
+            `#prem_type_treaty-${classCounter}-${premCounter}`,
         );
         const treatyName = $("#treatytype").find("option:selected").text();
 
@@ -2126,7 +2167,7 @@ const CoverRegistration = (function () {
             $("<option>")
                 .val(treatyType)
                 .text(treatyName)
-                .prop("selected", true)
+                .prop("selected", true),
         );
 
         $treatySelect.trigger("change.select2");
@@ -2136,11 +2177,15 @@ const CoverRegistration = (function () {
         classCounter,
         premCounter,
         treatyType,
-        reinclass
+        reinclass,
     ) {
-        const premTypesData = config.premTypesData;
+        const premTypesData =
+            config.sectionPremTypesData &&
+            config.sectionPremTypesData[classCounter]
+                ? config.sectionPremTypesData[classCounter]
+                : [];
         const targetSelect = $(
-            `#prem_type_code-${classCounter}-${premCounter}`
+            `#prem_type_code-${classCounter}-${premCounter}`,
         );
 
         targetSelect.empty();
@@ -2148,7 +2193,7 @@ const CoverRegistration = (function () {
             $("<option>")
                 .val("")
                 .text("-- Select Premium Type --")
-                .prop("selected", true)
+                .prop("selected", true),
         );
 
         if (!premTypesData || premTypesData.length === 0) {
@@ -2169,7 +2214,7 @@ const CoverRegistration = (function () {
                 if (value && selectId !== targetId) {
                     selectedPremTypes.push(value);
                 }
-            }
+            },
         );
 
         premTypesData.forEach((premType) => {
@@ -2178,7 +2223,7 @@ const CoverRegistration = (function () {
             }
 
             const isSelected = selectedPremTypes.includes(
-                premType.premtype_code
+                premType.premtype_code,
             );
             const isCurrentValue = premType.premtype_code === currentValue;
 
@@ -2191,7 +2236,7 @@ const CoverRegistration = (function () {
                         .text(optionText)
                         .attr("data-reinclass", reinclass)
                         .attr("data-treaty", treatyType)
-                        .attr("data-name", premType.premtype_name)
+                        .attr("data-name", premType.premtype_name),
                 );
             }
         });
@@ -2212,8 +2257,8 @@ const CoverRegistration = (function () {
             <div class="row g-3 align-items-end mb-2">
                 <div class="col-md-3 prem_type_treaty_div">
                     <label class="form-label required">Treaty</label>
-                    <div class="card-form">
-                        <select class="form-control select2 prem_type_treaty"
+                    <div class="cover-card">
+                        <select class="form-control select2 prem_type_treaty required"
                                 name="prem_type_treaty[]"
                                 id="prem_type_treaty-${classCounter}-${premCounter}"
                                 data-class-counter="${classCounter}"
@@ -2230,8 +2275,8 @@ const CoverRegistration = (function () {
                            class="prem_type_reinclass"
                            id="prem_type_reinclass-${classCounter}-${premCounter}"
                            name="prem_type_reinclass[]">
-                    <div class="card-form">
-                        <select class="form-control select2 prem_type_code"
+                    <div class="cover-card">
+                        <select class="form-control select2 prem_type_code required"
                                 name="prem_type_code[]"
                                 id="prem_type_code-${classCounter}-${premCounter}"
                                 data-class-counter="${classCounter}"
@@ -2244,8 +2289,8 @@ const CoverRegistration = (function () {
 
                 <div class="col-md-2 comm_type_div">
                     <label class="form-label required">Commission Type</label>
-                    <div class="card-form">
-                        <select class="form-control select2 commission_type"
+                    <div class="cover-card">
+                        <select class="form-control select2 commission_type required"
                                 name="treaty_commission_type[]"
                                 id="commission_type-${classCounter}-${premCounter}"
                                 data-class-counter="${classCounter}"
@@ -2262,7 +2307,7 @@ const CoverRegistration = (function () {
                     <label class="form-label required">Commission (%)</label>
                     <div class="input-group">
                         <input type="text"
-                               class="form-control prem_type_comm_rate"
+                               class="form-control prem_type_comm_rate required"
                                name="flat_prem_type_comm_rate[]"
                                id="prem_type_comm_rate-${classCounter}-${premCounter}"
                                placeholder="0.00">
@@ -2320,7 +2365,7 @@ const CoverRegistration = (function () {
             const classCounter = $section.data("class-counter");
             const counter = $section.data("counter");
             const sectionLabel = `Section ${String.fromCharCode(
-                65 + classCounter
+                65 + classCounter,
             )} - Commission ${counter + 1}`;
 
             const treaty = $section.find(".prem_type_treaty").val();
@@ -2348,7 +2393,7 @@ const CoverRegistration = (function () {
                     .val();
                 if (!commRate || parseFloat(commRate) <= 0) {
                     errors.push(
-                        `${sectionLabel}: Please enter commission rate`
+                        `${sectionLabel}: Please enter commission rate`,
                     );
                     isValid = false;
                 }
@@ -2360,7 +2405,7 @@ const CoverRegistration = (function () {
                     slidingData === ""
                 ) {
                     errors.push(
-                        `${sectionLabel}: Please configure sliding scale`
+                        `${sectionLabel}: Please configure sliding scale`,
                     );
                     isValid = false;
                 }
@@ -2407,7 +2452,7 @@ const CoverRegistration = (function () {
         $layerContainer.append(newLayer);
 
         $(
-            `#limit_per_reinclass-${counter}-0, #reinstatement_type-${counter}-0`
+            `#limit_per_reinclass-${counter}-0, #reinstatement_type-${counter}-0`,
         ).select2({
             width: "100%",
             theme: "bootstrap-5",
@@ -2625,7 +2670,7 @@ const CoverRegistration = (function () {
 
                 if (!Array.isArray(response) || response.length === 0) {
                     treatySelect.append(
-                        '<option value="">No treaty types available</option>'
+                        '<option value="">No treaty types available</option>',
                     );
                     return;
                 }
@@ -2635,8 +2680,8 @@ const CoverRegistration = (function () {
                         $("<option>")
                             .val(treaty.treaty_code)
                             .text(
-                                `${treaty.treaty_code} - ${treaty.treaty_name}`
-                            )
+                                `${treaty.treaty_code} - ${treaty.treaty_name}`,
+                            ),
                     );
                 });
 
@@ -2664,7 +2709,7 @@ const CoverRegistration = (function () {
 
                 if (!Array.isArray(binders) || binders.length === 0) {
                     binderSelect.append(
-                        '<option value="">No binder covers available</option>'
+                        '<option value="">No binder covers available</option>',
                     );
                     return;
                 }
@@ -2674,8 +2719,8 @@ const CoverRegistration = (function () {
                         $("<option>")
                             .val(binder.binder_cov_no)
                             .text(
-                                `${binder.binder_cov_no} - ${binder.agency_name}`
-                            )
+                                `${binder.binder_cov_no} - ${binder.agency_name}`,
+                            ),
                     );
                 });
 
@@ -2687,30 +2732,30 @@ const CoverRegistration = (function () {
     function loadPremTypesData(treatyType, counter, reinClass) {
         if (!treatyType || counter === undefined || !reinClass) {
             console.warn(
-                "Missing required parameters for loading premium types"
+                "Missing required parameters for loading premium types",
             );
             return;
         }
 
-        const targetSelect = $(`#prem_type_code-${counter}-0`);
+        const targetSelects = $(
+            `.prem_type_code[data-class-counter="${counter}"]`,
+        );
 
-        if (!targetSelect.length) {
-            console.warn(
-                `Target select #prem_type_code-${counter}-0 not found`
-            );
+        if (!targetSelects.length) {
+            console.warn(`No class name selects found for section ${counter}`);
             return;
         }
 
         const selectedPremTypes = getSelectedPremiumTypes(
             reinClass,
-            treatyType
+            treatyType,
         );
 
-        targetSelect.prop("disabled", true);
-        targetSelect
+        targetSelects.prop("disabled", true);
+        targetSelects
             .empty()
             .append(
-                $("<option>").val("").text("Loading...").prop("disabled", true)
+                $("<option>").val("").text("Loading...").prop("disabled", true),
             );
 
         makeAjaxRequest({
@@ -2723,22 +2768,22 @@ const CoverRegistration = (function () {
             cacheKey: `prem_types_${reinClass}_${treatyType}`,
             loadingMessage: false,
             successCallback: function (response) {
-                targetSelect.prop("disabled", false);
-                targetSelect.empty();
-                targetSelect.append(
+                targetSelects.prop("disabled", false);
+                targetSelects.empty();
+                targetSelects.append(
                     $("<option>")
                         .val("")
                         .text("-- Select Class Name --")
                         .prop("disabled", true)
-                        .prop("selected", true)
+                        .prop("selected", true),
                 );
 
                 if (!Array.isArray(response) || response.length === 0) {
-                    targetSelect.append(
+                    targetSelects.append(
                         $("<option>")
                             .val("")
                             .text("No premium types available")
-                            .prop("disabled", true)
+                            .prop("disabled", true),
                     );
                     return;
                 }
@@ -2750,31 +2795,32 @@ const CoverRegistration = (function () {
 
                     const optionText = `${premType.premtype_code} - ${premType.premtype_name}`;
 
-                    targetSelect.append(
+                    targetSelects.append(
                         $("<option>")
                             .val(premType.premtype_code)
                             .text(optionText)
                             .attr("data-reinclass", reinClass)
                             .attr("data-treaty", treatyType)
-                            .attr("data-name", premType.premtype_name)
+                            .attr("data-name", premType.premtype_name),
                     );
                 });
 
-                targetSelect.trigger("change.select2");
+                targetSelects.trigger("change.select2");
 
-                config.premTypesData = response;
+                if (!config.sectionPremTypesData)
+                    config.sectionPremTypesData = {};
+                config.sectionPremTypesData[counter] = response;
             },
             errorCallback: function () {
-                targetSelect.prop("disabled", false);
-                targetSelect
+                targetSelects.prop("disabled", false);
+                targetSelects
                     .empty()
                     .append(
                         $("<option>")
                             .val("")
-                            .text("Failed to load premium types")
+                            .text("Error loading types")
+                            .prop("disabled", true),
                     );
-
-                config.premTypesData = [];
             },
         });
     }
@@ -2803,7 +2849,7 @@ const CoverRegistration = (function () {
 
         const url = config.routes.getProspectData.replace(
             ":id",
-            encodeURIComponent(prospectId)
+            encodeURIComponent(prospectId),
         );
 
         makeAjaxRequest({
@@ -2890,7 +2936,7 @@ const CoverRegistration = (function () {
             const populateClasscode = () => {
                 const $classcode = $("#classcode");
                 const classOption = $classcode.find(
-                    `option[value="${data.classcode}"]`
+                    `option[value="${data.classcode}"]`,
                 );
 
                 if (classOption.length > 0) {
@@ -2907,7 +2953,7 @@ const CoverRegistration = (function () {
             const populatePremiumPaymentTerm = () => {
                 const $premiumPaymentTerm = $("#premium_payment_term");
                 const paymentTermOption = $premiumPaymentTerm.find(
-                    `option[value="${data.premium_payment_term}"]`
+                    `option[value="${data.premium_payment_term}"]`,
                 );
 
                 if (paymentTermOption.length > 0) {
@@ -3040,7 +3086,7 @@ const CoverRegistration = (function () {
     function enableSection(selector) {
         $(`${selector} input, ${selector} select, ${selector} textarea`).prop(
             "disabled",
-            false
+            false,
         );
         $(`${selector}-div`).show();
     }
@@ -3081,7 +3127,7 @@ const CoverRegistration = (function () {
                 }
                 return parseNumber(value) > parseNumber(target.val());
             },
-            "Must be greater than {0}"
+            "Must be greater than {0}",
         );
 
         $.validator.addMethod(
@@ -3092,7 +3138,7 @@ const CoverRegistration = (function () {
                     (parseNumber(value) >= 0 && parseNumber(value) <= 100)
                 );
             },
-            "Please enter a valid percentage (0-100)"
+            "Please enter a valid percentage (0-100)",
         );
 
         elements.form.validate({

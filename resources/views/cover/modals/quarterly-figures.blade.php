@@ -1172,6 +1172,7 @@
                     if (resolvedType === 'DEBIT') {
                         $ledger.val('DR');
                         $commRate.val('');
+                        $commRate.prop('disabled', false);
                         $row.removeClass('is-credit').addClass('is-debit');
                     } else if (resolvedType === 'CREDIT') {
                         $ledger.val('CR');

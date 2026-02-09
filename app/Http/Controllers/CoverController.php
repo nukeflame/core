@@ -1608,7 +1608,7 @@ class CoverController extends Controller
             $cover->commited = 'Y';
             $cover->save();
 
-            DB::commit();
+            // DB::commit();
 
             return response()->json([
                 'success' => true,

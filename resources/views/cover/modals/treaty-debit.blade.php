@@ -1001,7 +1001,6 @@
                         const optionGroup = $option.data('group');
                         const isInGroup = Number(optionGroup) === Number(selectedGroup);
 
-                        // Check if this specific combination already exists
                         const comboKey = (selectedType || '') + '|' + optionValue;
                         const isAlreadySelected = selectedType && selectedCombinations.includes(
                             comboKey);

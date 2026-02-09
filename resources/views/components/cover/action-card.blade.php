@@ -131,10 +131,10 @@
                     </button>
                 @endif
 
-                <button type="button" class="btn btn-secondary btn-sm me-2 text-center w-10" data-action="preview-slip"
+                {{-- <button type="button" class="btn btn-secondary btn-sm me-2 text-center w-10" data-action="preview-slip"
                     data-endorsement="{{ $cover->endorsement_no }}">
                     <i class="bi bi-file-earmark-text"></i> Preview Slip
-                </button>
+                </button> --}}
 
             @endif
         @endif

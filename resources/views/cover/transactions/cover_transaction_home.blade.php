@@ -304,29 +304,19 @@
                                                         </div>
                                                     </td>
                                                     <td>
-                                                        <span class="badge bg-light text-dark px-3">
+                                                        <span class="text-dark px-3">
                                                             @php
                                                                 $quarterMap = [
-                                                                    'Q1' => 'First Quarter',
-                                                                    'Q2' => 'Second Quarter',
-                                                                    'Q3' => 'Third Quarter',
-                                                                    'Q4' => 'Fourth Quarter',
+                                                                    'Q1' => 'First Quarter (Q1)',
+                                                                    'Q2' => 'Second Quarter (Q2)',
+                                                                    'Q3' => 'Third Quarter (Q3)',
+                                                                    'Q4' => 'Fourth Quarter (Q4)',
                                                                 ];
                                                                 echo $quarterMap[$account->quarter] ??
                                                                     ($account->quarter ?? '-');
                                                             @endphp
                                                         </span>
                                                     </td>
-                                                    {{-- <td>
-                                    <div class="text-truncate" title="{{ $account->insured ?? '' }}">
-                                        {{ Str::limit($account->insured ?? '-', 30) }}
-                                    </div>
-                                </td> --}}
-                                                    <!-- <td>
-                                                                                                                                <span class="badge {{ $statusClass }}">
-                                                                                                                                    {{ $statusText }}
-                                                                                                                                </span>
-                                                                                                                            </td> -->
                                                     <td>
                                                         <span
                                                             class="badge bg-secondary">{{ $account->currency_code ?? 'KES' }}</span>
@@ -334,16 +324,6 @@
                                                     <td>
                                                         {{ number_format($foreignNettAmount, 2) }}
                                                     </td>
-                                                    <!-- <td>
-                                                                                                                                <span class="text-success fw-medium">
-                                                                                                                                    {{ number_format($amountPaid, 2) }}
-                                                                                                                                </span>
-                                                                                                                            </td>
-                                                                                                                            <td>
-                                                                                                                                <span class="{{ $outstandingAmount > 0 ? 'text-danger' : 'text-success' }} fw-medium">
-                                                                                                                                    {{ number_format($outstandingAmount, 2) }}
-                                                                                                                                </span>
-                                                                                                                            </td> -->
                                                     <td>
                                                         <span class="badge bg-info text-dark">
                                                             {{ str_pad($account->account_month ?? 1, 2, '0', STR_PAD_LEFT) }}/{{ $account->account_year ?? date('Y') }}

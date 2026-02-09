@@ -56,6 +56,9 @@ class DebitNoteService
 
             $calculation = $this->amountCalculator->calculate($data, $cover);
 
+            logger()->debug(json_encode($calculation, JSON_PRETTY_PRINT));
+
+
             $debitNoteNo = $this->generateDebitNoteNumber(
                 $cover->type_of_bus,
                 $data['postingYear'] ?? now()->year
@@ -68,7 +71,6 @@ class DebitNoteService
             if ($data['updateRipart'] ?? false) {
                 $this->updateReinsurerParticipation($calculation['reinsurers']);
             }
-
             // $this->transactionLogger->log($debitNote, 'CREATE');
 
             return $debitNote->fresh(['items', 'cover', 'cover.customer']);

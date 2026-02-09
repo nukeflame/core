@@ -7,12 +7,15 @@
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <title>@yield('title', config('app.name'))</title>
     <style>
+        /* Page Setup */
         @page {
-            margin-top: 120pt;
-            margin-left: 20pt;
-            margin-right: 20pt;
+            margin-top: 3%;
+            margin-bottom: 1%;
+            margin-left: 4%;
+            margin-right: 4%;
         }
 
+        /* Base Styles */
         * {
             box-sizing: border-box;
         }
@@ -25,6 +28,7 @@
             font-family: 'Aptos', sans-serif;
         }
 
+        /* Header Styles */
         header {
             position: fixed;
             left: 0;
@@ -32,7 +36,6 @@
             top: 0;
             background: #fff;
             z-index: 1000;
-            margin-top: -90pt;
         }
 
         header.header-default {
@@ -65,18 +68,20 @@
 
         .footer-content {
             border-top: 1px solid #000;
-            padding-top: 8px;
-            margin-top: 15px;
+            padding-top: 0px;
+            margin-top: 5px;
         }
 
         .page-number::after {
             content: counter(page);
         }
 
+        /* Typography */
         p {
             margin: 0;
         }
 
+        /* Table Styles */
         table {
             border-collapse: collapse;
         }
@@ -103,6 +108,7 @@
             padding-bottom: 1px;
         }
 
+        /* Specific Table Styles */
         #cover-s {
             padding: 0;
             font-size: 10.0pt;
@@ -163,6 +169,7 @@
             padding: 3pt 9pt;
         }
 
+        /* Utility Classes - Padding */
         .p-0 {
             padding: 0;
         }
@@ -195,10 +202,12 @@
             padding-top: 6px;
         }
 
+        /* Utility Classes - Margin */
         .m-0 {
             margin: 0;
         }
 
+        /* Utility Classes - Spacing */
         .spacing-top {
             padding-top: 10px;
         }
@@ -215,6 +224,7 @@
             padding-bottom: 10px;
         }
 
+        /* Utility Classes - Text */
         .bold {
             font-weight: bold;
         }
@@ -239,6 +249,7 @@
             text-align: left;
         }
 
+        /* Utility Classes - Font Sizes */
         .courier-7,
         .fs-7 {
             font-size: 7pt;
@@ -264,6 +275,7 @@
             font-family: 'Aptos', sans-serif;
         }
 
+        /* Utility Classes - Borders */
         .border-bottom,
         .bottom-border {
             border-bottom: 1px solid #000;
@@ -285,10 +297,12 @@
             border: none;
         }
 
+        /* Utility Classes - Width */
         .w-100 {
             width: 100%;
         }
 
+        /* Layout Components */
         .info-box {
             display: inline-block;
             padding: 2px;
@@ -309,6 +323,7 @@
             display: table;
         }
 
+        /* Page Break Controls */
         .fac-page {
             page-break-after: always;
             page-break-inside: avoid;
@@ -330,6 +345,7 @@
             }
         }
 
+        /* Header Layout */
         .row-table {
             width: 100%;
             display: table;
@@ -363,6 +379,7 @@
             height: auto;
         }
 
+        /* Visibility Controls */
         .header {
             display: block;
         }
@@ -374,6 +391,7 @@
 </head>
 
 <body class="pdf_wrapper">
+    {{-- Auto Header --}}
     @if (!isset($disableAutoHeader) || !$disableAutoHeader)
         <header class="logo-header">
             <div class="row-table">
@@ -393,10 +411,12 @@
                     @endif
                 </div>
             </div>
-            <hr style="padding: 0; border-top: 0.5pt solid #ddd;  margin: 0pt; clear: both;" />
+            <hr style="padding: 0; border-top: 0.5pt solid #ddd;  margin: 0pt 1pt 10pt 5.5pt; clear: both;" />
         </header>
+        <div style="height: 300px; clear: both; background: transparent; border: none; outline: none;"></div>
     @endif
 
+    {{-- Auto Footer --}}
     @if (!isset($disableAutoFooter) || !$disableAutoFooter)
         <footer>
             <div class="footer-content">
@@ -406,6 +426,7 @@
         </footer>
     @endif
 
+    {{-- Main Content --}}
     <div>
         @yield('content')
     </div>
