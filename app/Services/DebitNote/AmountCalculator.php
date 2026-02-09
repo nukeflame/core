@@ -148,7 +148,8 @@ class AmountCalculator
             $brokerageAmount,
             $ledger,
             $context->sharePercentage,
-            $originalAmount
+            $originalAmount,
+            (float) ($item['line_rate'] ?? 0)
         );
 
         if ($commissionAmount > 0) {
@@ -157,7 +158,8 @@ class AmountCalculator
                 $commissionAmount,
                 $lineRate,
                 $shareAmount,
-                $commissionLedger
+                $commissionLedger,
+                $lineRate
             );
             // logger()->debug(json_encode($item, JSON_PRETTY_PRINT));
         }
@@ -168,7 +170,8 @@ class AmountCalculator
                 $brokerageAmount,
                 $context->config->brokerageRate,
                 $shareAmount,
-                $commissionLedger
+                $commissionLedger,
+                $context->config->brokerageRate
             );
         }
 
@@ -199,7 +202,8 @@ class AmountCalculator
             0,
             $ledger,
             $lineRate,
-            $baseAmount
+            $baseAmount,
+            (float) ($item['line_rate'] ?? 0)
         );
 
         if ($item['item_code'] !== 'IT04') {
@@ -439,7 +443,8 @@ class LineItemBuilder
         float $brokerageAmount,
         string $ledger,
         float $lineRate,
-        ?float $originalAmount = null
+        ?float $originalAmount = null,
+        ?float $originalLineRate = null
     ): array {
         return [
             'item_code' => $item['item_code'],
@@ -454,6 +459,7 @@ class LineItemBuilder
             'reinsurance_tax' => 0.0,
             'withholding_tax' => 0.0,
             'original_amount' => $originalAmount ?? $shareAmount,
+            'original_line_rate' => $originalLineRate ?? $item['line_rate'],
             'ledger' => $ledger,
         ];
     }
@@ -462,8 +468,9 @@ class LineItemBuilder
         array $sourceItem,
         float $commissionAmount,
         float $commissionRate,
-        float $originalAmount,
-        string $commissionLedger
+        float $originalAmount,  
+        string $commissionLedger,
+        ?float $originalLineRate = null
     ): array {
         return self::build(
             [
@@ -477,7 +484,8 @@ class LineItemBuilder
             0,
             $commissionLedger,
             $commissionRate,
-            $originalAmount
+            $originalAmount,
+            $originalLineRate
         );
     }
 
@@ -486,7 +494,8 @@ class LineItemBuilder
         float $brokerageAmount,
         float $brokerageRate,
         float $originalAmount,
-        string $commissionLedger
+        string $commissionLedger,
+        ?float $originalLineRate = null
     ): array {
         return self::build(
             [
@@ -500,7 +509,8 @@ class LineItemBuilder
             $brokerageAmount,
             $commissionLedger,
             $brokerageRate,
-            $originalAmount
+            $originalAmount,
+            $originalLineRate
         );
     }
 }

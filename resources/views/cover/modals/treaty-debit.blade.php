@@ -216,7 +216,7 @@
                         <div class="col-12">
                             <div class="row g-3">
                                 <div class="col-md-6">
-                                    <div class="form-check">
+                                    <div class="form-check form-check-lg custom-checkbox">
                                         <input class="form-check-input" type="checkbox" name="show_cedant"
                                             id="show_cedant" value="1">
                                         <label class="form-check-label" for="show_cedant">
@@ -225,7 +225,7 @@
                                     </div>
                                 </div>
                                 <div class="col-md-6">
-                                    <div class="form-check">
+                                    <div class="form-check form-check-lg custom-checkbox">
                                         <input class="form-check-input" type="checkbox" name="show_reinsurer"
                                             id="show_reinsurer" value="1">
                                         <label class="form-check-label" for="show_reinsurer">
@@ -412,6 +412,28 @@
     #treatyDebitModal .form-check-input:checked {
         background-color: #0d6efd;
         border-color: #0d6efd;
+    }
+
+    #treatyDebitModal .custom-checkbox .form-check-input {
+        cursor: pointer;
+        transition: all 0.2s ease;
+        border: 2px solid #dee2e6;
+    }
+
+    #treatyDebitModal .custom-checkbox .form-check-input:hover {
+        border-color: #0d6efd;
+        box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+    }
+
+    #treatyDebitModal .custom-checkbox .form-check-label {
+        cursor: pointer;
+        padding-top: 2px;
+        font-weight: 500;
+        transition: color 0.2s ease;
+    }
+
+    #treatyDebitModal .custom-checkbox .form-check-input:checked+.form-check-label {
+        color: #0d6efd;
     }
 
     #treatyDebitModal .table th {
@@ -1321,6 +1343,8 @@
                             $amount.removeClass(errorClass);
                             totalAmount += amount;
                         }
+
+                        const commissionRate = parseFloat(commissionRateValue);
 
                         if (!commissionRateValue || commissionRateValue.trim() === '') {
                             $commissionRate.addClass(errorClass);

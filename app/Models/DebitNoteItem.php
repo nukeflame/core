@@ -24,6 +24,7 @@ class DebitNoteItem extends Model
         'ledger',
         'amount',
         'original_amount',
+        'original_line_rate',
         'original_currency',
         'reference',
         'remarks',
@@ -38,6 +39,7 @@ class DebitNoteItem extends Model
         'line_rate' => 'decimal:4',
         'amount' => 'decimal:2',
         'original_amount' => 'decimal:2',
+        'original_line_rate' => 'decimal:4',
     ];
 
     protected $attributes = [

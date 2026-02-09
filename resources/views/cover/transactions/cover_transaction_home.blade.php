@@ -236,6 +236,7 @@
                                                 <th width="10%">Type</th>
                                                 <th width="12%">Title</th>
                                                 <th width="8%">Endorsement</th>
+                                                <th width="10%">Posting Quarter</th>
                                                 {{-- <th>Insured</th> --}}
                                                 <!-- <th>Status</th> -->
                                                 <th width="6%">Currency</th>
@@ -302,16 +303,30 @@
                                                             </div>
                                                         </div>
                                                     </td>
+                                                    <td>
+                                                        <span class="badge bg-light text-dark px-3">
+                                                            @php
+                                                                $quarterMap = [
+                                                                    'Q1' => 'First Quarter',
+                                                                    'Q2' => 'Second Quarter',
+                                                                    'Q3' => 'Third Quarter',
+                                                                    'Q4' => 'Fourth Quarter',
+                                                                ];
+                                                                echo $quarterMap[$account->quarter] ??
+                                                                    ($account->quarter ?? '-');
+                                                            @endphp
+                                                        </span>
+                                                    </td>
                                                     {{-- <td>
                                     <div class="text-truncate" title="{{ $account->insured ?? '' }}">
                                         {{ Str::limit($account->insured ?? '-', 30) }}
                                     </div>
                                 </td> --}}
                                                     <!-- <td>
-                                                                                                                        <span class="badge {{ $statusClass }}">
-                                                                                                                            {{ $statusText }}
-                                                                                                                        </span>
-                                                                                                                    </td> -->
+                                                                                                                                <span class="badge {{ $statusClass }}">
+                                                                                                                                    {{ $statusText }}
+                                                                                                                                </span>
+                                                                                                                            </td> -->
                                                     <td>
                                                         <span
                                                             class="badge bg-secondary">{{ $account->currency_code ?? 'KES' }}</span>
@@ -320,15 +335,15 @@
                                                         {{ number_format($foreignNettAmount, 2) }}
                                                     </td>
                                                     <!-- <td>
-                                                                                                                        <span class="text-success fw-medium">
-                                                                                                                            {{ number_format($amountPaid, 2) }}
-                                                                                                                        </span>
-                                                                                                                    </td>
-                                                                                                                    <td>
-                                                                                                                        <span class="{{ $outstandingAmount > 0 ? 'text-danger' : 'text-success' }} fw-medium">
-                                                                                                                            {{ number_format($outstandingAmount, 2) }}
-                                                                                                                        </span>
-                                                                                                                    </td> -->
+                                                                                                                                <span class="text-success fw-medium">
+                                                                                                                                    {{ number_format($amountPaid, 2) }}
+                                                                                                                                </span>
+                                                                                                                            </td>
+                                                                                                                            <td>
+                                                                                                                                <span class="{{ $outstandingAmount > 0 ? 'text-danger' : 'text-success' }} fw-medium">
+                                                                                                                                    {{ number_format($outstandingAmount, 2) }}
+                                                                                                                                </span>
+                                                                                                                            </td> -->
                                                     <td>
                                                         <span class="badge bg-info text-dark">
                                                             {{ str_pad($account->account_month ?? 1, 2, '0', STR_PAD_LEFT) }}/{{ $account->account_year ?? date('Y') }}
@@ -374,7 +389,7 @@
                                                 </tr>
                                                 @empty
                                                     <tr>
-                                                        <td colspan="11" class="text-center py-4">
+                                                        <td colspan="12" class="text-center py-4">
                                                             <div class="text-muted">
                                                                 <i class="bx bx-inbox fs-1 d-block mb-3"></i>
                                                                 <p class="mb-0">No transaction records found</p>
@@ -391,7 +406,7 @@
                                                         $totalAmountPaid = $totalForeignNett - $totalUnallocated;
                                                     @endphp
                                                     <tr>
-                                                        <th colspan="7" class="text-end">Page Totals:</th>
+                                                        <th colspan="8" class="text-end">Page Totals:</th>
                                                         <th>{{ number_format($totalForeignNett, 2) }}</th>
                                                         <th colspan="3"></th>
                                                     </tr>
@@ -412,6 +427,7 @@
             'itemCodes' => $itemCodes,
             'classGroups' => $classGroups,
             'businessClasses' => $businessClasses,
+            'treatyClasses' => $treatyClasses,
         ])
         @include('cover.modals.add-profit-commission')
         @include('cover.modals.add-portfolio')
@@ -423,17 +439,17 @@
             $(document).ready(function() {
                 var $tbody = $('#customerAccountsTable tbody');
                 var hasData = $tbody.find('tr').length > 0 &&
-                    $tbody.find('tr td[colspan="11"]').length === 0;
+                    $tbody.find('tr td[colspan="12"]').length === 0;
 
                 var table = $('#customerAccountsTable').DataTable({
                     processing: true,
                     pageLength: 25,
                     order: [
-                        [9, 'desc']
+                        [10, 'desc']
                     ],
                     columnDefs: [{
                         orderable: false,
-                        targets: [10] // Actions column
+                        targets: [11] // Actions column
                     }],
                     language: {
                         processing: '<div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div>',

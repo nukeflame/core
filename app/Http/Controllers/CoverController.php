@@ -1566,6 +1566,13 @@ class CoverController extends Controller
         DB::beginTransaction();
         try {
             $validatedData = $request->toArray();
+            $existingQuarter = CustomerAccDet::where('endorsement_no', $validatedData['endorsement_no'])
+                ->where('quarter', $validatedData['posting_quarter'])
+                ->exists();
+
+            if ($existingQuarter) {
+                throw new BusinessRuleException("Quarterly figures for {$validatedData['posting_quarter']} have already been generated for this endorsement.");
+            }
 
             $cover = CoverRegister::where('endorsement_no', $validatedData['endorsement_no'])->lockForUpdate()->first();
 
@@ -1611,6 +1618,7 @@ class CoverController extends Controller
             ], 201);
         } catch (ValidationException $e) {
             DB::rollback();
+            logger($e);
 
             return response()->json([
                 'success' => false,
@@ -1619,6 +1627,8 @@ class CoverController extends Controller
             ], 422);
         } catch (BusinessRuleException $e) {
             DB::rollBack();
+            logger($e);
+
             return response()->json([
                 'success' => false,
                 'message' => $e->getMessage(),
@@ -1627,6 +1637,8 @@ class CoverController extends Controller
             ], 422);
         } catch (Exception $e) {
             DB::rollback();
+            logger($e);
+
             return response()->json([
                 'success' => false,
                 'status' => Response::HTTP_INTERNAL_SERVER_ERROR,
@@ -1842,12 +1854,14 @@ class CoverController extends Controller
 
     private function generateDebitReference(array $debitData, CoverRegister $coverRegister): string
     {
+        $quarter = $debitData['postingQuarter'] ?? 'Q1';
+        $year = $debitData['postingYear'] ?? $this->_year;
         $prefix = $this->getDebitReferencePrefix($coverRegister->treaty_type);
         $classCode = $coverRegister->type_of_bus;
 
         $random = random_int(1000, 9999);
 
-        return "QT1-{$prefix}-{$this->_year}-{$classCode}-{$random}";
+        return strtoupper("{$quarter}{$prefix}{$year}{$classCode}{$random}");
     }
 
     private function getDebitReferencePrefix(?string $treatyType): string
@@ -1878,7 +1892,6 @@ class CoverController extends Controller
             if ($ledger === 'DR' && $amount > 0) {
                 $sharedAmount = $amount * ($lineRate / 100);
 
-                // 1. Add the Gross Premium item
                 $expandedItems[] = [
                     'item_type' => 'DEBIT',
                     'item_code' => 'IT01',
@@ -1895,10 +1908,8 @@ class CoverController extends Controller
                     'net_amount' => $sharedAmount,
                 ];
 
-                // Calculate commission
                 $commissionOnShare = $sharedAmount * ($commissionRate / 100);
 
-                // 2. Add Commission item (if applicable)
                 if ($commissionOnShare > 0) {
                     $expandedItems[] = [
                         'item_type' => 'CREDIT',
@@ -1917,10 +1928,8 @@ class CoverController extends Controller
                     ];
                 }
 
-                // Calculate premium tax on shared amount
                 $premiumTaxAmount = $sharedAmount * ($premiumTaxRate / 100);
 
-                // 4. Add Premium Tax item (if applicable)
                 if ($premiumTaxAmount > 0) {
                     $expandedItems[] = [
                         'item_type' => 'CREDIT',
@@ -1939,13 +1948,12 @@ class CoverController extends Controller
                     ];
                 }
             } else {
-                // CR items (claims) - add as-is with shared calculation
                 $sharedAmount = $amount * ($lineRate / 100);
                 $brokerageOnShare = $sharedAmount * ($brokerageRate / 100);
 
                 $expandedItems[] = [
                     'item_type' => 'CREDIT',
-                    'item_code' => $item['item_code'],
+                    'item_code' => $item['item_code'] ?? 'IT02',
                     'description' => 'Claims',
                     'class_group' => $classGroup,
                     'class_name' => $className,
@@ -1959,7 +1967,6 @@ class CoverController extends Controller
                     'net_amount' => $sharedAmount,
                 ];
 
-                // Add Brokerage item
                 if ($brokerageOnShare > 0) {
                     $expandedItems[] = [
                         'item_type' => 'CREDIT',
@@ -2057,7 +2064,7 @@ class CoverController extends Controller
             $fileName = date('dmYhis') . '_' . $file->getClientOriginalName();
             $file->storeAs('cover_attachments', $fileName, 'public');
             $mimeType = $file->getClientMimeType();
-            // Read the file contents and encode it to base64
+
             $base64Encoded = base64_encode(File::get($file->path()));
 
             $id = (int) CoverAttachment::withTrashed()->max('id') + 1;
@@ -2113,7 +2120,6 @@ class CoverController extends Controller
             $mimeType = $file->getClientMimeType();
             $file->storeAs('cover_attachments', $fileName, 'public');
 
-            // Read the file contents and encode it to base64
             $base64Encoded = base64_encode(File::get($file->path()));
 
             $attachment = CoverAttachment::where('id', $request->id)->first();
@@ -2950,7 +2956,6 @@ class CoverController extends Controller
             }
             // }
 
-            // foreach ($port_withdrawal_losses as $index => $port_withdrawal_loss) {
             if ($port_withdrawal_loss != 0) {
 
                 CoverPremium::create([
@@ -2977,7 +2982,6 @@ class CoverController extends Controller
                 ]);
             }
 
-            // Management Expenses
             if ($mgnt_exp_amt != 0) {
 
                 CoverPremium::create([
@@ -3012,7 +3016,6 @@ class CoverController extends Controller
 
             $redirectUrl = route('cover.CoverHome', ['endorsement_no' => $new_endorsement_no]);
 
-            // Redirect back with success message and endorsement data as a request parameter
             return redirect($redirectUrl)->with('success', 'Profit Commission information saved successfully');
         } catch (ValidationException $e) {
             DB::rollBack();
@@ -3043,7 +3046,6 @@ class CoverController extends Controller
                                 AND EXTRACT(YEAR FROM cover_from) <= $treaty_year
                             ");
 
-        // Extract endorsement numbers from the objects
         $endorsementNosArray = array_map(function ($item) {
             return $item->endorsement_no;
         }, $origEndorsementNos);
@@ -3117,7 +3119,7 @@ class CoverController extends Controller
                     'item_type' => $item->item_type,
                     'class_group' => $item->class_group_code,
                     'class_name' => $item->class_code,
-                    'line_rate' => $item->line_rate ?? $item->commission_rate ?? 0,
+                    'line_rate' => $item->original_line_rate ?? 0,
                     'ledger' => in_array(strtoupper($item->item_code), ['IT01', 'IT26']) ? 'DR' : 'CR',
                     'amount' => $item->original_amount ?? 0,
                 ];
@@ -3153,14 +3155,12 @@ class CoverController extends Controller
                 'installment_amt.*' => 'required',
             ];
 
-            // Define custom error messages
             $messages = [
                 'installment_no.*.required' => 'Installment Number field is required.',
                 'installment_date.*.required' => 'Installment Date field is required.',
                 'installment_amt.*.required' => 'Installment Amount field is required.',
             ];
 
-            // Validate the request data
             $request->validate($rules, $messages);
 
             $cover = CoverRegister::where('endorsement_no', $request->endorsement_no)->first();

@@ -13,6 +13,7 @@ use App\Models\DebitNoteItem;
 use App\Models\ReinclassPremtype;
 use App\Models\TreatyDocument;
 use App\Models\TreatyItemCode;
+use App\Models\CoverPremtype;
 use DB;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -79,8 +80,7 @@ class CoverTransactionController extends Controller
         $itemCodes = $this->getItemCodes();
         $classGroups = $this->getClassGroups();
         $businessClasses = $this->getBusinessClasses();
-
-        logger()->debug(json_encode($businessClasses, JSON_PRETTY_PRINT));
+        $treatyClasses = $this->getTreatyClasses($cover->endorsement_no);
 
         $actionable = $cover->status !== 'CANCELLED' && $cover->status !== 'EXPIRED';
         $isTransaction = true; //$transactions->count() > 0;
@@ -100,6 +100,7 @@ class CoverTransactionController extends Controller
             'itemCodes' => $itemCodes,
             'classGroups' => $classGroups,
             'businessClasses'=> $businessClasses,
+            'treatyClasses' => $treatyClasses,
         ]);
     }
 
@@ -345,44 +346,18 @@ class CoverTransactionController extends Controller
 
     public function adjustCommission(Request $request)
     {
-        // $validated = $request->validate([
-        //     'treaty_id' => 'required|exists:treaties,id',
-        //     'transaction_id' => 'required|exists:treaty_transactions,id',
-        //     'adjustment_type' => 'required|in:rate_change,amount_adjustment,override,correction',
-        //     'adjustment_reason' => 'required|string',
-        //     'new_commission_rate' => 'nullable|numeric|min:0|max:100',
-        //     'new_brokerage_rate' => 'nullable|numeric|min:0|max:100',
-        //     'commission_adjustment_amount' => 'nullable|numeric',
-        //     'brokerage_adjustment_amount' => 'nullable|numeric',
-        //     'effective_date' => 'required|date',
-        //     'approval_reference' => 'nullable|string|max:100',
-        //     'justification' => 'required|string|min:20|max:1000',
-        //     'supporting_document' => 'nullable|file|mimes:pdf,doc,docx,xls,xlsx,jpg,png|max:5120',
-        // ]);
-
-        // // Handle file upload
-        // if ($request->hasFile('supporting_document')) {
-        //     $validated['document_path'] = $request->file('supporting_document')
-        //         ->store('treaty/adjustments', 'public');
-        // }
-
-        // // Log the adjustment for audit
-        // $adjustment = CommissionAdjustment::create($validated);
-
-        // // Update the transaction commission
-        // $transaction = TreatyTransaction::find($validated['transaction_id']);
-        // if ($validated['new_commission_rate']) {
-        //     $transaction->update([
-        //         'commission_rate' => $validated['new_commission_rate'],
-        //         'commission_amount' => $transaction->gross_premium * $validated['new_commission_rate'] / 100
-        //     ]);
-        // }
-
-        // return response()->json([
-        //     'success' => true,
-        //     'message' => 'Commission adjustment applied successfully',
-        //     'data' => $adjustment
-        // ]);
+        // ... (existing commented out code)
         return null;
+    }
+
+    protected function getTreatyClasses($endorsement_no)
+    {
+        return CoverPremtype::join('treaty_types', 'cover_premtypes.treaty', '=', 'treaty_types.treaty_code')
+            ->where('cover_premtypes.endorsement_no', $endorsement_no)
+            ->get([
+                'cover_premtypes.premtype_name as class_name',
+                'cover_premtypes.comm_rate as commission',
+                'cover_premtypes.premtype_code as class_code',
+            ]);
     }
 }

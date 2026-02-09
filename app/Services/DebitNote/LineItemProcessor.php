@@ -89,6 +89,7 @@ class LineItemProcessor
             'premium_tax' => $item['premium_tax'] ?? 0,
             'net_amount' => $amount,
             'original_amount' => $item['original_amount'] ?? 0,
+            'original_line_rate' => $item['original_line_rate'] ?? 0,
             'created_at' => now(),
             'updated_at' => now(),
         ];
@@ -178,6 +179,7 @@ class LineItemProcessor
             'reinsurance_tax' => $item['reinsurance_tax'] ?? 0,
             'withholding_tax' => $item['withholding_tax'] ?? 0,
             'original_amount' => $item['original_amount'] ?? 0,
+            'original_line_rate' => $item['original_line_rate'] ?? 0,
             'net_amount' => $netAmount,
             'created_at' => now(),
             'updated_at' => now(),
@@ -203,6 +205,7 @@ class LineItemProcessor
             'brokerage' => 'brokerage',
             'premium_tax' => 'premium_tax',
             'net_amount' => 'net_amount',
+            'original_line_rate' => 'original_line_rate',
         ];
 
         foreach ($updatableFields as $dbField => $inputField) {

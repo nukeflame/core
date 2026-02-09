@@ -10,7 +10,7 @@
                 <input type="hidden" name="installment" value="{{ $nextInstallment ?? 1 }}" />
                 <input type="hidden" name="amount" value="{{ number_format($installmentAmount ?? 0, 2, '.', '') }}" />
                 <input type="hidden" name="treatyClasses" value="{{ json_encode($treatyClasses ?? []) }}"
-                    id="qfTreatyClasses" />
+                    id="treatyClasses" />
 
                 <div class="modal-header">
                     <h5 class="modal-title" id="createQuarterlyFiguresModalLabel">Quarterly Figures</h5>
@@ -214,7 +214,7 @@
                         <div class="col-12">
                             <div class="row g-3">
                                 <div class="col-md-6">
-                                    <div class="form-check">
+                                    <div class="form-check form-check-lg custom-checkbox">
                                         <input class="form-check-input" type="checkbox" name="show_cedant"
                                             id="show_cedant" value="1">
                                         <label class="form-check-label" for="show_cedant">
@@ -223,7 +223,7 @@
                                     </div>
                                 </div>
                                 <div class="col-md-6">
-                                    <div class="form-check">
+                                    <div class="form-check form-check-lg custom-checkbox">
                                         <input class="form-check-input" type="checkbox" name="show_reinsurer"
                                             id="show_reinsurer" value="1">
                                         <label class="form-check-label" for="show_reinsurer">
@@ -411,6 +411,28 @@
         border-color: #0d6efd;
     }
 
+    #createQuarterlyFiguresModal .custom-checkbox .form-check-input {
+        cursor: pointer;
+        transition: all 0.2s ease;
+        border: 2px solid #dee2e6;
+    }
+
+    #createQuarterlyFiguresModal .custom-checkbox .form-check-input:hover {
+        border-color: #0d6efd;
+        box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+    }
+
+    #createQuarterlyFiguresModal .custom-checkbox .form-check-label {
+        cursor: pointer;
+        padding-top: 2px;
+        font-weight: 500;
+        transition: color 0.2s ease;
+    }
+
+    #createQuarterlyFiguresModal .custom-checkbox .form-check-input:checked+.form-check-label {
+        color: #0d6efd;
+    }
+
     #createQuarterlyFiguresModal .table th {
         font-weight: 600;
         font-size: 0.813rem;
@@ -511,7 +533,7 @@
                 config: {
                     selectors: {
                         modal: '#createQuarterlyFiguresModal',
-                        form: '#treatyDebitForm',
+                        form: '#quarterlyFiguresForm',
                         itemsBody: '#debit-items-body',
                         template: '#debit-item-row-template',
                         addBtn: '#add-debit-item',
@@ -612,27 +634,13 @@
                 initValidator: function() {
                     const self = this;
 
-                    $.validator.addMethod('quarterMatchesDate', function() {
-                        const postingDate = self.$el.postingDate.val();
-                        const postingQuarter = self.$el.postingQuarter.val();
-
-                        if (!postingDate || !postingQuarter) return true;
-
-                        const month = new Date(postingDate).getMonth() + 1;
-                        const expectedQuarter = self.getQuarterFromMonth(month);
-
-                        return postingQuarter === expectedQuarter;
-                    }, 'Quarter does not match posting date');
 
                     this.state.validator = this.$el.form.validate({
                         rules: {
                             posting_year: {
                                 required: true
                             },
-                            posting_quarter: {
-                                required: true,
-                                quarterMatchesDate: true
-                            },
+                            required: true,
                             posting_date: {
                                 required: true,
                                 date: true
@@ -773,7 +781,7 @@
                         if (quarter) {
                             self.fetchQuarterlyData(quarter);
                         } else {
-                            self.setFieldsLocked(false);
+                            self.setFieldsLocked(false, true);
                         }
                     });
 
@@ -828,15 +836,13 @@
                                 self.setFieldsLocked(true);
                                 self.state.loadedQuarter = quarter;
                             } else {
-                                self.clearTransactionItems();
-                                self.setFieldsLocked(false);
+                                self.setFieldsLocked(false, true);
                                 self.state.loadedQuarter = null;
                             }
                         })
                         .fail(function(xhr, status, error) {
                             console.error('Error fetching quarterly data:', error);
-                            self.clearTransactionItems();
-                            self.setFieldsLocked(false);
+                            self.setFieldsLocked(false, true);
                             self.state.loadedQuarter = null;
                         })
                         .always(function() {
@@ -848,22 +854,17 @@
                 },
 
                 clearTransactionItems: function() {
-                    // Remove all item rows
                     this.$el.itemsBody.find(this.config.classes.itemRow).remove();
 
-                    // Show the "no items" placeholder
                     this.$el.noItemsRow.show();
 
-                    // Reset item index
                     this.state.itemIndex = 0;
 
-                    // Reset totals
                     this.$el.totalAmount.text('0.00');
                     this.$el.summaryGross.text('0.00');
                     this.$el.summaryDeductions.text('0.00');
                     this.$el.summaryNet.text('0.00');
 
-                    // Hide summary section
                     this.updateSummaryVisibility();
                 },
 
@@ -923,7 +924,14 @@
                         const $descriptionSelect = $newRow.find(self.config.classes.itemDescription);
                         $descriptionSelect.val(description);
 
-                        $newRow.find(self.config.classes.itemType).val(itemType);
+                        const $itemTypeHidden = $newRow.find(self.config.classes.itemType);
+                        $itemTypeHidden.val(itemType);
+
+                        if (itemType === 'DEBIT' || ledger === 'DR') {
+                            $newRow.removeClass('is-credit').addClass('is-debit');
+                        } else {
+                            $newRow.removeClass('is-debit').addClass('is-credit');
+                        }
 
                         $newRow.find(self.config.classes.itemLedger).val(ledger);
 
@@ -969,7 +977,7 @@
                         }
 
                         const lineRate = item.line_rate ?? 0;
-                        $newRow.find(self.config.classes.itemLineRate).val(lineRate);
+                        $newRow.find(self.config.classes.itemLineRate).val(Number(lineRate).toFixed(2));
 
                         if (itemType === 'CREDIT') {
                             $newRow.find(self.config.classes.itemLineRate).val('0').prop('disabled',
@@ -981,12 +989,6 @@
                         $newRow.find(self.config.classes.itemAmount).val(formattedAmount);
                         $newRow.find(self.config.classes.itemAmountHidden).val(amount);
 
-                        if (itemType === 'DEBIT' || ledger === 'DR') {
-                            $newRow.removeClass('is-credit').addClass('is-debit');
-                        } else {
-                            $newRow.removeClass('is-debit').addClass('is-credit');
-                        }
-
                         self.state.itemIndex++;
                     });
 
@@ -994,7 +996,7 @@
                     this.updateSummaryVisibility();
                 },
 
-                setFieldsLocked: function(locked) {
+                setFieldsLocked: function(locked, notInserted = false) {
                     const self = this;
                     this.state.isDataLocked = locked;
 
@@ -1002,12 +1004,35 @@
 
                     this.$el.itemsBody.find(this.config.classes.itemRow).each(function() {
                         const $row = $(this);
+
                         $row.find('input, select').prop('disabled', locked);
 
+                        if (notInserted) {
+                            $row.find('input, select').prop('disabled', true);
+                            $row.find(self.config.classes.itemLineRate).prop('disabled', false);
+                            $row.find(self.config.classes.itemLedger).prop('disabled', false);
+                            $row.find(self.config.classes.itemAmount).prop('disabled', false);
+                            $row.find(self.config.classes.itemAmountHidden).prop('disabled', false);
+
+                            $row.find(self.config.classes.itemLineRate).val('');
+                            $row.find(self.config.classes.itemAmount).val('');
+                        }
+
+
                         if (locked) {
+                            let $hiddenCode = $row.find('.item-code-hidden');
+                            if (!$hiddenCode.length) {
+                                const codeName = $row.find(self.config.classes.itemCode).attr('name');
+                                $hiddenCode = $('<input type="hidden" class="item-code-hidden">').attr(
+                                    'name', codeName);
+                                $row.append($hiddenCode);
+                            }
+                            $hiddenCode.val($row.find(self.config.classes.itemCode).val());
+
                             $row.find(self.config.classes.removeBtn).hide();
                         } else {
-                            $row.find(self.config.classes.removeBtn).show();
+                            $row.find('.item-code-hidden').remove();
+                            $row.find(self.config.classes.removeBtn).hide();
                         }
                     });
 
@@ -1244,7 +1269,6 @@
                         const optionGroup = $option.data('group');
                         const isInGroup = Number(optionGroup) === Number(selectedGroup);
 
-                        // Check if this specific combination already exists
                         const comboKey = (selectedType || '') + '|' + optionValue;
                         const isAlreadySelected = selectedType && selectedCombinations.includes(
                             comboKey);
@@ -1520,18 +1544,7 @@
                 },
 
                 validateQuarterDate: function() {
-                    const postingDate = this.$el.postingDate.val();
-                    const postingQuarter = this.$el.postingQuarter.val();
-
-                    if (!postingDate || !postingQuarter) return true;
-
-                    const month = new Date(postingDate).getMonth() + 1;
-                    const expectedQuarter = this.getQuarterFromMonth(month);
-                    const isValid = postingQuarter === expectedQuarter;
-
-                    this.$el.postingQuarter.toggleClass(this.config.classes.errorField, !isValid);
-
-                    return isValid;
+                    return true;
                 },
 
                 validateLineItems: function() {
@@ -1587,6 +1600,8 @@
                             totalAmount += amount;
                         }
 
+                        const commissionRate = parseFloat(commissionRateValue);
+
                         if (!commissionRateValue || commissionRateValue.trim() === '') {
                             $commissionRate.addClass(errorClass);
                             errors.push(`Row ${index + 1}: Commission rate is required`);
@@ -1638,7 +1653,12 @@
                     this.state.isSubmitting = true;
                     this.setLoadingState(true);
 
+                    const disabledFields = this.$el.form.find(':disabled');
+                    disabledFields.prop('disabled', false);
+
                     const formData = new FormData(this.$el.form[0]);
+
+                    disabledFields.prop('disabled', true);
 
                     $.ajax({
                             url: this.$el.form.attr('action'),
@@ -1653,7 +1673,6 @@
                             timeout: 30000
                         })
                         .done(function(response) {
-                            // console.log(response)
                             self.handleSuccess(response);
                         })
                         .fail(function(xhr, status, error) {
@@ -1778,7 +1797,7 @@
                     } else {
                         $btn.prop('disabled', false)
                             .html($btn.data('original-html') ||
-                                '<i class="fas fa-check me-1"></i> Quarterly Figures');
+                                '<i class="fas fa-check me-1"></i> Submit Quarterly Figures');
                     }
                 },
 
@@ -1822,9 +1841,8 @@
                     this.state.isDataLocked = false;
                     this.state.loadedQuarter = null;
 
-                    // Remove info message and unlock fields
                     $('#quarterly-data-loaded-info').remove();
-                    this.setFieldsLocked(false);
+                    self.setFieldsLocked(false, true);
 
                     this.setLoadingState(false);
                 },
