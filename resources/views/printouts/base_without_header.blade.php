@@ -33,7 +33,7 @@
         .receipt-table {
             width: 100%;
             font-size: 10.0pt;
-            font-family: 'Calibri';
+            font-family: 'Aptos', sans-serif;
         }
 
         .receipt-table td {

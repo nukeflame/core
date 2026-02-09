@@ -2,33 +2,48 @@
 
     @section('content')
         <style>
-            #breakdown-details {
-                width: 100%;
+            #breakdown-details td,
+            #breakdown-details th {
+                padding: 6px 8px;
             }
 
-            #breakdown-details tr {
-                border-bottom: 1px solid #000;
+            .align-right {
+                text-align: right;
             }
 
-            #breakdown-details td {
-                border-bottom: 1px solid #000;
-                padding: 3pt;
-                padding-left: 9pt;
-                padding-right: 9pt;
+            .align-left {
+                text-align: left;
+            }
+
+            .no-border-left {
+                border-left: none !important;
+            }
+
+            .no-border-right {
+                border-right: none !important;
             }
 
             .reinsurer-page {
-                page-break-before: always;
-                break-inside: avoid;
-                page-break-inside: avoid;
+                min-height: 0;
+                position: relative;
                 font-family: 'Aptos', sans-serif;
                 font-optical-sizing: auto;
                 font-weight: 400;
                 font-style: normal;
+                page-break-after: always;
             }
 
-            .first-page {
+            .reinsurer-page:last-child {
+                page-break-after: auto;
+            }
+
+            .reinsurer-page.first-page {
                 page-break-before: avoid !important;
+            }
+
+            .reinsurer-page:not(.first-page) {
+                page-break-before: always;
+                page-break-inside: avoid;
             }
         </style>
         @foreach ($reinsurers as $index => $reinsurer)
@@ -174,68 +189,75 @@
                             <td></td>
                         </tr>
                     </table>
-                    <table id="breakdown-details" style="margin-bottom: 10px; font-size: 8pt;">
-                        <thead style="border: 1px solid black; padding:0px; margin:0px;">
+                    <table id="particular-details"
+                        style="width: 100%; border-collapse: collapse; margin-bottom: 10px; font-size: 8pt;">
+                        <thead style="border: 1px solid #181212; padding:0px; margin: 0px;">
                             <tr>
-                                <th class="no-border text-left p-9-l"> PARTICULARS</th>
-                                <th class="no-border text-left p-3"></th>
-                                <th class="no-border p-3"> DEBIT</th>
-                                <th class="no-border p-9-r"> CREDIT</th>
+                                <th class="no-border align-left" style="width: 32.5%;">PARTICULARS</th>
+                                <th class="no-border align-right" style="width: 32.5%;"></th>
+                                <th class="no-border align-right" style="width: 17.5%;">DEBIT</th>
+                                <th class="no-border align-right" style="width: 17.5%;">CREDIT</th>
                             </tr>
                         </thead>
+                        <tbody>
 
-                        @foreach ($credit_partner as $credit)
-                            @if ((int) $credit->gross > 0 && $credit->entry_type_descr != 'BRC')
-                                <tr>
-                                    <td class="calibri-10 no-border text-left bottom-border">
-                                        {{ firstUpper($credit->item_title) }}
-                                    </td>
-                                    <td class="calibri-10 text-left bottom-border">
-                                        @if ($credit->total_gross == 0)
-                                            {{ number_format($cover->cedant_premium, 2) }}
-                                        @else
-                                            {{ number_format($credit->total_gross, 2) }}
-                                            @endif @if ($credit->rate != 0)
+                            @foreach ($credit_partner as $credit)
+                                @if ((int) $credit->gross > 0 && $credit->entry_type_descr != 'BRC')
+                                    <tr>
+                                        <td class="no-border align-left" style="width: 32.5%;">
+                                            {{ firstUpper($credit->item_title) }}
+                                        </td>
+                                        <td class="no-border align-right" style="width: 32.5%; text-align: right;">
+                                            @if ($credit->total_gross == 0)
+                                                {{ number_format($cover->cedant_premium, 2) }}
+                                            @else
+                                                {{ number_format($credit->total_gross, 2) }}
+                                            @endif
+                                            @if ($credit->rate != 0)
                                                 @ {{ number_format($credit->rate, 2) }}%
                                             @endif
-                                    </td>
-                                    <td class="calibri-10 text-right bottom-border">
-                                        @if (in_array($credit->dr_cr, ['DR']))
-                                            {{ number_format($credit->gross, 2) }}
-                                        @else
-                                            -
-                                        @endif
-                                    </td>
-                                    <td class="calibri-10 text-right bottom-border">
-                                        @if (in_array($credit->dr_cr, ['CR']))
-                                            {{ number_format($credit->gross, 2) }}
-                                        @else
-                                            -
-                                        @endif
-                                    </td>
-                                </tr>
-                            @endif
-                        @endforeach
-                        <tr style="border-bottom: 1px solid #181212;">
-                            <td class="calibri-10 no-border text-left p-8 bold"><strong> TOTAL</strong></td>
-                            <td class="calibri-10 no-border text-left p-8 bold"><strong> </strong></td>
-                            <td class="calibri-10 no-border text-right p-8 bold">
-                                <span
-                                    style="border-bottom: 0px solid #181212; padding: 0px;">{{ number_format($credit_partner->where('dr_cr', 'DR')->where('entry_type_descr', '!=', 'BRC')->sum('gross'), 2) }}</span>
-                            </td>
-                            <td class="calibri-10 no-border text-right p-8 bold">
-                                <span
-                                    style="border-bottom: 0px solid #181212; padding: 0px;">{{ number_format($credit_partner->where('dr_cr', 'CR')->where('entry_type_descr', '!=', 'BRC')->sum('gross'), 2) }}</span>
-                            </td>
-                        </tr>
+                                        </td>
+                                        <td class="no-border align-right" style="width: 17.5%; text-align: right;">
+                                            @if (in_array($credit->dr_cr, ['DR']))
+                                                {{ number_format($credit->gross, 2) }}
+                                            @else
+                                                0.00
+                                            @endif
+                                        </td>
+                                        <td class="no-border align-right" style="width: 17.5%; text-align: right;">
+                                            @if (in_array($credit->dr_cr, ['CR']))
+                                                {{ number_format($credit->gross, 2) }}
+                                            @else
+                                                0.00
+                                            @endif
+                                        </td>
+                                    </tr>
+                                @endif
+                            @endforeach
+                            <tr style="border-top: 2px solid #181212;">
+                                <td class="no-border align-left" style="font-weight: bold; width: 32.5%;">TOTAL</td>
+                                <td class="no-border" style="width: 32.5%;">&nbsp;</td>
+                                <td class="no-border align-right"
+                                    style="font-weight: bold; width: 17.5%; text-align: right;">
+                                    {{ number_format($credit_partner->where('dr_cr', 'DR')->where('entry_type_descr', '!=', 'BRC')->sum('gross'), 2) }}
+                                </td>
+                                <td class="no-border align-right"
+                                    style="font-weight: bold; width: 17.5%; text-align: right;">
+                                    {{ number_format($credit_partner->where('dr_cr', 'CR')->where('entry_type_descr', '!=', 'BRC')->sum('gross'), 2) }}
+                                </td>
+                            </tr>
+                        </tbody>
                     </table>
-                    <table style="width:100%; border: 1px solid #000; margin-bottom: 10px; font-size:8pt; padding:0pt;">
-                        <thead style="border: 1px solid black; padding:0px; margin:0px;">
+                    <table
+                        style="width:100%; border: 1px solid #181212; border-collapse: collapse; margin-bottom: 10px; font-size:8pt;">
+                        <thead>
                             <tr>
-                                <th class="no-border text-left p-3 p-9-l"><strong>BALANCE DUE TO YOU</strong></th>
-                                <th class="no-border p-3">&nbsp;</th>
-                                <th class="no-border p-3">&nbsp;</th>
-                                <th class="no-border text-right p-3 p-9-r">
+                                <th class="no-border align-left" style="padding: 6px 8px; width: 32.5%;"><strong>BALANCE DUE
+                                        TO YOU</strong></th>
+                                <th class="no-border" style="padding: 6px 8px; width: 32.5%;">&nbsp;</th>
+                                <th class="no-border" style="padding: 6px 8px; width: 17.5%;">&nbsp;</th>
+                                <th class="no-border align-right"
+                                    style="padding: 6px 8px; width: 17.5%; text-align: right;">
                                     @php
                                         $crSum = $credit_partner->where('dr_cr', 'CR')->sum('gross');
                                         // $frfSum = $credit_partner->where('entry_type_descr', 'FRF')->sum('gross');
@@ -321,7 +343,7 @@
                         </tr>
                         <tr>
                             <td align="left">
-                                {{-- @stampImageOrEmpty('app/private/stamp.png') --}}
+                                @stampImageOrEmpty('app/private/sample-sign.png')
                             </td>
                             <td align="left">&nbsp;
                             <td>

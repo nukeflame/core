@@ -83,7 +83,7 @@
                     <input type="radio" class="btn-check"
                         name="treaty[{{ $treatyCounterValue }}][reinsurers][{{ $counterValue }}][amount_type]"
                         id="amount_type_net-{{ $treatyCounterValue }}-{{ $counterValue }}" value="net"
-                        data-treaty-counter="{{ $treatyCounterValue }}" data-counter="{{ $counterValue }}" checked>
+                        data-treaty-counter="{{ $treatyCounterValue }}" data-counter="{{ $counterValue }}">
                     <label class="btn btn-outline-primary"
                         for="amount_type_net-{{ $treatyCounterValue }}-{{ $counterValue }}">
                         Net
@@ -92,7 +92,7 @@
                     <input type="radio" class="btn-check"
                         name="treaty[{{ $treatyCounterValue }}][reinsurers][{{ $counterValue }}][amount_type]"
                         id="amount_type_gross-{{ $treatyCounterValue }}-{{ $counterValue }}" value="gross"
-                        data-treaty-counter="{{ $treatyCounterValue }}" data-counter="{{ $counterValue }}">
+                        data-treaty-counter="{{ $treatyCounterValue }}" data-counter="{{ $counterValue }}" checked>
                     <label class="btn btn-outline-primary"
                         for="amount_type_gross-{{ $treatyCounterValue }}-{{ $counterValue }}">
                         Gross

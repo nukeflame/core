@@ -72,6 +72,9 @@
             // First, disable all fields
             self.hideAllFields();
 
+            // Hide change type wrapper by default
+            $("#change_type_wrapper").addClass("d-none");
+
             if (!slug) {
                 self.elements.currentSection.hide();
                 return;
@@ -98,6 +101,11 @@
             config.show.forEach(function (fieldName) {
                 self.showField(fieldName);
             });
+
+            // Show change type wrapper for types that need it
+            if (config.show.includes("change_in_sum_insured_type")) {
+                $("#change_type_wrapper").removeClass("d-none");
+            }
 
             // Trigger change for dependent fields
             if (config.show.includes("brokerage_comm_type")) {
@@ -544,6 +552,9 @@
         this.hideAllFields();
         this.elements.currentSection.hide();
         this.elements.endorseType.val("").trigger("change.select2");
+
+        // Hide change type wrapper
+        $("#change_type_wrapper").addClass("d-none");
 
         $(".errorClass").remove();
         $(".is-invalid").removeClass("is-invalid");

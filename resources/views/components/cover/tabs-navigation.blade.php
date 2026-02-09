@@ -20,14 +20,14 @@
 
             <button class="nav-link" id="nav-claimlist-tab" data-bs-toggle="tab" data-bs-target="#claimlist-tab"
                 type="button" role="tab" aria-controls="claimlist-tab" aria-selected="false">
-                <i class="bx bx-table me-1 align-middle"></i>Claim List
-                <span class="badge bg-danger ms-1" id="claimListCount">{{ $claimsCount }}</span>
+                {{-- <i class="bx bx-table me-1 align-middle"></i>Claim List --}}
+                {{-- <span class="badge bg-danger ms-1" id="claimListCount">{{ $claimsCount }}</span> --}}
             </button>
 
             <button class="nav-link" id="nav-statement-tab" data-bs-toggle="tab" data-bs-target="#statement-tab"
                 type="button" role="tab" aria-controls="statement-tab" aria-selected="false">
-                <i class="ri-building-2-line me-1"></i> Statement
-                <span class="badge bg-info ms-1" id="statementListCount">{{ $statementsCount }}</span>
+                {{-- <i class="ri-building-2-line me-1"></i> Statement --}}
+                {{-- <span class="badge bg-info ms-1" id="statementListCount">{{ $statementsCount }}</span> --}}
             </button>
         @else
             @if (in_array($cover->type_of_bus, ['FPR', 'FNP']))
@@ -58,7 +58,8 @@
                 data-bs-toggle="tab" data-bs-target="#reinsurers-tab" type="button" role="tab"
                 aria-selected="@if (in_array($cover->type_of_bus, ['TPR', 'TNP'])) true @else false @endif"
                 @if (!in_array($cover->type_of_bus, ['TPR', 'TNP'])) tabindex="-1" @endif>
-                <i class="ri-team-line me-1 align-middle"></i>Reinsurers
+                <i class="ri-building-2-line me-1"></i> Reinsurers
+                {{-- <span class="badge bg-info ms-1" id="reinsurersCount">{{ $totalReinsurers }}</span> --}}
             </button>
 
             @if ($cover->no_of_installments > 1)

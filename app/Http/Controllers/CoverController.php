@@ -597,14 +597,14 @@ class CoverController extends Controller
         $summaryData = ['summaryData' => []];
         $data = array_merge($summaryData, $cover);
 
-        // if (! $cover['actionable']) {
-           
-        // }
-
         $isTreaty = in_array($cover['type_of_bus']['bus_type_id'], ['TPR', 'TNP']);
         if ($isTreaty) {
-            return redirect()->route('cover.transactions.index', ['coverNo' => $cover['coverNo']]);        
-        } 
+            if (! $cover['actionable']) {
+                return redirect()->route('cover.transactions.index', ['coverNo' => $cover['coverNo']]);
+            } else {
+                return view('cover.cover_home', $data);
+            }
+        }
 
         return view('cover.cover_home', $data);
     }
@@ -768,8 +768,6 @@ class CoverController extends Controller
     {
         DB::beginTransaction();
         try {
-            logger()->debug($request->all());
-
             $rules = [
                 'endorsement_no' => 'required|exists:cover_register,endorsement_no',
                 'treaty' => 'required|array|min:1',
@@ -779,6 +777,9 @@ class CoverController extends Controller
                 'treaty.*.reinsurers.*.share' => 'required|numeric|min:0|max:100',
                 'treaty.*.reinsurers.*.written_share' => 'required|numeric|min:0|max:100',
                 'treaty.*.reinsurers.*.comm_rate' => 'nullable|numeric|min:0',
+                'treaty.*.reinsurers.*.amount_type' => 'nullable|string',
+                'treaty.*.reinsurers.*.compulsory_acceptance' => 'nullable|numeric|min:0',
+                'treaty.*.reinsurers.*.optional_acceptance' => 'nullable|numeric|min:0',
                 // 'treaty.*.reinsurers.*.amount_type' => 'nullable|string',
                 'treaty.*.reinsurers.*.wht_rate' => 'nullable|numeric|min:0|max:100',
                 'treaty.*.reinsurers.*.pay_method' => 'required|exists:pay_method,pay_method_code',
@@ -887,10 +888,25 @@ class CoverController extends Controller
                         $coverRipart->fronting_amt = 0;
                         $coverRipart->wht_amt = 0;
                         $coverRipart->brokerage_comm_amt = 0;
+                        $coverRipart->share = $this->parseNumber($reinsurerData['written_share']);
+                        $coverRipart->commission_mode = $reinsurerData['amount_type'] ?? 'gross';
 
                         // $coverRipart->compulsory_acceptance = $this->parseNumber($reinsurerData['compulsory_acceptance'] ?? 0);
                         // $coverRipart->optional_acceptance = $this->parseNumber($reinsurerData['optional_acceptance'] ?? 0);
                         // $coverRipart->total_acceptance = $this->parseNumber($reinsurerData['share'] ?? 0);
+                        $coverRipart->net_amount = 0;
+                    }
+
+                    // Calculate net_amount for facultative business types
+                    if (in_array($coverRegister->type_of_bus, ['FPR', 'FNP'])) {
+                        $coverRipart->net_amount = max(
+                            0,
+                            ($coverRipart->premium ?? 0)
+                                - ($coverRipart->commission ?? 0)
+                                - ($coverRipart->brokerage_comm_amt ?? 0)
+                                - ($coverRipart->wht_amt ?? 0)
+                                - ($coverRipart->fronting_amt ?? 0)
+                        );
                     }
 
                     $coverRipart->created_by = Auth::user()->user_name;
@@ -1228,15 +1244,14 @@ class CoverController extends Controller
     public function reinsurers_datatable(Request $request)
     {
         $endorsement_no = $request->get('endorsement_no');
-        $query = CoverRipart::query()->where('endorsement_no', $endorsement_no);
+        $query = CoverRipart::query()->where('endorsement_no', $endorsement_no)
+            ->with('partner')->orderBy('tran_no', 'asc');
         $cover = CoverRegister::where('endorsement_no', $endorsement_no)->first();
         $actionable = static::coverDebitedCommited($endorsement_no);
 
         return datatables::of($query)
-            ->addColumn('partner_name', function ($data) {
-                $part = Customer::where('customer_id', $data->partner_no)->first();
-
-                return $part->name;
+            ->editColumn('partner_name', function ($data) {
+                return $data->partner->name;
             })
             ->addColumn('action', function ($data) use ($actionable, $endorsement_no, $cover) {
                 $btn = '';
@@ -1275,18 +1290,21 @@ class CoverController extends Controller
                     if (($cover->type_of_bus == 'TPR' || $cover->type_of_bus == 'TNP') && ($cover->transaction_type == 'NEW' || $cover->transaction_type == 'REN')) {
                         $btn .= '';
                     } else {
-                        $btn .= "<a href='{$creditNoteUrl}' data-endorsementno='{$endorsementNo}' data-partnerno='{$data->partner_no}' target='_blank' rel='noopener noreferrer' class='print-out-link pr-3 rein_credit_note_btn'><i class='bx bx-file me-1 align-middle'></i>Credit Note</a>";
-                        $btn .= "<a href='{$coverSlipUrl}' target='_blank' rel='noopener noreferrer' class='print-out-link pr-3 rein_cover_slip_btn'>
-                                    <i class='bx bx-file'></i> Cover Slip</a>";
+                        // $endorsementSlipUrl = route('docs.endorsementslip', ['endorsement_no' => $endorsementNo, 'partner_no' => $data->partner_no]);
 
-                        // $btn .= "<a href='#' target='_blank' class='print-out-link send_reinsurer_email' data-client_emails='{$client_emails}' data-cover_no='{$coverNo}' data-endorsement_no='{$endorsementNo}' data-client_name='{$client_name}' data-client_docs='{$tmp_attachments}'>
-                        //             <i class='bx bx-mail-send' style='font-size: 15px; vertical-align: -2px;'></i> Send E-Mail</a>";
+                        $btn .= "<a href='{$creditNoteUrl}' data-endorsementno='{$endorsementNo}' data-partnerno='{$data->partner_no}' target='_blank' rel='noopener noreferrer' class='print-out-link pr-3 rein_credit_note_btn'><i class='bx bx-file me-1 align-middle'></i>Credit Note</a>";
+                        $btn .= "<a href='{$coverSlipUrl}' data-endorsementno='{$endorsementNo}' target='_blank' rel='noopener noreferrer' class='print-out-link pr-3 rein_cover_slip_btn'>
+                                    <i class='bx bx-file'></i> Cover Slip</a>";
+                        // $btn .= "<a href='{$endorsementSlipUrl}' data-endorsementno='{$endorsementNo}' target='_blank' rel='noopener noreferrer' class='print-out-link pr-3 rein_endorsement_slip_btn'>
+                        //             <i class='bx bx-file'></i> Endors. Slip</a>";
+                        $btn .= "<a href='#' target='_blank' class='print-out-link send_reinsurer_email' data-client_emails='{$client_emails}' data-cover_no='{$coverNo}' data-endorsement_no='{$endorsementNo}' data-client_name='{$client_name}' data-client_docs='{$tmp_attachments}'>
+                                    <i class='bx bx-mail-send' style='font-size: 15px; vertical-align: -2px;'></i> Send E-Mail</a>";
                     }
                 }
 
                 return $btn;
             })
-            ->rawColumns(['action'])
+            ->rawColumns(['action', 'partner_name'])
             ->make(true);
     }
 
@@ -1608,8 +1626,6 @@ class CoverController extends Controller
             ], 422);
         } catch (Exception $e) {
             DB::rollback();
-            logger($e);
-
             return response()->json([
                 'success' => false,
                 'status' => Response::HTTP_INTERNAL_SERVER_ERROR,
@@ -4229,8 +4245,6 @@ class CoverController extends Controller
                 'data' => $data,
             ]);
         } catch (Exception $e) {
-            logger($e);
-
             return response()->json([
                 'status' => false,
                 'message' => 'An error occurred while fetching prospect data',
@@ -4269,8 +4283,6 @@ class CoverController extends Controller
                 'message' => 'Cover not found',
             ], 404);
         } catch (Exception $e) {
-            logger($e);
-
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch reinsurers data',

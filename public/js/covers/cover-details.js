@@ -63,9 +63,15 @@
         },
 
         formatNumber(value, decimals = CONFIG.DECIMAL_PRECISION) {
+            if (value === null || value === undefined || value === "")
+                return "-";
             const num = parseFloat(value);
-            if (isNaN(num)) return "0.00";
-            return num.toFixed(decimals).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+            if (isNaN(num)) return value;
+            const hasDecimals = num % 1 !== 0;
+            return num.toLocaleString("en-US", {
+                minimumFractionDigits: hasDecimals ? 2 : 0,
+                maximumFractionDigits: hasDecimals ? 2 : 0,
+            });
         },
 
         toDecimal(number, precision = CONFIG.DECIMAL_PRECISION) {
@@ -1868,7 +1874,7 @@
                 const $table = $(config.selector);
                 if ($table.length) {
                     this.tables[name] = $table.DataTable({
-                        order: [[0, "desc"]],
+                        order: [[0, "asc"]],
                         processing: true,
                         bAutoWidth: false,
                         lengthChange: false,
@@ -2036,22 +2042,66 @@
             ].includes(this.state.typeOfBus);
             const numberRender = $.fn.dataTable.render.number(",", ".", 2, "");
 
+            const smartNumberRender = function (data, type, row) {
+                if (data === null || data === undefined || data === "")
+                    return "-";
+                const num = parseFloat(data);
+                if (isNaN(num)) return data;
+                const hasDecimals = num % 1 !== 0;
+                return num.toLocaleString("en-US", {
+                    minimumFractionDigits: hasDecimals ? 2 : 0,
+                    maximumFractionDigits: hasDecimals ? 2 : 0,
+                });
+            };
+
             let columns = [
-                { data: "tran_no", render: (d, t, r, m) => m.row + 1 },
-                { data: "partner_name" },
-                { data: "share", render: numberRender },
+                {
+                    data: "tran_no",
+                    orderable: false,
+                    searchable: false,
+                    render: function (data, type, row, meta) {
+                        return meta.row + meta.settings._iDisplayStart + 1;
+                    },
+                },
+                {
+                    data: "partner_name",
+                    name: "partner_name",
+                    render: function (data, type, row) {
+                        return (
+                            '<span class="fw-semibold">' +
+                            Utils.escapeHtml(data || "-") +
+                            "</span><br>" +
+                            '<small class="text-muted">' +
+                            Utils.escapeHtml(row.partner.email || "") +
+                            "</small>"
+                        );
+                    },
+                    defaultContent: "-",
+                },
+                {
+                    data: "share",
+                    render: function (data, type, row) {
+                        return smartNumberRender(data) + "%";
+                    },
+                },
             ];
 
             if (isFacultative) {
                 columns = columns.concat([
-                    { data: "sum_insured", render: numberRender },
-                    { data: "premium", render: numberRender },
-                    { data: "comm_rate", render: numberRender },
-                    { data: "commission", render: numberRender },
-                    { data: "brokerage_comm_amt", render: numberRender },
-                    { data: "wht_amt", render: numberRender },
-                    { data: "fronting_amt", render: numberRender },
-                    { data: "net_amount", render: numberRender },
+                    { data: "sum_insured", render: smartNumberRender },
+                    { data: "premium", render: smartNumberRender },
+                    {
+                        data: "comm_rate",
+                        render: function (data, type, row) {
+                            return smartNumberRender(data) + "%";
+                        },
+                    },
+                    { data: "commission", render: smartNumberRender },
+                    { data: "brokerage_comm_amt", render: smartNumberRender },
+                    { data: "wht_amt", render: smartNumberRender },
+                    { data: "brokerage_comm_amt", render: smartNumberRender },
+                    { data: "fronting_amt", render: smartNumberRender },
+                    { data: "net_amount", render: smartNumberRender },
                 ]);
             }
 

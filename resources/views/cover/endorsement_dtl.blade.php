@@ -18,7 +18,7 @@
         'reinsurer' => $reinsurer ?? null,
     ])
 
-    <div class="form-group">
+    <div class="form-group border-radius-10">
         <div class="gy-4">
             <div class="customer-endorsement row">
                 <div class="col-sm-7">
@@ -74,7 +74,6 @@
         <div class="card mb-2 custom-card border col">
             <div class="card-body pt-0">
                 <x-cover.tabs-navigation :cover="$latest_endorsement" :endorsementCount="$all_endorsements->count()" :claimsCount="$claims->count()" :statementsCount="$reinsurerStatements->count()" />
-
 
                 <div class="tab-content reinsurers-tabpane-card" id="tab-style-4">
                     <div class="tab-pane fade show active" id="endorsement-list" role="tabpanel"

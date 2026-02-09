@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('styles')
+@section('styless')
     <style>
         :root {
             --primary-blue: #2563eb;
@@ -548,104 +548,8 @@
     </div>
 
     {{-- Quick Actions --}}
-    <div class="quick-actions" role="toolbar" aria-label="Quick actions">
-        {{-- <button type="button" class="btn btn-outline-secondary quick-action-btn" id="btnRefreshSummary"
-            title="Refresh Data">
-            <i class="ri-refresh-line"></i> Refresh Data
-        </button> --}}
-        <!-- <button type="button" class="btn btn-outline-dark quick-action-btn" id="btnPreviewSlip">
-                                                                                                                                                                                                            <i class="ri-file-text-line"></i> Preview Slip
-                                                                                                                                                                                                        </button> -->
-        <!-- <button type="button" class="btn btn-outline-primary quick-action-btn" id="btnGenerateStatement">
-                                                                                                                                                                                                            <i class="ri-file-list-3-line"></i> Generate Statement
-                                                                                                                                                                                                        </button> -->
-        {{-- <button type="button" class="btn btn-outline-success quick-action-btn" id="btnExportData">
-            <i class="ri-download-2-line"></i> Export Data
-        </button> --}}
-        <!-- <button type="button" class="btn btn-primary quick-action-btn" data-bs-toggle="modal"
-                                                                                                                                                                                                            data-bs-target="#addDebitItemModal">
-                                                                                                                                                                                                            <i class="ri-add-line"></i> Add Debit Item
-                                                                                                                                                                                                        </button> -->
-        <small class="text-muted ms-auto align-self-center" id="lastUpdatedTime"></small>
-    </div>
 
-    <div class="financial-grid">
-        <div class="financial-card debits">
-            <div class="financial-label">Total Gross Premium</div>
-            <div class="financial-value" id="summaryGrossPremium">
-                {{ $formatCurrency($totalGrossPremium, $cover->currency ?? 'KES') }}
-            </div>
-        </div>
-        <div class="financial-card commission">
-            <div class="financial-label">Total Commission</div>
-            <div class="financial-value" id="summaryCommission">
-                {{ $formatCurrency($totalCommission, $cover->currency ?? 'KES') }}
-            </div>
-        </div>
-        <div class="financial-card portfolio">
-            <div class="financial-label">Net Amount Due</div>
-            <div class="financial-value" id="summaryNetAmount">
-                {{ $formatCurrency($totalNetAmount, $cover->currency ?? 'KES') }}
-            </div>
-        </div>
-        <div class="financial-card adjustments">
-            <div class="financial-label">Reinsurer Share</div>
-            <div class="financial-value" id="summaryReinsurerShare">
-                {{ $formatCurrency($totalReinsurerShare, $cover->currency ?? 'KES') }}
-            </div>
-        </div>
-    </div>
-
-    <div class="summary-card mb-4">
-        <div class="summary-grid">
-            <div class="summary-item">
-                <span class="summary-label">Cedant</span>
-                <span class="summary-value highlight">{{ ucwords(strtolower($customer->name ?? 'N/A')) }}</span>
-            </div>
-            <div class="summary-item">
-                <span class="summary-label">Treaty Type</span>
-                <span class="summary-value">{{ $cover->treaty_type ?? 'N/A' }}</span>
-            </div>
-            <div class="summary-item">
-                <span class="summary-label">Underwriting Year</span>
-                <span class="summary-value">{{ $cedantDetails->treaty_year ?? date('Y') }}</span>
-            </div>
-            <div class="summary-item">
-                <span class="summary-label">Policy Period</span>
-                <span class="summary-value">
-                    @if ($cover && $cover->cover_from && $cover->cover_to)
-                        {{ \Carbon\Carbon::parse($cover->cover_from)->format('d M Y') }} -
-                        {{ \Carbon\Carbon::parse($cover->cover_to)->format('d M Y') }}
-                    @else
-                        N/A
-                    @endif
-                </span>
-            </div>
-            <div class="summary-item">
-                <span class="summary-label">Retention</span>
-                <span class="summary-value">{{ number_format($cover->retention_percentage ?? 0, 1) }}%</span>
-            </div>
-            <div class="summary-item">
-                <span class="summary-label">Ceded</span>
-                <span class="summary-value">{{ number_format($cover->ceded_percentage ?? 0, 1) }}%</span>
-            </div>
-            <div class="summary-item">
-                <span class="summary-label">Sum Insured</span>
-                <span class="summary-value amount">
-                    {{ $formatCurrency($cover->sum_insured ?? 0, $cover->currency ?? 'KES') }}
-                </span>
-            </div>
-            <div class="summary-item">
-                <span class="summary-label">Status</span>
-                @php
-                    $isActive = in_array($cover->status ?? '', ['A', 'active', 'Active']);
-                @endphp
-                <span class="status-badge {{ $isActive ? 'status-badge--success' : 'status-badge--warning' }}">
-                    {{ $isActive ? 'Active' : 'Inactive' }}
-                </span>
-            </div>
-        </div>
-    </div>
+    <x-cover.summary-card :cover="$cover" :customer="$customer" :typeOfBus="null" :summaryData="null" :coverreinprop="[]" />
 
     <div class="row-cols-12">
         <div class="card mb-2 custom-card border col">
@@ -679,9 +583,8 @@
                             <i class="bx bx-briefcase me-1"></i> Cedant
                         </button>
 
-                        <button class="nav-link" id="nav-approvals-tab" data-bs-toggle="tab"
-                            data-bs-target="#approvals-tab" type="button" role="tab" aria-controls="approvals-tab"
-                            aria-selected="false">
+                        <button class="nav-link" id="nav-approvals-tab" data-bs-toggle="tab" data-bs-target="#approvals-tab"
+                            type="button" role="tab" aria-controls="approvals-tab" aria-selected="false">
                             <i class="bx bx-medal me-1 align-middle"></i>Approvals
                             <span class="badge bg-warning ms-1"></span>
                         </button>

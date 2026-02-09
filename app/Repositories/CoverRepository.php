@@ -369,6 +369,7 @@ class CoverRepository extends BaseRepository
                 'fronting_rate' => $amounts['fronting_rate'],
                 'fronting_amt' => $amounts['fronting_amt'],
                 'brokerage_comm_amt' => $amounts['brokerage_comm_amt'],
+                'net_amount' => $amounts['net_amount'],
                 'updated_by' => Auth::user()->user_name,
                 'updated_at' => now()
             ]);
@@ -994,6 +995,8 @@ class CoverRepository extends BaseRepository
             ? max(0, ceil(($fronting_rate / 100) * ($premium - $commission)))
             : 0;
 
+        $net_amount = max(0, $premium - $commission - $brokerage_comm_amt - $wht_amt - $fronting_amt);
+
         return [
             'total_sum_insured' => $total_sum_insured,
             'sum_insured' => $sum_insured,
@@ -1007,6 +1010,7 @@ class CoverRepository extends BaseRepository
             'fronting_rate' => $fronting_rate,
             'fronting_amt' => $fronting_amt,
             'brokerage_comm_amt' => $brokerage_comm_amt,
+            'net_amount' => $net_amount,
         ];
     }
 
@@ -1029,6 +1033,8 @@ class CoverRepository extends BaseRepository
         $wht_rate = $this->parseNumeric($request->wht_rate);
         $wht_amt = max(0, ceil(($wht_rate / 100) * ($premium - $commission)));
 
+        $net_amount = max(0, $premium - $commission - $wht_amt - $fronting_amt);
+
         return [
             'total_sum_insured' => $total_sum_insured,
             'sum_insured' => $sum_insured,
@@ -1042,6 +1048,7 @@ class CoverRepository extends BaseRepository
             'fronting_rate' => $fronting_rate,
             'fronting_amt' => $fronting_amt,
             'brokerage_comm_amt' => 0,
+            'net_amount' => $net_amount,
         ];
     }
 
@@ -1060,6 +1067,7 @@ class CoverRepository extends BaseRepository
             'fronting_rate' => 0,
             'fronting_amt' => 0,
             'brokerage_comm_amt' => 0,
+            'net_amount' => 0,
         ];
     }
 

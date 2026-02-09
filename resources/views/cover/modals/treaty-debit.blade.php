@@ -315,22 +315,28 @@
         <td>
             <select class="form-select form-select-sm item-code" name="items[INDEX][item_code]">
                 <option value="">--</option>
-                @foreach ($itemCodes as $code => $data)
-                    <option value="{{ $code }}" data-type="{{ $data['type'] }}"
-                        data-description="{{ $data['description'] }}">
-                        {{ $code }}
-                    </option>
-                @endforeach
+                @forelse ($itemCodes as $code => $data)
+                    @if (in_array($code, ['IT01', 'IT02']))
+                        <option value="{{ $code }}" data-type="{{ $data['type'] }}"
+                            data-description="{{ $data['description'] }}">
+                            {{ $code }}
+                        </option>
+                    @endif
+                @empty
+                    <option value="">No codes available</option>
+                @endforelse
             </select>
         </td>
         <td>
             <select name="items[INDEX][description]" class="form-select form-select-sm item-description" required>
                 <option value="">-- Select Type --</option>
                 @foreach ($itemCodes as $code => $data)
-                    <option value="{{ $code }}" data-type="{{ $data['type'] }}"
-                        data-code="{{ $code }}">
-                        {{ $data['description'] }}
-                    </option>
+                    @if (in_array($code, ['IT01', 'IT02']))
+                        <option value="{{ $code }}" data-type="{{ $data['type'] }}"
+                            data-code="{{ $code }}">
+                            {{ $data['description'] }}
+                        </option>
+                    @endif
                 @endforeach
             </select>
         </td>
