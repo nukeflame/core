@@ -37,14 +37,17 @@
                 id="generateRenewalNotice">
                 <i class="bx bx-file me-1"></i> Renew Notice</button>
         @elseif($type_of_bus->bus_type_id == 'TPR')
-            <button class="btn btn-sm btn-dark btn-wave waves-effect waves-light col-md-2 m-2" data-bs-toggle="modal"
+            <button class="process_cover btn btn-sm btn-dark btn-wave waves-effect waves-light col-md-2 m-2 custom-btn"
+                id="process_renew">
+                <i class="bx bx-repeat me-1"></i> Renew Cover</button>
+            {{-- <button class="btn btn-sm btn-dark btn-wave waves-effect waves-light col-md-2 m-2" data-bs-toggle="modal"
                 data-bs-target="#quarterly-figures-modal"> <i class="bx bx-stats me-1"></i> Quarterly Figures</button>
             <button class="btn btn-sm btn-dark btn-wave waves-effect waves-light col-md-2 m-2" id="profit_commission"
                 data-bs-toggle="modal" data-bs-target="#profit-commission-modal"> <i class="bx bx-pie-chart me-1"></i>
                 Profit Commission</button>
             <button class="btn btn-sm btn-dark btn-wave waves-effect waves-light col-md-2 m-2" id="portfolio"
                 data-bs-toggle="modal" data-bs-target="#portfolio-modal"> <i class="bx bx-briefcase me-1"></i>
-                Portfolio</button>
+                Portfolio</button> --}}
         @elseif($type_of_bus->bus_type_id == 'TNP')
             <button class="process_cover btn btn-sm btn-dark btn-wave waves-effect waves-light col-md-2 m-2 custom-btn"
                 data-bs-toggle="modal" data-bs-target="#mdpInstallmentModal"> <i class="bx bx-calendar me-1"></i>

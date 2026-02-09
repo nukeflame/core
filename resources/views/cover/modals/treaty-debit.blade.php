@@ -831,6 +831,7 @@
                         $(this).remove();
                         self.calculateTotals();
                         self.updateSummaryVisibility();
+                        self.refreshAllClassDropdowns();
 
                         if (self.$el.itemsBody.find(self.config.classes.itemRow).length === 0) {
                             self.$el.noItemsRow.fadeIn(150);
@@ -845,7 +846,6 @@
                     const itemType = $selectedOption.data('type') || '';
 
                     $row.find(this.config.classes.itemDescription).val(code);
-
                     this.setItemTypeAndLedger($row, code, itemType);
                 },
 
@@ -886,10 +886,13 @@
                     } else if (resolvedType === 'CREDIT') {
                         $ledger.val('CR');
                         $commRate.val('0');
+                        $commRate.prop('disabled', true);
                         $row.removeClass('is-debit').addClass('is-credit');
                     } else {
                         $row.removeClass('is-debit is-credit');
                     }
+
+                    this.refreshAllClassDropdowns();
                 },
 
                 syncItemTypeFromLedger: function($ledger) {
@@ -906,12 +909,47 @@
                     }
 
                     this.debouncedCalculate();
+                    this.refreshAllClassDropdowns();
+                },
+
+                getSelectedCombinations: function($excludeRow) {
+                    const self = this;
+                    const combinations = [];
+
+                    this.$el.itemsBody.find(this.config.classes.itemRow).each(function() {
+                        const $row = $(this);
+                        if ($excludeRow && $row.is($excludeRow)) {
+                            return;
+                        }
+                        const typeValue = $row.find(self.config.classes.itemCode).val();
+                        const classValue = $row.find(self.config.classes.itemClassName).val();
+
+                        if (typeValue && classValue) {
+                            combinations.push(typeValue + '|' + classValue);
+                        }
+                    });
+
+                    return combinations;
+                },
+
+                getValidTreatyClasses: function() {
+                    const treatyClassesJson = $(this.config.selectors.treatyClasses).val();
+                    if (!treatyClassesJson) return [];
+
+                    try {
+                        const treatyClasses = JSON.parse(treatyClassesJson) ?? [];
+                        return treatyClasses.map(tc => String(tc.class_code));
+                    } catch (e) {
+                        console.warn('Failed to parse treatyClasses:', e);
+                        return [];
+                    }
                 },
 
                 filterBusinessClassGroup: function($classGroup) {
                     const $row = $classGroup.closest(this.config.classes.itemRow);
                     const selectedGroup = $classGroup.val();
                     const $classSelect = $row.find(this.config.classes.itemClassName);
+                    const selectedType = $row.find(this.config.classes.itemCode).val();
 
                     $classSelect.val('');
 
@@ -925,18 +963,31 @@
                         return;
                     }
 
+                    const selectedCombinations = this.getSelectedCombinations($row);
+                    const validTreatyClasses = this.getValidTreatyClasses();
                     let hasVisibleOptions = false;
+
                     $classSelect.find('option').each(function() {
                         const $option = $(this);
+                        const optionValue = $option.val();
 
-                        if ($option.val() === '') {
+                        if (optionValue === '') {
                             $option.show();
                             return;
                         }
 
                         const optionGroup = $option.data('group');
+                        const isInGroup = Number(optionGroup) === Number(selectedGroup);
 
-                        if (Number(optionGroup) === Number(selectedGroup)) {
+                        // Check if this specific combination already exists
+                        const comboKey = (selectedType || '') + '|' + optionValue;
+                        const isAlreadySelected = selectedType && selectedCombinations.includes(
+                            comboKey);
+
+                        const isValidTreatyClass = validTreatyClasses.length === 0 || validTreatyClasses
+                            .includes(String(optionValue));
+
+                        if (isInGroup && !isAlreadySelected && isValidTreatyClass) {
                             $option.show();
                             hasVisibleOptions = true;
                         } else {
@@ -948,8 +999,55 @@
                         const visibleOptions = $classSelect.find('option:visible').not('[value=""]');
                         if (visibleOptions.length === 1) {
                             $classSelect.val(visibleOptions.val());
+                            this.filterBusinessClasses($classSelect);
                         }
                     }
+                },
+
+                refreshAllClassDropdowns: function() {
+                    const self = this;
+                    const validTreatyClasses = this.getValidTreatyClasses();
+
+                    this.$el.itemsBody.find(this.config.classes.itemRow).each(function() {
+                        const $row = $(this);
+                        const $classGroup = $row.find(self.config.classes.itemClassGroup);
+                        const $classSelect = $row.find(self.config.classes.itemClassName);
+                        const selectedType = $row.find(self.config.classes.itemCode).val();
+                        const currentValue = $classSelect.val();
+                        const selectedGroup = $classGroup.val();
+
+                        if (!selectedGroup) return;
+
+                        const selectedCombinations = self.getSelectedCombinations($row);
+
+                        $classSelect.find('option').each(function() {
+                            const $option = $(this);
+                            const optionValue = $option.val();
+
+                            if (optionValue === '') {
+                                $option.show();
+                                return;
+                            }
+
+                            const optionGroup = $option.data('group');
+                            const isInGroup = Number(optionGroup) === Number(selectedGroup);
+
+                            const comboKey = (selectedType || '') + '|' + optionValue;
+                            const isAlreadySelected = selectedType && selectedCombinations
+                                .includes(comboKey);
+
+                            const isCurrentValue = optionValue === currentValue;
+                            const isValidTreatyClass = validTreatyClasses.length === 0 ||
+                                validTreatyClasses.includes(String(optionValue));
+
+                            if (isInGroup && (!isAlreadySelected || isCurrentValue) &&
+                                isValidTreatyClass) {
+                                $option.show();
+                            } else {
+                                $option.hide();
+                            }
+                        });
+                    });
                 },
 
                 filterBusinessClasses: function($classType) {
@@ -960,6 +1058,7 @@
 
                     if (!classItem) {
                         $commRate.val('');
+                        this.refreshAllClassDropdowns();
                         return;
                     }
 
@@ -973,6 +1072,8 @@
                     } else {
                         $commRate.val('0');
                     }
+
+                    this.refreshAllClassDropdowns();
                 },
 
                 formatAmountInput: function($input) {
@@ -1287,8 +1388,8 @@
                             timeout: 30000
                         })
                         .done(function(response) {
-                            console.log(response)
-                            // self.handleSuccess(response);
+                            // console.log(response)
+                            self.handleSuccess(response);
                         })
                         .fail(function(xhr, status, error) {
                             self.handleError(xhr, status, error);

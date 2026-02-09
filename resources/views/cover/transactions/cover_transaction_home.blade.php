@@ -180,185 +180,239 @@
         </div>
     </div>
 
-    <div class="card mb-0">
-        <div class="card-body">
-            <div class="table-responsive">
-                <table id="customerAccountsTable" class="table table-striped table-hover" style="width:100%">
-                    <thead class="table-light">
-                        <tr>
-                            <th>Reference</th>
-                            <th>Treaty</th>
-                            <th>Type</th>
-                            <th>Title</th>
-                            <th>Endorsement</th>
-                            {{-- <th>Insured</th> --}}
-                            <!-- <th>Status</th> -->
-                            <th>Currency</th>
-                            <th>Amount</th>
-                            <!-- <th>Amount Paid</th> -->
-                            <!-- <th>Outstanding</th> -->
-                            <th>Period</th>
-                            <th>Created At</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @forelse($accounts as $account)
-                            @php
-                                $foreignNettAmount = $account->foreign_nett_amount ?? 0;
-                                $unallocatedAmount = $account->unallocated_amount ?? 0;
 
-                                $amountPaid = $foreignNettAmount - $unallocatedAmount;
-                                $outstandingAmount = $unallocatedAmount;
+    <div class="row-cols-12">
+        <div class="card mb-2 custom-card border col">
+            <div class="card-body pt-0">
+                <nav>
+                    <div class="nav nav-tabs nav-justified tab-style-4 d-sm-flex d-block reinsurers-details-card"
+                        id="nav-tab" role="tablist">
+                        <button class="nav-link active" id="nav-debit-items-tab" data-bs-toggle="tab"
+                            data-bs-target="#debit-items-tab" type="button" role="tab" aria-controls="debit-items-tab"
+                            aria-selected="true">
+                            <i class="bx bx-table me-1 align-middle"></i>Transactions
+                            {{-- <span class="badge bg-primary ms-1" id="debitItemsCount">{{ $totalDebitItems }}</span> --}}
+                        </button>
 
-                                $amountPaid = max(0, $amountPaid);
+                        <button class="nav-link" id="nav-reinsurers-tab" data-bs-toggle="tab"
+                            data-bs-target="#reinsurers-tab" type="button" role="tab" aria-controls="reinsurers-tab"
+                            aria-selected="false" style="visibility: hidden;">
+                            <i class="ri-building-2-line me-1"></i> Reinsurers
+                        </button>
 
-                                $isFullyPaid = $account->status === 'paid';
-                                $isPartiallyPaid = $account->status === 'partial';
+                        <button class="nav-link" id="nav-cedant-tab" data-bs-toggle="tab" data-bs-target="#cedant-tab"
+                            type="button" role="tab" aria-controls="cedant-tab" aria-selected="false"
+                            style="visibility: hidden;">
+                            <i class="bx bx-briefcase me-1"></i> Cedant
+                        </button>
 
-                                if ($isFullyPaid) {
-                                    $statusClass = 'badge-paid';
-                                    $statusText = 'Paid';
-                                } elseif ($isPartiallyPaid) {
-                                    $statusClass = 'badge-partial';
-                                    $statusText = 'Partial';
-                                } else {
-                                    $statusClass = 'badge-unpaid';
-                                    $statusText = 'Not Paid';
-                                }
+                        <button class="nav-link" id="nav-approvals-tab" data-bs-toggle="tab" data-bs-target="#approvals-tab"
+                            type="button" role="tab" aria-controls="approvals-tab" aria-selected="false"
+                            style="visibility: hidden;">
+                            <i class="bx bx-medal me-1 align-middle"></i>Approvals
+                            <span class="badge bg-warning ms-1"></span>
+                        </button>
 
-                                $entryType = $account->entry_type_descr ?? '';
-                            @endphp
-                            <tr>
-                                <td>
-                                    <span class="fw-medium text-primary">
-                                        {{ $account->reference ?? '-' }}
-                                    </span>
-                                </td>
-                                <td>
-                                    <span class="fw-medium text-dark">
-                                        {{ $account->treaty_name ?? ($account->treaty_type ?? 'SURPLUS') }}
-                                    </span>
-                                </td>
-                                <td>
-                                    <span class="badge bg-light text-dark px-3">
-                                        {{ Str::title($entryType) }}
-                                    </span>
-                                </td>
-                                <td>
-                                    <span class="text-dark capitalize">
-                                        {{ Str::title($cover->cover_title) }}
-                                    </span>
-                                </td>
-                                <td>
-                                    <div class="fw-medium">
-                                        <div class="text-dark">{{ $account->endorsement_no ?? '-' }}</div>
-                                    </div>
-                                </td>
-                                {{-- <td>
+                        <button class="nav-link" id="nav-docs-tab" data-bs-toggle="tab" data-bs-target="#docs-tab"
+                            type="button" role="tab" aria-controls="docs-tab" aria-selected="false"
+                            style="visibility: hidden;">
+                            <i class="ri-printer-line me-1 align-middle"></i>Print-outs
+                        </button>
+                    </div>
+                </nav>
+
+                <div class="tab-content reinsurers-tabpane-card" id="tab-style-4">
+                    <div class="tab-pane fade show active" id="debit-items-tab" role="tabpanel"
+                        aria-labelledby="nav-debit-items-tab">
+                        <div class="card border-0 shadow-none">
+                            <div class="card-body py-3 px-2">
+                                <div class="table-responsive">
+                                    <table id="customerAccountsTable" class="table table-bordered table-hover w-100">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th width="3%">#</th>
+                                                <th width="10%">Reference</th>
+                                                <th width="10%">Treaty</th>
+                                                <th width="10%">Type</th>
+                                                <th width="12%">Title</th>
+                                                <th width="8%">Endorsement</th>
+                                                {{-- <th>Insured</th> --}}
+                                                <!-- <th>Status</th> -->
+                                                <th width="6%">Currency</th>
+                                                <th width="10%">Amount</th>
+                                                <!-- <th>Amount Paid</th> -->
+                                                <!-- <th>Outstanding</th> -->
+                                                <th width="8%">Period</th>
+                                                <th width="10%">Created At</th>
+                                                <th width="8%">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @forelse($accounts as $account)
+                                                @php
+                                                    $foreignNettAmount = $account->foreign_nett_amount ?? 0;
+                                                    $unallocatedAmount = $account->unallocated_amount ?? 0;
+
+                                                    $amountPaid = $foreignNettAmount - $unallocatedAmount;
+                                                    $outstandingAmount = $unallocatedAmount;
+
+                                                    $amountPaid = max(0, $amountPaid);
+
+                                                    $isFullyPaid = $account->status === 'paid';
+                                                    $isPartiallyPaid = $account->status === 'partial';
+
+                                                    if ($isFullyPaid) {
+                                                        $statusClass = 'badge-paid';
+                                                        $statusText = 'Paid';
+                                                    } elseif ($isPartiallyPaid) {
+                                                        $statusClass = 'badge-partial';
+                                                        $statusText = 'Partial';
+                                                    } else {
+                                                        $statusClass = 'badge-unpaid';
+                                                        $statusText = 'Not Paid';
+                                                    }
+
+                                                    $entryType = $account->entry_type_descr ?? '';
+                                                @endphp
+                                                <tr>
+                                                    <td class="text-center">{{ $loop->iteration }}</td>
+                                                    <td>
+                                                        <span class="fw-medium text-primary">
+                                                            {{ $account->reference ?? '-' }}
+                                                        </span>
+                                                    </td>
+                                                    <td>
+                                                        <span class="fw-medium text-dark">
+                                                            {{ $account->treaty_name ?? ($account->treaty_type ?? 'SURPLUS') }}
+                                                        </span>
+                                                    </td>
+                                                    <td>
+                                                        <span class="badge bg-light text-dark px-3">
+                                                            {{ Str::title($entryType) }}
+                                                        </span>
+                                                    </td>
+                                                    <td>
+                                                        <span class="text-dark capitalize">
+                                                            {{ Str::title($cover->cover_title) }}
+                                                        </span>
+                                                    </td>
+                                                    <td>
+                                                        <div class="fw-medium">
+                                                            <div class="text-dark">{{ $account->endorsement_no ?? '-' }}
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                    {{-- <td>
                                     <div class="text-truncate" title="{{ $account->insured ?? '' }}">
                                         {{ Str::limit($account->insured ?? '-', 30) }}
                                     </div>
                                 </td> --}}
-                                <!-- <td>
-                                    <span class="badge {{ $statusClass }}">
-                                        {{ $statusText }}
-                                    </span>
-                                </td> -->
-                                <td>
-                                    <span class="badge bg-secondary">{{ $account->currency_code ?? 'KES' }}</span>
-                                </td>
-                                <td>
-                                    {{ number_format($foreignNettAmount, 2) }}
-                                </td>
-                                <!-- <td>
-                                    <span class="text-success fw-medium">
-                                        {{ number_format($amountPaid, 2) }}
-                                    </span>
-                                </td>
-                                <td>
-                                    <span class="{{ $outstandingAmount > 0 ? 'text-danger' : 'text-success' }} fw-medium">
-                                        {{ number_format($outstandingAmount, 2) }}
-                                    </span>
-                                </td> -->
-                                <td>
-                                    <span class="badge bg-info text-dark">
-                                        {{ str_pad($account->account_month ?? 1, 2, '0', STR_PAD_LEFT) }}/{{ $account->account_year ?? date('Y') }}
-                                    </span>
-                                </td>
-                                <td>
-                                    {{ $account->created_at ? \Carbon\Carbon::parse($account->created_at)->format('jS M Y, H:i') : '-' }}
-                                </td>
-                                <td>
-                                    <div class="btn-group btn-group-sm">
-                                        @switch($entryType)
-                                            @case('quarterly-figures')
-                                            @case('portfolio')
+                                                    <!-- <td>
+                                                                                                                        <span class="badge {{ $statusClass }}">
+                                                                                                                            {{ $statusText }}
+                                                                                                                        </span>
+                                                                                                                    </td> -->
+                                                    <td>
+                                                        <span
+                                                            class="badge bg-secondary">{{ $account->currency_code ?? 'KES' }}</span>
+                                                    </td>
+                                                    <td>
+                                                        {{ number_format($foreignNettAmount, 2) }}
+                                                    </td>
+                                                    <!-- <td>
+                                                                                                                        <span class="text-success fw-medium">
+                                                                                                                            {{ number_format($amountPaid, 2) }}
+                                                                                                                        </span>
+                                                                                                                    </td>
+                                                                                                                    <td>
+                                                                                                                        <span class="{{ $outstandingAmount > 0 ? 'text-danger' : 'text-success' }} fw-medium">
+                                                                                                                            {{ number_format($outstandingAmount, 2) }}
+                                                                                                                        </span>
+                                                                                                                    </td> -->
+                                                    <td>
+                                                        <span class="badge bg-info text-dark">
+                                                            {{ str_pad($account->account_month ?? 1, 2, '0', STR_PAD_LEFT) }}/{{ $account->account_year ?? date('Y') }}
+                                                        </span>
+                                                    </td>
+                                                    <td>
+                                                        {{ $account->created_at ? \Carbon\Carbon::parse($account->created_at)->format('jS M Y, H:i') : '-' }}
+                                                    </td>
+                                                    <td>
+                                                        <div class="btn-group btn-group-sm">
+                                                            @switch($entryType)
+                                                                @case('quarterly-figures')
+                                                                @case('portfolio')
 
-                                            @case('adjust-commission')
-                                                <a href="{{ route('cover.transactions.quarterly-figures', [
-                                                    'coverNo' => $cover->cover_no,
-                                                    'refNo' => $account->reference,
-                                                    'endorsementNo' => $account->endorsement_no,
-                                                ]) }}"
-                                                    class="btn btn-outline-primary"
-                                                    title="View {{ Str::title(str_replace('-', ' ', $entryType)) }}">
-                                                    <i class="bx bx-show"></i>
-                                                </a>
-                                            @break
+                                                                @case('adjust-commission')
+                                                                    <a href="{{ route('cover.transactions.quarterly-figures', [
+                                                                        'coverNo' => $cover->cover_no,
+                                                                        'refNo' => $account->reference,
+                                                                        'endorsementNo' => $account->endorsement_no,
+                                                                    ]) }}"
+                                                                        class="btn btn-outline-primary"
+                                                                        title="View {{ Str::title(str_replace('-', ' ', $entryType)) }}">
+                                                                        <i class="bx bx-show"></i>
+                                                                    </a>
+                                                                @break
 
-                                            @case('profit-commission')
-                                                <a href="{{ route('cover.transactions.profit-commission', [
-                                                    'coverNo' => $cover->cover_no,
-                                                    'refNo' => $account->reference,
-                                                    'endorsementNo' => $account->endorsement_no,
-                                                ]) }}"
-                                                    class="btn btn-outline-primary" title="View Profit Commission">
-                                                    <i class="bx bx-show"></i>
-                                                </a>
-                                            @break
+                                                                @case('profit-commission')
+                                                                    <a href="{{ route('cover.transactions.profit-commission', [
+                                                                        'coverNo' => $cover->cover_no,
+                                                                        'refNo' => $account->reference,
+                                                                        'endorsementNo' => $account->endorsement_no,
+                                                                    ]) }}"
+                                                                        class="btn btn-outline-primary"
+                                                                        title="View Profit Commission">
+                                                                        <i class="bx bx-show"></i>
+                                                                    </a>
+                                                                @break
 
-                                            @default
-                                        @endswitch
+                                                                @default
+                                                            @endswitch
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                                @empty
+                                                    <tr>
+                                                        <td colspan="11" class="text-center py-4">
+                                                            <div class="text-muted">
+                                                                <i class="bx bx-inbox fs-1 d-block mb-3"></i>
+                                                                <p class="mb-0">No transaction records found</p>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                @endforelse
+                                            </tbody>
+                                            @if ($accounts->isNotEmpty())
+                                                <tfoot class="table-light">
+                                                    @php
+                                                        $totalForeignNett = $accounts->sum('foreign_nett_amount') ?? 0;
+                                                        $totalUnallocated = $accounts->sum('unallocated_amount') ?? 0;
+                                                        $totalAmountPaid = $totalForeignNett - $totalUnallocated;
+                                                    @endphp
+                                                    <tr>
+                                                        <th colspan="7" class="text-end">Page Totals:</th>
+                                                        <th>{{ number_format($totalForeignNett, 2) }}</th>
+                                                        <th colspan="3"></th>
+                                                    </tr>
+                                                </tfoot>
+                                            @endif
+                                        </table>
                                     </div>
-                                </td>
-                            </tr>
-                            @empty
-                                <tr>
-                                    <td colspan="13" class="text-center py-4">
-                                        <div class="text-muted">
-                                            <i class="bx bx-inbox fs-1 d-block mb-3"></i>
-                                            <p class="mb-0">No transaction records found</p>
-                                        </div>
-                                    </td>
-                                </tr>
-                            @endforelse
-                        </tbody>
-                        @if ($accounts->isNotEmpty())
-                            <tfoot class="table-light">
-                                @php
-                                    $totalForeignNett = $accounts->sum('foreign_nett_amount') ?? 0;
-                                    $totalUnallocated = $accounts->sum('unallocated_amount') ?? 0;
-                                    $totalAmountPaid = $totalForeignNett - $totalUnallocated;
-                                @endphp
-                                <tr>
-                                    <th colspan="7" class="text-end">Page Totals:</th>
-                                    <th>{{ number_format($totalForeignNett, 2) }}</th>
-                                    <th class="text-success">{{ number_format($totalAmountPaid, 2) }}</th>
-                                    <th class="{{ $totalUnallocated > 0 ? 'text-danger' : 'text-success' }}">
-                                        {{ number_format($totalUnallocated, 2) }}
-                                    </th>
-                                    <th colspan="3"></th>
-                                </tr>
-                            </tfoot>
-                        @endif
-                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
 
         <!-- Modals -->
-        @include('cover.modals.quarterly-figures')
+        @include('cover.modals.quarterly-figures', [
+            'itemCodes' => $itemCodes,
+            'classGroups' => $classGroups,
+            'businessClasses' => $businessClasses,
+        ])
         @include('cover.modals.add-profit-commission')
         @include('cover.modals.add-portfolio')
         @include('cover.modals.adjust-comission')
@@ -369,17 +423,17 @@
             $(document).ready(function() {
                 var $tbody = $('#customerAccountsTable tbody');
                 var hasData = $tbody.find('tr').length > 0 &&
-                    $tbody.find('tr td[colspan="13"]').length === 0;
+                    $tbody.find('tr td[colspan="11"]').length === 0;
 
                 var table = $('#customerAccountsTable').DataTable({
                     processing: true,
                     pageLength: 25,
                     order: [
-                        [11, 'desc']
+                        [9, 'desc']
                     ],
                     columnDefs: [{
                         orderable: false,
-                        targets: [9]
+                        targets: [10] // Actions column
                     }],
                     language: {
                         processing: '<div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div>',

@@ -92,6 +92,7 @@ Route::group(['prefix' => 'cover', 'middleware' => ['auth', 'check.first.login']
 
     Route::post('/save_quaterly_figures', [CoverController::class, 'StoreQuaterlyFigures'])->name('cover.save_quaterly_figures');
     Route::get('/get_quaterly_figures', [CoverController::class, 'getQuaterlyFigures'])->name('cover.get_quarterly_figures');
+    Route::get('/get_quarterly_by_quarter', [CoverController::class, 'getQuarterlyFiguresByQuarter'])->name('cover.get_quarterly_by_quarter');
 
     Route::post('/save_profit_commission', [CoverController::class, 'StoreProfitCommission'])->name('cover.save_profit_commission');
 

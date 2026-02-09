@@ -530,10 +530,10 @@ class QuarterlyDebitController extends Controller
                 'endorsement_no' => $endorsementNo,
             ])->with('partner');
 
-            $debit = DebitNote::where([
-                'cover_no' => $coverNo,
-                'endorsement_no' => $endorsementNo,
-            ])->first();
+            // $debit = DebitNote::where([
+            //     'cover_no' => $coverNo,
+            //     'endorsement_no' => $endorsementNo,
+            // ])->first();
 
             $recordsTotal = $query->count();
             $recordsFiltered = $recordsTotal;

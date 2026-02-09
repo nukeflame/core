@@ -3,14 +3,19 @@
 namespace App\Http\Controllers;
 
 use App\Models\CoverRegister;
+use App\Models\CoverReinclass;
 use App\Models\Customer;
 use App\Models\CustomerAccDet;
 use App\Models\CoverDebit;
 use App\Models\CoverRipart;
 use App\Models\DebitNote;
 use App\Models\DebitNoteItem;
+use App\Models\ReinclassPremtype;
 use App\Models\TreatyDocument;
+use App\Models\TreatyItemCode;
+use DB;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 
 class CoverTransactionController extends Controller
 {
@@ -71,6 +76,11 @@ class CoverTransactionController extends Controller
         }
 
         $endorsementNarration = $this->getEndorsementNarration($cover);
+        $itemCodes = $this->getItemCodes();
+        $classGroups = $this->getClassGroups();
+        $businessClasses = $this->getBusinessClasses();
+
+        logger()->debug(json_encode($businessClasses, JSON_PRETTY_PRINT));
 
         $actionable = $cover->status !== 'CANCELLED' && $cover->status !== 'EXPIRED';
         $isTransaction = true; //$transactions->count() > 0;
@@ -86,8 +96,65 @@ class CoverTransactionController extends Controller
             'nextInstallment' => $nextInstallment,
             'installmentAmount' => $installmentAmount,
             'accounts' => $accounts,
-            'stats' => $stats
+            'stats' => $stats,
+            'itemCodes' => $itemCodes,
+            'classGroups' => $classGroups,
+            'businessClasses'=> $businessClasses,
         ]);
+    }
+
+
+    protected function getItemCodes(): array
+    {
+        return Cache::remember('treaty_item_codes', 3600, function () {
+            return TreatyItemCode::where('is_active', true)
+                ->orderBy('sort_order')
+                ->get(['item_code', 'description', 'item_type'])
+                ->mapWithKeys(fn($item) => [
+                    $item->item_code => [
+                        'description' => $item->description,
+                        'type' => $item->item_type,
+                    ]
+                ])
+                ->toArray();
+        });
+    }
+
+    protected function getClassGroups(): array
+    {
+        return Cache::remember('reins_class_groups', 3600, function () {
+            $data = [];
+            $reinclass = DB::table('reinsclasses')->get();
+
+            foreach ($reinclass as $rein) {
+                $data[] = [
+                    'group_name' => $rein->class_name,
+                    'group_code' => $rein->class_code,
+                ];
+            }
+
+            return $data;
+        });
+    }
+
+    protected function getBusinessClasses(): array
+    {
+        return Cache::remember('business_classes', 3600, function () {
+            $data = [];
+            $reinclasses = ReinclassPremtype::with('classGroup')->get();
+
+            foreach ($reinclasses as $class) {
+                $groupCode = $class->classGroup->class_code ?? null;
+                $code = $class->premtype_code;
+                $name = $class->premtype_name;
+
+                if ($groupCode) {
+                    $data[$groupCode][$code] = $name;
+                }
+            }
+
+            return $data;
+        });
     }
 
     public function quarterlyFigures(Request $request, $coverNo, $refNo)
@@ -99,18 +166,14 @@ class CoverTransactionController extends Controller
             ->orderBy('installment', 'asc')
             ->get();
 
-        // Calculate next installment number
         $lastInstallment = $transactions->max('installment') ?? 0;
         $nextInstallment = $lastInstallment + 1;
 
-        // Calculate remaining amount to be debited
         $totalDebited = $transactions->sum('gross');
         $remainingAmount = ($cover->gross_premium ?? 0) - $totalDebited;
 
-        // Endorsement narration
         $endorsementNarration = $this->getEndorsementNarration($cover);
 
-        // Determine if actions are available
         $actionable = $cover->status !== 'CANCELLED'
             && $cover->status !== 'EXPIRED'
             && $remainingAmount > 0;

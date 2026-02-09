@@ -108,34 +108,34 @@
                     <i class="bi bi-cash-stack me-1"></i>Generate Debit
                 </button>
             @elseif (!$isFacultative && $isNewRenewalOrExtension)
-                <button type="button" class="btn btn-outline-secondary btn-sm me-2" data-action="preview-slip"
-                    data-endorsement="{{ $cover->endorsement_no }}">
-                    <i class="bi bi-file-earmark-text"></i> Preview Slip
-                </button>
-
                 @if ($isTransaction)
-                    <button type="button" class="btn btn-outline-dark btn-sm text-start me-1" data-bs-toggle="modal"
+                    <button type="button" class="btn btn-dark btn-sm text-center w-10 me-1" data-bs-toggle="modal"
                         data-bs-target="#createQuarterlyFiguresModal">
                         <i class="bi bi-calculator me-1"></i>Quarterly Figures
                     </button>
-                    <button type="button" class="btn btn-outline-dark btn-sm text-start me-1" data-bs-toggle="modal"
+                    <button type="button" class="btn btn-dark btn-sm text-center w-10 me-1" data-bs-toggle="modal"
                         data-bs-target="#addProfitCommissionModal">
                         <i class="bi bi-percent me-1"></i>Profit Commission
                     </button>
-                    <button type="button" class="btn btn-outline-dark btn-sm text-start me-1" data-bs-toggle="modal"
+                    <button type="button" class="btn btn-dark btn-sm text-center w-10 me-1" data-bs-toggle="modal"
                         data-bs-target="#addPortfolioModal">
                         <i class="bi bi-briefcase me-1"></i>Portfolio
                     </button>
-                    <button type="button" class="btn btn-outline-dark btn-sm text-start me-1" data-bs-toggle="modal"
+                    <button type="button" class="btn btn-dark btn-sm text-center w-10 me-1" data-bs-toggle="modal"
                         data-bs-target="#adjustCommissionModal">
                         <i class="bi bi-arrow-repeat me-1"></i>Adjust Commission
                     </button>
                 @else
-                    <button class="btn btn-outline-dark btn-sm me-2" data-bs-toggle="modal"
-                        data-bs-target="#treatyDebitModal">
+                    <button class="btn btn-dark btn-sm me-2" data-bs-toggle="modal" data-bs-target="#treatyDebitModal">
                         <i class="bi bi-cash-stack me-1"></i>Generate Debit
                     </button>
                 @endif
+
+                <button type="button" class="btn btn-secondary btn-sm me-2 text-center w-10" data-action="preview-slip"
+                    data-endorsement="{{ $cover->endorsement_no }}">
+                    <i class="bi bi-file-earmark-text"></i> Preview Slip
+                </button>
+
             @endif
         @endif
 
@@ -339,5 +339,9 @@
 
     .cover-info-wrapper .btn.btn-sm i {
         vertical-align: -1px;
+    }
+
+    .w-10 {
+        width: 235px !important;
     }
 </style>

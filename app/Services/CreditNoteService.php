@@ -273,6 +273,7 @@ class CreditNoteService
             'show_reinsurer' => $data['showReinsurer'] ?? false,
             'loss_participation' => $data['lossParticipation'] ?? false,
             'sliding_commission' => $data['slidingCommission'] ?? false,
+            'reinsurer_id' => $calculation['partner_code'] ?? null,
             'status' => CreditNote::STATUS_DRAFT,
             'created_by' => auth()->id(),
         ]);

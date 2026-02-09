@@ -58,6 +58,7 @@ class CreditNote extends Model
         'cancellation_reason',
         'posted_at',
         'posted_by',
+        'reinsurer_id',
         'created_by',
         'updated_by',
     ];

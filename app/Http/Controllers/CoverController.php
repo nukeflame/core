@@ -39,6 +39,7 @@ use App\Models\Currency;
 use App\Models\CurrencyRate;
 use App\Models\Customer;
 use App\Models\CustomerAccDet;
+use App\Models\DebitNote;
 use App\Models\EndorsementNarration;
 use App\Models\EndorsementType;
 use App\Models\PayMethod;
@@ -1810,6 +1811,7 @@ class CoverController extends Controller
         $custAccount->reference = $debitData['reference'];
         $custAccount->account_year = $this->_year;
         $custAccount->account_month = $this->_month;
+        $custAccount->quarter = $debitData['postingQuarter'] ?? null;
         $custAccount->line_no = 1;
         $custAccount->cheque_no = ' ';
         $custAccount->cheque_date = null;
@@ -3070,6 +3072,74 @@ class CoverController extends Controller
             ->get();
 
         return response()->json($results);
+    }
+
+    public function getQuarterlyFiguresByQuarter(Request $request)
+    {
+        $request->validate([
+            'cover_no' => 'required|string',
+            'quarter' => 'required|string|in:Q1,Q2,Q3,Q4',
+            'posting_year' => 'nullable|integer',
+        ]);
+
+        $coverNo = $request->cover_no;
+        $quarter = $request->quarter;
+        $postingYear = $request->posting_year ?? Carbon::now()->year;
+
+        $quarterlyData = CustomerAccDet::where('cover_no', $coverNo)
+            ->where('quarter', $quarter)
+            ->where('entry_type_descr', 'quarterly-figures')
+            ->where('account_year', $postingYear)
+            ->orderBy('line_no', 'asc')
+            ->get();
+
+        if ($quarterlyData->isEmpty()) {
+            return response()->json([
+                'success' => true,
+                'has_data' => false,
+                'data' => [],
+                'message' => 'No data found for the selected quarter'
+            ]);
+        }
+
+        $debitNotes = DebitNote::where('cover_no', $coverNo)
+            ->where('posting_quarter', $quarter)
+            ->where('posting_year', $postingYear)
+            ->with('items')
+            ->get();
+
+        $items = [];
+        foreach ($debitNotes as $debitNote) {
+            foreach ($debitNote->items as $item) {
+                $items[] = [
+                    'item_code' => $item->item_code,
+                    'description' => $item->description,
+                    'item_type' => $item->item_type,
+                    'class_group' => $item->class_group_code,
+                    'class_name' => $item->class_code,
+                    'line_rate' => $item->line_rate ?? $item->commission_rate ?? 0,
+                    'ledger' => in_array(strtoupper($item->item_code), ['IT01', 'IT26']) ? 'DR' : 'CR',
+                    'amount' => $item->original_amount ?? 0,
+                ];
+            }
+        }
+        
+        $firstRecord = $quarterlyData->first();
+
+        return response()->json([
+            'success' => true,
+            'has_data' => true,
+            'data' => [
+                'posting_year' => $firstRecord->account_year,
+                'posting_quarter' => $quarter,
+                'posting_date' => $firstRecord->created_date,
+                'currency_code' => $firstRecord->currency_code,
+                'currency_rate' => $firstRecord->currency_rate,
+                'items' => $items,
+                'total_amount' => $quarterlyData->sum('foreign_basic_amount'),
+            ],
+            'message' => 'Data loaded successfully for ' . $quarter
+        ]);
     }
 
     public function saveMdpInstallments(Request $request)

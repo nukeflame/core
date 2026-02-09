@@ -2,7 +2,7 @@
 
 @section('content')
     <div class="d-md-flex d-block align-items-center justify-content-between my-4 page-header-breadcrumb">
-        <h1 class="page-title fw-semibold fs-18 mb-0">Policy ({{ $cover_no }}) Details</h1>
+        <h1 class="page-title fw-semibold fs-18 mb-0">Policy Details</h1>
         <nav class="ms-md-1 ms-0">
             <ol class="breadcrumb mb-0">
                 <li class="breadcrumb-item"><a href="#">{{ $customer->name }}</a></li>
