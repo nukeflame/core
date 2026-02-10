@@ -56,9 +56,6 @@ class DebitNoteService
 
             $calculation = $this->amountCalculator->calculate($data, $cover);
 
-            logger()->debug(json_encode($calculation, JSON_PRETTY_PRINT));
-
-
             $debitNoteNo = $this->generateDebitNoteNumber(
                 $cover->type_of_bus,
                 $data['postingYear'] ?? now()->year

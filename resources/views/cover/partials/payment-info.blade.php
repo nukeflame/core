@@ -13,7 +13,6 @@
                 @endforeach
             </select>
         </div>
-        <small class="text-muted">How premium will be paid (lump sum or installments)</small>
         @error('pay_method')
             <div class="text-danger small">{{ $message }}</div>
         @enderror
@@ -32,7 +31,6 @@
         <button type="button" class="btn btn-primary w-100" id="add_fac_instalments">
             <i class="bx bx-plus me-1"></i> Add Installment
         </button>
-        <small class="text-muted">Configure installment schedule</small>
     </div>
 
     <div class="col-md-2">
@@ -48,7 +46,6 @@
                 @endforeach
             </select>
         </div>
-        <small class="text-muted">Transaction currency</small>
         @error('currency_code')
             <div class="text-danger small">{{ $message }}</div>
         @enderror
@@ -58,7 +55,6 @@
         <label class="form-label required">Exchange Rate</label>
         <input type="text" name="today_currency" id="today_currency" class="form-control"
             value="{{ isset($old_endt_trans) ? $old_endt_trans->currency_rate : '' }}" readonly>
-        <small class="text-muted">Current rate to base currency</small>
     </div>
 
     <div class="col-md-3">
@@ -75,7 +71,6 @@
                 @endforeach
             </select>
         </div>
-        <small class="text-muted">When premium payment is due</small>
         @error('premium_payment_term')
             <div class="text-danger small">{{ $message }}</div>
         @enderror

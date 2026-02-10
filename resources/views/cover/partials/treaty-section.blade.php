@@ -13,7 +13,6 @@
                     </option>
                 @endforeach
             </select>
-            <small class="text-muted">Select the type of reinsurance treaty agreement</small>
         </div>
 
         {{-- Date Offered --}}
@@ -21,7 +20,6 @@
             <label class="form-label required">Date Offered</label>
             <input type="date" class="form-control required" id="date_offered" name="date_offered"
                 value="{{ isset($old_endt_trans) ? $old_endt_trans->date_offered : '' }}">
-            <small class="text-muted">Date when the treaty was offered to reinsurers</small>
         </div>
 
         {{-- Share Offered --}}
@@ -30,7 +28,6 @@
             <input type="number" class="form-control required" id="share_offered" name="share_offered" min="0"
                 max="100" step="0.01"
                 value="{{ isset($old_endt_trans) ? number_format($old_endt_trans->share_offered, 2) : '' }}">
-            <small class="text-muted">Percentage of risk offered (0-100)</small>
         </div>
 
         {{-- Territorial Scope --}}
@@ -49,7 +46,6 @@
                 <option value="Democratic Republic of Congo (DRC)">Democratic Republic of Congo (DRC)</option>
                 <option value="KENYA" selected>KENYA</option>
             </select>
-            <small class="text-muted">Geographic coverage area</small>
         </div>
 
         {{-- <div class="col-md-2">
@@ -74,7 +70,6 @@
                 <option value="FACULTATIVE OBLIGATORY">FACULTATIVE OBLIGATORY</option>
                 <option value="OBLIGATORY">OBLIGATORY</option>
             </select>
-            <small class="text-muted">How risks are accepted under treaty</small>
         </div> --}}
     </div>
 
@@ -85,7 +80,6 @@
             <input type="number" class="form-control required" id="treaty_brokerage_comm_rate"
                 name="treaty_brokerage_comm_rate" min="0" max="100" step="0.01"
                 value="{{ isset($old_endt_trans) ? number_format($old_endt_trans->brokerage_comm_rate, 2) : '' }}">
-            <small class="text-muted">Commission paid to brokers (0-100)</small>
         </div>
 
         {{-- Reinsurers Per Treaty --}}
@@ -102,7 +96,6 @@
                     Yes
                 </option>
             </select>
-            <small class="text-muted">Multiple reinsurers participating in treaty</small>
         </div>
     </div>
 </div>
@@ -110,11 +103,7 @@
 {{-- Proportional Treaty Section --}}
 <div id="treaty_proportional_section" style="display: none;">
     <hr class="my-4">
-    <h6 class="mb-0">Proportional Treaty Details</h6>
-    <p class="text-muted small mb-3">
-        Proportional treaties distribute premiums and claims proportionally. The reinsurer receives a percentage of
-        premiums and pays the same percentage of losses based on the agreed participation rate.
-    </p>
+    <h6 class="mb-2">Proportional Treaty Details</h6>
 
     <div class="row g-3">
         <div class="col-md-3">
@@ -140,8 +129,8 @@
 
         <div class="col-md-3">
             <label class="form-label required">Management Expense Rate (%)</label>
-            <input type="number" class="form-control required" id="mgnt_exp_rate" name="mgnt_exp_rate"
-                max="100" min="0"
+            <input type="number" class="form-control required" id="mgnt_exp_rate" name="mgnt_exp_rate" max="100"
+                min="0"
                 value="{{ isset($old_endt_trans) ? number_format($old_endt_trans->mgnt_exp_rate, 2) : '' }}">
         </div>
 
@@ -162,9 +151,6 @@
 <div id="treaty_nonproportional_section" style="display: none;">
     <hr class="my-4">
     <h6 class="mb-3">Non-Proportional Treaty Details</h6>
-    <p class="text-muted small mb-3">
-        Non-proportional treaties provide coverage above a retention limit, triggered when losses exceed threshold
-    </p>
 
     <div class="row g-3">
         {{-- Reinsurance Classes --}}
@@ -177,7 +163,6 @@
                     </option>
                 @endforeach
             </select>
-            <small class="text-muted">Select one or more classes covered by this treaty</small>
         </div>
 
         {{-- Method --}}
@@ -194,10 +179,6 @@
                     Flat Rate
                 </option>
             </select>
-            <small class="text-muted">
-                <strong>Burning Cost:</strong> Based on historical claims |
-                <strong>Flat Rate:</strong> Fixed premium rate
-            </small>
         </div>
     </div>
 
@@ -207,9 +188,6 @@
             <button type="button" class="btn btn-primary" id="add-layer-section">
                 <i class="bx bx-plus me-1"></i> Add Layer
             </button>
-            <small class="text-muted d-block mt-2">
-                Layers define coverage bands with specific retention and limit amounts
-            </small>
         </div>
     </div>
 

@@ -64,7 +64,6 @@
             <input type="hidden" id="vat_charged" name="vat_charged" value="0">
             <input type="hidden" name="risk_details" id="hidden_risk_details">
 
-
             <div class="card mb-3">
                 <div class="card-header d-flex align-items-center">
                     <i class="ri-file-text-line me-2 text-primary"></i>

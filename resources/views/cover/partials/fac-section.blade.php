@@ -1,8 +1,9 @@
 <div class="row g-3">
     <div class="col-md-3">
-        <label class="form-label">Class Group</label>
+        <label class="form-label required">Class Group</label>
         <div class="cover-card">
-            <select class="form-control select2" name="class_group" id="class_group">
+            <select class="form-control select2 @error('class_group') is-invalid @enderror" name="class_group"
+                id="class_group" required>
                 <option value="">Choose Class Group</option>
                 @foreach ($classGroups as $classGroup)
                     <option value="{{ $classGroup->group_code }}"
@@ -12,22 +13,29 @@
                 @endforeach
             </select>
         </div>
+        @error('class_group')
+            <div class="text-danger small">{{ $message }}</div>
+        @enderror
     </div>
 
     <div class="col-md-3">
-        <label class="form-label">Class Name</label>
-        <select class="form-control select2" name="classcode" id="classcode">
-            <option value="">Select Class Name</option>
-        </select>
+        <label class="form-label required">Class Name</label>
+        <div class="cover-card">
+            <select class="form-control select2 @error('classcode') is-invalid @enderror" name="classcode"
+                id="classcode" required>
+                <option value="">Select Class Name</option>
+            </select>
+        </div>
         @error('classcode')
-            <div class="text-danger">{{ $message }}</div>
+            <div class="text-danger small">{{ $message }}</div>
         @enderror
     </div>
 
     <div class="col-md-{{ isset($prospectId) && $prospectId ? '2' : '3' }}">
-        <label class="form-label">Insured Name</label>
+        <label class="form-label required">Insured Name</label>
         <div class="cover-card">
-            <select class="form-select select2" name="insured_name" id="insured_name">
+            <select class="form-select select2 @error('insured_name') is-invalid @enderror" name="insured_name"
+                id="insured_name" required>
                 <option value="">Select Option</option>
                 @foreach ($insured as $insured_name)
                     <option value="{{ $insured_name->name }}"
@@ -37,6 +45,9 @@
                 @endforeach
             </select>
         </div>
+        @error('insured_name')
+            <div class="text-danger small">{{ $message }}</div>
+        @enderror
         @if (isset($prospectId) && $prospectId)
             <small class="text-muted d-block mt-1">
                 Can't find the insurer?
@@ -48,17 +59,21 @@
     </div>
 
     <div class="col-md-3">
-        <label class="form-label">Date Offered</label>
-        <input type="date" class="form-control" id="fac_date_offered" name="fac_date_offered"
-            value="{{ isset($old_endt_trans) ? $old_endt_trans->date_offered : '' }}">
+        <label class="form-label required">Date Offered</label>
+        <input type="date" class="form-control @error('fac_date_offered') is-invalid @enderror" id="fac_date_offered"
+            name="fac_date_offered" value="{{ isset($old_endt_trans) ? $old_endt_trans->date_offered : '' }}" required>
+        @error('fac_date_offered')
+            <div class="text-danger small">{{ $message }}</div>
+        @enderror
     </div>
 </div>
 
 <div class="row g-3 mt-2">
     <div class="col-md-3">
-        <label class="form-label">Sum Insured Type</label>
+        <label class="form-label required">Sum Insured Type</label>
         <div class="cover-card">
-            <select class="form-control select2" name="sum_insured_type" id="sum_insured_type">
+            <select class="form-control select2 @error('sum_insured_type') is-invalid @enderror" name="sum_insured_type"
+                id="sum_insured_type" required>
                 <option value="">Choose Sum Insured Type</option>
                 @foreach ($types_of_sum_insured as $type_of_sum_insured)
                     <option value="{{ $type_of_sum_insured->sum_insured_code }}"
@@ -68,18 +83,26 @@
                 @endforeach
             </select>
         </div>
+        @error('sum_insured_type')
+            <div class="text-danger small">{{ $message }}</div>
+        @enderror
     </div>
 
     <div class="col-md-3">
-        <label class="form-label">100% Sum Insured <span id="sum_insured_label"></span></label>
-        <input type="text" class="form-control amount" id="total_sum_insured" name="total_sum_insured"
-            value="{{ isset($old_endt_trans) ? number_format($old_endt_trans->total_sum_insured, 2) : '' }}">
+        <label class="form-label required">100% Sum Insured <span id="sum_insured_label"></span></label>
+        <input type="text" class="form-control amount @error('total_sum_insured') is-invalid @enderror"
+            id="total_sum_insured" name="total_sum_insured"
+            value="{{ isset($old_endt_trans) ? number_format($old_endt_trans->total_sum_insured, 2) : '' }}" required>
+        @error('total_sum_insured')
+            <div class="text-danger small">{{ $message }}</div>
+        @enderror
     </div>
 
     <div class="col-md-2">
-        <label class="form-label">Apply EML</label>
+        <label class="form-label required">Apply EML</label>
         <div class="cover-card">
-            <select name="apply_eml" class="form-control select2" id="apply_eml">
+            <select name="apply_eml" class="form-control select2 @error('apply_eml') is-invalid @enderror"
+                id="apply_eml" required>
                 <option value="">Select Option</option>
                 <option value="Y"
                     {{ isset($old_endt_trans) && $old_endt_trans->apply_eml == 'Y' ? 'selected' : '' }}>
@@ -89,6 +112,9 @@
                     No</option>
             </select>
         </div>
+        @error('apply_eml')
+            <div class="text-danger small">{{ $message }}</div>
+        @enderror
     </div>
 
     <div class="col-md-2 eml-field" style="display: none;">
@@ -122,29 +148,44 @@
 
 <div class="row g-3 mt-2">
     <div class="col-md-3">
-        <label class="form-label">Cedant Premium</label>
-        <input type="text" class="form-control amount" id="cede_premium" name="cede_premium"
-            value="{{ isset($old_endt_trans) ? number_format($old_endt_trans->cedant_premium, 2) : '' }}">
+        <label class="form-label required">Cedant Premium</label>
+        <input type="text" class="form-control amount @error('cede_premium') is-invalid @enderror"
+            id="cede_premium" name="cede_premium"
+            value="{{ isset($old_endt_trans) ? number_format($old_endt_trans->cedant_premium, 2) : '' }}" required>
+        @error('cede_premium')
+            <div class="text-danger small">{{ $message }}</div>
+        @enderror
     </div>
 
     <div class="col-md-3">
-        <label class="form-label">Reinsurer Premium</label>
-        <input type="text" class="form-control amount" id="rein_premium" name="rein_premium"
-            value="{{ isset($old_endt_trans) ? number_format($old_endt_trans->rein_premium, 2) : '' }}">
+        <label class="form-label required">Reinsurer Premium</label>
+        <input type="text" class="form-control amount @error('rein_premium') is-invalid @enderror"
+            id="rein_premium" name="rein_premium"
+            value="{{ isset($old_endt_trans) ? number_format($old_endt_trans->rein_premium, 2) : '' }}" required>
+        @error('rein_premium')
+            <div class="text-danger small">{{ $message }}</div>
+        @enderror
     </div>
 
     <div class="col-md-3">
-        <label class="form-label">Share Offered (%)</label>
-        <input type="number" class="form-control" id="fac_share_offered" name="fac_share_offered" max="100"
-            min="0" value="{{ isset($old_endt_trans) ? $old_endt_trans->share_offered : '' }}">
+        <label class="form-label required">Share Offered (%)</label>
+        <input type="number" class="form-control @error('fac_share_offered') is-invalid @enderror"
+            id="fac_share_offered" name="fac_share_offered" max="100" min="0"
+            value="{{ isset($old_endt_trans) ? $old_endt_trans->share_offered : '' }}" required>
+        @error('fac_share_offered')
+            <div class="text-danger small">{{ $message }}</div>
+        @enderror
     </div>
 </div>
 
 <div class="row g-3 mt-2">
     <div class="col-md-3">
-        <label class="form-label">Cedant Comm Rate (%)</label>
-        <input type="text" class="form-control" id="comm_rate" name="comm_rate"
-            value="{{ isset($old_endt_trans) ? $old_endt_trans->cedant_comm_rate : '' }}">
+        <label class="form-label required">Cedant Comm Rate (%)</label>
+        <input type="text" class="form-control @error('comm_rate') is-invalid @enderror" id="comm_rate"
+            name="comm_rate" value="{{ isset($old_endt_trans) ? $old_endt_trans->cedant_comm_rate : '' }}" required>
+        @error('comm_rate')
+            <div class="text-danger small">{{ $message }}</div>
+        @enderror
     </div>
 
     <div class="col-md-3">
@@ -155,9 +196,10 @@
     </div>
 
     <div class="col-md-3">
-        <label class="form-label">Reinsurer Comm Type</label>
+        <label class="form-label required">Reinsurer Comm Type</label>
         <div class="cover-card">
-            <select class="form-control select2" name="reins_comm_type" id="reins_comm_type">
+            <select class="form-control select2 @error('reins_comm_type') is-invalid @enderror"
+                name="reins_comm_type" id="reins_comm_type" required>
                 <option value="">Choose Type</option>
                 <option value="R"
                     {{ isset($old_endt_trans) && $old_endt_trans->rein_comm_type == 'R' ? 'selected' : '' }}>Rate
@@ -167,6 +209,9 @@
                 </option>
             </select>
         </div>
+        @error('reins_comm_type')
+            <div class="text-danger small">{{ $message }}</div>
+        @enderror
     </div>
 
     <div class="col-md-3 reins-comm-rate-field" style="display: none;">
@@ -184,8 +229,9 @@
 
 <div class="row g-3 mt-2">
     <div class="col-md-3">
-        <label class="form-label">Brokerage Comm Type</label>
-        <select name="brokerage_comm_type" id="brokerage_comm_type" class="form-control select2">
+        <label class="form-label required">Brokerage Comm Type</label>
+        <select name="brokerage_comm_type" id="brokerage_comm_type"
+            class="form-control select2 @error('brokerage_comm_type') is-invalid @enderror" required>
             <option value="">Select Basis</option>
             <option value="R"
                 {{ isset($old_endt_trans) && $old_endt_trans->brokerage_comm_type == 'R' ? 'selected' : '' }}>
@@ -196,6 +242,9 @@
                 Quoted Amount
             </option>
         </select>
+        @error('brokerage_comm_type')
+            <div class="text-danger small">{{ $message }}</div>
+        @enderror
     </div>
 
     <div class="col-md-3 brokerage-rate-field" style="display: none;">

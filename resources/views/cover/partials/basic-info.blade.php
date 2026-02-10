@@ -13,7 +13,6 @@
                 @endforeach
             </select>
         </div>
-        <small class="text-muted">Category of insurance business being placed</small>
         @error('type_of_bus')
             <div class="text-danger small">{{ $message }}</div>
         @enderror
@@ -34,7 +33,6 @@
                 @endforeach
             </select>
         </div>
-        <small class="text-muted">Type of reinsurance coverage structure</small>
         @error('covertype')
             <div class="text-danger small">{{ $message }}</div>
         @enderror
@@ -52,7 +50,6 @@
                 @endif
             </select>
         </div>
-        <small class="text-muted">Master policy under which this cover falls</small>
     </div>
 
     <div class="col-md-2">
@@ -70,7 +67,6 @@
                 @endforeach
             </select>
         </div>
-        <small class="text-muted">Office branch handling this business</small>
         @error('branchcode')
             <div class="text-danger small">{{ $message }}</div>
         @enderror
@@ -91,14 +87,12 @@
                 </option>
             </select>
         </div>
-        <small class="text-muted">Is a broker involved in placing this business?</small>
     </div>
 
     <div class="col-md-2">
         <label class="form-label">Prospect Ref ID</label>
         <input type="text" name="prospect_id" id="prospect_id" class="form-control" placeholder="Enter Prospect ID"
             value="{{ $prospectId ?? '' }}">
-        <small class="text-muted">Reference ID for tracking prospect</small>
     </div>
 
     <div class="col-md-3" id="broker_section" style="display: none;">
@@ -114,7 +108,6 @@
                 @endforeach
             </select>
         </div>
-        <small class="text-muted">Broker representing the cedent in this transaction</small>
     </div>
 
     <div class="col-md-3">
@@ -130,6 +123,5 @@
                 @endforeach
             </select>
         </div>
-        <small class="text-muted">Business division managing this reinsurance</small>
     </div>
 </div>
