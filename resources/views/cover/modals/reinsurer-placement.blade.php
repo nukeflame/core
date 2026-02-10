@@ -25,9 +25,6 @@
                                     <button class="btn btn-success btn-sm" type="button" id="add-treaty-reinsurer">
                                         <i class="fa fa-plus-circle"></i> Add Treaty-Reinsurer Section
                                     </button>
-                                    <small class="text-muted ms-2">
-                                        Click to distribute risk across multiple treaties
-                                    </small>
                                 </div>
                             </div>
                         @endif

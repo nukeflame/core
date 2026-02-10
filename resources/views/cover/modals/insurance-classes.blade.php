@@ -18,14 +18,12 @@
                 </div>
 
                 <div class="modal-body">
-                    {{-- Treaty Information --}}
                     <div class="alert alert-info mb-3" role="alert">
                         <strong><i class="bx bx-info-circle me-2"></i>Treaty:</strong>
                         {{ $cover->cover_title ?? 'N/A' }}
                     </div>
 
                     <div class="row">
-                        {{-- Reinsurance Class Selection --}}
                         <div class="col-md-12 mb-3">
                             <label for="reinclass" class="form-label required">
                                 <i class="bx bx-category me-1"></i>Reinsurance Class
@@ -44,7 +42,6 @@
                             </small>
                         </div>
 
-                        {{-- Insurance Classes Selection (Multiple) --}}
                         <div class="col-md-12 mb-3">
                             <label for="insurance_class" class="form-label required">
                                 <i class="bx bx-list-ul me-1"></i>Insurance Classes
@@ -64,7 +61,6 @@
                             </small>
                         </div>
 
-                        {{-- Selected Classes Preview --}}
                         <div class="col-md-12 mb-3">
                             <div class="card bg-light">
                                 <div class="card-body py-2">

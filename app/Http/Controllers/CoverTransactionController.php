@@ -14,6 +14,7 @@ use App\Models\ReinclassPremtype;
 use App\Models\TreatyDocument;
 use App\Models\TreatyItemCode;
 use App\Models\CoverPremtype;
+use App\Models\TaxRate;
 use DB;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -101,6 +102,7 @@ class CoverTransactionController extends Controller
             'classGroups' => $classGroups,
             'businessClasses'=> $businessClasses,
             'treatyClasses' => $treatyClasses,
+            'taxRates' => TaxRate::getAllCurrentRates(),
         ]);
     }
 

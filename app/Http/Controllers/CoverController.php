@@ -52,6 +52,7 @@ use App\Models\ReinsClass;
 use App\Models\ReinsDivision;
 use App\Models\SystemProcessAction;
 use App\Models\SystemSerials;
+use App\Models\TaxRate;
 use App\Models\TreatyType;
 use App\Models\TypeOfSumInsured;
 use App\Models\User;
@@ -596,7 +597,8 @@ class CoverController extends Controller
         $cover = $this->coverRepository->processCoverHome($request);
 
         $summaryData = ['summaryData' => []];
-        $data = array_merge($summaryData, $cover);
+        $taxRates = ['taxRates' => TaxRate::getAllCurrentRates()];
+        $data = array_merge($summaryData, $taxRates, $cover);
 
         $isTreaty = in_array($cover['type_of_bus']['bus_type_id'], ['TPR', 'TNP']);
         if ($isTreaty) {
@@ -789,6 +791,12 @@ class CoverController extends Controller
                 'treaty.*.reinsurers.*.installments.*.number' => 'required_with:treaty.*.reinsurers.*.installments|integer',
                 'treaty.*.reinsurers.*.installments.*.due_date' => 'required_with:treaty.*.reinsurers.*.installments|date',
                 'treaty.*.reinsurers.*.installments.*.amount' => 'required_with:treaty.*.reinsurers.*.installments|numeric',
+                'treaty.*.reinsurers.*.net_of_tax' => 'nullable|integer',
+                'treaty.*.reinsurers.*.net_of_claims' => 'nullable|integer',
+                'treaty.*.reinsurers.*.net_of_commission' => 'nullable|integer',
+                'treaty.*.reinsurers.*.net_of_premium' => 'nullable|integer',
+                'treaty.*.reinsurers.*.premium_tax' => 'nullable|integer',
+                'treaty.*.reinsurers.*.net_withholding_tax' => 'nullable|integer',
             ];
 
             $messages = [
@@ -896,6 +904,13 @@ class CoverController extends Controller
                         // $coverRipart->optional_acceptance = $this->parseNumber($reinsurerData['optional_acceptance'] ?? 0);
                         // $coverRipart->total_acceptance = $this->parseNumber($reinsurerData['share'] ?? 0);
                         $coverRipart->net_amount = 0;
+
+                        $coverRipart->net_of_tax = $reinsurerData['net_of_tax'] ?? 0;
+                        $coverRipart->net_of_claims = $reinsurerData['net_of_claims'] ?? 0;
+                        $coverRipart->net_of_commission = $reinsurerData['net_of_commission'] ?? 0;
+                        $coverRipart->net_of_premium = $reinsurerData['net_of_premium'] ?? 0;
+                        $coverRipart->premium_tax = $reinsurerData['premium_tax'] ?? 0;
+                        $coverRipart->net_withholding_tax = $reinsurerData['net_withholding_tax'] ?? 0;
                     }
 
                     // Calculate net_amount for facultative business types
@@ -1072,7 +1087,9 @@ class CoverController extends Controller
                 }
             }
 
-            DB::commit();
+            logger()->debug(json_encode($request->all()));
+
+            // DB::commit();
 
             return response()->json([
                 'status' => Response::HTTP_CREATED,
@@ -1088,7 +1105,7 @@ class CoverController extends Controller
                 'message' => 'Validation failed',
                 'errors' => $e->errors(),
             ], Response::HTTP_UNPROCESSABLE_ENTITY);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             DB::rollback();
 
             return response()->json([
@@ -1605,8 +1622,8 @@ class CoverController extends Controller
 
             $this->createCustomerAccount($debitData, $cover);
 
-            $cover->commited = 'Y';
-            $cover->save();
+            // $cover->commited = 'Y';
+            // $cover->save();
 
             // DB::commit();
 
@@ -1654,9 +1671,8 @@ class CoverController extends Controller
         $cover->update();
 
         $debitNote = $this->debitNoteService->create($debitData, $cover);
-        $debit = $debitNote->fresh(['items']);
 
-        return $debit;
+        return $debitNote->fresh(['items']);
     }
 
     private function prepareCreditData(array $validatedData, CoverRegister $coverRegister): array
@@ -1878,7 +1894,7 @@ class CoverController extends Controller
         array $items,
         float $brokerageRate,
         float $premiumTaxRate = 0,
-        float $commissionRate = 0
+        float $commissionRate
     ): array {
         $expandedItems = [];
 
@@ -1888,6 +1904,7 @@ class CoverController extends Controller
             $ledger = $item['ledger'] ?? 'DR';
             $classGroup = $item['class_group'] ?? null;
             $className = $item['class_name'] ?? null;
+            $commissionRate = $item['line_rate'];
 
             if ($ledger === 'DR' && $amount > 0) {
                 $sharedAmount = $amount * ($lineRate / 100);
@@ -3681,7 +3698,7 @@ class CoverController extends Controller
             }
 
             if ($portfolio_type == 'OUT') {
-                $reinsurers = CoverRipart::where('endorsement_no', $base_cover->endorsement_no)->where('partner_no', $request->port_reinsurer)->get();
+                $reinsurers = CoverRipart::where('endorsement_no', $prevCover->endorsement_no)->where('partner_no', $request->port_reinsurer)->get();
 
                 foreach ($reinsurers as $ripart) {
                     $tran_no = (int) CoverRipart::withTrashed()->max('tran_no') + 1;
@@ -4427,6 +4444,12 @@ class CoverController extends Controller
                 'fronting_rate' => 0,
                 'fronting_amt' => 0,
                 'no_of_installments' => $cover->no_of_installments,
+                'net_of_tax' => $reinsurer->net_of_tax ?? 0,
+                'net_of_claims' => $reinsurer->net_of_claims ?? 0,
+                'net_of_commission' => $reinsurer->net_of_commission ?? 0,
+                'net_of_premium' => $reinsurer->net_of_premium ?? 0,
+                'premium_tax' => $reinsurer->premium_tax ?? 0,
+                'net_withholding_tax' => $reinsurer->net_withholding_tax ?? 0,
             ]);
 
             // if ($cover->installments && $cover->installments->count() > 0) {

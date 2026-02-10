@@ -4,7 +4,7 @@
     $dataCounter = $isTemplate ? 'COUNTER_PLACEHOLDER' : $counter;
 @endphp
 
-<div class="treaty-div-section mb-3 border border-dark rounded position-relative" id="{{ $sectionId }}"
+<div class="treaty-div-section mb-0 border rounded position-relative" id="{{ $sectionId }}"
     data-counter="{{ $dataCounter }}">
     @if (!$isTemplate && $counter > 0)
         <button type="button" class="btn btn-sm btn-danger position-absolute top-0 end-0 m-2 remove-treaty-section"
@@ -14,14 +14,13 @@
     @endif
 
     <div class="card mb-0 border-0">
-        <div class="card-header bg-dark bg-opacity-10">
+        <div class="card-header bg-dark bg-opacity-10 p-3">
             @if (in_array($cover->type_of_bus, ['TPR', 'TNP']))
-                <h6 class="mb-0 fs-14">
-
+                <h6 class="mb-0 fs-15">
                     <i class="bx bx-file"></i> Treaty Information
                 </h6>
             @else
-                <h6 class="mb-0 fs-14">
+                <h6 class="mb-0 fs-15">
                     <i class="bx bx-file"></i> Facultative Information
                 </h6>
             @endif
@@ -78,14 +77,7 @@
                         Undistributed (%)
                     </label>
                     <input type="number" step="0.01" name="treaty[{{ $dataCounter }}][rem_share]"
-                        id="rem_share-{{ $dataCounter }}" class="form-control rem-share treaties"
-                        :class="{
-                            'bg-danger text-white': value < 0,
-                            'bg-warning': value > 0,
-                            'bg-success text-white': value ==
-                                0
-                        }"
-                        readonly />
+                        id="rem_share-{{ $dataCounter }}" class="form-control rem-share treaties" readonly />
                 </div>
             </div>
 
@@ -135,7 +127,7 @@
 
     <div class="card m-0 p-0 rein-modal border-0">
         <div class="card-header border-0 bg-dark bg-opacity-10 d-flex justify-content-between align-items-center">
-            <h6 class="mb-0 fs-14">
+            <h6 class="mb-0 fs-15">
                 <i class="fas fa-users me-2"></i>Reinsurer Details
             </h6>
             <button type="button" class="btn btn-sm btn-success add-reinsurer-btn"
@@ -146,7 +138,6 @@
         <div class="card-body">
             <div id="reinsurer-div-{{ $dataCounter }}" class="reinsurer-container"
                 data-treaty-counter="{{ $dataCounter }}">
-                {{-- First reinsurer row --}}
                 @include('cover.modals.partials.reinsurer-row', [
                     'treatyCounter' => $dataCounter,
                     'counter' => 0,

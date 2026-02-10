@@ -1,5 +1,6 @@
 @php
     $isTemplate = $isTemplate ?? false;
+
     $rowId = $isTemplate
         ? 'reinsurer-div-TREATY_COUNTER_PLACEHOLDER-COUNTER_PLACEHOLDER'
         : "reinsurer-div-{$treatyCounter}-{$counter}";
@@ -14,24 +15,20 @@
 <div id="{{ $rowId }}" data-treaty-counter="{{ $treatyCounterValue }}" data-counter="{{ $counterValue }}"
     class="reinsurer-section mb-3 p-3 border rounded position-relative bg-light">
 
-    {{-- Remove Button --}}
-    @if ($isTemplate && $counter > 0)
+    @if ($isTemplate || $counter > 0)
         <button type="button"
             class="btn btn-sm btn-outline-danger position-absolute top-0 end-0 m-2 remove-reinsurer-btn"
-            data-treaty-counter="{{ $treatyCounter }}" data-counter="{{ $counter }}" title="Remove Reinsurer">
+            data-treaty-counter="{{ $treatyCounterValue }}" data-counter="{{ $counterValue }}" title="Remove Reinsurer">
             <i class="bx bx-trash"></i>
         </button>
     @endif
 
-    {{-- Section Header --}}
     <h6 class="mb-3 text-primary fs-14">
         <i class="bx bx-building me-1"></i>
-        Reinsurer #<span class="reinsurer-number">{{ $reinsurerNumber }}</span>
+        Reinsurer # <span class="reinsurer-number">{{ $reinsurerNumber }}</span>
     </h6>
 
-    {{-- Basic Information Row --}}
     <div class="row">
-        {{-- Reinsurer Selection --}}
         <div class="col-md-6">
             <label for="reinsurer-{{ $treatyCounterValue }}-{{ $counterValue }}" class="form-label required">
                 Reinsurer
@@ -75,50 +72,21 @@
                 data-treaty-counter="{{ $treatyCounterValue }}" data-counter="{{ $counterValue }}" required />
         </div>
 
-        @if ($isTreaty)
-            {{-- Net/Gross Toggle --}}
-            <div class="col-md-2">
-                <label class="form-label required">Premium Type</label>
-                <div class="btn-group d-flex" role="group">
-                    <input type="radio" class="btn-check"
-                        name="treaty[{{ $treatyCounterValue }}][reinsurers][{{ $counterValue }}][amount_type]"
-                        id="amount_type_net-{{ $treatyCounterValue }}-{{ $counterValue }}" value="net"
-                        data-treaty-counter="{{ $treatyCounterValue }}" data-counter="{{ $counterValue }}">
-                    <label class="btn btn-outline-primary"
-                        for="amount_type_net-{{ $treatyCounterValue }}-{{ $counterValue }}">
-                        Net
-                    </label>
-
-                    <input type="radio" class="btn-check"
-                        name="treaty[{{ $treatyCounterValue }}][reinsurers][{{ $counterValue }}][amount_type]"
-                        id="amount_type_gross-{{ $treatyCounterValue }}-{{ $counterValue }}" value="gross"
-                        data-treaty-counter="{{ $treatyCounterValue }}" data-counter="{{ $counterValue }}" checked>
-                    <label class="btn btn-outline-primary"
-                        for="amount_type_gross-{{ $treatyCounterValue }}-{{ $counterValue }}">
-                        Gross
-                    </label>
-                </div>
-            </div>
-        @endif
-
-        {{-- WHT Rate --}}
         <div class="col-md-2">
             <label for="wht_rate-{{ $treatyCounterValue }}-{{ $counterValue }}" class="form-label required">
                 WHT Rate (%)
             </label>
-            <div class="cover-card">
-                <select name="treaty[{{ $treatyCounterValue }}][reinsurers][{{ $counterValue }}][wht_rate]"
-                    id="wht_rate-{{ $treatyCounterValue }}-{{ $counterValue }}"
-                    class="select2Placement reinsurer-wht reinsurers" data-treaty-counter="{{ $treatyCounterValue }}"
-                    data-counter="{{ $counterValue }}" required>
-                    <option value="">--Select WHT--</option>
-                    @foreach ($whtRates as $whtRate)
-                        <option value="{{ $whtRate->rate }}" {{ $whtRate->rate == 0 ? 'selected' : '' }}>
-                            {{ $whtRate->description }}
-                        </option>
-                    @endforeach
-                </select>
-            </div>
+            <select name="treaty[{{ $treatyCounterValue }}][reinsurers][{{ $counterValue }}][wht_rate]"
+                id="wht_rate-{{ $treatyCounterValue }}-{{ $counterValue }}"
+                class="select2Placement reinsurer-wht reinsurers" data-treaty-counter="{{ $treatyCounterValue }}"
+                data-counter="{{ $counterValue }}" required>
+                <option value="">--Select WHT--</option>
+                @foreach ($whtRates as $whtRate)
+                    <option value="{{ $whtRate->rate }}" {{ $whtRate->rate == 0 ? 'selected' : '' }}>
+                        {{ $whtRate->description }}
+                    </option>
+                @endforeach
+            </select>
         </div>
 
         @if ($isFacultative)
@@ -135,29 +103,161 @@
             </div>
         @endif
     </div>
-    {{--
+
     @if ($isTreaty)
         <div class="row mt-3">
             <div class="col-md-3">
-                <label for="share-{{ $treatyCounterValue }}-{{ $counterValue }}" class="form-label required">
-                    Signed Lines (%)
+                <label for="compulsory_acceptance-{{ $treatyCounterValue }}-{{ $counterValue }}"
+                    class="form-label required">
+                    Compulsory Acceptance (%)
+                </label>
+                <input type="number" step="0.01" min="0" max="100"
+                    name="treaty[{{ $treatyCounterValue }}][reinsurers][{{ $counterValue }}][compulsory_acceptance]"
+                    id="compulsory_acceptance-{{ $treatyCounterValue }}-{{ $counterValue }}"
+                    class="form-control reinsurer-compulsory-acceptance reinsurers color-blk"
+                    data-treaty-counter="{{ $treatyCounterValue }}" data-counter="{{ $counterValue }}"
+                    data-calculation-field="treaty-share" required />
+            </div>
+
+            <div class="col-md-3">
+                <label for="optional_acceptance-{{ $treatyCounterValue }}-{{ $counterValue }}" class="form-label">
+                    Optional Acceptance (%)
+                </label>
+                <input type="number" step="0.01" min="0" max="100"
+                    name="treaty[{{ $treatyCounterValue }}][reinsurers][{{ $counterValue }}][optional_acceptance]"
+                    id="optional_acceptance-{{ $treatyCounterValue }}-{{ $counterValue }}"
+                    class="form-control reinsurer-optional-acceptance reinsurers color-blk"
+                    data-treaty-counter="{{ $treatyCounterValue }}" data-counter="{{ $counterValue }}"
+                    data-calculation-field="treaty-share" />
+            </div>
+
+            <div class="col-md-3">
+                <label for="total_acceptance-{{ $treatyCounterValue }}-{{ $counterValue }}" class="form-label">
+                    Total Acceptance (%)
                 </label>
                 <input type="number" step="0.01" min="0" max="100"
                     name="treaty[{{ $treatyCounterValue }}][reinsurers][{{ $counterValue }}][share]"
-                    id="share-{{ $treatyCounterValue }}-{{ $counterValue }}"
-                    class="form-control reinsurer-share reinsurers color-blk"
-                    data-treaty-counter="{{ $treatyCounterValue }}" data-counter="{{ $counterValue }}" required />
-                <div class="invalid-feedback">Signed lines cannot exceed written lines</div>
+                    id="total_acceptance-{{ $treatyCounterValue }}-{{ $counterValue }}"
+                    class="form-control reinsurer-total-acceptance reinsurers color-blk bg-light"
+                    data-treaty-counter="{{ $treatyCounterValue }}" data-counter="{{ $counterValue }}"
+                    data-calculation-field="treaty-share-total" readonly />
+                <div class="invalid-feedback">Total acceptance cannot exceed written lines</div>
+            </div>
+
+            <div class="col-md-3">
+                <label for="reins_pay_method-{{ $treatyCounterValue }}-{{ $counterValue }}"
+                    class="form-label required">
+                    Payment Method
+                </label>
+                <div class="cover-card">
+                    <select class="select2Placement reins-pay-method reinsurers"
+                        name="treaty[{{ $treatyCounterValue }}][reinsurers][{{ $counterValue }}][pay_method]"
+                        id="reins_pay_method-{{ $treatyCounterValue }}-{{ $counterValue }}"
+                        data-treaty-counter="{{ $treatyCounterValue }}" data-counter="{{ $counterValue }}" required>
+                        <option value="">--Select Payment Method--</option>
+                        @foreach ($paymethods as $pay_method)
+                            <option value="{{ $pay_method->pay_method_code }}"
+                                data-pay-method-desc="{{ $pay_method->short_description }}">
+                                {{ $pay_method->pay_method_name }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
             </div>
         </div>
-    @endif --}}
+        <div class="row">
+            <div class="col-md-6">
+                <div class="row mt-3">
+                    <div class="col-md-12">
+                        <label class="form-label fw-semibold">Brokerage Calculation Basis</label>
+                        <div class="d-flex flex-wrap gap-3">
+                            <div class="form-check form-check-lg custom-checkbox">
+                                <input class="form-check-input reinsurer-calc-option" type="checkbox"
+                                    name="treaty[{{ $treatyCounterValue }}][reinsurers][{{ $counterValue }}][net_of_tax]"
+                                    id="net_of_tax-{{ $treatyCounterValue }}-{{ $counterValue }}"
+                                    data-treaty-counter="{{ $treatyCounterValue }}"
+                                    data-counter="{{ $counterValue }}" value="1">
+                                <label class="form-check-label"
+                                    for="net_of_tax-{{ $treatyCounterValue }}-{{ $counterValue }}">
+                                    Net of Tax
+                                </label>
+                            </div>
+                            <div class="form-check form-check-lg custom-checkbox">
+                                <input class="form-check-input reinsurer-calc-option" type="checkbox"
+                                    name="treaty[{{ $treatyCounterValue }}][reinsurers][{{ $counterValue }}][net_of_claims]"
+                                    id="net_of_claims-{{ $treatyCounterValue }}-{{ $counterValue }}"
+                                    data-treaty-counter="{{ $treatyCounterValue }}"
+                                    data-counter="{{ $counterValue }}" value="1">
+                                <label class="form-check-label"
+                                    for="net_of_claims-{{ $treatyCounterValue }}-{{ $counterValue }}">
+                                    Net of Claims
+                                </label>
+                            </div>
+                            <div class="form-check form-check-lg custom-checkbox">
+                                <input class="form-check-input reinsurer-calc-option" type="checkbox"
+                                    name="treaty[{{ $treatyCounterValue }}][reinsurers][{{ $counterValue }}][net_of_commission]"
+                                    id="net_of_commission-{{ $treatyCounterValue }}-{{ $counterValue }}"
+                                    data-treaty-counter="{{ $treatyCounterValue }}"
+                                    data-counter="{{ $counterValue }}" value="1">
+                                <label class="form-check-label"
+                                    for="net_of_commission-{{ $treatyCounterValue }}-{{ $counterValue }}">
+                                    Net of Commission
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="row mt-2">
+                    <div class="col-md-12">
+                        <label class="form-label fw-semibold">Commission Calculation Basis</label>
+                        <div class="d-flex flex-wrap gap-3">
+                            <div class="form-check form-check-lg custom-checkbox">
+                                <input class="form-check-input reinsurer-calc-option" type="checkbox"
+                                    name="treaty[{{ $treatyCounterValue }}][reinsurers][{{ $counterValue }}][net_of_premium]"
+                                    id="net_of_premium-{{ $treatyCounterValue }}-{{ $counterValue }}"
+                                    data-treaty-counter="{{ $treatyCounterValue }}"
+                                    data-counter="{{ $counterValue }}" value="1">
+                                <label class="form-check-label"
+                                    for="net_of_premium-{{ $treatyCounterValue }}-{{ $counterValue }}">
+                                    Net Premium
+                                </label>
+                            </div>
+                            <div class="form-check form-check-lg custom-checkbox">
+                                <input class="form-check-input reinsurer-calc-option" type="checkbox"
+                                    name="treaty[{{ $treatyCounterValue }}][reinsurers][{{ $counterValue }}][premium_tax]"
+                                    id="premium_tax-{{ $treatyCounterValue }}-{{ $counterValue }}"
+                                    data-treaty-counter="{{ $treatyCounterValue }}"
+                                    data-counter="{{ $counterValue }}" value="1">
+                                <label class="form-check-label"
+                                    for="premium_tax-{{ $treatyCounterValue }}-{{ $counterValue }}">
+                                    Net Reinsurance Tax
+                                </label>
+                            </div>
+                            <div class="form-check form-check-lg custom-checkbox">
+                                <input class="form-check-input reinsurer-calc-option" type="checkbox"
+                                    name="treaty[{{ $treatyCounterValue }}][reinsurers][{{ $counterValue }}][net_withholding_tax]"
+                                    id="net_withholding_tax-{{ $treatyCounterValue }}-{{ $counterValue }}"
+                                    data-treaty-counter="{{ $treatyCounterValue }}"
+                                    data-counter="{{ $counterValue }}" value="1">
+                                <label class="form-check-label"
+                                    for="net_withholding_tax-{{ $treatyCounterValue }}-{{ $counterValue }}">
+                                    Net of Withholding Tax
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
 
-    {{-- FACULTATIVE BUSINESS FIELDS --}}
     @if ($isFacultative)
-        {{-- Premium and Commission Row --}}
         <div class="row mt-3">
             <div class="col-md-3">
-                <label for="reinsurer-sum_insured-{{ $treatyCounterValue }}-{{ $counterValue }}" class="form-label">
+                <label for="reinsurer-sum_insured-{{ $treatyCounterValue }}-{{ $counterValue }}"
+                    class="form-label">
                     Sum Insured
                 </label>
                 <input type="text"
@@ -203,30 +303,27 @@
             </div>
         </div>
 
-        {{-- Brokerage Commission Row --}}
         <div class="row mt-3">
             <div class="col-md-3">
                 <label class="form-label" for="brokerage_comm_type-{{ $treatyCounterValue }}-{{ $counterValue }}">
                     Brokerage Commission Type
                 </label>
-                <div class="cover-card">
-                    <select
-                        name="treaty[{{ $treatyCounterValue }}][reinsurers][{{ $counterValue }}][brokerage_comm_type]"
-                        id="brokerage_comm_type-{{ $treatyCounterValue }}-{{ $counterValue }}"
-                        class="select2Placement brokerage-comm-type reinsurers"
-                        data-treaty-counter="{{ $treatyCounterValue }}" data-counter="{{ $counterValue }}"
-                        @if ($cover->type_of_bus != 'NEW') required @endif>
-                        <option value="" @if (!$isTemplate && $cover->type_of_bus != 'NEW' && $cover->brokerage_comm_type == '') selected @endif>
-                            --Select basis--
-                        </option>
-                        <option value="R" @if (!$isTemplate && $cover->type_of_bus != 'NEW' && $cover->brokerage_comm_type == 'R') selected @endif>
-                            Rate
-                        </option>
-                        <option value="A" @if (!$isTemplate && $cover->type_of_bus != 'NEW' && $cover->brokerage_comm_type == 'A') selected @endif>
-                            Quoted Amount
-                        </option>
-                    </select>
-                </div>
+                <select
+                    name="treaty[{{ $treatyCounterValue }}][reinsurers][{{ $counterValue }}][brokerage_comm_type]"
+                    id="brokerage_comm_type-{{ $treatyCounterValue }}-{{ $counterValue }}"
+                    class="select2Placement brokerage-comm-type reinsurers"
+                    data-treaty-counter="{{ $treatyCounterValue }}" data-counter="{{ $counterValue }}"
+                    @if ($cover->type_of_bus != 'NEW') required @endif>
+                    <option value="" @if (!$isTemplate && $cover->type_of_bus != 'NEW' && $cover->brokerage_comm_type == '') selected @endif>
+                        --Select Basis--
+                    </option>
+                    <option value="R" @if (!$isTemplate && $cover->type_of_bus != 'NEW' && $cover->brokerage_comm_type == 'R') selected @endif>
+                        Rate
+                    </option>
+                    <option value="A" @if (!$isTemplate && $cover->type_of_bus != 'NEW' && $cover->brokerage_comm_type == 'A') selected @endif>
+                        Quoted Amount
+                    </option>
+                </select>
             </div>
 
             <div class="col-md-3 brokerage_comm_amt_div">
@@ -264,22 +361,19 @@
             </div>
         </div>
 
-        {{-- Retro Fee Row --}}
         <div class="row mt-3">
             <div class="col-md-3">
                 <label for="apply_fronting-{{ $treatyCounterValue }}-{{ $counterValue }}" class="form-label">
                     Apply Retro Fee
                 </label>
-                <div class="reinsurer-card">
-                    <select class="select2Placement apply-fronting reinsurers"
-                        name="treaty[{{ $treatyCounterValue }}][reinsurers][{{ $counterValue }}][apply_fronting]"
-                        id="apply_fronting-{{ $treatyCounterValue }}-{{ $counterValue }}"
-                        data-treaty-counter="{{ $treatyCounterValue }}" data-counter="{{ $counterValue }}">
-                        <option value="">--Select option--</option>
-                        <option value="Y">Yes</option>
-                        <option value="N" selected>No</option>
-                    </select>
-                </div>
+                <select class="select2Placement apply-fronting reinsurers"
+                    name="treaty[{{ $treatyCounterValue }}][reinsurers][{{ $counterValue }}][apply_fronting]"
+                    id="apply_fronting-{{ $treatyCounterValue }}-{{ $counterValue }}"
+                    data-treaty-counter="{{ $treatyCounterValue }}" data-counter="{{ $counterValue }}">
+                    <option value="">--Select Option--</option>
+                    <option value="Y">Yes</option>
+                    <option value="N" selected>No</option>
+                </select>
             </div>
 
             <div class="col-md-3 fronting_div" style="display: none;"
@@ -310,7 +404,6 @@
             </div>
         </div>
 
-        {{-- Payment Method Row --}}
         <div class="row mt-3">
             <div class="col-md-3">
                 <label for="reins_pay_method-{{ $treatyCounterValue }}-{{ $counterValue }}"
@@ -321,7 +414,7 @@
                     name="treaty[{{ $treatyCounterValue }}][reinsurers][{{ $counterValue }}][pay_method]"
                     id="reins_pay_method-{{ $treatyCounterValue }}-{{ $counterValue }}"
                     data-treaty-counter="{{ $treatyCounterValue }}" data-counter="{{ $counterValue }}" required>
-                    <option value="">Choose Payment Method</option>
+                    <option value="">--Select Payment Method--</option>
                     @foreach ($paymethods as $pay_method)
                         <option value="{{ $pay_method->pay_method_code }}"
                             data-pay-method-desc="{{ $pay_method->short_description }}">
@@ -353,7 +446,6 @@
             </div>
         </div>
 
-        {{-- Installments Schedule --}}
         <div class="row mt-3 installments-box" style="display: none">
             <div class="col-md-12">
                 <div class="card">
@@ -367,75 +459,6 @@
                             data-counter="{{ $counterValue }}">
                         </div>
                     </div>
-                </div>
-            </div>
-        </div>
-    @endif
-
-    {{-- TREATY BUSINESS FIELDS --}}
-    @if ($isTreaty)
-        {{-- Acceptance and Payment Row --}}
-        <div class="row mt-3">
-            <div class="col-md-3">
-                <label for="compulsory_acceptance-{{ $treatyCounterValue }}-{{ $counterValue }}"
-                    class="form-label required">
-                    Compulsory Acceptance (%)
-                </label>
-                <input type="number" step="0.01" min="0" max="100"
-                    name="treaty[{{ $treatyCounterValue }}][reinsurers][{{ $counterValue }}][compulsory_acceptance]"
-                    id="compulsory_acceptance-{{ $treatyCounterValue }}-{{ $counterValue }}"
-                    class="form-control reinsurer-compulsory-acceptance reinsurers color-blk"
-                    data-treaty-counter="{{ $treatyCounterValue }}" data-counter="{{ $counterValue }}"
-                    data-calculation-field="treaty-share" required />
-                <small class="form-text text-muted">Mandatory share under treaty terms</small>
-            </div>
-
-            <div class="col-md-3">
-                <label for="optional_acceptance-{{ $treatyCounterValue }}-{{ $counterValue }}" class="form-label">
-                    Optional Acceptance (%)
-                </label>
-                <input type="number" step="0.01" min="0" max="100"
-                    name="treaty[{{ $treatyCounterValue }}][reinsurers][{{ $counterValue }}][optional_acceptance]"
-                    id="optional_acceptance-{{ $treatyCounterValue }}-{{ $counterValue }}"
-                    class="form-control reinsurer-optional-acceptance reinsurers color-blk"
-                    data-treaty-counter="{{ $treatyCounterValue }}" data-counter="{{ $counterValue }}"
-                    data-calculation-field="treaty-share" />
-                <small class="form-text text-muted">Additional voluntary share</small>
-            </div>
-
-            <div class="col-md-3">
-                <label for="total_acceptance-{{ $treatyCounterValue }}-{{ $counterValue }}" class="form-label">
-                    Total Acceptance (%)
-                </label>
-                <input type="number" step="0.01" min="0" max="100"
-                    name="treaty[{{ $treatyCounterValue }}][reinsurers][{{ $counterValue }}][share]"
-                    id="total_acceptance-{{ $treatyCounterValue }}-{{ $counterValue }}"
-                    class="form-control reinsurer-total-acceptance reinsurers color-blk bg-light"
-                    data-treaty-counter="{{ $treatyCounterValue }}" data-counter="{{ $counterValue }}"
-                    data-calculation-field="treaty-share-total" readonly />
-                <small class="form-text text-muted">Auto-calculated: Compulsory + Optional</small>
-                <div class="invalid-feedback">Total acceptance cannot exceed written lines</div>
-            </div>
-
-            <div class="col-md-3">
-                <label for="reins_pay_method-{{ $treatyCounterValue }}-{{ $counterValue }}"
-                    class="form-label required">
-                    Payment Method
-                </label>
-                <div class="cover-card">
-                    <select class="select2Placement reins-pay-method reinsurers"
-                        name="treaty[{{ $treatyCounterValue }}][reinsurers][{{ $counterValue }}][pay_method]"
-                        id="reins_pay_method-{{ $treatyCounterValue }}-{{ $counterValue }}"
-                        data-treaty-counter="{{ $treatyCounterValue }}" data-counter="{{ $counterValue }}"
-                        required>
-                        <option value="">Choose Payment Method</option>
-                        @foreach ($paymethods as $pay_method)
-                            <option value="{{ $pay_method->pay_method_code }}"
-                                data-pay-method-desc="{{ $pay_method->short_description }}">
-                                {{ $pay_method->pay_method_name }}
-                            </option>
-                        @endforeach
-                    </select>
                 </div>
             </div>
         </div>

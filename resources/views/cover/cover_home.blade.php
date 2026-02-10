@@ -156,6 +156,7 @@
         'nextInstallment' => $nextInstallment,
         'installmentAmount' => $installmentAmount,
         'treatyClasses' => $treatyClasses,
+        'taxRates' => $taxRates,
     ])
 
     @include('cover.modals.fac-debit', [

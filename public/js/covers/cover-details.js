@@ -336,7 +336,23 @@
             };
         }
 
-        calculateCommissionAmount(premium, rate) {
+        calculateCommissionAmount(premium, rate, options = {}) {
+            let p = Utils.removeCommas(premium);
+            const r = Utils.removeCommas(rate);
+
+            if (options.premium_tax) {
+                const tax = Utils.removeCommas(options.tax_amt || 0);
+                p -= tax;
+            }
+            if (options.net_withholding_tax) {
+                const wht = Utils.removeCommas(options.wht_amt || 0);
+                p -= wht;
+            }
+
+            return Utils.toDecimal((p * r) / CONFIG.PERCENTAGE_MULTIPLIER);
+        }
+
+        calculateWHTAmount(premium, rate) {
             const p = Utils.removeCommas(premium);
             const r = Utils.removeCommas(rate);
             return Utils.toDecimal((p * r) / CONFIG.PERCENTAGE_MULTIPLIER);
@@ -350,9 +366,27 @@
                 : 0;
         }
 
-        calculateBrokerageCommission(premium, brokerageType, quotedAmount = 0) {
+        calculateBrokerageCommission(
+            premium,
+            brokerageType,
+            quotedAmount = 0,
+            options = {},
+        ) {
             const { cedant_comm_rate, rein_comm_rate } = this.coverData;
-            const p = Utils.removeCommas(premium);
+            let p = Utils.removeCommas(premium);
+
+            if (options.net_of_tax) {
+                const tax = Utils.removeCommas(options.tax_amt || 0);
+                p -= tax;
+            }
+            if (options.net_of_commission) {
+                const comm = Utils.removeCommas(options.comm_amt || 0);
+                p -= comm;
+            }
+            if (options.net_of_claims) {
+                const claims = Utils.removeCommas(options.claims_amt || 0);
+                p -= claims;
+            }
 
             if (brokerageType === "A") {
                 const amount = Utils.removeCommas(quotedAmount);
@@ -375,6 +409,25 @@
                 rate: Utils.toDecimal(brokerageRate),
                 amount: Utils.toDecimal(brokerageAmount),
             };
+        }
+
+        calculateAdjustedBrokerage(premium, rate, options = {}) {
+            let adjustedPremium = Utils.removeCommas(premium);
+
+            if (options.net_of_tax) {
+                // Assuming net of tax means deducting WHT/Tax from premium before applying rate
+                // I need to fetch the WHT amount if possible, but for now I'll use a placeholder logic
+                // if we don't have the exact WHT amount here.
+            }
+
+            if (options.net_of_commission) {
+                // Deduct commission from premium
+            }
+
+            const amount =
+                (Utils.removeCommas(rate) / CONFIG.PERCENTAGE_MULTIPLIER) *
+                adjustedPremium;
+            return Utils.toDecimal(amount);
         }
 
         calculateRetroAmount(premium, rate) {
@@ -605,9 +658,9 @@
                 },
             );
 
-            const offered = Utils.getElementValue(
-                `#share_offered-${treatyCounter}`,
-            );
+            const offered =
+                Utils.getElementValue(`#share_offered-${treatyCounter}`) ||
+                this.calc.coverData.share_offered;
             const remaining = offered - totalDistributed;
 
             $(`#distributed_share-${treatyCounter}`).val(
@@ -634,9 +687,6 @@
             }
         }
 
-        /**
-         * Handle share input changes
-         */
         handleShareInput(treatyCounter, counter) {
             const $shareInput = $(`#share-${treatyCounter}-${counter}`);
             const sharePercentage = Utils.clampNumber(
@@ -660,9 +710,6 @@
             this.calculate(treatyCounter);
         }
 
-        /**
-         * Update share-related fields
-         */
         updateShareFields(treatyCounter, counter, amounts, commRate) {
             const prefix = `#reinsurer`;
             const suffix = `-${treatyCounter}-${counter}`;
@@ -734,7 +781,6 @@
                 `${Math.abs(Utils.toDecimal(remaining))}%`,
             );
 
-            // Update progress bar
             $("#distribution-progress-bar")
                 .css("width", `${percentage}%`)
                 .attr("aria-valuenow", percentage)
@@ -786,9 +832,6 @@
             this.calc = calculationService;
         }
 
-        /**
-         * Handle brokerage type change
-         */
         handleTypeChange(treatyCounter, counter) {
             const $section = $(`#reinsurer-div-${treatyCounter}-${counter}`);
             const type = $section.find(".brokerage-comm-type").val();
@@ -806,7 +849,6 @@
                 `#reinsurer-brokerage_comm_amt-${treatyCounter}-${counter}`,
             );
 
-            // Reset and show/hide based on type
             if (type === "A") {
                 $amountDiv.show();
                 $rateDiv.hide();
@@ -827,9 +869,6 @@
             }
         }
 
-        /**
-         * Calculate brokerage commission
-         */
         calculate(treatyCounter, counter) {
             const $section = $(`#reinsurer-div-${treatyCounter}-${counter}`);
             const type = $section.find(".brokerage-comm-type").val();
@@ -839,6 +878,25 @@
 
             let brokerage;
 
+            const whtRate =
+                $section.find('select[name*="[wht_rate]"]').val() || 0;
+            const whtAmt = this.calc.calculateWHTAmount(premium, whtRate);
+
+            const options = {
+                net_of_tax: $section
+                    .find('input[name*="[net_of_tax]"]')
+                    .is(":checked"),
+                net_of_claims: $section
+                    .find('input[name*="[net_of_claims]"]')
+                    .is(":checked"),
+                net_of_commission: $section
+                    .find('input[name*="[net_of_commission]"]')
+                    .is(":checked"),
+                comm_amt: $section.find('input[name*="[comm_amt]"]').val() || 0,
+                tax_amt: whtAmt,
+                claims_amt: 0,
+            };
+
             if (type === "A") {
                 const quotedAmount = Utils.getElementValue(
                     `#reinsurer-brokerage_comm_amt-${treatyCounter}-${counter}`,
@@ -847,11 +905,14 @@
                     premium,
                     "A",
                     quotedAmount,
+                    options,
                 );
             } else if (type === "R") {
                 brokerage = this.calc.calculateBrokerageCommission(
                     premium,
                     "R",
+                    0,
+                    options,
                 );
             } else {
                 return;
@@ -871,9 +932,6 @@
             this.calc = calculationService;
         }
 
-        /**
-         * Handle retro/fronting fee toggle
-         */
         handleToggle(treatyCounter, counter) {
             const $section = $(`#reinsurer-div-${treatyCounter}-${counter}`);
             const applyRetro = $section.find(".apply-fronting").val();
@@ -902,9 +960,6 @@
             }
         }
 
-        /**
-         * Calculate retro amount from rate
-         */
         calculateAmount(treatyCounter, counter) {
             const rate = Utils.getElementValue(
                 `#reinsurer-fronting_rate-${treatyCounter}-${counter}`,
@@ -918,9 +973,6 @@
             );
         }
 
-        /**
-         * Calculate retro rate from amount
-         */
         calculateRate(treatyCounter, counter) {
             const amount = Utils.getElementValue(
                 `#reinsurer-fronting_amt-${treatyCounter}-${counter}`,
@@ -941,13 +993,34 @@
         }
 
         calculate(treatyCounter, counter) {
+            const $section = $(`#reinsurer-div-${treatyCounter}-${counter}`);
             const premium = Utils.getElementValue(
                 `#reinsurer-premium-${treatyCounter}-${counter}`,
             );
             const rate = Utils.getElementValue(
                 `#reinsurer-comm_rate-${treatyCounter}-${counter}`,
             );
-            const amount = this.calc.calculateCommissionAmount(premium, rate);
+
+            const whtRate =
+                $section.find('select[name*="[wht_rate]"]').val() || 0;
+            const whtAmt = this.calc.calculateWHTAmount(premium, whtRate);
+
+            const options = {
+                premium_tax: $section
+                    .find('input[name*="[premium_tax]"]')
+                    .is(":checked"),
+                net_withholding_tax: $section
+                    .find('input[name*="[net_withholding_tax]"]')
+                    .is(":checked"),
+                tax_amt: 0,
+                wht_amt: whtAmt,
+            };
+
+            const amount = this.calc.calculateCommissionAmount(
+                premium,
+                rate,
+                options,
+            );
             $(`#reinsurer-comm_amt-${treatyCounter}-${counter}`).val(
                 Utils.formatNumber(amount),
             );
@@ -980,7 +1053,6 @@
                 `#reinsurer-premium-${treatyCounter}-${counter}`,
             );
 
-            // Validate
             if (
                 numInstallments < CONFIG.MIN_INSTALLMENTS ||
                 numInstallments > CONFIG.MAX_INSTALLMENTS
@@ -1145,25 +1217,22 @@
                 reverseButtons: true,
             }).then((result) => {
                 if (result.isConfirmed) {
-                    $(`#reinsurer-div-${treatyCounter}-${counter}`).fadeOut(
-                        CONFIG.ANIMATION_DURATION,
-                        () => {
-                            $(this).remove();
-                            this.updateNumbers(treatyCounter);
-                            this.filterSelected(treatyCounter);
-                            // Trigger distribution recalculation
-                            $(document).trigger("reinsurer:removed", [
-                                treatyCounter,
-                            ]);
-                        },
+                    const $row = $(
+                        `#reinsurer-div-${treatyCounter}-${counter}`,
                     );
+                    $row.fadeOut(CONFIG.ANIMATION_DURATION, () => {
+                        $row.remove();
+                        this.updateNumbers(treatyCounter);
+                        this.filterSelected(treatyCounter);
+                        // Trigger distribution recalculation
+                        $(document).trigger("reinsurer:removed", [
+                            treatyCounter,
+                        ]);
+                    });
                 }
             });
         }
 
-        /**
-         * Update reinsurer numbers
-         */
         updateNumbers(treatyCounter) {
             $(
                 `#reinsurer-div-${treatyCounter} ${SELECTORS.REINSURER_SECTION}`,
@@ -1174,9 +1243,6 @@
             });
         }
 
-        /**
-         * Filter out already selected reinsurers
-         */
         filterSelected(treatyCounter) {
             const selected = this.getSelected(treatyCounter);
 
@@ -1184,7 +1250,6 @@
                 const $select = $(this);
                 const currentValue = $select.val();
 
-                // Store original options if not already stored
                 if (!$select.data("original-options")) {
                     const options = $select
                         .find("option")
@@ -1197,7 +1262,6 @@
                     $select.data("original-options", options);
                 }
 
-                // Rebuild options
                 const originalOptions = $select.data("original-options");
                 $select.empty();
 
@@ -1222,9 +1286,6 @@
             });
         }
 
-        /**
-         * Get selected reinsurers
-         */
         getSelected(treatyCounter) {
             return $(`#reinsurer-div-${treatyCounter} .reinsurer`)
                 .map((_, el) => $(el).val())
@@ -1233,17 +1294,11 @@
         }
     }
 
-    // ============================================================================
-    // TREATY MANAGER
-    // ============================================================================
     class TreatyManager {
         constructor(reinsurerManager) {
             this.reinsurerManager = reinsurerManager;
         }
 
-        /**
-         * Add a new treaty section
-         */
         addSection() {
             const $lastSection = $(
                 `${SELECTORS.TREATY_DIV} ${SELECTORS.TREATY_SECTION}`,
@@ -1280,9 +1335,6 @@
             return newCounter;
         }
 
-        /**
-         * Remove a treaty section
-         */
         removeSection(counter) {
             Swal.fire({
                 title: "Remove Treaty Section?",
@@ -1319,7 +1371,6 @@
         }
 
         _updateAttributes($section, counter, oldCounter) {
-            // Update IDs
             $section.find("[id]").each(function () {
                 const id = $(this).attr("id");
                 const newId = id.replace(/(-\d+)(-\d+)?$/, (match, p1, p2) =>
@@ -1332,7 +1383,6 @@
                 });
             });
 
-            // Update names
             $section.find("[name]").each(function () {
                 const name = $(this).attr("name");
                 $(this).attr(
@@ -1346,9 +1396,6 @@
         }
     }
 
-    // ============================================================================
-    // FORM SUBMISSION MANAGER
-    // ============================================================================
     class FormSubmissionManager {
         constructor(validationService, coverData) {
             this.validation = validationService;
@@ -1388,7 +1435,6 @@
         }
 
         _validateTreatySection($section, treatyCounter, treatyNumber) {
-            // Validate treaty selection if present
             const $treatySelect = $section.find(".reinsurer-treaty");
             if ($treatySelect.length && !$treatySelect.val()) {
                 this.validation.addError(
@@ -1396,13 +1442,11 @@
                 );
             }
 
-            // Validate distribution
             const remaining = Utils.getElementValue(
                 `#rem_share-${treatyCounter}`,
             );
             this.validation.validateDistribution(remaining, treatyNumber);
 
-            // Validate each reinsurer
             let reinsurerNumber = 1;
             $(
                 `#reinsurer-div-${treatyCounter} ${SELECTORS.REINSURER_SECTION}`,
@@ -1442,22 +1486,23 @@
         }
 
         _handleSuccess(response, $button) {
-            if (response.success) {
-                toastr.success("Reinsurance placement saved successfully");
-                setTimeout(() => {
-                    $(SELECTORS.MODAL).modal("hide");
-                    if (typeof window.refreshCoverData === "function") {
-                        window.refreshCoverData();
-                    } else {
-                        location.reload();
-                    }
-                }, 1500);
-            } else {
-                toastr.error(
-                    response.message || "An error occurred while saving",
-                );
-                this._resetButton($button);
-            }
+            console.log(response);
+            // if (response.success) {
+            //     toastr.success("Reinsurance placement saved successfully");
+            //     setTimeout(() => {
+            //         $(SELECTORS.MODAL).modal("hide");
+            //         if (typeof window.refreshCoverData === "function") {
+            //             window.refreshCoverData();
+            //         } else {
+            //             location.reload();
+            //         }
+            //     }, 1500);
+            // } else {
+            //     toastr.error(
+            //         response.message || "An error occurred while saving",
+            //     );
+            //     this._resetButton($button);
+            // }
         }
 
         _handleError(xhr, status, $button) {
@@ -1486,9 +1531,6 @@
         }
     }
 
-    // ============================================================================
-    // PLACEMENT MANAGER (Data Loading) - Standalone Object
-    // ============================================================================
     const PlacementManager = {
         config: {
             fetchUrl: null,
@@ -1588,6 +1630,24 @@
             this._triggerCalculations();
         },
 
+        async _populatereinsurerCalcOptions($row, reinsurer) {
+            const options = [
+                "net_of_tax",
+                "net_of_claims",
+                "net_of_commission",
+                "net_of_premium",
+                "premium_tax",
+                "net_withholding_tax",
+            ];
+
+            options.forEach((opt) => {
+                const $checkbox = $row.find(`input[name*="[${opt}]"]`);
+                if ($checkbox.length) {
+                    $checkbox.prop("checked", parseInt(reinsurer[opt]) === 1);
+                }
+            });
+        },
+
         async _populateTreaties(treaties) {
             const { treatyManager } = this._getManagers();
 
@@ -1652,21 +1712,12 @@
                 return;
             }
 
-            // Get reinsurer ID from various possible keys
             const reinsurerId =
                 data.reinsurer_id ||
                 data.reinsurer ||
                 data.partner_no ||
                 data.customer_id;
 
-            console.log("PlacementManager: Populating reinsurer row", {
-                treatyIndex,
-                reinsurerIndex,
-                reinsurerId,
-                data,
-            });
-
-            // Set reinsurer select (FIXED: Using direct ID and proper Select2 trigger)
             const $reinsurerSelect = $(
                 `#reinsurer-${treatyIndex}-${reinsurerIndex}`,
             );
@@ -1675,13 +1726,8 @@
                     $reinsurerSelect,
                     reinsurerId,
                 );
-                console.log(
-                    `PlacementManager: Set reinsurer value ${reinsurerId}:`,
-                    success,
-                );
             }
 
-            // Set other Select2 fields
             const select2Fields = [
                 { name: "wht_rate", value: data.wht_rate },
                 {
@@ -1701,7 +1747,6 @@
                 }
             });
 
-            // Set input fields
             const inputFields = [
                 { name: "written_share", value: data.written_share },
                 { name: "share", value: data.share },
@@ -1756,6 +1801,9 @@
             if (data.apply_fronting === "Y" && retroFeeManager) {
                 retroFeeManager.handleToggle(treatyIndex, reinsurerIndex);
             }
+
+            // Populate calculation basis options
+            this._populatereinsurerCalcOptions($section, data);
         },
 
         _waitForElement(selector, timeout = 2000) {
@@ -1804,7 +1852,6 @@
         _bindEvents() {
             const self = this;
 
-            // Refresh button handler
             $(document)
                 .off("click.placementRefresh")
                 .on(
@@ -1817,12 +1864,8 @@
         },
     };
 
-    // Expose PlacementManager globally immediately
     window.PlacementManager = PlacementManager;
 
-    // ============================================================================
-    // COVER DETAILS MODULE
-    // ============================================================================
     const CoverDetails = {
         $el: {},
         state: {},
@@ -2397,11 +2440,7 @@
         },
     };
 
-    // ============================================================================
-    // MAIN APPLICATION - REINSURER PLACEMENT
-    // ============================================================================
     const ReinsurerPlacement = {
-        // Services
         calculationService: null,
         validationService: null,
 
@@ -2561,6 +2600,13 @@
                 },
             );
 
+            $(document).on("change", ".reinsurer-calc-option", function () {
+                const tc = $(this).data("treaty-counter");
+                const c = $(this).data("counter");
+                self.commissionManager.calculate(tc, c);
+                self.brokerageManager.calculate(tc, c);
+            });
+
             // Retro/fronting events
             $(document).on("change", ".apply-fronting", function () {
                 self.retroFeeManager.handleToggle(
@@ -2660,9 +2706,6 @@
         },
     };
 
-    // ============================================================================
-    // TREATY REINSURER CALCULATIONS (For Treaty business types)
-    // ============================================================================
     const TreatyCalculations = {
         init() {
             this._bindEvents();
@@ -2724,7 +2767,9 @@
         },
 
         _updateDistributionSummary(tc) {
-            const offered = Utils.getElementValue(`#share_offered-${tc}`);
+            const offered =
+                Utils.getElementValue(`#share_offered-${tc}`) ||
+                ReinsurerPlacement.coverData.share_offered;
             let distributed = 0;
 
             $(`.reinsurer-total-acceptance[data-treaty-counter="${tc}"]`).each(

@@ -105,7 +105,8 @@
                                         <div class="col-md-3">
                                             <label class="form-label" for="premium_levy">Premium Levy (%)</label>
                                             <input type="number" name="premium_levy" id="premium_levy"
-                                                class="form-control" step="0.01" value="1" min="0"
+                                                class="form-control" step="0.01"
+                                                value="{{ $taxRates['PREMIUM_LEVY'] }}" min="0"
                                                 max="100" />
                                         </div>
 
@@ -113,7 +114,8 @@
                                             <label class="form-label" for="reinsurance_levy">Reinsurance Levy
                                                 (%)</label>
                                             <input type="number" name="reinsurance_levy" id="reinsurance_levy"
-                                                class="form-control" step="0.01" value="0" min="0"
+                                                class="form-control" step="0.01"
+                                                value="{{ $taxRates['REINSURANCE_LEVY'] }}" min="0"
                                                 max="100" />
                                         </div>
 
@@ -121,84 +123,50 @@
                                             <label for="wht_rate" class="form-label">
                                                 WHT Rate (%)
                                             </label>
-                                            <div>
-                                                <div class="cover-card">
-                                                    <select name="wht_rate" id="wht_rate" class="select2">
-                                                        <option value="">
-                                                            --Select WHT--</option>
-
-                                                        <option selected value="0.00">
-                                                            0%
-                                                        </option>
-                                                        <option value="5.00">
-                                                            5%
-                                                        </option>
-                                                    </select>
-                                                </div>
-                                            </div>
+                                            <input type="number" name="wht_rate" id="wht_rate"
+                                                class="form-control" step="0.01"
+                                                value="{{ $taxRates['WITHHOLDING_TAX'] }}" min="0"
+                                                max="100" />
                                         </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
 
-                        {{-- Right Column: Levies & Variable Commission --}}
-                        <div class="col-lg-4 d-none">
+                        {{-- Right Column: Levies --}}
+                        <div class="col-lg-4">
                             {{-- Statutory Levies Card --}}
-                            {{-- <div class="card shadow-sm mb-3">
+                            <div class="card shadow-sm mb-3">
                                 <div class="card-header bg-light py-2">
                                     <h6 class="mb-0 fw-semibold">Statutory Levies</h6>
                                 </div>
                                 <div class="card-body">
-                                    <div class="form-check mb-2">
+                                    <div class="form-check form-check-lg custom-checkbox mb-2">
                                         <input class="form-check-input levy-checkbox" type="checkbox"
                                             name="compute_premium_tax" id="compute_premium_tax" value="1"
-                                            data-rate="{{ $taxRates['premium_levy'] ?? 0.25 }}">
-                                        <label class="form-check-label small" for="compute_premium_tax">
-                                            Apply Premium Levy ({{ $taxRates['premium_levy'] ?? 0.25 }}%)
+                                            data-rate="{{ $taxRates['PREMIUM_LEVY'] }}">
+                                        <label class="form-check-label" for="compute_premium_tax">
+                                            Compute Premium Levy ({{ $taxRates['PREMIUM_LEVY'] }}%)
                                         </label>
                                     </div>
-                                    <div class="form-check mb-2">
+                                    <div class="form-check form-check-lg custom-checkbox mb-2">
                                         <input class="form-check-input levy-checkbox" type="checkbox"
                                             name="compute_reinsurance_tax" id="compute_reinsurance_tax"
-                                            value="1" data-rate="{{ $taxRates['reinsurance_levy'] ?? 0.5 }}">
-                                        <label class="form-check-label small" for="compute_reinsurance_tax">
-                                            Apply Reinsurance Levy ({{ $taxRates['reinsurance_levy'] ?? 0.5 }}%)
+                                            value="1" data-rate="{{ $taxRates['REINSURANCE_LEVY'] }}">
+                                        <label class="form-check-label" for="compute_reinsurance_tax">
+                                            Compute Reinsurance Levy ({{ $taxRates['REINSURANCE_LEVY'] }}%)
                                         </label>
                                     </div>
-                                    <div class="form-check mb-0">
+                                    <div class="form-check form-check-lg custom-checkbox mb-0">
                                         <input class="form-check-input levy-checkbox" type="checkbox"
                                             name="compute_withholding_tax" id="compute_withholding_tax"
-                                            value="1" data-rate="{{ $taxRates['withholding_tax'] ?? 5.0 }}">
-                                        <label class="form-check-label small" for="compute_withholding_tax">
-                                            Apply WHT ({{ $taxRates['withholding_tax'] ?? 5.0 }}%)
+                                            value="1" data-rate="{{ $taxRates['WITHHOLDING_TAX'] }}">
+                                        <label class="form-check-label" for="compute_withholding_tax">
+                                            Compute Withholding Tax ({{ $taxRates['WITHHOLDING_TAX'] }}%)
                                         </label>
                                     </div>
                                 </div>
-                            </div> --}}
-
-                            {{-- Variable Commission Card --}}
-                            {{-- <div class="card shadow-sm mb-3">
-                                <div class="card-header bg-light py-2">
-                                    <h6 class="mb-0 fw-semibold">Variable Commission</h6>
-                                </div>
-                                <div class="card-body">
-                                    <div class="form-check mb-2">
-                                        <input class="form-check-input" type="checkbox" name="loss_participation"
-                                            id="loss_participation" value="1">
-                                        <label class="form-check-label small" for="loss_participation">
-                                            Include Loss Participation
-                                        </label>
-                                    </div>
-                                    <div class="form-check mb-0">
-                                        <input class="form-check-input" type="checkbox" name="sliding_commission"
-                                            id="sliding_commission" value="1">
-                                        <label class="form-check-label small" for="sliding_commission">
-                                            Apply Sliding Scale Commission
-                                        </label>
-                                    </div>
-                                </div>
-                            </div> --}}
+                            </div>
                         </div>
                     </div>
 
@@ -414,27 +382,6 @@
         border-color: #0d6efd;
     }
 
-    #treatyDebitModal .custom-checkbox .form-check-input {
-        cursor: pointer;
-        transition: all 0.2s ease;
-        border: 2px solid #dee2e6;
-    }
-
-    #treatyDebitModal .custom-checkbox .form-check-input:hover {
-        border-color: #0d6efd;
-        box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
-    }
-
-    #treatyDebitModal .custom-checkbox .form-check-label {
-        cursor: pointer;
-        padding-top: 2px;
-        font-weight: 500;
-        transition: color 0.2s ease;
-    }
-
-    #treatyDebitModal .custom-checkbox .form-check-input:checked+.form-check-label {
-        color: #0d6efd;
-    }
 
     #treatyDebitModal .table th {
         font-weight: 600;
@@ -772,6 +719,31 @@
                     });
 
                     $(c.levyCheckbox).on('change', function() {
+                        self.debouncedCalculate();
+                    });
+
+                    // Sync tax rate inputs to Statutory Levies labels
+                    $('#premium_levy').on('input change', function() {
+                        var rate = $(this).val() || 0;
+                        $('#compute_premium_tax').attr('data-rate', rate);
+                        $('label[for="compute_premium_tax"]').text('Compute Premium Levy (' + rate +
+                            '%)');
+                        self.debouncedCalculate();
+                    });
+
+                    $('#reinsurance_levy').on('input change', function() {
+                        var rate = $(this).val() || 0;
+                        $('#compute_reinsurance_tax').attr('data-rate', rate);
+                        $('label[for="compute_reinsurance_tax"]').text('Compute Reinsurance Levy (' +
+                            rate + '%)');
+                        self.debouncedCalculate();
+                    });
+
+                    $('#wht_rate').on('input change', function() {
+                        var rate = $(this).val() || 0;
+                        $('#compute_withholding_tax').attr('data-rate', rate);
+                        $('label[for="compute_withholding_tax"]').text('Compute Withholding Tax (' +
+                            rate + '%)');
                         self.debouncedCalculate();
                     });
 

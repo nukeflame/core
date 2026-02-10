@@ -408,6 +408,7 @@
             'classGroups' => $classGroups,
             'businessClasses' => $businessClasses,
             'treatyClasses' => $treatyClasses,
+            'taxRates' => $taxRates,
         ])
         @include('cover.modals.add-profit-commission')
         @include('cover.modals.add-portfolio')

@@ -297,14 +297,7 @@ class CoverRepository extends BaseRepository
 
     protected function getTaxRates(): array
     {
-        // return Cache::remember('tax_rates_display', 3600, function () {
-        //     return TaxRate::getRatesForDisplay();
-        // });
-        return [
-            'premium_levy' => 1,
-            'reinsurance_levy' => 0.50,
-            'withholding_tax' => 5.00,
-        ];
+        return \App\Models\TaxRate::getAllCurrentRates();
     }
 
     public function isCoverActionable($endorsement)

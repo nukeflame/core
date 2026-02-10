@@ -5,6 +5,7 @@ use App\Http\Controllers\GeneralSettingsController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Settings\SystemProcessController;
 use App\Http\Controllers\Settings\SettingsController;
+use App\Http\Controllers\SettingsFinanceController;
 use Illuminate\Support\Facades\Route;
 
 Route::group(['prefix' => 'settings', 'middleware' => ['auth']], function () {
@@ -35,6 +36,24 @@ Route::group(['prefix' => 'settings', 'middleware' => ['auth']], function () {
     Route::post('/cDepartments-edit', [GeneralSettingsController::class, 'cDepartmentsEditData'])->name('cDepartments.edit');
     Route::post('/cDepartments-delete', [GeneralSettingsController::class, 'cDepartmentsDeleteData'])->name('cDepartments.delete');
 
+    // Tax Groups
+    Route::get('finance/taxGroup', [SettingsFinanceController::class, 'taxGroupInfo'])->name('taxGroup.index');
+    Route::get('finance/taxGroup/data', [SettingsFinanceController::class, 'taxGroupData'])->name('taxGroup.data');
+    Route::post('finance/taxGroup-store', [SettingsFinanceController::class, 'taxGroupAddData'])->name('taxGroup.store');
+    Route::post('finance/taxGroup-edit', [SettingsFinanceController::class, 'taxGroupEditData'])->name('taxGroup.edit');
+
+    // Tax Types
+    Route::get('finance/taxType', [SettingsFinanceController::class, 'taxTypeInfo'])->name('taxType.index');
+    Route::get('finance/taxType/data', [SettingsFinanceController::class, 'taxTypeData'])->name('taxType.data');
+    Route::post('finance/taxType-store', [SettingsFinanceController::class, 'taxTypeAddData'])->name('taxType.store');
+    Route::post('finance/taxType-edit', [SettingsFinanceController::class, 'taxTypeEditData'])->name('taxType.edit');
+
+    // Tax Rates
+    Route::get('finance/taxRate', [SettingsFinanceController::class, 'taxRateInfo'])->name('taxRate.index');
+    Route::get('finance/taxRate/data', [SettingsFinanceController::class, 'taxRateData'])->name('taxRate.data');
+    Route::post('finance/taxRate-store', [SettingsFinanceController::class, 'taxRateAddData'])->name('taxRate.store');
+    Route::post('finance/taxRate-edit', [SettingsFinanceController::class, 'taxRateEditData'])->name('taxRate.edit');
+
    
 
     //settings cover
@@ -43,3 +62,4 @@ Route::group(['prefix' => 'settings', 'middleware' => ['auth']], function () {
     // permissions
     require_once('system_access.php');
 });
+

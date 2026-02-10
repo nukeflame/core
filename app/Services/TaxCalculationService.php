@@ -68,11 +68,10 @@ class TaxCalculationService
      */
     public function getCurrentRate(string $rateCode): float
     {
-        // return TaxRate::getCurrentRate(
-        //     $rateCode,
-        //     self::DEFAULTS[$rateCode] ?? 0
-        // );
-        return self::DEFAULTS[$rateCode] ?? 0;
+        return TaxRate::getCurrentRate(
+            $rateCode,
+            self::DEFAULTS[$rateCode] ?? 0
+        );
     }
 
     /**
@@ -80,8 +79,7 @@ class TaxCalculationService
      */
     public function getAllCurrentRates(): array
     {
-        // return TaxRate::getAllCurrentRates();
-        return [];
+        return TaxRate::getAllCurrentRates();
     }
 
     /**
@@ -223,7 +221,6 @@ class TaxCalculationService
      */
     public function clearCache()
     {
-        return null;
-        // TaxRate::clearCache();
+        TaxRate::clearCache();
     }
 }
