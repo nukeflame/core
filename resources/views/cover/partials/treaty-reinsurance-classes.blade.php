@@ -477,7 +477,6 @@
                                             </button>
                                         @endif
                                     </div>
-                                    <small class="text-muted">Fixed rate for all premiums</small>
                                 </div>
 
                                 {{-- Sliding Scale Commission --}}

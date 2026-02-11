@@ -19,7 +19,6 @@
                 </div>
 
                 <div class="modal-body">
-                    {{-- Cover Information --}}
                     <div class="row g-3 mb-3">
                         <div class="col-md-6">
                             <label class="form-label fw-semibold">Cover Number</label>
@@ -34,13 +33,12 @@
                     </div>
 
                     <div class="row">
-                        {{-- Debit Information Card --}}
-                        <div class="col-lg-12">
+                        <div class="col-md-8">
                             <div class="card shadow-sm mb-3">
                                 <div class="card-header bg-light py-2">
                                     <h6 class="mb-0 fw-semibold">Debit Information</h6>
                                 </div>
-                                <div class="card-body">
+                                <div class="card-body" style="height: 265px;">
                                     <div class="row g-3">
                                         <div class="col-md-4">
                                             <label class="form-label" for="posting_year">
@@ -133,9 +131,7 @@
                             </div>
                         </div>
 
-                        {{-- Right Column: Levies --}}
-                        <div class="col-lg-4">
-                            {{-- Statutory Levies Card --}}
+                        <div class="col-md-4">
                             <div class="card shadow-sm mb-3">
                                 <div class="card-header bg-light py-2">
                                     <h6 class="mb-0 fw-semibold">Statutory Levies</h6>
@@ -167,10 +163,31 @@
                                     </div>
                                 </div>
                             </div>
+
+                            <div class="card shadow-sm mb-3">
+                                <div class="card-header bg-light py-2">
+                                    <h6 class="mb-0 fw-semibold">Variable Commission</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="form-check form-check-lg custom-checkbox mb-2">
+                                        <input class="form-check-input" type="checkbox" name="loss_participation"
+                                            id="loss_participation" value="1">
+                                        <label class="form-check-label" for="loss_participation">
+                                            Include Loss Participation
+                                        </label>
+                                    </div>
+                                    <div class="form-check form-check-lg custom-checkbox mb-0">
+                                        <input class="form-check-input" type="checkbox" name="sliding_commission"
+                                            id="sliding_commission" value="1">
+                                        <label class="form-check-label" for="sliding_commission">
+                                            Apply Sliding Scale Commission
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
-                    {{-- Comments Section --}}
                     <div class="row mb-3">
                         <div class="col-12 mb-2">
                             <label class="form-label" for="comments">Comments</label>
@@ -205,7 +222,6 @@
                         </div>
                     </div>
 
-                    {{-- Transaction Line Items --}}
                     <div class="row">
                         <div class="col-12">
                             <div class="card">
@@ -245,15 +261,6 @@
                                                     </td>
                                                 </tr>
                                             </tbody>
-                                            <tfoot class="table-light">
-                                                <tr>
-                                                    <td colspan="6" class="text-end fw-bold">Total:</td>
-                                                    <td class="fw-bold text-primary">
-                                                        <span id="total-amount">0.00</span>
-                                                    </td>
-                                                    <td></td>
-                                                </tr>
-                                            </tfoot>
                                         </table>
                                     </div>
                                 </div>
@@ -1383,7 +1390,8 @@
                             timeout: 30000
                         })
                         .done(function(response) {
-                            self.handleSuccess(response);
+                            console.log(response)
+                            // self.handleSuccess(response);
                         })
                         .fail(function(xhr, status, error) {
                             self.handleError(xhr, status, error);

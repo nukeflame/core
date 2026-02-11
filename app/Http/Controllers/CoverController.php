@@ -289,7 +289,7 @@ class CoverController extends Controller
                 'prospectId' => $prospect_id,
                 'staff' => $allActiveStaff,
             ]);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return back()->withErros(['An error occurred while loading the cover form']);
         }
     }
@@ -386,7 +386,7 @@ class CoverController extends Controller
         //     $result = $this->coverRepository->editCoverRegister($request);
         //     DB::commit();
         //     return redirect()->route('cover.CoverHome', ['endorsement_no' => $result->endorsement_no])->with('success', 'Cover Register information updated successfully');
-        // } catch (\Exception $e) {
+        // } catch (Exception $e) {
         //     DB::rollback();
         //     return redirect()->route('cover.CoverHome', ['endorsement_no' => $request->endorsement_no])->with('error', 'Failed to update Cover information');
         // }
@@ -457,7 +457,7 @@ class CoverController extends Controller
             }
 
             $results = collect($query->get())->sortByDesc('created_at')->values();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return response()->json(['error' => 'Database query failed: ' . $e->getMessage()], 500);
         }
 
@@ -899,18 +899,16 @@ class CoverController extends Controller
                         $coverRipart->brokerage_comm_amt = 0;
                         $coverRipart->share = $this->parseNumber($reinsurerData['written_share']);
                         $coverRipart->commission_mode = $reinsurerData['amount_type'] ?? 'gross';
-
-                        // $coverRipart->compulsory_acceptance = $this->parseNumber($reinsurerData['compulsory_acceptance'] ?? 0);
-                        // $coverRipart->optional_acceptance = $this->parseNumber($reinsurerData['optional_acceptance'] ?? 0);
-                        // $coverRipart->total_acceptance = $this->parseNumber($reinsurerData['share'] ?? 0);
                         $coverRipart->net_amount = 0;
-
                         $coverRipart->net_of_tax = $reinsurerData['net_of_tax'] ?? 0;
                         $coverRipart->net_of_claims = $reinsurerData['net_of_claims'] ?? 0;
                         $coverRipart->net_of_commission = $reinsurerData['net_of_commission'] ?? 0;
                         $coverRipart->net_of_premium = $reinsurerData['net_of_premium'] ?? 0;
                         $coverRipart->premium_tax = $reinsurerData['premium_tax'] ?? 0;
                         $coverRipart->net_withholding_tax = $reinsurerData['net_withholding_tax'] ?? 0;
+                        $coverRipart->compulsory_acceptance = $this->parseNumber($reinsurerData['compulsory_acceptance'] ?? 0);
+                        $coverRipart->optional_acceptance = $this->parseNumber($reinsurerData['optional_acceptance'] ?? 0);
+                        $coverRipart->total_acceptance = $this->parseNumber($reinsurerData['share'] ?? 0);
                     }
 
                     // Calculate net_amount for facultative business types
@@ -934,7 +932,7 @@ class CoverController extends Controller
                     $payMethod = PayMethod::where('pay_method_code', $payMethodCode)->first();
 
                     if (! $payMethod) {
-                        throw new \Exception("Payment method {$payMethodCode} not found");
+                        throw new Exception("Payment method {$payMethodCode} not found");
                     }
 
                     if ($payMethod->short_description === 'I' || $payMethod->pay_method_code === 'INS' || $payMethod->pay_method_code === 'INST') {
@@ -942,7 +940,7 @@ class CoverController extends Controller
                         $installments = $reinsurerData['installments'] ?? [];
 
                         if (empty($installments)) {
-                            throw new \Exception('Installments are required for installment payment method');
+                            throw new Exception('Installments are required for installment payment method');
                         }
 
                         foreach ($installments as $installment) {
@@ -1087,9 +1085,7 @@ class CoverController extends Controller
                 }
             }
 
-            logger()->debug(json_encode($request->all()));
-
-            // DB::commit();
+            DB::commit();
 
             return response()->json([
                 'status' => Response::HTTP_CREATED,
@@ -1386,7 +1382,7 @@ class CoverController extends Controller
 
             $results = ApprovalsTracker::query()->whereIn('id', $aprovalIds);
             $actionable = static::coverDebitedCommited($endorsement_no);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
 
             $results = [];
         }
@@ -1598,15 +1594,14 @@ class CoverController extends Controller
             }
 
             $debitData = $this->prepareDebitData($validatedData, $cover);
-            $creditData = $this->prepareCreditData($validatedData, $cover);
+            // $creditData = $this->prepareCreditData($validatedData, $cover);
 
             if ($debitData['isTreaty']) {
                 $this->validateBusinessRules($cover, $validatedData);
             }
 
             $redirectUrl = null;
-
-            $message = $this->getBusinessTypeLabel($debitData['typeOfBus']) . ' Debit/Credit note generated successfully';
+            $message = $this->getBusinessTypeLabel($debitData['typeOfBus']) . ' Debit note generated successfully';
 
             if ($debitData['isFacultative']) {
                 $redirectUrl = null;
@@ -1616,16 +1611,16 @@ class CoverController extends Controller
                     'coverNo' => $cover->cover_no,
                 ]);
 
-                $this->createTreatyDebit($debitData, $cover);
-                $this->createTreatyCredit($creditData, $cover);
+                // $this->createTreatyDebit($debitData, $cover);
+                // $this->createTreatyCredit($creditData, $cover);
             }
 
             $this->createCustomerAccount($debitData, $cover);
 
-            // $cover->commited = 'Y';
-            // $cover->save();
+            $cover->commited = 'Y';
+            $cover->save();
 
-            // DB::commit();
+            DB::commit();
 
             return response()->json([
                 'success' => true,
@@ -1904,7 +1899,7 @@ class CoverController extends Controller
             $ledger = $item['ledger'] ?? 'DR';
             $classGroup = $item['class_group'] ?? null;
             $className = $item['class_name'] ?? null;
-            $commissionRate = $item['line_rate'];
+            $commissionRate = (float) ($item['line_rate'] ?? 0);
 
             if ($ledger === 'DR' && $amount > 0) {
                 $sharedAmount = $amount * ($lineRate / 100);
@@ -2110,7 +2105,7 @@ class CoverController extends Controller
                 'status' => Response::HTTP_UNPROCESSABLE_ENTITY,
                 'errors' => $e->errors(),
             ], 422);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             DB::rollBack();
 
             return response()->json([
@@ -3876,7 +3871,7 @@ class CoverController extends Controller
                 'cover_no' => $cover?->cover_no,
                 'customer_id' => $cover?->customer_id,
             ]);
-        } catch (\Exception $th) {
+        } catch (Exception $th) {
             return response()->json([
                 'status' => Response::HTTP_INTERNAL_SERVER_ERROR,
                 'message' => 'An internal server error occurred.',
@@ -3991,7 +3986,7 @@ class CoverController extends Controller
                 'message' => 'Renewal policy documents created successfully',
                 'status' => Response::HTTP_CREATED,
             ], 201);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return response()->json([
                 'status' => Response::HTTP_INTERNAL_SERVER_ERROR,
                 'message' => 'An internal server error occurred.',
@@ -4017,7 +4012,7 @@ class CoverController extends Controller
                 'status' => Response::HTTP_CREATED,
                 'message' => 'Renewal notice has been sent',
             ]);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return response()->json([
                 'message' => 'Failed to queue renewal notice',
                 'error' => $e->getMessage(),
@@ -4243,7 +4238,7 @@ class CoverController extends Controller
                 'status' => Response::HTTP_CREATED,
                 'message' => 'Email sent notice has been sent to reinsurer',
             ]);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return response()->json(['error' => $e->getMessage()], 500);
         }
     }

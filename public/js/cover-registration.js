@@ -2250,110 +2250,109 @@ const CoverRegistration = (function () {
 
     function createCommissionSection(classCounter, premCounter) {
         return `
-        <div class="comm-sections"
-             id="comm-section-${classCounter}-${premCounter}"
-             data-class-counter="${classCounter}"
-             data-counter="${premCounter}">
-            <div class="row g-3 align-items-end mb-2">
-                <div class="col-md-3 prem_type_treaty_div">
-                    <label class="form-label required">Treaty</label>
-                    <div class="cover-card">
-                        <select class="form-control select2 prem_type_treaty required"
-                                name="prem_type_treaty[]"
-                                id="prem_type_treaty-${classCounter}-${premCounter}"
-                                data-class-counter="${classCounter}"
-                                data-counter="${premCounter}"
-                                required>
-                            <option value="">Select Treaty</option>
-                        </select>
+            <div class="comm-sections"
+                id="comm-section-${classCounter}-${premCounter}"
+                data-class-counter="${classCounter}"
+                data-counter="${premCounter}">
+                <div class="row g-3 align-items-end mb-2">
+                    <div class="col-md-3 prem_type_treaty_div">
+                        <label class="form-label required">Treaty</label>
+                        <div class="cover-card">
+                            <select class="form-control select2 prem_type_treaty required"
+                                    name="prem_type_treaty[]"
+                                    id="prem_type_treaty-${classCounter}-${premCounter}"
+                                    data-class-counter="${classCounter}"
+                                    data-counter="${premCounter}"
+                                    required>
+                                <option value="">Select Treaty</option>
+                            </select>
+                        </div>
                     </div>
-                </div>
 
-                <div class="col-md-3 prem_type_code_div">
-                    <label class="form-label required">Class Name</label>
-                    <input type="hidden"
-                           class="prem_type_reinclass"
-                           id="prem_type_reinclass-${classCounter}-${premCounter}"
-                           name="prem_type_reinclass[]">
-                    <div class="cover-card">
-                        <select class="form-control select2 prem_type_code required"
-                                name="prem_type_code[]"
-                                id="prem_type_code-${classCounter}-${premCounter}"
-                                data-class-counter="${classCounter}"
-                                data-counter="${premCounter}"
-                                required>
-                            <option value="">-- Select Name --</option>
-                        </select>
+                    <div class="col-md-3 prem_type_code_div">
+                        <label class="form-label required">Class Name</label>
+                        <input type="hidden"
+                            class="prem_type_reinclass"
+                            id="prem_type_reinclass-${classCounter}-${premCounter}"
+                            name="prem_type_reinclass[]">
+                        <div class="cover-card">
+                            <select class="form-control select2 prem_type_code required"
+                                    name="prem_type_code[]"
+                                    id="prem_type_code-${classCounter}-${premCounter}"
+                                    data-class-counter="${classCounter}"
+                                    data-counter="${premCounter}"
+                                    required>
+                                <option value="">-- Select Name --</option>
+                            </select>
+                        </div>
                     </div>
-                </div>
 
-                <div class="col-md-2 comm_type_div">
-                    <label class="form-label required">Commission Type</label>
-                    <div class="cover-card">
-                        <select class="form-control select2 commission_type required"
-                                name="treaty_commission_type[]"
-                                id="commission_type-${classCounter}-${premCounter}"
-                                data-class-counter="${classCounter}"
-                                data-counter="${premCounter}"
-                                required>
-                            <option value="">Select Type</option>
-                            <option value="FLAT">Flat Rate</option>
-                            <option value="SLIDING">Sliding Scale</option>
-                        </select>
+                    <div class="col-md-2 comm_type_div">
+                        <label class="form-label required">Commission Type</label>
+                        <div class="cover-card">
+                            <select class="form-control select2 commission_type required"
+                                    name="treaty_commission_type[]"
+                                    id="commission_type-${classCounter}-${premCounter}"
+                                    data-class-counter="${classCounter}"
+                                    data-counter="${premCounter}"
+                                    required>
+                                <option value="">Select Type</option>
+                                <option value="FLAT">Flat Rate</option>
+                                <option value="SLIDING">Sliding Scale</option>
+                            </select>
+                        </div>
                     </div>
-                </div>
 
-                <div class="col-md-3 flat_rate_div">
-                    <label class="form-label required">Commission (%)</label>
-                    <div class="input-group">
-                        <input type="text"
-                               class="form-control prem_type_comm_rate required"
-                               name="flat_prem_type_comm_rate[]"
-                               id="prem_type_comm_rate-${classCounter}-${premCounter}"
-                               placeholder="0.00">
-                        <button class="btn btn-danger remove-comm-section" type="button">
-                            <i class="bx bx-minus"></i>
-                        </button>
+                    <div class="col-md-3 flat_rate_div">
+                        <label class="form-label required">Commission (%)</label>
+                        <div class="input-group">
+                            <input type="text"
+                                class="form-control prem_type_comm_rate required"
+                                name="flat_prem_type_comm_rate[]"
+                                id="prem_type_comm_rate-${classCounter}-${premCounter}"
+                                placeholder="0.00">
+                            <button class="btn btn-danger remove-comm-section" type="button">
+                                <i class="bx bx-minus"></i>
+                            </button>
+                        </div>
                     </div>
-                    <small class="text-muted">Fixed rate for all premiums</small>
-                </div>
 
-                <div class="col-md-2 sliding_scale_div" style="display: none;">
-                    <label class="form-label">Commission Rate (%)</label>
-                    <div class="input-group">
-                        <input type="text"
-                               class="form-control prem_type_comm_rate"
-                               name="sliding_treaty_prem_type_comm_rate[]"
-                               id="prem_type_comm_rate-sliding-${classCounter}-${premCounter}"
-                               placeholder="0.00"
-                               readonly>
+                    <div class="col-md-2 sliding_scale_div" style="display: none;">
+                        <label class="form-label">Commission Rate (%)</label>
+                        <div class="input-group">
+                            <input type="text"
+                                class="form-control prem_type_comm_rate"
+                                name="sliding_treaty_prem_type_comm_rate[]"
+                                id="prem_type_comm_rate-sliding-${classCounter}-${premCounter}"
+                                placeholder="0.00"
+                                readonly>
+                        </div>
+                        <small class="text-muted">Average rate from scale</small>
                     </div>
-                    <small class="text-muted">Average rate from scale</small>
-                </div>
 
-                <div class="col-md-3 sliding_scale_div" style="display: none;">
-                    <label class="form-label required">Configure Scale</label>
-                    <div class="input-group">
-                        <button type="button"
-                                class="btn btn-outline-secondary btn-block configure-sliding-btn"
-                                data-class-counter="${classCounter}"
-                                data-counter="${premCounter}"
-                                style="width: 86%;">
-                            <i class="bx bx-trending-up me-1"></i> Configure Scale
-                        </button>
-                        <button class="btn btn-danger remove-comm-section" type="button">
-                            <i class="bx bx-minus"></i>
-                        </button>
+                    <div class="col-md-3 sliding_scale_div" style="display: none;">
+                        <label class="form-label required">Configure Scale</label>
+                        <div class="input-group">
+                            <button type="button"
+                                    class="btn btn-outline-secondary btn-block configure-sliding-btn"
+                                    data-class-counter="${classCounter}"
+                                    data-counter="${premCounter}"
+                                    style="width: 86%;">
+                                <i class="bx bx-trending-up me-1"></i> Configure Scale
+                            </button>
+                            <button class="btn btn-danger remove-comm-section" type="button">
+                                <i class="bx bx-minus"></i>
+                            </button>
+                        </div>
+                        <small class="text-muted">Rates based on loss ratio</small>
+                        <input type="hidden"
+                            class="sliding_scale_data"
+                            name="sliding_scale_data[]"
+                            id="sliding_scale_data-${classCounter}-${premCounter}">
                     </div>
-                    <small class="text-muted">Rates based on loss ratio</small>
-                    <input type="hidden"
-                           class="sliding_scale_data"
-                           name="sliding_scale_data[]"
-                           id="sliding_scale_data-${classCounter}-${premCounter}">
                 </div>
             </div>
-        </div>
-    `;
+        `;
     }
 
     function validateCommissionSections() {

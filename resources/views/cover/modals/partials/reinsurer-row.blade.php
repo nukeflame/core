@@ -60,7 +60,6 @@
             </small>
         </div>
 
-        {{-- Written Lines --}}
         <div class="col-md-2">
             <label for="written_share-{{ $treatyCounterValue }}-{{ $counterValue }}" class="form-label required">
                 Written Lines (%)
@@ -221,18 +220,7 @@
                                     data-counter="{{ $counterValue }}" value="1">
                                 <label class="form-check-label"
                                     for="net_of_premium-{{ $treatyCounterValue }}-{{ $counterValue }}">
-                                    Net Premium
-                                </label>
-                            </div>
-                            <div class="form-check form-check-lg custom-checkbox">
-                                <input class="form-check-input reinsurer-calc-option" type="checkbox"
-                                    name="treaty[{{ $treatyCounterValue }}][reinsurers][{{ $counterValue }}][premium_tax]"
-                                    id="premium_tax-{{ $treatyCounterValue }}-{{ $counterValue }}"
-                                    data-treaty-counter="{{ $treatyCounterValue }}"
-                                    data-counter="{{ $counterValue }}" value="1">
-                                <label class="form-check-label"
-                                    for="premium_tax-{{ $treatyCounterValue }}-{{ $counterValue }}">
-                                    Net Reinsurance Tax
+                                    Net Premium &amp;Reinsurance Tax
                                 </label>
                             </div>
                             <div class="form-check form-check-lg custom-checkbox">

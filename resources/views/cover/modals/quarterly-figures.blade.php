@@ -33,7 +33,7 @@
                     </div>
 
                     <div class="row">
-                        <div class="col-lg-8">
+                        <div class="col-md-8">
                             <div class="card shadow-sm mb-3">
                                 <div class="card-header bg-light py-2">
                                     <h6 class="mb-0 fw-semibold">Debit Information</h6>
@@ -131,7 +131,7 @@
                             </div>
                         </div>
 
-                        <div class="col-lg-4">
+                        <div class="col-md-4">
                             <div class="card shadow-sm mb-3">
                                 <div class="card-header bg-light py-2">
                                     <h6 class="mb-0 fw-semibold">Statutory Levies</h6>

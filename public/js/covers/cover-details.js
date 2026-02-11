@@ -1486,23 +1486,22 @@
         }
 
         _handleSuccess(response, $button) {
-            console.log(response);
-            // if (response.success) {
-            //     toastr.success("Reinsurance placement saved successfully");
-            //     setTimeout(() => {
-            //         $(SELECTORS.MODAL).modal("hide");
-            //         if (typeof window.refreshCoverData === "function") {
-            //             window.refreshCoverData();
-            //         } else {
-            //             location.reload();
-            //         }
-            //     }, 1500);
-            // } else {
-            //     toastr.error(
-            //         response.message || "An error occurred while saving",
-            //     );
-            //     this._resetButton($button);
-            // }
+            if (response.success) {
+                toastr.success("Reinsurance placement saved successfully");
+                setTimeout(() => {
+                    $(SELECTORS.MODAL).modal("hide");
+                    if (typeof window.refreshCoverData === "function") {
+                        window.refreshCoverData();
+                    } else {
+                        location.reload();
+                    }
+                }, 1500);
+            } else {
+                toastr.error(
+                    response.message || "An error occurred while saving",
+                );
+                this._resetButton($button);
+            }
         }
 
         _handleError(xhr, status, $button) {
@@ -1511,13 +1510,7 @@
             if (status === "timeout") {
                 message = "Request timed out. Please try again.";
             } else if (xhr.responseJSON) {
-                if (xhr.responseJSON.message) {
-                    message = xhr.responseJSON.message;
-                } else if (xhr.responseJSON.errors) {
-                    message = Object.values(xhr.responseJSON.errors)
-                        .flat()
-                        .join("<br>");
-                }
+                message = "An error occurred while saving";
             }
 
             NotificationService.error(message);

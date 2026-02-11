@@ -5,7 +5,6 @@ namespace App\Services;
 use App\Exceptions\BusinessRuleException;
 use App\Models\CoverRegister;
 use App\Models\DebitNote;
-use App\Models\TransactionLog;
 use App\Repositories\CoverRepository;
 use App\Services\DebitNote\AmountCalculator;
 use App\Services\DebitNote\LineItemProcessor;
@@ -24,11 +23,9 @@ class DebitNoteService
     public function __construct(
         private readonly SequenceService $sequenceService,
         private readonly CoverRepository $coverRepository,
-        // private readonly TaxCalculationService $taxService,
         private readonly AmountCalculator $amountCalculator,
         private readonly LineItemProcessor $lineItemProcessor,
         private readonly StatusManager $statusManager,
-        // private readonly TransactionLog $transactionLogger
     ) {}
 
     public function generateDebitNoteNumber(string $businessType, ?int $year = null): string
