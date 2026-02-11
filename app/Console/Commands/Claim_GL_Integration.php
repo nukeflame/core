@@ -17,8 +17,8 @@ use Illuminate\Support\Facades\Http;
 
 class Claim_GL_Integration extends Command
 {
-    protected $signature = 'claim:glupdate';
-    protected $description = 'Push all ClaimCredits transactions to GLTransactions';
+    protected $signature = 'claim-credits:glupdate';
+    protected $description = 'Push all claim credits transactions to GLTransactions';
 
     public function __construct()
     {

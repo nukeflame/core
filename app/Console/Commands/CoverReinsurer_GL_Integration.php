@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\Http;
 
 class CoverReinsurer_GL_Integration extends Command
 {
-    protected $signature = 'coverReinsurer:glupdate';
+    protected $signature = 'reinsurer-credits:glupdate';
     protected $description = 'Push all Debitted Reinsurer transactions to GLTransactions';
 
     public function __construct()

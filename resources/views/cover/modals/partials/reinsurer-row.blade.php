@@ -62,7 +62,7 @@
 
         <div class="col-md-2">
             <label for="written_share-{{ $treatyCounterValue }}-{{ $counterValue }}" class="form-label required">
-                Written Lines (%)
+                {{ $isTreaty ? 'Signed Lines (%)' : 'Written Lines (%)' }}
             </label>
             <input type="number" step="0.01" min="0" max="100"
                 name="treaty[{{ $treatyCounterValue }}][reinsurers][{{ $counterValue }}][written_share]"
@@ -140,7 +140,13 @@
                     class="form-control reinsurer-total-acceptance reinsurers color-blk bg-light"
                     data-treaty-counter="{{ $treatyCounterValue }}" data-counter="{{ $counterValue }}"
                     data-calculation-field="treaty-share-total" readonly />
-                <div class="invalid-feedback">Total acceptance cannot exceed written lines</div>
+                <div class="invalid-feedback">
+                    @if ($isTreaty)
+                        Total acceptance cannot exceed written lines
+                    @else
+                        Total acceptance cannot exceed signed lines
+                    @endif
+                </div>
             </div>
 
             <div class="col-md-3">
@@ -220,7 +226,7 @@
                                     data-counter="{{ $counterValue }}" value="1">
                                 <label class="form-check-label"
                                     for="net_of_premium-{{ $treatyCounterValue }}-{{ $counterValue }}">
-                                    Net Premium &amp;Reinsurance Tax
+                                    Net Premium &amp; Reinsurance Tax
                                 </label>
                             </div>
                             <div class="form-check form-check-lg custom-checkbox">

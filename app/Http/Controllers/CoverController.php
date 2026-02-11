@@ -1576,6 +1576,10 @@ class CoverController extends Controller
 
     public function generateDebitAndCredit(Request $request)
     {
+        logger()->debug(json_encode(
+            ['validatedData' => $request->all()],
+            JSON_PRETTY_PRINT
+        )); 
         DB::beginTransaction();
         try {
             $validatedData = $request->toArray();
@@ -1588,7 +1592,6 @@ class CoverController extends Controller
             }
 
             $cover = CoverRegister::where('endorsement_no', $validatedData['endorsement_no'])->lockForUpdate()->first();
-
             if (! $cover) {
                 throw new Exception("Cover register not found for endorsement: {$validatedData['endorsement_no']}");
             }
@@ -1611,16 +1614,16 @@ class CoverController extends Controller
                     'coverNo' => $cover->cover_no,
                 ]);
 
-                // $this->createTreatyDebit($debitData, $cover);
+                $this->createTreatyDebit($debitData, $cover);
                 // $this->createTreatyCredit($creditData, $cover);
             }
 
             $this->createCustomerAccount($debitData, $cover);
 
-            $cover->commited = 'Y';
-            $cover->save();
+            // $cover->commited = 'Y';
+            // $cover->save();
 
-            DB::commit();
+            // DB::commit();
 
             return response()->json([
                 'success' => true,
@@ -1924,13 +1927,13 @@ class CoverController extends Controller
 
                 if ($commissionOnShare > 0) {
                     $expandedItems[] = [
-                        'item_type' => 'CREDIT',
+                        'item_type' => 'DEBIT',
                         'item_code' => 'IT03',
                         'description' => 'Commission',
                         'class_group' => $classGroup,
                         'class_name' => $className,
                         'line_rate' => $commissionRate,
-                        'ledger' => 'CR',
+                        'ledger' => 'DR',
                         'amount' => $sharedAmount,
                         'item_amount' => $commissionOnShare,
                         'commission' => $commissionOnShare,
@@ -2016,6 +2019,11 @@ class CoverController extends Controller
             $premiumTaxRate,
             $commissionRate
         );
+
+        // logger()->debug(json_encode(
+        //     ['validatedData' => $validatedData],
+        //     JSON_PRETTY_PRINT
+        // ));
 
         return [
             'typeOfBus' => $typeOfBus,

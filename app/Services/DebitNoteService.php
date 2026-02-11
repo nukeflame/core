@@ -52,22 +52,22 @@ class DebitNoteService
             $this->validateCreateData($data);
 
             $calculation = $this->amountCalculator->calculate($data, $cover);
+            // $debitNoteNo = $this->generateDebitNoteNumber(
+            //     $cover->type_of_bus,
+            //     $data['postingYear'] ?? now()->year
+            // );
+            
+            // $debitNote = $this->createDebitNoteRecord($debitNoteNo, $data, $cover, $calculation);
 
-            $debitNoteNo = $this->generateDebitNoteNumber(
-                $cover->type_of_bus,
-                $data['postingYear'] ?? now()->year
-            );
+            // $this->lineItemProcessor->createDebitNoteLineItems($debitNote, $calculation);
 
-            $debitNote = $this->createDebitNoteRecord($debitNoteNo, $data, $cover, $calculation);
+            // if ($data['updateRipart'] ?? false) {
+            //     $this->updateReinsurerParticipation($calculation['reinsurers']);
+            // }
+            // // $this->transactionLogger->log($debitNote, 'CREATE');
 
-            $this->lineItemProcessor->createDebitNoteLineItems($debitNote, $calculation);
-
-            if ($data['updateRipart'] ?? false) {
-                $this->updateReinsurerParticipation($calculation['reinsurers']);
-            }
-            // $this->transactionLogger->log($debitNote, 'CREATE');
-
-            return $debitNote->fresh(['items', 'cover', 'cover.customer']);
+            // return $debitNote->fresh(['items', 'cover', 'cover.customer']);
+            return new DebitNote();
         });
     }
 

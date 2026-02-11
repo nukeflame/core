@@ -16,7 +16,7 @@ use Illuminate\Support\Facades\Http;
 
 class Cover_GL_Integration extends Command
 {
-    protected $signature = 'cover:glupdate';
+    protected $signature = 'cover-debit:glupdate';
     protected $description = 'Push all CoverDebit transactions to GLTransactions';
 
     public function __construct()

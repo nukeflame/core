@@ -34,97 +34,108 @@
 
                     <div class="row">
                         <div class="col-md-8">
-                            <div class="card shadow-sm mb-3">
-                                <div class="card-header bg-light py-2">
-                                    <h6 class="mb-0 fw-semibold">Debit Information</h6>
+
+                            <div class="row">
+                                <div class="col-md-12">
+                                    <div class="card shadow-sm mb-3">
+                                        <div class="card-header bg-light py-2">
+                                            <h6 class="mb-0 fw-semibold">Debit Information</h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="row g-3">
+                                                <div class="col-md-4">
+                                                    <label class="form-label" for="posting_year">
+                                                        Underwriting Year <span class="text-danger">*</span>
+                                                    </label>
+                                                    <select name="posting_year" id="posting_year" class="form-select"
+                                                        required>
+                                                        <option value="">Select Year</option>
+                                                        @for ($year = date('Y') + 1; $year >= date('Y') - 2; $year--)
+                                                            <option value="{{ $year }}"
+                                                                {{ $year == date('Y') ? 'selected' : '' }}>
+                                                                {{ $year }}
+                                                            </option>
+                                                        @endfor
+                                                    </select>
+                                                </div>
+
+                                                <div class="col-md-8"></div>
+
+                                                <div class="col-md-4">
+                                                    <label class="form-label" for="posting_quarter">
+                                                        Posting Quarter <span class="text-danger">*</span>
+                                                    </label>
+                                                    <select name="posting_quarter" id="posting_quarter"
+                                                        class="form-select" required>
+                                                        <option value="">Select Quarter</option>
+                                                        <option value="Q1" {{ date('n') <= 3 ? 'selected' : '' }}>
+                                                            Q1 - First Quarter
+                                                        </option>
+                                                        <option value="Q2"
+                                                            {{ date('n') >= 4 && date('n') <= 6 ? 'selected' : '' }}>
+                                                            Q2 - Second Quarter
+                                                        </option>
+                                                        <option value="Q3"
+                                                            {{ date('n') >= 7 && date('n') <= 9 ? 'selected' : '' }}>
+                                                            Q3 - Third Quarter
+                                                        </option>
+                                                        <option value="Q4" {{ date('n') >= 10 ? 'selected' : '' }}>
+                                                            Q4 - Fourth Quarter
+                                                        </option>
+                                                    </select>
+                                                </div>
+
+                                                <div class="col-md-4">
+                                                    <label class="form-label" for="posting_date">
+                                                        Posting Date <span class="text-danger">*</span>
+                                                    </label>
+                                                    <input type="date" name="posting_date" id="posting_date"
+                                                        class="form-control" value="{{ date('Y-m-d') }}"
+                                                        max="{{ date('Y-m-d') }}" required />
+                                                </div>
+
+                                                <div class="col-md-4"></div>
+
+                                                <div class="col-md-4">
+                                                    <label class="form-label" for="brokerage_rate">Brokerage Rate
+                                                        (%)</label>
+                                                    <input type="number" name="brokerage_rate" id="brokerage_rate"
+                                                        class="form-control" step="0.01"
+                                                        value="{{ number_format($cover->brokerage_comm_rate, 2) ?? 2.5 }}"
+                                                        min="0" max="100" />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div class="card-body" style="height: 265px;">
+                                <div class="col-8 mb-2">
+                                    <label class="form-label" for="comments">Comments</label>
+                                    <textarea name="comments" id="comments" class="form-control resize-none" rows="3"
+                                        placeholder="Enter any additional information or remarks" maxlength="2000"></textarea>
+                                    <small class="text-muted">
+                                        <span id="comments-count">0</span>/2000 characters
+                                    </small>
+                                </div>
+
+                                <div class="col-8 mb-1">
                                     <div class="row g-3">
-                                        <div class="col-md-4">
-                                            <label class="form-label" for="posting_year">
-                                                Underwriting Year <span class="text-danger">*</span>
-                                            </label>
-                                            <select name="posting_year" id="posting_year" class="form-select" required>
-                                                <option value="">Select Year</option>
-                                                @for ($year = date('Y') + 1; $year >= date('Y') - 2; $year--)
-                                                    <option value="{{ $year }}"
-                                                        {{ $year == date('Y') ? 'selected' : '' }}>
-                                                        {{ $year }}
-                                                    </option>
-                                                @endfor
-                                            </select>
+                                        <div class="col-md-6">
+                                            <div class="form-check form-check-lg custom-checkbox">
+                                                <input class="form-check-input" type="checkbox" name="show_cedant"
+                                                    id="show_cedant" value="1">
+                                                <label class="form-check-label" for="show_cedant">
+                                                    Show Cedant on Statement
+                                                </label>
+                                            </div>
                                         </div>
-
-                                        <div class="col-md-8"></div>
-
-                                        <div class="col-md-4">
-                                            <label class="form-label" for="posting_quarter">
-                                                Posting Quarter <span class="text-danger">*</span>
-                                            </label>
-                                            <select name="posting_quarter" id="posting_quarter" class="form-select"
-                                                required>
-                                                <option value="">Select Quarter</option>
-                                                <option value="Q1" {{ date('n') <= 3 ? 'selected' : '' }}>
-                                                    Q1 - First Quarter
-                                                </option>
-                                                <option value="Q2"
-                                                    {{ date('n') >= 4 && date('n') <= 6 ? 'selected' : '' }}>
-                                                    Q2 - Second Quarter
-                                                </option>
-                                                <option value="Q3"
-                                                    {{ date('n') >= 7 && date('n') <= 9 ? 'selected' : '' }}>
-                                                    Q3 - Third Quarter
-                                                </option>
-                                                <option value="Q4" {{ date('n') >= 10 ? 'selected' : '' }}>
-                                                    Q4 - Fourth Quarter
-                                                </option>
-                                            </select>
-                                        </div>
-
-                                        <div class="col-md-4">
-                                            <label class="form-label" for="posting_date">
-                                                Posting Date <span class="text-danger">*</span>
-                                            </label>
-                                            <input type="date" name="posting_date" id="posting_date"
-                                                class="form-control" value="{{ date('Y-m-d') }}"
-                                                max="{{ date('Y-m-d') }}" required />
-                                        </div>
-
-                                        <div class="col-md-4"></div>
-
-                                        <div class="col-md-3">
-                                            <label class="form-label" for="brokerage_rate">Brokerage Rate (%)</label>
-                                            <input type="number" name="brokerage_rate" id="brokerage_rate"
-                                                class="form-control" step="0.01"
-                                                value="{{ number_format($cover->brokerage_comm_rate, 2) ?? 2.5 }}"
-                                                min="0" max="100" />
-                                        </div>
-
-                                        <div class="col-md-3">
-                                            <label class="form-label" for="premium_levy">Premium Levy (%)</label>
-                                            <input type="number" name="premium_levy" id="premium_levy"
-                                                class="form-control" step="0.01"
-                                                value="{{ $taxRates['PREMIUM_LEVY'] }}" min="0"
-                                                max="100" />
-                                        </div>
-
-                                        <div class="col-md-3">
-                                            <label class="form-label" for="reinsurance_levy">Reinsurance Levy
-                                                (%)</label>
-                                            <input type="number" name="reinsurance_levy" id="reinsurance_levy"
-                                                class="form-control" step="0.01"
-                                                value="{{ $taxRates['REINSURANCE_LEVY'] }}" min="0"
-                                                max="100" />
-                                        </div>
-
-                                        <div class="col-md-3">
-                                            <label for="wht_rate" class="form-label">
-                                                WHT Rate (%)
-                                            </label>
-                                            <input type="number" name="wht_rate" id="wht_rate"
-                                                class="form-control" step="0.01"
-                                                value="{{ $taxRates['WITHHOLDING_TAX'] }}" min="0"
-                                                max="100" />
+                                        <div class="col-md-6">
+                                            <div class="form-check form-check-lg custom-checkbox">
+                                                <input class="form-check-input" type="checkbox" name="show_reinsurer"
+                                                    id="show_reinsurer" value="1">
+                                                <label class="form-check-label" for="show_reinsurer">
+                                                    Show Reinsurer on Statement
+                                                </label>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -137,29 +148,74 @@
                                     <h6 class="mb-0 fw-semibold">Statutory Levies</h6>
                                 </div>
                                 <div class="card-body">
-                                    <div class="form-check form-check-lg custom-checkbox mb-2">
-                                        <input class="form-check-input levy-checkbox" type="checkbox"
-                                            name="compute_premium_tax" id="compute_premium_tax" value="1"
-                                            data-rate="{{ $taxRates['PREMIUM_LEVY'] }}">
-                                        <label class="form-check-label" for="compute_premium_tax">
-                                            Compute Premium Levy ({{ $taxRates['PREMIUM_LEVY'] }}%)
-                                        </label>
+                                    {{-- Premium Levy --}}
+                                    <div class="levy-row mb-2">
+                                        <div class="d-flex align-items-center justify-content-between">
+                                            <div class="form-check form-check-lg custom-checkbox mb-0">
+                                                <input class="form-check-input levy-checkbox" type="checkbox"
+                                                    name="compute_premium_tax" id="compute_premium_tax"
+                                                    value="1" data-rate="{{ $taxRates['PREMIUM_LEVY'] }}">
+                                                <label class="form-check-label" for="compute_premium_tax">
+                                                    Premium Levy
+                                                </label>
+                                            </div>
+                                            <div class="levy-rate-input">
+                                                <div class="input-group input-group-sm">
+                                                    <input type="number" name="premium_levy" id="premium_levy"
+                                                        class="form-control form-control-sm text-end" step="0.01"
+                                                        value="{{ $taxRates['PREMIUM_LEVY'] }}" min="0"
+                                                        max="100" style="width: 75px;" />
+                                                    <span class="input-group-text">%</span>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div class="form-check form-check-lg custom-checkbox mb-2">
-                                        <input class="form-check-input levy-checkbox" type="checkbox"
-                                            name="compute_reinsurance_tax" id="compute_reinsurance_tax"
-                                            value="1" data-rate="{{ $taxRates['REINSURANCE_LEVY'] }}">
-                                        <label class="form-check-label" for="compute_reinsurance_tax">
-                                            Compute Reinsurance Levy ({{ $taxRates['REINSURANCE_LEVY'] }}%)
-                                        </label>
+
+                                    {{-- Reinsurance Levy --}}
+                                    <div class="levy-row mb-2">
+                                        <div class="d-flex align-items-center justify-content-between">
+                                            <div class="form-check form-check-lg custom-checkbox mb-0">
+                                                <input class="form-check-input levy-checkbox" type="checkbox"
+                                                    name="compute_reinsurance_tax" id="compute_reinsurance_tax"
+                                                    value="1" data-rate="{{ $taxRates['REINSURANCE_LEVY'] }}">
+                                                <label class="form-check-label" for="compute_reinsurance_tax">
+                                                    Reinsurance Levy
+                                                </label>
+                                            </div>
+                                            <div class="levy-rate-input">
+                                                <div class="input-group input-group-sm">
+                                                    <input type="number" name="reinsurance_levy"
+                                                        id="reinsurance_levy"
+                                                        class="form-control form-control-sm text-end" step="0.01"
+                                                        value="{{ $taxRates['REINSURANCE_LEVY'] }}" min="0"
+                                                        max="100" style="width: 75px;" />
+                                                    <span class="input-group-text">%</span>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div class="form-check form-check-lg custom-checkbox mb-0">
-                                        <input class="form-check-input levy-checkbox" type="checkbox"
-                                            name="compute_withholding_tax" id="compute_withholding_tax"
-                                            value="1" data-rate="{{ $taxRates['WITHHOLDING_TAX'] }}">
-                                        <label class="form-check-label" for="compute_withholding_tax">
-                                            Compute Withholding Tax ({{ $taxRates['WITHHOLDING_TAX'] }}%)
-                                        </label>
+
+                                    {{-- Withholding Tax --}}
+                                    <div class="levy-row mb-0">
+                                        <div class="d-flex align-items-center justify-content-between">
+                                            <div class="form-check form-check-lg custom-checkbox mb-0">
+                                                <input class="form-check-input levy-checkbox" type="checkbox"
+                                                    name="compute_withholding_tax" id="compute_withholding_tax"
+                                                    value="1" data-rate="{{ $taxRates['WITHHOLDING_TAX'] }}">
+                                                <label class="form-check-label" for="compute_withholding_tax">
+                                                    Withholding Tax
+                                                </label>
+                                            </div>
+                                            <div class="levy-rate-input">
+                                                <div class="input-group input-group-sm">
+                                                    <input type="number" name="wht_rate" id="wht_rate"
+                                                        class="form-control form-control-sm text-end" step="0.01"
+                                                        value="{{ $taxRates['WITHHOLDING_TAX'] }}" min="0"
+                                                        max="100" style="width: 75px;" />
+                                                    <span class="input-group-text">%</span>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -169,26 +225,57 @@
                                     <h6 class="mb-0 fw-semibold">Variable Commission</h6>
                                 </div>
                                 <div class="card-body">
-                                    <div class="form-check form-check-lg custom-checkbox mb-2">
-                                        <input class="form-check-input" type="checkbox" name="loss_participation"
-                                            id="loss_participation" value="1">
-                                        <label class="form-check-label" for="loss_participation">
-                                            Include Loss Participation
-                                        </label>
+                                    {{-- Loss Participation --}}
+                                    <div class="levy-row mb-2">
+                                        <div class="d-flex align-items-center justify-content-between">
+                                            <div class="form-check form-check-lg custom-checkbox mb-0">
+                                                <input class="form-check-input" type="checkbox"
+                                                    name="loss_participation" id="loss_participation" value="1">
+                                                <label class="form-check-label" for="loss_participation">
+                                                    Loss Participation
+                                                </label>
+                                            </div>
+                                            {{-- <div class="levy-rate-input">
+                                                <div class="input-group input-group-sm">
+                                                    <input type="number" name="loss_participation_rate"
+                                                        id="loss_participation_rate"
+                                                        class="form-control form-control-sm text-end" step="0.01"
+                                                        value="0.00" min="0" max="100"
+                                                        style="width: 75px;" disabled />
+                                                    <span class="input-group-text">%</span>
+                                                </div>
+                                            </div> --}}
+                                        </div>
                                     </div>
-                                    <div class="form-check form-check-lg custom-checkbox mb-0">
-                                        <input class="form-check-input" type="checkbox" name="sliding_commission"
-                                            id="sliding_commission" value="1">
-                                        <label class="form-check-label" for="sliding_commission">
-                                            Apply Sliding Scale Commission
-                                        </label>
+
+                                    {{-- Sliding Scale Commission --}}
+                                    <div class="levy-row mb-0">
+                                        <div class="d-flex align-items-center justify-content-between">
+                                            <div class="form-check form-check-lg custom-checkbox mb-0">
+                                                <input class="form-check-input" type="checkbox"
+                                                    name="sliding_commission" id="sliding_commission" value="1">
+                                                <label class="form-check-label" for="sliding_commission">
+                                                    Sliding Scale Commission
+                                                </label>
+                                            </div>
+                                            {{-- <div class="levy-rate-input">
+                                                <div class="input-group input-group-sm">
+                                                    <input type="number" name="sliding_commission_rate"
+                                                        id="sliding_commission_rate"
+                                                        class="form-control form-control-sm text-end" step="0.01"
+                                                        value="0.00" min="0" max="100"
+                                                        style="width: 75px;" disabled />
+                                                    <span class="input-group-text">%</span>
+                                                </div>
+                                            </div> --}}
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <div class="row mb-3">
+                    {{-- <div class="row mb-3">
                         <div class="col-12 mb-2">
                             <label class="form-label" for="comments">Comments</label>
                             <textarea name="comments" id="comments" class="form-control resize-none" rows="3"
@@ -220,7 +307,7 @@
                                 </div>
                             </div>
                         </div>
-                    </div>
+                    </div> --}}
 
                     <div class="row">
                         <div class="col-12">
@@ -387,6 +474,24 @@
     #treatyDebitModal .form-check-input:checked {
         background-color: #0d6efd;
         border-color: #0d6efd;
+    }
+
+    #treatyDebitModal .levy-row {
+        padding: 0.35rem 0;
+        border-bottom: 1px solid #f0f0f0;
+    }
+
+    #treatyDebitModal .levy-row:last-child {
+        border-bottom: none;
+    }
+
+    #treatyDebitModal .levy-rate-input .form-control {
+        font-size: 0.8rem;
+    }
+
+    #treatyDebitModal .levy-rate-input .input-group-text {
+        font-size: 0.8rem;
+        padding: 0.2rem 0.4rem;
     }
 
 
@@ -729,28 +834,43 @@
                         self.debouncedCalculate();
                     });
 
-                    // Sync tax rate inputs to Statutory Levies labels
+                    // Sync tax rate inputs to checkbox data-rate attributes
                     $('#premium_levy').on('input change', function() {
                         var rate = $(this).val() || 0;
                         $('#compute_premium_tax').attr('data-rate', rate);
-                        $('label[for="compute_premium_tax"]').text('Compute Premium Levy (' + rate +
-                            '%)');
                         self.debouncedCalculate();
                     });
 
                     $('#reinsurance_levy').on('input change', function() {
                         var rate = $(this).val() || 0;
                         $('#compute_reinsurance_tax').attr('data-rate', rate);
-                        $('label[for="compute_reinsurance_tax"]').text('Compute Reinsurance Levy (' +
-                            rate + '%)');
                         self.debouncedCalculate();
                     });
 
                     $('#wht_rate').on('input change', function() {
                         var rate = $(this).val() || 0;
                         $('#compute_withholding_tax').attr('data-rate', rate);
-                        $('label[for="compute_withholding_tax"]').text('Compute Withholding Tax (' +
-                            rate + '%)');
+                        self.debouncedCalculate();
+                    });
+
+                    // Variable Commission toggle handlers
+                    $('#loss_participation').on('change', function() {
+                        var $rateInput = $('#loss_participation_rate');
+                        if ($(this).is(':checked')) {
+                            $rateInput.prop('disabled', false).trigger('focus');
+                        } else {
+                            $rateInput.prop('disabled', true).val('0.00');
+                        }
+                        self.debouncedCalculate();
+                    });
+
+                    $('#sliding_commission').on('change', function() {
+                        var $rateInput = $('#sliding_commission_rate');
+                        if ($(this).is(':checked')) {
+                            $rateInput.prop('disabled', false).trigger('focus');
+                        } else {
+                            $rateInput.prop('disabled', true).val('0.00');
+                        }
                         self.debouncedCalculate();
                     });
 
