@@ -23,7 +23,7 @@ class AmountCalculator
     {
         $items = $data['items'] ?? [];
         $brokerageRate = (float) ($data['brokerageRate'] ?? 0);
-        
+
         $reinsurers = $this->loadReinsurers($cover);
         $reinsurerCalculations = $this->calculateReinsurerShares($items, $reinsurers, $brokerageRate, $data);
         $cedantCalculation = $this->calculateCedantShare($items, $cover, $brokerageRate, $data);
@@ -36,7 +36,10 @@ class AmountCalculator
     {
         return $reinsurers
             ->filter(fn($r) => ((float) ($r->share ?? 0)) > 0)
-            ->map(fn($r) => $this->calculateSingleReinsurerShare($items, $r, (float) $r->share, $brokerageRate, $data))
+            ->map(function ($r) use ($items, $brokerageRate, $data) {
+                $share = (float) ($r->compulsory_acceptance) > 0 ? $r->compulsory_acceptance : $r->share;
+                return $this->calculateSingleReinsurerShare($items, $r, $share, $brokerageRate, $data);
+            })
             ->filter()
             ->values()
             ->all();
@@ -80,15 +83,10 @@ class AmountCalculator
 
         $config = ShareConfiguration::fromCedant($cover, $brokerageRate, $data);
         $context = new CalculationContext($config, $cedantShare);
-        
+
         foreach ($items as $item) {
             $this->processCedantLineItem($item, $context);
         }
-
-        // logger()->debug(json_encode(
-        //     ['Cedant' =>array_filter($context->lineItems, fn($item) => str_contains($item['description'], 'Commission'))],
-        //     JSON_PRETTY_PRINT
-        // ));
 
         $this->applyTaxes($context);
         $this->distributeTaxesToLineItems($context);
@@ -110,7 +108,7 @@ class AmountCalculator
         if ($ledger === LedgerType::DEBIT) {
             $this->processDebitItem($item, $amount, $shareAmount, $context,  LedgerType::DEBIT, LedgerType::CREDIT);
         } else {
-            // $this->processCreditItem($item, $amount, $shareAmount, $context, LedgerType::CREDIT,);
+            $this->processCreditItem($item, $amount, $shareAmount, $context, LedgerType::CREDIT, LedgerType::DEBIT);
         }
     }
 
@@ -125,7 +123,7 @@ class AmountCalculator
         $shareAmount = $this->percentage($amount, $context->sharePercentage);
 
         if ($ledger === LedgerType::DEBIT) {
-            // $this->processDebitItem($item, $amount, $shareAmount, $context, LedgerType::CREDIT, LedgerType::DEBIT);
+            $this->processDebitItem($item, $amount, $shareAmount, $context, LedgerType::CREDIT, LedgerType::DEBIT);
         } else {
             // $this->processCreditItem($item, $amount, $shareAmount, $context, LedgerType::DEBIT);
         }
@@ -139,60 +137,49 @@ class AmountCalculator
         string $ledger,
         string $commissionLedgerType,
     ): void {
-        $context->lastDebitItem = [
-            'original_amount' => $originalAmount,
-            'share_amount' => $shareAmount,
-        ];
-
         $lineRate = (float) ($item['line_rate'] ?? $context->config->commissionRate);
-        $commissionAmount = $this->calculateCommission($shareAmount, $lineRate, $context, $item);
-        // $brokerageAmount = $this->calculateBrokerage($shareAmount, $context);
-           
-        // $context->lineItems[] = LineItemBuilder::build(
-        //     $item,
-        //     $shareAmount,
-        //     $commissionAmount,
-        //     $brokerageAmount,
-        //     $ledger,
-        //     $context->sharePercentage,
-        //     $originalAmount,
-        //     (float) ($item['line_rate'] ?? 0)
-        // );
+        $commissionAmount = $this->calculateCommission($shareAmount, $context, $item);
 
-        // logger()->debug(json_encode(
-        //     ['shareAmount' => $shareAmount],
-        //     JSON_PRETTY_PRINT
-        // ));
+        if ($item['item_code'] === 'IT03') {
+            $grossAmount = ($lineRate != 0) ? $shareAmount / ($lineRate / 100) : 0;
+        } else {
+            $grossAmount = $shareAmount;
+        }
 
-             
-        // if ($commissionAmount > 0) {
-        //     $context->lineItems[] = LineItemBuilder::buildCommission(
-        //         $item,
-        //         $commissionAmount,
-        //         $lineRate,
-        //         $shareAmount,
-        //         $commissionLedgerType,
-        //         $lineRate
-        //     );
-        // }
+        if ($item['item_code'] !== 'IT03') {
+            $context->lastDebitItem = [
+                'original_amount' => $originalAmount,
+                'share_amount' => $grossAmount,
+            ];
 
-        // if ($brokerageAmount > 0 && $context->config->isReinsurer) {
-        //     $context->lineItems[] = LineItemBuilder::buildBrokerage(
-        //         $item,
-        //         $brokerageAmount,
-        //         $context->config->brokerageRate,
-        //         $shareAmount,
-        //         $commissionLedgerType,
-        //         $context->config->brokerageRate
-        //     );
-        // }
+            $context->lineItems[] = LineItemBuilder::build(
+                $item,
+                $shareAmount,
+                $commissionAmount,
+                0,
+                $ledger,
+                $context->sharePercentage,
+                $originalAmount,
+                (float) ($item['line_rate'] ?? 0)
+            );
 
-        if ($item['item_code'] === 'IT01') {
             $context->amounts->addGross($shareAmount);
         }
 
-        // $context->amounts->addCommission($commissionAmount);
-        // $context->amounts->addBrokerage($brokerageAmount);
+        if ($item['item_code'] === 'IT03') {
+            if ($commissionAmount > 0) {
+                $context->lineItems[] = LineItemBuilder::buildCommission(
+                    $item,
+                    $commissionAmount,
+                    $lineRate,
+                    $grossAmount,
+                    $commissionLedgerType,
+                    $lineRate
+                );
+            }
+
+            $context->amounts->addCommission($commissionAmount);
+        }
     }
 
     protected function processCreditItem(
@@ -201,17 +188,19 @@ class AmountCalculator
         float $shareAmount,
         CalculationContext $context,
         string $ledger,
+        string $commissionLedgerType
     ): void {
         $creditAmount = $this->calculateCreditAmount($item, $shareAmount, $context);
         $lineRate = $this->calculateLineRate($item, $context);
         $baseAmount = ($item['item_code'] === 'IT02')
             ? $originalAmount
             : ($context->lastDebitItem['share_amount'] ?? $shareAmount);
+        $brokerageAmount = $this->calculateBrokerage($shareAmount, $context);
 
         $context->lineItems[] = LineItemBuilder::build(
             $item,
             $creditAmount,
-            0,
+            $baseAmount,
             0,
             $ledger,
             $lineRate,
@@ -219,27 +208,36 @@ class AmountCalculator
             (float) ($item['line_rate'] ?? 0)
         );
 
+
+        if ($brokerageAmount > 0 && $context->config->isReinsurer) {
+            $context->lineItems[] = LineItemBuilder::buildBrokerage(
+                $item,
+                $brokerageAmount,
+                $context->config->brokerageRate,
+                $shareAmount,
+                $commissionLedgerType,
+                $context->config->brokerageRate
+            );
+        }
+
         if ($item['item_code'] !== 'IT04') {
             $context->amounts->addCredit($creditAmount);
         }
     }
 
-    protected function calculateCommission(float $shareAmount, float $rate, CalculationContext $context, $item): float
+    protected function calculateCommission(float $shareAmount, CalculationContext $context, $item): float
     {
         $grossAmount = $shareAmount;
         if ($item['item_code'] === 'IT03') {
             if ($context->config->commissionMode === 'net') {
-                $net = (100 - 2) / 100;
-                // $netBase = $this->percentage($net, $rate);
+                $net = (100 - $context->config->premiumLevy) / 100;
 
-                logger()->debug(json_encode(
-                    ['context' => $context],
-                    JSON_PRETTY_PRINT
-                ));
-                // return $this->percentage($netBase, $rate);
+                return $grossAmount * $net;
+            } else {
+                return $grossAmount;
             }
         }
-    
+
         return 0;
     }
 
@@ -252,8 +250,19 @@ class AmountCalculator
 
     protected function calculateCreditAmount(array $item, float $shareAmount, CalculationContext $context): float
     {
+
         if ($item['item_code'] === self::TAX_LEVY_ITEM_CODE && $context->lastDebitItem) {
-            return $this->taxService->calculatePremiumLevy($context->lastDebitItem['share_amount']);
+            $grossAmount = $context->lastDebitItem['share_amount'];
+            if ($item['item_code'] === 'IT05') {
+                if ($context->config->computePremiumTax) {
+                    $premTax = $grossAmount * ($context->config->premiumLevy / 100);
+                    return $premTax;
+                }
+
+                return 0;
+            } else {
+                return $this->taxService->calculatePremiumLevy($context->lastDebitItem['share_amount']);
+            }
         }
 
         return $shareAmount;
@@ -334,7 +343,10 @@ class AmountCalculator
         ?array $cedant
     ): array {
         $netAmount = $totals['net'];
-
+        logger()->debug(json_encode(
+            ['Reinsurers' => $reinsurers[0]['items']],
+            JSON_PRETTY_PRINT
+        ));
         return [
             'gross_amount' => $totals['gross'],
             'credit_amount' => $totals['credit'],
@@ -420,6 +432,9 @@ class ShareConfiguration
         public readonly float $premiumLevy,
         public readonly float $reinsuranceLevy,
         public readonly float $withholdingTax,
+        public readonly bool $computePremiumTax,
+        public readonly bool $computeReinsuranceTax,
+        public readonly bool $computeWithholdingTax,
     ) {}
 
     public static function fromReinsurer(CoverRipart $reinsurer, float $brokerageRate, $data): self
@@ -430,9 +445,12 @@ class ShareConfiguration
             commissionRate: (float) ($reinsurer->commission_rate ?? 0),
             commissionMode: strtolower($reinsurer->commission_mode ?? 'gross'),
             brokerageRate: $brokerageRate,
-            premiumLevy: $data['computePremiumTax'] ?? 0,
-            reinsuranceLevy: $data['computeReinsuranceTax'] ?? 0,
-            withholdingTax: $data['computeWithholdingTax'] ?? 0,
+            computePremiumTax: $data['computePremiumTax'] ?? false,
+            computeReinsuranceTax: $data['computeReinsuranceTax'] ?? false,
+            computeWithholdingTax: $data['computeWithholdingTax'] ?? false,
+            premiumLevy: $data['premiumLevy'] ?? 0,
+            reinsuranceLevy: $data['reinsuranceLevy'] ?? 0,
+            withholdingTax: $data['withholdingTax'] ?? 0,
         );
     }
 
@@ -442,7 +460,7 @@ class ShareConfiguration
             ->where('endorsement_no', $cover->endorsement_no ?? '')
             ->where('share', '>', 0)
             ->first();
-        
+
         $commissionMode = 'gross';
         if ($partner) {
             $net_of_commission = $partner->net_of_commission;
@@ -451,20 +469,18 @@ class ShareConfiguration
             }
         }
 
-        logger()->debug(json_encode(
-            ['data' => $data],
-            JSON_PRETTY_PRINT
-        ));
-       
         return new self(
             isReinsurer: false,
             amountType: strtolower($commissionMode),
             commissionRate: 0,
             commissionMode: strtolower($commissionMode),
             brokerageRate: $brokerageRate,
-            premiumLevy: $data['computePremiumTax'] ?? 0,
-            reinsuranceLevy: $data['computeReinsuranceTax'] ?? 0,
-            withholdingTax: $data['computeWithholdingTax'] ?? 0,
+            computePremiumTax: $data['computePremiumTax'] ?? false,
+            computeReinsuranceTax: $data['computeReinsuranceTax'] ?? false,
+            computeWithholdingTax: $data['computeWithholdingTax'] ?? false,
+            premiumLevy: $data['premiumLevy'] ?? 0,
+            reinsuranceLevy: $data['reinsuranceLevy'] ?? 0,
+            withholdingTax: $data['withholdingTax'] ?? 0,
         );
     }
 }
@@ -517,7 +533,7 @@ class LineItemBuilder
         array $sourceItem,
         float $commissionAmount,
         float $commissionRate,
-        float $originalAmount,  
+        float $originalAmount,
         string $commissionLedger,
         ?float $originalLineRate = null
     ): array {
@@ -612,7 +628,7 @@ class ResultBuilder
             'reinsurance_tax' => $context->amounts->reinsuranceTax(),
             'withholding_tax' => $context->amounts->withholdingTax(),
             'other_deductions' => $context->amounts->credit(),
-            'total_deductions' => $context->amounts->credit(),
+            'total_deductions' => $context->amounts->totalDeductions(),
             'net_amount' => $context->amounts->net(),
             'items' => $context->lineItems,
         ];
@@ -697,10 +713,10 @@ class AmountAccumulator
     public function totalDeductions(): float
     {
         return $this->commission
-            + $this->brokerage
-            + $this->premiumTax
-            + $this->reinsuranceTax
-            + $this->withholdingTax
+            // + $this->brokerage
+            // + $this->premiumTax
+            // + $this->reinsuranceTax
+            // + $this->withholdingTax
             + $this->credit;
     }
 

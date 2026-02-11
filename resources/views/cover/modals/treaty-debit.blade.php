@@ -34,7 +34,6 @@
 
                     <div class="row">
                         <div class="col-md-8">
-
                             <div class="row">
                                 <div class="col-md-12">
                                     <div class="card shadow-sm mb-3">
@@ -108,16 +107,17 @@
                                         </div>
                                     </div>
                                 </div>
-                                <div class="col-8 mb-2">
+
+                                <div class="col-md-12 mb-2">
                                     <label class="form-label" for="comments">Comments</label>
-                                    <textarea name="comments" id="comments" class="form-control resize-none" rows="3"
+                                    <textarea name="comments" id="comments" class="form-control resize-none shadow-sm" rows="3"
                                         placeholder="Enter any additional information or remarks" maxlength="2000"></textarea>
                                     <small class="text-muted">
                                         <span id="comments-count">0</span>/2000 characters
                                     </small>
                                 </div>
 
-                                <div class="col-8 mb-1">
+                                <div class="col-md-12 mb-3">
                                     <div class="row g-3">
                                         <div class="col-md-6">
                                             <div class="form-check form-check-lg custom-checkbox">
@@ -311,7 +311,7 @@
 
                     <div class="row">
                         <div class="col-12">
-                            <div class="card">
+                            <div class="card shadow-sm">
                                 <div class="card-header py-2 d-flex justify-content-between align-items-center">
                                     <strong>Transaction Line Items</strong>
                                     <button type="button" class="btn btn-sm btn-success" id="add-debit-item">
@@ -464,6 +464,7 @@
     #treatyDebitModal .card {
         border: 1px solid #dee2e6;
         border-radius: 0.375rem;
+        margin-bottom: 0px;
     }
 
     #treatyDebitModal .card-header {
@@ -477,8 +478,7 @@
     }
 
     #treatyDebitModal .levy-row {
-        padding: 0.35rem 0;
-        border-bottom: 1px solid #f0f0f0;
+        padding: 0px;
     }
 
     #treatyDebitModal .levy-row:last-child {

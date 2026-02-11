@@ -1576,10 +1576,6 @@ class CoverController extends Controller
 
     public function generateDebitAndCredit(Request $request)
     {
-        logger()->debug(json_encode(
-            ['validatedData' => $request->all()],
-            JSON_PRETTY_PRINT
-        )); 
         DB::beginTransaction();
         try {
             $validatedData = $request->toArray();
@@ -2020,11 +2016,6 @@ class CoverController extends Controller
             $commissionRate
         );
 
-        // logger()->debug(json_encode(
-        //     ['validatedData' => $validatedData],
-        //     JSON_PRETTY_PRINT
-        // ));
-
         return [
             'typeOfBus' => $typeOfBus,
             'isTreaty' => in_array($typeOfBus, ['TPR', 'TNP']),
@@ -2048,13 +2039,16 @@ class CoverController extends Controller
             'brokerageRate' => $brokerageRate,
             'comments' => $validatedData['comments'] ?? '',
             'items' => $enhancedItems,
-            'computePremiumTax' => $premiumTaxRate,
-            'computeReinsuranceTax' => $validatedData['reinsurance_levy'] ?? 0,
-            'computeWithholdingTax' => $validatedData['wht_rate'] ?? 0,
+            'premiumLevy' => $premiumTaxRate,
+            'reinsuranceLevy' => $validatedData['reinsurance_levy'] ?? 0,
+            'withholdingTax' => $validatedData['wht_rate'] ?? 0,
             'lossParticipation' => $validatedData['loss_participation'] ?? 0,
             'showCedant' => $validatedData['show_cedant'] ?? false,
             'showReinsurer' => $validatedData['show_reinsurer'] ?? false,
             'reinsurerPosting' => 'NET',
+            'computePremiumTax' => $validatedData['compute_premium_tax'] ?? false,
+            'computeReinsuranceTax' => $validatedData['compute_reinsurance_tax'] ?? false,
+            'computeWithholdingTax' => $validatedData['compute_withholding_tax'] ?? false,
             'premiumPayTerms' => '',
         ];
     }
@@ -3145,7 +3139,7 @@ class CoverController extends Controller
                 ];
             }
         }
-        
+
         $firstRecord = $quarterlyData->first();
 
         return response()->json([
