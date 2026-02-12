@@ -11,6 +11,7 @@
             margin-top: 120pt;
             margin-left: 20pt;
             margin-right: 20pt;
+            margin-bottom: 20pt;
         }
 
         * {
@@ -65,8 +66,8 @@
 
         .footer-content {
             border-top: 1px solid #000;
-            padding-top: 8px;
-            margin-top: 15px;
+            padding-top: 4px;
+            margin-top: 15pt;
         }
 
         .page-number::after {
@@ -406,7 +407,7 @@
         </footer>
     @endif
 
-    <div>
+    <div style="margin-bottom: 3rem;">
         @yield('content')
     </div>
 

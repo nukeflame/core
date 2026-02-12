@@ -1533,16 +1533,35 @@
                                 orderable: false,
                                 searchable: false,
                                 render: function(data, type, row) {
-                                    return '<div class="btn-group btn-group-sm" role="group" aria-label="Reinsurer actions">' +
-                                        '<button type="button" class="btn btn-outline-primary btn-action btn-view-reinsurer" data-id="' +
+                                    var creditNoteUrl =
+                                        '{{ url('docs/reincreditnotes') }}?endorsement_no=' +
+                                        encodeURIComponent(CONFIG.endorsementNo) +
+                                        '&partner_no=' +
+                                        encodeURIComponent(row.partner_no);
+                                    var coverSlipUrl =
+                                        '{{ url('docs/coverslip') }}?endorsement_no=' +
+                                        encodeURIComponent(CONFIG.endorsementNo) +
+                                        '&partner_no=' +
+                                        encodeURIComponent(row.partner_no);
+
+                                    return '<div class="d-flex gap-2">' +
+                                        '<a href="javascript:void(0)" class="text-primary btn-view-reinsurer" data-id="' +
                                         row.id + '" data-partner-no="' + row.partner_no +
                                         '" title="View Details">' +
-                                        '<i class="ri-eye-line"></i>' +
-                                        '</button>' +
-                                        '<button type="button" class="btn btn-outline-info btn-action btn-send-statement" data-id="' +
+                                        '<i class="ri-file-list-3-line fs-18"></i> Credit Note' +
+                                        '</a>' +
+                                        '<a href="' + creditNoteUrl +
+                                        '" target="_blank" class="text-info" title="Credit Note">' +
+                                        '<i class="ri-file-list-3-line fs-18"></i>' +
+                                        '</a>' +
+                                        '<a href="' + coverSlipUrl +
+                                        '" target="_blank" class="text-success" title="Cover Slip">' +
+                                        '<i class="ri-file-shield-2-line fs-18"></i>' +
+                                        '</a>' +
+                                        '<a href="javascript:void(0)" class="text-info btn-send-statement" data-id="' +
                                         row.id + '" title="Send Statement">' +
-                                        '<i class="ri-mail-send-line"></i>' +
-                                        '</button>' +
+                                        '<i class="ri-mail-send-line fs-18"></i>' +
+                                        '</a>' +
                                         '</div>';
                                 }
                             }
@@ -2222,7 +2241,7 @@
                                     return '<div class="btn-group btn-group-sm" role="group" aria-label="Cedant actions">' +
                                         '<button type="button" class="btn btn-outline-primary btn-action btn-view-cedant" data-partner_no="' +
                                         row.partner_no + '" title="View Details">' +
-                                        '<i class="ri-eye-line"></i>' +
+                                        '<i class="ri-file-text-line"></i>' +
                                         '</button>' +
                                         '<button type="button" class="btn btn-outline-info btn-action btn-send-cedant-statement" data-partner_no="' +
                                         row.partner_no + '" title="Send Statement">' +
@@ -2611,6 +2630,18 @@
                 DocumentsManager.preview(url);
             });
 
+            async function viewDocumentPdf(url, title = 'Document') {
+                const response = await fetch(url, {
+                    method: 'GET'
+                });
+
+                if (response.ok) {
+                    window.open(url, '_blank', 'noopener,noreferrer');
+                } else {
+                    Utils.showToast("This transaction is not yet debited", 'error');
+                }
+            }
+
             $(document).on('click', '.btn-download-doc', function() {
                 var id = $(this).data('id');
                 DocumentsManager.download(id);
@@ -2626,51 +2657,52 @@
             $(document).on('click', '.btn-view-reinsurer', function() {
                 var partnerNo = $(this).data('partner-no');
                 if (partnerNo) {
+                    let url = CONFIG.routes.reinsurerCreditNoteView +
+                        '?cover_no=' + encodeURIComponent(CONFIG.coverNo) +
+                        '&endorsement_no=' + encodeURIComponent(CONFIG.endorsementNo) +
+                        '&partner_no=' + encodeURIComponent(partnerNo);
+
                     Swal.fire({
-                        title: 'Generate Credit Note',
-                        html: `
-                            <div class="text-start">
-                                <p class="mb-3">Do you want to include brokerage in the credit note?</p>
-                                <div class="form-check mb-2">
-                                    <input class="form-check-input" type="radio" name="brokerageOption" id="withBrokerage" value="1" checked>
-                                    <label class="form-check-label" for="withBrokerage">
-                                        <i class="ri-check-line text-success me-1"></i> With Brokerage
-                                    </label>
-                                </div>
-                                <div class="form-check">
-                                    <input class="form-check-input" type="radio" name="brokerageOption" id="withoutBrokerage" value="0">
-                                    <label class="form-check-label" for="withoutBrokerage">
-                                        <i class="ri-close-line text-danger me-1"></i> Without Brokerage
-                                    </label>
-                                </div>
-                            </div>
-                        `,
+                        title: 'Include Broking Commission?',
                         icon: 'question',
-                        showCancelButton: true,
-                        confirmButtonText: '<i class="ri-file-pdf-line me-1"></i> Generate PDF',
-                        cancelButtonText: 'Cancel',
-                        confirmButtonColor: '#3085d6',
-                        cancelButtonColor: '#6c757d',
+                        showDenyButton: true,
+                        showCancelButton: false,
+                        confirmButtonText: 'Yes',
+                        denyButtonText: 'No',
+                        width: '450px',
                         customClass: {
-                            popup: 'swal-wide'
+                            actions: 'swal_actions_btn',
+                            confirmButton: 'order-2 btn-confirm',
+                            denyButton: 'order-3 btn-deny',
                         },
-                        preConfirm: () => {
-                            const withBrokerage = document.querySelector(
-                                'input[name="brokerageOption"]:checked').value;
-                            return {
-                                withBrokerage: withBrokerage
-                            };
-                        }
+                        buttonsStyling: false,
                     }).then((result) => {
                         if (result.isConfirmed) {
-                            var url = CONFIG.routes.reinsurerCreditNoteView +
-                                '?cover_no=' + encodeURIComponent(CONFIG.coverNo) +
-                                '&endorsement_no=' + encodeURIComponent(CONFIG.endorsementNo) +
-                                '&partner_no=' + encodeURIComponent(partnerNo) +
-                                '&with_brokerage=' + result.value.withBrokerage;
-                            window.open(url, '_blank');
+                            Swal.fire({
+                                icon: 'success',
+                                showConfirmButton: false,
+                                confirmButtonText: 'OK',
+                                title: 'Generating with Brokerage...',
+                                text: '',
+                                timer: 1500,
+                                timerProgressBar: true
+                            });
+                            url += "&include_broking_commission=yes";
+                            viewDocumentPdf(url, 'Credit Note')
+                        } else if (result.isDenied) {
+                            Swal.fire({
+                                icon: 'success',
+                                showConfirmButton: false,
+                                confirmButtonText: 'OK',
+                                title: 'Generating without Brokerage...',
+                                text: '',
+                                timer: 1500,
+                                timerProgressBar: true
+                            });
+                            url += "&include_broking_commission=no";
+                            viewDocumentPdf(url, 'Credit Note')
                         }
-                    });
+                    })
                 }
             });
 

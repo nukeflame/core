@@ -19,6 +19,8 @@ class DebitNoteService
 
     public const DEBIT_CODES = ['IT01', 'IT11', 'IT20', 'IT26'];
     public const CREDIT_CODES = ['IT02', 'IT03', 'IT04', 'IT05', 'IT06', 'IT07', 'IT08', 'IT10', 'IT21', 'IT27', 'IT29', 'IT30'];
+    private const LEDGER_DEBIT = 'DR';
+
 
     public function __construct(
         private readonly SequenceService $sequenceService,
@@ -51,23 +53,20 @@ class DebitNoteService
 
             $this->validateCreateData($data);
 
-            $calculation = $this->amountCalculator->calculate($data, $cover);
-            // $debitNoteNo = $this->generateDebitNoteNumber(
-            //     $cover->type_of_bus,
-            //     $data['postingYear'] ?? now()->year
-            // );
-            
-            // $debitNote = $this->createDebitNoteRecord($debitNoteNo, $data, $cover, $calculation);
+            $calculation = $this->amountCalculator->calculate($data, $cover, self::LEDGER_DEBIT);
 
-            // $this->lineItemProcessor->createDebitNoteLineItems($debitNote, $calculation);
+            $debitNoteNo = $this->generateDebitNoteNumber(
+                $cover->type_of_bus,
+                $data['postingYear'] ?? now()->year
+            );
 
-            // if ($data['updateRipart'] ?? false) {
-            //     $this->updateReinsurerParticipation($calculation['reinsurers']);
-            // }
-            // // $this->transactionLogger->log($debitNote, 'CREATE');
+            $debitNote = $this->createDebitNoteRecord($debitNoteNo, $data, $cover, $calculation);
 
-            // return $debitNote->fresh(['items', 'cover', 'cover.customer']);
-            return new DebitNote();
+            $this->lineItemProcessor->createDebitNoteLineItems($debitNote, $calculation);
+
+            // $this->transactionLogger->log($debitNote, 'CREATE');
+
+            return $debitNote->fresh(['items', 'cover', 'cover.customer']);
         });
     }
 
@@ -85,7 +84,7 @@ class DebitNoteService
 
             $oldValues = $debitNote->toArray();
 
-            $calculation = $this->amountCalculator->calculate($data, $debitNote->cover);
+            $calculation = $this->amountCalculator->calculate($data, $debitNote->cover, self::LEDGER_DEBIT);
 
             $this->updateDebitNoteRecord($debitNote, $data, $calculation);
 
@@ -208,7 +207,7 @@ class DebitNoteService
 
     public function calculateAmounts(array $data, ?CoverRegister $cover = null)
     {
-        return $this->amountCalculator->calculate($data, $cover);
+        return $this->amountCalculator->calculate($data, $cover, self::LEDGER_DEBIT);
     }
 
     protected function validateCreateData(array $data): void
@@ -245,15 +244,15 @@ class DebitNoteService
             'posting_quarter' => $data['postingQuarter'],
             'posting_date' => $data['postingDate'],
             'brokerage_rate' => $data['brokerageRate'] ?? 0,
-            'gross_amount' => $calculation['cedant']['gross_amount'],
-            'commission_amount' => $calculation['cedant']['commission_amount'],
-            'brokerage_amount' => $calculation['cedant']['brokerage_amount'],
-            'premium_tax' => $calculation['cedant']['premium_tax'],
-            'reinsurance_tax' => $calculation['cedant']['reinsurance_tax'],
-            'withholding_tax' => $calculation['cedant']['withholding_tax'],
-            'other_deductions' => $calculation['cedant']['other_deductions'],
-            'total_deductions' => $calculation['cedant']['total_deductions'],
-            'net_amount' => $calculation['cedant']['net_amount'],
+            'gross_amount' => $calculation['gross_amount'],
+            'commission_amount' => $calculation['commission_amount'],
+            'brokerage_amount' => $calculation['brokerage_amount'],
+            'premium_tax' => $calculation['premium_tax'],
+            'reinsurance_tax' => $calculation['reinsurance_tax'],
+            'withholding_tax' => $calculation['withholding_tax'],
+            'other_deductions' => $calculation['other_deductions'],
+            'total_deductions' => $calculation['total_deductions'],
+            'net_amount' => $calculation['net_amount'],
             'comments' => $data['comments'] ?? null,
             'show_cedant' => $data['showCedant'] ?? false,
             'show_reinsurer' => $data['showReinsurer'] ?? false,
@@ -321,32 +320,6 @@ class DebitNoteService
                 'amount' => $item->amount,
             ])->toArray(),
         ];
-    }
-
-    protected function updateReinsurerParticipation(array $reinsurers): void
-    {
-        foreach ($reinsurers as $reinsurer) {
-            DB::table('coverripart')->updateOrInsert(
-                [
-                    'endorsement_no' => $reinsurer->endorsementNo,
-                    'cover_no' => $reinsurer->coverNo,
-                    'partner_code' => $reinsurer->partnerCode,
-                ],
-                [
-                    'share' => $reinsurer->share,
-                    'premium' => $reinsurer['gross_amount'],
-                    'total_premium' => $reinsurer['gross_amount'],
-                    'commission' => $reinsurer['commission_amount'],
-                    'brokerage_comm_rate' => $reinsurer['brokerage_rate'],
-                    'brokerage_comm_amt' => $reinsurer['brokerage_amount'],
-                    'prem_tax' => $reinsurer['premium_tax'],
-                    'ri_tax' => $reinsurer['reinsurance_tax'],
-                    'wht_amt' => $reinsurer['withholding_tax'],
-                    'net_amount' => $reinsurer['net_amount'],
-                    'updated_at' => now(),
-                ]
-            );
-        }
     }
 
     protected function applyFilters($query, array $filters): void

@@ -116,12 +116,6 @@ class LineItemProcessor
         }
 
         if (!empty($insertData)) {
-            // $filteredData = array_filter($insertData, function ($item) {
-            //     return isset($item['description']) && strpos($item['description'], 'Claims') !== false;
-            // });
-
-            // logger()->debug(json_encode($filteredData, JSON_PRETTY_PRINT));
-
             $arrangedParticulars = $this->sorter->arrangeParticulars($insertData);
             CreditNoteItem::insert($arrangedParticulars);
         }

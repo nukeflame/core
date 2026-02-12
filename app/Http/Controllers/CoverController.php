@@ -1677,6 +1677,7 @@ class CoverController extends Controller
         $premiumTaxRate = (float) ($validatedData['premium_levy'] ?? 0);
         $commissionRate = (float) ($coverRegister->comm_rate ?? 0);
 
+
         $enhancedItems = $this->enhanceItemsWithDeductions(
             $validatedData['items'] ?? [],
             $brokerageRate,
@@ -1707,13 +1708,16 @@ class CoverController extends Controller
             'brokerageRate' => $brokerageRate,
             'comments' => $validatedData['comments'] ?? '',
             'items' => $enhancedItems,
-            'computePremiumTax' => $premiumTaxRate,
-            'computeReinsuranceTax' => $validatedData['reinsurance_levy'] ?? 0,
-            'computeWithholdingTax' => $validatedData['wht_rate'] ?? 0,
+            'premiumLevy' => $premiumTaxRate,
+            'reinsuranceLevy' => $validatedData['reinsurance_levy'] ?? 0,
+            'withholdingTax' => $validatedData['wht_rate'] ?? 0,
             'lossParticipation' => $validatedData['loss_participation'] ?? 0,
             'showCedant' => $validatedData['show_cedant'] ?? false,
             'showReinsurer' => $validatedData['show_reinsurer'] ?? false,
             'reinsurerPosting' => 'NET',
+            'computePremiumTax' => $validatedData['compute_premium_tax'] ?? false,
+            'computeReinsuranceTax' => $validatedData['compute_reinsurance_tax'] ?? false,
+            'computeWithholdingTax' => $validatedData['compute_withholding_tax'] ?? false,
             'premiumPayTerms' => '',
         ];
     }
@@ -3127,20 +3131,37 @@ class CoverController extends Controller
         $items = [];
         foreach ($debitNotes as $debitNote) {
             foreach ($debitNote->items as $item) {
-                $items[] = [
-                    'item_code' => $item->item_code,
-                    'description' => $item->description,
-                    'item_type' => $item->item_type,
-                    'class_group' => $item->class_group_code,
-                    'class_name' => $item->class_code,
-                    'line_rate' => $item->original_line_rate ?? 0,
-                    'ledger' => in_array(strtoupper($item->item_code), ['IT01', 'IT26']) ? 'DR' : 'CR',
-                    'amount' => $item->original_amount ?? 0,
-                ];
+                if (in_array(strtoupper($item->item_code), ['IT01', 'IT02'])) {
+                    $items[] = [
+                        'item_code' => $item->item_code,
+                        'description' => $item->description,
+                        'item_type' => $item->item_type,
+                        'class_group' => $item->class_group_code,
+                        'class_name' => $item->class_code,
+                        'line_rate' => $item->original_line_rate ?? 0,
+                        'ledger' => in_array(strtoupper($item->item_code), ['IT01', 'IT26']) ? 'DR' : 'CR',
+                        'amount' => $item->original_amount ?? 0,
+                    ];
+                }
             }
         }
 
         $firstRecord = $quarterlyData->first();
+        $firstDebitNote = $debitNotes->first();
+        $meta = $firstDebitNote ? [
+            'compute_premium_tax' => (bool)$firstDebitNote->compute_premium_tax,
+            'compute_reinsurance_tax' => (bool)$firstDebitNote->compute_reinsurance_tax,
+            'compute_withholding_tax' => (bool)$firstDebitNote->compute_withholding_tax,
+            'loss_participation' => (bool)$firstDebitNote->loss_participation,
+            'sliding_commission' => (bool)$firstDebitNote->sliding_commission,
+            'brokerage_rate' => $firstDebitNote->brokerage_rate,
+            'premium_levy' => $firstDebitNote->premium_levy,
+            'reinsurance_levy' => $firstDebitNote->reinsurance_levy,
+            'withholding_tax' => $firstDebitNote->withholding_tax,
+            'comments' => $firstDebitNote->comments,
+            'show_cedant' => (bool)$firstDebitNote->show_cedant,
+            'show_reinsurer' => (bool)$firstDebitNote->show_reinsurer,
+        ] : null;
 
         return response()->json([
             'success' => true,
@@ -3152,6 +3173,7 @@ class CoverController extends Controller
                 'currency_code' => $firstRecord->currency_code,
                 'currency_rate' => $firstRecord->currency_rate,
                 'items' => $items,
+                'meta' => $meta,
                 'total_amount' => $quarterlyData->sum('foreign_basic_amount'),
             ],
             'message' => 'Data loaded successfully for ' . $quarter

@@ -19,7 +19,7 @@ class CreditNoteService
 
     public const DEBIT_CODES = ['IT01', 'IT11', 'IT20', 'IT26'];
     public const CREDIT_CODES = ['IT02', 'IT03', 'IT04', 'IT05', 'IT06', 'IT07', 'IT08', 'IT10', 'IT21', 'IT27', 'IT29', 'IT30'];
-
+    private const LEDGER_CREDIT = 'CR';
     public function __construct(
         private readonly SequenceService $sequenceService,
         private readonly CoverRepository $coverRepository,
@@ -49,7 +49,7 @@ class CreditNoteService
         return DB::transaction(function () use ($data, $cover) {
             $this->validateCreateData($data);
 
-            $calculation = $this->amountCalculator->calculate($data, $cover);
+            $calculation = $this->amountCalculator->calculate($data, $cover, self::LEDGER_CREDIT);
 
             $creditNotes = [];
 
@@ -60,14 +60,6 @@ class CreditNoteService
                         $cover->type_of_bus,
                         $data['postingYear'] ?? now()->year
                     );
-
-                    $filteredData = array_filter($reinsurer['items'], function ($item) {
-                        return isset($item['description']) && strpos($item['description'], 'Commission') !== false;
-                    });
-
-
-                    // logger()->debug(json_encode($filteredData, JSON_PRETTY_PRINT));
-
 
                     $creditNote = $this->createCreditNoteRecord(
                         $creditNoteNo,
@@ -82,7 +74,7 @@ class CreditNoteService
                 }
             }
 
-            $this->updateReinsurerParticipation($calculation['reinsurers']);
+            $this->updateReinsurerParticipation($calculation);
 
             return $creditNotes;
         });
@@ -102,7 +94,7 @@ class CreditNoteService
 
             $oldValues = $creditNote->toArray();
 
-            $calculation = $this->amountCalculator->calculate($data, $creditNote->cover);
+            $calculation = $this->amountCalculator->calculate($data, $creditNote->cover, self::LEDGER_CREDIT);
 
             $this->updateCreditNoteRecord($creditNote, $data, $calculation);
 
@@ -222,7 +214,7 @@ class CreditNoteService
 
     public function calculateAmounts(array $data, ?CoverRegister $cover = null): array
     {
-        return $this->amountCalculator->calculate($data, $cover);
+        return $this->amountCalculator->calculate($data, $cover, self::LEDGER_CREDIT);
     }
 
     protected function validateCreateData(array $data): void
