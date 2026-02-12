@@ -1593,7 +1593,7 @@ class CoverController extends Controller
             }
 
             $debitData = $this->prepareDebitData($validatedData, $cover);
-            // $creditData = $this->prepareCreditData($validatedData, $cover);
+            $creditData = $this->prepareCreditData($validatedData, $cover);
 
             if ($debitData['isTreaty']) {
                 $this->validateBusinessRules($cover, $validatedData);
@@ -1611,15 +1611,15 @@ class CoverController extends Controller
                 ]);
 
                 $this->createTreatyDebit($debitData, $cover);
-                // $this->createTreatyCredit($creditData, $cover);
+                $this->createTreatyCredit($creditData, $cover);
             }
 
             $this->createCustomerAccount($debitData, $cover);
 
-            // $cover->commited = 'Y';
-            // $cover->save();
+            $cover->commited = 'Y';
+            $cover->save();
 
-            // DB::commit();
+            DB::commit();
 
             return response()->json([
                 'success' => true,

@@ -210,6 +210,8 @@ class AmountCalculator
                 $baseAmount,
                 (float) ($item['line_rate'] ?? 0)
             );
+
+            $context->amounts->addCredit($creditAmount);
         }
 
         if ($brokerageAmount > 0 && $context->config->isReinsurer) {
@@ -221,11 +223,11 @@ class AmountCalculator
                 $commissionLedgerType,
                 $context->config->brokerageRate
             );
+            // $context->amounts->addBrokerage($creditAmount);
+            // logger()->debug(json_encode($brokerageAmount, JSON_PRETTY_PRINT));
         }
 
-        if ($item['item_code'] !== 'IT04') {
-            $context->amounts->addCredit($creditAmount);
-        }
+        // logger()->debug(json_encode($item, JSON_PRETTY_PRINT));
     }
 
     protected function calculateCommission(float $shareAmount, CalculationContext $context, $item, string $type): float
@@ -255,11 +257,9 @@ class AmountCalculator
     {
         $grossAmount = $context->lastDebitItem['share_amount'];
 
-        $f = $context->config->isReinsurer
+        return $context->config->isReinsurer
             ? $this->percentage($grossAmount, $context->config->brokerageRate)
             : 0.0;
-
-        return $f;
     }
 
     protected function calculateCreditAmount(array $item, float $shareAmount, CalculationContext $context, string $type): float
@@ -356,12 +356,8 @@ class AmountCalculator
         ?array $cedant
     ): array {
         $netAmount = $totals['net'];
-        $commissionItems = array_values(array_filter(
-            $reinsurers[0]['items'] ?? [],
-            static fn(array $item): bool => ($item['description'] ?? null) === 'Brokerage'
-        ));
 
-        logger()->debug(json_encode(['Reinsurers' => $reinsurers[0]['items']], JSON_PRETTY_PRINT));
+        // logger()->debug(json_encode(['Reinsurers' => $reinsurers], JSON_PRETTY_PRINT));
 
         return [
             'gross_amount' => $totals['gross'],
@@ -729,6 +725,7 @@ class AmountAccumulator
     public function totalDeductions(): float
     {
         return $this->commission
+            + $this->brokerage
             + $this->credit;
     }
 
