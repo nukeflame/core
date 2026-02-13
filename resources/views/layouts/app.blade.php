@@ -101,14 +101,14 @@
                     <div class="header-element">
                         <div class="horizontal-logo">
                             <a href="javascript:void(0);" class="header-logo">
-                                <img src="{{ asset('assets/images/brand-logos/main-horizontal-logo.png') }}" alt=""
-                                    class="desktop-logo" />
-                                <img src="{{ asset('assets/images/brand-logos/main-horizontal-black.png') }}" alt=""
-                                    class="desktop-dark" {{-- style="filter: grayscale(1);" --}} />
-                                <img src="{{ asset('assets/images/brand-logos/main-horizontal-logo.png') }}" alt=""
-                                    class="toggle-logo" />
-                                <img src="{{ asset('assets/images/brand-logos/main-horizontal-black.png') }}" alt=""
-                                    class="toggle-dark" {{-- style="filter: grayscale(1);"  --}} />
+                                <img src="{{ asset('assets/images/brand-logos/main-horizontal-logo.png') }}"
+                                    alt="" class="desktop-logo" />
+                                <img src="{{ asset('assets/images/brand-logos/main-horizontal-black.png') }}"
+                                    alt="" class="desktop-dark" {{-- style="filter: grayscale(1);" --}} />
+                                <img src="{{ asset('assets/images/brand-logos/main-horizontal-logo.png') }}"
+                                    alt="" class="toggle-logo" />
+                                <img src="{{ asset('assets/images/brand-logos/main-horizontal-black.png') }}"
+                                    alt="" class="toggle-dark" {{-- style="filter: grayscale(1);"  --}} />
                             </a>
                         </div>
                     </div>
@@ -327,12 +327,14 @@
         <aside class="app-sidebar sticky" id="sidebar">
             <div class="main-sidebar-header header-logo">
                 <a href="javascript:void(0);" class="header-logo logo-link">
-                    <img src="{{ asset('assets/images/brand-logos/main-horizontal-logo.png') }}" alt="" class="desktop-logo" />
-                    <img src="{{ asset('assets/images/brand-logos/logo-small.png') }}" alt="" class="toggle-logo" />
-                    <img src="{{ asset('assets/images/brand-logos/main-horizontal-logo.png') }}" alt="" class="desktop-dark"
-                        {{-- style="filter: grayscale(1);" --}} />
-                    <img src="{{ asset('assets/images/brand-logos/logo-small.png') }}" alt="" class="toggle-dark"
-                        {{-- style="filter: grayscale(1);"  --}} />
+                    <img src="{{ asset('assets/images/brand-logos/main-horizontal-logo.png') }}" alt=""
+                        class="desktop-logo" />
+                    <img src="{{ asset('assets/images/brand-logos/logo-small.png') }}" alt=""
+                        class="toggle-logo" />
+                    <img src="{{ asset('assets/images/brand-logos/main-horizontal-logo.png') }}" alt=""
+                        class="desktop-dark" {{-- style="filter: grayscale(1);" --}} />
+                    <img src="{{ asset('assets/images/brand-logos/logo-small.png') }}" alt=""
+                        class="toggle-dark" {{-- style="filter: grayscale(1);"  --}} />
                 </a>
             </div>
 
@@ -843,7 +845,7 @@
                                 $('#header-notification-scroll').parent().append(`
                                    <div class="p-3 empty-header-item1 border-top">
                                         <div class="d-grid">
-                                            <a href="{{ route('approvals.index') }}" class="btn btn-primary">View All</a>
+                                            <a href="{{ route('admin.approvals.index') }}" class="btn btn-primary">View All</a>
                                         </div>
                                     </div>
                                 `);

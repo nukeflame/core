@@ -713,7 +713,7 @@
                     }
                 },
                 ajax: {
-                    url: "{{ route('approvals.approval-data') }}",
+                    url: "{{ route('admin.approvals.data') }}",
                     data: function(d) {
                         d.type = $('.nav-link.active').data('type');
                         d.status_filter = $('#status-filter').val();
@@ -1453,7 +1453,7 @@
                     }
                 });
 
-                fetchWithCsrf("{{ route('approvals.approval-action') }}", {
+                fetchWithCsrf("{{ route('admin.approvals.action') }}", {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'
