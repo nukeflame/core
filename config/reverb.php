@@ -27,7 +27,6 @@ return [
     */
 
     'servers' => [
-
         'reverb' => [
             'host' => env('REVERB_SERVER_HOST', '0.0.0.0'),
             'port' => env('REVERB_SERVER_PORT', 8080),
@@ -51,8 +50,8 @@ return [
             'pulse_ingest_interval' => env('REVERB_PULSE_INGEST_INTERVAL', 15),
             'telescope_ingest_interval' => env('REVERB_TELESCOPE_INGEST_INTERVAL', 15),
         ],
-
     ],
+
 
     /*
     |--------------------------------------------------------------------------
@@ -66,7 +65,6 @@ return [
     */
 
     'apps' => [
-
         'provider' => 'config',
 
         'apps' => [
@@ -76,17 +74,24 @@ return [
                 'app_id' => env('REVERB_APP_ID'),
                 'options' => [
                     'host' => env('REVERB_HOST'),
-                    'port' => env('REVERB_PORT', 443),
+                    'port' => (int) env('REVERB_PORT', 443),
                     'scheme' => env('REVERB_SCHEME', 'https'),
                     'useTLS' => env('REVERB_SCHEME', 'https') === 'https',
                 ],
-                'allowed_origins' => ['*'],
-                'ping_interval' => env('REVERB_APP_PING_INTERVAL', 60),
-                'activity_timeout' => env('REVERB_APP_ACTIVITY_TIMEOUT', 30),
-                'max_message_size' => env('REVERB_APP_MAX_MESSAGE_SIZE', 10_000),
+                'allowed_origins' => array_filter([
+                    env('APP_URL'),
+                    'https://reinsurance.acentriagroup.com',
+                    env('APP_ENV') === 'local' ? 'http://localhost' : null,
+                    env('APP_ENV') === 'local' ? 'http://localhost:5173' : null,
+                    env('APP_ENV') === 'local' ? 'http://localhost:3000' : null,
+                    env('APP_ENV') === 'local' ? 'http://127.0.0.1' : null,
+                    env('APP_ENV') === 'local' ? 'http://127.0.0.1:5173' : null,
+                ]),
+                'ping_interval' => (int) env('REVERB_APP_PING_INTERVAL', 60),
+                'activity_timeout' => (int) env('REVERB_APP_ACTIVITY_TIMEOUT', 30),
+                'max_message_size' => (int) env('REVERB_APP_MAX_MESSAGE_SIZE', 10_000),
             ],
         ],
-
     ],
 
 ];
