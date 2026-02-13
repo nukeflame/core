@@ -28,7 +28,7 @@ return [
                 ],
                 [
                     'title' => 'Approvals',
-                    'route' => 'admin.approvals.index',
+                    'route' => 'approvals.index',
                     'icon' => 'bx bx-check-circle',
                     // 'permission' => 'app.dashboard.view'
                 ],

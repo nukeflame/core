@@ -845,7 +845,7 @@
                                 $('#header-notification-scroll').parent().append(`
                                    <div class="p-3 empty-header-item1 border-top">
                                         <div class="d-grid">
-                                            <a href="{{ route('admin.approvals.index') }}" class="btn btn-primary">View All</a>
+                                            <a href="{{ route('approvals.index') }}" class="btn btn-primary">View All</a>
                                         </div>
                                     </div>
                                 `);
