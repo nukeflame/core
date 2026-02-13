@@ -1016,7 +1016,7 @@ class SettingsFinanceController extends Controller
                         'add_deduct' => 'Y',
                         'control_account' => $request->control_account,
                         'transtype' => $request->transtype,
-                        'BASIS' => $request->BASIS,
+                        'basis' => $request->basis,
                         'tax_code' => $request->tax_code,
                         'analyse' => 'Y',
                     ]
@@ -1044,7 +1044,7 @@ class SettingsFinanceController extends Controller
             $TaxType->add_deduct = $request->input('ed_add_deduct');
             $TaxType->control_account = $request->input('ed_control_account');
             $TaxType->transtype = $request->input('ed_transtype');
-            $TaxType->BASIS = $request->input('ed_BASIS');
+            $TaxType->basis = $request->input('ed_basis');
             $TaxType->tax_code = $request->input('ed_tax_code');
             $TaxType->analyse = $request->input('ed_analyse');
             $TaxType->save();

@@ -1495,103 +1495,108 @@ class QuarterlyDebitController extends Controller
                 ])
                 ->first();
 
+            logger()->debug(json_encode($creditNote, JSON_PRETTY_PRINT));
+
+
             if (! $creditNote) {
                 abort(404, 'Credit note not found for this cover and endorsement');
             }
 
-            $creditItems = DB::table('credit_note_items as tci')
-                ->join('credit_notes as cn', 'tci.credit_note_id', '=', 'cn.id')
-                ->leftJoin('treaty_item_codes as tic', 'tci.item_code', '=', 'tic.item_code')
-                ->leftJoin('class_groups as cg', 'tci.class_group_code', '=', 'cg.group_code')
-                ->leftJoin('reinclass_premtypes as c', function ($join) {
-                    $join->on('tci.class_code', '=', 'c.premtype_code')
-                        ->on('tci.class_group_code', '=', 'c.reinclass');
-                })
-                ->where('cn.cover_no', $coverNo)
-                ->where('cn.endorsement_no', $endorsementNo)
-                ->select([
-                    'tci.id',
-                    'tci.item_code',
-                    DB::raw('COALESCE(tic.description, tci.description) as item_name'),
-                    'tci.line_no',
-                    'tci.description',
-                    'tci.class_group_code',
-                    'cg.group_name',
-                    'tci.class_code',
-                    'c.premtype_name as class_name',
-                    'tci.line_rate',
-                    'tci.amount as item_amount',
-                    'tci.ledger',
-                    'cn.credit_note_no',
-                    'cn.posting_date',
-                    'cn.gross_amount',
-                    'cn.commission_amount',
-                    'cn.net_amount',
-                    'cn.status',
-                    'tci.original_amount'
-                ])
-                ->orderBy('id', 'asc')
-                ->get();
+            // $creditItems = DB::table('credit_note_items as tci')
+            //     ->join('credit_notes as cn', 'tci.credit_note_id', '=', 'cn.id')
+            //     ->leftJoin('treaty_item_codes as tic', 'tci.item_code', '=', 'tic.item_code')
+            //     ->leftJoin('class_groups as cg', 'tci.class_group_code', '=', 'cg.group_code')
+            //     ->leftJoin('reinclass_premtypes as c', function ($join) {
+            //         $join->on('tci.class_code', '=', 'c.premtype_code')
+            //             ->on('tci.class_group_code', '=', 'c.reinclass');
+            //     })
+            //     // ->where('cn.cover_no', $coverNo)
+            //     // ->where('cn.endorsement_no', $endorsementNo)
+            //     // ->select([
+            //     //     'tci.id',
+            //     //     'tci.item_code',
+            //     //     DB::raw('COALESCE(tic.description, tci.description) as item_name'),
+            //     //     'tci.line_no',
+            //     //     'tci.description',
+            //     //     'tci.class_group_code',
+            //     //     'cg.group_name',
+            //     //     'tci.class_code',
+            //     //     'c.premtype_name as class_name',
+            //     //     'tci.line_rate',
+            //     //     'tci.amount as item_amount',
+            //     //     'tci.ledger',
+            //     //     'cn.credit_note_no',
+            //     //     'cn.posting_date',
+            //     //     'cn.gross_amount',
+            //     //     'cn.commission_amount',
+            //     //     'cn.net_amount',
+            //     //     'cn.status',
+            //     //     'tci.original_amount'
+            //     // ])
+            //     // ->orderBy('id', 'asc')
+            //     ->get();
 
-            $totalGross = $creditNote->gross_amount;
-            $totalCommission = $creditNote->commission_amount;
-            $totalNet = $creditNote->net_amount;
+            // $totalGross = $creditNote->gross_amount;
+            // $totalCommission = $creditNote->commission_amount;
+            // $totalNet = $creditNote->net_amount;
 
-            $company = Company::first();
+            // $company = Company::first();
 
-            $reinsurer = CoverRipart::where([
-                'cover_no' => $coverNo,
-                'endorsement_no' => $endorsementNo,
-                'partner_no' => $partnerNo,
-            ])->with('partner')->first();
+            // $reinsurer = CoverRipart::where([
+            //     'cover_no' => $coverNo,
+            //     'endorsement_no' => $endorsementNo,
+            //     'partner_no' => $partnerNo,
+            // ])->with('partner')->first();
 
-            if (! $reinsurer) {
-                abort(404, 'Reinsurer not found for this cover');
-            }
+            // if (! $reinsurer) {
+            //     abort(404, 'Reinsurer not found for this cover');
+            // }
 
-            $reinsurers = collect([$reinsurer]);
+            // $reinsurers = collect([$reinsurer]);
 
-            $documentData = [
-                'reference_no' => $creditNote->credit_note_no,
-                'document_type' => 'Credit Note',
-                'generated_date' => Carbon::now(),
-                'cover' => $cover,
-                'customer' => $cedant,
-                'credit' => $creditNote,
-                'credit_items' => $creditItems,
-                'reinsurers' => $reinsurers,
-                'company' => $company,
-                'treat_type' => 'Surplus Treaty',
-                'bus_class' => 'Fire',
-                'totals' => (object) [
-                    'gross_premium' => $totalGross,
-                    'commission' => $totalCommission,
-                    'net_amount' => $totalNet,
-                ],
-                'currency' => $cover->currency ?? 'KES',
-                'period' => [
-                    'from' => Carbon::parse($cover->cover_from)->format('d M Y'),
-                    'to' => Carbon::parse($cover->cover_to)->format('d M Y'),
-                ],
-                'with_brokerage' => $withBrokerage,
-            ];
+            // $documentData = [
+            //     'reference_no' => $creditNote->credit_note_no,
+            //     'document_type' => 'Credit Note',
+            //     'generated_date' => Carbon::now(),
+            //     'cover' => $cover,
+            //     'customer' => $cedant,
+            //     'credit' => $creditNote,
+            //     'credit_items' => $creditItems,
+            //     'reinsurers' => $reinsurers,
+            //     'company' => $company,
+            //     'treat_type' => 'Surplus Treaty',
+            //     'bus_class' => 'Fire',
+            //     'totals' => (object) [
+            //         'gross_premium' => $totalGross,
+            //         'commission' => $totalCommission,
+            //         'net_amount' => $totalNet,
+            //     ],
+            //     'currency' => $cover->currency ?? 'KES',
+            //     'period' => [
+            //         'from' => Carbon::parse($cover->cover_from)->format('d M Y'),
+            //         'to' => Carbon::parse($cover->cover_to)->format('d M Y'),
+            //     ],
+            //     'with_brokerage' => $withBrokerage,
+            // ];
 
-            logger()->debug(json_encode($documentData, JSON_PRETTY_PRINT));
+            // logger()->debug(json_encode($creditItems, JSON_PRETTY_PRINT));
 
 
-            $pdf = Pdf::loadView('printouts.accounts.treaty-credit-note', $documentData)
-                ->setPaper('a4', 'portrait')
-                ->setWarnings(false);
-            $pdf->set_option('isHtml5ParserEnabled', true);
-            $pdf->set_option('isPhpEnabled', true);
-            $pdf->set_option('isRemoteEnabled', true);
+            // $pdf = Pdf::loadView('printouts.accounts.treaty-credit-note', $documentData)
+            //     ->setPaper('a4', 'portrait')
+            //     ->setWarnings(false);
+            // $pdf->set_option('isHtml5ParserEnabled', true);
+            // $pdf->set_option('isPhpEnabled', true);
+            // $pdf->set_option('isRemoteEnabled', true);
 
-            $filename = 'credit-note-' . $creditNote->credit_note_no . '-' . $reinsurer->partner_no . '.pdf';
+            // $filename = 'credit-note-' . $creditNote->credit_note_no . '-' . $reinsurer->partner_no . '.pdf';
 
-            return $pdf->stream($filename);
+            // return $pdf->stream($filename);
+            return null;
         } catch (ValidationException $e) {
             abort(422, 'Invalid request parameters');
         } catch (Exception $e) {
+            logger($e);
             abort(500, 'Failed to generate credit note: ' . $e->getMessage());
         }
     }

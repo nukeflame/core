@@ -3,21 +3,19 @@
 namespace App\Http\Controllers;
 
 use App\Models\CoverRegister;
-use App\Models\CoverReinclass;
 use App\Models\Customer;
 use App\Models\CustomerAccDet;
 use App\Models\CoverDebit;
 use App\Models\CoverRipart;
 use App\Models\DebitNote;
-use App\Models\DebitNoteItem;
 use App\Models\ReinclassPremtype;
 use App\Models\TreatyDocument;
 use App\Models\TreatyItemCode;
 use App\Models\CoverPremtype;
 use App\Models\TaxRate;
-use DB;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 
 class CoverTransactionController extends Controller
 {
@@ -100,7 +98,7 @@ class CoverTransactionController extends Controller
             'stats' => $stats,
             'itemCodes' => $itemCodes,
             'classGroups' => $classGroups,
-            'businessClasses'=> $businessClasses,
+            'businessClasses' => $businessClasses,
             'treatyClasses' => $treatyClasses,
             'taxRates' => TaxRate::getAllCurrentRates(),
         ]);

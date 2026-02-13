@@ -23,7 +23,7 @@ class LineItemProcessor
         $lineNo = 1;
         $insertData = [];
 
-        foreach ($items['cedant']['items'] ?? [] as $item) {
+        foreach ($items as $item) {
             $itemData = $this->prepareDebitNoteLineItem($debitNote, $item, $lineNo);
 
             if ($itemData) {

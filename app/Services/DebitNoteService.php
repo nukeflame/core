@@ -62,7 +62,7 @@ class DebitNoteService
 
             $debitNote = $this->createDebitNoteRecord($debitNoteNo, $data, $cover, $calculation);
 
-            $this->lineItemProcessor->createDebitNoteLineItems($debitNote, $calculation);
+            $this->lineItemProcessor->createDebitNoteLineItems($debitNote, $calculation['items']);
 
             // $this->transactionLogger->log($debitNote, 'CREATE');
 

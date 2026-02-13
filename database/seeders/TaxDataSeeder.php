@@ -23,7 +23,7 @@ class TaxDataSeeder extends Seeder
                 'add_deduct'      => 'Y',
                 'control_account' => '',
                 'transtype'       => 'TAX',
-                'BASIS'           => 'GROSS',
+                'basis'           => 'GROSS',
                 'analyse'         => 'Y',
             ]
         );
@@ -36,7 +36,7 @@ class TaxDataSeeder extends Seeder
                 'add_deduct'      => 'Y',
                 'control_account' => '',
                 'transtype'       => 'TAX',
-                'BASIS'           => 'GROSS',
+                'basis'           => 'GROSS',
                 'analyse'         => 'Y',
             ]
         );
@@ -49,7 +49,7 @@ class TaxDataSeeder extends Seeder
                 'add_deduct'      => 'Y',
                 'control_account' => '',
                 'transtype'       => 'TAX',
-                'BASIS'           => 'GROSS',
+                'basis'           => 'GROSS',
                 'analyse'         => 'Y',
             ]
         );

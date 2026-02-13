@@ -889,6 +889,9 @@ class CoverController extends Controller
                             }
                         }
                     } elseif (in_array($coverRegister->type_of_bus, ['TPR', 'TNP'])) {
+                        $coverRegister->commission_mode = $reinsurerData['net_of_tax'] ? 'net' : 'gross';
+                        $coverRegister->update();
+
                         $coverRipart->treaty_code = $treaty['treaty'] ?? null;
 
                         $coverRipart->sum_insured = 0;
@@ -898,7 +901,7 @@ class CoverController extends Controller
                         $coverRipart->wht_amt = 0;
                         $coverRipart->brokerage_comm_amt = 0;
                         $coverRipart->share = $this->parseNumber($reinsurerData['written_share']);
-                        $coverRipart->commission_mode = $reinsurerData['amount_type'] ?? 'gross';
+                        $coverRipart->commission_mode = $reinsurerData['net_of_tax'] ? 'net' : 'gross';
                         $coverRipart->net_amount = 0;
                         $coverRipart->net_of_tax = $reinsurerData['net_of_tax'] ?? 0;
                         $coverRipart->net_of_claims = $reinsurerData['net_of_claims'] ?? 0;
