@@ -174,18 +174,19 @@
                             {{ ucwords(strtolower($item->item_name)) }} - {{ ucwords(strtolower($item->class_name)) }}
                         </td>
                         <td class="no-border align-right" style="width: 20%; text-align: right;">
-                            {{ number_format($item->original_amount, 2) }} @ {{ number_format($item->line_rate, 2) }}%
+                            {{ number_format(abs($item->original_amount), 2) }} @
+                            {{ number_format(abs($item->line_rate), 2) }}%
                         </td>
                         <td class="no-border align-right" style="width: 17.5%; text-align: right;">
                             @if (in_array($item->ledger, ['DR']))
-                                {{ number_format($item->item_amount, 2) }}
+                                {{ number_format(abs($item->item_amount), 2) }}
                             @else
                                 0.00
                             @endif
                         </td>
                         <td class="no-border align-right" style="width: 17.5%; text-align: right;">
                             @if (in_array($item->ledger, ['CR']))
-                                {{ number_format($item->item_amount, 2) }}
+                                {{ number_format(abs($item->item_amount), 2) }}
                             @else
                                 0.00
                             @endif
@@ -197,10 +198,10 @@
                     <td class="no-border align-left" style="font-weight: bold; width: 43%;">TOTAL</td>
                     <td class="no-border" style="width: 20%;">&nbsp;</td>
                     <td class="no-border align-right" style="font-weight: bold; width: 17.5%; text-align: right;">
-                        {{ number_format($totals->total_debits, 2) }}
+                        {{ number_format(abs($totals->total_debits), 2) }}
                     </td>
                     <td class="no-border align-right" style="font-weight: bold; width: 17.5%; text-align: right;">
-                        {{ number_format($totals->total_credits, 2) }}
+                        {{ number_format(abs($totals->total_credits), 2) }}
                     </td>
                     <td class="no-border">&nbsp;</td>
                 </tr>
@@ -216,7 +217,7 @@
                     <th class="no-border" style="padding: 6px 8px; width: 20%;">&nbsp;</th>
                     <th class="no-border" style="padding: 6px 8px; width: 17.5%;">&nbsp;</th>
                     <th class="no-border align-right" style="padding: 6px 8px; width: 17.5%; text-align: right;">
-                        <strong>{{ number_format($debit->net_amount, 2) }}</strong>
+                        <strong>{{ number_format(abs($debit->net_amount), 2) }}</strong>
                     </th>
                     <th class="no-border" style="padding: 6px 8px; width: 2%;">&nbsp;</th>
                 </tr>

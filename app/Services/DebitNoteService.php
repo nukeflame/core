@@ -52,20 +52,16 @@ class DebitNoteService
         return DB::transaction(function () use ($data, $cover) {
 
             $this->validateCreateData($data);
-
             $calculation = $this->amountCalculator->calculate($data, $cover, self::LEDGER_DEBIT);
-
             $debitNoteNo = $this->generateDebitNoteNumber(
                 $cover->type_of_bus,
                 $data['postingYear'] ?? now()->year
             );
 
             $debitNote = $this->createDebitNoteRecord($debitNoteNo, $data, $cover, $calculation);
-
             $this->lineItemProcessor->createDebitNoteLineItems($debitNote, $calculation['items']);
 
             // $this->transactionLogger->log($debitNote, 'CREATE');
-
             return $debitNote->fresh(['items', 'cover', 'cover.customer']);
         });
     }

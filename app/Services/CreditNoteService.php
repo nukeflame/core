@@ -50,17 +50,15 @@ class CreditNoteService
             $this->validateCreateData($data);
 
             $calculation = $this->amountCalculator->calculate($data, $cover, self::LEDGER_CREDIT);
-
             $creditNotes = [];
 
-            if (!empty($calculation['reinsurers'])) {
-                foreach ($calculation['reinsurers'] as $reinsurer) {
+            if (!empty($calculation)) {
+                foreach ($calculation as $reinsurer) {
 
                     $creditNoteNo = $this->generateCreditNoteNumber(
                         $cover->type_of_bus,
                         $data['postingYear'] ?? now()->year
                     );
-
                     $creditNote = $this->createCreditNoteRecord(
                         $creditNoteNo,
                         $data,
@@ -69,13 +67,11 @@ class CreditNoteService
                     );
 
                     $this->lineItemProcessor->createCreditNoteLineItems($creditNote, $reinsurer['items']);
-
                     $creditNotes[] = $creditNote;
                 }
             }
 
             $this->updateReinsurerParticipation($calculation);
-
             return $creditNotes;
         });
     }

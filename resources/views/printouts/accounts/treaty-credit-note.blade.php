@@ -196,7 +196,7 @@
                                         </strong>
                                     </td>
                                     <td class="pt-4 courier-9">
-                                        {{ number_format($reinsurer->brokerage_comm_amt ?? 0, 2) }}
+                                        {{ number_format(abs($reinsurer->brokerage_comm_amt ?? 0), 2) }}
                                     </td>
                                 </tr>
                             </table>
@@ -223,19 +223,19 @@
                                     {{ ucwords(strtolower($item->class_name ?? '')) }}
                                 </td>
                                 <td class="no-border align-right" style="width: 32.5%; text-align: right;">
-                                    {{ number_format($item->original_amount, 2) }}
+                                    {{ number_format(abs($item->original_amount), 2) }}
                                     {{ $item->line_rate > 0 ? '@' . number_format($item->line_rate, 2) . '%' : '' }}
                                 </td>
                                 <td class="no-border align-right" style="width: 17.5%; text-align: right;">
                                     @if (in_array($item->ledger, ['DR']))
-                                        {{ number_format($item->item_amount, 2) }}
+                                        {{ number_format(abs($item->item_amount), 2) }}
                                     @else
                                         0.00
                                     @endif
                                 </td>
                                 <td class="no-border align-right" style="width: 17.5%; text-align: right;">
                                     @if (in_array($item->ledger, ['CR']))
-                                        {{ number_format($item->item_amount, 2) }}
+                                        {{ number_format(abs($item->item_amount), 2) }}
                                     @else
                                         0.00
                                     @endif
@@ -246,10 +246,10 @@
                             <td class="no-border align-left" style="font-weight: bold; width: 32.5%;">TOTAL</td>
                             <td class="no-border" style="width: 32.5%;">&nbsp;</td>
                             <td class="no-border align-right" style="font-weight: bold; width: 17.5%; text-align: right;">
-                                {{ number_format($reinsurerTotals->net_amount, 2) }}
+                                {{ number_format(abs($reinsurerTotals->net_amount), 2) }}
                             </td>
                             <td class="no-border align-right" style="font-weight: bold; width: 17.5%; text-align: right;">
-                                {{ number_format($reinsurerTotals->net_amount, 2) }}
+                                {{ number_format(abs($reinsurerTotals->net_amount), 2) }}
                             </td>
                         </tr>
                     </tbody>
@@ -265,7 +265,7 @@
                             <th class="no-border" style="padding: 6px 8px; width: 32.5%;">&nbsp;</th>
                             <th class="no-border" style="padding: 6px 8px; width: 17.5%;">&nbsp;</th>
                             <th class="no-border align-right" style="padding: 6px 8px; width: 17.5%; text-align: right;">
-                                <strong>{{ number_format($reinsurerTotals->net_amount, 2) }}</strong>
+                                <strong>{{ number_format(abs($reinsurerTotals->net_amount), 2) }}</strong>
                             </th>
                         </tr>
                     </thead>

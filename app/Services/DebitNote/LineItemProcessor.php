@@ -105,9 +105,9 @@ class LineItemProcessor
     {
         $lineNo = 1;
         $insertData = [];
-
         foreach ($items as $item) {
             $itemData = $this->prepareCreditNoteLineItem($creditNote, $item, $lineNo);
+            logger()->debug(json_encode($item, JSON_PRETTY_PRINT));
 
             if ($itemData) {
                 $insertData[] = $itemData;
