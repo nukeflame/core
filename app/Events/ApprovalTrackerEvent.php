@@ -87,7 +87,7 @@ class ApprovalTrackerEvent implements ShouldQueue, ShouldBroadcast
         try {
             // $settings = Settings::first();
             $enableBroadcast = true;
-            // if (config('system.pusher.enabled') === null) {
+            // if (config('system.reverb.enabled') === null) {
             //     return false;
             // }
             // if (isset($settings->options['pushNotification']['all']['approvalNotifications'])) {

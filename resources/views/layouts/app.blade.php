@@ -500,11 +500,12 @@
     <script src="{{ asset('assets/js/chartist.min.js') }}"></script>
     <script src="{{ asset('assets/js/chartist-plugin-tooltip.min.js') }}"></script>
 
-    <!-- Pusher Js  -->
+    <!-- Pusher Js -->
     <script src="{{ asset('js/pusher.min.js') }}"></script>
 
     <!-- Laravel Echo Js  -->
-    <script src="{{ asset('js/echo.iife.min.js') }}"></script>
+    {{-- <script src="{{ asset('js/echo.iife.min.js') }}"></script> --}}
+    <script src="https://cdn.jsdelivr.net/npm/laravel-echo/dist/echo.iife.js"></script>
 
     {{-- <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
     <script>
@@ -518,23 +519,26 @@
     <script src="https://unpkg.com/quill-better-table@1.2.10/dist/quill-better-table.js"></script>
 
     <script>
-        window.Pusher = Pusher;
-        window.Echo = new Echo({
-            broadcaster: "reverb",
-            key: "{{ env('VITE_REVERB_APP_KEY') }}",
-            // cluster: "mt1",
-            wsHost: "{{ env('VITE_REVERB_HOST') }}",
-            wsPort: "{{ env('VITE_REVERB_PORT') }}",
-            // wssPort: 443,
-            forceTLS: false,
-            disableStats: true,
+        window.Echo = new(window.Echo.default || window.Echo)({
+            broadcaster: 'reverb',
+
+            key: "{{ config('reverb.apps.apps.0.key') }}",
+
+            wsHost: "{{ config('reverb.apps.apps.0.options.host') }}",
+            wsPort: {{ (int) config('reverb.apps.apps.0.options.port') }},
+            wssPort: {{ (int) config('reverb.apps.apps.0.options.port') }},
+
+            forceTLS: "{{ config('reverb.apps.apps.0.options.scheme') }}" === "https",
+
+            enabledTransports: ['ws', 'wss'],
+
             auth: {
                 headers: {
-                    "X-CSRF-TOKEN": document.querySelector('meta[name="csrf-token"]').getAttribute("content"),
-                },
-            },
-            // enabledTransports: ["ws", "wss"],
-            // disableStats: true,
+                    'X-CSRF-TOKEN': document
+                        .querySelector('meta[name="csrf-token"]')
+                        ?.getAttribute('content')
+                }
+            }
         });
 
         function setActiveSidebar() {
@@ -639,10 +643,20 @@
         $(document).ready(function() {
             // Realtime event listener
             const user = @json(auth()->user());
-            const channelName = "{{ env('APPROVAL_NOTIFICATION_CREATED_CHANNEL_PRIVATE') }}" + '.' + user
-                ?.id;
-            const approvalEvent = '.' + "{{ env('APPROVAL_NOTIFICATION_CREATED_EVENT') }}";
-            const localhostIcon = `${window.location.origin}/logo-small.png`;
+            if (!user) return;
+
+            // const channelName = "{{ env('APPROVAL_NOTIFICATION_CREATED_CHANNEL_PRIVATE') }}" + '.' + user
+            //     ?.id;
+            // const approvalEvent = '.' + "{{ env('APPROVAL_NOTIFICATION_CREATED_EVENT') }}";
+            const channelName =
+                "{{ config('approval.notification_channel') ?? env('APPROVAL_NOTIFICATION_CREATED_CHANNEL_PRIVATE') }}" +
+                '.' + user.id;
+
+            const approvalEvent =
+                '.' + "{{ config('approval.notification_event') ?? env('APPROVAL_NOTIFICATION_CREATED_EVENT') }}";
+
+
+            const localhostIcon = `${window.location.origin}/assets/images/brand-logos/logo-small.png`;
             let unreadCount = 0;
             const notificationBadge = $("#notification-data");
             const notificationList = $("#header-notification-scroll");
@@ -711,10 +725,16 @@
                 $(".empty-item1").addClass('d-none');
             }
 
-            window.Echo.private(channelName).listen(approvalEvent, (data) => {
-                showNotification(data);
-                addNotificationToDropdown(data);
-            });
+            // window.Echo.private(channelName).listen(approvalEvent, (data) => {
+            //     showNotification(data);
+            //     addNotificationToDropdown(data);
+            // });
+            window.Echo
+                .private(channelName)
+                .listen(approvalEvent, (data) => {
+                    showNotification(data);
+                    addNotificationToDropdown(data);
+                });
 
             setActiveSidebar();
 

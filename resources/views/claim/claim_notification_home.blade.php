@@ -685,7 +685,7 @@
         aria-labelledby="staticBackdropLabel" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
-                <form method="POST" id="verifyForm" action="{{ route('approvals.send-for-approval') }}">
+                <form method="POST" id="verifyForm" action="{{ route('admin.approvals.send') }}">
                     @csrf
                     <input type="hidden" name="intimation_no" value="{{ $ClaimRegister->intimation_no }}">
                     <input type="hidden" name="endorsement_no" value="{{ $cover->endorsement_no }}">
