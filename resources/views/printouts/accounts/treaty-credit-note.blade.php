@@ -67,7 +67,7 @@
             $netAmount = $totalDebit - $totalCredit;
 
             $reinsurerTotals = (object) [
-                'gross_premium' => $totals->gross_premium * $reinsurerShare,
+                'gross_premium' => $totals->gross_premium,
                 'commission' => $totals->commission * $reinsurerShare,
                 'net_amount' => $netAmount,
             ];
