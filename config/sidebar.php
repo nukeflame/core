@@ -30,7 +30,7 @@ return [
                     'title' => 'Approvals',
                     'route' => 'approvals.index',
                     'icon' => 'bx bx-check-circle',
-                    'permission' => 'app.dashboard.view'
+                    // 'permission' => 'app.dashboard.view'
                 ],
                 [
                     'title' => 'Mail',
