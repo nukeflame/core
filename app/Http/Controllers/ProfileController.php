@@ -101,6 +101,16 @@ class ProfileController extends Controller
 
         $user = $request->user();
 
+        if ($user) {
+            DB::table('oauth_tokens')
+                ->where('provider', 'outlook')
+                ->where(function ($query) use ($user) {
+                    $query->where('user_id', $user->id)
+                        ->orWhere('email', $user->email);
+                })
+                ->delete();
+        }
+
         Auth::logout();
 
         $user->delete();

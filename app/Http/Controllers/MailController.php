@@ -43,28 +43,13 @@ class MailController extends Controller
     public function index()
     {
         try {
-
-            // $requestData = $this->validateIndexRequest($request);
-            // $isOutlookConnected = $this->hasValidOutlookConnection($request->user());
-
-            // $query = $this->mailService->getMailData(
-            //     $requestData['folder'],
-            //     $requestData['search'],
-            //     $requestData['limit']
-            // );
-
-            // $this->applyFilters($query, $request);
-            // // Apply sorting
-            // $sortBy = $request->input('sort', 'received_at');
-            // $order = $request->input('order', 'desc');
-            // $query->orderBy($sortBy, $order);
-
-            // logger()->debug(json_encode($query['emails'][0]['body_preview'], JSON_PRETTY_PRINT));
-
-
-            return view('mail.index');
+            return view('mail.index', [
+                'isOutlookConnected' => $this->hasValidOutlookConnection(auth()->user()),
+            ]);
         } catch (\Exception $e) {
-            return view('mail.index');
+            return view('mail.index', [
+                'isOutlookConnected' => false,
+            ]);
         }
     }
 
@@ -433,20 +418,35 @@ class MailController extends Controller
 
     private function hasValidOutlookConnection(?User $user): bool
     {
-        if (!$user) {
+        if (!$user || empty($user->email) || !filter_var($user->email, FILTER_VALIDATE_EMAIL)) {
             return false;
         }
 
-        $connectionExists = DB::table('oauth_tokens')
+        $tokenRecord = DB::table('oauth_tokens')
             ->where('provider', 'outlook')
-            ->where('email', $user->email)
-            ->exists();
+            ->where(function ($query) use ($user) {
+                $query->where('email', $user->email)
+                    ->orWhere('user_id', $user->id);
+            })
+            ->orderByDesc('updated_at')
+            ->first();
 
-        if (!$connectionExists) {
+        if (!$tokenRecord) {
             return false;
         }
 
-        return $this->outlookService->isTokenValid($user->email);
+        try {
+            $this->outlookService->setAuthenticatedUser($user);
+            $validToken = $this->outlookService->getValidToken();
+
+            if (!$validToken) {
+                return false;
+            }
+
+            return true;
+        } catch (\Throwable $e) {
+            return false;
+        }
     }
 
     /**

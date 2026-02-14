@@ -64,9 +64,9 @@
 
 @section('content')
     <div class="mail-wrapper main-mail-container p-2 gap-2 d-flex" id="mailApp">
-        {{-- @if (!($isOutlookConnected ?? false)) --}}
-        @include('mail.partials.outlook-setup')
-        {{-- @endif --}}
+        @if (!($isOutlookConnected ?? false))
+            @include('mail.partials.outlook-setup')
+        @endif
 
 
     </div>
