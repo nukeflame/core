@@ -68,7 +68,11 @@
             @include('mail.partials.outlook-setup')
         @endif
 
-
+        @include('mail.partials.navigation')
+        @include('mail.partials.email-list')
+        @include('mail.partials.email-content')
+        @include('mail.partials.recipients')
+        {{-- @include('mail.partials.modals.compose') --}}
     </div>
 
     <!-- Sync Progress Widget -->
@@ -83,5 +87,13 @@
 @endsection
 
 @push('script')
-    <script></script>
+    <script>
+        window.MailAppConfig = {
+            currentMonthEndpoint: @json(route('mail.current-month')),
+            messageDetailEndpoint: @json(route('mail.message.detail', ['id' => '__ID__'])),
+            csrfToken: @json(csrf_token()),
+            currentUserEmail: @json(auth()->user()->email),
+        };
+    </script>
+    <script src="{{ asset('js/mail-app.js') }}"></script>
 @endpush

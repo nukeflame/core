@@ -15,6 +15,7 @@ Route::group(
         Route::get('/', [MailController::class, 'index'])->name('mail.index');
         Route::get('/folder/{folder}', [MailController::class, 'folder'])->name('mail.folder');
 
+        Route::get('/message/{id}/detail', [MailController::class, 'messageDetail'])->name('mail.message.detail');
         Route::get('/email/{id}', [MailController::class, 'show'])->name('mail.show');
         Route::post('/send', [MailController::class, 'send'])->name('mail.send');
         Route::post('/reply/{id}', [MailController::class, 'reply'])->name('mail.reply');
@@ -27,6 +28,7 @@ Route::group(
         // Route::post('/unread/{id}', [MailController::class, 'markUnread'])->name('unread');
 
         Route::get('/check-new', [MailController::class, 'checkNew'])->name('mail.check-new');
+        Route::get('/current-month', [MailController::class, 'currentMonthEmails'])->name('mail.current-month');
         Route::post('/sync/trigger', [MailController::class, 'triggerSync'])->name('mail.sync.trigger');
         Route::get('/inbox/id/{messageId}', [MailController::class, 'showInbox'])
             ->name('mail.inbox.show')

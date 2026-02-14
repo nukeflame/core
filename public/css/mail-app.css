@@ -18,8 +18,43 @@ body {
     color: #333;
 }
 
+/* Shared layout across mail views */
+.main-mail-container {
+    height: calc(100vh - 112px);
+    overflow: hidden;
+}
+
+.mails-information {
+    height: calc(100vh - 112px);
+    max-height: calc(100vh - 112px);
+    display: flex;
+    flex-direction: column;
+    background: #fff;
+}
+
+.mail-info-header,
+.mail-info-footer {
+    flex: 0 0 auto;
+}
+
 .mail-info-body {
-    max-height: calc(100vh - 12.6rem);
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+@media (max-width: 991px) {
+    .main-mail-container {
+        height: auto;
+        min-height: calc(100vh - 112px);
+        overflow: visible;
+    }
+
+    .mails-information {
+        height: calc(100vh - 112px);
+        max-height: calc(100vh - 96px);
+    }
 }
 
 .composer-actions {

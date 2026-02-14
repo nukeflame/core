@@ -5,10 +5,7 @@
         </div>
         <div class="flex-fill">
             <h6 class="fw-semibold mb-0" style="line-height: 0px;">
-                {{ ucfirst($folder) }}
-                @if ($emails->count() > 0)
-                    ({{ $emails->count() }})
-                @endif
+                Inbox
             </h6>
         </div>
         <button class="btn btn-icon btn-light me-1 d-lg-none d-block total-mails-close">
@@ -44,40 +41,14 @@
     </div>
 
     <div class="mail-messages" id="mail-messages">
-        @if ($emails->count() > 0)
-            <ul class="list-unstyled mb-0 mail-messages-container customScrollBar">
-                @foreach ($emails as $email)
-                    @include('mail.components.email-item', ['email' => $email])
-                @endforeach
-            </ul>
-        @else
-            <div class="text-center p-5">
-                <div class="mb-3">
-                    <i class="ri-mail-line fs-48 text-muted"></i>
-                </div>
-                <h6 class="text-dark fw-500">No emails found</h6>
-                <p class="text-muted mb-0">
-                    @if (!($isOutlookConnected ?? auth()->user()->hasOutlookConnection()))
-                        Connect your Outlook account to start receiving emails.
-                    @else
-                        Your {{ $folder }} folder is empty.
-                    @endif
-                </p>
-                @if (!($isOutlookConnected ?? auth()->user()->hasOutlookConnection()))
-                    <button class="btn btn-primary mt-3" id="connectOutlookBtn">
-                        <i class="ri-microsoft-line me-2"></i>Connect Outlook
-                    </button>
-                @endif
+        <div class="text-center p-5">
+            <div class="mb-3">
+                <i class="ri-mail-line fs-48 text-muted"></i>
             </div>
-        @endif
+            <h6 class="text-dark fw-500">No emails found</h6>
+        </div>
     </div>
 
-    <!-- Pagination -->
-    {{-- @if ($emails->hasPages())
-        <div class="p-3 border-top">
-            {{ $emails->links() }}
-        </div>
-    @endif --}}
 </div>
 
 <div class="email-list-loading d-none">
@@ -89,11 +60,85 @@
 </div>
 
 <style>
+    .mail-messages {
+        height: calc(100vh - 260px);
+        min-height: 340px;
+    }
+
+    .focused-actions-panel {
+        height: calc(100vh - 260px);
+        min-height: 340px;
+        background: linear-gradient(165deg, #f3f6fd 0%, #f5ecf8 46%, #fcebf6 100%);
+        border-top: 1px solid #eef0f3;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px 12px;
+    }
+
+    .focused-actions-inner {
+        max-width: 320px;
+        width: 100%;
+    }
+
+    .focused-actions-icon {
+        width: 72px;
+        height: 72px;
+        margin: 0 auto;
+        border-radius: 50%;
+        background: #ffffff;
+        color: #2563eb;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
+        font-size: 34px;
+    }
+
+    .focused-actions-title {
+        font-size: 14px;
+        color: #334155;
+    }
+
+    .focused-actions-list {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        align-items: center;
+    }
+
+    .focused-action-btn {
+        text-decoration: none !important;
+        color: #6d28d9 !important;
+        font-size: 14px;
+        padding: 4px 10px;
+    }
+
+    .focused-action-btn:hover {
+        color: #5b21b6 !important;
+    }
+
+    .focused-action-btn.cancel-btn {
+        color: #7c3aed !important;
+    }
+
+    .mail-messages-container {
+        height: 100%;
+        max-height: 100%;
+        overflow-y: auto;
+        overflow-x: hidden;
+        margin: 0;
+    }
+
     .mailc-date {
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        font-family: 'Aptos', sans-serif !important;
         font-size: 12px !important;
-        color: #605e5c !important;
+        color: #4b5563 !important;
         white-space: nowrap;
+        min-width: 72px;
+        text-align: right;
+        line-height: 1.2;
+        margin-top: 2px;
     }
 
     .mail-page {
@@ -101,10 +146,21 @@
         border-bottom: 1px solid #edebe9 !important;
         transition: background-color 0.1s ease;
         position: relative;
+        display: block;
+        cursor: pointer;
+        background: #f9fafb;
+    }
+
+    .mail-messages-container .mail-page:last-child {
+        margin-bottom: 12px;
     }
 
     .mail-page:hover {
-        background-color: #f3f2f1;
+        background-color: #eef2f7;
+    }
+
+    .mail-page.active {
+        background-color: #e9eef7;
     }
 
     .mail-page.unread {
@@ -126,24 +182,130 @@
     }
 
     .sender-name {
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        font-family: 'Aptos', sans-serif;
         color: #242424;
         font-size: 14px;
+        line-height: 1.2;
+        display: block;
     }
 
     .email-subject {
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        font-family: 'Aptos', sans-serif;
         color: #242424;
         font-size: 14px !important;
+        line-height: 1.25;
+        margin-top: 2px;
+        font-weight: 500;
     }
 
     .email-preview {
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        font-family: 'Aptos', sans-serif;
         color: #616161 !important;
-        font-size: 14px !important;
+        font-size: 12px !important;
         white-space: nowrap !important;
         overflow: hidden !important;
         text-overflow: ellipsis !important;
+        line-height: 1.25;
+        margin-top: 2px;
+    }
+
+    .mail-section-title {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 12px;
+        font-weight: 700;
+        color: #4b5563;
+        text-transform: none;
+        background: #f3f4f6;
+        border-bottom: 1px solid #e5e7eb !important;
+        padding: 6px 10px !important;
+        position: sticky;
+        top: 0;
+        z-index: 2;
+    }
+
+    .mail-section-caret {
+        color: #6b7280;
+        display: inline-flex;
+        align-items: center;
+    }
+
+    .mail-row {
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+    }
+
+    .mail-left-controls {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        min-width: 52px;
+        margin-top: 2px;
+    }
+
+    .mail-caret {
+        width: 12px;
+        color: #6b7280;
+        display: inline-flex;
+        justify-content: center;
+    }
+
+    .mail-row-check {
+        margin-top: 0 !important;
+    }
+
+    .mail-row-star {
+        border: 0;
+        background: transparent;
+        padding: 0;
+        color: #9ca3af;
+        line-height: 1;
+        display: inline-flex;
+        align-items: center;
+    }
+
+    .mail-row-star:hover {
+        color: #6b7280;
+    }
+
+    .mail-row-avatar {
+        width: 24px;
+        height: 24px;
+        min-width: 24px;
+        border-radius: 999px;
+        background: #cbd5e1;
+        color: #334155;
+        font-size: 10px;
+        font-weight: 700;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        margin-top: 1px;
+    }
+
+    .mail-row-content {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .mail-row-top {
+        display: flex;
+        gap: 8px;
+        align-items: baseline;
+        justify-content: space-between;
+    }
+
+    .mail-thread-count {
+        margin-left: 6px;
+        font-size: 10px;
+        border-radius: 999px;
+        background: #dbeafe;
+        color: #1e40af;
+        padding: 1px 6px;
+        vertical-align: middle;
+        font-weight: 700;
     }
 
     .loading-dim {
@@ -174,5 +336,21 @@
     .empty-state-header {
         justify-content: center;
         /* height: calc(100vh - 8.1rem); */
+    }
+
+    @media (max-width: 991px) {
+        .mail-messages {
+            height: calc(100vh - 240px);
+            min-height: 300px;
+        }
+
+        .focused-actions-panel {
+            height: calc(100vh - 240px);
+            min-height: 300px;
+        }
+
+        .mailc-date {
+            min-width: 64px;
+        }
     }
 </style>

@@ -147,6 +147,108 @@ class MailController extends Controller
         }
     }
 
+    public function messageDetail(string $id): JsonResponse
+    {
+        try {
+            if (!auth()->check()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'User not authenticated',
+                ], 401);
+            }
+
+            $user = auth()->user();
+            if (!$this->hasValidOutlookConnection($user)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Outlook account is not connected or token is expired.',
+                    'requires_connect' => true,
+                ], 400);
+            }
+
+            $this->outlookService->setAuthenticatedUser($user);
+            $message = $this->outlookService->getMessageDetails($id);
+
+            if (empty($message) || empty($message['id'])) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Email not found',
+                ], 404);
+            }
+
+            if (!($message['isRead'] ?? false)) {
+                $this->outlookService->markMessage($user, $id, true);
+            }
+
+            $trail = [];
+            $conversationId = $message['conversationId'] ?? null;
+            if (!empty($conversationId)) {
+                $conversation = $this->outlookService->getConversationMessages($conversationId);
+                $trail = collect($conversation['messages'] ?? [])
+                    ->map(function (array $item): array {
+                        return [
+                            'id' => $item['id'] ?? null,
+                            'subject' => $item['subject'] ?? '[No Subject]',
+                            'from_name' => $item['from']['emailAddress']['name'] ?? 'Unknown Sender',
+                            'from_email' => $item['from']['emailAddress']['address'] ?? null,
+                            'to' => $this->formatGraphRecipients($item['toRecipients'] ?? []),
+                            'received_at' => $item['receivedDateTime'] ?? null,
+                            'sent_at' => $item['sentDateTime'] ?? null,
+                            'preview' => $item['bodyPreview'] ?? '',
+                            'has_attachments' => (bool) ($item['hasAttachments'] ?? false),
+                        ];
+                    })
+                    ->values()
+                    ->toArray();
+            }
+
+            if (empty($trail) || !collect($trail)->contains(fn($item) => ($item['id'] ?? null) === ($message['id'] ?? null))) {
+                $trail[] = [
+                    'id' => $message['id'] ?? null,
+                    'subject' => $message['subject'] ?? '[No Subject]',
+                    'from_name' => $message['from']['emailAddress']['name'] ?? 'Unknown Sender',
+                    'from_email' => $message['from']['emailAddress']['address'] ?? null,
+                    'to' => $this->formatGraphRecipients($message['toRecipients'] ?? []),
+                    'received_at' => $message['receivedDateTime'] ?? null,
+                    'sent_at' => $message['sentDateTime'] ?? null,
+                    'preview' => $message['bodyPreview'] ?? '',
+                    'has_attachments' => (bool) ($message['hasAttachments'] ?? false),
+                ];
+            }
+
+            $trail = collect($trail)
+                ->sortBy(fn($item) => $item['received_at'] ?? $item['sent_at'] ?? '')
+                ->values()
+                ->toArray();
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'id' => $message['id'],
+                    'conversation_id' => $conversationId,
+                    'subject' => $message['subject'] ?? '[No Subject]',
+                    'from_name' => $message['from']['emailAddress']['name'] ?? 'Unknown Sender',
+                    'from_email' => $message['from']['emailAddress']['address'] ?? null,
+                    'to' => $this->formatGraphRecipients($message['toRecipients'] ?? []),
+                    'cc' => $this->formatGraphRecipients($message['ccRecipients'] ?? []),
+                    'received_at' => $message['receivedDateTime'] ?? null,
+                    'sent_at' => $message['sentDateTime'] ?? null,
+                    'is_read' => (bool) ($message['isRead'] ?? false),
+                    'importance' => $message['importance'] ?? 'normal',
+                    'has_attachments' => (bool) ($message['hasAttachments'] ?? false),
+                    'body_html' => $message['body']['content'] ?? '',
+                    'body_preview' => $message['bodyPreview'] ?? '',
+                    'trail' => $trail,
+                ],
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to load email details: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
     public function showInbox($id)
     {
         try {
@@ -294,6 +396,111 @@ class MailController extends Controller
         }
     }
 
+    public function currentMonthEmails(Request $request): JsonResponse
+    {
+        try {
+            $validated = $request->validate([
+                'folder' => 'sometimes|string|in:inbox,sent,drafts,spam,important,trash,archive,starred,all',
+                'limit' => 'sometimes|integer|min:1|max:100',
+                'page' => 'sometimes|integer|min:1',
+                'force_refresh' => 'sometimes|boolean',
+            ]);
+
+            if (!auth()->check()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'User not authenticated',
+                ], 401);
+            }
+
+            $user = $request->user();
+            if (!$this->hasValidOutlookConnection($user)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Outlook account is not connected or token is expired.',
+                    'requires_connect' => true,
+                ], 400);
+            }
+
+            $folder = $validated['folder'] ?? 'inbox';
+            $limit = $validated['limit'] ?? 50;
+            $page = $validated['page'] ?? 1;
+            $forceRefresh = (bool) ($validated['force_refresh'] ?? false);
+            $skip = ($page - 1) * $limit;
+
+            $endUtc = now('UTC');
+            $startOfPeriodUtc = (clone $endUtc)->subMonths(3);
+            $filter = sprintf(
+                'receivedDateTime ge %s and receivedDateTime lt %s',
+                $startOfPeriodUtc->toISOString(),
+                $endUtc->toISOString()
+            );
+
+            $cacheKey = sprintf(
+                'mail:last-3-months:%d:%s:%d:%d',
+                $user->id,
+                $folder,
+                $limit,
+                $page
+            );
+
+            $fetch = function () use ($user, $folder, $limit, $skip, $filter) {
+                $this->outlookService->setAuthenticatedUser($user);
+
+                $messages = $this->outlookService->getMessages([
+                    'folder' => $this->mapFolderForGraph($folder),
+                    'limit' => $limit,
+                    'skip' => $skip,
+                    'filter' => $filter,
+                    'select' => 'id,subject,from,receivedDateTime,isRead,hasAttachments,bodyPreview,importance,internetMessageId',
+                    'orderBy' => 'receivedDateTime DESC',
+                ]);
+
+                return array_map(function (array $message): array {
+                    return [
+                        'id' => $message['id'] ?? null,
+                        'message_id' => $message['internetMessageId'] ?? null,
+                        'conversation_id' => $message['conversationId'] ?? null,
+                        'subject' => $message['subject'] ?? '[No Subject]',
+                        'sender_name' => $message['from']['emailAddress']['name'] ?? 'Unknown Sender',
+                        'sender_email' => $message['from']['emailAddress']['address'] ?? null,
+                        'received_at' => $message['receivedDateTime'] ?? null,
+                        'is_read' => (bool) ($message['isRead'] ?? false),
+                        'has_attachments' => (bool) ($message['hasAttachments'] ?? false),
+                        'importance' => $message['importance'] ?? 'normal',
+                        'preview' => $message['bodyPreview'] ?? '',
+                    ];
+                }, $messages);
+            };
+
+            if ($forceRefresh) {
+                Cache::forget($cacheKey);
+                $emails = $fetch();
+                Cache::put($cacheKey, $emails, now()->addSeconds(60));
+            } else {
+                $emails = Cache::remember($cacheKey, now()->addSeconds(60), $fetch);
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => $emails,
+                'meta' => [
+                    'folder' => $folder,
+                    'period_start_utc' => $startOfPeriodUtc->toISOString(),
+                    'period_end_utc' => $endUtc->toISOString(),
+                    'page' => $page,
+                    'limit' => $limit,
+                    'has_more' => count($emails) === $limit,
+                ],
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch last 3 months emails: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
     /**
      * Trigger email sync manually
      */
@@ -363,6 +570,31 @@ class MailController extends Controller
             'search' => $request->get('search'),
             'limit' => (int) $request->get('limit', 50)
         ];
+    }
+
+    private function mapFolderForGraph(string $folder): string
+    {
+        return match ($folder) {
+            'sent' => 'sentitems',
+            'trash' => 'deleteditems',
+            'all', 'important', 'starred' => 'inbox',
+            default => $folder,
+        };
+    }
+
+    private function formatGraphRecipients(array $recipients): array
+    {
+        return array_values(array_filter(array_map(function ($recipient) {
+            $address = $recipient['emailAddress']['address'] ?? null;
+            if (empty($address)) {
+                return null;
+            }
+
+            return [
+                'email' => $address,
+                'name' => $recipient['emailAddress']['name'] ?? null,
+            ];
+        }, $recipients)));
     }
 
     private function validateSendRequest(Request $request): array

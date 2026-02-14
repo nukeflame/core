@@ -34,3 +34,31 @@
         </div>
     </div>
 </div>
+
+<style>
+    .mails-information {
+        max-height: calc(100vh - 112px);
+        display: flex;
+        flex-direction: column;
+        background: transparent;
+    }
+
+    .mail-info-header,
+    .mail-info-footer {
+        flex: 0 0 auto;
+    }
+
+    .mail-info-body {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow-y: auto;
+        overflow-x: hidden;
+    }
+
+    @media (max-width: 991px) {
+        .mails-information {
+            /* height: calc(100vh - 112px); */
+            /* max-height: calc(100vh - 112px); */
+        }
+    }
+</style>

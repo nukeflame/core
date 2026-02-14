@@ -1,14 +1,14 @@
 <div class="mail-navigation border">
     <!-- Compose Button -->
     <div class="d-grid align-items-top p-3 border-bottom">
-        <button class="btn btn-success d-flex align-items-center justify-content-center" data-bs-toggle="modal"
-            data-bs-target="#mail-compose-modal">
+        <button class="btn btn-light d-flex align-items-center justify-content-center" id="composeInlineBtn"
+            type="button">
             <i class="ri-add-circle-line fs-16 align-middle me-1"></i>Compose Mail
         </button>
     </div>
 
     <!-- User Profile -->
-    <div class="d-flex align-items-top p-3 bg-primary">
+    <div class="d-flex align-items-top p-3 bg-default">
         <div>
             <span class="avatar avatar-md online avatar-rounded">
                 <img src="{{ auth()->user()->avatar ?? asset('assets/images/faces/default.png') }}" alt="">
@@ -34,14 +34,14 @@
                         'id' => 'all',
                         'icon' => 'ri-inbox-archive-line',
                         'label' => 'All Mails',
-                        'count' => $emails->count(),
+                        'count' => 0,
                         'badge' => 'success',
                     ],
                     [
                         'id' => 'inbox',
                         'icon' => 'ri-inbox-archive-line',
                         'label' => 'Inbox',
-                        'count' => $emails->where('folder', 'inbox')->count(),
+                        'count' => 0,
                         'badge' => 'primary',
                     ],
                     ['id' => 'sent', 'icon' => 'ri-send-plane-2-line', 'label' => 'Sent'],
@@ -59,7 +59,7 @@
             @endphp
 
             @foreach ($navigationItems as $item)
-                <li class="mail-type {{ $folder === $item['id'] ? 'active' : '' }}">
+                <li class="mail-type">
                     <a href="{{ route('mailbox.index', ['folder' => $item['id']]) }}" class="mail-folder-link"
                         data-folder="{{ $item['id'] }}">
                         <div class="d-flex align-items-center">
@@ -93,7 +93,7 @@
                 </a>
             </li> --}}
 
-            <li class="px-0">
+            {{-- <li class="px-0">
                 <span class="fs-11 text-muted op-7 fw-semibold">LABELS</span>
             </li>
             @php
@@ -117,7 +117,7 @@
                         </div>
                     </a>
                 </li>
-            @endforeach
+            @endforeach --}}
 
             <li class="px-0">
                 <span class="fs-11 text-muted op-7 fw-semibold">ONLINE USERS</span>
@@ -125,7 +125,7 @@
 
             <li class="mail-online-users">
                 <ul class="mail-online-list customScrollBar">
-                    @if (isset($onlineUsers) && $onlineUsers->count() > 0)
+                    {{-- @if (isset($onlineUsers) && $onlineUsers->count() > 0)
                         @foreach ($onlineUsers->take(30) as $onlineUser)
                             <li>
                                 <a href="#" class="contact-item online-contact"
@@ -148,9 +148,15 @@
                                 </a>
                             </li>
                         @endforeach
-                    @endif
+                    @endif --}}
                 </ul>
             </li>
         </ul>
     </div>
 </div>
+
+<style>
+    .bg-default {
+        background: #6c757d !important;
+    }
+</style>

@@ -2752,18 +2752,42 @@ class OutlookService
     public function getConversationMessages(string $conversationId): array
     {
         try {
-            $response = $this->makeRequest('GET', "/me/messages", [
-                'query' => [
-                    '$filter' => "conversationId eq '{$conversationId}'",
-                    '$orderby' => 'receivedDateTime desc',
-                    '$select' => 'id,subject,from,toRecipients,receivedDateTime,sentDateTime,bodyPreview,importance,hasAttachments'
-                ]
-            ]);
+            $safeConversationId = str_replace("'", "''", $conversationId);
+            $messages = [];
+            $nextEndpoint = "/me/messages";
+            $query = [
+                '$filter' => "conversationId eq '{$safeConversationId}'",
+                '$orderby' => 'receivedDateTime asc',
+                '$select' => 'id,conversationId,subject,from,toRecipients,receivedDateTime,sentDateTime,bodyPreview,importance,hasAttachments',
+                '$top' => 100,
+            ];
+            $page = 0;
+            $maxPages = 10;
+
+            while ($nextEndpoint && $page < $maxPages) {
+                $options = [];
+                if ($page === 0) {
+                    $options['query'] = $query;
+                }
+
+                $response = $this->makeRequest('GET', $nextEndpoint, $options);
+                $messages = array_merge($messages, $response['value'] ?? []);
+                $nextEndpoint = $response['@odata.nextLink'] ?? null;
+                $page++;
+            }
+
+            $unique = collect($messages)
+                ->filter(fn($message) => !empty($message['id']))
+                ->keyBy('id')
+                ->values()
+                ->sortBy(fn($message) => $message['receivedDateTime'] ?? $message['sentDateTime'] ?? '')
+                ->values()
+                ->toArray();
 
             return [
                 'success' => true,
-                'messages' => $response['value'] ?? [],
-                'count' => count($response['value'] ?? [])
+                'messages' => $unique,
+                'count' => count($unique)
             ];
         } catch (Exception $e) {
             return [
