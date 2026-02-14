@@ -10,13 +10,15 @@ const STAGE_NAMES = {
 };
 
 const CHART_LABELS = [
-    "Quarter One",
-    "Quarter Two",
-    "Quarter Three",
-    "Quarter Four",
+    "Lead",
+    "Proposal",
+    "Negotiation",
+    "Won",
+    "Lost",
+    "Final Stage",
 ];
 
-const DEFAULT_CHART_DATA = [0, 0, 0, 0];
+const DEFAULT_CHART_DATA = [0, 0, 0, 0, 0, 0];
 
 const FILE_SIZE_UNITS = ["Bytes", "KB", "MB", "GB"];
 const FILE_SIZE_BASE = 1024;
@@ -52,6 +54,7 @@ class PipelineManager {
         this.uploadedFiles = {};
         this.reinsurerDataTable = null;
         this.activeFileUrls = new Set();
+        this.currentChartRequest = null;
 
         this.$pipYearSelect = null;
         this.$loadingOverlay = null;
@@ -60,11 +63,19 @@ class PipelineManager {
         this.$chartLoading = null;
         this.$chartError = null;
         this.$pipelineChart = null;
+        this.$pipelineMetaName = null;
+        this.$pipelineMetaYear = null;
+        this.$pipelineMetaOpp = null;
+        this.$pipelineMetaWon = null;
+        this.$pipelineMetaLost = null;
+        this.$pipelineMetaWorth = null;
 
         this.config = {
             routes: {
                 pipelineData: window.pipelineRoutes?.pipelineData || "",
                 chartData: window.pipelineRoutes?.chartData || "",
+                pipelineDetailsTemplate:
+                    window.pipelineRoutes?.pipelineDetailsTemplate || "",
                 scheduleHeaders: window.pipelineRoutes?.scheduleHeaders || "",
                 slipDocuments: window.pipelineRoutes?.slipDocuments || "",
                 getBdTerms: window.pipelineRoutes?.getBdTerms || "",
@@ -181,6 +192,7 @@ class PipelineManager {
             this.setupErrorHandling();
             this.initializeChart();
             this.initializeDataTables();
+            this.loadPipelineDetails();
             this.bindEvents();
 
             this.performInitialConnectionCheck();
@@ -216,6 +228,12 @@ class PipelineManager {
         this.$chartLoading = $("#chart-loading");
         this.$chartError = $("#chart-error");
         this.$pipelineChart = $("#pipeline-chart");
+        this.$pipelineMetaName = $("#pipeline-meta-name");
+        this.$pipelineMetaYear = $("#pipeline-meta-year");
+        this.$pipelineMetaOpp = $("#pipeline-meta-opp");
+        this.$pipelineMetaWon = $("#pipeline-meta-won");
+        this.$pipelineMetaLost = $("#pipeline-meta-lost");
+        this.$pipelineMetaWorth = $("#pipeline-meta-worth");
     }
 
     setupCSRF() {
@@ -301,7 +319,8 @@ class PipelineManager {
     showChartLoading() {
         this.$chartLoading?.removeClass("d-none");
         this.$chartError?.addClass("d-none");
-        this.$pipelineChart?.addClass("d-none");
+        // Keep chart container visible so Chartist can calculate width correctly.
+        this.$pipelineChart?.removeClass("d-none");
     }
 
     hideChartLoading() {
@@ -319,47 +338,68 @@ class PipelineManager {
         const pipelineId = this.$pipYearSelect?.val();
 
         if (!pipelineId) {
+            this.updateChartData(DEFAULT_CHART_DATA, CHART_LABELS);
             this.hideChartLoading();
             return;
         }
 
-        $.ajax({
+        if (this.currentChartRequest && this.currentChartRequest.readyState !== 4) {
+            this.currentChartRequest.abort();
+        }
+
+        const requestedPipelineId = String(pipelineId);
+
+        this.currentChartRequest = $.ajax({
             url: this.config.routes.chartData,
             method: "GET",
-            data: { pipeline_id: pipelineId },
+            data: { pipeline_id: requestedPipelineId },
             timeout: AJAX_TIMEOUT,
             success: (response) => {
+                const activePipelineId = String(this.$pipYearSelect?.val() ?? "");
+                if (activePipelineId !== requestedPipelineId) {
+                    return;
+                }
+
                 if (response?.data && Array.isArray(response.data)) {
-                    this.updateChartData(response.data);
+                    this.updateChartData(response.data, response?.labels);
                 } else {
-                    this.updateChartData(DEFAULT_CHART_DATA);
+                    this.updateChartData(DEFAULT_CHART_DATA, CHART_LABELS);
                 }
                 this.hideChartLoading();
             },
             error: (xhr, status, error) => {
+                if (status === "abort") {
+                    return;
+                }
+
                 this.handleError("Failed to load chart data", {
                     xhr,
                     status,
                     error,
                 });
-                this.updateChartData(DEFAULT_CHART_DATA);
+                this.updateChartData(DEFAULT_CHART_DATA, CHART_LABELS);
                 this.showChartError();
             },
         });
     }
 
-    updateChartData(data) {
+    updateChartData(data, labels = CHART_LABELS) {
         if (!this.chartInstance) {
             return;
         }
 
         try {
-            if (!Array.isArray(data) || data.length !== 4) {
+            if (!Array.isArray(labels) || labels.length === 0) {
+                labels = CHART_LABELS;
+            }
+
+            if (!Array.isArray(data) || data.length !== labels.length) {
                 data = DEFAULT_CHART_DATA;
+                labels = CHART_LABELS;
             }
 
             this.chartInstance.update({
-                labels: CHART_LABELS,
+                labels: labels,
                 series: [data],
             });
         } catch (error) {
@@ -458,16 +498,18 @@ class PipelineManager {
         `;
     }
     bindEvents() {
-        this.$pipYearSelect?.off("change").on("change", () => {
+        this.$pipYearSelect?.off("change.pipeline").on("change.pipeline", () => {
             this.debounce(() => {
+                this.updateBrowserUrl();
+                this.loadPipelineDetails();
                 this.loadChartData();
                 this.reloadAllTables();
             }, DEBOUNCE_DELAY)();
         });
 
         $('a[data-bs-toggle="tab"]')
-            .off("shown.bs.tab")
-            .on("shown.bs.tab", (e) => {
+            .off("shown.bs.tab.pipeline")
+            .on("shown.bs.tab.pipeline", (e) => {
                 const target = $(e.target).attr("href");
                 const tableId = this.getTableIdFromTab(target);
 
@@ -477,14 +519,103 @@ class PipelineManager {
             });
 
         $(document)
-            .off("ajaxError")
-            .on("ajaxError", (event, xhr, settings, thrownError) => {
+            .off("ajaxError.pipeline")
+            .on("ajaxError.pipeline", (event, xhr, settings, thrownError) => {
                 this.handleError("AJAX Error", {
                     url: settings.url,
                     status: xhr.status,
                     error: thrownError,
                 });
             });
+    }
+
+    updateBrowserUrl() {
+        const pipelineId = this.$pipYearSelect?.val();
+        if (!pipelineId || !window.history?.replaceState) {
+            return;
+        }
+
+        const url = new URL(window.location.href);
+        url.searchParams.set("pipeline", pipelineId);
+        window.history.replaceState({}, "", url.toString());
+    }
+
+    getPipelineDetailsUrl(pipelineId) {
+        const template = this.config.routes.pipelineDetailsTemplate;
+        if (!template || !pipelineId) {
+            return "";
+        }
+
+        return template.replace("__PIPELINE__", encodeURIComponent(pipelineId));
+    }
+
+    loadPipelineDetails() {
+        const pipelineId = this.$pipYearSelect?.val();
+        const url = this.getPipelineDetailsUrl(pipelineId);
+
+        if (!pipelineId || !url) {
+            this.resetPipelineMeta();
+            return;
+        }
+
+        $.ajax({
+            url: url,
+            method: "GET",
+            dataType: "json",
+            timeout: AJAX_TIMEOUT,
+            headers: {
+                Accept: "application/json",
+            },
+            success: (response) => {
+                if (response?.status === 1 && response?.data) {
+                    this.updatePipelineMeta(response.data);
+                } else {
+                    this.resetPipelineMeta();
+                }
+            },
+            error: (xhr, status, error) => {
+                this.handleError("Failed to fetch pipeline details", {
+                    pipelineId,
+                    status,
+                    error,
+                    response: xhr?.responseText,
+                });
+                this.resetPipelineMeta();
+            },
+        });
+    }
+
+    updatePipelineMeta(details) {
+        this.$pipelineMetaName?.text(details?.name || "N/A");
+        this.$pipelineMetaYear?.text(`Year: ${details?.year ?? "N/A"}`);
+        this.$pipelineMetaOpp?.text(
+            `Opportunities: ${Number(details?.opportunities ?? 0)}`
+        );
+        this.$pipelineMetaWon?.text(`Won: ${Number(details?.won ?? 0)}`);
+        this.$pipelineMetaLost?.text(`Lost: ${Number(details?.lost ?? 0)}`);
+        this.$pipelineMetaWorth?.text(
+            `Worth: ${this.formatCurrencyValue(details?.worth)}`
+        );
+    }
+
+    resetPipelineMeta() {
+        this.$pipelineMetaName?.text("N/A");
+        this.$pipelineMetaYear?.text("Year: N/A");
+        this.$pipelineMetaOpp?.text("Opportunities: --");
+        this.$pipelineMetaWon?.text("Won: --");
+        this.$pipelineMetaLost?.text("Lost: --");
+        this.$pipelineMetaWorth?.text("Worth: --");
+    }
+
+    formatCurrencyValue(amount) {
+        const parsed = Number(amount || 0);
+        if (Number.isNaN(parsed)) {
+            return "0.00";
+        }
+        return parsed.toLocaleString(undefined, {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+        });
     }
 
     initializeActionHandlers() {

@@ -139,21 +139,53 @@ class PipelineController
 
     public function pipeline_report(Request $request)
     {
-        $pipelines = Pipeline::orderBy('year', 'asc')->get();
+        [$startYear, $currentYear] = $this->getPipelineYearWindow();
+        $this->ensurePipelineYears(range($startYear, $currentYear));
+
+        $pipelines = Pipeline::whereBetween('year', [$startYear, $currentYear])
+            ->orderBy('year', 'asc')
+            ->get();
 
         return view('Bd_views.intermediaries.pipeline_report', compact('pipelines'));
     }
 
     public function sales_report(Request $request)
     {
-        $pipelines = Pipeline::orderBy('year', 'asc')->get();
+        [$startYear, $currentYear] = $this->getPipelineYearWindow();
+        $this->ensurePipelineYears(range($startYear, $currentYear));
+
+        $pipelines = Pipeline::whereBetween('year', [$startYear, $currentYear])
+            ->orderBy('year', 'asc')
+            ->get();
+
         return view('Bd_views.intermediaries.sales_report', compact('pipelines'));
     }
 
     public function decline_report(Request $request)
     {
-        $pipelines = Pipeline::orderBy('year', 'asc')->get();
+        [$startYear, $currentYear] = $this->getPipelineYearWindow();
+        $this->ensurePipelineYears(range($startYear, $currentYear));
+
+        $pipelines = Pipeline::whereBetween('year', [$startYear, $currentYear])
+            ->orderBy('year', 'asc')
+            ->get();
+
         return view('Bd_views.intermediaries.decline_report', compact('pipelines'));
+    }
+
+    private function getPipelineYearWindow(): array
+    {
+        $currentYear = Carbon::now()->year;
+        $startYear = $currentYear - 5;
+
+        return [$startYear, $currentYear];
+    }
+
+    private function ensurePipelineYears(array $years): void
+    {
+        foreach ($years as $year) {
+            Pipeline::firstOrCreate(['year' => (int) $year]);
+        }
     }
 
     public function sales_report_filter(Request $request)
@@ -530,6 +562,53 @@ class PipelineController
             ->make(true);
     }
 
+    public function getPipelineDetails(Request $request, $pipeline)
+    {
+        $pipelineRecord = Pipeline::select('id', 'year')->find($pipeline);
+
+        if (!$pipelineRecord) {
+            if ($request->expectsJson() || $request->ajax()) {
+                return response()->json([
+                    'status' => 0,
+                    'message' => 'Pipeline not found.',
+                ], 404);
+            }
+
+            return redirect()
+                ->route('pipeline.view')
+                ->with('error', 'Requested pipeline was not found.');
+        }
+
+        $details = [
+            'id' => $pipelineRecord->id,
+            'name' => 'Pipeline ' . $pipelineRecord->year,
+            'year' => $pipelineRecord->year,
+            'opportunities' => (int) DB::table('pipeline_opportunities')
+                ->where('pipeline_id', $pipelineRecord->id)
+                ->count(),
+            'won' => (int) DB::table('pipeline_opportunities')
+                ->where('pipeline_id', $pipelineRecord->id)
+                ->where('stage', 4)
+                ->count(),
+            'lost' => (int) DB::table('pipeline_opportunities')
+                ->where('pipeline_id', $pipelineRecord->id)
+                ->where('stage', 5)
+                ->count(),
+            'worth' => (float) DB::table('pipeline_opportunities')
+                ->where('pipeline_id', $pipelineRecord->id)
+                ->sum('income'),
+        ];
+
+        if ($request->expectsJson() || $request->ajax()) {
+            return response()->json([
+                'status' => 1,
+                'data' => $details,
+            ]);
+        }
+
+        return redirect()->route('pipeline.view', ['pipeline' => $pipelineRecord->id]);
+    }
+
     public function returnImportExcelView()
     {
         return view('Bd_views.intermediaries.excelimport');
@@ -587,29 +666,69 @@ class PipelineController
 
     public function pipeline_view(Request $request)
     {
-        try {
-            $currentyear = Carbon::now()->year;
-            $pipelines = DB::table('pipelines')->orderBy('year', 'asc');
-            $pipeYear = DB::table('pipelines')->where('year', $currentyear);
-            $emailFrom = Company::where('company_id', 1)->first()->email ?? '';
-            $filesAttached = [];
+        $emailFrom = Company::where('company_id', 1)->value('email') ?? '';
+        $filesAttached = [];
 
-            $pip = $request->get('pipeline', $pipeYear->first()->id ?? null);
-            $pipelines = $pipelines->get();
-        } catch (\Exception $e) {
-            $pipelines = [];
+        try {
+            [$startYear, $currentYear] = $this->getPipelineYearWindow();
+            $this->ensurePipelineYears(range($startYear, $currentYear));
+
+            $pipelines = Pipeline::select('id', 'year')
+                ->whereBetween('year', [$startYear, $currentYear])
+                ->orderBy('year', 'asc')
+                ->get();
+
+            $defaultPipelineId = optional(
+                Pipeline::where('year', $currentYear)->first()
+            )->id ?? optional($pipelines->first())->id;
+
+            $requestedPipeline = $request->get('pipeline');
+            $pip = $requestedPipeline && $pipelines->contains('id', (int) $requestedPipeline)
+                ? (int) $requestedPipeline
+                : $defaultPipelineId;
+
+            $selectedPipeline = $pip
+                ? $pipelines->firstWhere('id', (int) $pip)
+                : null;
+        } catch (\Throwable $e) {
+            Log::error('Failed to load facultative pipeline view', [
+                'message' => $e->getMessage(),
+                'pipeline' => $request->get('pipeline'),
+            ]);
+
+            $pipelines = collect();
             $pip = null;
+            $selectedPipeline = null;
         }
 
-        return view('Bd_views.intermediaries.pipeline_view', compact('pipelines', 'emailFrom', 'pip', 'filesAttached'));
+        return view('Bd_views.intermediaries.pipeline_view', compact(
+            'pipelines',
+            'emailFrom',
+            'pip',
+            'filesAttached',
+            'selectedPipeline'
+        ));
     }
 
     public function treaty_pipeline_view(Request $request)
     {
         try {
+            [$startYear, $currentYear] = $this->getPipelineYearWindow();
+            $this->ensurePipelineYears(range($startYear, $currentYear));
+
             if (is_null($request->pipeline)) {
-                $currentyear = Carbon::now()->year;
-                $pip_id = DB::table('pipelines')->where('year', $currentyear)->first()->id;
+                $pip_id = optional(
+                    DB::table('pipelines')->where('year', $currentYear)->first()
+                )->id;
+
+                if (!$pip_id) {
+                    $pip_id = optional(
+                        DB::table('pipelines')
+                            ->whereBetween('year', [$startYear, $currentYear])
+                            ->orderBy('year', 'desc')
+                            ->first()
+                    )->id;
+                }
             } else {
                 $pip_id = $request->pipeline;
             }
@@ -3465,24 +3584,26 @@ class PipelineController
 
     private function buildChartData($pipelineId)
     {
-        $statusCounts = PipelineOpportunity::where('pipeline_id', $pipelineId)
-            ->groupBy('status')
-            // ->where('fiscal_period', 3)
-            ->selectRaw('status, count(*) as count')
-            ->pluck('count', 'status')
+        $stageCounts = PipelineOpportunity::where('pipeline_id', $pipelineId)
+            ->whereNotNull('stage')
+            ->groupBy('stage')
+            ->selectRaw('stage, count(*) as count')
+            ->pluck('count', 'stage')
             ->toArray();
 
-        $statusOrder = ['proposal', 'negotiation', 'lead', 'won', 'lost', 'final_stage'];
-        $data = [];
-
-        foreach ($statusOrder as $status) {
-            $data[] = $statusCounts[$status] ?? 0;
-        }
+        $data = [
+            (int) ($stageCounts[1] ?? 0), // Lead
+            (int) ($stageCounts[2] ?? 0), // Proposal
+            (int) ($stageCounts[3] ?? 0), // Negotiation
+            (int) ($stageCounts[5] ?? 0), // Won
+            (int) ($stageCounts[6] ?? 0), // Lost
+            (int) ($stageCounts[4] ?? 0), // Final Stage
+        ];
 
         return [
             'data' => $data,
-            'labels' => ['Proposal', 'Negotiation', 'Lead', 'Won', 'Lost', 'Final Stage'],
-            'colors' => ['#d70206', '#f05b4f', '#f4c63d', '#d17905', '#453d3f', '#59922b']
+            'labels' => ['Lead', 'Proposal', 'Negotiation', 'Won', 'Lost', 'Final Stage'],
+            'colors' => ['#453d3f', '#f05b4f', '#f4c63d', '#d17905', '#d70206', '#59922b']
         ];
     }
 

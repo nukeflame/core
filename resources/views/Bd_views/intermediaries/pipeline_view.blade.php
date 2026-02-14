@@ -3,12 +3,12 @@
 @section('content')
     <div>
         <div class="d-md-flex d-block align-items-center justify-content-between my-4 page-header-breadcrumb">
-            <h1 class="page-title fw-semibold fs-18 mb-0">Faculatative Sales Management</h1>
+            <h1 class="page-title fw-semibold fs-18 mb-0">Facultative Sales Management</h1>
             <div class="ms-md-1 ms-0">
                 <nav>
                     <ol class="breadcrumb mb-0">
                         <li class="breadcrumb-item"><a href="/">Business Development</a></li>
-                        <li class="breadcrumb-item"><a href="/">Faculatative Sales Management</a></li>
+                        <li class="breadcrumb-item"><a href="/">Facultative Sales Management</a></li>
                         <li class="breadcrumb-item active" aria-current="page">Facultative</li>
                     </ol>
                 </nav>
@@ -37,6 +37,18 @@
                             </div>
                         </div>
                     </form>
+                </div>
+
+                <div id="pipeline-meta" class="alert alert-light border d-flex flex-wrap align-items-center gap-3 mb-4">
+                    <span class="fw-semibold">Selected Pipeline:</span>
+                    <span id="pipeline-meta-name">{{ isset($selectedPipeline->year) ? 'Pipeline ' . $selectedPipeline->year : 'N/A' }}</span>
+                    <span class="badge bg-primary-subtle text-primary-emphasis" id="pipeline-meta-year">
+                        Year: {{ $selectedPipeline->year ?? 'N/A' }}
+                    </span>
+                    <span class="badge bg-info-subtle text-info-emphasis" id="pipeline-meta-opp">Opportunities: --</span>
+                    <span class="badge bg-success-subtle text-success-emphasis" id="pipeline-meta-won">Won: --</span>
+                    <span class="badge bg-danger-subtle text-danger-emphasis" id="pipeline-meta-lost">Lost: --</span>
+                    <span class="badge bg-secondary-subtle text-secondary-emphasis" id="pipeline-meta-worth">Worth: --</span>
                 </div>
 
                 <div class="d-flex justify-content-center flex-wrap chart-container">
@@ -180,6 +192,7 @@
         window.pipelineRoutes = {
             pipelineData: "{{ route('pipeline.sales.get_pipeline_data') }}",
             chartData: "{{ route('pipeline.sales.get_pipeline_chart_data') }}",
+            pipelineDetailsTemplate: "{{ route('getpipelineDetails', ['pipeline' => '__PIPELINE__']) }}",
             scheduleHeaders: "{{ route('schedule.headers.get') }}",
             slipDocuments: "{{ route('schedule.get_stage_documents') }}",
             getBdTerms: "{{ route('get.bd_terms') }}",
@@ -190,8 +203,7 @@
         };
     </script>
 
-    {{-- <script type="module" src="{{ asset('js/pipeline-manager.js') }}"></script> --}}
-    <script type="module" src="js/pipeline-manager.js"></script>
+    <script type="module" src="{{ asset('js/pipeline-manager.js') }}"></script>
 @endsection
 
 @section('styles')

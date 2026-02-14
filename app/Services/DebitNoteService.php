@@ -28,6 +28,7 @@ class DebitNoteService
         private readonly AmountCalculator $amountCalculator,
         private readonly LineItemProcessor $lineItemProcessor,
         private readonly StatusManager $statusManager,
+        private readonly TransactionLogger $transactionLogger,
     ) {}
 
     public function generateDebitNoteNumber(string $businessType, ?int $year = null): string
@@ -61,7 +62,7 @@ class DebitNoteService
             $debitNote = $this->createDebitNoteRecord($debitNoteNo, $data, $cover, $calculation);
             $this->lineItemProcessor->createDebitNoteLineItems($debitNote, $calculation['items']);
 
-            // $this->transactionLogger->log($debitNote, 'CREATE');
+            $this->transactionLogger->log($debitNote, 'CREATE');
             return $debitNote->fresh(['items', 'cover', 'cover.customer']);
         });
     }
@@ -88,7 +89,7 @@ class DebitNoteService
                 $this->lineItemProcessor->replaceDebitNoteLineItems($debitNote, $data['items']);
             }
 
-            // $this->transactionLogger->log($debitNote, 'UPDATE', $oldValues);
+            $this->transactionLogger->log($debitNote, 'UPDATE', $oldValues);
 
             return $debitNote->fresh(['items', 'cover']);
         });
@@ -143,7 +144,7 @@ class DebitNoteService
             // TODO: Implement accounting integration
             // $this->accountingService->createEntries($debitNote);
 
-            // $this->transactionLogger->log($debitNote, 'POST', $oldValues);
+            $this->transactionLogger->log($debitNote, 'POST', $oldValues);
 
             return $debitNote->fresh();
         });
@@ -166,7 +167,7 @@ class DebitNoteService
             $debitNote->items()->delete();
             $debitNote->delete();
 
-            // $this->transactionLogger->log($debitNote, 'DELETE', $oldValues);
+            $this->transactionLogger->log($debitNote, 'DELETE', $oldValues);
 
             return true;
         });

@@ -362,7 +362,7 @@
                                 } else if (data.status === 301) {
                                     toastr.success("Document saved successfully");
                                     setTimeout(() => {
-                                        window.location.href = 'treaty_pipelines_view';
+                                        window.location.href = '{{ route('treaty.pipeline.view') }}';
                                     }, 1000);
                                 } else if (data.status === 422) {
                                     showServerSideValidationErrors(data.errors);

@@ -98,9 +98,12 @@ Route::middleware(['auth', 'check.first.login'])->group(function () {
     Route::get('/subcat/doc', [TenderController::class, 'getSubcatDoc'])->name('get_subcat_doc');
     Route::post('/doc/preview', [TenderController::class, 'previewDoc'])->name('doc_preview');
 
+    Route::get('pipelines/facultative/view', [PipelineController::class, 'pipeline_view'])->name('pipeline.view');
+    Route::get('pipelines/treaty/view', [PipelineController::class, 'treaty_pipeline_view'])->name('treaty.pipeline.view');
+    Route::redirect('pipelines/view', 'pipelines/facultative/view', 301);
 
-    Route::get('pipelines_view', [PipelineController::class, 'pipeline_view'])->name('pipeline.view');
-    Route::get('treaty_pipelines_view', [PipelineController::class, 'treaty_pipeline_view'])->name('treaty.pipeline.view');
+    Route::redirect('pipelines_view', 'pipelines/facultative/view', 301);
+    Route::redirect('treaty_pipelines_view', 'pipelines/treaty/view', 301);
     Route::get('pipelines_onboarding', [PipelineController::class, 'index'])->name('pipelines.onboarding');
     Route::post('pipelines_save', [PipelineController::class, 'save'])->name('pipelines.save');
     Route::get('pipelines', [PipelineController::class, 'listing'])->name('pipelines.listing');
@@ -108,10 +111,8 @@ Route::middleware(['auth', 'check.first.login'])->group(function () {
     Route::get('pipelines_edit', [PipelineController::class, 'pipelines_edit'])->name('pipelines.edit');
     Route::post('pipelines/{pipeline}/edit', [PipelineController::class, 'edit_pipeline'])->name('edit_pipeline');
     Route::get('get_pipelines', [PipelineController::class, 'get_pipelines'])->name('get_pipelines');
-    Route::get('pipelines/{pipeline}', [PipelineController::class, 'getpipelineDetails'])->name('getpipelineDetails');
-    // Route::get('pipelines_view', [PipelineController::class, 'pipeline_view'])->name('pipeline.view');
+    Route::get('pipelines/{pipeline}', [PipelineController::class, 'getPipelineDetails'])->whereNumber('pipeline')->name('getpipelineDetails');
     Route::post('pipelines_create_opportunity', [PipelineController::class, 'pipeline_create_opportunity'])->name('pipeline.create.opportunity');
-    // Route::get('pipelines_activity', [PipelineController::class, 'pipeline_activity'])->name('pipeline.activity');
     Route::get('pipelines_activity_treaty', [PipelineController::class, 'pipeline_activity_treaty'])->name('pipeline.activity.treaty');
 
     Route::post('update_category_type', [PipelineController::class, 'update_category'])->name('update.category_type');
