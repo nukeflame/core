@@ -40,17 +40,18 @@ class MailController extends Controller
         $this->batchId = Str::uuid()->toString();
     }
 
-    public function index(Request $request)
+    public function index()
     {
         try {
-            $requestData = $this->validateIndexRequest($request);
-            $isOutlookConnected = $this->hasValidOutlookConnection($request->user());
 
-            $query = $this->mailService->getMailData(
-                $requestData['folder'],
-                $requestData['search'],
-                $requestData['limit']
-            );
+            // $requestData = $this->validateIndexRequest($request);
+            // $isOutlookConnected = $this->hasValidOutlookConnection($request->user());
+
+            // $query = $this->mailService->getMailData(
+            //     $requestData['folder'],
+            //     $requestData['search'],
+            //     $requestData['limit']
+            // );
 
             // $this->applyFilters($query, $request);
             // // Apply sorting
@@ -60,91 +61,12 @@ class MailController extends Controller
 
             // logger()->debug(json_encode($query['emails'][0]['body_preview'], JSON_PRETTY_PRINT));
 
-            return view('mail.index', array_merge($query, [
-                'folder' => $requestData['folder'],
-                'user' => Auth::user(),
-                'isOutlookConnected' => $isOutlookConnected,
-            ]));
 
-            return null;
+            return view('mail.index');
         } catch (\Exception $e) {
-            return view('mail.index', $this->getEmptyMailData($requestData['folder']));
+            return view('mail.index');
         }
     }
-
-    /**
-     * Apply filters to query
-     */
-    // private function applyFilters($query, Request $request): void
-    // {
-    //     $filter = $request->input('filter', 'all');
-
-    //     switch ($filter) {
-    //         case 'unread':
-    //             $query->unread();
-    //             break;
-    //         case 'read':
-    //             $query->read();
-    //             break;
-    //         case 'important':
-    //             $query->important();
-    //             break;
-    //         case 'attachments':
-    //             $query->withAttachments();
-    //             break;
-    //     }
-
-    //     if ($from = $request->input('from')) {
-    //         $query->fromSender($from);
-    //     }
-
-    //     if ($dateFrom = $request->input('date_from')) {
-    //         $query->where('received_at', '>=', $dateFrom);
-    //     }
-
-    //     if ($dateTo = $request->input('date_to')) {
-    //         $query->where('received_at', '<=', $dateTo);
-    //     }
-    // }
-
-    /**
-     * Trigger manual email sync
-     */
-    // public function sync(Request $request): JsonResponse
-    // {
-    //     $validator = Validator::make($request->all(), [
-    //         'type' => 'string|in:delta,full'
-    //     ]);
-
-    //     if ($validator->fails()) {
-    //         return response()->json([
-    //             'message' => 'Validation failed',
-    //             'errors' => $validator->errors()
-    //         ], 422);
-    //     }
-
-    //     $userId = $request->user()->id;
-    //     $syncType = $request->input('type', 'delta');
-
-    //     // Check if sync is already running
-    //     $syncState = EmailSyncState::where('user_id', $userId)->first();
-
-    //     if ($syncState && $syncState->is_locked) {
-    //         return response()->json([
-    //             'message' => 'Sync already in progress',
-    //             'status' => 'locked'
-    //         ], 409);
-    //     }
-
-    //     // Dispatch sync job
-    //     SyncUserEmails::dispatch($userId, $syncType);
-
-    //     return response()->json([
-    //         'message' => 'Sync initiated successfully',
-    //         'status' => 'processing',
-    //         'type' => $syncType
-    //     ], 202);
-    // }
 
     public function fetchEmails(Request $request)
     {
