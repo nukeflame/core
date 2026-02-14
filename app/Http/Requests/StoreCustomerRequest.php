@@ -41,7 +41,7 @@ class StoreCustomerRequest extends FormRequest
             'taxNo' => 'nullable|string|max:100',
             'identityType' => 'nullable|string|max:100',
             'identityNo' => 'nullable|string|max:100',
-            'website' => 'nullable|url|max:255',
+            'website' => 'nullable|string|max:255',
 
             'securityRating' => 'nullable|string|max:50',
             'ratingAgency' => 'nullable|string|max:100',

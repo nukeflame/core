@@ -841,7 +841,7 @@
                         tabindex="0">
                         <div class="card">
                             <div class="card-body py-3 px-2">
-                                {{ html()->form('POST', '/cover/endorsements_list')->id('form_cover_datatable')->open() }}
+                                {{ html()->form('POST', route('endorsements_list'))->id('form_cover_datatable')->open() }}
                                 <input type="text" name="cover_no" id="cov_cover_no" hidden>
                                 <input type="text" name="customer_id" id="customer_id"
                                     value="{{ $customer->customer_id }} " hidden>
@@ -948,10 +948,10 @@
                 responsive: true,
                 autoWidth: false,
                 lengthChange: true,
-                pageLength: 10,
+                pageLength: 25,
                 lengthMenu: [
-                    [10, 25, 50, 100],
-                    [10, 25, 50, 100]
+                    [25, 50, 100],
+                    [25, 50, 100]
                 ],
                 dom: '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>' +
                     '<"row"<"col-sm-12"tr>>' +

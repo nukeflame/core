@@ -60,7 +60,7 @@
 
             @foreach ($navigationItems as $item)
                 <li class="mail-type {{ $folder === $item['id'] ? 'active' : '' }}">
-                    <a href="{{ route('mail.index', ['folder' => $item['id']]) }}" class="mail-folder-link"
+                    <a href="{{ route('mailbox.index', ['folder' => $item['id']]) }}" class="mail-folder-link"
                         data-folder="{{ $item['id'] }}">
                         <div class="d-flex align-items-center">
                             <span class="me-2 lh-1">

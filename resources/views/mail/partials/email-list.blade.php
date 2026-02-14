@@ -57,13 +57,13 @@
                 </div>
                 <h6 class="text-dark fw-500">No emails found</h6>
                 <p class="text-muted mb-0">
-                    @if (!auth()->user()->hasOutlookConnection())
+                    @if (!($isOutlookConnected ?? auth()->user()->hasOutlookConnection()))
                         Connect your Outlook account to start receiving emails.
                     @else
                         Your {{ $folder }} folder is empty.
                     @endif
                 </p>
-                @if (!auth()->user()->hasOutlookConnection())
+                @if (!($isOutlookConnected ?? auth()->user()->hasOutlookConnection()))
                     <button class="btn btn-primary mt-3" id="connectOutlookBtn">
                         <i class="ri-microsoft-line me-2"></i>Connect Outlook
                     </button>

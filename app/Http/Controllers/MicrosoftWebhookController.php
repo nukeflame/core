@@ -3,10 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Jobs\SyncUserEmails;
-use App\Models\EmailSyncState;
+use App\Models\GraphSubscription;
 use App\Models\WebhookDelivery;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Http\Request;
-use Illuminate\Http\JsonResponse;
 
 class MicrosoftWebhookController extends Controller
 {
@@ -17,21 +17,16 @@ class MicrosoftWebhookController extends Controller
             return response($token, 200)->header('Content-Type', 'text/plain');
         }
 
-
-
-        $data = $request->all();
-
-        if (isset($data['value']) && is_array($data['value'])) {
-            foreach ($data['value'] as $notification) {
-                $expectedClientState = config('services.azure.client_state');
-
-                if (($notification['clientState'] ?? '') !== $expectedClientState) {
-                    continue;
-                }
-            }
+        $notifications = $request->input('value', []);
+        if (!is_array($notifications)) {
+            return response()->json(['status' => 'ignored'], 202);
         }
 
-        return response()->json(['status' => 'ok'], 200);
+        foreach ($notifications as $notification) {
+            $this->processIncomingNotification($notification, $request->ip());
+        }
+
+        return response()->json(['status' => 'accepted'], 202);
 
         // if ($request->query('validationToken')) {
         //     $token = $request->query('validationToken');
@@ -53,6 +48,51 @@ class MicrosoftWebhookController extends Controller
         //     // Still return 200 to acknowledge receipt
         //     return response()->json(['status' => 'error'], 200);
         // }
+    }
+
+    private function processIncomingNotification(array $notification, ?string $sourceIp): void
+    {
+        $subscriptionId = $notification['subscriptionId'] ?? null;
+        $clientState = $notification['clientState'] ?? null;
+
+        if (!$subscriptionId) {
+            return;
+        }
+
+        $subscription = GraphSubscription::where('subscription_id', $subscriptionId)->first();
+        if (!$subscription) {
+            return;
+        }
+
+        $expectedClientState = $subscription->client_state ?: config('services.azure.webhook_client_state');
+        $isValid = !empty($expectedClientState) && hash_equals((string) $expectedClientState, (string) $clientState);
+
+        $delivery = WebhookDelivery::create([
+            'subscription_id' => $subscriptionId,
+            'user_id' => $subscription->user_id,
+            'change_type' => $notification['changeType'] ?? 'unknown',
+            'resource' => $notification['resource'] ?? null,
+            'resource_data' => $notification['resourceData'] ?? null,
+            'client_state' => $clientState,
+            'is_valid' => $isValid,
+            'is_processed' => false,
+            'payload' => $notification,
+            'source_ip' => $sourceIp,
+        ]);
+
+        if (!$isValid) {
+            $delivery->markAsFailed('Invalid client state');
+            return;
+        }
+
+        $subscription->recordNotification();
+
+        $lockKey = "graph-sync-notification-user-{$subscription->user_id}";
+        if (Cache::add($lockKey, true, now()->addSeconds(15))) {
+            SyncUserEmails::dispatch($subscription->user_id, 'delta')->delay(now()->addSeconds(2));
+        }
+
+        $delivery->markAsProcessed();
     }
     /**
      * Handle actual notifications

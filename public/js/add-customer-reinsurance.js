@@ -1334,6 +1334,8 @@
                 }
 
                 if ($field.length > 0) {
+                    // Remove existing client-side message for this field to avoid duplicates.
+                    this.clearFieldValidation($field);
                     $field.addClass("is-invalid");
 
                     // Handle Select2
@@ -1345,7 +1347,7 @@
 
                     // Add error message
                     const $errorDiv = $("<div>")
-                        .addClass("invalid-feedback d-block")
+                        .addClass("invalid-feedback d-block server-feedback")
                         .text(errorMessage);
 
                     if ($field.hasClass("select2-hidden-accessible")) {
@@ -1694,8 +1696,39 @@
                         $("#partnerNameCount").removeClass("text-danger");
                     }
                 });
+
+                // Clear field-level validation error as user types/selects.
+                this.$form.on(
+                    "input change",
+                    "input, select, textarea",
+                    (event) => {
+                        this.clearFieldValidation($(event.target));
+                    }
+                );
             } catch (error) {
                 console.error("Failed to attach event listeners:", error);
+            }
+        },
+
+        clearFieldValidation($field) {
+            if (!$field || $field.length === 0) return;
+
+            $field.removeClass("is-invalid");
+
+            if ($field.hasClass("select2-hidden-accessible")) {
+                $field.next(".select2-container").removeClass("is-invalid");
+                $field
+                    .next(".select2-container")
+                    .nextAll(".invalid-feedback")
+                    .remove();
+            } else if ($field.parent(".input-group").length) {
+                $field
+                    .parent(".input-group")
+                    .nextAll(".invalid-feedback")
+                    .remove();
+            } else {
+                $field.siblings(".invalid-feedback").remove();
+                $field.nextAll(".invalid-feedback").remove();
             }
         },
 
@@ -1757,6 +1790,7 @@
                 this.applySectionConfig("address", config.sections.address);
                 this.applySectionConfig("financial", config.sections.financial);
                 this.applySectionConfig("contacts", config.sections.contacts);
+                this.updateEssentialCardTitle(config);
 
                 this.updateValidationRules();
 
@@ -1766,6 +1800,23 @@
             } catch (error) {
                 console.error("Error applying configuration:", error);
             }
+        },
+
+        updateEssentialCardTitle(config) {
+            const $title = $("#section-essential .card-header h5");
+            if ($title.length === 0) return;
+
+            const defaultTitle = "Essential Information";
+            const $icon = $title.find("i").first().clone();
+            const partnerLabel = config?.sections?.essential?.fields
+                ?.partnerName?.label;
+
+            const nextTitle = partnerLabel || defaultTitle;
+            $title.empty();
+            if ($icon.length) {
+                $title.append($icon).append(" ");
+            }
+            $title.append(document.createTextNode(nextTitle));
         },
 
         applySectionConfig(sectionName, sectionConfig) {
@@ -2269,6 +2320,7 @@
 
                 this.currentConfig = null;
                 this.currentTypes = [];
+                this.updateEssentialCardTitle(null);
 
                 this.updateValidationRules();
             } catch (error) {
@@ -2324,19 +2376,28 @@
         submitForm() {
             if (this.isSubmitting) return;
 
+            // Validate core form fields first (Essential/Legal/Address/etc.)
+            if (this.validator && !this.$form.valid()) {
+                return;
+            }
+
             if (!this.validateContacts()) {
                 return;
             }
 
             const csrfToken =
                 $('meta[name="csrf-token"]').attr("content") ||
-                $('input[name="_token"]').val();
+                this.$form.find('input[name="_token"]').val();
+
+            // Build form payload before loading-state disables inputs.
+            const formData = new FormData(this.$form[0]);
+            if (!formData.get("_token") && csrfToken) {
+                formData.append("_token", csrfToken);
+            }
 
             this.isSubmitting = true;
             this.setLoadingState(true);
             this.onBeforeSubmit();
-
-            const formData = new FormData(this.$form[0]);
 
             // $.ajax({
             //     url: this.ajaxConfig.url,
@@ -2375,9 +2436,13 @@
                 contentType: false,
                 dataType: this.ajaxConfig.dataType,
                 timeout: this.ajaxConfig.timeout,
+                headers: {
+                    "X-CSRF-TOKEN": csrfToken,
+                    "X-Requested-With": "XMLHttpRequest",
+                    Accept: "application/json",
+                },
                 success: (response, textStatus, xhr) => {
-                    console.log(response);
-                    // this.onSubmitSuccess(response, textStatus, xhr);
+                    this.onSubmitSuccess(response, textStatus, xhr);
                 },
                 error: (xhr, textStatus, errorThrown) => {
                     this.onSubmitError(xhr, textStatus, errorThrown);

@@ -353,6 +353,12 @@ class OutlookService
         return $token !== null;
     }
 
+    public function setAuthenticatedUser($user): void
+    {
+        $this->auth = $user;
+        $this->token = null;
+    }
+
     /**
      * Check if token is valid for specific user
      */
@@ -413,7 +419,7 @@ class OutlookService
      */
     private function loadToken(): ?array
     {
-        $user = $this->auth;
+        $user = $this->auth ?? auth()->user();
         if (!$user) {
             return null;
         }

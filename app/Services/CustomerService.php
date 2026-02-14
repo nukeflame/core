@@ -19,12 +19,19 @@ class CustomerService
         $rawQuery = "
             SELECT DISTINCT ON (cr.cover_no)
                 cr.cover_no,
+                cr.endorsement_no,
+                cr.transaction_type,
                 cr.cover_type,
                 cr.class_code,
+                cr.cover_from,
                 cr.cover_to,
+                cr.status,
+                cr.cancelled,
+                cr.verified,
+                cr.account_year,
                 cr.created_at,
                 cr.type_of_bus,
-                c.name
+                c.name AS cedant_name
             FROM cover_register cr
             INNER JOIN customers c ON cr.customer_id = c.customer_id
             WHERE cr.type_of_bus IN ($placeholders)
@@ -273,17 +280,20 @@ class CustomerService
             'agency_rate' => $data['agencyRating'] ?? $customer->agency_rate,
             'website' => $data['website'] ?? $customer->website,
             'telephone' => $data['telephone'] ?? $customer->telephone,
-            'updated_by' => Auth::user()->user_name ?? 'system',
             'updated_at' => Carbon::now(),
         ];
 
         if (isset($data['customerType'])) {
-            $updateData['customer_type'] = is_array($data['customerType'])
+            $customerTypes = is_array($data['customerType'])
                 ? $data['customerType']
                 : explode(',', $data['customerType']);
+            $updateData['customer_type'] = json_encode(array_values(array_map('strval', $customerTypes)));
         }
 
-        $customer->update($updateData);
+        // Use query builder update to avoid model-level side effects on non-existent columns.
+        DB::table('customers')
+            ->where('customer_id', $customerId)
+            ->update($updateData);
 
         return $customer->fresh();
     }

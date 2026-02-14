@@ -125,7 +125,17 @@ class CoverController extends Controller
                 $join->on('customer_types.type_id', '=', DB::raw('ANY (SELECT json_array_elements_text(customers.customer_type)::int)'));
             })
             ->select('customers.customer_id', 'customers.name')
-            ->whereIn('customer_types.code', ['INSCO', 'REINCO'])
+            ->when($request->boolean('cedant_only'), function ($query) {
+                $query->where(function ($typeQuery) {
+                    $typeQuery->whereRaw('LOWER(customer_types.slug) = ?', ['cedant'])
+                        ->orWhereRaw('LOWER(customer_types.code) = ?', ['cedant'])
+                        ->orWhereRaw('LOWER(customer_types.type_name) = ?', ['cedant']);
+                });
+            }, function ($query) {
+                $query->whereIn('customer_types.code', ['INSCO', 'REINCO']);
+            })
+            ->distinct()
+            ->orderBy('customers.name')
             ->get();
 
         return response()->json($customers);
@@ -135,7 +145,25 @@ class CoverController extends Controller
     {
         try {
             $trans_type = $request->trans_type;
-            $type_of_bus = $request->type_of_bus;
+            $requestedTypeOfBus = $request->input('type_of_bus');
+            $type_of_bus = null;
+
+            if (is_array($requestedTypeOfBus)) {
+                $type_of_bus = collect($requestedTypeOfBus)
+                    ->filter()
+                    ->map(fn($value) => trim((string) $value))
+                    ->first();
+            } elseif (is_string($requestedTypeOfBus)) {
+                $type_of_bus = trim(explode(',', $requestedTypeOfBus)[0] ?? '');
+            }
+
+            if (!empty($type_of_bus)) {
+                $existsType = BusinessType::where('bus_type_id', $type_of_bus)->exists();
+                if (!$existsType) {
+                    $type_of_bus = null;
+                }
+            }
+
             $prospect_id = $request->has('prospect_id') ? $request->prospect_id : null;
 
             if (! $request->customer_id) {
@@ -217,12 +245,18 @@ class CoverController extends Controller
             $types_of_sum_insured = TypeOfSumInsured::where('status', 'A')->get(['sum_insured_code', 'sum_insured_name', 'status']);
             $classGroups = ClassGroup::get(['group_code', 'group_name']);
 
-            $types_of_busCount = BusinessType::where('bus_type_id', $type_of_bus)->count();
+            $types_of_busCount = $type_of_bus
+                ? BusinessType::where('bus_type_id', $type_of_bus)->count()
+                : 0;
+
             if ($types_of_busCount > 0) {
                 $types_of_bus = BusinessType::where('bus_type_id', $type_of_bus)->get(['bus_type_id', 'bus_type_name']);
             } else {
                 $types_of_bus = BusinessType::get(['bus_type_id', 'bus_type_name']);
             }
+
+            $selectedTypeOfBus = $old_endt_trans?->type_of_bus ?? $type_of_bus ?? old('type_of_bus');
+            $isBusinessTypeLocked = $trans_type === 'NEW' && !empty($type_of_bus);
 
             $paymethods = PayMethod::all();
             $premium_pay_terms = PremiumPayTerm::all();
@@ -288,6 +322,8 @@ class CoverController extends Controller
                 'selected_pay_method' => $selected_pay_method,
                 'prospectId' => $prospect_id,
                 'staff' => $allActiveStaff,
+                'selected_type_of_bus' => $selectedTypeOfBus,
+                'is_business_type_locked' => $isBusinessTypeLocked,
             ]);
         } catch (Exception $e) {
             return back()->withErros(['An error occurred while loading the cover form']);
@@ -659,20 +695,24 @@ class CoverController extends Controller
 
     public function endorse_functions(Request $request)
     {
-        $cover_no = trim($request->cover_no);
+        $cover_no = trim((string) $request->cover_no);
+
+        if ($cover_no === '') {
+            return back()->with('error', 'Cover number is required.');
+        }
 
         $latest_endorsement = CoverRegister::where('cover_no', $cover_no)
             ->where('cancelled', '<>', 'Y')
-            ->whereIn('transaction_type', ['NEW', 'REN'])
-            ->where('verified', 'A')
-            ->orWhere(function ($query) use ($cover_no) {
-                $query->where('cancelled', '<>', 'Y')
-                    ->whereExists(function ($query) use ($cover_no) {
-                        $query->select(DB::raw(1))
-                            ->from('cover_debit')
-                            ->whereColumn('cover_debit.endorsement_no', 'cover_register.endorsement_no')
-                            ->where('cover_debit.cover_no', $cover_no);
-                    });
+            ->where(function ($query) use ($cover_no) {
+                $query->where(function ($baseQuery) {
+                    $baseQuery->whereIn('transaction_type', ['NEW', 'REN'])
+                        ->where('verified', 'A');
+                })->orWhereExists(function ($existsQuery) use ($cover_no) {
+                    $existsQuery->select(DB::raw(1))
+                        ->from('cover_debit')
+                        ->whereColumn('cover_debit.endorsement_no', 'cover_register.endorsement_no')
+                        ->where('cover_debit.cover_no', $cover_no);
+                });
             })
             ->orderBy('created_at', 'desc')
             ->first();
@@ -683,6 +723,11 @@ class CoverController extends Controller
                 ->orderBy('dola', 'desc')
                 ->first();
         }
+
+        if (empty($latest_endorsement)) {
+            return back()->with('error', "No endorsement found for cover number {$cover_no}.");
+        }
+
         $customer = Customer::where('customer_id', $latest_endorsement->customer_id)->first();
         $type_of_bus = BusinessType::where('bus_type_id', $latest_endorsement->type_of_bus)->first();
         $class = Classes::where('class_code', $latest_endorsement->class_code)->first();

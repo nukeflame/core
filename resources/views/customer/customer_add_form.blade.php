@@ -1,15 +1,20 @@
 @extends('layouts.app', [
-    'pageTitle' => __('Create Customer') . ' - ' . $company->company_name,
+    'pageTitle' => (isset($customer) ? __('Edit Customer') : __('Create Customer')) . ' - ' . $company->company_name,
 ])
 
 @section('content')
+    @php
+        $editCustomer = $customer ?? null;
+    @endphp
     <div class="d-md-flex d-block align-items-center justify-content-between my-4 page-header-breadcrumb">
         <div>
             <h1 class="page-title fw-semibold fs-18 mb-0">
                 <i class="bi bi-building me-2"></i>
-                {{ __('Create New Customer') }}
+                {{ isset($customer) ? __('Edit Customer') : __('Create New Customer') }}
             </h1>
-            <p class="text-muted small mb-0">{{ __('Add a new customer or partner to the system') }}</p>
+            <p class="text-muted small mb-0">
+                {{ isset($customer) ? __('Review and update customer details in this unified form') : __('Add a new customer or partner to the system') }}
+            </p>
         </div>
         <div class="ms-md-1 ms-0 mt-3 mt-md-0">
             <nav aria-label="breadcrumb">
@@ -20,22 +25,25 @@
                     <li class="breadcrumb-item">
                         <a href="{{ route('customer.info') }}">{{ __('Customers') }}</a>
                     </li>
-                    <li class="breadcrumb-item active" aria-current="page">{{ __('Create') }}</li>
+                    <li class="breadcrumb-item active" aria-current="page">{{ isset($customer) ? __('Edit') : __('Create') }}</li>
                 </ol>
             </nav>
         </div>
     </div>
 
-    <form action="{{ route('customer.store') }}" method="POST" id="customerForm"
+    <form action="{{ isset($customer) ? route('customer.update', $customer->customer_id) : route('customer.store') }}" method="POST" id="customerForm"
         data-redirect-url="{{ route('customer.info') }}" novalidate aria-label="{{ __('Customer creation form') }}">
         @csrf
+        @if (isset($customer))
+            @method('PUT')
+        @endif
 
         <div class="card border-0 shadow-sm mb-4" id="section-essential">
             <div class="card-header bg-primary text-white">
                 <div class="d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">
                         <i class="bi bi-info-circle me-2"></i>
-                        {{ __('Essential Information') }}
+                        {{ __('Customer Name') }}
                     </h5>
                     <span class="badge bg-light text-primary">{{ __('Required') }}</span>
                 </div>
@@ -50,7 +58,7 @@
                                 title="{{ __('Enter the official registered name of the organization') }}"></i>
                         </label>
                         <input type="text" class="form-control @error('partnerName') is-invalid @enderror"
-                            id="partnerName" name="partnerName" value="{{ old('partnerName') }}"
+                            id="partnerName" name="partnerName" value="{{ old('partnerName', $editCustomer?->name ?? '') }}"
                             placeholder="{{ __('e.g., ABC Insurance Ltd') }}" aria-required="true"
                             aria-describedby="partnerName-help"
                             aria-invalid="{{ $errors->has('partnerName') ? 'true' : 'false' }}" maxlength="255"
@@ -75,7 +83,7 @@
                             <option value="" data-slug="">{{ __('-- Select Entity Type --') }}</option>
                             @foreach ($type_of_cust as $cust_type)
                                 <option value="{{ $cust_type->type_id }}" data-slug="{{ $cust_type->slug }}"
-                                    {{ old('customerType') == $cust_type->type_id ? 'selected' : '' }}>
+                                    {{ in_array((string) $cust_type->type_id, array_map('strval', (array) old('customerType', $editCustomer?->customer_type ?? []))) ? 'selected' : '' }}>
                                     {{ $cust_type->type_name }}
                                 </option>
                             @endforeach
@@ -97,7 +105,7 @@
                                 <i class="bi bi-envelope"></i>
                             </span>
                             <input type="email" class="form-control @error('email') is-invalid @enderror" id="email"
-                                name="email" value="{{ old('email') }}" placeholder="{{ __('customer@example.com') }}"
+                                name="email" value="{{ old('email', $editCustomer?->email ?? '') }}" placeholder="{{ __('customer@example.com') }}"
                                 aria-required="true" autocomplete="email" inputmode="email">
                         </div>
                         @error('email')
@@ -114,7 +122,7 @@
                                 <i class="bi bi-telephone"></i>
                             </span>
                             <input type="tel" class="form-control @error('telephone') is-invalid @enderror"
-                                id="telephone" name="telephone" value="{{ old('telephone') }}"
+                                id="telephone" name="telephone" value="{{ old('telephone', $editCustomer?->telephone ?? '') }}"
                                 placeholder="{{ __('+254 700 000000') }}" aria-required="true" autocomplete="tel"
                                 inputmode="tel">
                         </div>
@@ -151,7 +159,7 @@
                                 {{ __('Registration/Incorporation Number') }}
                             </label>
                             <input type="text" class="form-control @error('incorporationNo') is-invalid @enderror"
-                                id="incorporationNo" name="incorporationNo" value="{{ old('incorporationNo') }}"
+                                id="incorporationNo" name="incorporationNo" value="{{ old('incorporationNo', $editCustomer?->registration_no ?? '') }}"
                                 placeholder="{{ __('e.g., PVT-XXXXXX') }}" aria-required="true" autocomplete="off">
                             @error('incorporationNo')
                                 <div class="invalid-feedback" role="alert">{{ $message }}</div>
@@ -163,7 +171,7 @@
                                 {{ __('Tax Identification Number') }}
                             </label>
                             <input type="text" class="form-control @error('taxNo') is-invalid @enderror"
-                                id="taxNo" name="taxNo" value="{{ old('taxNo') }}"
+                                id="taxNo" name="taxNo" value="{{ old('taxNo', $editCustomer?->tax_no ?? '') }}"
                                 placeholder="{{ __('e.g., AXXXXXXXXX') }}" aria-required="true" autocomplete="off">
                             <small class="form-text text-muted">
                                 {{ __('VAT, GST, or equivalent tax number') }}
@@ -183,7 +191,7 @@
                                 <option value="">{{ __('-- Select --') }}</option>
                                 @foreach ($partnersId as $pId)
                                     <option value="{{ $pId->identification_type }}"
-                                        {{ old('identityType') == $pId->identification_type ? 'selected' : '' }}>
+                                        {{ old('identityType', $editCustomer?->identity_number_type ?? '') == $pId->identification_type ? 'selected' : '' }}>
                                         {{ $pId->identification_type }}
                                     </option>
                                 @endforeach
@@ -198,7 +206,7 @@
                                 {{ __('Identity Document Number') }}
                             </label>
                             <input type="text" class="form-control @error('identityNo') is-invalid @enderror"
-                                id="identityNo" name="identityNo" value="{{ old('identityNo') }}"
+                                id="identityNo" name="identityNo" value="{{ old('identityNo', $editCustomer?->identity_number ?? '') }}"
                                 placeholder="{{ __('Enter document number') }}" aria-required="true" autocomplete="off">
                             @error('identityNo')
                                 <div class="invalid-feedback" role="alert">{{ $message }}</div>
@@ -213,9 +221,9 @@
                                 <span class="input-group-text">
                                     <i class="bi bi-globe"></i>
                                 </span>
-                                <input type="url" class="form-control @error('website') is-invalid @enderror"
-                                    id="website" name="website" value="{{ old('website') }}"
-                                    placeholder="{{ __('https://www.example.com') }}" autocomplete="url"
+                                <input type="text" class="form-control @error('website') is-invalid @enderror"
+                                    id="website" name="website" value="{{ old('website', $editCustomer?->website ?? '') }}"
+                                    placeholder="{{ __('www.geminiainsurance.com') }}" autocomplete="url"
                                     inputmode="url">
                             </div>
                             @error('website')
@@ -266,7 +274,7 @@
                                     <option value="">{{ __('-- Select --') }}</option>
                                     @foreach ($countries as $country)
                                         <option value="{{ $country->country_iso }}"
-                                            {{ old('country', 'KE') == $country->country_iso ? 'selected' : '' }}
+                                            {{ old('country', $editCustomer?->country_iso ?? 'KE') == $country->country_iso ? 'selected' : '' }}
                                             data-code="{{ $country->country_iso }}">
                                             {{ $country->country_name }}
                                         </option>
@@ -282,7 +290,7 @@
                                     {{ __('Street Address') }}
                                 </label>
                                 <input type="text" class="form-control @error('street') is-invalid @enderror"
-                                    id="street" name="street" value="{{ old('street') }}"
+                                    id="street" name="street" value="{{ old('street', $editCustomer?->street ?? '') }}"
                                     placeholder="{{ __('Building name, street name, P.O. Box') }}" aria-required="true"
                                     autocomplete="street-address">
                                 @error('street')
@@ -295,7 +303,7 @@
                                     {{ __('City/Town') }}
                                 </label>
                                 <input type="text" class="form-control @error('city') is-invalid @enderror"
-                                    id="city" name="city" value="{{ old('city') }}"
+                                    id="city" name="city" value="{{ old('city', $editCustomer?->city ?? '') }}"
                                     placeholder="{{ __('e.g., Nairobi') }}" aria-required="true"
                                     autocomplete="address-level2" list="cities">
                                 <datalist id="cities">
@@ -324,7 +332,7 @@
                                     {{ __('Postal/ZIP Code') }}
                                 </label>
                                 <input type="text" class="form-control @error('postalCode') is-invalid @enderror"
-                                    id="postalCode" name="postalCode" value="{{ old('postalCode') }}"
+                                    id="postalCode" name="postalCode" value="{{ old('postalCode', $editCustomer?->postal_address ?? '') }}"
                                     placeholder="{{ __('00000') }}" aria-required="true" autocomplete="postal-code">
                                 @error('postalCode')
                                     <div class="invalid-feedback" role="alert">{{ $message }}</div>
@@ -368,21 +376,21 @@
                                 id="financialRating" name="financialRating"
                                 data-placeholder="{{ __('Select rating...') }}">
                                 <option value="">{{ __('-- Select --') }}</option>
-                                <option value="AAA" {{ old('financialRating') == 'AAA' ? 'selected' : '' }}>AAA -
+                                <option value="AAA" {{ old('financialRating', $editCustomer?->financial_rate ?? '') == 'AAA' ? 'selected' : '' }}>AAA -
                                     {{ __('Excellent') }}</option>
-                                <option value="AA" {{ old('financialRating') == 'AA' ? 'selected' : '' }}>AA -
+                                <option value="AA" {{ old('financialRating', $editCustomer?->financial_rate ?? '') == 'AA' ? 'selected' : '' }}>AA -
                                     {{ __('Very Good') }}</option>
-                                <option value="A" {{ old('financialRating') == 'A' ? 'selected' : '' }}>A -
+                                <option value="A" {{ old('financialRating', $editCustomer?->financial_rate ?? '') == 'A' ? 'selected' : '' }}>A -
                                     {{ __('Good') }}</option>
-                                <option value="BBB" {{ old('financialRating') == 'BBB' ? 'selected' : '' }}>BBB -
+                                <option value="BBB" {{ old('financialRating', $editCustomer?->financial_rate ?? '') == 'BBB' ? 'selected' : '' }}>BBB -
                                     {{ __('Adequate') }}</option>
-                                <option value="BB" {{ old('financialRating') == 'BB' ? 'selected' : '' }}>BB -
+                                <option value="BB" {{ old('financialRating', $editCustomer?->financial_rate ?? '') == 'BB' ? 'selected' : '' }}>BB -
                                     {{ __('Fair') }}</option>
-                                <option value="B" {{ old('financialRating') == 'B' ? 'selected' : '' }}>B -
+                                <option value="B" {{ old('financialRating', $editCustomer?->financial_rate ?? '') == 'B' ? 'selected' : '' }}>B -
                                     {{ __('Marginal') }}</option>
-                                <option value="CCC" {{ old('financialRating') == 'CCC' ? 'selected' : '' }}>CCC -
+                                <option value="CCC" {{ old('financialRating', $editCustomer?->financial_rate ?? '') == 'CCC' ? 'selected' : '' }}>CCC -
                                     {{ __('Weak') }}</option>
-                                <option value="NR" {{ old('financialRating') == 'NR' ? 'selected' : '' }}>NR -
+                                <option value="NR" {{ old('financialRating', $editCustomer?->financial_rate ?? '') == 'NR' ? 'selected' : '' }}>NR -
                                     {{ __('Not Rated') }}</option>
                             </select>
                             @error('financialRating')
@@ -397,7 +405,7 @@
                                     title="{{ __('Rating from credit rating agencies (e.g., S&P, Moody\'s)') }}"></i>
                             </label>
                             <input type="text" class="form-control @error('agencyRating') is-invalid @enderror"
-                                id="agencyRating" name="agencyRating" value="{{ old('agencyRating') }}"
+                                id="agencyRating" name="agencyRating" value="{{ old('agencyRating', $editCustomer?->agency_rate ?? '') }}"
                                 placeholder="{{ __('e.g., A+, Baa2') }}">
                             @error('agencyRating')
                                 <div class="invalid-feedback" role="alert">{{ $message }}</div>
@@ -439,9 +447,9 @@
                                 <div class="row g-3">
                                     <div class="col-12 col-md-6 col-lg-3">
                                         <label class="form-label required">{{ __('Full Name') }}</label>
-                                        <input type="text"
+                                            <input type="text"
                                             class="form-control @error('contacts.0.name') is-invalid @enderror"
-                                            name="contacts[0][name]" value="{{ old('contacts.0.name') }}"
+                                            name="contacts[0][name]" value="{{ old('contacts.0.name', $editCustomer?->primaryContact?->contact_name ?? '') }}"
                                             placeholder="{{ __('John Doe') }}" required autocomplete="name">
                                         @error('contacts.0.name')
                                             <div class="invalid-feedback" role="alert">{{ $message }}</div>
@@ -449,9 +457,9 @@
                                     </div>
                                     <div class="col-12 col-md-6 col-lg-3">
                                         <label class="form-label required">{{ __('Position/Title') }}</label>
-                                        <input type="text"
+                                            <input type="text"
                                             class="form-control @error('contacts.0.position') is-invalid @enderror"
-                                            name="contacts[0][position]" value="{{ old('contacts.0.position') }}"
+                                            name="contacts[0][position]" value="{{ old('contacts.0.position', $editCustomer?->primaryContact?->contact_position ?? '') }}"
                                             placeholder="{{ __('e.g., CEO, Manager') }}" required
                                             autocomplete="organization-title">
                                         @error('contacts.0.position')
@@ -460,9 +468,9 @@
                                     </div>
                                     <div class="col-12 col-md-6 col-lg-3">
                                         <label class="form-label required">{{ __('Mobile Number') }}</label>
-                                        <input type="tel"
+                                            <input type="tel"
                                             class="form-control contact-phone @error('contacts.0.mobile') is-invalid @enderror"
-                                            name="contacts[0][mobile]" value="{{ old('contacts.0.mobile') }}"
+                                            name="contacts[0][mobile]" value="{{ old('contacts.0.mobile', $editCustomer?->primaryContact?->contact_mobile_no ?? '') }}"
                                             placeholder="{{ __('+254 700 000000') }}" required autocomplete="tel">
                                         @error('contacts.0.mobile')
                                             <div class="invalid-feedback" role="alert">{{ $message }}</div>
@@ -470,9 +478,9 @@
                                     </div>
                                     <div class="col-12 col-md-6 col-lg-3">
                                         <label class="form-label required">{{ __('Email Address') }}</label>
-                                        <input type="email"
+                                            <input type="email"
                                             class="form-control @error('contacts.0.email') is-invalid @enderror"
-                                            name="contacts[0][email]" value="{{ old('contacts.0.email') }}"
+                                            name="contacts[0][email]" value="{{ old('contacts.0.email', $editCustomer?->primaryContact?->contact_email ?? '') }}"
                                             placeholder="{{ __('john@example.com') }}" required autocomplete="email">
                                         @error('contacts.0.email')
                                             <div class="invalid-feedback" role="alert">{{ $message }}</div>
@@ -577,7 +585,7 @@
                         </button>
                         <button type="submit" class="btn btn-primary" id="submitBtn">
                             <i class="bi bi-check-circle me-1"></i>
-                            {{ __('Create Customer') }}
+                            {{ isset($customer) ? __('Save Customer') : __('Create Customer') }}
                         </button>
                     </div>
                 </div>

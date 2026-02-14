@@ -15,7 +15,8 @@ Route::group(['prefix' => 'customer', 'middleware' => ['auth', 'check.first.logi
     Route::get('/{customerId}/edit', [CustomerController::class, 'customerEdit'])->name('customer.edit');
     Route::put('/{customerId}/update', [CustomerController::class, 'customerUpdate'])->name('customer.update');
 
-    Route::get('/cedant-info', [CustomerController::class, 'cedant_info'])->name('cedant.info');
+    Route::get('/cedants', [CustomerController::class, 'cedant_info'])->name('cedant.info');
+    Route::redirect('/cedant-info', '/customer/cedants', 301);
     Route::get('/reinsurer-info', [CustomerController::class, 'reinsurer_info'])->name('reinsurer.info');
     Route::get('/insured-info', [CustomerController::class, 'insured_info'])->name('insured.info');
     Route::get('/customer-data', [CustomerController::class, 'getCustomerData'])->name('customer.data');
@@ -24,14 +25,23 @@ Route::group(['prefix' => 'customer', 'middleware' => ['auth', 'check.first.logi
     Route::get('/insured-data', [CustomerController::class, 'getInsuredData'])->name('insured.data');
     Route::get('/customer-new', [CustomerController::class, 'CustomerAddForm'])->name('customer.form');
     Route::post('/customer-store', [CustomerController::class, 'storeCustomer'])->name('customer.store');
-    Route::any('/customer-dtl', [CustomerController::class, 'CustomerDtl'])->name('customer.dtl');
+    Route::any('/details', [CustomerController::class, 'CustomerDtl'])->name('customer.dtl');
+    Route::any('/customer-dtl', [CustomerController::class, 'CustomerDtl']);
     Route::get('/statement-datatable', [CustomerController::class, 'StatementDatatable'])->name('statement.datatable');
 
     //enquiry
-    Route::get('/trtpropenquiry-info', [CustomerController::class, 'TreatyPropEnquiry'])->name('trtpropenquiry.info');
-    Route::get('/trtnonpropenquiry-info', [CustomerController::class, 'TreatyNonPropEnquiry'])->name('trtnonpropenquiry.info');
-    Route::get('/trtfacpropenquiry-info', [CustomerController::class, 'TreatyFACPropEnquiry'])->name('trtfacpropenquiry.info');
-    Route::get('/trtfacnonpropenquiry-info', [CustomerController::class, 'TreatyFACNonPropEnquiry'])->name('trtfacnonpropenquiry.info');
+    Route::get('/treaty-proportional-enquiry', [CustomerController::class, 'TreatyPropEnquiry'])
+        ->name('trtpropenquiry.info');
+    Route::redirect('/trtpropenquiry-info', '/customer/treaty-proportional-enquiry', 301);
+    Route::get('/treaty-non-proportional-enquiry', [CustomerController::class, 'TreatyNonPropEnquiry'])
+        ->name('trtnonpropenquiry.info');
+    Route::redirect('/trtnonpropenquiry-info', '/customer/treaty-non-proportional-enquiry', 301);
+    Route::get('/facultative-proportional-enquiry', [CustomerController::class, 'TreatyFACPropEnquiry'])
+        ->name('trtfacpropenquiry.info');
+    Route::redirect('/trtfacpropenquiry-info', '/customer/facultative-proportional-enquiry', 301);
+    Route::get('/facultative-non-proportional-enquiry', [CustomerController::class, 'TreatyFACNonPropEnquiry'])
+        ->name('trtfacnonpropenquiry.info');
+    Route::redirect('/trtfacnonpropenquiry-info', '/customer/treaty-facultative-non-proportional-enquiry', 301);
     Route::get('/treatyenquiry-data', [CustomerController::class, 'TypeOfBusCoverDatatable'])->name('treatyenquiry.data');
 
     //Leads Onboard Enquiry
@@ -57,7 +67,8 @@ Route::group(['prefix' => 'cover', 'middleware' => ['auth', 'check.first.login']
     Route::get('/get-binders', [CoverController::class, 'GetBinderCovers'])->name('get_binder_covers');
     Route::get('/get_todays_rate', [CoverController::class, 'get_todays_rate'])->name('get_todays_rate');
     Route::get('/yesterdayRate', [CoverController::class, 'yesterdayRate'])->name('yesterdayRate');
-    Route::any('/endorsements_list', [CoverController::class, 'endorse_functions'])->name('endorsements_list');
+    Route::any('/endorsements', [CoverController::class, 'endorse_functions'])->name('endorsements_list');
+    Route::any('/endorsements_list', [CoverController::class, 'endorse_functions']);
     Route::post('/save-reinsurer-data', [CoverController::class, 'saveReinsurerData'])->name('cover.save_reinsurance_data');
     Route::post('/edit-reinsurer-data', [CoverController::class, 'editReinsurerData'])->name('cover.edit_reinsurance_data');
     Route::post('/delete-reinsurer-data', [CoverController::class, 'deleteReinsurerData'])->name('cover.delete_reinsurance_data');

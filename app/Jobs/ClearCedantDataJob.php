@@ -2,25 +2,8 @@
 
 namespace App\Jobs;
 
-use App\Models\ClaimRegister;
-use App\Models\CoverAttachment;
-use App\Models\CoverClass;
-use App\Models\CoverClause;
-use App\Models\CoverDebit;
-use App\Models\CoverInstallments;
-use App\Models\CoverPremium;
-use App\Models\CoverPremtype;
 use App\Models\CoverRegister;
-use App\Models\CoverReinclass;
-use App\Models\CoverReinLayer;
-use App\Models\CoverReinProp;
-use App\Models\CoverRipart;
-use App\Models\CoverRisk;
-use App\Models\CoverSlipWording;
 use App\Models\Customer;
-use App\Models\CustomerAccDet;
-use App\Models\PolicyRenewal;
-use App\Models\ReinNote;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -28,6 +11,7 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Schema;
 
 class ClearCedantDataJob implements ShouldQueue
 {
@@ -84,7 +68,7 @@ class ClearCedantDataJob implements ShouldQueue
             CoverRegister::where('customer_id', $customer->customer_id)
                 ->withTrashed()
                 ->select(['cover_no'])
-                ->chunk(100, function ($covers) use (&$coverCount, &$deletedRecords) {
+                ->chunk(100, function ($covers) use (&$coverCount, &$deletedRecords, &$coverNumbers) {
                     foreach ($covers as $cover) {
                         $coverNumbers[] = $cover->cover_no;
                         $deleted = $this->deleteCoverData($cover->cover_no);
@@ -95,6 +79,11 @@ class ClearCedantDataJob implements ShouldQueue
 
             CoverRegister::where('customer_id', $customer->customer_id)
                 ->forceDelete();
+
+            $this->deleteCustomerScopedData($customer->customer_id);
+            DB::table('customers')
+                ->where('customer_id', $customer->customer_id)
+                ->delete();
 
             $this->clearRelatedCaches($customer->customer_id, $coverNumbers);
         });
@@ -109,39 +98,61 @@ class ClearCedantDataJob implements ShouldQueue
     {
         $deletedCounts = [];
 
-        $modelMappings = [
-            'cover_attachments' => [CoverAttachment::class, 'cover_no'],
-            'cover_classes' => [CoverClass::class, 'cover_no'],
-            'cover_debits' => [CoverDebit::class, 'cover_no'],
-            'cover_installments' => [CoverInstallments::class, 'cover_no'],
-            'cover_premiums' => [CoverPremium::class, 'cover_no'],
-            'cover_premtypes' => [CoverPremtype::class, 'cover_no'],
-            'cover_reinclasses' => [CoverReinclass::class, 'cover_no'],
-            'cover_risks' => [CoverRisk::class, 'cover_no'],
-            'cover_rein_layers' => [CoverReinLayer::class, 'cover_no'],
-            'cover_rein_props' => [CoverReinProp::class, 'cover_no'],
-            'cover_riparts' => [CoverRipart::class, 'cover_no'],
-            'cover_slip_wordings' => [CoverSlipWording::class, 'cover_no'],
-            'claim_registers' => [ClaimRegister::class, 'cover_no'],
-            'customer_acc_dets' => [CustomerAccDet::class, 'cover_no'],
-            'rein_notes' => [ReinNote::class, 'cover_no'],
-            'cover_clauses' => [CoverClause::class, 'cover_no'],
-            // 'policy_renewals' => [PolicyRenewal::class, 'policy_number'],
+        $tableMappings = [
+            'cover_attachments' => 'cover_no',
+            'cover_classes' => 'cover_no',
+            'cover_debits' => 'cover_no',
+            'cover_installments' => 'cover_no',
+            'cover_premiums' => 'cover_no',
+            'cover_premtypes' => 'cover_no',
+            'cover_reinclasses' => 'cover_no',
+            'cover_risks' => 'cover_no',
+            'cover_rein_layers' => 'cover_no',
+            'cover_rein_props' => 'cover_no',
+            'cover_riparts' => 'cover_no',
+            'cover_slip_wordings' => 'cover_no',
+            'claim_registers' => 'cover_no',
+            'customer_acc_dets' => 'cover_no',
+            'rein_notes' => 'cover_no',
+            'cover_clauses' => 'cover_no',
+            'policy_renewals' => 'policy_number',
         ];
 
-        foreach ($modelMappings as $key => [$modelClass, $column]) {
-            try {
-                $count = $modelClass::where($column, $coverNo)->forceDelete();
+        foreach ($tableMappings as $table => $column) {
+            if (!Schema::hasTable($table) || !Schema::hasColumn($table, $column)) {
+                continue;
+            }
 
-                if ($count > 0) {
-                    $deletedCounts[$key] = $count;
-                }
-            } catch (\Exception $e) {
-                throw $e;
+            $count = DB::table($table)->where($column, $coverNo)->delete();
+            if ($count > 0) {
+                $deletedCounts[$table] = $count;
             }
         }
 
         return $deletedCounts;
+    }
+
+    protected function deleteCustomerScopedData(int $customerId): void
+    {
+        $tableMappings = [
+            'customer_contacts' => 'customer_id',
+            'customer_acc_dets' => 'customer_id',
+            'claim_ntf_registers' => 'customer_id',
+            'pipeline_opportunities' => 'customer_id',
+            'reinsurers_declined' => 'customer_id',
+            'quote_reinsurers' => 'reinsurer_id',
+            'bd_fac_reinsurers' => 'reinsurer_id',
+            'credit_notes' => 'reinsurer_id',
+            'ar_customers' => 'customer_id',
+        ];
+
+        foreach ($tableMappings as $table => $column) {
+            if (!Schema::hasTable($table) || !Schema::hasColumn($table, $column)) {
+                continue;
+            }
+
+            DB::table($table)->where($column, $customerId)->delete();
+        }
     }
 
     /**

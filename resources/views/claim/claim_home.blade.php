@@ -159,7 +159,7 @@
 
     <form action="{{ route('endorsements_list') }}" method="post" id="coverForm">
         @csrf
-        <input type="hidden" name="cover_no" value="{{ $ClaimRegister->claim_no }}">
+        <input type="hidden" name="cover_no" value="{{ $ClaimRegister->cover_no }}">
         <input type="hidden" name="customer_id" value="{{ $ClaimRegister->customer_id }}">
     </form>
     <form action="{{ route('customer.dtl') }}" method="post" id="customerForm">

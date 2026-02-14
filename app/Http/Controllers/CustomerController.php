@@ -98,9 +98,40 @@ class CustomerController extends Controller
 
         return DataTables::of($covers)
             ->editColumn('cover_no', fn($row) => $row->cover_no)
+            ->editColumn('endorsement_no', fn($row) => $row->endorsement_no ?? '—')
+            ->editColumn('transaction_type', function ($row) {
+                return match ($row->transaction_type) {
+                    'NEW' => 'New',
+                    'REN' => 'Renewal',
+                    'EXT' => 'Endorsement',
+                    'CNC' => 'Cancellation',
+                    'NIL' => 'NIL Endorsement',
+                    'RFN' => 'Refund',
+                    default => $row->transaction_type ?? '—',
+                };
+            })
             ->editColumn('cover_type', fn($row) => $this->getCoverTypeName($row->cover_type))
             ->editColumn('class_desc', fn($row) => $this->getClassDescription($row))
-            ->editColumn('cover_to', fn($row) => formatDate($row->cover_to))
+            ->editColumn('cover_from', fn($row) => !empty($row->cover_from) ? formatDate($row->cover_from) : '—')
+            ->editColumn('cover_to', fn($row) => !empty($row->cover_to) ? formatDate($row->cover_to) : '—')
+            ->addColumn('status_verification', function ($row) {
+                return match ($row->verified) {
+                    'A' => '<span class="badge bg-success-gradient">Approved</span>',
+                    'P' => '<span class="badge bg-warning-gradient">Pending</span>',
+                    'R' => '<span class="badge bg-danger-gradient">Rejected</span>',
+                    default => '<span class="badge bg-secondary">Unknown</span>',
+                };
+            })
+            ->addColumn('status_badge', function ($row) {
+                if (($row->cancelled ?? 'N') === 'Y') {
+                    return '<span class="badge bg-danger-gradient">Cancelled</span>';
+                }
+
+                return ($row->status ?? '') === 'A'
+                    ? '<span class="badge bg-success-gradient">Active</span>'
+                    : '<span class="badge bg-secondary">Inactive</span>';
+            })
+            ->rawColumns(['status_verification', 'status_badge'])
             ->make(true);
     }
 
@@ -126,7 +157,33 @@ class CustomerController extends Controller
 
     public function getCedantData()
     {
-        $customers = Customer::select([
+        $cedantTypeIds = CustomerTypes::query()
+            ->where(function ($query) {
+                $query->whereRaw('LOWER(slug) = ?', ['cedant'])
+                    ->orWhereRaw('LOWER(code) = ?', ['cedant'])
+                    ->orWhereRaw('LOWER(type_name) = ?', ['cedant']);
+            })
+            ->pluck('type_id')
+            ->filter()
+            ->map(fn($id) => (string) $id)
+            ->values();
+
+        $customers = Customer::query()
+            ->when($cedantTypeIds->isEmpty(), function ($query) {
+                $query->whereRaw('1 = 0');
+            })
+            ->when($cedantTypeIds->isNotEmpty(), function ($query) use ($cedantTypeIds) {
+                $query->where(function ($customerQuery) use ($cedantTypeIds) {
+                    foreach ($cedantTypeIds as $typeId) {
+                        $customerQuery->orWhereJsonContains('customer_type', [(string) $typeId]);
+
+                        if (is_numeric($typeId)) {
+                            $customerQuery->orWhereJsonContains('customer_type', [(int) $typeId]);
+                        }
+                    }
+                });
+            })
+            ->select([
             'customer_id',
             'name',
             'tax_no',
@@ -206,25 +263,95 @@ class CustomerController extends Controller
             ->make(true);
     }
 
-    public function CustomerAddForm()
+    public function CustomerAddForm(Request $request)
     {
         $data = $this->getCustomerFormData();
+        $customerId = $request->integer('customer_id');
+
+        if ($customerId) {
+            $data['customer'] = Customer::with('primaryContact')->findOrFail($customerId, [
+                'customer_id',
+                'name',
+                'tax_no',
+                'registration_no',
+                'email',
+                'website',
+                'customer_type',
+                'postal_address',
+                'city',
+                'agency_rate',
+                'financial_rate',
+                'telephone',
+                'street',
+                'country_iso',
+                'identity_number',
+                'identity_number_type'
+            ]);
+        }
 
         return view('customer.customer_add_form', $data);
     }
 
     public function storeCustomer(Request $request)
     {
-        logger()->debug($request->all());
+        $validator = Validator::make($request->all(), [
+            'partnerName' => 'required|string|max:255',
+            'customerType' => 'required|array|min:1',
+            'customerType.*' => 'required|exists:customer_types,type_id',
+            'email' => 'required|email|max:255',
+            'telephone' => 'required|string|max:20',
+            'incorporationNo' => 'required|string|max:255',
+            'taxNo' => 'required|string|max:255',
+            'identityType' => 'required|string|max:50',
+            'identityNo' => 'required|string|max:50',
+            'website' => 'nullable|string|max:255',
+            'country' => 'required|string|size:3|exists:countries,country_iso',
+            'street' => 'required|string|max:255',
+            'city' => 'required|string|max:100',
+            'state' => 'nullable|string|max:100',
+            'postalCode' => 'required|string|max:20',
+            'financialRating' => 'nullable|string|max:10',
+            'agencyRating' => 'nullable|string|max:10',
+            'contacts' => 'required|array|min:1',
+            'contacts.0.name' => 'required|string|max:255',
+            'contacts.0.position' => 'required|string|max:100',
+            'contacts.0.mobile' => 'required|string|max:20',
+            'contacts.0.email' => 'required|email|max:255',
+        ], [
+            'partnerName.required' => 'Legal/Trading Name is required.',
+            'customerType.required' => 'Entity Type is required.',
+            'email.required' => 'Primary Email Address is required.',
+            'telephone.required' => 'Primary Telephone is required.',
+            'incorporationNo.required' => 'Registration/Incorporation Number is required.',
+            'taxNo.required' => 'Tax Identification Number is required.',
+            'identityType.required' => 'Identity Document Type is required.',
+            'identityNo.required' => 'Identity Document Number is required.',
+            'country.required' => 'Country is required.',
+            'street.required' => 'Street Address is required.',
+            'city.required' => 'City/Town is required.',
+            'postalCode.required' => 'Postal/ZIP Code is required.',
+            'contacts.0.name.required' => 'Primary Contact Name is required.',
+            'contacts.0.position.required' => 'Primary Contact Position is required.',
+            'contacts.0.mobile.required' => 'Primary Contact Mobile Number is required.',
+            'contacts.0.email.required' => 'Primary Contact Email is required.',
+        ]);
 
-        return response()->json(
-            [
-                'success' => true,
-                'status' => 201,
-                'message' => 'Customer information saved successfully',
-            ],
-            201
-        );
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'status' => 422,
+                'message' => 'Please fill all required fields.',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        logger()->debug($validator->validated());
+
+        return response()->json([
+            'success' => true,
+            'status' => 201,
+            'message' => 'Customer information saved successfully',
+        ], 201);
 
 
 
@@ -290,7 +417,8 @@ class CustomerController extends Controller
 
     public function customerEdit(int $customerId)
     {
-        $customer = Customer::findOrFail($customerId, [
+        $data = $this->getCustomerFormData();
+        $data['customer'] = Customer::with('primaryContact')->findOrFail($customerId, [
             'customer_id',
             'name',
             'tax_no',
@@ -309,18 +437,70 @@ class CustomerController extends Controller
             'identity_number_type'
         ]);
 
-        $data = $this->getCustomerFormData();
-        $data['customer'] = $customer;
-
-        return view('customer.customer_edit_form', $data);
+        return view('customer.customer_add_form', $data);
     }
 
-    public function customerUpdate(int $customerId): JsonResponse
+    public function customerUpdate(Request $request, int $customerId): JsonResponse
     {
-        return response()->json([
-            'success' => false,
-            'message' => 'Update functionality not yet implemented'
-        ], 501);
+        $validator = Validator::make($request->all(), [
+            'partnerName' => 'required|string|max:255',
+            'customerType' => 'required|array|min:1',
+            'customerType.*' => 'required|exists:customer_types,type_id',
+            'email' => 'required|email|max:255',
+            'telephone' => 'required|string|max:20',
+            'incorporationNo' => 'required|string|max:255',
+            'taxNo' => 'required|string|max:255',
+            'identityType' => 'required|string|max:50',
+            'identityNo' => 'required|string|max:50',
+            'website' => 'nullable|string|max:255',
+            'country' => 'required|string|size:3|exists:countries,country_iso',
+            'street' => 'required|string|max:255',
+            'city' => 'required|string|max:100',
+            'state' => 'nullable|string|max:100',
+            'postalCode' => 'required|string|max:20',
+            'financialRating' => 'nullable|string|max:10',
+            'agencyRating' => 'nullable|string|max:10',
+            'contacts' => 'required|array|min:1',
+            'contacts.0.name' => 'required|string|max:255',
+            'contacts.0.position' => 'required|string|max:100',
+            'contacts.0.mobile' => 'required|string|max:20',
+            'contacts.0.email' => 'required|email|max:255',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'status' => 422,
+                'message' => 'Please fill all required fields.',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $customer = $this->customerService->updateCustomer($customerId, $validator->validated());
+
+            return response()->json([
+                'success' => true,
+                'status' => 200,
+                'message' => 'Customer updated successfully',
+                'data' => [
+                    'customer_id' => $customer->customer_id,
+                    'name' => $customer->name,
+                ],
+                'redirect_url' => route('customer.info'),
+            ], 200);
+        } catch (\Throwable $e) {
+            logger()->error('Failed to update customer', [
+                'customer_id' => $customerId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'status' => 500,
+                'message' => 'An error occurred while updating customer information',
+            ], 500);
+        }
     }
 
     public function CustomerDtl(Request $request)
@@ -356,12 +536,12 @@ class CustomerController extends Controller
                 'id' => 'required|integer|exists:customers,customer_id',
             ]);
 
-            ClearCedantDataJob::dispatch($request->input('id'));
+            ClearCedantDataJob::dispatchSync((int) $request->input('id'));
 
             return response()->json([
-                'status' => Response::HTTP_ACCEPTED,
-                'message' => 'Cedant data clearing has been queued for processing'
-            ], Response::HTTP_ACCEPTED);
+                'status' => Response::HTTP_CREATED,
+                'message' => 'Customer and related data deleted successfully'
+            ], Response::HTTP_CREATED);
         } catch (ValidationException $e) {
             return response()->json([
                 'status' => Response::HTTP_UNPROCESSABLE_ENTITY,

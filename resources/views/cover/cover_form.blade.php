@@ -53,6 +53,10 @@
 
             <input type="hidden" name="customer_id" id="customer_id" value="{{ $customer->customer_id }}">
             <input type="hidden" name="trans_type" id="trans_type" value="{{ $trans_type }}">
+            @if (!empty($is_business_type_locked))
+                <input type="hidden" name="type_of_bus" id="type_of_bus_locked"
+                    value="{{ $selected_type_of_bus }}">
+            @endif
 
             @if ($trans_type !== 'NEW')
                 <input type="hidden" name="cover_no" id="cover_no" value="{{ $old_endt_trans->cover_no }}">

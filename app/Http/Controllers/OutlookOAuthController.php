@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Jobs\SyncUserEmails;
 use App\Models\EmailSyncState;
+use App\Models\GraphSubscription;
 use App\Services\OutlookService;
 use Exception;
 use Illuminate\Http\JsonResponse;
@@ -67,6 +68,8 @@ class OutlookOAuthController extends Controller
                 ['user_id' => $request->user()->id],
                 ['status' => 'active']
             );
+
+            $this->ensureRealtimeSubscription($user);
 
             SyncUserEmails::dispatch($request->user()->id, 'full')
                 ->delay(now()->addSeconds(5));
@@ -156,6 +159,7 @@ class OutlookOAuthController extends Controller
     {
         try {
             $user = Auth::user();
+            $this->outlookService->setAuthenticatedUser($user);
 
             if (!$user) {
                 return response()->json([
@@ -178,7 +182,6 @@ class OutlookOAuthController extends Controller
 
             if (!$this->outlookService->isTokenValid($user->email)) {
                 $validToken = $this->outlookService->getValidToken();
-
                 if (!$validToken) {
                     return response()->json([
                         'connected' => false,
@@ -303,7 +306,7 @@ class OutlookOAuthController extends Controller
 
         $syncState = EmailSyncState::where('user_id', $userId)->first();
 
-        if ($syncState && $syncState->is_locked) {
+        if ($syncState && ($syncState->is_locked || ($syncState->is_syncing ?? false))) {
             return response()->json([
                 'message' => 'Sync already in progress',
                 'status' => 'locked'
@@ -313,9 +316,41 @@ class OutlookOAuthController extends Controller
         SyncUserEmails::dispatch($userId, $syncType);
 
         return response()->json([
+            'success' => true,
             'message' => 'Sync initiated successfully',
             'status' => 'processing',
             'type' => $syncType
         ], 202);
+    }
+
+    private function ensureRealtimeSubscription($user): void
+    {
+        try {
+            $activeSubscription = GraphSubscription::query()
+                ->where('user_id', $user->id)
+                ->where('status', 'active')
+                ->where('expiration_date', '>', now()->addHours(6))
+                ->latest('expiration_date')
+                ->first();
+
+            if ($activeSubscription) {
+                return;
+            }
+
+            $expiringSubscription = GraphSubscription::query()
+                ->where('user_id', $user->id)
+                ->where('status', 'active')
+                ->latest('expiration_date')
+                ->first();
+
+            if ($expiringSubscription && !$expiringSubscription->isExpired()) {
+                $this->outlookService->renewSubscription($expiringSubscription->subscription_id, $user);
+                return;
+            }
+
+            $this->outlookService->createSubscription($user);
+        } catch (\Throwable $e) {
+            report($e);
+        }
     }
 }

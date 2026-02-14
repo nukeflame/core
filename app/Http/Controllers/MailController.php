@@ -44,6 +44,7 @@ class MailController extends Controller
     {
         try {
             $requestData = $this->validateIndexRequest($request);
+            $isOutlookConnected = $this->hasValidOutlookConnection($request->user());
 
             $query = $this->mailService->getMailData(
                 $requestData['folder'],
@@ -61,7 +62,8 @@ class MailController extends Controller
 
             return view('mail.index', array_merge($query, [
                 'folder' => $requestData['folder'],
-                'user' => Auth::user()
+                'user' => Auth::user(),
+                'isOutlookConnected' => $isOutlookConnected,
             ]));
 
             return null;
@@ -164,15 +166,12 @@ class MailController extends Controller
                 ], 401);
             }
 
-            $outlookStatus = app(OutlookOAuthController::class)->status();
-            $status = json_decode($outlookStatus->getContent(), true);
-            $accessOutlook = $status['connected'] ?? false;
-
-            if (!$accessOutlook) {
+            if (!$this->hasValidOutlookConnection($request->user())) {
                 return response()->json([
                     'success' => false,
-                    'message' => $status['error'] ?? $status['message']
-                ]);
+                    'message' => 'Outlook account is not connected or token is expired.',
+                    'requires_connect' => true,
+                ], 400);
             }
 
             if ($forceRefresh) {
@@ -181,7 +180,7 @@ class MailController extends Controller
 
                 $syncState = EmailSyncState::where('user_id', $userId)->first();
 
-                if ($syncState && $syncState->is_locked || $syncState->is_syncing) {
+                if ($syncState && ($syncState->is_locked || ($syncState->is_syncing ?? false))) {
                     return response()->json([
                         'message' => 'Sync already in progress',
                         'status' => 'locked'
@@ -212,12 +211,13 @@ class MailController extends Controller
     {
         try {
             $emails = $this->mailService->getEmails($folder);
+            $isOutlookConnected = $this->hasValidOutlookConnection(request()->user());
 
             if (request()->wantsJson()) {
                 return response()->json(['emails' => $emails, 'folder' => $folder]);
             }
 
-            return view('mail.partials.email-list', compact('emails', 'folder'));
+            return view('mail.partials.email-list', compact('emails', 'folder', 'isOutlookConnected'));
         } catch (\Exception $e) {
             return response()->json(['error' => 'Failed to load folder'], 500);
         }
@@ -260,7 +260,8 @@ class MailController extends Controller
             return view('mail.index', array_merge($data, [
                 'folder' => $requestData['folder'],
                 'email' => $email,
-                'user' => Auth::user()
+                'user' => Auth::user(),
+                'isOutlookConnected' => $this->hasValidOutlookConnection(auth()->user()),
             ]));
         } catch (ModelNotFoundException $e) {
             return redirect()->back()->withErrors(['Email not found']);
@@ -395,14 +396,11 @@ class MailController extends Controller
             $userId = auth()->id();
 
             // Check Outlook connection
-            $outlookStatus = app(OutlookOAuthController::class)->status();
-            $status = json_decode($outlookStatus->getContent(), true);
-            $accessOutlook = $status['connected'] ?? false;
-
-            if (!$accessOutlook) {
+            if (!$this->hasValidOutlookConnection($request->user())) {
                 return response()->json([
                     'success' => false,
-                    'message' => $status['error'] ?? $status['message']
+                    'message' => 'Outlook account is not connected or token is expired.',
+                    'requires_connect' => true,
                 ], 400);
             }
 
@@ -506,8 +504,27 @@ class MailController extends Controller
             'contacts' => collect(),
             'folder' => $folder,
             'user' => Auth::user(),
+            'isOutlookConnected' => $this->hasValidOutlookConnection(Auth::user()),
             'error' => 'Failed to load emails. Please check your connection.'
         ];
+    }
+
+    private function hasValidOutlookConnection(?User $user): bool
+    {
+        if (!$user) {
+            return false;
+        }
+
+        $connectionExists = DB::table('oauth_tokens')
+            ->where('provider', 'outlook')
+            ->where('email', $user->email)
+            ->exists();
+
+        if (!$connectionExists) {
+            return false;
+        }
+
+        return $this->outlookService->isTokenValid($user->email);
     }
 
     /**

@@ -15,7 +15,22 @@ class EmailStorageService
                 return collect();
             }
 
-            $query = $this->buildEmailQuery($folder, $search);
+            $query = $this->buildEmailQuery($folder, $search)
+                ->select([
+                    'id',
+                    'uid',
+                    'message_id',
+                    'subject',
+                    'from_name',
+                    'from_email',
+                    'body_preview',
+                    'date_received',
+                    'is_read',
+                    'is_flagged',
+                    'has_attachments',
+                    'folder',
+                    'importance',
+                ]);
 
             if ($limit) {
                 $query->limit($limit);

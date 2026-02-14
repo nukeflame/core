@@ -665,7 +665,7 @@
 
             $("#add_customer").click(function(e) {
                 e.preventDefault()
-                // window.location.href = ''; //"{{-- route('customer.create') --}}";
+                window.open("/customer/customer-new", "_blank", "noopener,noreferrer");
             });
 
             function clearCedantData(cedantId, cedantName) {

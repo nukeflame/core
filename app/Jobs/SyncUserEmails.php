@@ -28,18 +28,18 @@ class SyncUserEmails implements ShouldQueue
     public $backoff = [60, 300, 900];
 
     protected int $userId;
+    protected string $syncType;
     protected int $totalProcessed = 0;
     protected int $totalInserted = 0;
     protected int $totalUpdated = 0;
     protected int $totalDeleted = 0;
-    protected array $newEmails = [];
-
     protected $toUpsert = [];
     protected $toDelete = [];
 
-    public function __construct(int $userId)
+    public function __construct(int $userId, string $syncType = 'delta')
     {
         $this->userId = $userId;
+        $this->syncType = in_array($syncType, ['delta', 'full'], true) ? $syncType : 'delta';
     }
 
     public function handle(OutlookService $graphService)
@@ -66,6 +66,10 @@ class SyncUserEmails implements ShouldQueue
             $user = User::find($this->userId);
             if (!$user) {
                 throw new \Exception("User not found: {$this->userId}");
+            }
+
+            if ($this->syncType === 'full') {
+                $syncState->update(['delta_token' => null]);
             }
 
             $this->syncMessagesWithPagination($graphService, $user, $syncState);
@@ -172,22 +176,6 @@ class SyncUserEmails implements ShouldQueue
 
     protected function processMessagesInBatches(array $messages, User $user): void
     {
-        $allIncomingUids = [];
-        foreach ($messages as $message) {
-            if (isset($message['id']) && !isset($message['@removed'])) {
-                $allIncomingUids[] = $message['id'];
-            }
-        }
-
-        if (!empty($allIncomingUids)) {
-            $deleted = DB::table('fetched_emails')
-                ->where('user_email', $user->email)
-                ->whereNotIn('uid', $allIncomingUids)
-                ->delete();
-
-            $this->totalDeleted += $deleted;
-        }
-
         $batchSize = 50;
         $chunks = array_chunk($messages, $batchSize);
 
@@ -202,6 +190,7 @@ class SyncUserEmails implements ShouldQueue
     {
         $this->toUpsert = [];
         $this->toDelete = [];
+        $newEmailsInBatch = [];
 
         foreach ($messages as $message) {
             $this->totalProcessed++;
@@ -243,8 +232,8 @@ class SyncUserEmails implements ShouldQueue
 
             // Track new emails for broadcasting
             foreach ($this->toUpsert as $emailData) {
-                if (!in_array($emailData['uid'], $existingUids)) {
-                    $this->newEmails[] = $emailData;
+                if (!in_array($emailData['uid'], $existingUids, true)) {
+                    $newEmailsInBatch[] = $emailData;
                 }
             }
 
@@ -278,7 +267,7 @@ class SyncUserEmails implements ShouldQueue
             $this->totalUpdated += $updateCount;
 
             // Broadcast new email events
-            foreach ($this->newEmails as $newEmail) {
+            foreach ($newEmailsInBatch as $newEmail) {
                 broadcast(new NewEmailReceived($user->id, $newEmail));
             }
         }
@@ -297,7 +286,7 @@ class SyncUserEmails implements ShouldQueue
         $sentDateTime = $this->parseDateTime($message['sentDateTime'] ?? null);
 
         $bodyContent = $message['body']['content'] ?? '';
-        $folderName = Str::lower($message['parentFolderId']['displayName'] ?? 'inbox');
+        $folderName = Str::lower(data_get($message, 'parentFolder.name', 'inbox'));
 
         return [
             'user_id'         => $user->id,

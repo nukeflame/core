@@ -1,4 +1,5 @@
-<li class="mail-page {{ !$email->is_read ? 'unread' : '' }}" data-email-id="{{ $email->id }}">
+<li class="mail-page {{ !$email->is_read ? 'unread' : '' }}" data-email-id="{{ $email->id }}"
+    data-email-uid="{{ $email->uid ?? $email->message_id }}">
     <div class="d-flex align-items-top">
         <!-- Checkbox -->
         <div class="me-3 mt-1">
@@ -109,10 +110,9 @@
                     </span>
                     <span class="fs-11 text-muted text-wrap text-truncate email-preview">
                         @php
-                            $cleanText = trim(explode('________________________________', $email->body_text ?? '')[0]);
-                            $firstSentence = preg_match('/^[^.]*\./', $cleanText, $matches) ? $matches[0] : $cleanText;
-                            $firstSentence = html_entity_decode(strip_tags($firstSentence));
-                            echo trim($firstSentence);
+                            $preview = $email->body_preview ?? $email->body_text ?? '';
+                            $preview = html_entity_decode(strip_tags((string) $preview));
+                            echo \Illuminate\Support\Str::limit(trim($preview), 120);
                         @endphp
 
                     </span>

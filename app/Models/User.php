@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-use App\Http\Controllers\OutlookOAuthController;
 use Laravel\Passport\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
 use Illuminate\Notifications\Notifiable;
@@ -10,6 +9,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Support\Facades\DB;
+use App\Services\OutlookService;
 
 class User extends Authenticatable
 {
@@ -145,10 +145,16 @@ class User extends Authenticatable
 
     public function hasOutlookConnection()
     {
-        $response = app(OutlookOAuthController::class)->status();
-        $status = json_decode($response->getContent(), true);
+        $connectionExists = DB::table('oauth_tokens')
+            ->where('provider', 'outlook')
+            ->where('email', $this->email)
+            ->exists();
 
-        return $status['connected'] ?? false;
+        if (!$connectionExists) {
+            return false;
+        }
+
+        return app(OutlookService::class)->isTokenValid($this->email);
     }
 
     public function assigndDepartmentRole($roleId)

@@ -759,7 +759,7 @@ highlight- .dataTables_wrapper .dataTables_length,
 .dataTables_wrapper .dataTables_info,
 .dataTables_wrapper .dataTables_paginate {
     color: var(--default-text-color);
-    /* margin-bottom: 0.7rem; */
+    padding-bottom: 15px;
     margin-bottom: 0px;
     margin-top: 8px;
 }
@@ -1895,9 +1895,9 @@ body::-webkit-scrollbar-thumb:hover {
 }
 
 /* DataTable specific styling */
-.dataTables_wrapper {
+/* .dataTables_wrapper {
     margin-top: 1rem;
-}
+} */
 
 .dataTables_info {
     color: #6c757d;

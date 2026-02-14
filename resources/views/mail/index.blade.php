@@ -64,7 +64,7 @@
 
 @section('content')
     <div class="mail-wrapper main-mail-container p-2 gap-2 d-flex" id="mailApp">
-        @if (!auth()->user()->hasOutlookConnection())
+        @if (!($isOutlookConnected ?? false))
             @include('mail.partials.outlook-setup')
         @endif
 
@@ -99,7 +99,16 @@
 
         const mailApp = new MailApp({
             routes: {
-                getEmail: '{{ route('mail.show', ':id') }}',
+                getEmail: '{{ route('mailbox.show', ':id') }}',
+                showInbox: '{{ route('mailbox.inbox.show', ':messageId') }}',
+                folder: '{{ route('mailbox.folder', ':folder') }}',
+                star: '{{ url('/mail/star') }}/:id',
+                delete: '{{ url('/mail/delete') }}/:id',
+                archive: '{{ url('/mail/archive') }}/:id',
+                spam: '{{ url('/mail/spam') }}/:id',
+                checkNew: '{{ route('mail.check-new') }}',
+                downloadAttachment: '{{ url('/mail/attachment') }}/:emailId/:attachmentId/download',
+                downloadAllAttachments: '{{ url('/mail/email') }}/:emailId/attachments/download',
                 sendEmail: '{{ route('mail.send') }}',
                 outlookConnect: '{{ route('mail.outlook.connect') }}',
                 outlookSync: '{{ route('mail.outlook.sync') }}'
@@ -198,8 +207,11 @@
                 // If on current folder, optionally refresh the list
                 const currentFolder = '{{ $folder }}';
                 if (currentFolder === data.email.folder || currentFolder === 'all') {
-                    // Show a refresh banner instead of auto-reloading
-                    showRefreshBanner();
+                    if (typeof mailApp !== 'undefined') {
+                        mailApp.refreshEmailList();
+                    } else {
+                        showRefreshBanner();
+                    }
                 }
             }
 
@@ -233,23 +245,25 @@
                 //     .catch(error => console.error('Failed to update unread count:', error));
             }
 
-            // Trigger automatic sync every 5 minutes
-            setInterval(() => {
-                fetch('{{ route('mail.sync.trigger') }}', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRF-TOKEN': '{{ csrf_token() }}'
-                        }
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            console.log('Background sync triggered');
-                        }
-                    })
-                    .catch(error => console.log('Background sync failed:', error));
-            }, 300000); // 5 minutes
+            @if ($isOutlookConnected ?? false)
+                // Trigger automatic sync every 5 minutes
+                setInterval(() => {
+                    fetch('{{ route('mail.sync.trigger') }}', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                            }
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                console.log('Background sync triggered');
+                            }
+                        })
+                        .catch(error => console.log('Background sync failed:', error));
+                }, 300000); // 5 minutes
+            @endif
         });
     </script>
 @endpush

@@ -31,6 +31,9 @@ Route::group(
         Route::get('/inbox/id/{messageId}', [MailController::class, 'showInbox'])
             ->name('mail.inbox.show')
             ->where('messageId', '.*');
+        Route::get('/inbox/{messageId}', [MailController::class, 'showInbox'])
+            ->name('mail.inbox.professional')
+            ->where('messageId', '.*');
 
         Route::get('/attachment/{emailId}/{attachmentId}/download', [MailController::class, 'downloadAttachment'])
             ->name('attachment.download');
@@ -51,6 +54,15 @@ Route::group(
         // Route::get('mail/folder/{folder}', [MailController::class, 'getFolder'])->name('admin.folder');
     }
 );
+
+Route::group(['prefix' => 'mailbox'], function () {
+    Route::get('/', [MailController::class, 'index'])->name('mailbox.index');
+    Route::get('/folder/{folder}', [MailController::class, 'folder'])->name('mailbox.folder');
+    Route::get('/email/{id}', [MailController::class, 'show'])->name('mailbox.show');
+    Route::get('/inbox/{messageId}', [MailController::class, 'showInbox'])
+        ->name('mailbox.inbox.show')
+        ->where('messageId', '.*');
+});
 
 
 

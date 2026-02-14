@@ -2,6 +2,8 @@ class MailApp {
     constructor(config) {
         this.config = config;
         this.currentEmail = null;
+        this.currentRequest = null;
+        this.emailCache = new Map();
         this.selectedEmails = new Set();
         this.quillCompose = null;
         this.quillReply = null;
@@ -77,17 +79,22 @@ class MailApp {
 
     checkAndLoadInitialEmail() {
         if (typeof window.emailData !== "undefined" && window.emailData) {
-            if (window.emailData.length > 0) {
-                const data = window.emailData[0];
+            const data = Array.isArray(window.emailData)
+                ? window.emailData[0]
+                : window.emailData;
+
+            if (data) {
                 this.displayEmail(data);
-                this.markAsRead(data.id);
+                this.markAsRead(data.id || data.uid);
                 this.currentEmail = data;
 
-                const emailId = data.uid;
-                const url = `/mail/inbox/id/${emailId}`;
-                window.history.replaceState(null, "", url);
+                const inboxId = data.uid || data.message_id || data.id;
+                const url = this.buildInboxUrl(inboxId);
+                if (url) {
+                    window.history.replaceState(null, "", url);
+                }
 
-                this.highlightEmailInList(emailId);
+                this.highlightEmailInList(inboxId);
             }
         }
     }
@@ -95,7 +102,9 @@ class MailApp {
     highlightEmailInList(emailId) {
         $(".mail-page").removeClass("active");
 
-        const $emailItem = $(`.mail-page[data-email-id="${emailId}"]`);
+        const $emailItem = $(
+            `.mail-page[data-email-id="${emailId}"], .mail-page[data-email-uid="${emailId}"]`
+        );
         if ($emailItem.length) {
             $emailItem.addClass("active");
         }
@@ -169,26 +178,53 @@ class MailApp {
             const data = $(e.currentTarget).data();
             this.composeOnlineMail(data);
         });
+
+        this.$document.on("click", "#connectOutlookBtn", (e) => {
+            e.preventDefault();
+            $("#outlook-setup-modal").modal("show");
+        });
     }
 
     async loadEmail(emailId, $emailItem) {
+        if (!emailId) return;
+
         try {
             this.showLoadingForEmail($emailItem);
+            this.renderEmailLoadingState();
 
-            const response = await $.ajax({
+            if (this.emailCache.has(emailId)) {
+                const cached = this.emailCache.get(emailId);
+                this.displayEmail(cached);
+                this.markAsRead(emailId);
+                this.currentEmail = cached;
+                this.highlightEmailInList(emailId);
+                return;
+            }
+
+            if (this.currentRequest && this.currentRequest.readyState !== 4) {
+                this.currentRequest.abort();
+            }
+
+            this.currentRequest = $.ajax({
                 url: this.config.routes.getEmail.replace(":id", emailId),
                 method: "GET",
                 dataType: "json",
             });
+            const response = await this.currentRequest;
+            this.emailCache.set(emailId, response);
 
             this.displayEmail(response);
             this.markAsRead(emailId);
             this.currentEmail = response;
             this.highlightEmailInList(emailId);
         } catch (error) {
+            if (error?.statusText === "abort") {
+                return;
+            }
             this.showError("Failed to load email");
             console.error("Load email error:", error);
         } finally {
+            this.currentRequest = null;
             this.hideLoadingForEmail($emailItem);
         }
     }
@@ -196,8 +232,11 @@ class MailApp {
         const $emailContent = $(".mails-information");
         if (!$emailContent.length) return;
 
-        const url = `/mail/inbox/id/${email.uid}`;
-        window.history.replaceState(null, "", url);
+        const inboxId = email.uid || email.message_id || email.id;
+        const url = this.buildInboxUrl(inboxId);
+        if (url) {
+            window.history.replaceState(null, "", url);
+        }
 
         const $emptyState = $emailContent.find(
             ".mail-info-header#email-header"
@@ -413,8 +452,10 @@ class MailApp {
 
             console.log("Synching Emails intitated!!");
 
-            if (result.synced) {
+            if (result.success || result.status === "processing") {
                 this.refreshEmailList();
+            } else if (result.requires_connect) {
+                $("#outlook-setup-modal").modal("show");
             }
         } catch (error) {
             this.showError("Network error occurred");
@@ -438,7 +479,7 @@ class MailApp {
             );
 
             await $.ajax({
-                url: `/mail/star/${emailId}`,
+                url: this.config.routes.star.replace(":id", emailId),
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -575,7 +616,7 @@ class MailApp {
 
         try {
             await $.ajax({
-                url: `/mail/delete/${emailId}`,
+                url: this.config.routes.delete.replace(":id", emailId),
                 method: "DELETE",
                 headers: {
                     "X-CSRF-TOKEN": this.config.csrf,
@@ -593,7 +634,7 @@ class MailApp {
     async archiveEmail(emailId) {
         try {
             await $.ajax({
-                url: `/mail/archive/${emailId}`,
+                url: this.config.routes.archive.replace(":id", emailId),
                 method: "POST",
                 headers: {
                     "X-CSRF-TOKEN": this.config.csrf,
@@ -611,7 +652,7 @@ class MailApp {
     async markAsSpam(emailId) {
         try {
             await $.ajax({
-                url: `/mail/spam/${emailId}`,
+                url: this.config.routes.spam.replace(":id", emailId),
                 method: "POST",
                 headers: {
                     "X-CSRF-TOKEN": this.config.csrf,
@@ -652,7 +693,7 @@ class MailApp {
             this.showLoading();
 
             const html = await $.ajax({
-                url: `/mail/folder/${folder}`,
+                url: this.config.routes.folder.replace(":folder", folder),
                 method: "GET",
             });
 
@@ -661,6 +702,7 @@ class MailApp {
 
             if ($newEmailList.length) {
                 $(".mail-messages").html($newEmailList.html());
+                this.emailCache.clear();
             }
         } catch (error) {
             this.showError("Failed to load folder");
@@ -807,7 +849,7 @@ class MailApp {
     async checkForNewEmails() {
         try {
             const result = await $.ajax({
-                url: "/mail/check-new",
+                url: this.config.routes.checkNew,
                 headers: {
                     "X-CSRF-TOKEN": this.config.csrf,
                 },
@@ -964,19 +1006,48 @@ class MailApp {
             timeout = setTimeout(later, wait);
         };
     }
+
+    buildInboxUrl(messageId) {
+        if (!messageId || !this.config?.routes?.showInbox) return null;
+        return this.config.routes.showInbox.replace(
+            ":messageId",
+            encodeURIComponent(messageId)
+        );
+    }
+
+    renderEmailLoadingState() {
+        const $body = $("#mail-info-body");
+        if (!$body.length) return;
+
+        $("#empty-email-state").addClass("d-none");
+        $body.html(`
+            <div class="d-flex align-items-center py-5">
+                <div class="spinner-border text-primary me-3" role="status"></div>
+                <span class="text-muted">Loading email...</span>
+            </div>
+        `);
+    }
 }
 
 // Global functions for attachment handling
 window.downloadAttachment = function (attachmentId) {
-    window.open(`/mail/attachment/${attachmentId}/download`, "_blank");
+    if (!window.mailApp || !window.mailApp.currentEmail) return;
+
+    const emailId = window.mailApp.currentEmail.id;
+    const route = window.mailApp.config.routes.downloadAttachment
+        .replace(":emailId", encodeURIComponent(emailId))
+        .replace(":attachmentId", encodeURIComponent(attachmentId));
+
+    window.open(route, "_blank");
 };
 
 window.downloadAllAttachments = function () {
     if (window.mailApp && window.mailApp.currentEmail) {
-        window.open(
-            `/mail/email/${window.mailApp.currentEmail.id}/attachments/download`,
-            "_blank"
+        const route = window.mailApp.config.routes.downloadAllAttachments.replace(
+            ":emailId",
+            encodeURIComponent(window.mailApp.currentEmail.id)
         );
+        window.open(route, "_blank");
     }
 };
 
