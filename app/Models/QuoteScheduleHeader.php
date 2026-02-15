@@ -11,17 +11,16 @@ class QuoteScheduleHeader extends Model
     protected $table = 'quote_schedule_headers';
     protected $primaryKey = 'id';
     protected $fillable = [
-     
-        'name', 
-        'position', 
-        'amount_field', 
-        'sum_insured_type', 
-        'data_determinant', 
-        'class', 
+
+        'name',
+        'position',
+        'amount_field',
+        'sum_insured_type',
+        'data_determinant',
+        'class',
         'class_group',
         'business_type',
         'created_at',
         'updated_at',
     ];
-
 }

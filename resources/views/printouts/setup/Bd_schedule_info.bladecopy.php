@@ -1,6 +1,23 @@
 @extends('layouts.app')
 
 @section('content')
+    {{-- Flash Messages --}}
+    @if (session('success'))
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class='bx bx-check-circle me-2'></i>
+            {{ session('success') }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    @endif
+
+    @if (session('error'))
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class='bx bx-error-circle me-2'></i>
+            {{ session('error') }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    @endif
+
     {{-- Page Header --}}
     <div class="d-md-flex d-block align-items-center justify-content-between my-4 page-header-breadcrumb">
         <div>
@@ -19,158 +36,47 @@
         </div>
     </div>
 
-    <div class="row g-3 mb-2">
-        <div class="col-xl-3 col-lg-6 col-md-6 col-sm-12">
-            <div class="card custom-card overflow-hidden">
-                <div class="card-body">
-                    <div class="d-flex align-items-top justify-content-between">
-                        <div>
-                            <span class="avatar avatar-md avatar-rounded bg-primary-transparent">
-                                <i class="bi bi-building fs-4"></i>
-                            </span>
-                        </div>
-                        <div class="flex-fill ms-3">
-                            <div class="d-flex align-items-center justify-content-between flex-wrap">
-                                <div>
-                                    <p class="text-muted mb-0">Total Headers</p>
-                                    <h4 class="fw-semibold mt-1" id="stat-total-headers">0</h4>
-                                </div>
-                                <div id="total-cedants-spark"></div>
-                            </div>
-                            <div class="d-flex align-items-center justify-content-between mt-1">
-                                <div>
-                                    <span class="badge bg-primary-transparent" id="stat-total-change">All records</span>
-                                    <span class="text-muted ms-2 fs-12">Server total</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-xl-3 col-lg-6 col-md-6 col-sm-12">
-            <div class="card custom-card overflow-hidden">
-                <div class="card-body">
-                    <div class="d-flex align-items-top justify-content-between">
-                        <div>
-                            <span class="avatar avatar-md avatar-rounded bg-success-transparent">
-                                <i class="bi bi-shield-check fs-4"></i>
-                            </span>
-                        </div>
-                        <div class="flex-fill ms-3">
-                            <div class="d-flex align-items-center justify-content-between flex-wrap">
-                                <div>
-                                    <p class="text-muted mb-0">Visible Rows</p>
-                                    <h4 class="fw-semibold mt-1" id="stat-visible-rows">0</h4>
-                                </div>
-                                <div id="active-covers-spark"></div>
-                            </div>
-                            <div class="d-flex align-items-center justify-content-between mt-1">
-                                <div>
-                                    <span class="badge bg-success-transparent" id="stat-covers-change">Current page</span>
-                                    <span class="text-muted ms-2 fs-12">After filters</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-xl-3 col-lg-6 col-md-6 col-sm-12">
-            <div class="card custom-card overflow-hidden">
-                <div class="card-body">
-                    <div class="d-flex align-items-top justify-content-between">
-                        <div>
-                            <span class="avatar avatar-md avatar-rounded bg-info-transparent">
-                                <i class="bi bi-diagram-3 fs-4"></i>
-                            </span>
-                        </div>
-                        <div class="flex-fill ms-3">
-                            <div class="d-flex align-items-center justify-content-between flex-wrap">
-                                <div>
-                                    <p class="text-muted mb-0">Business Types</p>
-                                    <h4 class="fw-semibold mt-1" id="stat-business-types">0</h4>
-                                </div>
-                                <div id="cedant-types-spark"></div>
-                            </div>
-                            <div class="d-flex align-items-center justify-content-between mt-1">
-                                <div>
-                                    <span class="text-muted fs-12" id="stat-types-breakdown">-</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-xl-3 col-lg-6 col-md-6 col-sm-12">
-            <div class="card custom-card overflow-hidden">
-                <div class="card-body">
-                    <div class="d-flex align-items-top justify-content-between">
-                        <div>
-                            <span class="avatar avatar-md avatar-rounded bg-warning-transparent">
-                                <i class="bi bi-clock-history fs-4"></i>
-                            </span>
-                        </div>
-                        <div class="flex-fill ms-3">
-                            <div class="d-flex align-items-center justify-content-between flex-wrap">
-                                <div>
-                                    <p class="text-muted mb-0">Last Refresh</p>
-                                    <h4 class="fw-semibold mt-1" id="stat-last-refresh">-</h4>
-                                </div>
-                                <div id="recent-activity-spark"></div>
-                            </div>
-                            <div class="d-flex align-items-center justify-content-between mt-1">
-                                <div>
-                                    <span class="text-muted fs-12" id="stat-last-update">Waiting for data...</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
+    {{-- Main Content --}}
     <div class="row mt-3">
         <div class="col-xl-12">
-            <div class="card custom-card shadow-sm">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <div>
-                        <h5 class="card-title mb-0">Schedule Directory</h5>
-                        <small class="text-muted">View and manage all registered cedants</small>
-                    </div>
+            <div class="card custom-card">
+                <div class="card-header d-flex align-items-center justify-content-between">
+                    <div class="card-title mb-0">Schedule Headers List</div>
                     <button type="button" class="btn btn-primary btn-sm" id="addScheduleHeaderBtn"
                         aria-label="Add new schedule header">
                         <i class='bx bx-plus me-1'></i>
                         Add Schedule Header
                     </button>
                 </div>
-                <div class="table-responsive">
-                    <table class="table text-nowrap table-striped table-hover" id="scheduleHeaderTable"
-                        aria-label="Schedule headers table">
-                        <thead>
-                            <tr>
-                                <th scope="col">ID</th>
-                                <th scope="col">Name</th>
-                                <th scope="col">Business Type</th>
-                                <th scope="col">Position</th>
-                                <th scope="col">Amount Field</th>
-                                <th scope="col">Sum Insured Type</th>
-                                <th scope="col">Data Determinant</th>
-                                <th scope="col">Class</th>
-                                <th scope="col">Class Group</th>
-                                <th scope="col" class="text-center">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {{-- DataTables will populate this --}}
-                        </tbody>
-                    </table>
+                <div class="card-body">
+                    {{-- DataTable --}}
+                    <div class="table-responsive">
+                        <table class="table text-nowrap table-striped table-hover" id="scheduleHeaderTable"
+                            aria-label="Schedule headers table">
+                            <thead>
+                                <tr>
+                                    <th scope="col">ID</th>
+                                    <th scope="col">Name</th>
+                                    <th scope="col">Business Type</th>
+                                    <th scope="col">Position</th>
+                                    <th scope="col">Amount Field</th>
+                                    <th scope="col">Sum Insured Type</th>
+                                    <th scope="col">Data Determinant</th>
+                                    <th scope="col">Class</th>
+                                    <th scope="col">Class Group</th>
+                                    <th scope="col" class="text-center">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {{-- DataTables will populate this --}}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
+
     {{-- Hidden form for navigation --}}
     {{ html()->form('get', route('schedule.header.form'))->id('scheduleHeaderForm')->class('d-none')->open() }}
     <input type="hidden" name="id" id="scheduleHeaderId">
@@ -252,41 +158,6 @@
                 datatable: null
             };
 
-            function escapeHtml(value) {
-                return String(value ?? '')
-                    .replace(/&/g, '&amp;')
-                    .replace(/</g, '&lt;')
-                    .replace(/>/g, '&gt;')
-                    .replace(/"/g, '&quot;')
-                    .replace(/'/g, '&#39;');
-            }
-
-            function renderPlainCell(data, type) {
-                if (type !== 'display') {
-                    return data;
-                }
-                const value = data === null || data === undefined || data === '' ? '-' : data;
-                return value === '-' ? '<span class="text-muted">-</span>' : escapeHtml(String(value));
-            }
-
-            function updateDashboardStatsFromResponse(json) {
-                const rows = Array.isArray(json?.data) ? json.data : [];
-                const totalRows = Number(json?.recordsTotal || 0);
-                const visibleRows = rows.length;
-                const filteredRows = Number(json?.recordsFiltered || rows.length);
-                const types = [...new Set(rows.map(row => row.bus_type).filter(Boolean))];
-                const typeSummary = types.length ? types.join(', ') : 'No business type in visible rows';
-                const refreshedAt = new Date();
-
-                $('#stat-total-headers').text(totalRows.toLocaleString());
-                $('#stat-visible-rows').text(visibleRows.toLocaleString());
-                $('#stat-covers-change').text(`Filtered: ${filteredRows.toLocaleString()}`);
-                $('#stat-business-types').text(types.length);
-                $('#stat-types-breakdown').text(typeSummary);
-                $('#stat-last-refresh').text(refreshedAt.toLocaleTimeString());
-                $('#stat-last-update').text(`Updated ${refreshedAt.toLocaleDateString()} ${refreshedAt.toLocaleTimeString()}`);
-            }
-
             /**
              * Initialize DataTable with configuration
              */
@@ -296,43 +167,23 @@
                     serverSide: true,
                     ajax: {
                         url: CONFIG.routes.data,
-                        type: 'GET',
-                        dataSrc: function(json) {
-                            updateDashboardStatsFromResponse(json);
-                            return json.data || [];
-                        },
                         error: function(xhr, error, code) {
                             console.error('DataTable Ajax Error:', error);
-                            $('#stat-last-update').text('Failed to refresh');
                             toastr.error('Failed to load schedule headers. Please refresh the page.');
                         }
                     },
                     order: [
                         [0, 'asc']
                     ],
-                    pageLength: 13,
+                    pageLength: 25,
                     lengthMenu: [
-                        [13, 25, 50, 100, 200],
-                        [13, 25, 50, 100, 200]
+                        [10, 25, 50, 100],
+                        [10, 25, 50, 100]
                     ],
-                    searchDelay: 300,
                     language: {
                         processing: '<div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div>',
-                        search: 'Search schedule headers:',
-                        searchPlaceholder: 'Enter search term...',
-                        lengthMenu: 'Show _MENU_ entries',
-                        info: 'Showing _START_ to _END_ of _TOTAL_ schedule headers',
-                        infoEmpty: 'No schedule headers available',
-                        infoFiltered: '(filtered from _MAX_ total schedule headers)',
-                        paginate: {
-                            first: '<i class="bi bi-chevron-double-left"></i>',
-                            last: '<i class="bi bi-chevron-double-right"></i>',
-                            next: '<i class="bi bi-chevron-right"></i>',
-                            previous: '<i class="bi bi-chevron-left"></i>'
-                        },
                         emptyTable: '<div class="text-center py-4"><i class="bx bx-folder-open fs-1 text-muted"></i><p class="mt-2 text-muted">No schedule headers found. Create your first one to get started.</p></div>',
-                        zeroRecords: '<div class="text-center py-4"><i class="bx bx-search fs-1 text-muted"></i><p class="mt-2 text-muted">No matching records found. Try adjusting your search.</p></div>',
-                        loadingRecords: 'Loading schedule headers...'
+                        zeroRecords: '<div class="text-center py-4"><i class="bx bx-search fs-1 text-muted"></i><p class="mt-2 text-muted">No matching records found. Try adjusting your search.</p></div>'
                     },
                     columns: [{
                             data: 'id',
@@ -342,47 +193,44 @@
                         {
                             data: 'name',
                             name: 'name',
-                            render: function(data, type) {
-                                if (type === 'display') {
-                                    return `<strong>${escapeHtml(data || '-')}</strong>`;
-                                }
-                                return data;
+                            render: function(data, type, row) {
+                                return `<strong>${data || '-'}</strong>`;
                             }
                         },
                         {
                             data: 'bus_type',
                             name: 'bus_type',
-                            render: renderPlainCell
+                            defaultContent: '<span class="text-muted">-</span>'
                         },
                         {
                             data: 'position',
                             name: 'position',
-                            render: renderPlainCell
+                            defaultContent: '<span class="text-muted">-</span>'
                         },
                         {
                             data: 'amount_field',
                             name: 'amount_field',
-                            render: renderPlainCell
+                            defaultContent: '<span class="text-muted">-</span>'
                         },
                         {
                             data: 'sum_insured_type',
                             name: 'sum_insured_type',
-                            render: renderPlainCell
+                            defaultContent: '<span class="text-muted">-</span>'
                         },
                         {
                             data: 'data_determinant',
                             name: 'data_determinant',
-                            render: renderPlainCell
+                            defaultContent: '<span class="text-muted">-</span>'
                         },
                         {
                             data: 'class',
                             name: 'class',
-                            render: renderPlainCell
+                            defaultContent: '<span class="text-muted">-</span>'
                         },
                         {
                             data: 'class_group',
                             name: 'class_group',
-                            render: renderPlainCell
+                            defaultContent: '<span class="text-muted">-</span>'
                         },
                         {
                             data: null,
@@ -391,24 +239,21 @@
                             searchable: false,
                             className: 'text-center',
                             render: function(data, type, row) {
-                                const rawName = row.name || 'Schedule Header';
-                                const safeName = escapeHtml(rawName);
-                                const encodedName = encodeURIComponent(rawName);
                                 return `
                                     <div class="action-buttons">
                                         <button type="button"
                                                 class="btn btn-sm btn-info action-btn edit-btn"
                                                 data-id="${row.id}"
                                                 title="Edit schedule header"
-                                                aria-label="Edit schedule header ${safeName}">
+                                                aria-label="Edit schedule header ${row.name}">
                                             <i class='bx bx-edit'></i>
                                         </button>
                                         <button type="button"
                                                 class="btn btn-sm btn-danger action-btn delete-btn"
                                                 data-id="${row.id}"
-                                                data-name="${encodedName}"
+                                                data-name="${row.name}"
                                                 title="Delete schedule header"
-                                                aria-label="Delete schedule header ${safeName}">
+                                                aria-label="Delete schedule header ${row.name}">
                                             <i class='bx bx-trash'></i>
                                         </button>
                                     </div>
@@ -417,9 +262,7 @@
                         }
                     ],
                     responsive: true,
-                    dom: '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>' +
-                        '<"row"<"col-sm-12"tr>>' +
-                        '<"row"<"col-sm-12 col-md-5"i><"col-sm-12 col-md-7"p>>'
+                    dom: '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>rt<"row"<"col-sm-12 col-md-5"i><"col-sm-12 col-md-7"p>>'
                 });
             }
 
@@ -506,7 +349,7 @@
                         }
 
                         const errorMessage = xhr.responseJSON?.message ||
-                            'Failed to delete schedule header';
+                        'Failed to delete schedule header';
                         toastr.error(errorMessage);
                         console.error('Delete Error:', error);
 
@@ -538,13 +381,7 @@
                     e.preventDefault();
                     e.stopPropagation();
                     const id = $(this).data('id');
-                    const encodedName = String($(this).data('name') || '');
-                    let name = encodedName;
-                    try {
-                        name = decodeURIComponent(encodedName);
-                    } catch (err) {
-                        console.warn('Failed to decode schedule header name', err);
-                    }
+                    const name = $(this).data('name');
                     deleteScheduleHeader(id, name);
                 });
 

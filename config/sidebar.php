@@ -98,7 +98,7 @@ return [
                         ],
 
                         [
-                            'title' => 'BD Handovers',
+                            'title' => 'Handovers',
                             'route' => 'pipeline.bd_handovers',
                             'permission' => 'business_development.bd_handovers.view'
                         ],
@@ -306,41 +306,41 @@ return [
                             'permission' => 'app.reins_settings.view',
                             'has_sub' => true,
                             'children' => [
+                                // [
+                                //     'title' => 'Lead Status',
+                                //     'route' => 'lead.status.info',
+                                //     'permission' => 'app.reins_settings.view'
+                                // ],
                                 [
-                                    'title' => 'Lead Status',
-                                    'route' => 'lead.status.info',
+                                    'title' => 'Schedule Headers',
+                                    'route' => 'bd.schedule-headers.index',
                                     'permission' => 'app.reins_settings.view'
                                 ],
                                 [
-                                    'title' => 'BD Schedule Headers',
-                                    'route' => 'bd.schedule.info',
-                                    'permission' => 'app.reins_settings.view'
-                                ],
-                                [
-                                    'title' => 'BD Schedule Slip Template',
+                                    'title' => 'Schedule Slip Template',
                                     'route' => 'docs-setup.bd-schedule-slip-template',
                                     'permission' => 'app.reins_settings.view'
                                 ],
                                 [
-                                    'title' => 'BD Stage Documents',
+                                    'title' => 'Stage Documents',
                                     'route' => 'stage.doc.info',
                                     'permission' => 'app.reins_settings.view'
                                 ],
-                                [
-                                    'title' => 'BD Document Types',
-                                    'route' => 'doc.type.info',
-                                    'permission' => 'app.reins_settings.view'
-                                ],
-                                [
-                                    'title' => 'BD Operation Checklists',
-                                    'route' => 'operationchecklist.info',
-                                    'permission' => 'app.reins_settings.view'
-                                ],
-                                [
-                                    'title' => 'Tender Documents',
-                                    'route' => 'tender.docsparam',
-                                    'permission' => 'app.reins_settings.view'
-                                ]
+                                // [
+                                //     'title' => 'Document Types',
+                                //     'route' => 'doc.type.info',
+                                //     'permission' => 'app.reins_settings.view'
+                                // ],
+                                // [
+                                //     'title' => 'Operation Checklists',
+                                //     'route' => 'operationchecklist.info',
+                                //     'permission' => 'app.reins_settings.view'
+                                // ],
+                                // [
+                                //     'title' => 'Tender Documents',
+                                //     'route' => 'tender.docsparam',
+                                //     'permission' => 'app.reins_settings.view'
+                                // ]
                             ]
                         ],
                         [

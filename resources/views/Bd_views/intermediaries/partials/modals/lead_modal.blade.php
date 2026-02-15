@@ -1568,11 +1568,11 @@
                 if (!reinsurer.name) return reinsurer.text;
 
                 return `
-            <div class="reinsurer-option">
-                <div><strong>${escapeHtml(reinsurer.name)}</strong></div>
-                <div><small class="text-muted">${escapeHtml(reinsurer.country)} | Email: ${escapeHtml(reinsurer.email)}</small></div>
-            </div>
-        `;
+                    <div class="reinsurer-option">
+                        <div><strong>${escapeHtml(reinsurer.name)}</strong></div>
+                        <div><small class="text-muted">${escapeHtml(reinsurer.country)} | Email: ${escapeHtml(reinsurer.email)}</small></div>
+                    </div>
+                `;
             }
 
             function formatReinsurerSelection(reinsurer) {
@@ -2322,13 +2322,6 @@
             }
 
             function handleSubmissionError(xhr, status, error) {
-                console.error("Lead submission error:", {
-                    status: xhr.status,
-                    statusText: xhr.statusText,
-                    responseText: xhr.responseText,
-                    error: error,
-                });
-
                 let errorMessage = "An unexpected error occurred while sending the lead.";
 
                 if (xhr.status === 422 && xhr.responseJSON?.errors) {

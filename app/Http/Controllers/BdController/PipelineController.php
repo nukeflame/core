@@ -7683,11 +7683,11 @@ class PipelineController
                 'business_type' => $businessType
             ])->orderBy('position', 'asc');
 
-            $headers = $query->get();
+            $headers = []; // $query->get();
 
             return response()->json([
                 'success' => true,
-                'headers' => $headers->map(function ($header) {
+                'headers' => collect($headers)->map(function ($header) {
                     return [
                         'id' => $header->id,
                         'name' => Str::title($header->name),

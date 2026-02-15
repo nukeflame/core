@@ -130,12 +130,6 @@ Route::group(['prefix' => 'cover', 'middleware' => ['auth', 'check.first.login']
     Route::get('/endorse_narration_datatable', [CoverController::class, 'endorseNarrationDatatable'])->name('cover.endorse_narration_datatable');
     Route::post('/cover/sendreinsurer/email', [CoverController::class, 'sendReinsurerEmail'])->name('cover.sendreinsurer.email');
 
-    //Bd Crud
-    Route::get('/bd-schedule-info', [BdScheduleController::class, 'bd_schedule_info'])->name('bd.schedule.info');
-    Route::get('/schedule-header-form', [BdScheduleController::class, 'bd_schedule_add_form'])->name('schedule.header.form');
-    Route::post('/bd-schedule-header-store', [BdScheduleController::class, 'bd_schedule_header_add'])->name('bd.schedule.header.store');
-    Route::get('bd-schedule-header-data', [BdScheduleController::class, 'bd_schedule_header_data'])->name('bd.schedule.header.data');
-    Route::post('/delete-schedule-header', [BdScheduleController::class, 'delete_schedule_header'])->name('delete.schedule.header');
 
     Route::get('/bd-Lead-status-info', [BdScheduleController::class, 'bd_lead_status_info'])->name('lead.status.info');
     Route::get('/bd-lead-status-form', [BdScheduleController::class, 'bd_lead_status_add_form'])->name('lead.status.form');
@@ -258,3 +252,15 @@ Route::group(['prefix' => 'cover', 'middleware' => ['auth', 'check.first.login']
     Route::get('/claims-datatable', [CoverController::class, 'claims_datatable'])->name('cover.claims_datatable');
     Route::get('/statements-datatable', [CoverController::class, 'statements_datatable'])->name('cover.statements_datatable');
 });
+
+
+Route::group(
+    ['prefix' => 'settings', 'middleware' => ['auth', 'check.first.login']],
+    function () {
+        Route::get('/business-development/schedule-headers', [BdScheduleController::class, 'bd_schedule_info'])->name('bd.schedule-headers.index');
+        Route::get('/schedule-header-form', [BdScheduleController::class, 'bd_schedule_add_form'])->name('schedule.header.form');
+        Route::post('/bd-schedule-header-store', [BdScheduleController::class, 'bd_schedule_header_add'])->name('bd.schedule.header.store');
+        Route::get('bd-schedule-header-data', [BdScheduleController::class, 'bd_schedule_header_data'])->name('bd.schedule.header.data');
+        Route::post('/delete-schedule-header', [BdScheduleController::class, 'delete_schedule_header'])->name('delete.schedule.header');
+    }
+);

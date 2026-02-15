@@ -9,26 +9,21 @@ use App\Models\BdScheduleData;
 use App\Models\BusinessType;
 use App\Models\Classes;
 use App\Models\ClassGroup;
-use App\Models\Country;
 use App\Models\CustomerTypes;
 use App\Models\Bd\DocType;
-use App\Models\PartnerIdentification;
 use App\Models\QuoteScheduleHeader;
 use App\Models\ReinsClass;
 use App\Models\Bd\StageDocument;
 use App\Models\TypeOfSumInsured;
 use Auth;
-use DB;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Validator;
 use Session;
 use Yajra\Datatables\Datatables;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Http\Response;
-use function React\Promise\all;
-
+use Illuminate\Support\Facades\DB;
 
 class BdScheduleController extends Controller
 {
@@ -37,6 +32,8 @@ class BdScheduleController extends Controller
     {
         return view('Bd_views.BdSchedule.Bd_schedule_info');
     }
+
+
     public function bd_schedule_add_form(Request $request)
     {
         $id = $request->id;
@@ -122,7 +119,6 @@ class BdScheduleController extends Controller
 
 
                 if ($exists) {
-                    Session::flash('error', 'Schedule header with the same details already exists');
                     return redirect()->back()->with('error', 'Schedule header with the same details already exists');
                 } else {
                     // dd($request->all());
@@ -143,16 +139,10 @@ class BdScheduleController extends Controller
 
 
             DB::commit();
-            if (isset($id)) {
-                Session::flash('success', 'Schedule header information updated successfully');
-            } else {
-                Session::flash('success', 'Schedule header information saved successfully');
-            }
 
-            return redirect()->route('bd.schedule.info');
+            return redirect()->route('bd.schedule-headers.index');
         } catch (\Exception $e) {
             DB::rollBack();
-            Session::flash('error', 'An error occurred while saving the schedule header');
             return redirect()->back()->with('error', 'Failed to save schedule header');
         }
     }
@@ -160,7 +150,7 @@ class BdScheduleController extends Controller
     public function bd_schedule_header_data()
     {
         $scheduleheaders = DB::table('quote_schedule_headers')->get();
-        return DataTables::of($scheduleheaders)
+        return dataTables::of($scheduleheaders)
             ->editColumn('class', function ($fn) {
                 $class = classes::where('class_code', $fn->class)->first();
                 return $class ? $class->class_name : 'N/A';
@@ -193,7 +183,7 @@ class BdScheduleController extends Controller
             })
             ->addColumn('edit', function ($fn) {
 
-                return '<a href="#" class="text-white update_schedule btn btn-sm btn-success rounded-pill" title="Udate schedule" data-id="' . $fn->id . '"> <i class="bx bx-refresh"></i>Edit</a>';
+                return '<a href="#" class="text-white update_schedule btn btn-sm btn-success rounded-pill" title="Update schedule" data-id="' . $fn->id . '"> <i class="bx bx-refresh"></i>Edit</a>';
             })
             ->addColumn('delete', function ($fn) {
 
