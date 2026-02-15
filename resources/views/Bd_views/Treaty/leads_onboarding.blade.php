@@ -3956,7 +3956,7 @@
                                         timeOut: 5000
                                     });
                                 }
-                                window.location.href = `/leads_listing`;
+                                window.location.href = "{{ route('leads.listing') }}";
                             },
                             error: function(jqXHR, textStatus, errorThrown) {
                                 Swal.fire({
@@ -5680,7 +5680,7 @@
         }
 
         $('#cancel').click(function(e) {
-            window.location.href = `/leads_listing`;
+            window.location.href = "{{ route('leads.listing') }}";
 
         })
 

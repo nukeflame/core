@@ -1013,8 +1013,8 @@ class PipelineController
             'postal_code' => 'nullable|string',
             'insurance_class' => 'nullable|string',
             'engage_type' => 'nullable|string',
-            // 'closing_date' => '',
-            // 'effective_date' => '',
+            'closing_date' => 'required|date|after_or_equal:effective_date',
+            'effective_date' => 'required|date',
             'lead_name' => 'required|string',
             'rating' => 'nullable|string',
             'client_type' => 'required|string',
@@ -1076,22 +1076,25 @@ class PipelineController
             return response()->json(['status' => 0, 'message' => 'Validation failed', 'errors' => $validator->errors()]);
         }
 
-        $mes = '';
-        if (is_null($request->prospect)) {
-            $mes = "Prospect created successfully";
-        } else {
-            $mes = "Prospect updated successfully";
-        }
+        $isUpdate = !empty($request->prospect)
+            && Prospects::where('opportunity_id', $request->prospect)->exists();
 
         $nextCode = Prospects::generateNextCode($request->lead_year);
+        $prospectCode = $isUpdate ? $request->prospect : $nextCode;
+        $mes = $isUpdate
+            ? "Prospect {$prospectCode} updated successfully"
+            : "Prospect {$prospectCode} created successfully";
+        $reinsCommRate = $request->filled('reins_comm_rate')
+            ? str_replace(',', '', $request->reins_comm_rate)
+            : 0;
         $date = $request->effective_date;
         $carbonDate = Carbon::parse($date);
         $monthNumber = $carbonDate->month;
 
         $pq_status = 'W';
-        if ($request->prequalification === 'Y' && $request->updateState != 'U') {
+        if ($request->prequalification === 'Y' && !$isUpdate) {
             $pq_status = 'P';
-        } else if ($request->updateState === 'U') {
+        } else if ($isUpdate) {
             $pq_status = $request->pq_status;
         }
 
@@ -1109,7 +1112,7 @@ class PipelineController
         DB::beginTransaction();
 
         try {
-            if ($request->updateState === 'U') {
+            if ($isUpdate) {
                 Prospects::where('opportunity_id', $request->prospect)
                     ->update(
                         [
@@ -1125,10 +1128,11 @@ class PipelineController
                             'postal_code' => $request->postal_code,
                             'insurance_class' => $request->insurance_class,
                             'engage_type' => $request->engage_type,
-                            'closing_date' => !empty($request->closing_date) ? $request->closing_date : 'TBA',
-                            'effective_date' => !empty($request->effective_date) ? $request->effective_date : 'TBA',
+                            'closing_date' => $request->closing_date ?: null,
+                            'effective_date' => $request->effective_date ?: null,
                             'fiscal_period' => $quarter,
                             'lead_name' => $request->lead_name,
+                            'lead_owner' => $request->lead_owner,
                             // 'lead_handler' => $request->lead_handler,
                             // 'lead_source' => $request->lead_source,
                             // 'source_desc' => $request->source_desc,
@@ -1177,7 +1181,7 @@ class PipelineController
                             'rein_premium' => $request->rein_premium ? str_replace(',', '', $request->rein_premium) : null,
                             'fac_share_offered' => $request->fac_share_offered ? str_replace(',', '', $request->fac_share_offered) : null,
                             'comm_rate' => $request->comm_rate ? str_replace(',', '', $request->comm_rate) : null,
-                            'reins_comm_rate' => $request->reins_comm_rate,
+                            'reins_comm_rate' => $reinsCommRate,
                             'comm_amt' => $request->comm_amt ? str_replace(',', '', $request->comm_amt) : null,
                             'reins_comm_type' => $request->reins_comm_type,
                             'reins_comm_amt' => $request->reins_comm_amt ? str_replace(',', '', $request->reins_comm_amt) : null,
@@ -1210,8 +1214,8 @@ class PipelineController
                         'postal_code' => $request->postal_code,
                         'insurance_class' => $request->insurance_class,
                         'engage_type' => $request->engage_type,
-                        'closing_date' => !empty($request->closing_date) ? $request->closing_date : 'TBA',
-                        'effective_date' => !empty($request->effective_date) ? $request->effective_date : 'TBA',
+                        'closing_date' => $request->closing_date ?: null,
+                        'effective_date' => $request->effective_date ?: null,
 
                         'fiscal_period' => $quarter,
                         'lead_name' => $request->lead_name,
@@ -1260,7 +1264,7 @@ class PipelineController
                         'eml_amt' => $request->eml_amt ? str_replace(',', '', $request->eml_amt) : null,
                         'effective_sum_insured' => $request->effective_sum_insured ? str_replace(',', '', $request->effective_sum_insured) : null,
                         'risk_details' => $request->risk_details,
-                        'reins_comm_rate' => $request->reins_comm_rate,
+                        'reins_comm_rate' => $reinsCommRate,
                         'cede_premium' => $request->cede_premium ? str_replace(',', '', $request->cede_premium) : null,
                         'rein_premium' => $request->rein_premium ? str_replace(',', '', $request->rein_premium) : null,
                         'fac_share_offered' => $request->fac_share_offered ? str_replace(',', '', $request->fac_share_offered) : null,
@@ -1284,10 +1288,27 @@ class PipelineController
             }
 
             DB::commit();
-            return ['status' => 1, 'message' => $mes];
+            return [
+                'status' => 1,
+                'message' => $mes,
+                'action' => $isUpdate ? 'update' : 'create',
+                'prospect_code' => $prospectCode,
+                'redirect_url' => route('leads.listing')
+            ];
         } catch (Exception $e) {
             DB::rollback();
-            return ['status' => 0, 'message' => 'An error occurred.'];
+            Log::error('pipeline_create_opportunity failed', [
+                'prospect' => $request->prospect,
+                'is_update' => $isUpdate ?? null,
+                'error' => $e->getMessage(),
+                'line' => $e->getLine(),
+            ]);
+
+            return [
+                'status' => 0,
+                'message' => 'An error occurred.',
+                'error' => $e->getMessage(),
+            ];
         }
     }
 
@@ -3070,28 +3091,33 @@ class PipelineController
         try {
             $pipelineId = $request->get('pipeline_id');
             $quarter = Str::lower($request->get('quarter'));
-
-            $query = $this->buildOpportunityQuery($pipelineId, $quarter);
+            $baseQuery = $this->buildOpportunityQuery($pipelineId, $quarter);
+            $query = (clone $baseQuery);
 
             $draw = $request->get('draw');
             $start = $request->get('start', 0);
             $length = $request->get('length', 10);
-            $searchValue = $request->get('search')['value'] ?? '';
+            $searchValue = trim((string) ($request->input('search_query') ?: ($request->input('search.value') ?? '')));
+            $statusFilter = trim((string) $request->input('status_filter', ''));
+            $categoryFilter = trim((string) $request->input('category_filter', ''));
+            $urgencyFilter = trim((string) $request->input('urgency_filter', ''));
 
-            if (!empty($searchValue)) {
-                $query->where(function ($q) use ($searchValue) {
-                    $q->where('insured_name', 'LIKE', "%{$searchValue}%")
-                        ->orWhere('division', 'LIKE', "%{$searchValue}%")
-                        ->orWhere('business_class', 'LIKE', "%{$searchValue}%");
-                });
-            }
+            $this->applyPipelineFilters(
+                $query,
+                $searchValue,
+                $statusFilter,
+                $categoryFilter,
+                $urgencyFilter
+            );
 
-            $totalRecords = $query->count();
-            $filteredRecords = $totalRecords;
+            $totalRecords = (clone $baseQuery)->count();
+            $filteredRecords = (clone $query)->count();
 
             $opportunities = $query->skip($start)->take($length)->orderBy('created_at', 'desc')->get();
 
             $data = $opportunities->map(function ($opp) {
+                $urgencyLevel = $this->resolveUrgencyLevel($opp);
+
                 return [
                     'id' => $opp->opportunity_id,
                     'insured_name' => $opp->insured_name,
@@ -3107,6 +3133,8 @@ class PipelineController
                     'approval_status' => $this->formatApprovalStatus($opp->handed_over),
                     'stage_actions' => $this->formatStageActions($opp),
                     'action' => $this->getActionButtons($opp),
+                    'urgency_level' => $urgencyLevel,
+                    'urgency_class' => 'row-urgency-' . $urgencyLevel,
                     '_original'  => $this->formatOriginalData($opp),
                 ];
             });
@@ -3436,7 +3464,8 @@ class PipelineController
 
     private function buildOpportunityQuery($pipelineId, $quarter)
     {
-        $query = PipelineOpportunity::where('pipeline_id', $pipelineId);
+        $query = PipelineOpportunity::where('pipeline_id', $pipelineId)
+            ->whereIn('type_of_bus', ['FPR', 'FNP']);
 
         if ($quarter !== 'all' && is_numeric($quarter)) {
             $query->where('fiscal_period', $quarter);
@@ -3458,8 +3487,97 @@ class PipelineController
             'final_stage' => 'status-final'
         ];
 
-        $class = $statusClasses['final_stage'] ?? 'badge-secondary';
+        $class = $statusClasses[$status] ?? 'badge-secondary';
         return "<span class='status-badge {$class}'>" . ucfirst(str_replace('_', ' ', $status)) . "</span>";
+    }
+
+    private function applyPipelineFilters($query, string $searchValue, string $statusFilter, string $categoryFilter, string $urgencyFilter): void
+    {
+        if ($statusFilter !== '') {
+            $query->whereRaw('LOWER(status) = ?', [Str::lower($statusFilter)]);
+        }
+
+        if ($categoryFilter !== '') {
+            $query->where('category_type', $categoryFilter);
+        }
+
+        if ($urgencyFilter !== '') {
+            $this->applyUrgencyFilter($query, Str::lower($urgencyFilter));
+        }
+
+        if ($searchValue !== '') {
+            $search = Str::lower($searchValue);
+
+            $query->where(function ($q) use ($search) {
+                $q->whereRaw('LOWER(insured_name) LIKE ?', ["%{$search}%"])
+                    ->orWhereRaw('LOWER(opportunity_id) LIKE ?', ["%{$search}%"])
+                    ->orWhereRaw('LOWER(type_of_bus) LIKE ?', ["%{$search}%"])
+                    ->orWhereIn('divisions', function ($sub) use ($search) {
+                        $sub->select('division_code')
+                            ->from('reins_division')
+                            ->whereRaw('LOWER(division_name) LIKE ?', ["%{$search}%"]);
+                    })
+                    ->orWhereIn('classcode', function ($sub) use ($search) {
+                        $sub->select('class_code')
+                            ->from('classes')
+                            ->whereRaw('LOWER(class_name) LIKE ?', ["%{$search}%"]);
+                    });
+            });
+        }
+    }
+
+    private function applyUrgencyFilter($query, string $urgencyFilter): void
+    {
+        $plusSeven = Carbon::today()->addDays(7)->toDateString();
+        $plusFourteen = Carbon::today()->addDays(14)->toDateString();
+        $plusThirty = Carbon::today()->addDays(30)->toDateString();
+
+        if ($urgencyFilter === 'critical') {
+            $query->whereDate('effective_date', '<=', $plusSeven);
+            return;
+        }
+
+        if ($urgencyFilter === 'urgent') {
+            $query->whereDate('effective_date', '>', $plusSeven)
+                ->whereDate('effective_date', '<=', $plusFourteen);
+            return;
+        }
+
+        if ($urgencyFilter === 'upcoming') {
+            $query->whereDate('effective_date', '>', $plusFourteen)
+                ->whereDate('effective_date', '<=', $plusThirty);
+            return;
+        }
+
+        if ($urgencyFilter === 'normal') {
+            $query->where(function ($q) use ($plusThirty) {
+                $q->whereDate('effective_date', '>', $plusThirty)
+                    ->orWhereNull('effective_date');
+            });
+        }
+    }
+
+    private function resolveUrgencyLevel($opp): string
+    {
+        if (empty($opp->effective_date)) {
+            return 'normal';
+        }
+
+        $daysToEffective = Carbon::today()->diffInDays(Carbon::parse($opp->effective_date), false);
+
+        if ($daysToEffective <= 7) {
+            return 'critical';
+        }
+
+        if ($daysToEffective <= 14) {
+            return 'urgent';
+        }
+
+        if ($daysToEffective <= 30) {
+            return 'upcoming';
+        }
+
+        return 'normal';
     }
 
     private function formatOriginalData($opp)

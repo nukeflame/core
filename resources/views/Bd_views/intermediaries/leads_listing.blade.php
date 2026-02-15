@@ -5,9 +5,12 @@
 @endsection
 
 @section('content')
-    <div class="container-fluid mt-3">
+    <div class="container-fluid mt-3 fac-pipeline-page">
         <div class="d-md-flex d-block align-items-center justify-content-between my-4 page-header-breadcrumb">
-            <h1 class="page-title fw-semibold fs-18 mb-0">Facultative Pipeline</h1>
+            <div>
+                <h1 class="page-title fw-semibold fs-18 mb-0">Facultative Pipeline</h1>
+                <p class="text-muted mb-0 mt-1 fs-13">Create a new insurance cover for</p>
+            </div>
             <div class="ms-md-1 ms-0">
                 <nav>
                     <ol class="breadcrumb mb-0">
@@ -23,13 +26,16 @@
             <div class="col-md-3">
                 <div class="kpi-card">
                     <div class="kpi-value">{{ number_format($kpis['active_opportunities']['value']) }}</div>
-                    <div class="kpi-label">Active Opportunities</div>
+                    <div class="kpi-label d-flex align-items-center gap-2">
+                        <i class="bi bi-briefcase kpi-icon"></i>
+                        <span>Active Opportunities</span>
+                    </div>
 
                     @if ((int) $kpis['active_opportunities']['value'] > 0)
                         @if ($kpis['active_opportunities']['trend'])
                             <div class="kpi-trend trend-{{ $kpis['active_opportunities']['trend']['direction'] }}">
                                 <i
-                                    class="bx bx-arrow-{{ $kpis['active_opportunities']['trend']['direction'] == 'up' ? 'up' : 'down' }}"></i>
+                                    class="bi bi-arrow-{{ $kpis['active_opportunities']['trend']['direction'] == 'up' ? 'up' : 'down' }}"></i>
                                 {{ $kpis['active_opportunities']['trend']['direction'] == 'up' ? '+' : '-' }}{{ $kpis['active_opportunities']['trend']['percentage'] }}%
                                 this month
                             </div>
@@ -40,14 +46,17 @@
             <div class="col-md-3">
                 <div class="kpi-card">
                     <div class="kpi-value">KES {{ number_format($kpis['pipeline_premium']['value'] / 1000000, 1) }}M</div>
-                    <div class="kpi-label">Pipeline Premium</div>
+                    <div class="kpi-label d-flex align-items-center gap-2">
+                        <i class="bi bi-cash-stack kpi-icon"></i>
+                        <span>Pipeline Premium</span>
+                    </div>
 
                     @if ((int) $kpis['pipeline_premium']['value'] > 0)
                         @if ((int) $kpis['pipeline_premium']['value'] > 0)
                             @if ($kpis['pipeline_premium']['trend'])
                                 <div class="kpi-trend trend-{{ $kpis['pipeline_premium']['trend']['direction'] }}">
                                     <i
-                                        class="bx bx-arrow-{{ $kpis['pipeline_premium']['trend']['direction'] == 'up' ? 'up' : 'down' }}"></i>
+                                        class="bi bi-arrow-{{ $kpis['pipeline_premium']['trend']['direction'] == 'up' ? 'up' : 'down' }}"></i>
                                     {{ $kpis['pipeline_premium']['trend']['direction'] == 'up' ? '+' : '-' }}{{ $kpis['pipeline_premium']['trend']['percentage'] }}%
                                     QoQ
                                 </div>
@@ -59,13 +68,16 @@
             <div class="col-md-3">
                 <div class="kpi-card">
                     <div class="kpi-value">{{ $kpis['conversion_rate']['value'] }}%</div>
-                    <div class="kpi-label">Conversion Rate</div>
+                    <div class="kpi-label d-flex align-items-center gap-2">
+                        <i class="bi bi-graph-up-arrow kpi-icon"></i>
+                        <span>Conversion Rate</span>
+                    </div>
 
                     @if ((int) $kpis['conversion_rate']['value'] > 0)
                         @if ($kpis['conversion_rate']['trend'])
                             <div class="kpi-trend trend-{{ $kpis['conversion_rate']['trend']['direction'] }}">
                                 <i
-                                    class="bx bx-arrow-{{ $kpis['conversion_rate']['trend']['direction'] == 'up' ? 'up' : 'down' }}"></i>
+                                    class="bi bi-arrow-{{ $kpis['conversion_rate']['trend']['direction'] == 'up' ? 'up' : 'down' }}"></i>
                                 {{ $kpis['conversion_rate']['trend']['direction'] == 'up' ? '+' : '' }}{{ $kpis['conversion_rate']['trend']['percentage'] }}%
                                 improvement
                             </div>
@@ -76,13 +88,17 @@
             <div class="col-md-3">
                 <div class="kpi-card">
                     <div class="kpi-value">{{ $kpis['critical_deadlines']['value'] }}</div>
-                    <div class="kpi-label">Critical Deadlines</div>
-
-                    @if ((int) $kpis['conversion_rate']['value'] > 0)
-                        <div class="kpi-trend trend-down">
-                            <i class="bx bx-clock text-warning"></i> Requires attention
+                    <div class="kpi-label d-flex align-items-center gap-2">
+                        <i class="bi bi-alarm kpi-icon"></i>
+                        <div>
+                            Critical Deadlines -
                         </div>
-                    @endif
+                        @if ((int) $kpis['critical_deadlines']['value'] > 0)
+                            <div class="kpi-trend trend-down mt-0">
+                                <i class="bi bi-clock text-warning"></i> Requires attention
+                            </div>
+                        @endif
+                    </div>
                 </div>
             </div>
         </div>
@@ -91,30 +107,24 @@
             <div class="col-12">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
-                        <button type="button" class="btn btn-primary btn-lg me-3" onclick="onboardProspect()">
-                            <i class="bx bx-user-plus me-1" style="font-size: 20px; vertical-align: -3px;"></i>
+                        <button type="button" class="btn btn-primary btn-sm" onclick="onboardProspect()">
+                            <i class="bi bi-person-plus-fill me-1"></i>
                             Onboard New Prospect
                         </button>
                     </div>
                     <div>
-                        {{-- <button type="button" class="btn btn-outline-info" onclick="showAnalytics()">
-                            <i class="bx bx-chart-bar me-2"></i>Analytics
-                        </button>
-                        <button type="button" class="btn btn-outline-success" onclick="exportData()">
-                            <i class="bx bx-download me-2"></i>Export
-                        </button> --}}
                     </div>
                 </div>
             </div>
         </div>
 
-        <div class="row mt-3">
+        <div class="row mt-3 pipeline-content-row">
             <div class="col-xl-12">
-                <div class="card custom-card">
+                <div class="card custom-card mb-0">
                     <div class="card-header p-0">
                         <div class="urgency-legend">
                             <div class="legend-title">
-                                <i class="bx bx-info-circle me-2"></i>Urgency Classification
+                                <i class="bi bi-info-circle me-2"></i>Urgency Classification
                             </div>
                             <div class="legend-items">
                                 <div class="legend-item">
@@ -136,13 +146,13 @@
                             </div>
                         </div>
                     </div>
-                    <div class="card-body">
+                    <div class="card-body pb-0">
                         <div class="pipeline-table-container">
                             <div class="table-header">
                                 <div class="row">
-                                    <div class="col-md-8">
+                                    <div class="col-12">
                                         <div class="table-controls">
-                                            <input type="search" class="form-inputs mb-0"
+                                            <input type="search" class="form-inputs mb-0 filter-search-input"
                                                 style="font-size: 14px; border:1px solid #3634346e !important;"
                                                 placeholder="Search opportunities..." id="globalSearch">
 
@@ -169,30 +179,31 @@
                                             <select class="filter-select form-select" id="classFilter"
                                                 placeholder="Select class">
                                                 <option value="">All Class</option>
-                                                {{-- @foreach ($classes as $key => $class)
+                                                @foreach ($classes as $key => $class)
                                                     <option value="{{ $key }}">{{ $class }}</option>
-                                                @endforeach --}}
+                                                @endforeach
                                             </select>
 
                                             <select class="filter-select form-select" id="priorityFilter"
                                                 placeholder="Select priority">
                                                 <option value="">All Priorities</option>
-                                                {{-- @foreach ($priorities as $key => $priority)
+                                                @foreach ($priorities as $key => $priority)
                                                     <option value="{{ $key }}">{{ $priority }}</option>
-                                                @endforeach --}}
+                                                @endforeach
                                             </select>
+
+                                            <button type="button" class="btn btn-primary" id="applyFiltersBtn">
+                                                <i class="bi bi-search-alt-2 me-1"></i>Search
+                                            </button>
+                                            <button type="button" class="btn btn-outline-secondary"
+                                                id="resetFiltersBtn">
+                                                <i class="bi bi-reset me-1"></i>Reset
+                                            </button>
                                         </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
-
-                        {{-- {{ html()->form('POST', route('cover.store'))->id('newCoverForm')->open() }}
-                        @csrf
-                        <input type="hidden" name="customer_id" id="customerId">
-                        <input type="hidden" name="trans_type" id="transType">
-                        <input type="hidden" name="prospect_id" id="prospectId">
-                        {{ html()->form()->close() }} --}}
 
                         <table class="table text-nowrap table-striped table-hover" id="opportunities_table">
                             <thead>
@@ -205,12 +216,9 @@
                                     <th>Status</th>
                                     <th>Gross Premium</th>
                                     <th>Commission %</th>
-                                    {{-- <th>Expected Premium</th> --}}
                                     <th>Effective Date</th>
                                     <th>Expiry Date</th>
-                                    {{-- <th>Quote Deadline</th> --}}
                                     <th>Prospect Lead</th>
-                                    {{-- <th>Territory</th> --}}
                                     <th>Actions</th>
                                 </tr>
                             </thead>

@@ -285,7 +285,7 @@
                             text: 'Lead successfully updated'
                         })
                         setTimeout(function(){
-                            window.location.href =  `/intermediary/leads_listing`;
+                            window.location.href = "{{ route('leads.listing') }}";
                         }, 2000);
                     }
                 },
@@ -313,7 +313,7 @@
         })
 
     $('#cancel').click(function(e){
-        window.location.href =  `/intermediary/leads_listing`;
+        window.location.href = "{{ route('leads.listing') }}";
 
     })
 

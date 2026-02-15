@@ -41,14 +41,16 @@
 
                 <div id="pipeline-meta" class="alert alert-light border d-flex flex-wrap align-items-center gap-3 mb-4">
                     <span class="fw-semibold">Selected Pipeline:</span>
-                    <span id="pipeline-meta-name">{{ isset($selectedPipeline->year) ? 'Pipeline ' . $selectedPipeline->year : 'N/A' }}</span>
+                    <span
+                        id="pipeline-meta-name">{{ isset($selectedPipeline->year) ? 'Pipeline ' . $selectedPipeline->year : 'N/A' }}</span>
                     <span class="badge bg-primary-subtle text-primary-emphasis" id="pipeline-meta-year">
                         Year: {{ $selectedPipeline->year ?? 'N/A' }}
                     </span>
                     <span class="badge bg-info-subtle text-info-emphasis" id="pipeline-meta-opp">Opportunities: --</span>
                     <span class="badge bg-success-subtle text-success-emphasis" id="pipeline-meta-won">Won: --</span>
                     <span class="badge bg-danger-subtle text-danger-emphasis" id="pipeline-meta-lost">Lost: --</span>
-                    <span class="badge bg-secondary-subtle text-secondary-emphasis" id="pipeline-meta-worth">Worth: --</span>
+                    <span class="badge bg-secondary-subtle text-secondary-emphasis" id="pipeline-meta-worth">Worth:
+                        --</span>
                 </div>
 
                 <div class="d-flex justify-content-center flex-wrap chart-container">
@@ -128,8 +130,9 @@
                                             'q4_details' => 'q4_opps',
                                         ];
                                     @endphp
-                                    <table id="{{ $tableIds[$quarter['id']] }}" class="table table-striped pipeline-table"
-                                        style="width:100%" data-quarter="{{ $index === 0 ? 'all' : $index }}">
+                                    <table id="{{ $tableIds[$quarter['id']] }}"
+                                        class="table table-striped pipeline-table" style="width:100%"
+                                        data-quarter="{{ $index === 0 ? 'all' : $index }}">
                                         <thead>
                                             <tr>
                                                 <th>ID</th>

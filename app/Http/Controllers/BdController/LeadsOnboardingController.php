@@ -7,12 +7,9 @@ use App\Models\Bd\BdReinclass;
 use App\Models\Bd\BdReinlayer;
 use App\Models\Bd\BdReinprop;
 use App\Models\Bd\Client;
-use App\Jobs\sendPQClientEmail;
 use App\Models\Bd\Leads\Pipeline;
 use App\Models\Bd\Occupation;
-use App\Models\Bd\Prospects;
 use App\Models\Bd\Salutation;
-use App\Models\Bd\Admin\Status;
 use App\Models\Branch;
 use App\Models\Broker;
 use App\Models\BusinessType;
@@ -21,15 +18,11 @@ use App\Models\ClassGroup;
 use App\Models\Country;
 use App\Models\Bd\Intermediary;
 use App\Models\Bd\Leads\ActivityAttendees;
-use App\Models\Bd\Leads\Industry;
 use App\Models\Bd\Leads\Leads;
 use App\Models\Bd\Leads\LeadsSource;
 use App\Models\Bd\Leads\LeadStatus;
 use App\Models\Bd\PipelineOpportunity;
-use App\Models\CoverPremtype;
 use App\Models\CoverRegister;
-use App\Models\CoverReinLayer;
-use App\Models\CoverReinProp;
 use App\Models\CoverType;
 use App\Models\Currency;
 use App\Models\Customer;
@@ -51,7 +44,6 @@ use Yajra\Datatables\Datatables;
 use App\Repositories\ProspectRepository;
 use App\Services\PipelineService;
 use Exception;
-use Illuminate\Support\Facades\Auth;
 
 class LeadsOnboardingController
 {
@@ -66,134 +58,132 @@ class LeadsOnboardingController
 
     public function index(Request $request)
     {
-        $currentYear = date('Y');
-        $endYear = $currentYear + 10;
-        $years = range($currentYear, $endYear);
-        $customer_types = CustomerTypes::select('type_id', 'type_name')->get();
-        $salutations = Salutation::all();
-        $sources = LeadsSource::all();
-        $statuses = LeadStatus::wherein('id', [2, 4, 5])->get();
-        $engage_types = LeadsSource::all();
-        $industries = Occupation::all();
-        $divisions = DB::table('divisions')->get();
-        $clients = Client::select('full_name', 'global_customer_id', 'client_type', 'salutation_code', 'occupation_code')->get();
-        $prospProperties = DB::table('pipeline_opportunities')->where('opportunity_id', "=", $request->prospect)->first();
-        $users = User::all();
+        try {
+            $currentYear = now()->year;
+            $endYear = $currentYear + 10;
+            $years = range($currentYear, $endYear);
+            $prospectCode = $request->prospect;
 
-        $currencies = Currency::all();
-        $leadsources = DB::table('leadsources')->get();
-        $prospect = $request->prospect;
-        $countries = Country::all();
-        $underwriters = DB::table('companies')->get();
-        $branches = Branch::where('status', 'A')->get(['branch_code', 'branch_name', 'status']);
-        $treatytypes = TreatyType::where('status', 'A')->get();
-        $types_of_bus = BusinessType::get(['bus_type_id', 'bus_type_name']);
-        $branches = Branch::where('status', 'A')->get(['branch_code', 'branch_name', 'status']);
-        $brokers = Broker::where('status', 'A')->get(['broker_code', 'broker_name', 'status']);
-        $classes = Classes::where('status', 'A')->get(['class_code', 'class_name', 'status']);
-        $types_of_sum_insured = TypeOfSumInsured::where('status', 'A')->get(['sum_insured_code', 'sum_insured_name', 'status']);
-        $classGroups = ClassGroup::get(['group_code', 'group_name']);
-        $paymethods = PayMethod::all();
-        $premium_pay_terms = PremiumPayTerm::all();
-        $currency = Currency::all();
-        $covertypes = CoverType::all();
-        $reinsdivisions = ReinsDivision::where('status', 'A')->get();
-        $reinsclasses = ReinsClass::where('status', 'A')->get();
-        $treatytypes = TreatyType::where('status', 'A')->get();
-        $reinPremTypes = ReinclassPremtype::where('status', 'A')->get();
-        $pipeYear = Pipeline::orderBy('year', 'asc')->get();
-        $Contact_details = DB::table('pipeline_opportunities')
-            ->select('contact_name', 'phone', 'email', 'telephone')
-            ->where('opportunity_id', "=", $request->prospect)->first();
+            $customer_types = CustomerTypes::select('type_id', 'type_name')->get();
+            $salutations = Salutation::all();
+            $sources = LeadsSource::all();
+            $statuses = LeadStatus::whereIn('id', [2, 4, 5])->get();
+            $engage_types = $sources;
+            $industries = Occupation::all();
+            $divisions = DB::table('divisions')->get();
+            $clients = Client::select('full_name', 'global_customer_id', 'client_type', 'salutation_code', 'occupation_code')->get();
+            $prospProperties = DB::table('pipeline_opportunities')
+                ->where('opportunity_id', $prospectCode)
+                ->first();
+            $prospect = $prospProperties;
+            $users = User::all();
 
-        $contactNames = json_decode($Contact_details->contact_name ?? '[]', true);
-        $emails = json_decode($Contact_details->email ?? '[]', true);
-        $phones = json_decode($Contact_details->phone ?? '[]', true);
-        $telephones = json_decode($Contact_details->telephone ?? '[]', true);
-        // Ensure they are always arrays and have the same length
-        $count = max(count($contactNames), count($emails), count($phones), count($telephones));
+            $currencies = Currency::all();
+            $leadsources = DB::table('leadsources')->get();
+            $countries = Country::all();
+            $underwriters = DB::table('companies')->get();
+            $branches = Branch::where('status', 'A')->get(['branch_code', 'branch_name', 'status']);
+            $treatytypes = TreatyType::where('status', 'A')->get();
+            $types_of_bus = BusinessType::get(['bus_type_id', 'bus_type_name']);
+            $brokers = Broker::where('status', 'A')->get(['broker_code', 'broker_name', 'status']);
+            $classes = Classes::where('status', 'A')->get(['class_code', 'class_name', 'status']);
+            $types_of_sum_insured = TypeOfSumInsured::where('status', 'A')->get(['sum_insured_code', 'sum_insured_name', 'status']);
+            $classGroups = ClassGroup::get(['group_code', 'group_name']);
+            $paymethods = PayMethod::all();
+            $premium_pay_terms = PremiumPayTerm::all();
+            $covertypes = CoverType::all();
+            $reinsdivisions = ReinsDivision::where('status', 'A')->get();
+            $reinsclasses = ReinsClass::where('status', 'A')->get();
+            $pipeYear = Pipeline::whereBetween('year', [$currentYear - 4, $currentYear])
+                ->orderBy('year', 'asc')
+                ->get();
 
-        $contacts = [];
-        for ($i = 0; $i < $count; $i++) {
-            $contacts[] = [
-                'contact_name' => $contactNames[$i] ?? '',
-                'email' => $emails[$i] ?? '',
-                'phone' => $phones[$i] ?? '',
-                'telephone' => $telephones[$i] ?? '',
+            $contactDetails = DB::table('pipeline_opportunities')
+                ->select('contact_name', 'phone', 'email', 'telephone')
+                ->where('opportunity_id', $prospectCode)
+                ->first();
+
+            $contactNames = json_decode($contactDetails?->contact_name ?? '[]', true) ?: [];
+            $emails = json_decode($contactDetails?->email ?? '[]', true) ?: [];
+            $phones = json_decode($contactDetails?->phone ?? '[]', true) ?: [];
+            $telephones = json_decode($contactDetails?->telephone ?? '[]', true) ?: [];
+
+            $count = max(count($contactNames), count($emails), count($phones), count($telephones));
+            $contacts = [];
+            for ($i = 0; $i < $count; $i++) {
+                $contacts[] = [
+                    'contact_name' => $contactNames[$i] ?? '',
+                    'email' => $emails[$i] ?? '',
+                    'phone' => $phones[$i] ?? '',
+                    'telephone' => $telephones[$i] ?? '',
+                ];
+            }
+
+            $customers = DB::table('customers')
+                ->join('customer_types', function ($join) {
+                    $join->on('customer_types.type_id', '=', DB::raw("ANY (SELECT json_array_elements_text(customers.customer_type)::int)"));
+                })
+                ->select(
+                    DB::raw('CAST(customers.customer_id AS INT) as customer_id'),
+                    'customers.name'
+                )
+                ->whereIn('customer_types.slug', ['reinsurer', 'cedant'])
+                ->distinct('name')
+                ->get();
+
+            $insured = DB::table('customers')
+                ->join('customer_types', function ($join) {
+                    $join->on('customer_types.type_id', '=', DB::raw("ANY (SELECT json_array_elements_text(customers.customer_type)::int)"));
+                })
+                ->select(
+                    DB::raw('CAST(customers.customer_id AS INT) as customer_id'),
+                    'customers.name'
+                )
+                ->where('customer_types.code', 'INSURED')
+                ->get();
+
+            $commonVariables = [
+                'insured' => $insured,
+                'types_of_bus' => $types_of_bus,
+                'branches' => $branches,
+                'brokers' => $brokers,
+                'classGroups' => $classGroups,
+                'class' => $classes,
+                'paymethods' => $paymethods,
+                'premium_pay_terms' => $premium_pay_terms,
+                'currencies' => $currencies,
+                'covertypes' => $covertypes,
+                'types_of_sum_insured' => $types_of_sum_insured,
+                'reinsdivisions' => $reinsdivisions,
+                'reinsclasses' => $reinsclasses,
+                'treatytypes' => $treatytypes,
+                'customers' => $customers,
+                'contacts_det' => $contacts,
             ];
-        }
 
-        $customers = DB::table('customers')
-            ->join('customer_types', function ($join) {
-                $join->on('customer_types.type_id', '=', DB::raw("ANY (SELECT json_array_elements_text(customers.customer_type)::int)"));
-            })
-            ->select(
-                DB::raw('CAST(customers.customer_id AS INT) as customer_id'),
-                'customers.name'
-            )
-            ->whereIn('customer_types.slug', ['reinsurer', 'cedant'])
-            ->distinct('name')
-            ->get();
+            $otherVariabales = [
+                'countries' => $countries,
+                'prospProperties' => $prospProperties,
+                'underwriters' => $underwriters,
+                'prospect' => $prospect,
+                'engage_types' => $engage_types,
+                'divisions' => $divisions,
+                'leadsources' => $leadsources,
+                'currencies' => $currencies,
+                'statuses' => $statuses,
+                'salutations' => $salutations,
+                'sources' => $sources,
+                'industries' => $industries,
+                'users' => $users,
+                'clients' => $clients,
+                'years' => $years,
+                'customer_types' => $customer_types,
+                'pipeYear' => $pipeYear,
+            ];
 
-
-
-        $insured = DB::table('customers')
-            ->join('customer_types', function ($join) {
-                $join->on('customer_types.type_id', '=', DB::raw("ANY (SELECT json_array_elements_text(customers.customer_type)::int)"));
-            })
-            ->select(
-                DB::raw('CAST(customers.customer_id AS INT) as customer_id'), // Casting customer_id as an integer
-                'customers.name'
-            )
-            ->where('customer_types.code', 'INSURED')
-            ->get();
-
-        $commonVariables = [
-            'insured' => $insured,
-            'types_of_bus' => $types_of_bus,
-            'branches' => $branches,
-            'brokers' => $brokers,
-            'classGroups' => $classGroups,
-            'class' => $classes,
-            'paymethods' => $paymethods,
-            'premium_pay_terms' => $premium_pay_terms,
-            'currencies' => $currency,
-            'covertypes' => $covertypes,
-            'types_of_sum_insured' => $types_of_sum_insured,
-            'reinsdivisions' => $reinsdivisions,
-            'reinsclasses' => $reinsclasses,
-            'treatytypes' => $treatytypes,
-            'customers' => $customers,
-            'contacts_det' => $contacts
-
-        ];
-        $otherVariabales = [
-            'countries' => $countries,
-            'prospProperties' => $prospProperties,
-            'underwriters' => $underwriters,
-            'prospect' => $prospect,
-            'engage_types' => $engage_types,
-            'divisions' => $divisions,
-            'leadsources' => $leadsources,
-            'currencies' => $currencies,
-            'statuses' => $statuses,
-            'salutations' => $salutations,
-            'sources' => $sources,
-            'industries' => $industries,
-            'users' => $users,
-            'clients' => $clients,
-            'years' => $years,
-            'customer_types' => $customer_types,
-            'pipeYear' => $pipeYear
-
-        ];
-        $allVariables = array_merge($commonVariables, $otherVariabales);
-
-        if (count($request->all()) < 1) {
-            return view('Bd_views.intermediaries.leads_onboarding', $allVariables);
-        } else {
-
-            return view('Bd_views.intermediaries.leads_onboarding_update', $allVariables);
+            return view('Bd_views.intermediaries.leads_onboarding', array_merge($commonVariables, $otherVariabales));
+        } catch (\Throwable $e) {
+            return back()->withInput()->with('error', 'Failed to load onboarding form. Please try again.');
         }
     }
 
@@ -234,7 +224,9 @@ class LeadsOnboardingController
         $reinsclasses = ReinsClass::where('status', 'A')->get();
         $treatytypes = TreatyType::where('status', 'A')->get();
         $reinPremTypes = ReinclassPremtype::where('status', 'A')->get();
-        $pipeYear = Pipeline::orderBy('year', 'asc')->get();
+        $pipeYear = Pipeline::whereBetween('year', [$currentYear - 4, $currentYear])
+            ->orderBy('year', 'desc')
+            ->get();
         $Contact_details = DB::table('pipeline_opportunities')
             ->select('contact_name', 'phone', 'email', 'telephone')
             ->where('opportunity_id', "=", $request->prospect)->first();
@@ -377,13 +369,15 @@ class LeadsOnboardingController
             // 'source' => 'required',
             // 'industry' => 'required',
             'lead_year' => 'required',
-            // 'email' => 'required',
+            'email' => 'required|array',
+            'email.*' => 'required|email|distinct',
             // 'phone_number' => 'required',
             // 'lead_owner' => 'required',
         ];
 
         $messages = [
             'required' => ':attribute is required',
+            'email.*.distinct' => 'Email Address should be unique for each contact.',
         ];
 
         $nicenames = [
@@ -391,6 +385,7 @@ class LeadsOnboardingController
             'industry' => 'Industry',
             'rating' => 'Rating',
             'email' => 'Email',
+            'email.*' => 'Email Address',
             'phone_number' => 'Phone Number',
             'lead_owner' => 'Lead Owner',
             'lead_year' => 'Year',
@@ -491,7 +486,18 @@ class LeadsOnboardingController
     public function treaty_listing()
     {
         $kpis = $this->getTreatyKPIs();
-        return view('Bd_views.Treaty.leads_listing', compact('kpis'));
+        $statuses = PipelineOpportunity::getStatusOptions();
+        $classes = PipelineOpportunity::getClassOptions();
+        $classGroups = PipelineOpportunity::getClassGroupsOptions();
+        $priorities = PipelineOpportunity::getPriorityOptions();
+
+        return view('Bd_views.Treaty.leads_listing', compact(
+            'kpis',
+            'statuses',
+            'classGroups',
+            'classes',
+            'priorities'
+        ));
     }
 
     /**
@@ -653,8 +659,23 @@ class LeadsOnboardingController
             $query->where('classcode', $request->class);
         }
 
+        if ($request->filled('class_group')) {
+            $query->where('class_group', $request->class_group);
+        }
+
         if ($request->filled('priority')) {
             $query->where('priority', $request->priority);
+        }
+
+        if ($request->filled('global_search')) {
+            $searchTerm = trim((string) $request->global_search);
+
+            $query->where(function ($q) use ($searchTerm) {
+                $q->where('opportunity_id', 'ilike', "%{$searchTerm}%")
+                    ->orWhere('insured_name', 'ilike', "%{$searchTerm}%")
+                    ->orWhere('status', 'ilike', "%{$searchTerm}%")
+                    ->orWhere('priority', 'ilike', "%{$searchTerm}%");
+            });
         }
 
         $data = $query->orderBy('created_at', 'desc');
@@ -687,7 +708,7 @@ class LeadsOnboardingController
                     'critical' => 'priority-badge priority-critical',
                     'high' => 'priority-badge priority-high',
                     'medium' => 'priority-badge priority-medium',
-                    'low', => 'priority-badge priority-low',
+                    'low' => 'priority-badge priority-low',
                     'normal' => 'priority-badge priority-medium',
                     default => 'priority-badge priority-medium'
                 };
@@ -743,20 +764,26 @@ class LeadsOnboardingController
             //     return '-';
             // })
             ->addColumn('urgency_class', function ($lead) {
-                // $deadline = $lead->quote_deadline ?? null;
-                // if (!$deadline) return null;
+                if (empty($lead->effective_date)) {
+                    return null;
+                }
 
-                // $daysUntilDeadline = Carbon::parse($deadline)->diffInDays(Carbon::now(), false);
+                $daysToEffectiveDate = Carbon::now()->startOfDay()
+                    ->diffInDays(Carbon::parse($lead->effective_date)->startOfDay(), false);
 
-                // if ($daysUntilDeadline <= 1) {
-                //     return 'table-danger'; // Very urgent
-                // } elseif ($daysUntilDeadline <= 3) {
-                //     return 'table-warning'; // Urgent
-                // } elseif ($daysUntilDeadline <= 7) {
-                //     return 'table-info'; // Approaching
-                // }
+                if ($daysToEffectiveDate <= 7) {
+                    return 'highlight-critical';
+                }
 
-                return null;
+                if ($daysToEffectiveDate <= 14) {
+                    return 'highlight-urgent';
+                }
+
+                if ($daysToEffectiveDate <= 30) {
+                    return 'highlight-upcoming';
+                }
+
+                return 'highlight-normal';
             })
             ->addColumn('client_category', function ($lead) {
                 if ((string) $lead->client_category === 'O') {
@@ -799,8 +826,6 @@ class LeadsOnboardingController
 
     public function treaty_leads_get(Request $request)
     {
-        $currentYear = Carbon::now()->format('Y');
-
         // Base query
         $query = DB::table('pipeline_opportunities')
             ->whereIn('type_of_bus', ['TPR', 'TNP']);
@@ -820,13 +845,30 @@ class LeadsOnboardingController
             }
         }
 
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        if ($request->filled('class')) {
+            $query->where('classcode', $request->class);
+        }
+
+        if ($request->filled('class_group')) {
+            $query->where('class_group', $request->class_group);
+        }
+
+        if ($request->filled('priority')) {
+            $query->where('priority', $request->priority);
+        }
+
         // Apply search filter if provided
-        if ($request->filled('search_query')) {
-            $searchTerm = $request->search_query;
+        if ($request->filled('global_search') || $request->filled('search_query')) {
+            $searchTerm = trim((string) ($request->global_search ?? $request->search_query));
             $query->where(function ($q) use ($searchTerm) {
-                $q->where('opportunity_id', 'like', "%{$searchTerm}%")
-                    ->orWhere('insured_name', 'like', "%{$searchTerm}%")
-                    ->orWhere('type_of_bus', 'like', "%{$searchTerm}%");
+                $q->where('opportunity_id', 'ilike', "%{$searchTerm}%")
+                    ->orWhere('insured_name', 'ilike', "%{$searchTerm}%")
+                    ->orWhere('status', 'ilike', "%{$searchTerm}%")
+                    ->orWhere('priority', 'ilike', "%{$searchTerm}%");
             });
         }
 

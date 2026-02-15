@@ -69,6 +69,11 @@ class PipelineManager {
         this.$pipelineMetaWon = null;
         this.$pipelineMetaLost = null;
         this.$pipelineMetaWorth = null;
+        this.$pipelineSearch = null;
+        this.$pipelineStatusFilter = null;
+        this.$pipelineCategoryFilter = null;
+        this.$pipelineUrgencyFilter = null;
+        this.$pipelineClearFilters = null;
 
         this.config = {
             routes: {
@@ -234,6 +239,11 @@ class PipelineManager {
         this.$pipelineMetaWon = $("#pipeline-meta-won");
         this.$pipelineMetaLost = $("#pipeline-meta-lost");
         this.$pipelineMetaWorth = $("#pipeline-meta-worth");
+        this.$pipelineSearch = $("#pipelineSearch");
+        this.$pipelineStatusFilter = $("#pipelineStatusFilter");
+        this.$pipelineCategoryFilter = $("#pipelineCategoryFilter");
+        this.$pipelineUrgencyFilter = $("#pipelineUrgencyFilter");
+        this.$pipelineClearFilters = $("#pipelineClearFilters");
     }
 
     setupCSRF() {
@@ -436,8 +446,13 @@ class PipelineManager {
                     ajax: {
                         url: this.config.routes.pipelineData,
                         data: (d) => {
+                            const filters = this.getPipelineFilters();
                             d.pipeline_id = this.$pipYearSelect?.val();
                             d.quarter = quarter;
+                            d.search_query = filters.searchQuery;
+                            d.status_filter = filters.status;
+                            d.category_filter = filters.category;
+                            d.urgency_filter = filters.urgency;
                         },
                         error: (xhr, error, code) => {
                             console.error(`DataTable error for ${tableId}:`, {
@@ -452,6 +467,7 @@ class PipelineManager {
                     order: [[0, "desc"]],
                     pageLength: 25,
                     responsive: true,
+                    searching: false,
                     language: {
                         processing: this.getLoadingHTML(),
                         emptyTable: "No pipeline records found",
@@ -461,6 +477,9 @@ class PipelineManager {
                     drawCallback: () => {
                         this.initializeActionHandlers();
                         $table.addClass("fade-in");
+                    },
+                    createdRow: (row, rowData) => {
+                        this.applyRowUrgencyClass(row, rowData);
                     },
                 });
 
@@ -527,6 +546,54 @@ class PipelineManager {
                     error: thrownError,
                 });
             });
+
+        this.$pipelineSearch
+            ?.off("input.pipeline")
+            .on(
+                "input.pipeline",
+                this.debounce(() => this.reloadAllTables(), DEBOUNCE_DELAY)
+            );
+
+        this.$pipelineStatusFilter
+            ?.off("change.pipeline")
+            .on("change.pipeline", () => this.reloadAllTables());
+
+        this.$pipelineCategoryFilter
+            ?.off("change.pipeline")
+            .on("change.pipeline", () => this.reloadAllTables());
+
+        this.$pipelineUrgencyFilter
+            ?.off("change.pipeline")
+            .on("change.pipeline", () => this.reloadAllTables());
+
+        this.$pipelineClearFilters?.off("click.pipeline").on("click.pipeline", () => {
+            this.clearPipelineFilters();
+            this.reloadAllTables();
+        });
+    }
+
+    getPipelineFilters() {
+        return {
+            searchQuery: (this.$pipelineSearch?.val() || "").trim(),
+            status: this.$pipelineStatusFilter?.val() || "",
+            category: this.$pipelineCategoryFilter?.val() || "",
+            urgency: this.$pipelineUrgencyFilter?.val() || "",
+        };
+    }
+
+    clearPipelineFilters() {
+        this.$pipelineSearch?.val("");
+        this.$pipelineStatusFilter?.val("");
+        this.$pipelineCategoryFilter?.val("");
+        this.$pipelineUrgencyFilter?.val("");
+    }
+
+    applyRowUrgencyClass(row, rowData) {
+        const urgencyClass = rowData?.urgency_class;
+        if (!urgencyClass) {
+            return;
+        }
+        $(row).addClass(urgencyClass);
     }
 
     updateBrowserUrl() {

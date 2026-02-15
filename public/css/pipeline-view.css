@@ -203,6 +203,35 @@
     height: 18.75rem; /* 300px */
 }
 
+.pipeline-filters .form-label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #495057;
+}
+
+.table-controls {
+    margin-bottom: 1rem;
+}
+
+.pipeline-filters .form-control,
+.pipeline-filters .form-select {
+    border-radius: 0.5rem;
+}
+
+.pipeline-table tbody tr.row-urgency-urgent {
+    background-color: #fff7ed !important;
+    border-left: 4px solid #ea580c !important;
+}
+
+.pipeline-table tbody tr.row-urgency-upcoming {
+    background-color: #fffbeb !important;
+    border-left: 4px solid #d97706 !important;
+}
+
+.pipeline-table tbody tr.row-urgency-normal {
+    border-left: 4px solid #16a34a !important;
+}
+
 .ct-chart-ranking {
     min-height: 18.75rem;
 }

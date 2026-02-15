@@ -372,6 +372,7 @@
                 this.isConnected = false;
                 this.currentFolder = 'inbox';
                 this.isLoading = false;
+                this.mailRouteEnabled = this.isMailRoute();
 
                 this.handleSearch = this.debounce(this.filterMessages.bind(this), 500);
                 this.handleFilterChange = this.handleFilterChange.bind(this);
@@ -379,11 +380,16 @@
                 this.initialize();
             }
 
+            isMailRoute() {
+                const path = (window.location.pathname || '/').replace(/\/+$/, '') || '/';
+                return path === '/mail' || path.startsWith('/mail/');
+            }
+
             async initialize() {
                 try {
                     this.bindEventListeners();
                     await this.checkConnection();
-                    if (this.isConnected) {
+                    if (this.isConnected && this.mailRouteEnabled) {
                         await this.loadMessages();
                     }
                 } catch (error) {
@@ -400,7 +406,9 @@
                     const targetId = e.target.id;
                     if (targetId === 'replies-tab') {
                         $("#resetMailForm").show();
-                        this.loadMessages();
+                        if (this.mailRouteEnabled) {
+                            this.loadMessages();
+                        }
                     }
                 });
 
@@ -461,6 +469,7 @@
             }
 
             async loadMessages(forceRefresh = false) {
+                if (!this.mailRouteEnabled) return;
                 if (this.isLoading) return;
 
                 this.isLoading = true;
@@ -1146,9 +1155,10 @@
         $(document).ready(function() {
             window.emailManager = new EmailManager();
 
-            initializeEmailSync()
-
-            setTimeout(initializeEmailSync, 500);
+            if (window.emailManager.mailRouteEnabled) {
+                initializeEmailSync();
+                setTimeout(initializeEmailSync, 500);
+            }
 
         });
 

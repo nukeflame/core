@@ -17,7 +17,7 @@
                 <ol class="breadcrumb mb-0">
                     <li class="breadcrumb-item">
                         <a href="{{ route('dashboard.index') }}">
-                            <i class="ri-home-4-line me-1"></i>Home
+                            Home
                         </a>
                     </li>
                     <li class="breadcrumb-item">
@@ -35,15 +35,14 @@
             </nav>
         </div>
     </div>
-
-    @if ($trans_type === 'NEW')
+    {{-- @if ($trans_type === 'NEW')
         <div class="alert alert-info d-flex align-items-center mb-3" role="alert">
             <i class="ri-information-line fs-18 me-2"></i>
             <div>
                 <strong>New Cover Registration</strong> - Complete all required sections to register a new insurance cover.
             </div>
         </div>
-    @endif
+    @endif --}}
 
     <div class="new-cover-wrapper">
         <form id="register_cover"
@@ -54,8 +53,7 @@
             <input type="hidden" name="customer_id" id="customer_id" value="{{ $customer->customer_id }}">
             <input type="hidden" name="trans_type" id="trans_type" value="{{ $trans_type }}">
             @if (!empty($is_business_type_locked))
-                <input type="hidden" name="type_of_bus" id="type_of_bus_locked"
-                    value="{{ $selected_type_of_bus }}">
+                <input type="hidden" name="type_of_bus" id="type_of_bus_locked" value="{{ $selected_type_of_bus }}">
             @endif
 
             @if ($trans_type !== 'NEW')
@@ -143,10 +141,10 @@
                                 All fields marked with <span class="text-danger">*</span> are required
                             </small>
                             <div class="d-flex gap-2">
-                                <a href="{{ route('customer.info') }}" class="btn btn-light">
+                                <a href="{{ route('customer.info') }}" class="btn btn-light btn-sm">
                                     Cancel
                                 </a>
-                                <button type="submit" class="btn btn-primary">
+                                <button type="submit" class="btn btn-primary btn-sm">
                                     <i class="ri-check-line me-1"></i>
                                     {{ $trans_type === 'EDIT' ? 'Update Cover' : 'Register Cover' }}
                                 </button>
@@ -165,7 +163,7 @@
 
 @push('styles')
     <link rel="stylesheet" href="{{ asset('css/cover-registration.css') }}">
-    <style>
+    {{-- <style>
         .page-header-breadcrumb {
             /* background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); */
             padding: 1.5rem;
@@ -209,7 +207,7 @@
             font-size: 11px;
             padding: 4px 8px;
         }
-    </style>
+    </style> --}}
 @endpush
 
 @push('script')

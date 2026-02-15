@@ -20,8 +20,10 @@
                 type: "GET",
                 data: function(d) {
                     d.status = $('#statusFilter').val();
+                    d.class_group = $('#classGroupFilter').val();
                     d.class = $('#classFilter').val();
                     d.priority = $('#priorityFilter').val();
+                    d.global_search = $('#globalSearch').val().trim();
                 },
                 error: function(xhr, error, code) {
                     $('#opportunities_table_wrapper').prepend(
@@ -167,6 +169,32 @@
 
                 if (data.urgency_class) {
                     $(row).addClass(data.urgency_class);
+                } else if (data.effective_date) {
+                    const effectiveDate = typeof moment !== 'undefined' ?
+                        moment(data.effective_date) :
+                        new Date(data.effective_date);
+
+                    if (effectiveDate && (typeof moment !== 'undefined' ? effectiveDate.isValid() : !isNaN(
+                            effectiveDate.getTime()))) {
+                        const now = typeof moment !== 'undefined' ? moment().startOf('day') : new Date();
+                        const effective = typeof moment !== 'undefined' ? effectiveDate.startOf('day') :
+                            new Date(effectiveDate.getFullYear(), effectiveDate.getMonth(), effectiveDate
+                                .getDate());
+                        const daysToEffective = typeof moment !== 'undefined' ?
+                            effective.diff(now, 'days') :
+                            Math.floor((effective - new Date(now.getFullYear(), now.getMonth(), now
+                                .getDate())) / 86400000);
+
+                        if (daysToEffective <= 7) {
+                            $(row).addClass('highlight-critical');
+                        } else if (daysToEffective <= 14) {
+                            $(row).addClass('highlight-urgent');
+                        } else if (daysToEffective <= 30) {
+                            $(row).addClass('highlight-upcoming');
+                        } else {
+                            $(row).addClass('highlight-normal');
+                        }
+                    }
                 }
 
                 $(row).attr('data-id', data.opportunity_id);
@@ -194,7 +222,7 @@
         });
 
         let filterTimeout;
-        $('#statusFilter, #classFilter, #priorityFilter').on('change', function() {
+        $('#statusFilter, #classGroupFilter, #classFilter, #priorityFilter').on('change', function() {
             clearTimeout(filterTimeout);
             filterTimeout = setTimeout(function() {
                 try {
@@ -205,19 +233,33 @@
             }, 300);
         });
 
-        let searchTimeout;
-        $('#globalSearch').on('keyup', function() {
-            clearTimeout(searchTimeout);
-            const searchTerm = this.value;
+        $('#applyFiltersBtn').on('click', function() {
+            try {
+                table.ajax.reload();
+            } catch (error) {
+                console.error('Error applying filters:', error);
+            }
+        });
 
-            searchTimeout = setTimeout(function() {
-                try {
-                    table.search(searchTerm).draw();
-                    console.log('Search applied:', searchTerm);
-                } catch (error) {
-                    console.error('Error performing search:', error);
-                }
-            }, 300);
+        $('#globalSearch').on('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                $('#applyFiltersBtn').trigger('click');
+            }
+        });
+
+        $('#resetFiltersBtn').on('click', function() {
+            $('#globalSearch').val('');
+            $('#statusFilter').val('');
+            $('#classGroupFilter').val('');
+            $('#classFilter').val('');
+            $('#priorityFilter').val('');
+
+            try {
+                table.ajax.reload();
+            } catch (error) {
+                console.error('Error resetting filters:', error);
+            }
         });
 
         setInterval(function() {

@@ -1,5 +1,6 @@
 /**
  * Cover Registration Styles
+ * @pk305
  */
 
 /* Card styling improvements */
@@ -259,8 +260,7 @@ input.amount {
 
 /* Breadcrumb improvements */
 .page-header-breadcrumb {
-    background-color: #f8f9fa;
-    padding: 1rem;
+    padding: 0px;
     border-radius: 6px;
     margin-bottom: 1.5rem;
 }

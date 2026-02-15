@@ -35,7 +35,7 @@
         box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
         border-left: 4px solid var(--secondary-color);
         transition: transform 0.3s ease;
-        margin-bottom: 1rem;
+        margin-bottom: 0px;
     }
 
     .kpi-card:hover {
@@ -56,6 +56,12 @@
         letter-spacing: 0.5px;
     }
 
+    .kpi-icon {
+        font-size: 13px;
+        color: var(--secondary-color);
+        line-height: 1;
+    }
+
     .kpi-trend {
         font-size: 0.85rem;
         margin-top: 0.5rem;
@@ -74,6 +80,42 @@
         overflow: hidden;
     }
 
+    .fac-pipeline-page {}
+
+    .fac-pipeline-page .pipeline-content-row {
+        flex: 1 1 auto;
+        min-height: 0;
+    }
+
+    .fac-pipeline-page .custom-card {
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .fac-pipeline-page .custom-card .card-body {
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+    }
+
+    .fac-pipeline-page #opportunities_table_wrapper {
+        display: flex;
+        flex-direction: column;
+        flex: 1 1 auto;
+        min-height: 0;
+    }
+
+    .fac-pipeline-page #opportunities_table_wrapper .table-responsive {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow: auto;
+    }
+
+    .fac-pipeline-page #opportunities_table_wrapper table {
+        margin-bottom: 0;
+    }
+
     .table-header {
         padding: 0px;
     }
@@ -88,11 +130,19 @@
     .table-controls {
         padding: 0px;
         display: flex;
+        flex-wrap: nowrap;
         gap: 1rem;
         align-items: center;
         flex-direction: row;
         width: 100%;
+        overflow-x: auto;
+        overflow-y: hidden;
         margin-bottom: 1rem;
+    }
+
+    .filter-search-input {
+        flex: 0 0 22rem;
+        min-width: 22rem;
     }
 
     .search-input {
@@ -109,6 +159,13 @@
         padding: 0.6rem 1rem;
         font-size: 0.9rem;
         min-width: 150px;
+        flex: 0 0 11rem;
+    }
+
+    #applyFiltersBtn,
+    #resetFiltersBtn {
+        flex: 0 0 auto;
+        white-space: nowrap;
     }
 
     /* Priority and Status Indicators */
@@ -287,6 +344,10 @@
 
     /* Responsive adjustments */
     @media (max-width: 768px) {
+        .fac-pipeline-page {
+            min-height: auto;
+        }
+
         .table-controls {
             flex-direction: column;
             width: 100%;

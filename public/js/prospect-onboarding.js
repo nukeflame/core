@@ -2,6 +2,7 @@ const ProspectOnboarding = {
     config: {
         formId: "",
         prospect: null,
+        contacts: [],
         routes: {},
         csrfToken: "",
     },
@@ -26,6 +27,7 @@ const ProspectOnboarding = {
         this.cacheElements();
         this.bindEvents();
         this.initializeFormSections();
+        this.populateInitialContacts();
         this.setupValidation();
     },
 
@@ -45,16 +47,12 @@ const ProspectOnboarding = {
     bindEvents() {
         this.cache.form?.addEventListener(
             "submit",
-            this.handleFormSubmit.bind(this)
+            this.handleFormSubmit.bind(this),
         );
 
-        this.cache.submitBtn?.addEventListener(
-            "click",
-            this.handleSubmit.bind(this)
-        );
         this.cache.cancelBtn?.addEventListener(
             "click",
-            this.handleCancel.bind(this)
+            this.handleCancel.bind(this),
         );
 
         this.bindContactEvents();
@@ -65,7 +63,7 @@ const ProspectOnboarding = {
 
         $("#type_of_bus").on(
             "change",
-            this.handleBusinessTypeChange.bind(this)
+            this.handleBusinessTypeChange.bind(this),
         );
 
         this.bindMiscEvents();
@@ -76,7 +74,12 @@ const ProspectOnboarding = {
         $(document).on(
             "click",
             ".remove-contact",
-            this.removeContact.bind(this)
+            this.removeContact.bind(this),
+        );
+        $(document).on(
+            "input",
+            '[id^="email-"]',
+            this.handleContactEmailInput.bind(this),
         );
     },
 
@@ -84,57 +87,60 @@ const ProspectOnboarding = {
         $("#class_group").on("change", this.handleClassGroupChange.bind(this));
         $("#sum_insured_type").on(
             "change",
-            this.handleSumInsuredTypeChange.bind(this)
+            this.handleSumInsuredTypeChange.bind(this),
         );
         $("#apply_eml").on("change", this.handleEMLChange.bind(this));
         $("#eml_rate").on("keyup", this.calculateEML.bind(this));
         $("#total_sum_insured").on(
             "keyup",
-            this.calculateTotalSumInsured.bind(this)
+            this.calculateTotalSumInsured.bind(this),
         );
         $("#comm_rate").on("keyup", this.calculateCommission.bind(this));
         $("#reins_comm_rate").on(
             "keyup",
-            this.calculateReinsCommission.bind(this)
+            this.calculateReinsCommission.bind(this),
         );
         $("#brokerage_comm_type").on(
             "change",
-            this.handleBrokerageCommissionType.bind(this)
+            this.handleBrokerageCommissionType.bind(this),
         );
 
         $("#reins_comm_type").on(
             "change",
-            this.handleReinsurerCommissionType.bind(this)
+            this.handleReinsurerCommissionType.bind(this),
         );
     },
 
     bindEngagementEvents() {
         $("#effective_date").on("change", this.calculateClosingDate.bind(this));
-        $("#submitToSalesBtn").on("click", this.handleSubmitToSales.bind(this));
+        $("#sales_mngt, #submitToSalesBtn").on(
+            "click",
+            this.handleSubmitToSales.bind(this),
+        );
     },
 
     bindSearchEvents() {
         $(document).on(
             "input",
             '[id^="contact_name-"]',
-            this.handleContactSearch.bind(this)
+            this.handleContactSearch.bind(this),
         );
         $(document).on(
             "blur",
             '[id^="contact_name-"]',
-            this.handleContactBlur.bind(this)
+            this.handleContactBlur.bind(this),
         );
         $(document).on(
             "click",
             ".fullname-option",
-            this.handleContactSelect.bind(this)
+            this.handleContactSelect.bind(this),
         );
         $("#insured_name").on("input", this.handleInsuredNameSearch.bind(this));
         $("#insured_name").on("blur", this.handleInsuredNameBlur.bind(this));
         $(document).on(
             "click",
             ".insured-option",
-            this.handleInsuredNameSelect.bind(this)
+            this.handleInsuredNameSelect.bind(this),
         );
         $("#lead_name").on("input", this.handleLeadNameSearch.bind(this));
         $("#lead_name").on("blur", this.handleLeadNameBlur.bind(this));
@@ -142,7 +148,7 @@ const ProspectOnboarding = {
         $(document).on(
             "click",
             ".lead-option",
-            this.handleLeadNameSelect.bind(this)
+            this.handleLeadNameSelect.bind(this),
         );
     },
 
@@ -157,6 +163,7 @@ const ProspectOnboarding = {
         this.initializeContactSection();
         this.initializeInsuranceSection();
         this.hideAdvancedSections();
+        this.handleBusinessTypeChange();
     },
 
     initializeBusinessType() {
@@ -169,10 +176,38 @@ const ProspectOnboarding = {
         this.state.contactCounter = 0;
     },
 
+    populateInitialContacts() {
+        if (
+            !Array.isArray(this.config.contacts) ||
+            this.config.contacts.length < 2
+        ) {
+            return;
+        }
+
+        this.config.contacts.slice(1).forEach((contact, index) => {
+            const counter = index + 1;
+            const contactHtml = this.generateContactHTML(counter);
+            $("#contactsContainer").append(contactHtml);
+
+            $(`#contact_name-${counter}`).val(contact.contact_name || "");
+            $(`#email-${counter}`).val(contact.email || "");
+            $(`#phone_number-${counter}`).val(contact.phone || "");
+            $(`#telephone-${counter}`).val(contact.telephone || "");
+        });
+
+        this.state.contactCounter = this.config.contacts.length - 1;
+    },
+
     initializeInsuranceSection() {
         $(".eml-div").hide();
-        $(".brokerage_comm_amt_div").hide();
-        $(".brokerage_comm_rate_div").hide();
+        $(
+            ".brokerage-amount-field, .brokerage-rate-field, .brokerage-rate-amount-field",
+        ).hide();
+        this.handleBrokerageCommissionType();
+
+        if ($("#class_group").val()) {
+            this.handleClassGroupChange();
+        }
 
         // Set default value if none exists
         if (!$("#apply_eml").val()) {
@@ -225,21 +260,22 @@ const ProspectOnboarding = {
 
     showFacultativeSection() {
         $(
-            "#fac_section, #contactDetails, #engagementDetails, #contactDetails, #insuranceDetails"
+            "#fac_section, #contactDetails, #engagementDetails, #contactDetails, #insuranceDetails",
         ).show();
         // $("#tpr_section, #tnp_section, #trt_common, #treaty_grp").hide();
         this.processSections(".fac_section", ".fac_section_div", "enable");
         this.processSections(
             ".reins_comm_rate",
             ".reins_comm_rate_div",
-            "disable"
+            "disable",
         );
+        this.handleBrokerageCommissionType();
         $("#apply_eml").val("N").trigger("change");
     },
 
     hideFacultativeSection() {
         $(
-            "#fac_section, #contactDetails, #engagementDetails, #contactDetails, #insuranceDetails"
+            "#fac_section, #contactDetails, #engagementDetails, #contactDetails, #insuranceDetails",
         ).hide();
         this.processSections(".fac_section", ".fac_section_div", "disable");
     },
@@ -295,8 +331,64 @@ const ProspectOnboarding = {
             this.showError("Please input Mobile Phone Number");
             return false;
         }
+        if (!this.validateUniqueContactEmails()) {
+            return false;
+        }
 
         return true;
+    },
+
+    validateUniqueContactEmails() {
+        this.clearContactEmailUniqueErrors();
+
+        const emailMap = {};
+        const duplicateIndexes = new Set();
+
+        $('[id^="email-"]').each(function () {
+            const id = $(this).attr("id");
+            const index = id.split("-")[1];
+            const emailValue = ($(this).val() || "").trim().toLowerCase();
+
+            if (!emailValue) {
+                return;
+            }
+
+            if (!emailMap[emailValue]) {
+                emailMap[emailValue] = [index];
+            } else {
+                emailMap[emailValue].push(index);
+            }
+        });
+
+        Object.values(emailMap).forEach((indexes) => {
+            if (indexes.length > 1) {
+                indexes.forEach((idx) => duplicateIndexes.add(idx));
+            }
+        });
+
+        if (duplicateIndexes.size > 0) {
+            duplicateIndexes.forEach((idx) => {
+                const emailInput = $(`#email-${idx}`);
+                emailInput
+                    .addClass("is-invalid")
+                    .after(
+                        '<div class="error-message text-danger email-unique-error">Email Address should be unique for each contact.</div>',
+                    );
+            });
+
+            return false;
+        }
+
+        return true;
+    },
+
+    clearContactEmailUniqueErrors() {
+        $('[id^="email-"]').removeClass("is-invalid");
+        $(".email-unique-error").remove();
+    },
+
+    handleContactEmailInput() {
+        this.validateUniqueContactEmails();
     },
 
     generateContactHTML(counter) {
@@ -369,8 +461,8 @@ const ProspectOnboarding = {
             this.config.routes.searchProspectNames,
             { q: query },
             (data) => {
-                let results = "";
                 if (data.length > 0) {
+                    let results = "";
                     data.forEach((item) => {
                         results += `<div class="dropdown-item fullname-option"
                         data-id="${item.pipeline_id}" data-email="${item.email}"
@@ -379,12 +471,12 @@ const ProspectOnboarding = {
                         ${item.contact_name}
                     </div>`;
                     });
-                } else {
-                    results =
-                        '<div class="dropdown-item">No results found</div>';
+                    resultsContainer.html(results).show();
+                    return;
                 }
-                resultsContainer.html(results).show();
-            }
+
+                resultsContainer.empty().hide();
+            },
         );
     },
 
@@ -423,21 +515,46 @@ const ProspectOnboarding = {
             return false;
         }
 
-        this.handleSubmit();
+        if (!this.validateUniqueContactEmails()) {
+            return false;
+        }
+
+        if (
+            typeof jQuery !== "undefined" &&
+            typeof jQuery.fn.validate !== "undefined" &&
+            !$(this.cache.form).valid()
+        ) {
+            return false;
+        }
+
+        this.handleValidatedSubmit();
+        return false;
     },
 
     handleSubmit() {
         if (this.state.isSubmitting) {
             return;
         }
-        this.handleValidatedSubmit.bind(this);
+
+        if (
+            typeof jQuery !== "undefined" &&
+            typeof jQuery.fn.validate !== "undefined" &&
+            !$(this.cache.form).valid()
+        ) {
+            return;
+        }
+
+        this.handleValidatedSubmit();
     },
 
     handleValidatedSubmit() {
-        this.showConfirmDialog(
-            "Are you sure you want to submit this form?",
-            this.submitForm.bind(this)
-        );
+        const prospectCode = ($("#prospectId").val() || "").trim();
+        const isUpdate = prospectCode.length > 0;
+        const confirmMessage = isUpdate
+            ? `Are you sure you want to update prospect ${prospectCode}?`
+            : "Are you sure you want to submit this form?";
+
+        this.showConfirmDialog(confirmMessage, this.submitForm.bind(this));
     },
 
     submitForm() {
@@ -446,7 +563,6 @@ const ProspectOnboarding = {
         this.updateSubmitButton(true);
 
         const formData = new FormData(this.cache.form);
-
         $.ajax({
             type: "POST",
             data: formData,
@@ -469,7 +585,8 @@ const ProspectOnboarding = {
     handleSubmitSuccess(response) {
         if (response.status === 1) {
             this.showSuccess(response.message, () => {
-                window.location.href = "/leads_listing";
+                window.location.href =
+                    response.redirect_url || "/leads_listing";
             });
         } else {
             this.displayValidationErrors(response.errors);
@@ -495,12 +612,12 @@ const ProspectOnboarding = {
 
             if (errorElement.length) {
                 errorElement.html(
-                    `<span class="text-danger">${messages[0]}</span>`
+                    `<span class="text-danger">${messages[0]}</span>`,
                 );
             } else {
                 const inputField = $(`[name="${field}"]`);
                 const errorMessage = `<div class="error-message text-danger">${messages.join(
-                    "<br>"
+                    "<br>",
                 )}</div>`;
                 inputField.after(errorMessage);
             }
@@ -519,13 +636,22 @@ const ProspectOnboarding = {
      */
     handleSubmitToSales() {
         const prospectId = $("#prospectId").val();
+        const csrfToken = this.config.csrfToken;
+
+        if (!prospectId) {
+            this.showError("Prospect code is missing.");
+            return;
+        }
 
         this.showConfirmDialog(
             "Are you sure you want to add this prospect to Sales Management?",
             () => {
                 $.ajax({
                     type: "POST",
-                    data: { prospect: prospectId },
+                    headers: {
+                        "X-CSRF-TOKEN": csrfToken,
+                    },
+                    data: { prospect: prospectId, _token: csrfToken },
                     url: this.config.routes.submitToSales,
                     success: (response) => {
                         if (response.status === 1) {
@@ -538,7 +664,7 @@ const ProspectOnboarding = {
                         this.showError("Error: " + textStatus);
                     },
                 });
-            }
+            },
         );
     },
 
@@ -643,6 +769,9 @@ const ProspectOnboarding = {
      */
     handleClassGroupChange() {
         const classGroup = $("#class_group").val();
+        const selectedClassCode = String(
+            $("#classcode").data("selected") || $("#classcode").val() || "",
+        ).trim();
         $("#classcode").empty();
 
         if (classGroup) {
@@ -659,19 +788,27 @@ const ProspectOnboarding = {
                     $("#classcode").append(
                         $("<option>")
                             .text("-- Select Class Name--")
-                            .attr("value", "")
+                            .attr("value", ""),
                     );
 
                     classes.forEach((classItem) => {
+                        const classCode = String(
+                            classItem.class_code || "",
+                        ).trim();
                         $("#classcode").append(
                             $("<option>")
                                 .text(
-                                    `${classItem.class_code} - ${classItem.class_name}`
+                                    `${classItem.class_code} - ${classItem.class_name}`,
                                 )
                                 .attr("value", classItem.class_code)
+                                .prop(
+                                    "selected",
+                                    selectedClassCode === classCode,
+                                ),
                         );
                     });
 
+                    $("#classcode").trigger("change");
                     $(".section").trigger("chosen:updated");
                 },
                 error: (resp) => {
@@ -705,10 +842,10 @@ const ProspectOnboarding = {
             $("#total_sum_insured").trigger("keyup");
         } else {
             const totalSumInsured = parseFloat(
-                this.removeCommas($("#total_sum_insured").val())
+                this.removeCommas($("#total_sum_insured").val()),
             );
             $("#effective_sum_insured").val(
-                this.numberWithCommas(totalSumInsured)
+                this.numberWithCommas(totalSumInsured),
             );
         }
     },
@@ -719,7 +856,7 @@ const ProspectOnboarding = {
     calculateEML() {
         const emlRate = $("#eml_rate").val();
         const totalSumInsured = parseFloat(
-            this.removeCommas($("#total_sum_insured").val())
+            this.removeCommas($("#total_sum_insured").val()),
         );
         const emlAmt = totalSumInsured * (emlRate / 100);
 
@@ -739,7 +876,7 @@ const ProspectOnboarding = {
         }
 
         const totalSumInsured = parseFloat(
-            this.removeCommas(totalSumInsuredStr)
+            this.removeCommas(totalSumInsuredStr),
         );
         let effectiveSumInsured = totalSumInsured;
 
@@ -753,7 +890,7 @@ const ProspectOnboarding = {
         }
 
         $("#effective_sum_insured").val(
-            this.numberWithCommas(effectiveSumInsured)
+            this.numberWithCommas(effectiveSumInsured),
         );
     },
 
@@ -802,8 +939,8 @@ const ProspectOnboarding = {
             parseFloat(cedantPremium) * (parseFloat(brokerageCommRate) / 100);
 
         $("#brokerage_comm_rate").val(brokerageCommRate);
-        $("#brokerage_comm_rate_amt").val(
-            this.numberWithCommas(brokerageCommAmt)
+        $("#brokerage_comm_rate_amnt, #brokerage_comm_rate_amt").val(
+            this.numberWithCommas(brokerageCommAmt),
         );
     },
 
@@ -814,14 +951,14 @@ const ProspectOnboarding = {
             this.processSections(
                 ".reins_comm_rate",
                 ".reins_comm_rate_div",
-                "enable"
+                "enable",
             );
             $("#reins_comm_amt").prop("readonly", true);
         } else {
             this.processSections(
                 ".reins_comm_rate",
                 ".reins_comm_rate_div",
-                "disable"
+                "disable",
             );
             $("#reins_comm_amt").prop("readonly", false);
         }
@@ -833,32 +970,23 @@ const ProspectOnboarding = {
     handleBrokerageCommissionType() {
         const brokerageCommType = $("#brokerage_comm_type").val();
 
-        // Hide all elements first
         $(
-            ".brokerage_comm_amt_div, .brokerage_comm_rate_div, .brokerage_comm_rate_amt_div"
+            ".brokerage-amount-field, .brokerage-rate-field, .brokerage-rate-amount-field, " +
+                ".brokerage_comm_amt_div, .brokerage_comm_rate_div, .brokerage_comm_rate_amt_div",
         ).hide();
+        $("#brokerage_comm_amt").prop("disabled", true);
         $(
-            "#brokerage_comm_amt, #brokerage_comm_rate, #brokerage_comm_rate_amt"
-        ).hide();
-        $(
-            "#brokerage_comm_rate_label, #brokerage_comm_rate_amount_label"
-        ).hide();
-
-        // Reset values
-        $(
-            "#brokerage_comm_rate, #brokerage_comm_amt, #brokerage_comm_rate_amt"
+            "#brokerage_comm_rate, #brokerage_comm_rate_amnt, #brokerage_comm_rate_amt",
         ).val("");
 
         if (brokerageCommType === "R") {
-            $(".brokerage_comm_rate_div, .brokerage_comm_rate_amt_div").show();
-            $("#brokerage_comm_rate, #brokerage_comm_rate_amt").show();
             $(
-                "#brokerage_comm_rate_label, #brokerage_comm_rate_amount_label"
+                ".brokerage-rate-field, .brokerage-rate-amount-field, .brokerage_comm_rate_div, .brokerage_comm_rate_amt_div",
             ).show();
             this.calculateBrokerageCommRate();
         } else if (brokerageCommType === "A") {
-            $(".brokerage_comm_amt_div").show();
-            $("#brokerage_comm_amt").show().prop("disabled", false);
+            $(".brokerage-amount-field, .brokerage_comm_amt_div").show();
+            $("#brokerage_comm_amt").prop("disabled", false);
         }
     },
 
@@ -869,6 +997,7 @@ const ProspectOnboarding = {
         const effectiveDate = $("#effective_date").val();
 
         if (effectiveDate) {
+            $("#fac_date_offered").val(effectiveDate);
             const date = new Date(effectiveDate);
             date.setFullYear(date.getFullYear() + 1);
             date.setDate(date.getDate() - 1);
@@ -903,7 +1032,7 @@ const ProspectOnboarding = {
                     $("#insured_name_error").html(error).show();
                 }
                 $("#insured_name_results").html(results).show();
-            }
+            },
         );
     },
 
@@ -914,6 +1043,7 @@ const ProspectOnboarding = {
         const selectedName = $(e.target).text();
 
         $("#insured_name").val(selectedName);
+        $("#insured_name_error").html("").hide();
         $("#insured_name_results").hide();
     },
 
@@ -925,6 +1055,7 @@ const ProspectOnboarding = {
 
         if (query.length < 1) {
             $("#lead_name_results").hide();
+            $("#lead_name_error").html("").hide();
             return;
         }
 
@@ -934,16 +1065,16 @@ const ProspectOnboarding = {
             (data) => {
                 let results = "";
                 if (data.length > 0) {
+                    $("#lead_name_error").html("").hide();
                     data.forEach((item) => {
                         results += `<div class="dropdown-item lead-option" data-id="${item.pipeline_id}">${item.lead_name}</div>`;
                     });
+                    $("#lead_name_results").html(results).show();
                 } else {
-                    const error =
-                        '<div class="dropdown-item">No results found</div>';
-                    $("#lead_name_error").html(error).show();
+                    $("#lead_name_results").hide().html("");
+                    $("#lead_name_error").html("No results found").show();
                 }
-                $("#lead_name_results").html(results).show();
-            }
+            },
         );
     },
 
@@ -959,12 +1090,17 @@ const ProspectOnboarding = {
         if (query) {
             $("#insured_name_error").html("").hide();
         }
+        setTimeout(() => {
+            $("#insured_name_results").hide();
+        }, 150);
     },
 
     handleContactBlur(e) {
-        const query = $(e.target).val().trim();
         const index = $(e.target).attr("id").split("-")[1];
         const resultsContainer = $(`#full_name_results_${index}`);
+        setTimeout(() => {
+            resultsContainer.hide();
+        }, 150);
     },
 
     /**
@@ -997,14 +1133,14 @@ const ProspectOnboarding = {
                 if (resp.status === 1) {
                     $("#insurance_class").empty();
                     $("#insurance_class").append(
-                        $("<option />").val("").text("Select class")
+                        $("<option />").val("").text("Select class"),
                     );
 
                     resp.classes.forEach((classItem) => {
                         $("#insurance_class").append(
                             $("<option />")
                                 .val(classItem.id)
-                                .text(classItem.class_name)
+                                .text(classItem.class_name),
                         );
                     });
                 }
@@ -1020,7 +1156,7 @@ const ProspectOnboarding = {
      */
     handleCurrencyChange() {
         var currency_code = $("select#currency_code option:selected").attr(
-            "value"
+            "value",
         );
 
         $.ajax({
@@ -1148,7 +1284,7 @@ const ProspectOnboarding = {
 
                     Object.keys(dataObj).forEach((key) => {
                         const element = this.cache.form.querySelector(
-                            `[name="${key}"]`
+                            `[name="${key}"]`,
                         );
                         if (element) {
                             element.value = dataObj[key];

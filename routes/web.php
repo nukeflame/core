@@ -81,7 +81,8 @@ Route::middleware(['auth', 'check.first.login'])->group(function () {
             return response()->json(['error' => $e->getMessage()], 500);
         }
     });
-    Route::get('pipeline/leads_listing', [LeadsOnboardingController::class, 'listing'])->name('leads.listing');
+    Route::redirect('pipeline/leads_listing', 'leads_listing', 301);
+    Route::redirect('intermediary/leads_listing', 'leads_listing', 301);
     Route::get('leads_get', [LeadsOnboardingController::class, 'leads_get'])->name('leads.get');
     Route::get('prequalifications_get', [LeadsOnboardingController::class, 'prequalifications_get'])->name('prequalifications.get');
 
@@ -185,7 +186,7 @@ Route::middleware(['auth', 'check.first.login'])->group(function () {
     Route::get('leads_PQ_Process', [LeadsOnboardingController::class, 'leads_PQ_Process'])->name('leads_PQ_Process');
     Route::post('PQ_proposal_documents', [LeadsOnboardingController::class, 'PQ_proposal_documents'])->name('PQ_proposal_documents');
     Route::post('leads_save', [LeadsOnboardingController::class, 'save'])->name('leads.save');
-    Route::get('leads_listing', [LeadsOnboardingController::class, 'listing'])->name('leads.listing');
+    Route::get('/leads_listing', [LeadsOnboardingController::class, 'listing'])->name('leads.listing');
 
     //Prospect Repository
     Route::post('ProspectRepository', [LeadsOnboardingController::class, 'save'])->name('ProspectRepository');
