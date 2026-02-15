@@ -118,7 +118,7 @@
                 <div class="tab-content p-0 mt-1 border-none">
                     @foreach ($quarters as $index => $quarter)
                         <div class="tab-pane {{ $quarter['active'] ?? false ? 'active' : '' }} border-none"
-                            id="{{ $quarter['id'] }}">
+                            id="{{ $quarter['id'] }}" style="border: none;">
                             <div class="row">
                                 <div class="table-responsive">
                                     @php
@@ -130,9 +130,8 @@
                                             'q4_details' => 'q4_opps',
                                         ];
                                     @endphp
-                                    <table id="{{ $tableIds[$quarter['id']] }}"
-                                        class="table table-striped pipeline-table" style="width:100%"
-                                        data-quarter="{{ $index === 0 ? 'all' : $index }}">
+                                    <table id="{{ $tableIds[$quarter['id']] }}" class="table table-striped pipeline-table"
+                                        style="width:100%" data-quarter="{{ $index === 0 ? 'all' : $index }}">
                                         <thead>
                                             <tr>
                                                 <th>ID</th>

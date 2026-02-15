@@ -691,11 +691,6 @@ class PipelineController
                 ? $pipelines->firstWhere('id', (int) $pip)
                 : null;
         } catch (\Throwable $e) {
-            Log::error('Failed to load facultative pipeline view', [
-                'message' => $e->getMessage(),
-                'pipeline' => $request->get('pipeline'),
-            ]);
-
             $pipelines = collect();
             $pip = null;
             $selectedPipeline = null;
@@ -3360,12 +3355,19 @@ class PipelineController
 
     private function formatCategory($category)
     {
+        if ($category === null || $category === '') {
+            return '';
+        }
+
         $statusClasses = [
             '1' => 'quotation',
             '2' => 'facultative offer',
         ];
 
-        $cat = $statusClasses[(string) $category] ?? 'facultative';
+        $cat = $statusClasses[(string) $category] ?? '';
+        if ($cat === '') {
+            return '';
+        }
 
         $catText = '';
         $catText =  "<span class='status-badge {$cat}'>" . ucfirst(str_replace('_', ' ', $cat)) . "</span>";
@@ -3383,7 +3385,7 @@ class PipelineController
             'lead' => [
                 'next' => "proposal",
                 'button' => "Update Lead",
-                'class' => "btn-proposal",
+                'class' => "btn-lead",
                 'altNext' => "lost",
                 'modalId' => "leadModal",
             ],
@@ -3436,8 +3438,9 @@ class PipelineController
                 $btnStage = $stageInfo['class'];
                 $current_stage = $currentStage;
                 $type_of_business = $opp->type_of_bus;
+                $buttonIcon = $currentStage === 'lead' ? "<i class='bx bx-edit-alt me-1'></i>" : "";
 
-                $btn = "<button id='stageAction-{$id}' data-deal_id='{$id}' data-type_of_business='{$type_of_business}' data-current_stage='{$current_stage}' class='stage-btn {$btnStage} stage_btn_action' style='opacity: 1; cursor: pointer;'>{$displayText}</button>";
+                $btn = "<button id='stageAction-{$id}' data-deal_id='{$id}' data-type_of_business='{$type_of_business}' data-current_stage='{$current_stage}' class='stage-btn {$btnStage} stage_btn_action' style='opacity: 1; cursor: pointer;'>{$buttonIcon}{$displayText}</button>";
 
                 return $btn;
             }

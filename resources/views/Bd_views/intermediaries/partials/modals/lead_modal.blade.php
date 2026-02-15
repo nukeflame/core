@@ -73,13 +73,21 @@
                                                 100% Sum Insured
                                                 <span class="sum_insured_type" style="padding-left: 6px;"></span>
                                                 <span class="required-asterisk">*</span>
+                                                <i class="bx bx-info-circle tooltip-trigger"
+                                                    title="Total insured value before share allocation."></i>
                                             </label>
                                             <div class="currency-input">
                                                 <div class="currency-symbol" id="currencySymbol">KES</div>
                                                 <input type="text" class="form-inputs total_sum_insured"
                                                     name="total_sum_insured" required placeholder="0.00"
                                                     onkeyup="this.value=numberWithCommas(this.value)"
-                                                    change="this.value=numberWithCommas(this.value)" readonly>
+                                                    change="this.value=numberWithCommas(this.value)">
+                                            </div>
+                                            <div class="form-text mt-1">
+                                                <small class="text-muted">
+                                                    <i class="bx bx-info-circle"></i>
+                                                    Enter the full insured amount at 100% coverage.
+                                                </small>
                                             </div>
                                         </div>
                                     </div>
@@ -88,13 +96,21 @@
                                             <label class="form-label">
                                                 Premium
                                                 <span class="required-asterisk">*</span>
+                                                <i class="bx bx-info-circle tooltip-trigger"
+                                                    title="Gross premium corresponding to the total sum insured."></i>
                                             </label>
                                             <div class="currency-input">
                                                 <div class="currency-symbol">KES</div>
                                                 <input type="text" class="form-inputs premium" name="premium"
                                                     required placeholder="0.00"
                                                     onkeyup="this.value=numberWithCommas(this.value)"
-                                                    change="this.value=numberWithCommas(this.value)" readonly>
+                                                    change="this.value=numberWithCommas(this.value)">
+                                            </div>
+                                            <div class="form-text mt-1">
+                                                <small class="text-muted">
+                                                    <i class="bx bx-info-circle"></i>
+                                                    Enter the gross premium amount for this placement.
+                                                </small>
                                             </div>
                                         </div>
                                     </div>
@@ -102,12 +118,24 @@
                                 <div class="row fac-rates">
                                     <div class="col-md-6">
                                         <div class="form-group">
-                                            <label class="form-label">Reinsurer Commission Rate (%)</label>
-                                            <input type="text" class="form-inputs brokerage_rate"
-                                                name="brokerage_rate" placeholder="0.00"
-                                                onkeyup="this.value=numberWithCommas(this.value)"
-                                                change="this.value=numberWithCommas(this.value)" readonly
-                                                value="10">
+                                            <label class="form-label">
+                                                Reinsurer Commission Rate (%)
+                                                <i class="bx bx-info-circle tooltip-trigger"
+                                                    title="Commission percentage payable to reinsurer."></i>
+                                            </label>
+                                            <div class="currency-input">
+                                                <span class="currency-symbol">%</span>
+                                                <input type="text" class="form-inputs brokerage_rate"
+                                                    name="brokerage_rate" placeholder="0.00"
+                                                    onkeyup="this.value=numberWithCommas(this.value)"
+                                                    change="this.value=numberWithCommas(this.value)" value="10">
+                                            </div>
+                                            <div class="form-text mt-1">
+                                                <small class="text-muted">
+                                                    <i class="bx bx-info-circle"></i>
+                                                    Enter the commission rate as a percentage value.
+                                                </small>
+                                            </div>
                                         </div>
                                     </div>
                                     <div class="col-md-6 deductible_excess_div" style="display: none;">
@@ -115,6 +143,8 @@
                                             <label class="form-label">
                                                 Deductible/Excess
                                                 <span class="required-asterisk">*</span>
+                                                <i class="bx bx-info-circle tooltip-trigger"
+                                                    title="Amount retained by the insured before claim recovery."></i>
                                             </label>
                                             <div class="currency-input">
                                                 <span class="currency-symbol">KES</span>
@@ -122,6 +152,12 @@
                                                     name="deductible" placeholder="0.00"
                                                     onkeyup="this.value=numberWithCommas(this.value)"
                                                     change="this.value=numberWithCommas(this.value)">
+                                            </div>
+                                            <div class="form-text mt-1">
+                                                <small class="text-muted">
+                                                    <i class="bx bx-info-circle"></i>
+                                                    Enter deductible or excess amount applied to each claim.
+                                                </small>
                                             </div>
                                         </div>
                                     </div>
@@ -135,7 +171,7 @@
                                         <div class="form-text mt-1">
                                             <small class="text-muted">
                                                 <i class="bx bx-info-circle"></i>
-                                                Click to open the rich text editor. Maximum 5000 characters.
+                                                Click to open the rich text editor.
                                             </small>
                                         </div>
                                     </div>
@@ -423,11 +459,11 @@
                         <!-- Quick Templates Section -->
                         <div class="template-section">
                             <h6 class="mb-3 fw-bold text-primary">
-                                <i class="bx bx-layout me-2"></i>Quick Templates
+                                <i class="bx bx-layout me-2"></i>Editor Tools
                             </h6>
                             <div class="d-flex flex-wrap">
                                 <button type="button" class="template-btn" data-template="standard">
-                                    Standard Coverage
+                                    Load Data
                                 </button>
                                 <button type="button" class="template-btn" data-template="clear">
                                     Clear All
@@ -437,9 +473,6 @@
 
                         <div class="quill-container position-relative">
                             <div id="breakdownEditor"></div>
-                            <div class="character-counter" id="characterCounter">
-                                0 / 5000 characters
-                            </div>
                         </div>
                     </div>
                 </div>
@@ -584,8 +617,7 @@
     .currency-symbol {
         position: absolute;
         left: 12px;
-        top: 20px;
-        transform: translateY(-50%);
+        top: 10px;
         color: var(--gray-700);
         font-weight: 600;
         z-index: 10;
@@ -1453,6 +1485,7 @@
                 dataTable: null,
                 breakdownEditor: null,
                 slipType: '',
+                suppressLeadModalReset: false,
             };
 
             $.ajaxSetup({
@@ -2086,7 +2119,8 @@
 
             function validateField($field) {
                 const fieldName = $field.attr("name") || $field.attr("id");
-                const fieldValue = $field.val().trim();
+                const rawValue = $field.val();
+                const fieldValue = typeof rawValue === "string" ? rawValue.trim() : "";
                 const isRequired = $field.prop("required") || VALIDATION_CONFIG.REQUIRED_FIELDS.includes(fieldName);
 
                 clearFieldValidation($field);
@@ -2329,6 +2363,7 @@
                     const type = $element.attr("type");
 
                     if (!name) return;
+                    if (name === "special_conditions" || name === "specialConditionsContent") return;
 
                     if (type === "checkbox" || type === "radio") {
                         if ($element.is(":checked")) {
@@ -2341,6 +2376,14 @@
                         }
                     }
                 });
+
+                const breakdownHtml = ($("#specialConditionsContent").val() || "").trim();
+                const breakdownPlain = ($("#specialConditions").val() || "").trim();
+                if (breakdownHtml) {
+                    formData.append("special_conditions", breakdownHtml);
+                } else if (breakdownPlain) {
+                    formData.append("special_conditions", breakdownPlain);
+                }
 
                 if (typeof window.pipelineManager !== 'undefined' &&
                     typeof window.pipelineManager.getAllUploadedFiles === 'function') {
@@ -2416,11 +2459,13 @@
             class BreakdownEditor {
                 constructor() {
                     this.quill = null;
-                    this.maxCharacters = 5000;
                     this.isPreviewMode = false;
                     this.currentTextarea = null;
                     this.textareaId = null;
                     this.modal = null;
+                    this.pendingContent = "";
+                    this.initTimer = null;
+                    this.initToken = 0;
 
                     this.templates = {
                         standard: `
@@ -2445,22 +2490,47 @@
                 }
 
                 enhanceTextarea() {
+                    const isInlineEditable = (textareaId) =>
+                        (textareaId || "").toLowerCase() === "coveragedetails";
+
                     $("textarea.breakdown-textarea")
                         .addClass("editor-enabled")
-                        .attr("readonly", true)
+                        .each(function() {
+                            const $textarea = $(this);
+                            const textareaId = $textarea.attr("id");
+
+                            if (isInlineEditable(textareaId)) {
+                                $textarea.removeAttr("readonly").removeClass("editor-enabled");
+                                return;
+                            }
+
+                            $textarea.attr("readonly", true);
+                        })
                         .css({
                             cursor: "pointer",
                             background: "linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%)",
                             border: "2px solid #e9ecef",
                             transition: "all 0.3s ease",
                         });
+
+                    $("#coverageDetails").css({
+                        cursor: "text",
+                        background: "",
+                        border: "",
+                        transition: "",
+                    });
                 }
 
                 setupEventListeners() {
                     $(document).on("click", "textarea.breakdown-textarea", (e) => {
-                        e.preventDefault();
                         const $textarea = $(e.currentTarget);
                         const textareaId = $textarea.attr('id');
+
+                        if ((textareaId || "").toLowerCase() === "coveragedetails") {
+                            return;
+                        }
+
+                        e.preventDefault();
                         this.openModal($textarea, textareaId);
                     });
 
@@ -2478,6 +2548,7 @@
                         .on("show.bs.modal", () => this.cleanupEditor())
                         .on("shown.bs.modal", () => this.initializeQuill())
                         .on("hidden.bs.modal", () => {
+                            state.suppressLeadModalReset = false;
                             this.cleanupEditor();
                             this.currentTextarea = null;
                             $("#leadModal").modal("show");
@@ -2506,6 +2577,7 @@
                         `<i class="bx bx-edit-alt me-2"></i>${fieldLabel || ""}`
                     );
 
+                    state.suppressLeadModalReset = true;
                     $("#leadModal").modal("hide");
                     this.showLoading();
                     this.modal.show();
@@ -2520,6 +2592,11 @@
                 }
 
                 cleanupEditor() {
+                    if (this.initTimer) {
+                        clearTimeout(this.initTimer);
+                        this.initTimer = null;
+                    }
+
                     if (this.quill) {
                         try {
                             this.quill.off("text-change");
@@ -2531,6 +2608,13 @@
 
                     const container = document.getElementById("breakdownEditor");
                     if (container) {
+                        // Quill toolbar is injected as a sibling of #breakdownEditor, not inside it.
+                        // Remove stale toolbars to prevent duplicate rows on repeated modal opens.
+                        const wrapper = container.closest(".quill-container");
+                        if (wrapper) {
+                            wrapper.querySelectorAll(".ql-toolbar").forEach((toolbar) => toolbar.remove());
+                        }
+
                         container.innerHTML = "";
                         container.className = "";
                     }
@@ -2551,7 +2635,15 @@
                         return;
                     }
 
-                    setTimeout(() => {
+                    const token = ++this.initToken;
+                    this.initTimer = setTimeout(() => {
+                        this.initTimer = null;
+
+                        // Skip stale init calls from previous modal openings.
+                        if (token !== this.initToken) {
+                            return;
+                        }
+
                         try {
                             this.quill = new Quill("#breakdownEditor", {
                                 theme: "snow",
@@ -2585,11 +2677,11 @@
                                 },
                             });
 
-                            if (this.currentTextarea) {
-                                const existingContent = this.currentTextarea.val();
-                                if (existingContent && existingContent.trim()) {
-                                    this.quill.root.innerHTML = existingContent;
-                                }
+                            // Auto-populate editor with existing content for the selected breakdown field.
+                            this.pendingContent = this.currentTextarea ? (this.currentTextarea.val() ||
+                                "") : "";
+                            if (this.pendingContent && this.pendingContent.trim()) {
+                                this.quill.root.innerHTML = this.pendingContent;
                             }
 
                             this.quill.on("text-change", () => {
@@ -2608,39 +2700,25 @@
 
                 updateStatistics() {
                     if (!this.quill) return;
-
-                    const text = this.quill.getText();
-                    const charCount = text.trim().length;
-
-                    const counter = $("#characterCounter");
-                    counter.text(`${charCount} / ${this.maxCharacters} characters`);
-
-                    counter.removeClass("warning danger");
-                    if (charCount > this.maxCharacters * 0.9) {
-                        counter.addClass("warning");
-                    }
-                    if (charCount > this.maxCharacters) {
-                        counter.addClass("danger");
-                    }
                 }
 
                 validateContent() {
                     if (!this.quill) return;
-
-                    const text = this.quill.getText();
-                    const saveBtn = $("#saveBreakdownBtn");
-
-                    if (text.length > this.maxCharacters) {
-                        saveBtn.addClass("disabled");
-                        saveBtn.attr("title", "Content exceeds maximum character limit");
-                    } else {
-                        saveBtn.removeClass("disabled");
-                        saveBtn.removeAttr("title");
-                    }
                 }
 
                 applyTemplate(templateName) {
                     if (!this.quill) return;
+
+                    if (templateName === "standard") {
+                        if (this.pendingContent && this.pendingContent.trim()) {
+                            this.quill.root.innerHTML = this.pendingContent;
+                            this.updateStatistics();
+                            toastr.success("Data loaded successfully");
+                        } else {
+                            toastr.info("No existing data to load");
+                        }
+                        return;
+                    }
 
                     if (templateName === "clear") {
                         Swal.fire({
@@ -2687,13 +2765,7 @@
                         return;
                     }
 
-                    const text = this.quill.getText().trim();
                     const html = this.quill.root.innerHTML;
-
-                    if (text.length > this.maxCharacters) {
-                        toastr.error("Content exceeds maximum character limit");
-                        return;
-                    }
 
                     const saveBtn = $("#saveBreakdownBtn");
                     const originalText = saveBtn.html();
@@ -2705,7 +2777,16 @@
                     formData.append("breakdown_content", html);
                     formData.append("breakdown_title", this.textareaId);
                     formData.append("_update", true);
-                    formData.append("opportunity_id", $("#leadOpportunityId").val() || "");
+                    const leadOppId = $("#leadOpportunityId").val() ||
+                        $("#leadForm input[name='opportunity_id']").val() || "";
+
+                    if (!leadOppId) {
+                        toastr.error("Opportunity ID not found. Re-open the lead modal and try again.");
+                        saveBtn.html(originalText).prop("disabled", false);
+                        return;
+                    }
+
+                    formData.append("opportunity_id", leadOppId);
 
                     $.ajax({
                         url: "{{ route('update.opp.status') }}",
@@ -2912,6 +2993,10 @@
             });
 
             $("#leadModal").on("hidden.bs.modal", function() {
+                if (state.suppressLeadModalReset) {
+                    return;
+                }
+
                 resetLeadModal();
 
                 toggleShareColumnVisibility(VALIDATION_CONFIG.SLIP_TYPE);

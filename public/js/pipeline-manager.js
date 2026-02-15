@@ -55,6 +55,8 @@ class PipelineManager {
         this.reinsurerDataTable = null;
         this.activeFileUrls = new Set();
         this.currentChartRequest = null;
+        this.tableReloadToken = 0;
+        this.bdTermsCache = new Map();
 
         this.$pipYearSelect = null;
         this.$loadingOverlay = null;
@@ -92,7 +94,7 @@ class PipelineManager {
                 [STAGE_NAMES.LEAD]: {
                     next: STAGE_NAMES.PROPOSAL,
                     button: "Update Lead",
-                    class: "btn-proposal",
+                    class: "btn-lead",
                     altNext: STAGE_NAMES.LOST,
                     previous: null,
                     modalId: "leadModal",
@@ -428,10 +430,21 @@ class PipelineManager {
             return;
         }
 
+        let pendingInitialTables = tables.length;
+        const finalizeInitialTableLoad = () => {
+            pendingInitialTables = Math.max(0, pendingInitialTables - 1);
+            if (pendingInitialTables === 0) {
+                this.hideLoading();
+            }
+        };
+
+        this.showLoading();
+
         tables.each((index, table) => {
             const $table = $(table);
             const tableId = $table.attr("id");
             const quarter = $table.data("quarter");
+            let hasCompletedInitialDraw = false;
 
             try {
                 if ($.fn.DataTable.isDataTable($table)) {
@@ -461,6 +474,10 @@ class PipelineManager {
                                 response: xhr.responseText,
                             });
                             this.handleAjaxError(xhr, tableId);
+                            if (!hasCompletedInitialDraw) {
+                                hasCompletedInitialDraw = true;
+                                finalizeInitialTableLoad();
+                            }
                         },
                     },
                     columns: this.config.columnConfig,
@@ -477,6 +494,11 @@ class PipelineManager {
                     drawCallback: () => {
                         this.initializeActionHandlers();
                         $table.addClass("fade-in");
+
+                        if (!hasCompletedInitialDraw) {
+                            hasCompletedInitialDraw = true;
+                            finalizeInitialTableLoad();
+                        }
                     },
                     createdRow: (row, rowData) => {
                         this.applyRowUrgencyClass(row, rowData);
@@ -489,6 +511,7 @@ class PipelineManager {
                     `Error initializing DataTable for ${tableId}`,
                     error
                 );
+                finalizeInitialTableLoad();
             }
         });
     }
@@ -1022,9 +1045,9 @@ class PipelineManager {
             // }
 
             this.loadSelectedReinsurers(data);
-            this.loadBdTerms(data);
             this.loadSlipDocuments(data);
             this.loadScheduleHeaders(data);
+            this.loadBdTerms(data);
             this.populateModalData(
                 modalId,
                 dealId,
@@ -1760,7 +1783,7 @@ class PipelineManager {
     }
 
     loadBdTerms(data) {
-        if (!data.dealId || !data.class || !data.classGroup) {
+        if (!data?.opportunityId && !data?.dealId) {
             return;
         }
 
@@ -1768,11 +1791,13 @@ class PipelineManager {
             url: this.config.routes.getBdTerms,
             method: "GET",
             data: {
-                opportunity_id: data.opportunityId,
+                opportunity_id: data.opportunityId || data.dealId,
             },
             success: (response) => {
                 if (response.success) {
-                    this.renderBdTerms(response.data, data);
+                    const cacheKey = `${data.modalId}:${data.opportunityId || data.dealId}`;
+                    this.bdTermsCache.set(cacheKey, response.data || []);
+                    this.renderBdTerms(response.data || [], data);
                 }
             },
             error: (xhr, status, error) => {
@@ -1788,20 +1813,25 @@ class PipelineManager {
 
     renderBdTerms(data, dealInfo) {
         const $modal = $(`#${dealInfo.modalId}`);
+        if (!$modal.length || !Array.isArray(data) || data.length === 0) {
+            return;
+        }
 
-        if (data.length > 0) {
-            for (let i = 0; i < data.length; i++) {
-                const v = data[i];
+        for (let i = 0; i < data.length; i++) {
+            const v = data[i];
+            const title = v.title;
+            const content = v.content;
+            const short_content = v.short_content;
 
-                const title = v.title;
-                const content = v.content;
-                const short_content = v.short_content;
-
-                const plainText = $("<div>").html(short_content).text();
-
-                $(`#${title}`).val(plainText);
-                $(`#${title}Content`).val(content);
+            const $plain = $modal.find(`#${title}`);
+            const $html = $modal.find(`#${title}Content`);
+            if (!$plain.length || !$html.length) {
+                continue;
             }
+
+            const plainText = $("<div>").html(short_content || "").text();
+            $plain.val(plainText);
+            $html.val(content || "");
         }
     }
     loadSlipDocuments(data) {
@@ -1955,6 +1985,13 @@ class PipelineManager {
         });
 
         container.html(fieldsHtml);
+
+        // Re-apply cached terms after dynamic fields are rendered.
+        const cacheKey = `${data.modalId}:${data.opportunityId || data.dealId}`;
+        const cachedTerms = this.bdTermsCache.get(cacheKey);
+        if (Array.isArray(cachedTerms) && cachedTerms.length > 0) {
+            this.renderBdTerms(cachedTerms, data);
+        }
 
         if (typeof this.setupFieldValidation === "function") {
             this.setupFieldValidation($modal);
@@ -2541,6 +2578,8 @@ class PipelineManager {
         const baseInputClass = "form-control form-inputs";
         const required = header.amount_field === "Y" ? "required" : "";
         const placeholder = `Enter ${header.name?.toLowerCase() || "value"}`;
+        const isCoverageDetails =
+            header?.name?.toLowerCase().trim() === "coverage details";
 
         try {
             if (
@@ -2589,7 +2628,9 @@ class PipelineManager {
                     !header.input_type || header.input_type === "textarea";
 
                 if (isTextarea) {
-                    return `<textarea class="form-inputs breakdown-textarea" id="${fieldId}" name="schedule_headers[${fieldId}]" rows="4" maxlength="5000" aria-label="${header.name}" placeholder="${placeholder}" ${required} readonly></textarea>`;
+                    return `<textarea class="form-inputs breakdown-textarea" id="${fieldId}" name="schedule_headers[${fieldId}]" rows="4" maxlength="5000" aria-label="${header.name}" placeholder="${placeholder}" ${required} ${
+                        isCoverageDetails ? "" : "readonly"
+                    }></textarea>`;
                 } else {
                     return `<input type="text" class="${baseInputClass}" id="${fieldId}" name="schedule_headers[${fieldId}]" placeholder="${placeholder}" ${required}>`;
                 }
@@ -2599,7 +2640,7 @@ class PipelineManager {
                 !header?.input_type || header?.input_type === "textarea";
 
             if (isTextarea) {
-                return `<textarea class="form-inputs breakdown-textarea" id="${fieldId}" name="schedule_headers[${fieldId}]" rows="4" maxlength="5000" aria-label="${header.name}" placeholder="${placeholder}" ${required} readonly></textarea>`;
+                return `<textarea class="form-inputs breakdown-textarea" id="${fieldId}" name="schedule_headers[${fieldId}]" rows="4" maxlength="5000" aria-label="${header.name}" placeholder="${placeholder}" ${required}></textarea>`;
             } else {
                 return `<input type="text" class="${baseInputClass}" id="${
                     fieldId || ""
@@ -2677,17 +2718,70 @@ class PipelineManager {
     }
 
     reloadAllTables() {
-        let reloadCount = 0;
+        if (!this.dataTables || this.dataTables.size === 0) {
+            return;
+        }
+
+        const setTableProcessing = (dataTable, isProcessing) => {
+            if (dataTable && typeof dataTable.processing === "function") {
+                dataTable.processing(isProcessing);
+            }
+        };
+
+        const reloadToken = ++this.tableReloadToken;
+        let pendingReloads = 0;
+
+        this.showLoading();
+
+        const finishReload = () => {
+            pendingReloads = Math.max(0, pendingReloads - 1);
+            if (
+                pendingReloads === 0 &&
+                reloadToken === this.tableReloadToken
+            ) {
+                this.hideLoading();
+            }
+        };
 
         this.dataTables.forEach((dataTable, tableId) => {
+            if (!dataTable) {
+                return;
+            }
+
             try {
-                dataTable.ajax.reload((json) => {
-                    reloadCount++;
+                pendingReloads++;
+                setTableProcessing(dataTable, true);
+                dataTable.ajax.reload(() => {
+                    setTableProcessing(dataTable, false);
+                    finishReload();
                 }, false);
             } catch (error) {
+                setTableProcessing(dataTable, false);
                 console.error(`Error reloading table ${tableId}:`, error);
+                finishReload();
             }
         });
+
+        if (pendingReloads === 0 && reloadToken === this.tableReloadToken) {
+            this.hideLoading();
+            return;
+        }
+
+        setTimeout(() => {
+            if (reloadToken !== this.tableReloadToken) {
+                return;
+            }
+
+            this.dataTables.forEach((dataTable) => {
+                try {
+                    setTableProcessing(dataTable, false);
+                } catch (error) {
+                    console.error("Error stopping DataTable processing state", error);
+                }
+            });
+
+            this.hideLoading();
+        }, AJAX_TIMEOUT + 2000);
     }
 
     getTableIdFromTab(tabId) {
