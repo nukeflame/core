@@ -87,6 +87,8 @@ class CoverRepository extends BaseRepository
 
     public function __construct(SequenceService $sequenceService)
     {
+        parent::__construct(app());
+
         $now = Carbon::now();
         $this->_year = $now->year;
         $this->_month = $now->month;
@@ -597,6 +599,164 @@ class CoverRepository extends BaseRepository
 
             throw $e;
         }
+    }
+
+    private function prepareBusinessTypeDataForEdit($request, $type_of_bus, $treatytype)
+    {
+        $customer = Customer::find($request->customer_id);
+
+        if ($this->isFacultativeBusiness($type_of_bus)) {
+            return $this->prepareFacultativeData($request);
+        }
+
+        if ($type_of_bus === self::TYPE_TREATY_NON_PROPORTIONAL) {
+            return $this->prepareTreatyNonPropData($request, $customer, $treatytype);
+        }
+
+        if ($type_of_bus === self::TYPE_TREATY_PROPORTIONAL) {
+            return $this->prepareTreatyPropData($request, $customer, $treatytype);
+        }
+
+        throw new \Exception('Invalid business type');
+    }
+
+    private function updateCoverRegister($CoverRegister, $request, array $businessData)
+    {
+        $ppw = null;
+        if ($request->premium_payment_term) {
+            $ppw = PremiumPayTerm::where('pay_term_code', $request->premium_payment_term)->first();
+        }
+
+        $CoverRegister->premium_payment_code = $request->premium_payment_term;
+        $CoverRegister->premium_payment_days = $ppw ? $ppw->premium_payment_days : 0;
+        $CoverRegister->branch_code = str_pad((int) $request->branchcode, 3, '0', STR_PAD_LEFT);
+        $CoverRegister->broker_code = $request->brokercode ?: 0;
+        $CoverRegister->cover_type = $request->covertype;
+        $CoverRegister->class_code = $businessData['classcode'];
+        $CoverRegister->class_group_code = $request->class_group;
+        $CoverRegister->insured_name = $businessData['insured_name'] ?? $CoverRegister->insured_name;
+        $CoverRegister->effective_date = $request->effective_date ?? $request->cover_from;
+        $CoverRegister->cover_from = $request->cover_from;
+        $CoverRegister->cover_to = $request->cover_to;
+        $CoverRegister->binder_cov_no = $request->binder_cover_no;
+        $CoverRegister->pay_method_code = $request->pay_method;
+        $CoverRegister->currency_code = $request->currency_code;
+        $CoverRegister->currency_rate = $request->today_currency;
+        $CoverRegister->type_of_sum_insured = $request->sum_insured_type;
+        $CoverRegister->rein_premium = $businessData['rein_premium'] ?? 0;
+        $CoverRegister->total_sum_insured = $this->parseNumeric($request->total_sum_insured);
+        $CoverRegister->cedant_premium = $this->parseNumeric($request->cede_premium);
+        $CoverRegister->eml_rate = $this->parseNumeric($request->eml_rate);
+        $CoverRegister->apply_eml = $request->apply_eml ?? 'N';
+        $CoverRegister->eml_amount = $this->parseNumeric($request->eml_amt);
+        $CoverRegister->effective_sum_insured = $this->parseNumeric($request->effective_sum_insured);
+        $CoverRegister->cedant_comm_rate = $this->parseNumeric($request->comm_rate);
+        $CoverRegister->cedant_comm_amount = $this->parseNumeric($request->comm_amt);
+        $CoverRegister->rein_comm_type = $request->reins_comm_type;
+        $CoverRegister->rein_comm_rate = $this->parseNumeric($request->reins_comm_rate);
+        $CoverRegister->brokerage_comm_type = $request->brokerage_comm_type;
+        $CoverRegister->brokerage_comm_rate = $businessData['brokerage_comm_rate'] ?? 0;
+        $CoverRegister->brokerage_comm_amt = $businessData['brokerage_comm_amt'] ?? 0;
+        $CoverRegister->reinsurer_per_treaty = $request->reinsurer_per_treaty;
+        $CoverRegister->rein_comm_amount = $this->parseNumeric($request->reins_comm_amt);
+        $CoverRegister->division_code = $request->division;
+        $CoverRegister->vat_charged = $request->vat_charged;
+        $CoverRegister->treaty_type = $request->treatytype;
+        $CoverRegister->cover_title = $businessData['treaty_name'];
+        $CoverRegister->date_offered = $businessData['date_offered'] ?? null;
+        $CoverRegister->share_offered = (float) ($businessData['share_offered'] ?? 0);
+        $CoverRegister->port_prem_rate = $this->parseNumeric($request->port_prem_rate);
+        $CoverRegister->port_loss_rate = $this->parseNumeric($request->port_loss_rate);
+        $CoverRegister->profit_comm_rate = $this->parseNumeric($request->profit_comm_rate);
+        $CoverRegister->mgnt_exp_rate = $this->parseNumeric($request->mgnt_exp_rate);
+        $CoverRegister->deficit_yrs = (int) $this->parseNumeric($request->deficit_yrs);
+        $CoverRegister->deposit_frequency = $request->deposit_frequency ?: 0;
+        $CoverRegister->prem_tax_rate = $this->parseNumeric($request->prem_tax_rate);
+        $CoverRegister->ri_tax_rate = $this->parseNumeric($request->ri_tax_rate);
+        $CoverRegister->risk_details = $request->risk_details;
+        $CoverRegister->status = 'A';
+        $CoverRegister->no_of_installments = (int) $request->no_of_installments;
+        $CoverRegister->basis_of_acceptance = $request->basis_of_acceptance;
+        $CoverRegister->updated_by = Auth::user()->user_name;
+        $CoverRegister->updated_at = now();
+    }
+
+    private function updateBusinessTypeRecords($request, $type_of_bus, $treatytype)
+    {
+        $cover_no = $request->cover_no;
+        $endorsement_no = $this->_endorsement_no;
+
+        $CoverRegister = CoverRegister::where('endorsement_no', $endorsement_no)->firstOrFail();
+
+        if ($type_of_bus === self::TYPE_TREATY_NON_PROPORTIONAL) {
+            CoverReinLayer::where('endorsement_no', $endorsement_no)->delete();
+            CoverReinclass::where('endorsement_no', $endorsement_no)->delete();
+            $this->createTNPRecords($request, $cover_no, $endorsement_no);
+            return;
+        }
+
+        if ($type_of_bus === self::TYPE_TREATY_PROPORTIONAL) {
+            CoverReinProp::where('endorsement_no', $endorsement_no)->delete();
+            CoverPremtype::where('endorsement_no', $endorsement_no)->delete();
+            CoverReinclass::where('endorsement_no', $endorsement_no)->delete();
+            $this->createTPRRecords($request, $cover_no, $endorsement_no);
+            return;
+        }
+
+        if ($this->isFacultativeBusiness($type_of_bus)) {
+            CoverPremium::where('endorsement_no', $endorsement_no)
+                ->where('treaty', self::TREATY_CODE_FAC)
+                ->whereIn('entry_type_descr', [self::ENTRY_PREMIUM, self::ENTRY_COMMISSION])
+                ->delete();
+
+            $this->createFacultativeRecords($request, $cover_no, $endorsement_no, $CoverRegister);
+        }
+    }
+
+    private function updateCoverInstallments($CoverRegister, $request)
+    {
+        $payMethod = PayMethod::where('pay_method_code', $request->pay_method)->first();
+        $isInstallment = $payMethod && $payMethod->short_description === 'I';
+
+        CoverInstallments::where('endorsement_no', $CoverRegister->endorsement_no)
+            ->where('dr_cr', self::DR)
+            ->delete();
+
+        if ($isInstallment && (int) $request->no_of_installments > 1 && is_array($request->installment_no)) {
+            for ($i = 0; $i < (int) $request->no_of_installments; $i++) {
+                CoverInstallments::create([
+                    'cover_no' => $CoverRegister->cover_no,
+                    'endorsement_no' => $CoverRegister->endorsement_no,
+                    'layer_no' => 0,
+                    'trans_type' => $CoverRegister->type_of_bus,
+                    'entry_type' => $CoverRegister->transaction_type,
+                    'installment_no' => $request->installment_no[$i],
+                    'installment_date' => $request->installment_date[$i],
+                    'installment_amt' => $this->parseNumeric($request->installment_amt[$i] ?? 0),
+                    'dr_cr' => self::DR,
+                    'created_by' => Auth::user()->user_name,
+                    'updated_by' => Auth::user()->user_name,
+                ]);
+            }
+            return;
+        }
+
+        $premiumTotals = $this->calculatePremiumTotals($CoverRegister->endorsement_no);
+        $installmentAmount = $premiumTotals['totalDr'] - $premiumTotals['totalCr'];
+
+        CoverInstallments::create([
+            'cover_no' => $CoverRegister->cover_no,
+            'endorsement_no' => $CoverRegister->endorsement_no,
+            'layer_no' => 0,
+            'trans_type' => $CoverRegister->type_of_bus,
+            'entry_type' => $CoverRegister->transaction_type,
+            'installment_no' => 1,
+            'installment_date' => $CoverRegister->cover_from->addDays((int) $CoverRegister->premium_payment_days),
+            'installment_amt' => $installmentAmount,
+            'dr_cr' => self::DR,
+            'created_by' => Auth::user()->user_name,
+            'updated_by' => Auth::user()->user_name,
+        ]);
     }
 
     public function saveCoverEndorsement($request)
@@ -1545,7 +1705,7 @@ class CoverRepository extends BaseRepository
         $treatytype = $data->treatytype;
 
         if ($treatytype === 'SURP') {
-            CoverReinProp::create(array_merge($baseData, [
+            $this->upsertCoverReinProp(array_merge($baseData, [
                 'item_no' => $count + 1,
                 'item_description' => 'SURPLUS',
                 'retention_amount' => $surp_retention_amt,
@@ -1553,7 +1713,7 @@ class CoverRepository extends BaseRepository
                 'treaty_limit' => $surp_retention_amt + $surp_treaty_limit,
             ]));
         } elseif ($treatytype === 'QUOT') {
-            CoverReinProp::create(array_merge($baseData, [
+            $this->upsertCoverReinProp(array_merge($baseData, [
                 'item_no' => $count + 1,
                 'item_description' => 'QUOTA',
                 'retention_amount' => $quota_retention_amt,
@@ -1562,7 +1722,7 @@ class CoverRepository extends BaseRepository
             ]));
         } elseif ($treatytype === 'SPQT') {
             if ($quota_share_total_limit > 0) {
-                CoverReinProp::create(array_merge($baseData, [
+                $this->upsertCoverReinProp(array_merge($baseData, [
                     'item_no' => $count + 1,
                     'item_description' => 'QUOTA',
                     'retention_amount' => $quota_retention_amt,
@@ -1572,7 +1732,7 @@ class CoverRepository extends BaseRepository
                 $count++;
             }
             if ($surp_treaty_limit > 0) {
-                CoverReinProp::create(array_merge($baseData, [
+                $this->upsertCoverReinProp(array_merge($baseData, [
                     'item_no' => $count + 1,
                     'item_description' => 'SURPLUS',
                     'retention_amount' => $surp_retention_amt,
@@ -1581,6 +1741,29 @@ class CoverRepository extends BaseRepository
                 ]));
             }
         }
+    }
+
+    private function upsertCoverReinProp(array $data): void
+    {
+        $identity = [
+            'cover_no' => $data['cover_no'],
+            'endorsement_no' => $data['endorsement_no'],
+            'reinclass' => $data['reinclass'],
+            'item_no' => $data['item_no'],
+        ];
+
+        $record = CoverReinProp::withTrashed()->where($identity)->first();
+
+        if ($record) {
+            $record->fill($data);
+            if (method_exists($record, 'trashed') && $record->trashed()) {
+                $record->deleted_at = null;
+            }
+            $record->save();
+            return;
+        }
+
+        CoverReinProp::create($data);
     }
 
     private function createPremiumTypes($data, $cover_no, $endorsement_no)

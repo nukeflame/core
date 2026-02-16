@@ -98,7 +98,7 @@
                 <div class="col-md-2 no_of_lines_div">
                     <label class="form-label required">Number of Lines</label>
                     <input type="number" class="form-control no_of_lines required" id="no_of_lines-0"
-                        name="no_of_lines[]" data-counter="0" min="1" placeholder="1">
+                        name="no_of_lines[]" data-counter="0" min="1" step="1" placeholder="1">
                 </div>
 
                 <div class="col-md-3 surp_treaty_limit_div" style="display: none;">
@@ -225,10 +225,13 @@
     </div>
 @else
     {{-- EDIT MODE --}}
-    @if (isset($coverreinpropClasses) && count($coverreinpropClasses) > 0)
+    @php
+        $editReinProps = collect($coverreinprops ?? []);
+    @endphp
+    @if ($editReinProps->count() > 0)
         @php
             $sections = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N'];
-            $groupedClasses = $coverreinpropClasses->groupBy('reinclass');
+            $groupedClasses = $editReinProps->groupBy('reinclass');
         @endphp
 
         @foreach ($groupedClasses as $reinclass => $classData)
@@ -349,7 +352,8 @@
                                 <label class="form-label required">Number of Lines</label>
                                 <input type="number" class="form-control no_of_lines"
                                     id="no_of_lines-{{ $index }}" name="no_of_lines[]"
-                                    data-counter="{{ $index }}" value="{{ $surpData->no_of_lines }}"
+                                    data-counter="{{ $index }}" value="{{ (int) $surpData->no_of_lines }}"
+                                    step="1"
                                     min="1" required>
                             </div>
 
@@ -391,10 +395,6 @@
                         <h6 class="text-info mb-0">
                             <i class="bx bx-money me-2"></i>Commission Structure
                         </h6>
-                        <button type="button" class="btn btn-outline-info btn-sm" data-bs-toggle="modal"
-                            data-bs-target="#commissionHelpModal">
-                            <i class="bx bx-help-circle me-1"></i> Commission Types Guide
-                        </button>
                     </div>
 
                     @foreach ($classPremTypes as $premType)

@@ -43,6 +43,7 @@
         ATTACHMENTS_TABLE: "#attachments-table",
         CLAUSES_TABLE: "#clauses-table",
         REINSURERS_TABLE: "#reinsurers-table",
+        INS_CLASSES_TABLE: "#insclass-table",
         INSTALLMENTS_TABLE: "#installments-table",
         DEBITS_TABLE: "#debits-table",
         APPROVALS_TABLE: "#approvals-table",
@@ -1989,6 +1990,31 @@
                                 "reinsurers",
                             );
                         },
+                    },
+                },
+                insClasses: {
+                    selector: SELECTORS.INS_CLASSES_TABLE,
+                    options: {
+                        ajax: baseAjaxConfig(SELECTORS.INS_CLASSES_TABLE),
+                        columns: [
+                            {
+                                data: null,
+                                render: (d, t, r, m) => m.row + 1,
+                                searchable: false,
+                                sortable: false,
+                            },
+                            { data: "reinclass_name", defaultContent: "-" },
+                            { data: "class", defaultContent: "-" },
+                            { data: "class_name", defaultContent: "-" },
+                            { data: "class_group", defaultContent: "-" },
+                            {
+                                data: "action",
+                                defaultContent: "",
+                                searchable: false,
+                                sortable: false,
+                            },
+                        ],
+                        paging: false,
                     },
                 },
                 debits: {

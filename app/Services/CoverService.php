@@ -293,6 +293,8 @@ class CoverService
             'flat_prem_type_comm_rate' => $data['flat_prem_type_comm_rate'] ?? [],
 
             // Treaty non-proportional arrays
+            'reinclass_code' => $data['reinclass_code'] ?? null,
+            'method' => $data['method'] ?? null,
             'layer_no' => $data['layer_no'] ?? null,
             'nonprop_reinclass' => $data['nonprop_reinclass'] ?? null,
             'limit_per_reinclass' => $data['limit_per_reinclass'] ?? null,

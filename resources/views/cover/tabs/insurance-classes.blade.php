@@ -18,10 +18,11 @@
             <thead>
                 <tr>
                     <th scope="col" style="width: 5%">No.</th>
-                    <th scope="col" style="width: 25%">Reinsurance Class</th>
-                    <th scope="col" style="width: 15%">Class Code</th>
-                    <th scope="col" style="width: 35%">Class Name</th>
-                    <th scope="col" style="width: 20%">Action</th>
+                    <th scope="col" style="width: 23%">Reinsurance Class</th>
+                    <th scope="col" style="width: 12%">Class Code</th>
+                    <th scope="col" style="width: 25%">Class Name</th>
+                    <th scope="col" style="width: 20%">Class Group</th>
+                    <th scope="col" style="width: 15%">Action</th>
                 </tr>
             </thead>
             <tbody></tbody>

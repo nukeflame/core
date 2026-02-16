@@ -45,9 +45,7 @@
     @endif --}}
 
     <div class="new-cover-wrapper">
-        <form id="register_cover"
-            action="{{ $trans_type === 'EDIT' ? route('cover.editCoverRegister') : route('cover.register') }}"
-            method="POST">
+        <form id="register_cover" action="{{ route('cover.register') }}" method="POST">
             @csrf
 
             <input type="hidden" name="customer_id" id="customer_id" value="{{ $customer->customer_id }}">

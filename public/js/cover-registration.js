@@ -27,6 +27,7 @@ const CoverRegistration = (function () {
         isDirty: false,
         cachedData: new Map(),
         activeRequests: new Map(),
+        hasInitializedTreatyType: false,
     };
 
     const elements = {
@@ -285,6 +286,51 @@ const CoverRegistration = (function () {
         return isNaN(parsed) ? 0 : parsed;
     }
 
+    function parseDateInput(value) {
+        if (!value) return null;
+
+        if (value instanceof Date) {
+            if (isNaN(value.getTime())) return null;
+            return new Date(
+                value.getFullYear(),
+                value.getMonth(),
+                value.getDate(),
+            );
+        }
+
+        const str = String(value).trim();
+
+        const isoMatch = str.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        if (isoMatch) {
+            const [, year, month, day] = isoMatch;
+            return new Date(Number(year), Number(month) - 1, Number(day));
+        }
+
+        const slashMatch = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+        if (slashMatch) {
+            const [, month, day, year] = slashMatch;
+            return new Date(Number(year), Number(month) - 1, Number(day));
+        }
+
+        const parsed = new Date(str);
+        if (isNaN(parsed.getTime())) return null;
+        return new Date(
+            parsed.getFullYear(),
+            parsed.getMonth(),
+            parsed.getDate(),
+        );
+    }
+
+    function formatDateForInput(date) {
+        if (!(date instanceof Date) || isNaN(date.getTime())) return "";
+
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, "0");
+        const day = String(date.getDate()).padStart(2, "0");
+
+        return `${year}-${month}-${day}`;
+    }
+
     function numberWithCommas(value, decimals = 2) {
         if (!value && value !== 0) return "";
         const num = typeof value === "number" ? value : parseNumber(value);
@@ -442,7 +488,12 @@ const CoverRegistration = (function () {
 
         hideSections();
 
-        if (!bustype) return;
+        if (!bustype) {
+            const treatySelect = $("#treatytype");
+            treatySelect.empty().append('<option value="">Select Treaty Type</option>');
+            treatySelect.trigger("change");
+            return;
+        }
 
         const sectionMap = {
             FPR: showFacSection,
@@ -457,7 +508,23 @@ const CoverRegistration = (function () {
             showSection();
         }
 
-        loadTreatyTypes(bustype);
+        const shouldAutoPopulateTreatyType =
+            !state.hasInitializedTreatyType &&
+            config.trans_type !== "NEW" &&
+            !!config.oldData;
+
+        const preferredTreatyType = shouldAutoPopulateTreatyType
+            ? config.oldData.treaty_type ||
+              config.oldData.treaty_code ||
+              config.oldData.treatytype ||
+              ""
+            : "";
+
+        loadTreatyTypes(bustype, preferredTreatyType);
+
+        if (shouldAutoPopulateTreatyType) {
+            state.hasInitializedTreatyType = true;
+        }
     }
 
     function handleCoverTypeChange() {
@@ -634,12 +701,21 @@ const CoverRegistration = (function () {
         // //     return false;
         // // }
 
+        const isEditMode = config.trans_type === "EDIT";
+        const confirmTitle = isEditMode
+            ? "Confirm Update"
+            : "Confirm Submission";
+        const confirmText = isEditMode
+            ? "Do you want to update this cover registration?"
+            : "Do you want to submit this cover registration?";
+        const confirmButtonText = isEditMode ? "Yes, update" : "Yes, submit";
+
         Swal.fire({
-            title: "Confirm Submission",
-            text: "Do you want to submit this cover registration?",
+            title: confirmTitle,
+            text: confirmText,
             icon: "question",
             showCancelButton: true,
-            confirmButtonText: "Yes, submit",
+            confirmButtonText: confirmButtonText,
             cancelButtonText: "Cancel",
             customClass: {
                 confirmButton: "btn btn-success",
@@ -682,10 +758,14 @@ const CoverRegistration = (function () {
 
                 if (response.success) {
                     // console.log(response);
+                    const successText =
+                        config.trans_type === "EDIT"
+                            ? "Cover updated successfully"
+                            : "Cover registered successfully";
                     Swal.fire({
                         icon: "success",
                         title: "Success!",
-                        text: "Cover registered successfully",
+                        text: successText,
                         confirmButtonText: "OK",
                     }).then(() => {
                         if (response.data.redirectUrl) {
@@ -907,14 +987,14 @@ const CoverRegistration = (function () {
     }
 
     function validateDates() {
-        const coverFrom = new Date($("#coverfrom").val());
-        const coverTo = new Date($("#coverto").val());
+        const coverFrom = parseDateInput($("#coverfrom").val());
+        const coverTo = parseDateInput($("#coverto").val());
 
         if (!$("#coverfrom").val() || !$("#coverto").val()) {
             return;
         }
 
-        if (coverFrom >= coverTo) {
+        if (!coverFrom || !coverTo || coverFrom >= coverTo) {
             Swal.fire({
                 icon: "error",
                 title: "Invalid Date Range",
@@ -1627,15 +1707,20 @@ const CoverRegistration = (function () {
             return;
         }
 
-        const start = new Date(startVal);
-        let end = endVal ? new Date(endVal) : null;
+        const start = parseDateInput(startVal);
+        let end = endVal ? parseDateInput(endVal) : null;
+
+        if (!start) {
+            $("#cover_duration").val("");
+            return;
+        }
 
         if (!endVal) {
             end = new Date(start);
             end.setFullYear(end.getFullYear() + 1);
             end.setDate(end.getDate() - 1);
 
-            $("#coverto").val(end.toISOString().split("T")[0]);
+            $("#coverto").val(formatDateForInput(end));
         }
 
         if (end && !isNaN(end.getTime())) {
@@ -1812,11 +1897,27 @@ const CoverRegistration = (function () {
         $("#reinsurer_per_treaty_section").hide();
         $(".quota-share-section, .surplus-section").hide();
 
+        if (!treatyType) {
+            $(".prem_type_treaty")
+                .empty()
+                .append(
+                    $("<option>")
+                        .text("-- Select Treaty --")
+                        .attr("value", ""),
+                )
+                .val("")
+                .trigger("change.select2");
+            return;
+        }
+
         // Update treaty dropdown for ALL commission sections across ALL sections
         $(`.prem_type_treaty`)
             .empty()
-            .append($("<option>").text(treatyTypeTxt).attr("value", treatyType))
-            .trigger("change");
+            .append(
+                $("<option>").text(treatyTypeTxt).attr("value", treatyType),
+            )
+            .val(treatyType)
+            .trigger("change.select2");
 
         const sectionMap = {
             QUOT: () => {
@@ -2652,7 +2753,7 @@ const CoverRegistration = (function () {
 
     function handleLimitPerReinclassChange() {}
 
-    function loadTreatyTypes(businessType) {
+    function loadTreatyTypes(businessType, preferredTreatyType = "") {
         if (!businessType) return;
 
         makeAjaxRequest({
@@ -2671,6 +2772,7 @@ const CoverRegistration = (function () {
                     treatySelect.append(
                         '<option value="">No treaty types available</option>',
                     );
+                    treatySelect.trigger("change");
                     return;
                 }
 
@@ -2684,7 +2786,17 @@ const CoverRegistration = (function () {
                     );
                 });
 
-                treatySelect.trigger("change.select2");
+                if (
+                    preferredTreatyType &&
+                    treatySelect.find(`option[value="${preferredTreatyType}"]`)
+                        .length
+                ) {
+                    treatySelect.val(preferredTreatyType);
+                } else {
+                    treatySelect.val("");
+                }
+
+                treatySelect.trigger("change");
             },
         });
     }
@@ -3124,6 +3236,14 @@ const CoverRegistration = (function () {
                 if (this.optional(element) && this.optional(target[0])) {
                     return true;
                 }
+
+                const currentDate = parseDateInput(value);
+                const targetDate = parseDateInput(target.val());
+
+                if (currentDate && targetDate) {
+                    return currentDate > targetDate;
+                }
+
                 return parseNumber(value) > parseNumber(target.val());
             },
             "Must be greater than {0}",
@@ -3246,6 +3366,7 @@ const CoverRegistration = (function () {
         elements.brokerFlag.trigger("change");
         elements.payMethod.trigger("change");
         elements.applyEml.trigger("change");
+        calculateCover();
 
         if (config.prospectId) {
             elements.prospectId.val(config.prospectId);

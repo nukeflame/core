@@ -289,6 +289,23 @@ class CoverRegistrationRequest extends FormRequest
             }
         }
 
+        if (isset($data['no_of_lines']) && is_array($data['no_of_lines'])) {
+            $data['no_of_lines'] = array_map(function ($value) {
+                if (!is_string($value)) {
+                    return $value;
+                }
+
+                $normalized = str_replace(',', '', trim($value));
+
+                // Accept values that are mathematically whole (e.g. "2.00") as integers.
+                if (preg_match('/^\d+\.0+$/', $normalized)) {
+                    return (string) ((int) $normalized);
+                }
+
+                return $normalized;
+            }, $data['no_of_lines']);
+        }
+
         $this->replace($data);
     }
 

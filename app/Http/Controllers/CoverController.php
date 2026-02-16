@@ -30,6 +30,7 @@ use App\Models\CoverInstallments;
 use App\Models\CoverPremium;
 use App\Models\CoverPremtype;
 use App\Models\CoverRegister;
+use App\Models\CoverReinclass;
 use App\Models\CoverReinLayer;
 use App\Models\CoverReinProp;
 use App\Models\CoverRipart;
@@ -178,7 +179,7 @@ class CoverController extends Controller
                     return back()->with('error', 'Cover number and endorsement number are required for non-NEW transactions');
                 }
 
-                $old_endt_trans = CoverRegister::where('endorseu8ment_no', $endorsement_no)->first();
+                $old_endt_trans = CoverRegister::where('endorsement_no', $endorsement_no)->first();
                 if ($old_endt_trans) {
                     if (! in_array($old_endt_trans?->transaction_type, ['NEW', 'REN']) && $trans_type == 'EDIT') {
                         return back()->with('error', 'You can only edit New covers or Renewals');
@@ -346,6 +347,7 @@ class CoverController extends Controller
             if ($request->validated()) {
                 $cover = match ($transType) {
                     'NEW' => $this->coverService->registerNewCover($request->toArray()),
+                    'EDIT' => $this->coverService->updateCover($request->endorsement_no, $request->toArray()),
                     // 'REN' => $this->coverService->renewCover($request->validated()),
                     // 'EXT' => $this->coverService->processEndorsement($request->validated(), 'EXTRA'),
                     // 'CNC' => $this->coverService->processEndorsement($request->validated(), 'CANCEL'),
@@ -356,10 +358,13 @@ class CoverController extends Controller
                 };
 
                 $redirectUrl = route('cover.CoverHome', ['endorsement_no' => $cover['endorsement_no']]);
+                $successMessage = $transType === 'EDIT'
+                    ? 'Cover updated successfully'
+                    : 'Cover registration processed successfully';
 
                 return response()->json([
                     'success' => true,
-                    'message' => 'Cover registration processed successfully',
+                    'message' => $successMessage,
                     'data' => [
                         'trans_type' => $transType,
                         'redirectUrl' => $redirectUrl,
@@ -367,6 +372,7 @@ class CoverController extends Controller
                 ], 200);
             }
         } catch (Exception $e) {
+            logger($e);
             return response()->json([
                 'success' => false,
                 'message' => 'An error occurred while processing the cover registration',
@@ -390,9 +396,30 @@ class CoverController extends Controller
         }
     }
 
-    public function editCoverRegister(Request $request)
+    public function editCoverRegister(Request $request, $cover)
     {
-        return view('cover.edit_cover_form', []);
+        $coverRecord = CoverRegister::where('endorsement_no', $cover)->first();
+
+        if (! $coverRecord) {
+            $coverRecord = CoverRegister::where('cover_no', $cover)
+                ->orderByDesc('created_at')
+                ->orderByDesc('id')
+                ->first();
+        }
+
+        if (! $coverRecord) {
+            return back()->with('error', 'Cover not found');
+        }
+
+        $request->merge([
+            'trans_type' => 'EDIT',
+            'cover_no' => $coverRecord->cover_no,
+            'endorsement_no' => $coverRecord->endorsement_no,
+            'customer_id' => $coverRecord->customer_id,
+            'type_of_bus' => $coverRecord->type_of_bus,
+        ]);
+
+        return $this->CoverForm($request);
 
         // $validator = Validator::make($request->all(), [
         //     'cover_no' => 'required',
@@ -1277,12 +1304,36 @@ class CoverController extends Controller
     {
         $endorsement_no = $request->get('endorsement_no');
         $CoverRegister = CoverRegister::where('endorsement_no', $endorsement_no)->first();
-        // $query = CoverClass::query()->with('insurance_class','ri_class')->where('endorsement_no',$endorsement_no);
-        $query = CoverClass::join('classes', 'cover_classes.class', '=', 'classes.class_code')
-            ->join('reinsclasses', 'cover_classes.reinclass', '=', 'reinsclasses.class_code')
-            ->select('cover_classes.id as id', 'cover_classes.class as class', 'classes.class_name as class_name', 'reinsclasses.class_name as reinclass_name')
-            ->where('cover_classes.endorsement_no', $endorsement_no);
-        // ->get();
+
+        if (!$CoverRegister) {
+            return datatables::of(collect())->make(true);
+        }
+
+        if (in_array($CoverRegister->type_of_bus, ['TPR', 'TNP'])) {
+            $query = CoverReinclass::join('reinsclasses', 'cover_reinclass.reinclass', '=', 'reinsclasses.class_code')
+                ->leftJoin('class_groups', 'reinsclasses.class_group', '=', 'class_groups.group_code')
+                ->select(
+                    DB::raw('cover_reinclass.reinclass as id'),
+                    DB::raw('cover_reinclass.reinclass as class'),
+                    DB::raw('reinsclasses.class_name as class_name'),
+                    DB::raw('cover_reinclass.reinclass || \' - \' || reinsclasses.class_name as reinclass_name'),
+                    DB::raw('COALESCE(class_groups.group_name, reinsclasses.class_group, \'-\') as class_group')
+                )
+                ->where('cover_reinclass.endorsement_no', $endorsement_no);
+        } else {
+            // Fallback for non-treaty data structure.
+            $query = CoverClass::join('classes', 'cover_classes.class', '=', 'classes.class_code')
+                ->join('reinsclasses', 'cover_classes.reinclass', '=', 'reinsclasses.class_code')
+                ->leftJoin('class_groups', 'classes.class_group_code', '=', 'class_groups.group_code')
+                ->select(
+                    'cover_classes.id as id',
+                    'cover_classes.class as class',
+                    'classes.class_name as class_name',
+                    'reinsclasses.class_name as reinclass_name',
+                    DB::raw('COALESCE(class_groups.group_name, classes.class_group_code, \'-\') as class_group')
+                )
+                ->where('cover_classes.endorsement_no', $endorsement_no);
+        }
 
         $actionable = static::coverDebitedCommited($endorsement_no);
 
@@ -1292,7 +1343,8 @@ class CoverController extends Controller
                 if ($actionable) {
                     if ($CoverRegister->transaction_type == 'EXT' || $CoverRegister->transaction_type == 'RFN' || $CoverRegister->transaction_type == 'CNC' || $CoverRegister->transaction_type == 'NEW' || $CoverRegister->transaction_type == 'REN') {
                         //  $btn .= "<button class='btn btn-outline-primary btn-sm' data-id='{$data->id}'>Edit</button>";
-                        $btn .= " <button class='btn btn-outline-danger btn-sm' data-id='{$data->id}'>Remove</button>";
+                        // Keep this empty until remove endpoint is re-enabled for the new cover home flow.
+                        $btn .= '';
                     } else {
                         $btn .= ' ';
                     }
@@ -1300,6 +1352,7 @@ class CoverController extends Controller
 
                 return $btn;
             })
+            ->rawColumns(['action'])
             ->make(true);
     }
 

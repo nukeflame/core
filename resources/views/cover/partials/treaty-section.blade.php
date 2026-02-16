@@ -8,7 +8,7 @@
                 <option value="">Choose Treaty Type</option>
                 @foreach ($treatytypes as $treatytype)
                     <option value="{{ $treatytype->treaty_code }}"
-                        {{ isset($old_endt_trans) && $old_endt_trans->treaty_code == $treatytype->treaty_code ? 'selected' : '' }}>
+                        {{ isset($old_endt_trans) && ($old_endt_trans->treaty_type ?? $old_endt_trans->treaty_code) == $treatytype->treaty_code ? 'selected' : '' }}>
                         {{ $treatytype->treaty_name }}
                     </option>
                 @endforeach
