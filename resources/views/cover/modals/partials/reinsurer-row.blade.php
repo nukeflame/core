@@ -56,7 +56,7 @@
             </div>
             <small class="form-text text-muted">
                 Can't find the reinsurer?
-                <a href="" target="_blank" class="text-info">Add new reinsurer</a>
+                <a href="{{ route('customer.form') }}" target="_blank" rel="noopener noreferrer" class="text-info">Add new reinsurer</a>
             </small>
         </div>
 

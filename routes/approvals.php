@@ -16,6 +16,7 @@ Route::prefix('admin')->group(function () {
         Route::get('approvals/data', 'approvalDatatable')->name('admin.approvals.data');
 
         Route::post('approvals/send', 'sendForApproval')->name('admin.approvals.send');
+        Route::post('approvals/re-escalate', 'reEscalate')->name('admin.approvals.re-escalate');
         Route::post('approvals/action', 'approvalAction')->name('admin.approvals.action');
         Route::post('approvals/bd-action', 'bdApprovalAction')->name('admin.approvals.bd-action');
         Route::get('approvals/{id}/details', 'getApprovalDetails')->name('admin.approvals.details');

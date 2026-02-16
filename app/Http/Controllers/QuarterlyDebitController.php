@@ -82,11 +82,19 @@ class QuarterlyDebitController extends Controller
 
             $orderBy = $columns[$orderColumn] ?? 'dn.posting_date';
 
+            $classTypesSub = DB::table('reinclass_premtypes')
+                ->select([
+                    'reinclass',
+                    'premtype_code',
+                    DB::raw('MAX(premtype_name) as premtype_name'),
+                ])
+                ->groupBy('reinclass', 'premtype_code');
+
             $query = DB::table('debit_note_items as tdi')
                 ->join('debit_notes as dn', 'tdi.debit_note_id', '=', 'dn.id')
                 ->leftJoin('treaty_item_codes as tc', 'tdi.item_code', '=', 'tc.item_code')
                 ->leftJoin('class_groups as cg', 'tdi.class_group_code', '=', 'cg.group_code')
-                ->leftJoin('reinclass_premtypes as c', function ($join) {
+                ->leftJoinSub($classTypesSub, 'c', function ($join) {
                     $join->on('tdi.class_code', '=', 'c.premtype_code')
                         ->on('tdi.class_group_code', '=', 'c.reinclass');
                 })
@@ -113,7 +121,7 @@ class QuarterlyDebitController extends Controller
                     'tc.description',
                 ]);
 
-            $totalRecords = (clone $query)->count();
+            $totalRecords = (clone $query)->distinct('tdi.id')->count('tdi.id');
 
             if (! empty($search)) {
                 $query->where(function ($q) use ($search) {
@@ -125,13 +133,15 @@ class QuarterlyDebitController extends Controller
                 });
             }
 
-            $filteredRecords = (clone $query)->count();
+            $filteredRecords = (clone $query)->distinct('tdi.id')->count('tdi.id');
 
             $data = $query
                 ->orderBy($orderBy, $orderDir)
                 ->skip($start)
                 ->take($length)
                 ->get()
+                ->unique('id')
+                ->values()
                 ->map(function ($row) {
                     $lineRate = (int) $row->line_rate == 0 ? '--' : $row->line_rate;
 
@@ -214,11 +224,19 @@ class QuarterlyDebitController extends Controller
 
             $orderBy = $columns[$orderColumn] ?? 'cn.posting_date';
 
+            $classTypesSub = DB::table('reinclass_premtypes')
+                ->select([
+                    'reinclass',
+                    'premtype_code',
+                    DB::raw('MAX(premtype_name) as premtype_name'),
+                ])
+                ->groupBy('reinclass', 'premtype_code');
+
             $query = DB::table('credit_note_items as tci')
                 ->join('credit_notes as cn', 'tci.credit_note_id', '=', 'cn.id')
                 ->leftJoin('treaty_item_codes as tc', 'tci.item_code', '=', 'tc.item_code')
                 ->leftJoin('class_groups as cg', 'tci.class_group_code', '=', 'cg.group_code')
-                ->leftJoin('reinclass_premtypes as c', function ($join) {
+                ->leftJoinSub($classTypesSub, 'c', function ($join) {
                     $join->on('tci.class_code', '=', 'c.premtype_code')
                         ->on('tci.class_group_code', '=', 'c.reinclass');
                 })
@@ -245,7 +263,7 @@ class QuarterlyDebitController extends Controller
                     'tc.description as item_description',
                 ]);
 
-            $totalRecords = (clone $query)->count();
+            $totalRecords = (clone $query)->distinct('tci.id')->count('tci.id');
 
             if (! empty($search)) {
                 $query->where(function ($q) use ($search) {
@@ -257,13 +275,15 @@ class QuarterlyDebitController extends Controller
                 });
             }
 
-            $filteredRecords = (clone $query)->count();
+            $filteredRecords = (clone $query)->distinct('tci.id')->count('tci.id');
 
             $data = $query
                 ->orderBy($orderBy, $orderDir)
                 ->skip($start)
                 ->take($length)
                 ->get()
+                ->unique('id')
+                ->values()
                 ->map(function ($row) {
                     $lineRate = (int) $row->line_rate == 0 ? '--' : $row->line_rate;
 
@@ -1480,6 +1500,8 @@ class QuarterlyDebitController extends Controller
             $creditNote = DB::table('credit_notes')
                 ->where('cover_no', $coverNo)
                 ->where('endorsement_no', $endorsementNo)
+                ->orderByDesc('posting_date')
+                ->orderByDesc('id')
                 ->select([
                     'id',
                     'credit_note_no',
@@ -1499,16 +1521,23 @@ class QuarterlyDebitController extends Controller
                 abort(404, 'Credit note not found for this cover and endorsement');
             }
 
+            $classTypesSub = DB::table('reinclass_premtypes')
+                ->select([
+                    'reinclass',
+                    'premtype_code',
+                    DB::raw('MAX(premtype_name) as premtype_name'),
+                ])
+                ->groupBy('reinclass', 'premtype_code');
+
             $creditItems = DB::table('credit_note_items as tci')
                 ->join('credit_notes as cn', 'tci.credit_note_id', '=', 'cn.id')
                 ->leftJoin('treaty_item_codes as tic', 'tci.item_code', '=', 'tic.item_code')
                 ->leftJoin('class_groups as cg', 'tci.class_group_code', '=', 'cg.group_code')
-                ->leftJoin('reinclass_premtypes as c', function ($join) {
+                ->leftJoinSub($classTypesSub, 'c', function ($join) {
                     $join->on('tci.class_code', '=', 'c.premtype_code')
                         ->on('tci.class_group_code', '=', 'c.reinclass');
                 })
-                ->where('cn.cover_no', $coverNo)
-                ->where('cn.endorsement_no', $endorsementNo)
+                ->where('tci.credit_note_id', $creditNote->id)
                 ->select([
                     'tci.id',
                     'tci.item_code',
@@ -1531,7 +1560,9 @@ class QuarterlyDebitController extends Controller
                     'tci.original_amount'
                 ])
                 ->orderBy('id', 'asc')
-                ->get();
+                ->get()
+                ->unique('id')
+                ->values();
 
             $totalGross = $creditNote->gross_amount;
             $totalCommission = $creditNote->commission_amount;
@@ -1549,6 +1580,21 @@ class QuarterlyDebitController extends Controller
                 abort(404, 'Reinsurer not found for this cover');
             }
 
+            $sharePercent = (float) ($reinsurer->share ?? 0);
+            $shareFactor = $sharePercent > 1 ? ($sharePercent / 100) : $sharePercent;
+            $shareFactor = max(0, $shareFactor);
+
+            $creditItems = $creditItems->map(function ($item) use ($shareFactor) {
+                $item->item_amount = (float) ($item->item_amount ?? 0) * $shareFactor;
+                $item->original_amount = (float) ($item->original_amount ?? 0) * $shareFactor;
+
+                return $item;
+            });
+
+            $totalDebit = $creditItems->where('ledger', 'DR')->sum('item_amount');
+            $totalCredit = $creditItems->where('ledger', 'CR')->sum('item_amount');
+            $totalNet = $totalDebit - $totalCredit;
+
             $reinsurers = collect([$reinsurer]);
 
             $documentData = [
@@ -1564,9 +1610,11 @@ class QuarterlyDebitController extends Controller
                 'treat_type' => 'Surplus Treaty',
                 'bus_class' => 'Fire',
                 'totals' => (object) [
-                    'gross_premium' => $totalGross,
-                    'commission' => $totalCommission,
+                    'gross_premium' => (float) $totalGross * $shareFactor,
+                    'commission' => (float) $totalCommission * $shareFactor,
                     'net_amount' => $totalNet,
+                    'total_debits' => $totalDebit,
+                    'total_credits' => $totalCredit,
                 ],
                 'currency' => $cover->currency ?? 'KES',
                 'period' => [

@@ -31,8 +31,8 @@
 
             <div class="col-md-3">
                 <div class="summary-item">
-                    <label class="text-muted fs-16">Number of Reinsurers</label>
-                    <div class="h5 mb-0 text-info" id="summary-reinsurer-count">0</div>
+                    <label class="text-muted fs-16">Sum of Reinsurers</label>
+                    <div class="h5 mb-0 text-info" id="summary-reinsurer-count">0.00%</div>
                 </div>
             </div>
         </div>

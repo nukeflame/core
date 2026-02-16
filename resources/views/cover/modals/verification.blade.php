@@ -3,7 +3,8 @@
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <form method="POST" id="verifyForm" action="{{ route('admin.approvals.send') }}"
-                data-post-url="{{ route('admin.approvals.send') }}">
+                data-post-url="{{ route('admin.approvals.send') }}"
+                data-pre-verify-url="{{ route('cover.pre_cover_verification') }}">
                 @csrf
                 <input type="hidden"name="endorsement_no" value="{{ $coverReg->endorsement_no }}" />
                 <input type="hidden" name="cover_no" value="{{ $coverReg->cover_no }}" />
@@ -157,8 +158,26 @@
                 }
             });
 
-            $('#verificationModal').on('show.bs.modal', function() {
-                $('#verifyForm')[0].reset();
+            $('#verificationModal').on('show.bs.modal', function(event) {
+                const $form = $('#verifyForm');
+                const $approver = $('#approver');
+                const trigger = event.relatedTarget;
+                const isReEscalate = trigger && trigger.id === 'verify_detailss';
+                const excludeApproverId = isReEscalate
+                    ? ($(trigger).data('exclude-approver-id') || '')
+                    : '';
+
+                if (!$approver.data('original-options-html')) {
+                    $approver.data('original-options-html', $approver.html());
+                } else {
+                    $approver.html($approver.data('original-options-html'));
+                }
+
+                if (excludeApproverId) {
+                    $approver.find(`option[value="${excludeApproverId}"]`).remove();
+                }
+
+                $form[0].reset();
                 $('#approver, #priority').val('').trigger('change');
                 $('#comment-counter').text('0/500');
                 $('#validation-errors').addClass('d-none');

@@ -1,4 +1,4 @@
-@props(['cover', 'endorsementNarration', 'isTransaction' => false, 'isCoverStatus' => true])
+@props(['cover', 'endorsementNarration', 'pendingApproverId' => null, 'isTransaction' => false, 'isCoverStatus' => true])
 
 @php
     $isUnverified = in_array($cover->verified, [null, 'R']);
@@ -94,7 +94,9 @@
         @endif
 
         @if ($isPending)
-            <button class="btn btn-outline-dark btn-sm me-2" id="verify_detailss">
+            <button type="button" class="btn btn-outline-dark btn-sm me-2" id="verify_detailss"
+                data-bs-toggle="modal" data-bs-target="#verificationModal"
+                data-exclude-approver-id="{{ $pendingApproverId ?? '' }}">
                 <i class="ri-arrow-up-circle-line me-2"></i>Re-escalate Verification
             </button>
             <button class="badge bg-warning text-dark" disabled style="cursor: default;">

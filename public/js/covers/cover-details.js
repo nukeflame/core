@@ -652,12 +652,21 @@
 
         calculate(treatyCounter) {
             let totalDistributed = 0;
-
-            $(`#reinsurer-div-${treatyCounter} .reinsurer-share`).each(
-                function () {
-                    totalDistributed += Utils.clampNumber($(this).val(), 0);
-                },
+            const $signedShareFields = $(
+                `#reinsurer-div-${treatyCounter} .reinsurer-share`,
             );
+
+            if ($signedShareFields.length) {
+                $signedShareFields.each(function () {
+                    totalDistributed += Utils.clampNumber($(this).val(), 0);
+                });
+            } else {
+                $(
+                    `#reinsurer-div-${treatyCounter} .reinsurer-total-acceptance`,
+                ).each(function () {
+                    totalDistributed += Utils.clampNumber($(this).val(), 0);
+                });
+            }
 
             const offered =
                 Utils.getElementValue(`#share_offered-${treatyCounter}`) ||
@@ -734,7 +743,7 @@
         refresh() {
             let totalOffered = 0;
             let totalDistributed = 0;
-            let totalReinsurers = 0;
+            let totalReinsurerShare = 0;
 
             $(SELECTORS.TREATY_SECTION).each(function () {
                 const $section = $(this);
@@ -744,9 +753,9 @@
                 totalDistributed += Utils.getElementValue(
                     $section.find(".distributed-share"),
                 );
-                totalReinsurers += $section.find(
-                    SELECTORS.REINSURER_SECTION,
-                ).length;
+                $section.find(".reinsurer-share").each(function () {
+                    totalReinsurerShare += Utils.removeCommas($(this).val());
+                });
             });
 
             const remaining = totalOffered - totalDistributed;
@@ -760,18 +769,26 @@
                 offered: totalOffered,
                 distributed: totalDistributed,
                 remaining,
-                count: totalReinsurers,
+                reinsurerShare: totalReinsurerShare,
                 percentage,
             });
         },
 
-        updateDisplay({ offered, distributed, remaining, count, percentage }) {
+        updateDisplay({
+            offered,
+            distributed,
+            remaining,
+            reinsurerShare,
+            percentage,
+        }) {
             const elements = {
                 "#summary-total-offered": `${Utils.toDecimal(offered)}%`,
                 "#summary-total-distributed": `${Utils.toDecimal(
                     distributed,
                 )}%`,
-                "#summary-reinsurer-count": count,
+                "#summary-reinsurer-count": `${Utils.toDecimal(
+                    reinsurerShare,
+                )}%`,
             };
 
             Object.entries(elements).forEach(([selector, value]) => {
@@ -1149,7 +1166,9 @@
 
         getCalcOptionKey($checkbox) {
             const name = $checkbox.attr("name") || "";
-            const match = name.match(/\[(net_of_tax|net_of_claims|net_of_commission|net_of_premium|premium_tax|net_withholding_tax)\]$/);
+            const match = name.match(
+                /\[(net_of_tax|net_of_claims|net_of_commission|net_of_premium|premium_tax|net_withholding_tax)\]$/,
+            );
             return match ? match[1] : null;
         }
 
@@ -1163,9 +1182,7 @@
             $rows.each(function () {
                 const $row = $(this);
                 const rowCounter = $row.data("counter");
-                const $checkbox = $row.find(
-                    `input[name*="[${optionKey}]"]`,
-                );
+                const $checkbox = $row.find(`input[name*="[${optionKey}]"]`);
 
                 if ($checkbox.length) {
                     $checkbox.prop("checked", checked);
@@ -1478,6 +1495,8 @@
          */
         validateAndSubmit() {
             this.validation.reset();
+            const isEditMode =
+                String($(SELECTORS.FORM).find("#edit_mode").val()) === "1";
 
             const isFacultative = [
                 BUSINESS_TYPES.FPR,
@@ -1493,9 +1512,12 @@
                         $section,
                         treatyCounter,
                         treatyNumber++,
+                        isEditMode,
                     );
                 });
             }
+
+            this._validateUniqueReinsurers();
 
             if (this.validation.hasErrors()) {
                 this.validation.displayErrors();
@@ -1505,7 +1527,12 @@
             this._submit();
         }
 
-        _validateTreatySection($section, treatyCounter, treatyNumber) {
+        _validateTreatySection(
+            $section,
+            treatyCounter,
+            treatyNumber,
+            isEditMode = false,
+        ) {
             const $treatySelect = $section.find(".reinsurer-treaty");
             if ($treatySelect.length && !$treatySelect.val()) {
                 this.validation.addError(
@@ -1513,10 +1540,12 @@
                 );
             }
 
-            const remaining = Utils.getElementValue(
-                `#rem_share-${treatyCounter}`,
-            );
-            this.validation.validateDistribution(remaining, treatyNumber);
+            if (!isEditMode) {
+                const remaining = Utils.getElementValue(
+                    `#rem_share-${treatyCounter}`,
+                );
+                this.validation.validateDistribution(remaining, treatyNumber);
+            }
 
             let reinsurerNumber = 1;
             $(
@@ -1530,10 +1559,43 @@
             });
         }
 
+        _validateUniqueReinsurers() {
+            const seen = new Map();
+
+            $(SELECTORS.TREATY_SECTION).each((sectionIndex, sectionEl) => {
+                const $section = $(sectionEl);
+                const sectionLabel = sectionIndex + 1;
+
+                $section
+                    .find('.reinsurer[name*="[reinsurer]"]')
+                    .each((rowIndex, selectEl) => {
+                        const $select = $(selectEl);
+                        const value = $select.val();
+                        if (!value) return;
+
+                        const key = String(value);
+                        const currentLabel = `Section ${sectionLabel}, Reinsurer ${rowIndex + 1}`;
+
+                        if (seen.has(key)) {
+                            const firstLabel = seen.get(key);
+                            const reinsurerName =
+                                $select.find("option:selected").text().trim() ||
+                                `ID ${key}`;
+                            this.validation.addError(
+                                `Reinsurer "${reinsurerName}" is duplicated (${firstLabel} and ${currentLabel}). Reinsurer must be unique for this cover.`,
+                            );
+                        } else {
+                            seen.set(key, currentLabel);
+                        }
+                    });
+            });
+        }
+
         _submit() {
             const $form = $(SELECTORS.FORM);
             const $button = $(SELECTORS.SAVE_BUTTON);
-            const url = $form.data("url");
+            const isEditMode = String($form.find("#edit_mode").val()) === "1";
+            const url = isEditMode ? $form.data("edit-url") : $form.data("url");
 
             if (!url) {
                 NotificationService.error("Form submission URL not configured");
@@ -1543,7 +1605,101 @@
             NotificationService.clear();
             $button
                 .prop("disabled", true)
-                .html('<i class="fa fa-spinner fa-spin me-2"></i>Saving...');
+                .html(
+                    isEditMode
+                        ? '<i class="fa fa-spinner fa-spin me-2"></i>Updating...'
+                        : '<i class="fa fa-spinner fa-spin me-2"></i>Saving...',
+                );
+
+            if (isEditMode) {
+                const $firstRow = $(
+                    `${SELECTORS.TREATY_SECTION} ${SELECTORS.REINSURER_SECTION}`,
+                ).first();
+
+                if (!$firstRow.length) {
+                    NotificationService.error(
+                        "No reinsurer row found for edit",
+                    );
+                    this._resetButton($button);
+                    return;
+                }
+
+                const payload = {
+                    endorsement_no: $form.find('[name="endorsement_no"]').val(),
+                    tran_no: $form.find("#edit_tran_no").val(),
+                    reinsurer:
+                        $firstRow.find('select[name*="[reinsurer]"]').val() ||
+                        $form.find("#edit_partner_no").val(),
+                    written_share: $firstRow
+                        .find('input[name*="[written_share]"]')
+                        .val(),
+                    compulsory_acceptance: $firstRow
+                        .find('input[name*="[compulsory_acceptance]"]')
+                        .val(),
+                    optional_acceptance: $firstRow
+                        .find('input[name*="[optional_acceptance]"]')
+                        .val(),
+                    comm_rate:
+                        $firstRow.find('input[name*="[comm_rate]"]').val() || 0,
+                    wht_rate:
+                        $firstRow.find('select[name*="[wht_rate]"]').val() || 0,
+                    net_of_tax: $firstRow
+                        .find('input[name*="[net_of_tax]"]')
+                        .is(":checked")
+                        ? 1
+                        : 0,
+                    net_of_claims: $firstRow
+                        .find('input[name*="[net_of_claims]"]')
+                        .is(":checked")
+                        ? 1
+                        : 0,
+                    net_of_commission: $firstRow
+                        .find('input[name*="[net_of_commission]"]')
+                        .is(":checked")
+                        ? 1
+                        : 0,
+                    net_of_premium: $firstRow
+                        .find('input[name*="[net_of_premium]"]')
+                        .is(":checked")
+                        ? 1
+                        : 0,
+                    premium_tax: $firstRow
+                        .find('input[name*="[premium_tax]"]')
+                        .is(":checked")
+                        ? 1
+                        : 0,
+                    net_withholding_tax: $firstRow
+                        .find('input[name*="[net_withholding_tax]"]')
+                        .is(":checked")
+                        ? 1
+                        : 0,
+                };
+
+                const typeOfBus = String(
+                    this.coverData.type_of_bus || "",
+                ).toUpperCase();
+                const isTreatyBus =
+                    typeOfBus === BUSINESS_TYPES.TPR ||
+                    typeOfBus === BUSINESS_TYPES.TPN ||
+                    typeOfBus === "TNP";
+
+                payload.share = isTreatyBus
+                    ? payload.written_share
+                    : $firstRow.find('input[name*="[share]"]').val();
+
+                $.ajax({
+                    url,
+                    method: "POST",
+                    data: payload,
+                    timeout: CONFIG.AJAX_TIMEOUT,
+                    headers: { "X-CSRF-TOKEN": Utils.getCsrfToken() },
+                })
+                    .done((response) => this._handleSuccess(response, $button))
+                    .fail((xhr, status) =>
+                        this._handleError(xhr, status, $button),
+                    );
+                return;
+            }
 
             $.ajax({
                 url,
@@ -1557,6 +1713,7 @@
         }
 
         _handleSuccess(response, $button) {
+            console.log(response);
             if (response.success) {
                 toastr.success("Reinsurance placement saved successfully");
                 setTimeout(() => {
@@ -1576,22 +1733,29 @@
         }
 
         _handleError(xhr, status, $button) {
-            let message = "An error occurred while saving";
+            const message =
+                status === "timeout"
+                    ? "Request timed out. Please try again."
+                    : "An error occurred while saving";
 
-            if (status === "timeout") {
-                message = "Request timed out. Please try again.";
-            } else if (xhr.responseJSON) {
-                message = "An error occurred while saving";
+            if (typeof toastr !== "undefined") {
+                toastr.error(message);
+            } else {
+                NotificationService.error(message);
             }
-
-            NotificationService.error(message);
             this._resetButton($button);
         }
 
         _resetButton($button) {
+            const isEditMode =
+                String($(SELECTORS.FORM).find("#edit_mode").val()) === "1";
             $button
                 .prop("disabled", false)
-                .html('<i class="fa fa-save me-2"></i>Save Placement');
+                .html(
+                    isEditMode
+                        ? '<i class="fa fa-save me-2"></i>Update Placement'
+                        : '<i class="fa fa-save me-2"></i>Save Placement',
+                );
         }
     }
 
@@ -1602,6 +1766,7 @@
             coverNo: null,
             cover: null,
             prospectId: null,
+            editTarget: null,
         },
 
         initialized: false,
@@ -1614,13 +1779,18 @@
             return this;
         },
 
+        setEditTarget(target) {
+            this.config.editTarget = target || null;
+            return this;
+        },
+
         /**
          * Initialize the placement manager
          */
         init() {
             if (this.initialized) {
                 // If already initialized, just fetch data again
-                if (this.config.fetchUrl && this.config.prospectId) {
+                if (this.config.fetchUrl) {
                     this.fetchExisting();
                 }
                 return this;
@@ -1629,7 +1799,7 @@
             this._bindEvents();
             this.initialized = true;
 
-            if (this.config.fetchUrl && this.config.prospectId) {
+            if (this.config.fetchUrl) {
                 this.fetchExisting();
             }
 
@@ -1667,6 +1837,12 @@
                     data: {
                         cover_no: this.config.coverNo,
                         endorsement_no: this.config.endorsementNo,
+                        ...(this.config.editTarget?.partner_no
+                            ? { partner_no: this.config.editTarget.partner_no }
+                            : {}),
+                        ...(this.config.editTarget?.tran_no
+                            ? { tran_no: this.config.editTarget.tran_no }
+                            : {}),
                     },
                 });
 
@@ -1677,6 +1853,7 @@
                 NotificationService.error("Failed to load existing reinsurers");
                 console.error("PlacementManager fetch error:", error);
             } finally {
+                this.config.editTarget = null;
                 this._hideLoader();
             }
         },
@@ -1707,7 +1884,13 @@
             options.forEach((opt) => {
                 const $checkbox = $row.find(`input[name*="[${opt}]"]`);
                 if ($checkbox.length) {
-                    $checkbox.prop("checked", parseInt(reinsurer[opt]) === 1);
+                    const raw = reinsurer[opt];
+                    const checked =
+                        raw === 1 ||
+                        raw === "1" ||
+                        raw === true ||
+                        String(raw).toLowerCase() === "true";
+                    $checkbox.prop("checked", checked);
                 }
             });
         },
@@ -1751,10 +1934,11 @@
 
         _populateTreatyFields(index, treaty) {
             const prefix = `treaty[${index}]`;
-            if (treaty.treaty_id) {
+            const treatyValue = treaty.treaty || treaty.treaty_id;
+            if (treatyValue) {
                 Select2Manager.setValue(
-                    $(`select[name="${prefix}[treaty_id]"]`),
-                    treaty.treaty_id,
+                    $(`select[name="${prefix}[treaty]"]`),
+                    treatyValue,
                 );
             }
             if (treaty.layer_no) {
@@ -1790,6 +1974,27 @@
                     $reinsurerSelect,
                     reinsurerId,
                 );
+
+                // Existing cover reinsurers can be filtered out from option lists.
+                // Inject the current record option so edit mode can always reselect it.
+                if (!success) {
+                    const optionLabel =
+                        data.reinsurer_name || data.partner_name || "Selected";
+                    const optionExists =
+                        $reinsurerSelect.find(
+                            `option[value="${String(reinsurerId)}"]`,
+                        ).length > 0;
+
+                    if (!optionExists) {
+                        const $option = $("<option>")
+                            .val(String(reinsurerId))
+                            .text(optionLabel)
+                            .attr("title", optionLabel);
+                        $reinsurerSelect.append($option);
+                    }
+
+                    Select2Manager.setValue($reinsurerSelect, reinsurerId);
+                }
             }
 
             const select2Fields = [
@@ -1804,16 +2009,55 @@
 
             select2Fields.forEach(({ name, value }) => {
                 if (value !== null && value !== undefined) {
-                    Select2Manager.setValue(
-                        $section.find(`select[name="${prefix}[${name}]"]`),
-                        value,
+                    const $select = $section.find(
+                        `select[name="${prefix}[${name}]"]`,
                     );
+                    const success = Select2Manager.setValue($select, value);
+
+                    if (!success && name === "pay_method" && $select.length) {
+                        const normalized = String(value).trim().toUpperCase();
+                        const $fallbackOption = $select
+                            .find("option")
+                            .filter(function () {
+                                const optionValue = String($(this).val() || "")
+                                    .trim()
+                                    .toUpperCase();
+                                const optionDesc = String(
+                                    $(this).data("pay-method-desc") || "",
+                                )
+                                    .trim()
+                                    .toUpperCase();
+                                return (
+                                    optionValue === normalized ||
+                                    optionDesc === normalized
+                                );
+                            })
+                            .first();
+
+                        if ($fallbackOption.length) {
+                            Select2Manager.setValue(
+                                $select,
+                                $fallbackOption.val(),
+                            );
+                        }
+                    }
                 }
             });
 
+            const formatFixed2 = (value) => {
+                if (value === null || value === undefined || value === "") {
+                    return value;
+                }
+                const num = Number(String(value).replace(/,/g, ""));
+                return Number.isFinite(num) ? num.toFixed(2) : value;
+            };
+
             const inputFields = [
-                { name: "written_share", value: data.written_share },
-                { name: "share", value: data.share },
+                {
+                    name: "written_share",
+                    value: formatFixed2(data.written_share),
+                },
+                { name: "share", value: formatFixed2(data.share) },
                 {
                     name: "sum_insured",
                     value: Utils.formatNumber(data.sum_insured),
@@ -1840,11 +2084,11 @@
                 },
                 {
                     name: "compulsory_acceptance",
-                    value: data.compulsory_acceptance,
+                    value: formatFixed2(data.compulsory_acceptance),
                 },
                 {
                     name: "optional_acceptance",
-                    value: data.optional_acceptance,
+                    value: formatFixed2(data.optional_acceptance),
                 },
             ];
 
@@ -1899,17 +2143,21 @@
 
         _triggerCalculations() {
             $(
-                ".reinsurer-written-share, .reinsurer-share, .reinsurer-premium, .reinsurer-comm-rate",
+                ".reinsurer-written-share, .reinsurer-share, .reinsurer-premium, .reinsurer-comm-rate, .reinsurer-compulsory-acceptance, .reinsurer-optional-acceptance",
             ).trigger("input");
         },
 
         _showLoader() {
-            $(SELECTORS.TREATY_DIV).addClass("loading");
+            const $modal = $(SELECTORS.MODAL);
+            $modal.addClass("reinsurer-loading");
+            $("#reinsurer-modal-loader").removeClass("d-none");
             $(SELECTORS.SAVE_BUTTON).prop("disabled", true);
         },
 
         _hideLoader() {
-            $(SELECTORS.TREATY_DIV).removeClass("loading");
+            const $modal = $(SELECTORS.MODAL);
+            $modal.removeClass("reinsurer-loading");
+            $("#reinsurer-modal-loader").addClass("d-none");
             $(SELECTORS.SAVE_BUTTON).prop("disabled", false);
         },
 
@@ -1925,6 +2173,12 @@
                         self.fetchExisting();
                     },
                 );
+
+            $(SELECTORS.MODAL)
+                .off("hidden.bs.modal.placementLoader")
+                .on("hidden.bs.modal.placementLoader", function () {
+                    self._hideLoader();
+                });
         },
     };
 
@@ -2257,6 +2511,7 @@
                 tableType === "reinsurers"
                     ? [2, 3, 4, 6, 7, 8, 9]
                     : [4, 5, 6, 7, 8];
+            const columnDefs = api.settings()[0]?.aoColumns || [];
 
             const columnCount = api.columns().nodes().length;
             const colSpan = tableType === "reinsurers" ? 2 : 4;
@@ -2273,9 +2528,21 @@
                                 Utils.removeCommas(a) + Utils.removeCommas(b),
                             0,
                         );
-                    footerHtml += `<td style="font-weight:bold;">${Utils.formatNumber(
-                        sum,
-                    )}</td>`;
+                    const columnKey = columnDefs[i]?.data;
+                    const isReinsurerPercentColumn =
+                        tableType === "reinsurers" &&
+                        typeof columnKey === "string" &&
+                        /(share|rate)/i.test(columnKey) &&
+                        !/(amount|amt|insured|premium|commission)/i.test(
+                            columnKey,
+                        );
+                    const formattedTotal = Utils.formatNumber(sum);
+
+                    footerHtml += `<td style="font-weight:bold;">${
+                        isReinsurerPercentColumn
+                            ? `${formattedTotal}%`
+                            : formattedTotal
+                    }</td>`;
                 } else {
                     footerHtml += "<td></td>";
                 }
@@ -2338,6 +2605,45 @@
             });
 
             $(document).on("click", ".edit-reinsurer", function () {
+                if (!$("#edit-reinsurer-modal").length) {
+                    const rowData = $(this).data();
+                    const $form = $(SELECTORS.FORM);
+                    $form.find("#edit_mode").val("1");
+                    $form
+                        .find("#edit_tran_no")
+                        .val(rowData.tranNo || rowData.tran_no || "");
+                    $form
+                        .find("#edit_partner_no")
+                        .val(
+                            rowData.partnerNo ||
+                                rowData.partner_no ||
+                                rowData.customerId ||
+                                "",
+                        );
+                    $(SELECTORS.SAVE_BUTTON).html(
+                        '<i class="fa fa-save me-2"></i>Update Placement',
+                    );
+
+                    if (
+                        window.PlacementManager &&
+                        typeof window.PlacementManager.setEditTarget ===
+                            "function"
+                    ) {
+                        window.PlacementManager.setEditTarget({
+                            tran_no: rowData.tranNo || rowData.tran_no || null,
+                            partner_no:
+                                rowData.partnerNo ||
+                                rowData.partner_no ||
+                                rowData.customerId ||
+                                null,
+                        });
+                    }
+
+                    if ($("#addReinsurerModal").length) {
+                        $("#addReinsurerModal").modal("show");
+                    }
+                    return;
+                }
                 self._populateEditReinsurerForm($(this).data());
             });
 
@@ -2356,15 +2662,91 @@
                     self._confirmRemove(type, $(this).data());
                 },
             );
+
+            $(document).on(
+                "click",
+                ".re-escalate-approval, .re-send-approval",
+                function () {
+                    const approvalId = $(this).data("approval-id");
+                    self._reEscalateApproval(approvalId);
+                },
+            );
         },
 
-        _handleFormSubmit(formName, form) {
+        _reEscalateApproval(approvalId) {
+            if (!approvalId) {
+                toastr.error("Approval reference is missing");
+                return;
+            }
+
+            const reEscalateUrl = $(SELECTORS.APPROVALS_TABLE).data(
+                "re-escalate-url",
+            );
+            if (!reEscalateUrl) {
+                toastr.error("Re-escalation URL not configured");
+                return;
+            }
+
+            Swal.fire({
+                title: "Re-escalate Approval",
+                text: "This will send the approval request again to the same approver.",
+                icon: "question",
+                showCancelButton: true,
+                confirmButtonText: "Yes, re-escalate",
+            }).then((result) => {
+                if (!result.isConfirmed) {
+                    return;
+                }
+
+                fetch(reEscalateUrl, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-CSRF-Token": Utils.getCsrfToken(),
+                    },
+                    body: JSON.stringify({ approval_id: approvalId }),
+                })
+                    .then((res) => res.json())
+                    .then((response) => {
+                        if (response.success) {
+                            toastr.success(
+                                response.message ||
+                                    "Approval re-escalated successfully",
+                            );
+                            this.tables?.approvals?.ajax?.reload(null, false);
+                        } else if (response.errors) {
+                            this._showValidationErrors(response.errors);
+                        } else {
+                            toastr.error(
+                                response.message || "Failed to re-escalate",
+                            );
+                        }
+                    })
+                    .catch(() =>
+                        toastr.error(
+                            "An error occurred while re-escalating approval",
+                        ),
+                    );
+            });
+        },
+
+        async _handleFormSubmit(formName, form) {
             if (
                 formName === "reinsurer" &&
                 window.ReinsurerPlacement?.formSubmissionManager
             ) {
                 window.ReinsurerPlacement.formSubmissionManager.validateAndSubmit();
                 return;
+            }
+
+            if (formName === "verify") {
+                const preCheck = await this._runPreVerificationChecks(form);
+                if (!preCheck.ok) {
+                    this._showValidationErrors({
+                        verification: preCheck.errors,
+                    });
+                    return;
+                }
             }
 
             // Generic form submission
@@ -2403,6 +2785,43 @@
                     }
                 })
                 .catch(() => toastr.error("An error occurred"));
+        },
+
+        async _runPreVerificationChecks(form) {
+            const $form = $(form);
+            const preVerifyUrl = $form.data("pre-verify-url");
+
+            if (!preVerifyUrl) {
+                return { ok: true, errors: [] };
+            }
+
+            try {
+                const formData = new FormData();
+                formData.append(
+                    "endorsement_no",
+                    this.state.endorsementNo || $form.find('[name="endorsement_no"]').val() || "",
+                );
+
+                const response = await fetch(preVerifyUrl, {
+                    method: "POST",
+                    headers: { "X-CSRF-Token": Utils.getCsrfToken() },
+                    body: formData,
+                });
+
+                const result = await response.json();
+                if (Array.isArray(result) && result.length > 0) {
+                    return { ok: false, errors: result };
+                }
+
+                return { ok: true, errors: [] };
+            } catch (error) {
+                return {
+                    ok: false,
+                    errors: [
+                        "Unable to run pre-verification checks. Please try again.",
+                    ],
+                };
+            }
         },
 
         _populateScheduleForm(data) {
@@ -2475,14 +2894,15 @@
             }[type];
 
             const url = $(tableSelector).data("delete-url");
+            const record = this._normalizeActionData(data);
             const payload = {
                 cover_no: this.state.coverNo,
                 endorsement_no: this.state.endorsementNo,
                 id: data.id,
                 ...(type === "clause" && { clause_id: data.id }),
                 ...(type === "reinsurer" && {
-                    tran_no: data.data?.tran_no,
-                    reinsurer: data.data?.partner_no,
+                    tran_no: record.tran_no,
+                    reinsurer: record.partner_no,
                 }),
             };
 
@@ -2506,6 +2926,39 @@
                 .catch(() => toastr.error("An error occurred"));
         },
 
+        _normalizeActionData(data = {}) {
+            const parsedData =
+                typeof data.data === "string"
+                    ? (() => {
+                          try {
+                              return JSON.parse(data.data);
+                          } catch (e) {
+                              return {};
+                          }
+                      })()
+                    : data.data || {};
+
+            const parsedReinsurer =
+                typeof data.reinsurer === "string"
+                    ? (() => {
+                          try {
+                              return JSON.parse(data.reinsurer);
+                          } catch (e) {
+                              return {};
+                          }
+                      })()
+                    : data.reinsurer || {};
+
+            return {
+                tran_no: data.tranNo || data.tran_no || parsedData.tran_no,
+                partner_no:
+                    data.partnerNo ||
+                    data.partner_no ||
+                    parsedData.partner_no ||
+                    parsedReinsurer.customer_id,
+            };
+        },
+
         _showValidationErrors(errors) {
             if (typeof errors === "object") {
                 Object.values(errors)
@@ -2517,9 +2970,8 @@
         },
 
         _setActiveTab() {
-            const isCoverHomePage = window.location.pathname.includes(
-                "/cover/cover-home",
-            );
+            const isCoverHomePage =
+                window.location.pathname.includes("/cover/cover-home");
             const hasInsClassesTab = $("#ins-classes-tab").length > 0;
             const defaultHash =
                 isCoverHomePage && hasInsClassesTab
@@ -2555,6 +3007,7 @@
         brokerageManager: null,
         retroFeeManager: null,
         formSubmissionManager: null,
+        isSyncingPayMethod: false,
 
         // Cover data
         coverData: {},
@@ -2636,12 +3089,35 @@
             // Reinsurer events
             $(document).on("click", ".add-reinsurer-btn", function (e) {
                 e.preventDefault();
-                self.reinsurerManager.addRow($(this).data("treaty-counter"));
+                const treatyCounter = $(this).data("treaty-counter");
+                const distribution =
+                    self.distributionManager.calculate(treatyCounter);
+
+                if (distribution.remaining <= CONFIG.TOLERANCE) {
+                    if (typeof toastr !== "undefined") {
+                        toastr.warning(
+                            "Cannot add more reinsurers: Undistributed is 0",
+                        );
+                    } else {
+                        NotificationService.warning(
+                            "Cannot add more reinsurers: Undistributed is 0",
+                        );
+                    }
+                    return;
+                }
+
+                self.reinsurerManager.addRow(treatyCounter);
             });
 
             $(document).on("click", ".remove-reinsurer-btn", function (e) {
                 e.preventDefault();
                 const $btn = $(this);
+
+                // Clear stale validation messages when removing a reinsurer row.
+                self.validationService.reset();
+                $(SELECTORS.VALIDATION_LIST).empty();
+                $(SELECTORS.VALIDATION_MESSAGES).hide();
+
                 self.reinsurerManager.removeRow(
                     $btn.data("treaty-counter"),
                     $btn.data("counter"),
@@ -2660,8 +3136,9 @@
                 const tc = $el.data("treaty-counter");
                 const c = $el.data("counter");
 
-                self.distributionManager.calculate(tc);
                 self._validateSignedVsWritten(tc, c);
+                self._enforceOfferedShareLimit(tc, c);
+                self.distributionManager.calculate(tc);
                 self.distributionManager.handleShareInput(tc, c);
             }, CONFIG.DEBOUNCE_DELAY);
 
@@ -2706,9 +3183,8 @@
                 const tc = $(this).data("treaty-counter");
                 const c = $(this).data("counter");
                 const $checkbox = $(this);
-                const optionKey = self.reinsurerManager.getCalcOptionKey(
-                    $checkbox,
-                );
+                const optionKey =
+                    self.reinsurerManager.getCalcOptionKey($checkbox);
 
                 if (optionKey) {
                     self.reinsurerManager.syncCalcOptionAcrossTreaty(
@@ -2746,11 +3222,35 @@
 
             // Payment method events
             $(document).on("change", ".reins-pay-method", function () {
-                self.installmentManager.handlePaymentMethodChange(
-                    $(this).data("treaty-counter"),
-                    $(this).data("counter"),
-                    $(this).val(),
-                );
+                if (self.isSyncingPayMethod) return;
+
+                const selectedMethod = $(this).val();
+                if (!selectedMethod) return;
+
+                self.isSyncingPayMethod = true;
+
+                $(SELECTORS.TREATY_SECTION)
+                    .find(".reins-pay-method")
+                    .each(function () {
+                        const $payMethod = $(this);
+                        const treatyCounter = $payMethod.data("treaty-counter");
+                        const counter = $payMethod.data("counter");
+
+                        if (
+                            String($payMethod.val() || "") !==
+                            String(selectedMethod)
+                        ) {
+                            Select2Manager.setValue($payMethod, selectedMethod);
+                        }
+
+                        self.installmentManager.handlePaymentMethodChange(
+                            treatyCounter,
+                            counter,
+                            selectedMethod,
+                        );
+                    });
+
+                self.isSyncingPayMethod = false;
             });
 
             $(document).on(
@@ -2767,9 +3267,30 @@
 
             // Modal events
             $(SELECTORS.MODAL).on("shown.bs.modal", () => {
+                const $form = $(SELECTORS.FORM);
+                const isEditMode =
+                    String($form.find("#edit_mode").val()) === "1";
+                if (!isEditMode) {
+                    $form.find("#edit_mode").val("0");
+                    $form.find("#edit_tran_no").val("");
+                    $form.find("#edit_partner_no").val("");
+                    $(SELECTORS.SAVE_BUTTON).html(
+                        '<i class="fa fa-save me-2"></i>Save Placement',
+                    );
+                }
                 Select2Manager.init();
                 SummaryManager.refresh();
                 this._initializeDisplays();
+            });
+
+            $(SELECTORS.MODAL).on("hidden.bs.modal", () => {
+                const $form = $(SELECTORS.FORM);
+                $form.find("#edit_mode").val("0");
+                $form.find("#edit_tran_no").val("");
+                $form.find("#edit_partner_no").val("");
+                $(SELECTORS.SAVE_BUTTON).html(
+                    '<i class="fa fa-save me-2"></i>Save Placement',
+                );
             });
 
             // Custom event for reinsurer removal
@@ -2818,6 +3339,47 @@
             } else {
                 $signedInput.removeClass("is-invalid");
             }
+        },
+
+        _enforceOfferedShareLimit(treatyCounter, counter) {
+            const $signedInput = $(`#share-${treatyCounter}-${counter}`);
+            if (!$signedInput.length) return;
+
+            const offered =
+                Utils.getElementValue(`#share_offered-${treatyCounter}`) ||
+                this.coverData.share_offered ||
+                0;
+
+            let otherSigned = 0;
+            $(`#reinsurer-div-${treatyCounter} .reinsurer-share`).each(
+                function () {
+                    const $current = $(this);
+                    if (
+                        parseInt($current.data("counter"), 10) ===
+                        parseInt(counter, 10)
+                    ) {
+                        return;
+                    }
+                    otherSigned += Utils.clampNumber($current.val(), 0);
+                },
+            );
+
+            const currentSigned = Utils.clampNumber($signedInput.val(), 0);
+            const maxForCurrent = Math.max(0, offered - otherSigned);
+
+            if (currentSigned > maxForCurrent + CONFIG.TOLERANCE) {
+                $signedInput
+                    .addClass("is-invalid")
+                    .val(Utils.toDecimal(maxForCurrent));
+                NotificationService.warning(
+                    `Signed share cannot exceed offered share (${Utils.toDecimal(
+                        offered,
+                    )}%)`,
+                );
+                return;
+            }
+
+            $signedInput.removeClass("is-invalid");
         },
     };
 

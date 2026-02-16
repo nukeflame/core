@@ -17,7 +17,7 @@
 
         <div class="row row-cols-12 mx-0">
             @if ($actionable)
-                <x-cover.action-card :cover="$coverReg" :endorsementNarration="$endorsementNarration" />
+                <x-cover.action-card :cover="$coverReg" :endorsementNarration="$endorsementNarration" :pendingApproverId="$pendingApproverId ?? null" />
             @endif
 
             <x-cover.summary-card :cover="$coverReg" :customer="$customer" :typeOfBus="$type_of_bus" :summaryData="$summaryData"

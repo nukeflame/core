@@ -2,9 +2,13 @@
     aria-labelledby="reinsurerModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-xl" style="max-width: 70%">
         <div class="modal-content">
-            <form method="POST" id="reinsurerForm" data-url="{{ route('cover.save_reinsurance_data') }}">
+            <form method="POST" id="reinsurerForm" data-url="{{ route('cover.save_reinsurance_data') }}"
+                data-edit-url="{{ route('cover.edit_reinsurance_data') }}">
                 @csrf
                 <input type="hidden" name="endorsement_no" value="{{ $cover->endorsement_no }}">
+                <input type="hidden" name="edit_mode" id="edit_mode" value="0">
+                <input type="hidden" name="edit_tran_no" id="edit_tran_no" value="">
+                <input type="hidden" name="edit_partner_no" id="edit_partner_no" value="">
 
                 <div class="modal-header bg-primary text-white">
                     <div>
@@ -18,6 +22,11 @@
                         aria-label="Close"></button>
                 </div>
                 <div class="modal-body customScrollBar" data-cedant-comm-rate="{{ $cover->cedant_comm_rate }}">
+                    <div id="reinsurer-modal-loader" class="reinsurer-modal-loader d-none" aria-live="polite"
+                        aria-label="Loading reinsurer placement">
+                        <div class="spinner-border text-primary" role="status" aria-hidden="true"></div>
+                        <span class="ms-2">Loading placement data...</span>
+                    </div>
                     <div class="modal-cover-section">
                         @if (isset($coverTreaties) && $coverTreaties->count() > 1)
                             <div class="row mb-3">
@@ -114,6 +123,27 @@
 
     .rein-modal .card-header:first-child {
         border-radius: 0px !important;
+    }
+
+    #addReinsurerModal .modal-body {
+        position: relative;
+    }
+
+    #addReinsurerModal .reinsurer-modal-loader {
+        position: absolute;
+        inset: 0;
+        z-index: 20;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        background: rgba(255, 255, 255, 0.72);
+        font-weight: 600;
+    }
+
+    #addReinsurerModal.reinsurer-loading .modal-cover-section {
+        opacity: 0.55;
+        pointer-events: none;
     }
 </style>
 

@@ -7,6 +7,7 @@ use App\Events\ApprovalTrackerEvent;
 use App\Http\Traits\ApprovalTrackerTrait;
 use Carbon\Carbon;
 use App\Models\GLBatch;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use App\Models\CoverRegister;
 use App\Models\ApprovalsTracker;
@@ -155,6 +156,73 @@ class ApprovalsController extends Controller
                     : 'Failed to process approval request. Please try again.',
                 'error' => config('app.debug') ? $e->getTraceAsString() : null
             ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    public function reEscalate(Request $request): JsonResponse
+    {
+        DB::beginTransaction();
+
+        try {
+            $validated = $request->validate([
+                'approval_id' => 'required|integer|exists:approvals_tracker,id',
+            ]);
+
+            $approval = ApprovalsTracker::with(['notification'])
+                ->findOrFail($validated['approval_id']);
+
+            if ($approval->status !== self::STATUS_PENDING) {
+                throw new Exception('Only pending approvals can be re-escalated');
+            }
+
+            $existingNotification = $approval->notification;
+            $approverId = (int) $approval->approver;
+            $username = Auth::user()->name ?? Auth::user()->user_name ?? 'System';
+
+            Notification::create([
+                'created_by' => $approverId,
+                'updated_by' => $approverId,
+                'title' => $existingNotification->title ?? 'Re-escalated Approval Request',
+                'link' => '/approvals',
+                'message' => $existingNotification->message ?? 'This approval request has been re-escalated.',
+                'type' => $existingNotification->type ?? 'verify_cover',
+                'effective_from' => Carbon::now(),
+                'expired_at' => Carbon::now()->addDays(self::NOTIFICATION_EXPIRY_DAYS),
+                'notification_type' => $existingNotification->notification_type ?? 'general',
+                'status' => 'pending',
+                'priority' => $approval->priority ?? 'low',
+                'amount' => $existingNotification->amount ?? 0,
+                'client' => $existingNotification->client ?? null,
+                'cover_no' => $existingNotification->cover_no ?? null,
+                'endorsement_no' => $existingNotification->endorsement_no ?? null,
+                'customer_id' => $existingNotification->customer_id ?? null,
+                'underwriter' => $username,
+                'approval_tracker_id' => $approval->id,
+            ]);
+
+            DB::commit();
+
+            return response()->json([
+                'status' => Response::HTTP_OK,
+                'success' => true,
+                'message' => 'Approval re-escalated successfully',
+            ], Response::HTTP_OK);
+        } catch (ValidationException $e) {
+            DB::rollBack();
+
+            return response()->json([
+                'status' => Response::HTTP_UNPROCESSABLE_ENTITY,
+                'success' => false,
+                'errors' => $e->errors(),
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+        } catch (Exception $e) {
+            DB::rollBack();
+
+            return response()->json([
+                'status' => Response::HTTP_BAD_REQUEST,
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], Response::HTTP_BAD_REQUEST);
         }
     }
 

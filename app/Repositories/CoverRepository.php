@@ -180,7 +180,7 @@ class CoverRepository extends BaseRepository
             $businessClasses = $this->getBusinessClasses($endorsement_no);
             $taxRates = $this->getTaxRates();
 
-            $coverreinprop = $this->getCoverReinpProps($endorsement_no);
+            $coverreinprop = $this->getCoverReinpProps($CoverRegister);
 
             return [
                 'coverNo' => $CoverRegister->cover_no,
@@ -329,6 +329,14 @@ class CoverRepository extends BaseRepository
             'reinsurer' => 'required|integer',
             'share' => 'required|numeric|min:0|max:100',
             'written_share' => 'nullable|numeric',
+            'compulsory_acceptance' => 'nullable|numeric|min:0|max:100',
+            'optional_acceptance' => 'nullable|numeric|min:0|max:100',
+            'net_of_tax' => 'nullable|integer',
+            'net_of_claims' => 'nullable|integer',
+            'net_of_commission' => 'nullable|integer',
+            'net_of_premium' => 'nullable|integer',
+            'premium_tax' => 'nullable|integer',
+            'net_withholding_tax' => 'nullable|integer',
             'comm_rate' => Rule::requiredIf(function () use ($request) {
                 $cover = CoverRegister::select('type_of_bus')
                     ->where('endorsement_no', $request->endorsement_no)
@@ -347,11 +355,49 @@ class CoverRepository extends BaseRepository
                 ->where('partner_no', $request->reinsurer)
                 ->firstOrFail();
 
+            $duplicatePartner = CoverRipart::where('endorsement_no', $request->endorsement_no)
+                ->where('partner_no', $request->reinsurer)
+                ->where('tran_no', '!=', $request->tran_no)
+                ->exists();
+
+            if ($duplicatePartner) {
+                throw ValidationException::withMessages([
+                    'reinsurer' => ['Reinsurer must be unique for this cover.'],
+                ]);
+            }
+
             $amounts = $this->calculateReinsurerAmounts($CoverRegister, $coverRipart, $request);
+            $isTreaty = $this->isTreatyBusiness($CoverRegister->type_of_bus);
+            $finalShare = $isTreaty
+                ? $this->parseNumeric($request->written_share)
+                : $this->parseNumeric($request->share);
+
+            $checkboxValues = [
+                'net_of_tax' => $request->net_of_tax ?? 0,
+                'net_of_claims' => $request->net_of_claims ?? 0,
+                'net_of_commission' => $request->net_of_commission ?? 0,
+                'net_of_premium' => $request->net_of_premium ?? 0,
+                'premium_tax' => $request->premium_tax ?? 0,
+                'net_withholding_tax' => $request->net_withholding_tax ?? 0,
+            ];
+
+            // Checkbox calculation basis is shared across reinsurers in this endorsement.
+            CoverRipart::where('endorsement_no', $request->endorsement_no)->update(array_merge(
+                $checkboxValues,
+                [
+                    'commission_mode' => ($request->net_of_tax ?? 0) ? 'net' : 'gross',
+                    'updated_by' => Auth::user()->user_name,
+                    'updated_at' => now(),
+                ]
+            ));
 
             $coverRipart->update([
-                'share' => $request->share,
+                'share' => $finalShare,
                 'written_lines' => $request->written_share,
+                'compulsory_acceptance' => $request->compulsory_acceptance,
+                'optional_acceptance' => $request->optional_acceptance,
+                'total_acceptance' => $finalShare,
+                'commission_mode' => ($request->net_of_tax ?? 0) ? 'net' : 'gross',
                 'total_sum_insured' => $amounts['total_sum_insured'],
                 'sum_insured' => $amounts['sum_insured'],
                 'total_premium' => $amounts['total_premium'],
@@ -369,7 +415,12 @@ class CoverRepository extends BaseRepository
                 'updated_at' => now()
             ]);
 
-            $coverRipart->refresh();
+            // Avoid refresh() on composite-key models (coverripart) because
+            // Eloquent's default refresh key resolution expects scalar keys.
+            $coverRipart = CoverRipart::where('tran_no', $request->tran_no)
+                ->where('endorsement_no', $request->endorsement_no)
+                ->where('partner_no', $request->reinsurer)
+                ->firstOrFail();
 
             $this->createReinNotes($CoverRegister, $coverRipart, $amounts);
 
@@ -377,6 +428,7 @@ class CoverRepository extends BaseRepository
 
             return response()->json([
                 'status' => Response::HTTP_OK,
+                'success' => true,
                 'message' => 'Reinsurer updated successfully',
                 'data' => $coverRipart
             ]);
@@ -385,6 +437,7 @@ class CoverRepository extends BaseRepository
 
             return response()->json([
                 'status' => Response::HTTP_INTERNAL_SERVER_ERROR,
+                'success' => false,
                 'message' => 'Failed to update reinsurer: ' . $e->getMessage()
             ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
@@ -1066,9 +1119,24 @@ class CoverRepository extends BaseRepository
         ];
     }
 
-    private function getCoverReinpProps($endorsement_no)
+    private function getCoverReinpProps(CoverRegister $cover)
     {
-        $coveReinProp = CoverReinProp::where('endorsement_no', $endorsement_no)->first();
+        $coveReinProp = CoverReinProp::where('endorsement_no', $cover->endorsement_no)->first();
+        $reinsurerShareTotal = (float) CoverRipart::where('endorsement_no', $cover->endorsement_no)
+            ->where('cover_no', $cover->cover_no)
+            ->sum('share');
+
+        if (
+            $reinsurerShareTotal <= 0 &&
+            !empty($cover->orig_endorsement_no) &&
+            $cover->orig_endorsement_no !== $cover->endorsement_no
+        ) {
+            $reinsurerShareTotal = (float) CoverRipart::where('endorsement_no', $cover->orig_endorsement_no)
+                ->where('cover_no', $cover->cover_no)
+                ->sum('share');
+        }
+
+        $formattedReinsurerShare = number_format($reinsurerShareTotal, 2) . '%';
         $coverreinprop = [];
         if ($coveReinProp) {
             $coverreinprop = [
@@ -1076,7 +1144,7 @@ class CoverRepository extends BaseRepository
                 'treaty_capacity' =>  number_format($coveReinProp->treaty_limit, 2),
                 'no_of_lines' => number_format($coveReinProp->no_of_lines, 2),
                 'item_description' => $coveReinProp->item_description,
-                'total_reinsurers' => 0
+                'total_reinsurers' => $formattedReinsurerShare
             ];
         } else {
             $coverreinprop = [
@@ -1084,7 +1152,7 @@ class CoverRepository extends BaseRepository
                 'treaty_capacity' => '0.00',
                 'no_of_lines' => '0',
                 'item_description' => '',
-                'total_reinsurers' => 0
+                'total_reinsurers' => $formattedReinsurerShare
             ];
         }
 

@@ -53,8 +53,6 @@
 
     @foreach ($reinsurers as $index => $reinsurer)
         @php
-            $reinsurerShare = $reinsurer->share;
-
             $filteredCreditItems = collect($credit_items);
             if (!($with_brokerage ?? true)) {
                 $filteredCreditItems = $filteredCreditItems->filter(function ($item) {
@@ -68,9 +66,15 @@
 
             $reinsurerTotals = (object) [
                 'gross_premium' => $totals->gross_premium,
-                'commission' => $totals->commission * $reinsurerShare,
+                'commission' => $totals->commission,
+                'total_debits' => $totalDebit,
+                'total_credits' => $totalCredit,
                 'net_amount' => $netAmount,
             ];
+
+            $sharePercent = (float) ($reinsurer->share ?? 0);
+            $shareFactor = $sharePercent > 1 ? ($sharePercent / 100) : $sharePercent;
+            $shareSumInsured = $reinsurer->sum_insured ?? (($cover->total_sum_insured ?? 0) * $shareFactor);
         @endphp
 
         <div class="reinsurer-page {{ $index === 0 ? 'first-page' : '' }}">
@@ -192,11 +196,11 @@
                                 </tr>
                                 <tr>
                                     <td class="pt-4 courier-9"><strong> Your share S.I
-                                            ({{ number_format($reinsurer->share, 2) }}%)
+                                            ({{ number_format($sharePercent, 2) }}%)
                                         </strong>
                                     </td>
                                     <td class="pt-4 courier-9">
-                                        {{ number_format(abs($reinsurer->brokerage_comm_amt ?? 0), 2) }}
+                                        {{ number_format(abs($shareSumInsured), 2) }}
                                     </td>
                                 </tr>
                             </table>
@@ -246,10 +250,10 @@
                             <td class="no-border align-left" style="font-weight: bold; width: 32.5%;">TOTAL</td>
                             <td class="no-border" style="width: 32.5%;">&nbsp;</td>
                             <td class="no-border align-right" style="font-weight: bold; width: 17.5%; text-align: right;">
-                                {{ number_format(abs($reinsurerTotals->net_amount), 2) }}
+                                {{ number_format(abs($reinsurerTotals->total_debits), 2) }}
                             </td>
                             <td class="no-border align-right" style="font-weight: bold; width: 17.5%; text-align: right;">
-                                {{ number_format(abs($reinsurerTotals->net_amount), 2) }}
+                                {{ number_format(abs($reinsurerTotals->total_credits), 2) }}
                             </td>
                         </tr>
                     </tbody>

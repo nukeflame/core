@@ -420,39 +420,6 @@ class CoverController extends Controller
         ]);
 
         return $this->CoverForm($request);
-
-        // $validator = Validator::make($request->all(), [
-        //     'cover_no' => 'required',
-        //     'endorsement_no' => 'required',
-        //     'covertype' => 'required',
-        //     'branchcode' => 'required',
-        //     'customer_id' => 'required',
-        //     'classcode' => 'required',
-        //     'coverfrom' => 'required',
-        //     'coverto' => 'required',
-        //     'pay_method' => 'required',
-        //     'type_of_bus' => 'required',
-        //     'class_group' => 'required',
-        // ]);
-
-        // if (!$validator) {
-        //     return redirect()->route('cover.editCoverForm', [
-        //         'cover_no' => $request->cover_no,
-        //         'endorsement_no' => $request->endorsement_no,
-        //         'customer_id' => $request->customer_id,
-        //         'trans_type' => $request->trans_type,
-        //     ])->with('errors', $validator->errors());
-        // }
-
-        // DB::beginTransaction();
-        // try {
-        //     $result = $this->coverRepository->editCoverRegister($request);
-        //     DB::commit();
-        //     return redirect()->route('cover.CoverHome', ['endorsement_no' => $result->endorsement_no])->with('success', 'Cover Register information updated successfully');
-        // } catch (Exception $e) {
-        //     DB::rollback();
-        //     return redirect()->route('cover.CoverHome', ['endorsement_no' => $request->endorsement_no])->with('error', 'Failed to update Cover information');
-        // }
     }
 
     public function insertCoverReinProp($data)
@@ -662,6 +629,28 @@ class CoverController extends Controller
         $summaryData = ['summaryData' => []];
         $taxRates = ['taxRates' => TaxRate::getAllCurrentRates()];
         $data = array_merge($summaryData, $taxRates, $cover);
+
+        $pendingApproverId = null;
+        try {
+            $approvalAction = SystemProcessAction::where('nice_name', 'verify_cover')->first();
+            if ($approvalAction) {
+                $approvalIds = ApprovalSourceLink::where('process_id', $approvalAction->process_id)
+                    ->where('process_action', $approvalAction->id)
+                    ->where('source_table', 'cover_register')
+                    ->where('source_column_name', 'endorsement_no')
+                    ->where('source_column_data', $cover['coverReg']->endorsement_no)
+                    ->pluck('approval_id');
+
+                $pendingApproverId = ApprovalsTracker::whereIn('id', $approvalIds)
+                    ->where('status', 'P')
+                    ->latest('id')
+                    ->value('approver');
+            }
+        } catch (Exception $e) {
+            $pendingApproverId = null;
+        }
+
+        $data['pendingApproverId'] = $pendingApproverId;
 
         $isTreaty = in_array($cover['type_of_bus']['bus_type_id'], ['TPR', 'TNP']);
         if ($isTreaty) {
@@ -884,6 +873,20 @@ class CoverController extends Controller
 
             $coverRegister = CoverRegister::where('endorsement_no', $validated['endorsement_no'])->firstOrFail();
 
+            $submittedReinsurers = collect($request->input('treaty', []))
+                ->flatMap(function ($treaty) {
+                    return collect($treaty['reinsurers'] ?? [])->pluck('reinsurer');
+                })
+                ->filter()
+                ->map(fn($id) => (string) $id);
+
+            $duplicateSubmitted = $submittedReinsurers->duplicates()->unique()->values();
+            if ($duplicateSubmitted->isNotEmpty()) {
+                throw ValidationException::withMessages([
+                    'treaty' => ['Reinsurer must be unique for this cover.'],
+                ]);
+            }
+
             $this->_endorsement_no = $coverRegister->endorsement_no;
             $this->_year = now()->year;
             $this->_month = now()->month;
@@ -896,17 +899,32 @@ class CoverController extends Controller
 
             foreach ($request->treaty as $treatyIndex => $treaty) {
                 foreach ($treaty['reinsurers'] as $reinsurerIndex => $reinsurerData) {
+                    $isTreatyBusiness = in_array($coverRegister->type_of_bus, ['TPR', 'TNP']);
+                    $existingCoverRipart = null;
 
-                    $tran_no = DB::transaction(function () {
-                        $max = (int) CoverRipart::withTrashed()->max('tran_no');
+                    if ($isTreatyBusiness) {
+                        $existingCoverRipart = CoverRipart::where('endorsement_no', $coverRegister->endorsement_no)
+                            ->where('partner_no', $reinsurerData['reinsurer'])
+                            ->first();
+                    }
 
-                        return $max + 1;
-                    });
+                    if ($existingCoverRipart) {
+                        $coverRipart = $existingCoverRipart;
+                    } else {
+                        $tran_no = DB::transaction(function () {
+                            $max = (int) CoverRipart::withTrashed()->max('tran_no');
 
-                    $coverRipart = new CoverRipart;
+                            return $max + 1;
+                        });
+
+                        $coverRipart = new CoverRipart;
+                        $coverRipart->cover_no = $coverRegister->cover_no;
+                        $coverRipart->endorsement_no = $coverRegister->endorsement_no;
+                        $coverRipart->tran_no = $tran_no;
+                    }
+
                     $coverRipart->cover_no = $coverRegister->cover_no;
                     $coverRipart->endorsement_no = $coverRegister->endorsement_no;
-                    $coverRipart->tran_no = $tran_no;
                     // $coverRipart->amount_type = $reinsurerData['amount_type'];
                     $coverRipart->period_year = $this->_year;
                     $coverRipart->period_month = $this->_month;
@@ -998,7 +1016,9 @@ class CoverController extends Controller
                         );
                     }
 
-                    $coverRipart->created_by = Auth::user()->user_name;
+                    if (! $existingCoverRipart) {
+                        $coverRipart->created_by = Auth::user()->user_name;
+                    }
                     $coverRipart->updated_by = Auth::user()->user_name;
 
                     $coverRipart->save();
@@ -1008,6 +1028,13 @@ class CoverController extends Controller
 
                     if (! $payMethod) {
                         throw new Exception("Payment method {$payMethodCode} not found");
+                    }
+
+                    if ($isTreatyBusiness) {
+                        DB::table('cover_installments')
+                            ->where('endorsement_no', $coverRegister->endorsement_no)
+                            ->where('partner_no', $reinsurerData['reinsurer'])
+                            ->delete();
                     }
 
                     if ($payMethod->short_description === 'I' || $payMethod->pay_method_code === 'INS' || $payMethod->pay_method_code === 'INST') {
@@ -1215,6 +1242,7 @@ class CoverController extends Controller
 
     public function deleteReinsurerData(Request $request)
     {
+        DB::beginTransaction();
         try {
             $request->validate([
                 'tran_no' => 'required',
@@ -1222,31 +1250,41 @@ class CoverController extends Controller
                 'reinsurer' => 'required',
             ]);
 
-            $reinsurer = CoverRipart::where('tran_no', $request->tran_no)
+            $reinsurerDeleted = CoverRipart::withTrashed()
+                ->where('tran_no', $request->tran_no)
                 ->where('endorsement_no', $request->endorsement_no)
-                ->where('partner_no', $request->reinsurer);
-
-            if ($reinsurer->first()) {
-                $reinsurer->delete();
-            }
-
-            $cover = CoverInstallments::where('endorsement_no', $request->endorsement_no)
                 ->where('partner_no', $request->reinsurer)
-                ->where('trans_type', 'FPR');
-            if ($cover->get()) {
-                $cover->delete();
-            }
+                ->forceDelete();
+
+            $installmentsDeleted = CoverInstallments::withTrashed()
+                ->where('endorsement_no', $request->endorsement_no)
+                ->where('partner_no', $request->reinsurer)
+                ->forceDelete();
+
+            $reinNotesDeleted = ReinNote::withTrashed()
+                ->where('endorsement_no', $request->endorsement_no)
+                ->where('partner_no', $request->reinsurer)
+                ->forceDelete();
+
+            DB::commit();
 
             return response()->json([
                 'status' => Response::HTTP_CREATED,
                 'message' => 'Reinsurer removed successfully',
+                'deleted' => [
+                    'coverripart' => $reinsurerDeleted,
+                    'cover_installments' => $installmentsDeleted,
+                    'rein_notes' => $reinNotesDeleted,
+                ],
             ]);
         } catch (ValidationException $e) {
+            DB::rollBack();
             return response()->json([
                 'status' => Response::HTTP_UNPROCESSABLE_ENTITY,
                 'errors' => $e->errors(),
             ], 422);
         } catch (Exception $e) {
+            DB::rollBack();
             return response()->json([
                 'status' => $e->getCode(),
                 'message' => 'Failed to Remove Reinsurer',
@@ -1385,10 +1423,12 @@ class CoverController extends Controller
                                 ->sum('share');
                             break;
                     }
-                    $reinsurer = Customer::where('customer_id', $data->partner_no)->first();
                     if (($cover->transaction_type == 'NEW' || $cover->transaction_type == 'REN' || $cover->transaction_type == 'EXT' || $cover->transaction_type == 'CNC' || $cover->transaction_type == 'RFN')) {
-                        $btn .= "<button class='btn btn-outline-dark btn-wave waves-effect waves-light edit-reinsurer datatable-action-btn' data-distributed-share='{$distributedShare}' data-reinsurer='{$reinsurer}' data-data='{$data}' data-bs-toggle='modal' data-bs-target='#edit-reinsurer-modal'>Edit</button>";
-                        $btn .= "<button class='btn btn-outline-danger btn-wave waves-effect waves-light remove-reinsurer datatable-action-btn mx-2' data-reinsurer='{$reinsurer}' data-data='{$data}'>Remove</button>";
+                        $partnerName = e($data?->partner?->name ?? 'Reinsurer');
+                        $btn .= "<div class='btn-group btn-group-sm' role='group' aria-label='Cedant actions'>";
+                        $btn .= "<button type='button' class='btn btn-outline-primary process_customer edit-reinsurer' data-customer-id='{$data->partner_no}' data-distributed-share='{$distributedShare}' data-tran-no='{$data->tran_no}' data-partner-no='{$data->partner_no}' data-bs-toggle='modal' data-bs-target='#addReinsurerModal' title='Edit reinsurer' aria-label='Edit reinsurer {$partnerName}'><i class='bi bi-pencil-square'></i></button>";
+                        $btn .= "<button type='button' class='btn btn-outline-danger remove_process_customer remove-reinsurer' data-cedant-id='{$data->partner_no}' data-name='{$partnerName}' data-tran-no='{$data->tran_no}' data-partner-no='{$data->partner_no}' title='Clear all covers' aria-label='Clear all covers for {$partnerName}'><i class='bi bi-trash'></i></button>";
+                        $btn .= '</div>';
                     } else {
                         $btn .= '';
                     }
@@ -1515,13 +1555,13 @@ class CoverController extends Controller
                 if ($actionable) {
                     switch ($data->status) {
                         case 'P':
-                            $btn .= " <button class='btn btn-outline-dark btn-wave waves-effect waves-light edit-reinsurer datatable-action-btn' data-id='{$data->id}' id='re-escalate'>Re-escalate</button>";
+                            $btn .= " <button type='button' class='btn btn-outline-dark btn-sm btn-wave waves-effect waves-light re-escalate-approval' data-approval-id='{$data->id}'><i class='ri-arrow-up-circle-line me-1'></i>Re-escalate</button>";
                             break;
                         case 'A':
                             $btn .= " <span class='badge badge-success' disabled>Closed</span>";
                             break;
                         case 'R':
-                            $btn .= " <button class='btn btn-outline-primary btn-sm' data-id='{$data->id}' id='re-send'>Re-send</button>";
+                            $btn .= " <button type='button' class='btn btn-outline-primary btn-sm re-send-approval' data-approval-id='{$data->id}'>Re-send</button>";
                             break;
                     }
                 }
@@ -1581,8 +1621,8 @@ class CoverController extends Controller
                     }
                     $reinsurer = Customer::where('customer_id', $data->partner_no)->first();
                     if (($cover->transaction_type == 'NEW' || $cover->transaction_type == 'REN' || $cover->transaction_type == 'EXT' || $cover->transaction_type == 'CNC' || $cover->transaction_type == 'RFN')) {
-                        $btn .= "<button class='btn btn-outline-dark btn-wave waves-effect waves-light edit-reinsurer datatable-action-btn' data-distributed-share='{$distributedShare}' data-reinsurer='{$reinsurer}' data-data='{$data}' data-bs-toggle='modal' data-bs-target='#edit-reinsurer-modal'>Edit</button>";
-                        $btn .= "<button class='btn btn-outline-danger btn-wave waves-effect waves-light remove-reinsurer datatable-action-btn mx-2' data-reinsurer='{$reinsurer}' data-data='{$data}'>Remove</button>";
+                        $btn .= "<button class='btn btn-outline-dark btn-wave waves-effect waves-light edit-reinsurer' data-distributed-share='{$distributedShare}' data-tran-no='{$data->tran_no}' data-partner-no='{$data->partner_no}' data-reinsurer='{$reinsurer}' data-data='{$data}' data-bs-toggle='modal' data-bs-target='#addReinsurerModal'>Edit</button>";
+                        $btn .= "<button class='btn btn-outline-danger btn-wave waves-effect waves-light remove-reinsurer mx-2' data-tran-no='{$data->tran_no}' data-partner-no='{$data->partner_no}' data-reinsurer='{$reinsurer}' data-data='{$data}'>Remove</button>";
                     } else {
                         $btn .= '';
                     }
@@ -1663,11 +1703,11 @@ class CoverController extends Controller
                 }
                 $tmp_attachments = json_encode(['attachments' => $attachments]);
 
-                $btn .= " <select class='btn-outline-dark notice-action datatable-action-btn' data-id='{$data->id}' id='selected_renewal_action'><option value='cedant' selected>Cedant</option><option value='reinsurer'>Reinsurer</option></select>";
-                $btn .= " <button class='btn btn-outline-dark btn-wave waves-effect waves-light renewal-send_mail_doc datatable-action-btn' data-id='{$data->id}' data-client_name='{$data->client_name}' data-client_docs={$tmp_attachments} data-policy_no={$data->policy_number} data-client_emails={$tmp_emails} id='send_renewalmail_doc' data-bs-target='#view-renewaldocument-modal' data-bs-toggle='modal'><i class='bx bx-mail-send me-1'></i>Send E-Mail</button>";
-                $btn .= " <a href='{$viewDocUrl}' data-policy_no={$data->policy_number} target='_blank' rel='noreferrer' class='btn btn-outline-dark btn-wave waves-effect waves-light renewal-view_doc datatable-action-btn' data-id='{$data->id}' id='view_doc'><i class='bx bx-file me-1'></i>View</a>";
-                $btn .= " <a href='{$downloadDocUrl}' data-policy_no={$data->policy_number} class='btn btn-outline-dark btn-wave waves-effect waves-light renewal-doc_download datatable-action-btn' data-id='{$data->id}' id='doc_download'><i class='bx bx-download me-1'></i>Download</a>";
-                $btn .= " <button class='btn btn-outline-danger btn-wave waves-effect waves-light remove-renewal_doc datatable-action-btn' data-title='{$data->doc_name}' data-id='{$data->id}'><i class='bx bx-trash'></i></button>";
+                $btn .= " <select class='btn-outline-dark notice-action' data-id='{$data->id}' id='selected_renewal_action'><option value='cedant' selected>Cedant</option><option value='reinsurer'>Reinsurer</option></select>";
+                $btn .= " <button class='btn btn-outline-dark btn-wave waves-effect waves-light renewal-send_mail_doc' data-id='{$data->id}' data-client_name='{$data->client_name}' data-client_docs={$tmp_attachments} data-policy_no={$data->policy_number} data-client_emails={$tmp_emails} id='send_renewalmail_doc' data-bs-target='#view-renewaldocument-modal' data-bs-toggle='modal'><i class='bx bx-mail-send me-1'></i>Send E-Mail</button>";
+                $btn .= " <a href='{$viewDocUrl}' data-policy_no={$data->policy_number} target='_blank' rel='noreferrer' class='btn btn-outline-dark btn-wave waves-effect waves-light renewal-view_doc' data-id='{$data->id}' id='view_doc'><i class='bx bx-file me-1'></i>View</a>";
+                $btn .= " <a href='{$downloadDocUrl}' data-policy_no={$data->policy_number} class='btn btn-outline-dark btn-wave waves-effect waves-light renewal-doc_download' data-id='{$data->id}' id='doc_download'><i class='bx bx-download me-1'></i>Download</a>";
+                $btn .= " <button class='btn btn-outline-danger btn-wave waves-effect waves-light remove-renewal_doc' data-title='{$data->doc_name}' data-id='{$data->id}'><i class='bx bx-trash'></i></button>";
 
                 return $btn;
             })
@@ -4465,18 +4505,24 @@ class CoverController extends Controller
             $validated = $request->validate([
                 'cover_no' => 'required|string',
                 'endorsement_no' => 'required|string',
+                'partner_no' => 'nullable',
+                'tran_no' => 'nullable',
             ]);
 
             $cover = CoverRegister::where('cover_no', $validated['cover_no'])->where('endorsement_no', $validated['endorsement_no'])->firstOrFail();
 
             $isTreaty = in_array($cover->type_of_bus, ['TPR', 'TNP']);
+            $filters = [
+                'partner_no' => $request->input('partner_no'),
+                'tran_no' => $request->input('tran_no'),
+            ];
 
             $responseData = [];
 
             if ($isTreaty) {
-                $responseData = $this->fetchTreatyReinsurers($cover);
+                $responseData = $this->fetchTreatyReinsurers($cover, $filters);
             } else {
-                $responseData = $this->fetchFacultativeReinsurers($cover);
+                $responseData = $this->fetchFacultativeReinsurers($cover, $filters);
             }
 
             return response()->json([
@@ -4497,36 +4543,70 @@ class CoverController extends Controller
         }
     }
 
-    private function fetchTreatyReinsurers(CoverRegister $cover): array
+    private function fetchTreatyReinsurers(CoverRegister $cover, array $filters = []): array
     {
-        // $treaties = CoverTreaty::where('cover_id', $cover->id)
-        //     ->with(['reinsurers' => function ($query) {
-        //         $query->with(['partner', 'installments']);
-        //     }])
-        //     ->get();
+        $query = CoverRipart::query()
+            ->with('partner')
+            ->where('endorsement_no', $cover->endorsement_no)
+            ->where('cover_no', $cover->cover_no);
 
-        $treaties = collect([]);
+        if (!empty($filters['partner_no'])) {
+            $query->where('partner_no', $filters['partner_no']);
+        }
+
+        if (!empty($filters['tran_no'])) {
+            $query->where('tran_no', $filters['tran_no']);
+        }
+
+        $records = $query->orderBy('tran_no')->get();
+        $treaties = $records->groupBy(function ($record) {
+            return $record->treaty_code ?? '';
+        });
 
         return [
-            'treaties' => $treaties->map(function ($treaty) use ($cover) {
+            'treaties' => $treaties->map(function ($rows, $treatyCode) use ($cover) {
                 return [
-                    'treaty_id' => $treaty->treaty_id,
-                    'layer_no' => $treaty->layer_no,
-                    'reinsurers' => $treaty->reinsurers->map(function ($reinsurer) use ($cover) {
-                        return $this->mapReinsurerData($reinsurer, $cover, true);
-                    })->toArray(),
+                    'treaty' => $treatyCode,
+                    'treaty_id' => $treatyCode,
+                    'reinsurers' => $rows->map(function ($reinsurer) use ($cover) {
+                        return $this->mapCoverRipartData($reinsurer, $cover, true);
+                    })->values()->toArray(),
                 ];
-            })->toArray(),
+            })->values()->toArray(),
         ];
     }
 
-    private function fetchFacultativeReinsurers(CoverRegister $cover): array
+    private function fetchFacultativeReinsurers(CoverRegister $cover, array $filters = []): array
     {
-        $reinsurers = BdFacReinsurer::where('opportunity_id', $cover->prospect_id)->get();
+        $query = CoverRipart::query()
+            ->with('partner')
+            ->where('endorsement_no', $cover->endorsement_no)
+            ->where('cover_no', $cover->cover_no);
+
+        if (!empty($filters['partner_no'])) {
+            $query->where('partner_no', $filters['partner_no']);
+        }
+
+        if (!empty($filters['tran_no'])) {
+            $query->where('tran_no', $filters['tran_no']);
+        }
+
+        $reinsurers = $query->orderBy('tran_no')->get();
+
+        // Fallback to prospect data when cover-level reinsurers do not exist yet.
+        if ($reinsurers->isEmpty() && empty($filters['partner_no']) && empty($filters['tran_no'])) {
+            $prospectReinsurers = BdFacReinsurer::where('opportunity_id', $cover->prospect_id)->get();
+
+            return [
+                'reinsurers' => $prospectReinsurers->map(function ($reinsurer) use ($cover) {
+                    return $this->mapReinsurerData($reinsurer, $cover, false);
+                })->toArray(),
+            ];
+        }
 
         return [
             'reinsurers' => $reinsurers->map(function ($reinsurer) use ($cover) {
-                return $this->mapReinsurerData($reinsurer, $cover, false);
+                return $this->mapCoverRipartData($reinsurer, $cover, false);
             })->toArray(),
         ];
     }
@@ -4581,6 +4661,53 @@ class CoverController extends Controller
             //         ];
             //     })->toArray();
             // }
+        }
+
+        return $data;
+    }
+
+    private function mapCoverRipartData(CoverRipart $reinsurer, CoverRegister $cover, bool $isTreaty): array
+    {
+        $data = [
+            'id' => $reinsurer->tran_no,
+            'tran_no' => $reinsurer->tran_no,
+            'partner_no' => $reinsurer->partner_no,
+            'reinsurer_id' => $reinsurer->partner_no,
+            'reinsurer_name' => $reinsurer?->partner?->name,
+            'written_share' => $reinsurer->written_lines,
+            'share' => $reinsurer->share,
+            'wht_rate' => $reinsurer->wht_rate ?? '0.00',
+            'premium_type' => $reinsurer->commission_mode ?? 'net',
+            'pay_method' => $reinsurer->pay_method ?? $cover->pay_method_code,
+            'treaty' => $reinsurer->treaty_code,
+            'net_of_tax' => $reinsurer->net_of_tax ?? 0,
+            'net_of_claims' => $reinsurer->net_of_claims ?? 0,
+            'net_of_commission' => $reinsurer->net_of_commission ?? 0,
+            'net_of_premium' => $reinsurer->net_of_premium ?? 0,
+            'premium_tax' => $reinsurer->premium_tax ?? 0,
+            'net_withholding_tax' => $reinsurer->net_withholding_tax ?? 0,
+        ];
+
+        if ($isTreaty) {
+            $data = array_merge($data, [
+                'compulsory_acceptance' => $reinsurer->compulsory_acceptance,
+                'optional_acceptance' => $reinsurer->optional_acceptance,
+            ]);
+        } else {
+            $data = array_merge($data, [
+                'sum_insured' => $reinsurer->sum_insured,
+                'premium' => $reinsurer->premium,
+                'comm_rate' => $reinsurer->comm_rate,
+                'comm_amt' => $reinsurer->commission,
+                'brokerage_comm_type' => $reinsurer->brokerage_comm_type,
+                'brokerage_comm_amt' => $reinsurer->brokerage_comm_amt,
+                'brokerage_comm_rate' => $reinsurer->brokerage_comm_rate,
+                'brokerage_comm_rate_amnt' => $reinsurer->brokerage_comm_rate_amnt ?? 0,
+                'apply_fronting' => ($reinsurer->fronting_rate > 0 || $reinsurer->fronting_amt > 0) ? 'Y' : 'N',
+                'fronting_rate' => $reinsurer->fronting_rate ?? 0,
+                'fronting_amt' => $reinsurer->fronting_amt ?? 0,
+                'no_of_installments' => $cover->no_of_installments,
+            ]);
         }
 
         return $data;
