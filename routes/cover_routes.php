@@ -258,6 +258,7 @@ Route::group(
     ['prefix' => 'settings', 'middleware' => ['auth', 'check.first.login']],
     function () {
         Route::get('/business-development/schedule-headers', [BdScheduleController::class, 'bd_schedule_info'])->name('bd.schedule-headers.index');
+        Route::redirect('/bd.schedule.info', '/business-development/schedule-headers', 301)->name('bd.schedule.info');
         Route::get('/schedule-header-form', [BdScheduleController::class, 'bd_schedule_add_form'])->name('schedule.header.form');
         Route::post('/bd-schedule-header-store', [BdScheduleController::class, 'bd_schedule_header_add'])->name('bd.schedule.header.store');
         Route::get('bd-schedule-header-data', [BdScheduleController::class, 'bd_schedule_header_data'])->name('bd.schedule.header.data');
