@@ -18,7 +18,7 @@ use PHPJasper\PHPJasper;
 
 Route::middleware(['auth', 'check.first.login'])->group(function () {
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard.index');
-    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard.index');
+    Route::redirect('/dashboard', '/', 301);
 
     Route::get('/search/results', [SearchController::class, 'searchResults'])->name('search.results');
 
