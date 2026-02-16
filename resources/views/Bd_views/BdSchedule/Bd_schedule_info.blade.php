@@ -137,44 +137,121 @@
             <div class="card custom-card shadow-sm">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <div>
-                        <h5 class="card-title mb-0">Schedule Directory</h5>
-                        <small class="text-muted">View and manage all registered cedants</small>
+                        <h5 class="card-title mb-0">Schedule Headers List</h5>
+                        <small class="text-muted">View and manage schedule headers</small>
                     </div>
                     <button type="button" class="btn btn-primary btn-sm" id="addScheduleHeaderBtn"
+                        data-bs-toggle="modal" data-bs-target="#addScheduleHeaderModal"
                         aria-label="Add new schedule header">
                         <i class='bx bx-plus me-1'></i>
                         Add Schedule Header
                     </button>
                 </div>
-                <div class="table-responsive">
-                    <table class="table text-nowrap table-striped table-hover" id="scheduleHeaderTable"
-                        aria-label="Schedule headers table">
-                        <thead>
-                            <tr>
-                                <th scope="col">ID</th>
-                                <th scope="col">Name</th>
-                                <th scope="col">Business Type</th>
-                                <th scope="col">Position</th>
-                                <th scope="col">Amount Field</th>
-                                <th scope="col">Sum Insured Type</th>
-                                <th scope="col">Data Determinant</th>
-                                <th scope="col">Class</th>
-                                <th scope="col">Class Group</th>
-                                <th scope="col" class="text-center">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {{-- DataTables will populate this --}}
-                        </tbody>
-                    </table>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table text-nowrap table-striped table-hover" id="scheduleHeaderTable"
+                            aria-label="Schedule headers table">
+                            <thead>
+                                <tr>
+                                    <th scope="col">ID</th>
+                                    <th scope="col">Name</th>
+                                    <th scope="col">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
-    {{-- Hidden form for navigation --}}
-    {{ html()->form('get', route('schedule.header.form'))->id('scheduleHeaderForm')->class('d-none')->open() }}
-    <input type="hidden" name="id" id="scheduleHeaderId">
-    {{ html()->form()->close() }}
+
+    <div class="modal fade" id="addScheduleHeaderModal" tabindex="-1" aria-labelledby="addScheduleHeaderModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <form method="POST" action="{{ route('bd.schedule.header.store') }}" id="addScheduleHeaderForm">
+                    @csrf
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="addScheduleHeaderModalLabel">Add Schedule Header</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label for="sh-name" class="form-label">Name <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="sh-name" name="name" maxlength="100"
+                                    required>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="sh-business-type" class="form-label">Business Type</label>
+                                <select class="form-select" id="sh-business-type" name="business_type">
+                                    <option value="">Select type</option>
+                                    <option value="FAC">Facultative</option>
+                                    <option value="TRT">Treaty</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="sh-position" class="form-label">Position <span
+                                        class="text-danger">*</span></label>
+                                <input type="number" class="form-control" id="sh-position" name="position" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="sh-amount-field" class="form-label">Amount Field <span
+                                        class="text-danger">*</span></label>
+                                <select class="form-select" id="sh-amount-field" name="amount_field" required>
+                                    <option value="">Select amount field</option>
+                                    <option value="Y">Yes</option>
+                                    <option value="N">No</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 amount-field-dependent" style="display:none;">
+                                <label for="sh-sum-insured-type" class="form-label">Type of Sum Insured</label>
+                                <select class="form-select" id="sh-sum-insured-type" name="sum_insured_type">
+                                    <option value="">--select sum insured type--</option>
+                                    @foreach ($type_of_sum_insured as $sumType)
+                                        <option value="{{ $sumType->sum_insured_code }}">
+                                            {{ $sumType->sum_insured_name }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="col-md-6 amount-field-dependent" style="display:none;">
+                                <label for="sh-data-determinant" class="form-label">Data Determinant</label>
+                                <select class="form-select" id="sh-data-determinant" name="data_determinant">
+                                    <option value="">--Select data determinant--</option>
+                                    <option value="COM">Commission</option>
+                                    <option value="PREM">Premium</option>
+                                    <option value="SI">Sum Insured</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 fac-dependent" style="display:none;">
+                                <label for="sh-class-group" class="form-label">Class Group</label>
+                                <select class="form-select" id="sh-class-group" name="class_group">
+                                    <option value="">-- Select Class Group --</option>
+                                    @foreach ($classGroups as $classGroup)
+                                        <option value="{{ $classGroup->group_code }}">
+                                            {{ $classGroup->group_name }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="col-md-6 fac-dependent" style="display:none;">
+                                <label for="sh-class" class="form-label">Class</label>
+                                <select class="form-select" id="sh-class" name="class">
+                                    <option value="">----select---</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Save</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
 @endsection
 
 @push('styles')
@@ -190,7 +267,7 @@
         .action-buttons {
             display: flex;
             gap: 0.5rem;
-            justify-content: center;
+            justify-content: flex-start;
         }
 
         .action-btn {
@@ -234,351 +311,182 @@
 @endpush
 
 @push('script')
-    {{-- Include SweetAlert2 for better modals (optional, remove if not available) --}}
-    {{-- <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script> --}}
-
     <script>
         (function() {
             'use strict';
 
-            // Configuration
-            const CONFIG = {
-                routes: {
-                    data: @json(route('bd.schedule.header.data')),
-                    form: @json(route('schedule.header.form')),
-                    delete: @json(route('delete.schedule.header'))
-                },
-                csrfToken: @json(csrf_token()),
-                datatable: null
-            };
+            const tableSelector = '#scheduleHeaderTable';
+            const dataUrl = @json(route('bd.schedule.header.data'));
+            const editUrl = @json(route('schedule.header.form'));
+            const deleteUrl = @json(route('delete.schedule.header'));
+            const csrfToken = @json(csrf_token());
+            const addModalSelector = '#addScheduleHeaderModal';
+            const addFormSelector = '#addScheduleHeaderForm';
+            const businessTypeSelector = '#sh-business-type';
+            const amountFieldSelector = '#sh-amount-field';
+            const classSelector = '#sh-class';
+            const classGroupSelector = '#sh-class-group';
+            const getClassUrl = @json(route('get_class'));
 
-            function escapeHtml(value) {
-                return String(value ?? '')
-                    .replace(/&/g, '&amp;')
-                    .replace(/</g, '&lt;')
-                    .replace(/>/g, '&gt;')
-                    .replace(/"/g, '&quot;')
-                    .replace(/'/g, '&#39;');
+            function resolveName(row) {
+                return row.name || row.header_name || row.clause_title || '-';
             }
 
-            function renderPlainCell(data, type) {
-                if (type !== 'display') {
-                    return data;
+            $(function() {
+                if (!$.fn.DataTable) {
+                    return;
                 }
-                const value = data === null || data === undefined || data === '' ? '-' : data;
-                return value === '-' ? '<span class="text-muted">-</span>' : escapeHtml(String(value));
-            }
 
-            function updateDashboardStatsFromResponse(json) {
-                const rows = Array.isArray(json?.data) ? json.data : [];
-                const totalRows = Number(json?.recordsTotal || 0);
-                const visibleRows = rows.length;
-                const filteredRows = Number(json?.recordsFiltered || rows.length);
-                const types = [...new Set(rows.map(row => row.bus_type).filter(Boolean))];
-                const typeSummary = types.length ? types.join(', ') : 'No business type in visible rows';
-                const refreshedAt = new Date();
-
-                $('#stat-total-headers').text(totalRows.toLocaleString());
-                $('#stat-visible-rows').text(visibleRows.toLocaleString());
-                $('#stat-covers-change').text(`Filtered: ${filteredRows.toLocaleString()}`);
-                $('#stat-business-types').text(types.length);
-                $('#stat-types-breakdown').text(typeSummary);
-                $('#stat-last-refresh').text(refreshedAt.toLocaleTimeString());
-                $('#stat-last-update').text(`Updated ${refreshedAt.toLocaleDateString()} ${refreshedAt.toLocaleTimeString()}`);
-            }
-
-            /**
-             * Initialize DataTable with configuration
-             */
-            function initializeDataTable() {
-                CONFIG.datatable = $('#scheduleHeaderTable').DataTable({
+                const datatable = $(tableSelector).DataTable({
                     processing: true,
                     serverSide: true,
                     ajax: {
-                        url: CONFIG.routes.data,
+                        url: dataUrl,
                         type: 'GET',
-                        dataSrc: function(json) {
-                            updateDashboardStatsFromResponse(json);
-                            return json.data || [];
-                        },
-                        error: function(xhr, error, code) {
-                            console.error('DataTable Ajax Error:', error);
-                            $('#stat-last-update').text('Failed to refresh');
-                            toastr.error('Failed to load schedule headers. Please refresh the page.');
+                        error: function(xhr, error) {
+                            toastr.error('Failed to load table data.');
                         }
-                    },
-                    order: [
-                        [0, 'asc']
-                    ],
-                    pageLength: 13,
-                    lengthMenu: [
-                        [13, 25, 50, 100, 200],
-                        [13, 25, 50, 100, 200]
-                    ],
-                    searchDelay: 300,
-                    language: {
-                        processing: '<div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div>',
-                        search: 'Search schedule headers:',
-                        searchPlaceholder: 'Enter search term...',
-                        lengthMenu: 'Show _MENU_ entries',
-                        info: 'Showing _START_ to _END_ of _TOTAL_ schedule headers',
-                        infoEmpty: 'No schedule headers available',
-                        infoFiltered: '(filtered from _MAX_ total schedule headers)',
-                        paginate: {
-                            first: '<i class="bi bi-chevron-double-left"></i>',
-                            last: '<i class="bi bi-chevron-double-right"></i>',
-                            next: '<i class="bi bi-chevron-right"></i>',
-                            previous: '<i class="bi bi-chevron-left"></i>'
-                        },
-                        emptyTable: '<div class="text-center py-4"><i class="bx bx-folder-open fs-1 text-muted"></i><p class="mt-2 text-muted">No schedule headers found. Create your first one to get started.</p></div>',
-                        zeroRecords: '<div class="text-center py-4"><i class="bx bx-search fs-1 text-muted"></i><p class="mt-2 text-muted">No matching records found. Try adjusting your search.</p></div>',
-                        loadingRecords: 'Loading schedule headers...'
                     },
                     columns: [{
                             data: 'id',
                             name: 'id',
-                            width: '60px'
-                        },
-                        {
-                            data: 'name',
-                            name: 'name',
-                            render: function(data, type) {
-                                if (type === 'display') {
-                                    return `<strong>${escapeHtml(data || '-')}</strong>`;
-                                }
-                                return data;
-                            }
-                        },
-                        {
-                            data: 'bus_type',
-                            name: 'bus_type',
-                            render: renderPlainCell
-                        },
-                        {
-                            data: 'position',
-                            name: 'position',
-                            render: renderPlainCell
-                        },
-                        {
-                            data: 'amount_field',
-                            name: 'amount_field',
-                            render: renderPlainCell
-                        },
-                        {
-                            data: 'sum_insured_type',
-                            name: 'sum_insured_type',
-                            render: renderPlainCell
-                        },
-                        {
-                            data: 'data_determinant',
-                            name: 'data_determinant',
-                            render: renderPlainCell
-                        },
-                        {
-                            data: 'class',
-                            name: 'class',
-                            render: renderPlainCell
-                        },
-                        {
-                            data: 'class_group',
-                            name: 'class_group',
-                            render: renderPlainCell
+                            defaultContent: '-'
                         },
                         {
                             data: null,
-                            name: 'actions',
+                            name: 'name',
+                            render: function(data, type, row) {
+                                const name = resolveName(row);
+                                if (type === 'display') {
+                                    return $('<div>').text(name).html();
+                                }
+                                return name;
+                            }
+                        },
+                        {
+                            data: null,
+                            name: 'action',
                             orderable: false,
                             searchable: false,
-                            className: 'text-center',
+                            className: 'text-start',
                             render: function(data, type, row) {
-                                const rawName = row.name || 'Schedule Header';
-                                const safeName = escapeHtml(rawName);
-                                const encodedName = encodeURIComponent(rawName);
+                                if (type !== 'display') {
+                                    return '';
+                                }
+
+                                const id = row.id;
+                                if (!id) {
+                                    return '<span class="text-muted">N/A</span>';
+                                }
+
                                 return `
                                     <div class="action-buttons">
-                                        <button type="button"
-                                                class="btn btn-sm btn-info action-btn edit-btn"
-                                                data-id="${row.id}"
-                                                title="Edit schedule header"
-                                                aria-label="Edit schedule header ${safeName}">
-                                            <i class='bx bx-edit'></i>
+                                        <button type="button" class="btn btn-sm btn-info edit-btn" data-id="${id}">
+                                            <i class='bx bx-edit'></i> Edit
                                         </button>
-                                        <button type="button"
-                                                class="btn btn-sm btn-danger action-btn delete-btn"
-                                                data-id="${row.id}"
-                                                data-name="${encodedName}"
-                                                title="Delete schedule header"
-                                                aria-label="Delete schedule header ${safeName}">
-                                            <i class='bx bx-trash'></i>
+                                        <button type="button" class="btn btn-sm btn-danger delete-btn" data-id="${id}">
+                                            <i class='bx bx-trash'></i> Delete
                                         </button>
                                     </div>
                                 `;
                             }
                         }
                     ],
-                    responsive: true,
-                    dom: '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>' +
-                        '<"row"<"col-sm-12"tr>>' +
-                        '<"row"<"col-sm-12 col-md-5"i><"col-sm-12 col-md-7"p>>'
+                    order: [
+                        [0, 'desc']
+                    ],
+                    pageLength: 25
                 });
-            }
 
-            /**
-             * Navigate to schedule header form
-             * @param {number|null} id - Schedule header ID (null for new)
-             */
-            function navigateToForm(id = null) {
-                const url = id ? `${CONFIG.routes.form}?id=${id}` : CONFIG.routes.form;
-                window.location.href = url;
-            }
+                $(tableSelector).on('click', '.edit-btn', function() {
+                    const id = $(this).data('id');
+                    window.location.href = `${editUrl}?id=${id}`;
+                });
 
-            /**
-             * Delete schedule header
-             * @param {number} id - Schedule header ID
-             * @param {string} name - Schedule header name
-             */
-            function deleteScheduleHeader(id, name) {
-                // Use SweetAlert2 if available, otherwise use native confirm
-                const confirmMessage = `Are you sure you want to delete "${name}"? This action cannot be undone.`;
+                $(tableSelector).on('click', '.delete-btn', function() {
+                    const id = $(this).data('id');
+                    if (!id) {
+                        return;
+                    }
 
-                // Check if SweetAlert2 is available
-                if (typeof Swal !== 'undefined') {
-                    Swal.fire({
-                        title: 'Delete Schedule Header?',
-                        text: confirmMessage,
-                        icon: 'warning',
-                        showCancelButton: true,
-                        confirmButtonColor: '#dc3545',
-                        cancelButtonColor: '#6c757d',
-                        confirmButtonText: 'Yes, delete it',
-                        cancelButtonText: 'Cancel'
-                    }).then((result) => {
-                        if (result.isConfirmed) {
-                            performDelete(id, name);
+                    if (!window.confirm('Are you sure you want to delete this record?')) {
+                        return;
+                    }
+
+                    $.ajax({
+                        url: deleteUrl,
+                        type: 'POST',
+                        data: {
+                            _token: csrfToken,
+                            id: id
+                        },
+                        success: function(response) {
+                            if (response && response.success) {
+                                toastr.success(response.message || 'Deleted successfully.');
+                                datatable.ajax.reload(null, false);
+                                return;
+                            }
+                            toastr.error((response && response.message) || 'Delete failed.');
+                        },
+                        error: function() {
+                            toastr.error('Delete failed.');
                         }
                     });
-                } else {
-                    // Fallback to native confirm
-                    if (confirm(confirmMessage)) {
-                        performDelete(id, name);
-                    }
-                }
-            }
+                });
 
-            /**
-             * Perform the delete operation
-             * @param {number} id - Schedule header ID
-             * @param {string} name - Schedule header name
-             */
-            function performDelete(id, name) {
-                $.ajax({
-                    url: CONFIG.routes.delete,
-                    method: 'POST',
-                    data: {
-                        id: id,
-                        _token: CONFIG.csrfToken
-                    },
-                    beforeSend: function() {
-                        // Optional: Show loading indicator
-                        if (typeof Swal !== 'undefined') {
-                            Swal.fire({
-                                title: 'Deleting...',
-                                text: 'Please wait',
-                                allowOutsideClick: false,
-                                showConfirmButton: false,
-                                willOpen: () => {
-                                    Swal.showLoading();
+                function syncFacFieldRequirements() {
+                    const isFac = ($(businessTypeSelector).val() || '').toUpperCase() === 'FAC';
+                    $('.fac-dependent').toggle(isFac);
+                    $(classSelector).prop('required', isFac);
+                    $(classGroupSelector).prop('required', isFac);
+                }
+
+                function syncAmountDependentFields() {
+                    const hasAmountField = ($(amountFieldSelector).val() || '') === 'Y';
+                    $('.amount-field-dependent').toggle(hasAmountField);
+                }
+
+                function loadClassesByGroup() {
+                    const classGroup = ($(classGroupSelector).val() || '').trim();
+                    const $class = $(classSelector);
+                    $class.empty().append('<option value="">----select---</option>');
+                    if (!classGroup) {
+                        return;
+                    }
+
+                    $.ajax({
+                        url: getClassUrl,
+                        type: 'GET',
+                        dataType: 'json',
+                        data: {
+                            class_group: classGroup
+                        },
+                        success: function(resp) {
+                            if (!Array.isArray(resp)) {
+                                return;
+                            }
+                            resp.forEach(function(item) {
+                                if (!item || !item.class_code) {
+                                    return;
                                 }
+                                const label = item.class_name ? `${item.class_code} - ${item.class_name}` :
+                                    item.class_code;
+                                $class.append(`<option value="${item.class_code}">${label}</option>`);
                             });
                         }
-                    },
-                    success: function(response) {
-                        if (typeof Swal !== 'undefined') {
-                            Swal.close();
-                        }
+                    });
+                }
 
-                        toastr.success(`Schedule header "${name}" deleted successfully`);
-                        CONFIG.datatable.ajax.reload(null, false); // Stay on current page
-                    },
-                    error: function(xhr, status, error) {
-                        if (typeof Swal !== 'undefined') {
-                            Swal.close();
-                        }
-
-                        const errorMessage = xhr.responseJSON?.message ||
-                            'Failed to delete schedule header';
-                        toastr.error(errorMessage);
-                        console.error('Delete Error:', error);
-
-                        // Reload table to ensure data consistency
-                        CONFIG.datatable.ajax.reload(null, false);
-                    }
+                $(businessTypeSelector).on('change', syncFacFieldRequirements);
+                $(amountFieldSelector).on('change', syncAmountDependentFields);
+                $(classGroupSelector).on('change', loadClassesByGroup);
+                $(addModalSelector).on('shown.bs.modal', function() {
+                    $(addFormSelector)[0].reset();
+                    syncFacFieldRequirements();
+                    syncAmountDependentFields();
+                    loadClassesByGroup();
                 });
-            }
-
-            /**
-             * Initialize event listeners
-             */
-            function initializeEventListeners() {
-                // Add new schedule header button
-                $('#addScheduleHeaderBtn').on('click', function() {
-                    navigateToForm();
-                });
-
-                // Edit button click handler (delegated)
-                $('#scheduleHeaderTable').on('click', '.edit-btn', function(e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    const id = $(this).data('id');
-                    navigateToForm(id);
-                });
-
-                // Delete button click handler (delegated)
-                $('#scheduleHeaderTable').on('click', '.delete-btn', function(e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    const id = $(this).data('id');
-                    const encodedName = String($(this).data('name') || '');
-                    let name = encodedName;
-                    try {
-                        name = decodeURIComponent(encodedName);
-                    } catch (err) {
-                        console.warn('Failed to decode schedule header name', err);
-                    }
-                    deleteScheduleHeader(id, name);
-                });
-
-                // Optional: Row click to edit (excluding action buttons)
-                $('#scheduleHeaderTable').on('click', 'tbody tr', function(e) {
-                    // Only trigger if not clicking on action buttons
-                    if (!$(e.target).closest('.action-buttons').length) {
-                        const data = CONFIG.datatable.row(this).data();
-                        if (data && data.id) {
-                            navigateToForm(data.id);
-                        }
-                    }
-                });
-            }
-
-            /**
-             * Initialize the module
-             */
-            function init() {
-                $(document).ready(function() {
-                    initializeDataTable();
-                    initializeEventListeners();
-
-                    // Auto-dismiss alerts after 5 seconds
-                    setTimeout(function() {
-                        $('.alert').fadeOut('slow', function() {
-                            $(this).remove();
-                        });
-                    }, 5000);
-                });
-            }
-
-            // Start the application
-            init();
+            });
         })();
     </script>
 @endpush

@@ -11,26 +11,36 @@ use App\Models\Classes;
 use App\Models\ClassGroup;
 use App\Models\CustomerTypes;
 use App\Models\Bd\DocType;
-use App\Models\QuoteScheduleHeader;
 use App\Models\ReinsClass;
+use App\Models\ScheduleHeader;
 use App\Models\Bd\StageDocument;
 use App\Models\TypeOfSumInsured;
 use Auth;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Route;
 use Session;
 use Yajra\Datatables\Datatables;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class BdScheduleController extends Controller
 {
 
     public function bd_schedule_info(Request $request)
     {
-        return view('Bd_views.BdSchedule.Bd_schedule_info');
+        $classes = Classes::select(['class_name', 'class_code'])->get();
+        $classGroups = ClassGroup::select(['group_code', 'group_name'])->get();
+        $type_of_sum_insured = TypeOfSumInsured::select(['sum_insured_code', 'sum_insured_name'])->get();
+
+        return view('Bd_views.BdSchedule.Bd_schedule_info', compact(
+            'classes',
+            'classGroups',
+            'type_of_sum_insured'
+        ));
     }
 
 
@@ -42,7 +52,13 @@ class BdScheduleController extends Controller
         $type_of_sum_insured = TypeOfSumInsured::select(['sum_insured_code', 'sum_insured_name'])->get();
         $customerTypes = CustomerTypes::select(['type_id', 'type_name', 'code'])->get();
         if (isset($id)) {
-            $schedule = QuoteScheduleHeader::where('id', $id)->first();
+            $schedule = ScheduleHeader::where('id', $id)->first();
+            if ($schedule) {
+                $schedule->business_type = $schedule->business_type ?? $schedule->bus_type ?? null;
+                $schedule->class = $schedule->class ?? $schedule->class_code ?? null;
+                $schedule->class_group = $schedule->class_group ?? $schedule->class_group_code ?? null;
+                $schedule->sum_insured_type = $schedule->sum_insured_type ?? $schedule->type_of_sum_insured ?? null;
+            }
 
             return view(
                 'Bd_views.BdSchedule.schedule_header_add_form',
@@ -70,6 +86,8 @@ class BdScheduleController extends Controller
 
         $id = $request->id;
         $bus_type = $request->business_type;
+        $table = 'schedule_headers';
+        $columns = Schema::getColumnListing($table);
         // dd($request->all());
 
         try {
@@ -93,27 +111,62 @@ class BdScheduleController extends Controller
                     ->withErrors($validator)
                     ->withInput();
             }
+
+            $scheduleData = [
+                'name' => $request->name,
+                'position' => $request->position,
+                'amount_field' => $request->amount_field,
+                'sum_insured_type' => $request->sum_insured_type ?? '',
+                'data_determinant' => $request->data_determinant ?? '',
+                'class' => $request->class ?? '',
+                'class_group' => $request->class_group ?? '',
+            ];
+
+            if (in_array('business_type', $columns, true)) {
+                $scheduleData['business_type'] = $request->business_type;
+            }
+
+            if (in_array('bus_type', $columns, true)) {
+                $scheduleData['bus_type'] = $request->business_type;
+            }
+
+            if (in_array('class_code', $columns, true)) {
+                $scheduleData['class_code'] = $request->class ?? '';
+            }
+
+            if (in_array('class_group_code', $columns, true)) {
+                $scheduleData['class_group_code'] = $request->class_group ?? '';
+            }
+
+            if (in_array('type_of_sum_insured', $columns, true)) {
+                $scheduleData['type_of_sum_insured'] = $request->sum_insured_type ?? '';
+            }
+
+            if (in_array('created_at', $columns, true)) {
+                $scheduleData['created_at'] = Carbon::now();
+            }
+
+            if (in_array('updated_at', $columns, true)) {
+                $scheduleData['updated_at'] = Carbon::now();
+            }
+
+            $scheduleData = collect($scheduleData)
+                ->filter(function ($value, $key) use ($columns) {
+                    return in_array($key, $columns, true);
+                })
+                ->all();
+
             if (isset($id)) {
-                QuoteScheduleHeader::where('id', $id)->update([
-                    'name' => $request->name,
-                    'position' => $request->position,
-                    'amount_field' => $request->amount_field,
-                    'sum_insured_type' => $request->sum_insured_type,
-                    'data_determinant' => $request->data_determinant,
-                    'class' => $request->class,
-                    'class_group' => $request->class_group,
-                    'updated_at' => Carbon::now(),
-                ]);
+                DB::table($table)->where('id', $id)->update($scheduleData);
             } else {
-                $exists = QuoteScheduleHeader::where('name', $request->name)
-                    ->where('position', $request->position)
-                    ->where('amount_field', $request->amount_field)
-                    ->where('sum_insured_type', $request->sum_insured_type ?? '')
-                    ->where('data_determinant', $request->data_determinant ?? '')
-                    ->where('class', $request->class ?? '')
-                    ->where('class_group', $request->class_group ?? '')
-                    ->where('business_type', $request->business_type)
-                    ->exists();
+                $checkColumns = ['name', 'position', 'amount_field', 'sum_insured_type', 'data_determinant', 'class', 'class_group', 'business_type', 'bus_type'];
+                $existsQuery = DB::table($table);
+                foreach ($checkColumns as $checkColumn) {
+                    if (array_key_exists($checkColumn, $scheduleData)) {
+                        $existsQuery->where($checkColumn, $scheduleData[$checkColumn]);
+                    }
+                }
+                $exists = $existsQuery->exists();
                 // dd($exists);
 
 
@@ -122,17 +175,7 @@ class BdScheduleController extends Controller
                     return redirect()->back()->with('error', 'Schedule header with the same details already exists');
                 } else {
                     // dd($request->all());
-                    QuoteScheduleHeader::create([
-                        'name' => $request->name,
-                        'position' => $request->position,
-                        'amount_field' => $request->amount_field,
-                        'sum_insured_type' => $request->sum_insured_type ?? '',
-                        'data_determinant' => $request->data_determinant ?? '',
-                        'class' => $request->class ?? '',
-                        'class_group' => $request->class_group ?? '',
-                        'business_type' => $request->business_type,
-                        'created_at' => Carbon::now(),
-                    ]);
+                    DB::table($table)->insert($scheduleData);
                 }
             }
 
@@ -149,56 +192,44 @@ class BdScheduleController extends Controller
 
     public function bd_schedule_header_data()
     {
-        $scheduleheaders = DB::table('quote_schedule_headers')->get();
-        return dataTables::of($scheduleheaders)
-            ->editColumn('class', function ($fn) {
-                $class = classes::where('class_code', $fn->class)->first();
-                return $class ? $class->class_name : 'N/A';
-            })
-            ->editColumn('class_group', function ($fn) {
-                $class_group = ClassGroup::where('group_code', $fn->class_group)->first();
-                return $class_group ? $class_group->group_name : 'N/A';
-            })
-            ->editColumn('sum_insured_type', function ($fn) {
-                $sum_insured = TypeOfSumInsured::where('sum_insured_code', $fn->sum_insured_type)->first();
-                return $sum_insured ? $sum_insured->sum_insured_name : 'N/A';
-            })
-            ->editColumn('amount_field', function ($fn) {
-                return $fn->amount_field == 'Y' ? 'Yes' : ($fn->amount_field == 'N' ? 'No' : 'N/A');
-            })
-            ->editColumn('bus_type', function ($fn) {
-                return $fn->business_type == 'FAC' ? 'Facultative' : ($fn->business_type == 'TRT' ? 'Treaty' : 'N/A');
-            })
-            ->editColumn('data_determinant', function ($fn) {
-                switch ($fn->data_determinant) {
-                    case 'COM':
-                        return 'Commission';
-                    case 'PREM':
-                        return 'Premium';
-                    case 'SI':
-                        return 'Sum Insured';
-                    default:
-                        return 'N/A';
-                }
-            })
-            ->addColumn('edit', function ($fn) {
+        $columns = Schema::getColumnListing('schedule_headers');
+        $idColumn = in_array('id', $columns, true) ? 'id' : null;
+        $nameColumn = in_array('name', $columns, true)
+            ? 'name'
+            : (in_array('header_name', $columns, true) ? 'header_name' : null);
 
-                return '<a href="#" class="text-white update_schedule btn btn-sm btn-success rounded-pill" title="Update schedule" data-id="' . $fn->id . '"> <i class="bx bx-refresh"></i>Edit</a>';
-            })
-            ->addColumn('delete', function ($fn) {
+        $scheduleheaders = DB::table('schedule_headers')->get();
 
-                return '<a href="#" class="text-white delete btn btn-sm btn-danger rounded-pill" title="Delete schedule" data-id="' . $fn->id . '"> <i class="bx bx-trash"></i>Delete</a>';
-            })
-            ->rawColumns(['edit', 'delete', 'process'])
-            ->make(true);
+        $mappedHeaders = $scheduleheaders->map(function ($row) use ($idColumn, $nameColumn) {
+            $id = $idColumn ? ($row->{$idColumn} ?? null) : null;
+            $name = $nameColumn ? ($row->{$nameColumn} ?? null) : null;
+            $busType = $row->bus_type ?? $row->business_type ?? null;
+            $sumInsuredType = $row->sum_insured_type ?? $row->type_of_sum_insured ?? null;
+            $class = $row->class ?? $row->class_code ?? null;
+            $classGroup = $row->class_group ?? $row->class_group_code ?? null;
+
+            return [
+                'id' => $id,
+                'name' => $name ?: 'N/A',
+                'bus_type' => $busType,
+                'position' => $row->position ?? null,
+                'amount_field' => $row->amount_field ?? null,
+                'sum_insured_type' => $sumInsuredType,
+                'data_determinant' => $row->data_determinant ?? null,
+                'class' => $class,
+                'class_group' => $classGroup,
+                'is_template' => false,
+            ];
+        });
+
+        return dataTables::of($mappedHeaders)->make(true);
     }
     public function delete_schedule_header(Request $request)
     {
         $id = $request->id;
         try {
             DB::beginTransaction();
-            $schedule = QuoteScheduleHeader::where('id', $id)->first();
-            $schedule->delete();
+            DB::table('schedule_headers')->where('id', $id)->delete();
             DB::commit();
             return response()->json(['success' => true, 'message' => 'Schedule header deleted successfully']);
         } catch (\Exception $e) {
@@ -206,14 +237,22 @@ class BdScheduleController extends Controller
             return response()->json(['error' => true, 'message' => 'Failed to delete schedule header']);
         }
     }
-    public function bd_schedule_data(Request $request)
+
+    public function bd_schedule_data()
     {
+        $data = DB::table('schedule_headers');
 
-
-        $data = DB::table('bd_schedules_data');
-        return DataTables::of($data)
+        return dataTables::of($data)
+            ->addColumn('name', function ($row) {
+                return $row->name ?? $row->header_name ?? $row->clause_title ?? $row->type_of_bus ?? 'N/A';
+            })
             ->addColumn('action', function ($row) {
-                return '<a href="' . route('schedule.edit', $row->id) . '" class="btn btn-sm btn-primary">Edit</a>';
+                if (!Route::has('bd.schedule.data.create')) {
+                    return '<span class="text-muted">N/A</span>';
+                }
+
+                $url = route('bd.schedule.data.create', ['id' => $row->id]);
+                return '<a href="' . $url . '" class="btn btn-sm btn-primary">Open</a>';
             })
             ->rawColumns(['action'])
             ->make(true);
@@ -258,7 +297,7 @@ class BdScheduleController extends Controller
         $query = DB::table('bd_schedule_template_data')->get();
         $actionable = true;
 
-        return DataTables::of($query)
+        return dataTables::of($query)
             ->addColumn('clause_group', function ($data) {
                 $class = Classes::where('class_code', $data->class_code)->first();
                 $class_group = ClassGroup::where('group_code', $class?->class_group_code)->first();
@@ -534,7 +573,7 @@ class BdScheduleController extends Controller
     public function bd_lead_status_data()
     {
         $LeadStatus = DB::table('lead_status')->get();
-        return DataTables::of($LeadStatus)
+        return dataTables::of($LeadStatus)
 
             ->editColumn('category_type', function ($fn) {
                 return $fn->category_type == '1' ? 'Quotation' : ($fn->category_type == '2' ? 'Facultative Offer' : 'N/A');
@@ -661,7 +700,7 @@ class BdScheduleController extends Controller
     public function bd_stage_doc_data()
     {
         $StageDocuments = DB::table('stage_documents')->get();
-        return DataTables::of($StageDocuments)
+        return dataTables::of($StageDocuments)
 
             ->editColumn('mandatory_1', function ($fn) {
                 return $fn->mandatory == 'Y' ? 'Yes' : ($fn->mandatory == 'N' ? 'No' : 'N/A');
@@ -833,7 +872,7 @@ class BdScheduleController extends Controller
     public function bd_doc_type_data()
     {
         $doc_types = DB::table('doc_types')->get();
-        return DataTables::of($doc_types)
+        return dataTables::of($doc_types)
             ->addColumn('edit', function ($fn) {
 
                 return '<a href="#" class="text-white update_doc_type btn btn-sm btn-success rounded-pill" title="Update stage docs" data-id="' . $fn->id . '"> <i class="bx bx-refresh"></i>Edit</a>';
@@ -940,7 +979,7 @@ class BdScheduleController extends Controller
     public function operationchecklist_data()
     {
         $doc_types = DB::table('treaty_operation_checklists')->get();
-        return DataTables::of($doc_types)
+        return dataTables::of($doc_types)
             ->addColumn('edit', function ($fn) {
 
                 return '<a href="#" class="text-white update_doc_type btn btn-sm btn-success rounded-pill" title="Update stage docs" data-id="' . $fn->id . '"> <i class="bx bx-refresh"></i>Edit</a>';

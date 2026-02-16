@@ -54,35 +54,34 @@ class SyncUserEmails implements ShouldQueue
         }
 
         try {
-            $syncState->update([
-                'is_syncing' => true,
-                'is_locked' => true,
-                'sync_attempts' => $syncState->sync_attempts + 1,
-                'last_attempt_at' => now()
-            ]);
+            // $syncState->update([
+            //     'is_syncing' => true,
+            //     'is_locked' => true,
+            //     'sync_attempts' => $syncState->sync_attempts + 1,
+            //     'last_attempt_at' => now()
+            // ]);
 
-            $this->broadcastProgress('Started', 0, 0);
+            // $this->broadcastProgress('Started', 0, 0);
 
-            $user = User::find($this->userId);
-            if (!$user) {
-                throw new \Exception("User not found: {$this->userId}");
-            }
+            // $user = User::find($this->userId);
+            // if (!$user) {
+            //     throw new \Exception("User not found: {$this->userId}");
+            // }
 
-            if ($this->syncType === 'full') {
-                $syncState->update(['delta_token' => null]);
-            }
+            // if ($this->syncType === 'full') {
+            //     $syncState->update(['delta_token' => null]);
+            // }
 
-            $this->syncMessagesWithPagination($graphService, $user, $syncState);
+            // $this->syncMessagesWithPagination($graphService, $user, $syncState);
 
-            $syncState->update([
-                'is_syncing' => false,
-                'is_locked' => false,
-                'last_synced_at' => now(),
-                'sync_attempts' => 0,
-                'last_error' => null
-            ]);
-
-            $this->broadcastCompletion();
+            // $syncState->update([
+            //     'is_syncing' => false,
+            //     'is_locked' => false,
+            //     'last_synced_at' => now(),
+            //     'sync_attempts' => 0,
+            //     'last_error' => null
+            // ]);
+            // $this->broadcastCompletion();
 
 
             // Renew subscription if needed
