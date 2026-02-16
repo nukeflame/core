@@ -4,7 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Models\Company;
 use App\Models\CoverRipart;
+use App\Models\Customer;
 use App\Models\DebitNote;
+use App\Models\PremiumPayTerm;
 use App\Services\S3AttachmentHandler;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
@@ -348,6 +350,32 @@ class QuarterlyDebitController extends Controller
         return $badges[$normalizedStatus] ?? '<span class="badge bg-secondary">' . e($status) . '</span>';
     }
 
+    private function formatQuarterLabel($quarter): string
+    {
+        $quarterValue = strtoupper(trim((string) $quarter));
+
+        $quarterMap = [
+            '1' => 'First Quarter',
+            'Q1' => 'First Quarter',
+            'FIRST' => 'First Quarter',
+            'FIRST QUARTER' => 'First Quarter',
+            '2' => 'Second Quarter',
+            'Q2' => 'Second Quarter',
+            'SECOND' => 'Second Quarter',
+            'SECOND QUARTER' => 'Second Quarter',
+            '3' => 'Third Quarter',
+            'Q3' => 'Third Quarter',
+            'THIRD' => 'Third Quarter',
+            'THIRD QUARTER' => 'Third Quarter',
+            '4' => 'Fourth Quarter',
+            'Q4' => 'Fourth Quarter',
+            'FOURTH' => 'Fourth Quarter',
+            'FOURTH QUARTER' => 'Fourth Quarter',
+        ];
+
+        return $quarterMap[$quarterValue] ?? (string) $quarter;
+    }
+
     public function storeDebitItem(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [
@@ -564,6 +592,10 @@ class QuarterlyDebitController extends Controller
                 ->get();
 
             $data = $reinsurers->map(function ($rein) {
+                $grossPremium = (float) ($rein->total_premium ?? 0);
+                $claimAmount = (float) ($rein->claim_amt ?? $rein->total_claim_amt ?? 0);
+                $isCoverNote = $claimAmount > $grossPremium;
+
                 return [
                     'id' => $rein->id,
                     'partner_no' => $rein->partner_no,
@@ -571,6 +603,8 @@ class QuarterlyDebitController extends Controller
                     'email' => $rein->partner?->email ?? '',
                     'share_percentage' => $rein->share ?? 0,
                     'gross_premium' => $rein->total_premium ?? 0,
+                    'claim_amount' => $claimAmount,
+                    'is_cover_note' => $isCoverNote,
                     'commission' => $rein->commission ?? 0,
                     'brokerage_amount' => $rein->brokerage_comm_amt ?? 0,
                     'premium_tax_amount' => $rein->prem_tax ?? 0,
@@ -739,6 +773,11 @@ class QuarterlyDebitController extends Controller
             'cover_no' => 'required|string|exists:cover_register,cover_no',
             'endorsement_no' => 'required|string|exists:cover_register,endorsement_no',
             'document_type' => 'required|string|in:debit_note,credit_note,statement,bordereau,closing_slip',
+            'partner_no' => 'nullable|string',
+            'with_brokerage' => 'nullable|in:0,1',
+            'note_type' => 'nullable|in:credit_note,debit_note,cover_note',
+            'posting_year' => 'nullable|integer',
+            'posting_quarter' => 'nullable|string',
         ]);
 
         if ($validator->fails()) {
@@ -778,6 +817,8 @@ class QuarterlyDebitController extends Controller
     protected function generateCreditNote($endorsementNo, Request $request): array
     {
         $coverNo = $request->cover_no;
+        $partnerNo = $request->input('partner_no');
+        $withBrokerage = ($request->input('with_brokerage', '1') === '1');
 
         $cover = DB::table('cover_register')
             ->where('endorsement_no', $endorsementNo)
@@ -795,6 +836,8 @@ class QuarterlyDebitController extends Controller
         $creditNote = DB::table('credit_notes')
             ->where('cover_no', $coverNo)
             ->where('endorsement_no', $endorsementNo)
+            ->orderByDesc('posting_date')
+            ->orderByDesc('id')
             ->select([
                 'id',
                 'credit_note_no',
@@ -814,13 +857,23 @@ class QuarterlyDebitController extends Controller
             throw new Exception('Credit note not found for this cover and endorsement');
         }
 
+        $classTypesSub = DB::table('reinclass_premtypes')
+            ->select([
+                'reinclass',
+                'premtype_code',
+                DB::raw('MAX(premtype_name) as premtype_name'),
+            ])
+            ->groupBy('reinclass', 'premtype_code');
+
         $creditItems = DB::table('credit_note_items as tci')
             ->join('credit_notes as cn', 'tci.credit_note_id', '=', 'cn.id')
-            ->leftJoin('class_groups as cg', 'tci.class_group_code', '=', 'cg.group_code')
-            ->leftJoin('classes as c', 'tci.class_code', '=', 'c.class_code')
             ->leftJoin('treaty_item_codes as tic', 'tci.item_code', '=', 'tic.item_code')
-            ->where('cn.cover_no', $coverNo)
-            ->where('cn.endorsement_no', $endorsementNo)
+            ->leftJoin('class_groups as cg', 'tci.class_group_code', '=', 'cg.group_code')
+            ->leftJoinSub($classTypesSub, 'c', function ($join) {
+                $join->on('tci.class_code', '=', 'c.premtype_code')
+                    ->on('tci.class_group_code', '=', 'c.reinclass');
+            })
+            ->where('tci.credit_note_id', $creditNote->id)
             ->select([
                 'tci.id',
                 'tci.item_code',
@@ -830,7 +883,7 @@ class QuarterlyDebitController extends Controller
                 'tci.class_group_code',
                 'cg.group_name',
                 'tci.class_code',
-                'c.class_name',
+                'c.premtype_name as class_name',
                 'tci.line_rate',
                 'tci.amount as item_amount',
                 'tci.ledger',
@@ -840,28 +893,41 @@ class QuarterlyDebitController extends Controller
                 'cn.commission_amount',
                 'cn.net_amount',
                 'cn.status',
+                'tci.original_amount',
             ])
-            ->orderBy('posting_date', 'desc')
-            ->get();
+            ->orderBy('id', 'asc')
+            ->get()
+            ->unique('id')
+            ->values();
 
         $totalGross = $creditNote->gross_amount;
         $totalCommission = $creditNote->commission_amount;
         $totalNet = $creditNote->net_amount;
+        $underwritingQuarter = $this->formatQuarterLabel($creditNote->posting_quarter) . ' - ' . $creditNote->posting_year;
 
         $referenceNo = $creditNote->credit_note_no;
         $viewName = 'printouts.accounts.treaty-credit-note';
 
         $company = Company::first();
 
-        // Fetch reinsurers for this cover
-        $reinsurers = CoverRipart::where([
+        $reinsurersQuery = CoverRipart::where([
             'cover_no' => $coverNo,
             'endorsement_no' => $endorsementNo,
-        ])->with('partner')->get();
+        ])->with('partner');
+        if (! empty($partnerNo)) {
+            $reinsurersQuery->where('partner_no', $partnerNo);
+        }
+        $reinsurers = $reinsurersQuery->get();
+        if ($reinsurers->isEmpty()) {
+            throw new Exception('Reinsurer not found for this cover');
+        }
+
+        $isCoverNote = $request->input('note_type') === 'cover_note';
+        $documentType = $isCoverNote ? 'Cover Note' : 'Credit Note';
 
         $documentData = [
             'reference_no' => $referenceNo,
-            'document_type' => 'Credit Note',
+            'document_type' => $documentType,
             'generated_date' => Carbon::now(),
             'cover' => $cover,
             'customer' => $cedant,
@@ -870,6 +936,7 @@ class QuarterlyDebitController extends Controller
             'credit_items' => $creditItems,
             'reinsurers' => $reinsurers,
             'company' => $company,
+            'underwriting_quarter' => $underwritingQuarter,
             'totals' => (object) [
                 'gross_premium' => $totalGross,
                 'commission' => $totalCommission,
@@ -880,6 +947,7 @@ class QuarterlyDebitController extends Controller
                 'from' => Carbon::parse($cover->cover_from)->format('d M Y'),
                 'to' => Carbon::parse($cover->cover_to)->format('d M Y'),
             ],
+            'with_brokerage' => $withBrokerage,
         ];
 
         $pdf = Pdf::loadView($viewName, $documentData)->setPaper('a4', 'portrait')->setWarnings(false);
@@ -959,6 +1027,10 @@ class QuarterlyDebitController extends Controller
     protected function generateDebitNote($endorsementNo, Request $request)
     {
         $coverNo = $request->cover_no;
+        $postingYear = $request->input('posting_year');
+        $postingQuarter = $this->normalizeQuarterCode($request->input('posting_quarter'));
+        $isCoverNote = ($request->input('note_type') === 'cover_note');
+        $documentType = $isCoverNote ? 'Cover Note' : 'Debit Note';
 
         $cover = DB::table('cover_register')
             ->where('endorsement_no', $endorsementNo)
@@ -973,9 +1045,18 @@ class QuarterlyDebitController extends Controller
             ->where('customer_id', $cover->customer_id)
             ->first();
 
-        $debitNote = DB::table('debit_notes')
+        $debitNoteQuery = DB::table('debit_notes')
             ->where('cover_no', $coverNo)
-            ->where('endorsement_no', $endorsementNo)
+            ->where('endorsement_no', $endorsementNo);
+        if (! empty($postingYear)) {
+            $debitNoteQuery->where('posting_year', $postingYear);
+        }
+        if (! empty($postingQuarter)) {
+            $debitNoteQuery->where('posting_quarter', $postingQuarter);
+        }
+        $debitNote = $debitNoteQuery
+            ->orderByDesc('posting_date')
+            ->orderByDesc('id')
             ->select([
                 'id',
                 'debit_note_no',
@@ -988,11 +1069,14 @@ class QuarterlyDebitController extends Controller
                 'net_amount',
                 'commission_amount',
                 'created_at',
+                'other_deductions',
             ])
             ->first();
 
         if (! $debitNote) {
-            throw new Exception('Debit note not found for this cover and endorsement');
+            $quarterLabel = trim(($postingQuarter ?? '') . ' ' . ($postingYear ?? ''));
+            $suffix = $quarterLabel !== '' ? " for {$quarterLabel}" : '';
+            throw new Exception('Debit note not found for this cover and endorsement' . $suffix);
         }
 
         $debitItems = DB::table('debit_note_items as tdi')
@@ -1003,8 +1087,7 @@ class QuarterlyDebitController extends Controller
                 $join->on('tdi.class_code', '=', 'c.premtype_code')
                     ->on('tdi.class_group_code', '=', 'c.reinclass');
             })
-            ->where('dn.cover_no', $coverNo)
-            ->where('dn.endorsement_no', $endorsementNo)
+            ->where('tdi.debit_note_id', $debitNote->id)
             ->select([
                 'tdi.id',
                 'tdi.item_code',
@@ -1027,28 +1110,52 @@ class QuarterlyDebitController extends Controller
                 'tdi.description',
                 'tdi.original_amount'
             ])
-            ->orderBy('posting_date', 'desc')
+            ->orderBy('id', 'asc')
             ->get();
 
         $totalGross = $debitNote->gross_amount;
         $totalCommission = $debitNote->commission_amount;
         $totalNet = $debitNote->net_amount;
+        $otherDeductions = (float) ($debitNote->other_deductions ?? 0);
+        $businessClass = DB::table('classes')
+            ->where('class_code', $cover->class_code ?? '')
+            ->value('class_name');
+        $businessClass = $businessClass ?: ($debitItems->first()->class_name ?? $cover->class_code ?? 'N/A');
+        $treatyType = DB::table('treaty_types')
+            ->where('treaty_code', $cover->treaty_type ?? '')
+            ->value('treaty_name');
+        $treatyType = $treatyType ?: ($cover->treaty_type ?? 'N/A');
+        $underwritingQuarter = $this->formatQuarterLabel($debitNote->posting_quarter) . ' - ' . $debitNote->posting_year;
+        $hasNetOfTaxReinsurer = $this->hasNetOfTaxReinsurer($coverNo, $endorsementNo);
+        $hasPremiumTax = $debitItems->contains(fn($item) => strtoupper((string) ($item->item_code ?? '')) === 'IT05');
+        $netTaxFactor = $this->resolveNetTaxFactor($cover, $hasNetOfTaxReinsurer, $hasPremiumTax);
+        $sharePercent = (float) ($cover->share_offered ?? 0) * $netTaxFactor;
+        $ppw = PremiumPayTerm::where('pay_term_code', $cover->premium_payment_code ?? null)->first();
+        $company = Company::first();
 
         $referenceNo = $debitNote->debit_note_no;
         $viewName = 'printouts.accounts.treaty-debit-note';
 
         $documentData = [
             'reference_no' => $referenceNo,
-            'document_type' => 'Debit Note',
+            'document_type' => $documentType,
             'generated_date' => Carbon::now(),
             'cover' => $cover,
             'customer' => $cedant,
             'debit' => $debitNote,
             'debit_items' => $debitItems,
+            'bus_class' => $businessClass,
+            'treat_type' => $treatyType,
+            'underwriting_quarter' => $underwritingQuarter,
+            'share_percent' => $sharePercent,
+            'ppw' => $ppw,
+            'company' => $company,
             'totals' => (object) [
                 'gross_premium' => $totalGross,
                 'commission' => $totalCommission,
                 'net_amount' => $totalNet,
+                'total_debits' => $totalGross,
+                'total_credits' => $otherDeductions + $totalCommission,
             ],
             'currency' => $cover->currency ?? 'KES',
             'period' => [
@@ -1426,7 +1533,7 @@ class QuarterlyDebitController extends Controller
             return null;
         }
 
-        return DB::table('customers')->where('customer_id', $customerId)->first();
+        return Customer::with('primaryContact')->where('customer_id', $customerId)->first();
     }
 
     private function getCedantDetails($cover)
@@ -1437,14 +1544,14 @@ class QuarterlyDebitController extends Controller
             'name' => $customer->name ?? 'N/A',
             'registration_no' => $customer->registration_no ?? 'N/A',
             'address' => $customer->address ?? 'N/A',
-            'contact_person' => $customer->contact_person ?? 'N/A',
+            'contact_person' => $customer->primaryContact->contact_name ?? $customer->contact_person ?? 'N/A',
             'designation' => $customer->designation ?? 'N/A',
             'email' => $customer->email ?? 'N/A',
-            'phone' => $customer->phone ?? 'N/A',
+            'phone' => $customer->phone ?? $customer->telephone ?? 'N/A',
             'treaty_year' => Carbon::parse($cover->cover_from)->format('Y'),
             'treaty_period' => Carbon::parse($cover->cover_from)->format('d M Y') . ' - ' . Carbon::parse($cover->cover_to)->format('d M Y'),
             'retention_limit' => $cover->retention_limit ?? 0,
-            'treaty_capacity' => $cover->treaty_capacity ?? $cover->sum_insured ?? 0,
+            'treaty_capacity' => $cover->effective_sum_insured ?? $cover->total_sum_insured ?? $cover->sum_insured ?? $cover->treaty_capacity ?? 0,
         ];
     }
 
@@ -1477,6 +1584,7 @@ class QuarterlyDebitController extends Controller
                 'endorsement_no' => 'required|string',
                 'partner_no' => 'required|string',
                 'with_brokerage' => 'nullable|in:0,1',
+                'note_type' => 'nullable|in:credit_note,cover_note',
             ]);
 
             $coverNo = $validated['cover_no'];
@@ -1567,6 +1675,7 @@ class QuarterlyDebitController extends Controller
             $totalGross = $creditNote->gross_amount;
             $totalCommission = $creditNote->commission_amount;
             $totalNet = $creditNote->net_amount;
+            $underwritingQuarter = $this->formatQuarterLabel($creditNote->posting_quarter) . ' - ' . $creditNote->posting_year;
 
             $company = Company::first();
 
@@ -1580,26 +1689,26 @@ class QuarterlyDebitController extends Controller
                 abort(404, 'Reinsurer not found for this cover');
             }
 
-            $sharePercent = (float) ($reinsurer->share ?? 0);
+            $claimAmount = (float) ($reinsurer->claim_amt ?? $reinsurer->total_claim_amt ?? 0);
+            $grossPremium = (float) ($reinsurer->total_premium ?? 0);
+            $isCoverNote = ($request->input('note_type') === 'cover_note') || ($claimAmount > $grossPremium);
+            $documentType = $isCoverNote ? 'Cover Note' : 'Credit Note';
+
+            $hasPremiumTax = $creditItems->contains(fn($item) => strtoupper((string) ($item->item_code ?? '')) === 'IT05');
+            $netTaxFactor = $this->resolveNetTaxFactor($cover, $this->isTruthy($reinsurer->net_of_tax ?? 0), $hasPremiumTax);
+            $sharePercent = (float) ($reinsurer->share ?? 0) * $netTaxFactor;
             $shareFactor = $sharePercent > 1 ? ($sharePercent / 100) : $sharePercent;
             $shareFactor = max(0, $shareFactor);
 
-            $creditItems = $creditItems->map(function ($item) use ($shareFactor) {
-                $item->item_amount = (float) ($item->item_amount ?? 0) * $shareFactor;
-                $item->original_amount = (float) ($item->original_amount ?? 0) * $shareFactor;
-
-                return $item;
-            });
-
-            $totalDebit = $creditItems->where('ledger', 'DR')->sum('item_amount');
-            $totalCredit = $creditItems->where('ledger', 'CR')->sum('item_amount');
+            $totalDebit = (float) $creditItems->where('ledger', 'DR')->sum('item_amount') * $shareFactor;
+            $totalCredit = (float) $creditItems->where('ledger', 'CR')->sum('item_amount') * $shareFactor;
             $totalNet = $totalDebit - $totalCredit;
 
             $reinsurers = collect([$reinsurer]);
 
             $documentData = [
                 'reference_no' => $creditNote->credit_note_no,
-                'document_type' => 'Credit Note',
+                'document_type' => $documentType,
                 'generated_date' => Carbon::now(),
                 'cover' => $cover,
                 'customer' => $cedant,
@@ -1609,6 +1718,7 @@ class QuarterlyDebitController extends Controller
                 'company' => $company,
                 'treat_type' => 'Surplus Treaty',
                 'bus_class' => 'Fire',
+                'underwriting_quarter' => $underwritingQuarter,
                 'totals' => (object) [
                     'gross_premium' => (float) $totalGross * $shareFactor,
                     'commission' => (float) $totalCommission * $shareFactor,
@@ -1634,7 +1744,8 @@ class QuarterlyDebitController extends Controller
             $pdf->set_option('isPhpEnabled', true);
             $pdf->set_option('isRemoteEnabled', true);
 
-            $filename = 'credit-note-' . $creditNote->credit_note_no . '-' . $reinsurer->partner_no . '.pdf';
+            $filenamePrefix = $isCoverNote ? 'cover-note' : 'credit-note';
+            $filename = $filenamePrefix . '-' . $creditNote->credit_note_no . '-' . $reinsurer->partner_no . '.pdf';
 
             return $pdf->stream($filename);
         } catch (ValidationException $e) {
@@ -1652,10 +1763,17 @@ class QuarterlyDebitController extends Controller
                 'cover_no' => 'required|string',
                 'endorsement_no' => 'required|string',
                 'cedant_id' => 'required|string',
+                'note_type' => 'nullable|in:debit_note,cover_note',
+                'posting_year' => 'nullable|integer',
+                'posting_quarter' => 'nullable|string',
             ]);
 
             $coverNo = $validated['cover_no'];
             $endorsementNo = $validated['endorsement_no'];
+            $isCoverNote = ($request->input('note_type') === 'cover_note');
+            $documentType = $isCoverNote ? 'Cover Note' : 'Debit Note';
+            $postingYear = $request->input('posting_year');
+            $postingQuarter = $this->normalizeQuarterCode($request->input('posting_quarter'));
 
             $cover = DB::table('cover_register')
                 ->where('endorsement_no', $endorsementNo)
@@ -1670,9 +1788,18 @@ class QuarterlyDebitController extends Controller
                 ->where('customer_id', $cover->customer_id)
                 ->first();
 
-            $debitNote = DB::table('debit_notes')
+            $debitNoteQuery = DB::table('debit_notes')
                 ->where('cover_no', $coverNo)
-                ->where('endorsement_no', $endorsementNo)
+                ->where('endorsement_no', $endorsementNo);
+            if (! empty($postingYear)) {
+                $debitNoteQuery->where('posting_year', $postingYear);
+            }
+            if (! empty($postingQuarter)) {
+                $debitNoteQuery->where('posting_quarter', $postingQuarter);
+            }
+            $debitNote = $debitNoteQuery
+                ->orderByDesc('posting_date')
+                ->orderByDesc('id')
                 ->select([
                     'id',
                     'debit_note_no',
@@ -1690,7 +1817,9 @@ class QuarterlyDebitController extends Controller
                 ->first();
 
             if (! $debitNote) {
-                abort(404, 'Debit note not found for this cover and endorsement');
+                $quarterLabel = trim(($postingQuarter ?? '') . ' ' . ($postingYear ?? ''));
+                $suffix = $quarterLabel !== '' ? " for {$quarterLabel}" : '';
+                abort(404, 'Debit note not found for this cover and endorsement' . $suffix);
             }
 
             $debitItems = DB::table('debit_note_items as tdi')
@@ -1701,8 +1830,7 @@ class QuarterlyDebitController extends Controller
                     $join->on('tdi.class_code', '=', 'c.premtype_code')
                         ->on('tdi.class_group_code', '=', 'c.reinclass');
                 })
-                ->where('dn.cover_no', $coverNo)
-                ->where('dn.endorsement_no', $endorsementNo)
+                ->where('tdi.debit_note_id', $debitNote->id)
                 ->select([
                     'tdi.id',
                     'tdi.item_code',
@@ -1732,17 +1860,36 @@ class QuarterlyDebitController extends Controller
             $totalCommission = $debitNote->commission_amount;
             $totalNet = $debitNote->net_amount;
             $otherDeductions = $debitNote->other_deductions;
+            $businessClass = DB::table('classes')
+                ->where('class_code', $cover->class_code ?? '')
+                ->value('class_name');
+            $businessClass = $businessClass ?: ($debitItems->first()->class_name ?? $cover->class_code ?? 'N/A');
+            $treatyType = DB::table('treaty_types')
+                ->where('treaty_code', $cover->treaty_type ?? '')
+                ->value('treaty_name');
+            $treatyType = $treatyType ?: ($cover->treaty_type ?? 'N/A');
+            $underwritingQuarter = $this->formatQuarterLabel($debitNote->posting_quarter) . ' - ' . $debitNote->posting_year;
+            $hasNetOfTaxReinsurer = $this->hasNetOfTaxReinsurer($coverNo, $endorsementNo);
+            $hasPremiumTax = $debitItems->contains(fn($item) => strtoupper((string) ($item->item_code ?? '')) === 'IT05');
+            $netTaxFactor = $this->resolveNetTaxFactor($cover, $hasNetOfTaxReinsurer, $hasPremiumTax);
+            $sharePercent = (float) ($cover->share_offered ?? 0) * $netTaxFactor;
+            $ppw = PremiumPayTerm::where('pay_term_code', $cover->premium_payment_code ?? null)->first();
 
             $company = Company::first();
 
             $documentData = [
                 'reference_no' => $debitNote->debit_note_no,
-                'document_type' => 'Debit Note',
+                'document_type' => $documentType,
                 'generated_date' => Carbon::now(),
                 'cover' => $cover,
                 'customer' => $cedant,
                 'debit' => $debitNote,
                 'debit_items' => $debitItems,
+                'bus_class' => $businessClass,
+                'treat_type' => $treatyType,
+                'underwriting_quarter' => $underwritingQuarter,
+                'share_percent' => $sharePercent,
+                'ppw' => $ppw,
                 'company' => $company,
                 'totals' => (object) [
                     'gross_premium' => $totalGross,
@@ -1765,7 +1912,8 @@ class QuarterlyDebitController extends Controller
             $pdf->set_option('isPhpEnabled', true);
             $pdf->set_option('isRemoteEnabled', true);
 
-            $filename = 'debit-note-' . $debitNote->debit_note_no . '-cedant.pdf';
+            $filenamePrefix = $isCoverNote ? 'cover-note' : 'debit-note';
+            $filename = $filenamePrefix . '-' . $debitNote->debit_note_no . '-cedant.pdf';
 
             return $pdf->stream($filename);
         } catch (ValidationException $e) {
@@ -1773,5 +1921,59 @@ class QuarterlyDebitController extends Controller
         } catch (Exception $e) {
             abort(500, 'Failed to generate debit note: ' . $e->getMessage());
         }
+    }
+
+    private function hasNetOfTaxReinsurer(string $coverNo, string $endorsementNo): bool
+    {
+        return CoverRipart::where('cover_no', $coverNo)
+            ->where('endorsement_no', $endorsementNo)
+            ->get()
+            ->contains(fn($reinsurer) => $this->isTruthy($reinsurer->net_of_tax ?? 0));
+    }
+
+    private function resolveNetTaxFactor(?object $cover, bool $hasNetOfTaxReinsurer, bool $hasPremiumTax): float
+    {
+        if (! $hasNetOfTaxReinsurer || ! $hasPremiumTax) {
+            return 1.0;
+        }
+
+        $premiumTaxRate = (float) ($cover->prem_tax_rate ?? 1);
+        $premiumTaxRate = max(0, min(100, $premiumTaxRate));
+
+        return (100 - $premiumTaxRate) / 100;
+    }
+
+    private function isTruthy(mixed $value): bool
+    {
+        return in_array(strtolower((string) $value), ['1', 'true', 'yes', 'y', 'on'], true);
+    }
+
+    private function normalizeQuarterCode($quarter): ?string
+    {
+        if ($quarter === null || trim((string) $quarter) === '') {
+            return null;
+        }
+
+        $value = strtoupper(trim((string) $quarter));
+        $map = [
+            '1' => 'Q1',
+            'Q1' => 'Q1',
+            'FIRST' => 'Q1',
+            'FIRST QUARTER' => 'Q1',
+            '2' => 'Q2',
+            'Q2' => 'Q2',
+            'SECOND' => 'Q2',
+            'SECOND QUARTER' => 'Q2',
+            '3' => 'Q3',
+            'Q3' => 'Q3',
+            'THIRD' => 'Q3',
+            'THIRD QUARTER' => 'Q3',
+            '4' => 'Q4',
+            'Q4' => 'Q4',
+            'FOURTH' => 'Q4',
+            'FOURTH QUARTER' => 'Q4',
+        ];
+
+        return $map[$value] ?? $value;
     }
 }

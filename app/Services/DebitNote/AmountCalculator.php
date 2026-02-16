@@ -67,7 +67,8 @@ class AmountCalculator
         array $data
     ): array {
         $config = ShareConfiguration::fromReinsurer($reinsurer, $brokerageRate, $data);
-        $context = new CalculationContext($config, $sharePercentage);
+        $effectiveSharePercentage = $this->applyNetTaxShareAdjustment($sharePercentage, $config);
+        $context = new CalculationContext($config, $effectiveSharePercentage);
 
         foreach ($items as $item) {
             $this->processReinsurerLineItem($item, $context);
@@ -96,7 +97,8 @@ class AmountCalculator
         }
 
         $config = ShareConfiguration::fromCedant($cover, $brokerageRate, $data);
-        $context = new CalculationContext($config, $cedantShare);
+        $effectiveSharePercentage = $this->applyNetTaxShareAdjustment($cedantShare, $config);
+        $context = new CalculationContext($config, $effectiveSharePercentage);
 
         foreach ($items as $item) {
             $this->processCedantLineItem($item, $context);
@@ -291,7 +293,7 @@ class AmountCalculator
 
         $grossAmount = $shareAmount;
 
-        if ($context->config->commissionMode === 'net') {
+        if ($context->config->commissionMode === 'net' && ! $context->config->applyNetTaxToShare) {
             $netFactor = (100 - $context->config->premiumLevy) / 100;
             return $grossAmount * $netFactor;
         }
@@ -472,6 +474,17 @@ class AmountCalculator
         return $amount * ($rate / 100);
     }
 
+    protected function applyNetTaxShareAdjustment(float $sharePercentage, ShareConfiguration $config): float
+    {
+        if (! $config->applyNetTaxToShare || $sharePercentage <= self::EPSILON) {
+            return $sharePercentage;
+        }
+
+        $netFactor = (100 - $config->premiumLevy) / 100;
+
+        return $sharePercentage * max(0, $netFactor);
+    }
+
     protected function getLedgerType(array $item): string
     {
         if (isset($item['ledger'])) {
@@ -538,21 +551,27 @@ class ShareConfiguration
         public readonly bool $computePremiumTax,
         public readonly bool $computeReinsuranceTax,
         public readonly bool $computeWithholdingTax,
+        public readonly bool $applyNetTaxToShare,
     ) {}
 
     public static function fromReinsurer(CoverRipart $reinsurer, float $brokerageRate, array $data): self
     {
+        $commissionMode = strtolower($reinsurer->commission_mode ?? 'gross');
+        $premiumLevy = (float) ($data['premiumLevy'] ?? 0);
+        $computePremiumTax = (bool) ($data['computePremiumTax'] ?? false);
+
         return new self(
             isReinsurer: true,
             commissionRate: (float) ($reinsurer->commission_rate ?? 0),
-            commissionMode: strtolower($reinsurer->commission_mode ?? 'gross'),
+            commissionMode: $commissionMode,
             brokerageRate: $brokerageRate,
-            computePremiumTax: (bool) ($data['computePremiumTax'] ?? false),
+            computePremiumTax: $computePremiumTax,
             computeReinsuranceTax: (bool) ($data['computeReinsuranceTax'] ?? false),
             computeWithholdingTax: (bool) ($data['computeWithholdingTax'] ?? false),
-            premiumLevy: (float) ($data['premiumLevy'] ?? 0),
+            premiumLevy: $premiumLevy,
             reinsuranceLevy: (float) ($data['reinsuranceLevy'] ?? 0),
             withholdingTax: (float) ($data['withholdingTax'] ?? 0),
+            applyNetTaxToShare: $commissionMode === 'net' && $computePremiumTax && $premiumLevy > 0,
         );
     }
 
@@ -574,17 +593,23 @@ class ShareConfiguration
             }
         }
 
+        $premiumLevy = (float) ($data['premiumLevy'] ?? 0);
+        $computePremiumTax = (bool) ($data['computePremiumTax'] ?? false);
+
         return new self(
             isReinsurer: false,
             commissionRate: 0,
             commissionMode: strtolower($commissionMode),
             brokerageRate: $brokerageRate,
-            computePremiumTax: (bool) ($data['computePremiumTax'] ?? false),
+            computePremiumTax: $computePremiumTax,
             computeReinsuranceTax: (bool) ($data['computeReinsuranceTax'] ?? false),
             computeWithholdingTax: (bool) ($data['computeWithholdingTax'] ?? false),
-            premiumLevy: (float) ($data['premiumLevy'] ?? 0),
+            premiumLevy: $premiumLevy,
             reinsuranceLevy: (float) ($data['reinsuranceLevy'] ?? 0),
             withholdingTax: (float) ($data['withholdingTax'] ?? 0),
+            applyNetTaxToShare: strtolower($commissionMode) === 'net'
+                && $computePremiumTax
+                && $premiumLevy > 0,
         );
     }
 }

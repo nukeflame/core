@@ -411,6 +411,34 @@ class PrintoutController extends Controller
         return $decoded !== null ? $decoded : $default;
     }
 
+    private function resolveNetTaxFactorForCoverNote($cover, $coverpremiums, bool $hasNetOfTaxReinsurer, bool $hasPremiumTax): float
+    {
+        if (! $hasNetOfTaxReinsurer || ! $hasPremiumTax) {
+            return 1.0;
+        }
+
+        $premiumTaxRate = (float) ($cover->prem_tax_rate ?? 0);
+
+        if ($premiumTaxRate <= 0) {
+            $premiumTaxRate = (float) optional(
+                collect($coverpremiums)->first(fn($item) => strtoupper((string) ($item->entry_type_descr ?? '')) === 'PTX')
+            )->rate;
+        }
+
+        if ($premiumTaxRate <= 0) {
+            $premiumTaxRate = 1.0;
+        }
+
+        $premiumTaxRate = max(0, min(100, $premiumTaxRate));
+
+        return (100 - $premiumTaxRate) / 100;
+    }
+
+    private function isTruthy(mixed $value): bool
+    {
+        return in_array(strtolower((string) $value), ['1', 'true', 'yes', 'y', 'on'], true);
+    }
+
     private function generatePdfDocument($data)
     {
         $viewName = 'printouts.fac_coverslipquote';
@@ -1041,6 +1069,29 @@ class PrintoutController extends Controller
                 ->where('dr_cr', 'CR')
                 ->sum('final_amount');
 
+            $hasNetOfTaxReinsurer = $reinsurers->contains(fn($reinsurer) => $this->isTruthy($reinsurer->net_of_tax ?? 0));
+            $hasPremiumTax = $coverpremiums->contains(function ($item) {
+                return strtoupper((string) ($item->entry_type_descr ?? '')) === 'PTX'
+                    && (float) ($item->final_amount ?? 0) > 0;
+            });
+            $netTaxFactor = $this->resolveNetTaxFactorForCoverNote($cover, $coverpremiums, $hasNetOfTaxReinsurer, $hasPremiumTax);
+
+            if ($netTaxFactor !== 1.0) {
+                $coverpremiums = $coverpremiums->map(function ($item) use ($netTaxFactor) {
+                    $item->basic_amount = (float) ($item->basic_amount ?? 0) * $netTaxFactor;
+                    $item->final_amount = (float) ($item->final_amount ?? 0) * $netTaxFactor;
+
+                    return $item;
+                });
+
+                $basicTotalDR *= $netTaxFactor;
+                $basicTotalCR *= $netTaxFactor;
+                $finalTotalDR *= $netTaxFactor;
+                $finalTotalCR *= $netTaxFactor;
+            }
+
+            $sharePercent = (float) ($cover->share_offered ?? 0) * $netTaxFactor;
+
             $shared_data = [
                 'company' => $company,
                 'cover' => $cover,
@@ -1053,6 +1104,7 @@ class PrintoutController extends Controller
                 'basicTotalCR' => $basicTotalCR,
                 'finalTotalDR' => $finalTotalDR,
                 'finalTotalCR' => $finalTotalCR,
+                'share_percent' => $sharePercent,
                 'ppw' => $ppw,
                 'installmentAmts' => $installmentAmts,
             ];

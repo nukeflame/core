@@ -622,18 +622,8 @@
                 </span>
             </div>
             <div class="summary-item">
-                <span class="summary-label">Retention</span>
-                <span class="summary-value">{{ number_format($cover->retention_percentage ?? 0, 1) }}%</span>
-            </div>
-            <div class="summary-item">
-                <span class="summary-label">Ceded</span>
-                <span class="summary-value">{{ number_format($cover->ceded_percentage ?? 0, 1) }}%</span>
-            </div>
-            <div class="summary-item">
-                <span class="summary-label">Sum Insured</span>
-                <span class="summary-value amount">
-                    {{ $formatCurrency($cover->sum_insured ?? 0, $cover->currency ?? 'KES') }}
-                </span>
+                <span class="summary-label">Current Quarter</span>
+                <span class="summary-value">{{ $currentQuarterDisplay ?? ('Q' . now()->quarter . ' - ' . now()->year) }}</span>
             </div>
             <div class="summary-item">
                 <span class="summary-label">Status</span>
@@ -1630,11 +1620,15 @@
                                 orderable: false,
                                 searchable: false,
                                 render: function(data, type, row) {
+                                    var isCoverNote = !!row.is_cover_note;
+                                    var noteLabel = isCoverNote ? 'Cover Note' : 'Credit Note';
+                                    var noteType = isCoverNote ? 'cover_note' : 'credit_note';
+
                                     return '<div class="d-flex gap-2">' +
                                         '<a href="javascript:void(0)" class="text-primary btn-view-reinsurer text-center d-flex align-items-center" data-id="' +
                                         row.id + '" data-partner-no="' + row.partner_no +
-                                        '" title="Credit Note">' +
-                                        '<i class="ri-file-list-3-line fs-18"></i> <span class="d-none d-md-inline me-2">Credit Note</span>' +
+                                        '" data-note-type="' + noteType + '" title="' + noteLabel + '">' +
+                                        '<i class="ri-file-list-3-line fs-18"></i> <span class="d-none d-md-inline me-2">' + noteLabel + '</span>' +
                                         '</a>' +
                                         '<a href="javascript:void(0)" target="_blank" class="text-success text-center d-flex align-items-center" title="Cover Slip">' +
                                         '<i class="ri-file-shield-2-line fs-18"></i> <span class="d-none d-md-inline me-2">Cover Slip</span>' +
@@ -2178,6 +2172,8 @@
             var DocumentsManager = {
                 generate: function(type) {
                     Utils.showLoading(true);
+                    var postingYear = $('#posting_year').val() || '';
+                    var postingQuarter = $('#posting_quarter').val() || '';
 
                     Utils.ajax({
                             url: CONFIG.routes.documentGenerate,
@@ -2185,7 +2181,9 @@
                             data: {
                                 cover_no: CONFIG.coverNo,
                                 endorsement_no: CONFIG.endorsementNo,
-                                document_type: type
+                                document_type: type,
+                                posting_year: postingYear,
+                                posting_quarter: postingQuarter
                             }
                         })
                         .done(function(response) {
@@ -2241,15 +2239,16 @@
                     var cedantData = [{
                         id: '{{ $customer->customer_id ?? '' }}',
                         name: '{{ $customer->name ?? '' }}',
-                        registration_no: '{{ $customer->registration_no ?? '' }}',
-                        address: '{{ $customer->address ?? '' }}',
-                        contact_person: '{{ $customer->contact_person ?? '' }}',
+                        registration_no: '{{ $customer->registration_no ?? $customer->registration_number ?? $customer->customer_id ?? '' }}',
+                        address: '{{ $customer->address ?? $customer->postal_address ?? ((trim(($customer->street ?? '') . " " . ($customer->city ?? '')) !== "") ? trim(($customer->street ?? '') . " " . ($customer->city ?? '')) : "") }}',
+                        contact_person: '{{ $customer->primaryContact->contact_name ?? $customer->contact_person ?? '' }}',
                         designation: '{{ $customer->designation ?? '' }}',
                         email: '{{ $customer->email ?? '' }}',
-                        phone: '{{ $customer->phone ?? '' }}',
+                        phone: '{{ $customer->phone ?? $customer->telephone ?? '' }}',
                         treaty_period: '{{ $cover && $cover->cover_from && $cover->cover_to ? \Carbon\Carbon::parse($cover->cover_from)->format('d M Y') . ' - ' . \Carbon\Carbon::parse($cover->cover_to)->format('d M Y') : '' }}',
-                        treaty_capacity: {{ $cover->treaty_capacity ?? 0 }},
+                        treaty_capacity: {{ $cedantTreatyCapacity ?? ($cover->effective_sum_insured ?? $cover->total_sum_insured ?? $cover->sum_insured ?? $cover->treaty_capacity ?? 0) }},
                         partner_no: '{{ $customer->customer_id ?? '' }}',
+                        is_cover_note: {{ !empty($cedantIsCoverNote) ? 'true' : 'false' }},
                     }];
 
                     this.table = $('#cedantTable').DataTable({
@@ -2331,16 +2330,22 @@
                                 orderable: false,
                                 searchable: false,
                                 render: function(data, type, row) {
+                                    var isCoverNote = !!row.is_cover_note;
+                                    var noteLabel = isCoverNote ? 'Cover Note' : 'Debit Note';
+                                    var noteType = isCoverNote ? 'cover_note' : 'debit_note';
 
-                                    return '<div class="btn-group btn-group-sm" role="group" aria-label="Cedant actions">' +
-                                        '<button type="button" class="btn btn-outline-primary btn-action btn-view-cedant" data-partner_no="' +
-                                        row.partner_no + '" title="View Details">' +
-                                        '<i class="ri-eye-line"></i>' +
-                                        '</button>' +
-                                        '<button type="button" class="btn btn-outline-info btn-action btn-send-cedant-statement" data-partner_no="' +
+                                    return '<div class="d-flex gap-2">' +
+                                        '<a href="javascript:void(0)" class="text-primary btn-view-cedant text-center d-flex align-items-center" data-partner_no="' +
+                                        row.partner_no + '" data-note-type="' + noteType + '" title="' + noteLabel + '">' +
+                                        '<i class="ri-file-list-3-line fs-18"></i> <span class="d-none d-md-inline me-2">' + noteLabel + '</span>' +
+                                        '</a>' +
+                                        '<a href="' + CONFIG.routes.previewSlip + '" target="_blank" class="text-success text-center d-flex align-items-center" title="Cover Slip">' +
+                                        '<i class="ri-file-shield-2-line fs-18"></i> <span class="d-none d-md-inline me-2">Cover Slip</span>' +
+                                        '</a>' +
+                                        '<a href="javascript:void(0)" class="text-info btn-send-cedant-statement text-center d-flex align-items-center" data-partner_no="' +
                                         row.partner_no + '" title="Send Statement">' +
-                                        '<i class="ri-mail-send-line"></i>' +
-                                        '</button>' +
+                                        '<i class="ri-mail-send-line fs-18"></i> <span class="d-none d-md-inline">Send Statement</span>' +
+                                        '</a>' +
                                         '</div>';
                                 }
                             }
@@ -2366,13 +2371,19 @@
 
                     $('#cedantTable').on('click', '.btn-view-cedant', function() {
                         var partnerNo = $(this).data('partner_no');
+                        var noteType = $(this).data('note-type') || 'debit_note';
+                        var postingYear = $('#posting_year').val() || '';
+                        var postingQuarter = $('#posting_quarter').val() || '';
 
                         if (partnerNo) {
                             var url = CONFIG.routes.cedantDebitNoteView +
                                 '?cover_no=' + encodeURIComponent(CONFIG.coverNo) +
                                 '&endorsement_no=' + encodeURIComponent(CONFIG
                                     .endorsementNo) +
-                                '&cedant_id=' + encodeURIComponent(partnerNo);
+                                '&cedant_id=' + encodeURIComponent(partnerNo) +
+                                '&note_type=' + encodeURIComponent(noteType) +
+                                '&posting_year=' + encodeURIComponent(postingYear) +
+                                '&posting_quarter=' + encodeURIComponent(postingQuarter);
                             window.open(url, '_blank');
                         }
 
@@ -2738,6 +2749,7 @@
 
             $(document).on('click', '.btn-view-reinsurer', function() {
                 var partnerNo = $(this).data('partner-no');
+                var noteType = $(this).data('note-type') || 'credit_note';
                 if (partnerNo) {
                     Swal.fire({
                         title: 'Include Broking Commission?',
@@ -2755,6 +2767,8 @@
                         buttonsStyling: false
                     }).then((result) => {
                         var withBrokerage = null;
+                        var postingYear = $('#posting_year').val() || '';
+                        var postingQuarter = $('#posting_quarter').val() || '';
 
                         if (result.isConfirmed) {
                             withBrokerage = 1;
@@ -2785,7 +2799,10 @@
                                 '?cover_no=' + encodeURIComponent(CONFIG.coverNo) +
                                 '&endorsement_no=' + encodeURIComponent(CONFIG.endorsementNo) +
                                 '&partner_no=' + encodeURIComponent(partnerNo) +
-                                '&with_brokerage=' + withBrokerage;
+                                '&with_brokerage=' + withBrokerage +
+                                '&note_type=' + encodeURIComponent(noteType) +
+                                '&posting_year=' + encodeURIComponent(postingYear) +
+                                '&posting_quarter=' + encodeURIComponent(postingQuarter);
 
                             window.open(url, '_blank');
                         }
@@ -2813,8 +2830,67 @@
                 );
             });
 
+            var TAB_QUERY_PARAM = 'tab';
+            var tabStorageKey = 'quarterly_figures_active_tab:' + (CONFIG.coverNo || '') + ':' + (CONFIG
+                .endorsementNo || '');
+
+            function normalizeTabTarget(value) {
+                if (!value) {
+                    return null;
+                }
+
+                return value.charAt(0) === '#' ? value : '#' + value;
+            }
+
+            function tabExists(target) {
+                return !!$(
+                    'button[data-bs-toggle="tab"][data-bs-target="' + target + '"]'
+                ).length;
+            }
+
+            function persistActiveTab(target) {
+                if (!target) {
+                    return;
+                }
+
+                sessionStorage.setItem(tabStorageKey, target);
+
+                var url = new URL(window.location.href);
+                url.searchParams.set(TAB_QUERY_PARAM, target.replace('#', ''));
+                window.history.replaceState({}, '', url.toString());
+            }
+
+            function restoreActiveTab() {
+                var url = new URL(window.location.href);
+                var tabFromQuery = normalizeTabTarget(url.searchParams.get(TAB_QUERY_PARAM));
+                var tabFromHash = normalizeTabTarget(window.location.hash);
+                var tabFromStorage = normalizeTabTarget(sessionStorage.getItem(tabStorageKey));
+                var initialTab = null;
+
+                if (tabFromQuery && tabExists(tabFromQuery)) {
+                    initialTab = tabFromQuery;
+                } else if (tabFromHash && tabExists(tabFromHash)) {
+                    initialTab = tabFromHash;
+                } else if (tabFromStorage && tabExists(tabFromStorage)) {
+                    initialTab = tabFromStorage;
+                }
+
+                if (!initialTab) {
+                    return;
+                }
+
+                var tabButton = document.querySelector(
+                    'button[data-bs-toggle="tab"][data-bs-target="' + initialTab + '"]'
+                );
+
+                if (tabButton) {
+                    bootstrap.Tab.getOrCreateInstance(tabButton).show();
+                }
+            }
+
             $('button[data-bs-toggle="tab"]').on('shown.bs.tab', function(e) {
                 var target = $(e.target).attr('data-bs-target');
+                persistActiveTab(target);
 
                 setTimeout(function() {
                     switch (target) {
@@ -2833,6 +2909,8 @@
                     }
                 }, 10);
             });
+
+            restoreActiveTab();
         });
     </script>
 @endpush

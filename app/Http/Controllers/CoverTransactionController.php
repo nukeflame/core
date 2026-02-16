@@ -7,6 +7,7 @@ use App\Models\Customer;
 use App\Models\CustomerAccDet;
 use App\Models\CoverDebit;
 use App\Models\CoverRipart;
+use App\Models\CoverReinProp;
 use App\Models\DebitNote;
 use App\Models\ReinclassPremtype;
 use App\Models\TreatyDocument;
@@ -161,7 +162,20 @@ class CoverTransactionController extends Controller
     public function quarterlyFigures(Request $request, $coverNo, $refNo)
     {
         $cover = CoverRegister::where('endorsement_no', $request->endorsementNo)->firstOrFail();
-        $customer = Customer::where('customer_id', $cover->customer_id)->first();
+        $customer = Customer::with('primaryContact')->where('customer_id', $cover->customer_id)->first();
+        $decodedRefNo = urldecode((string) $refNo);
+
+        $selectedTransaction = CustomerAccDet::where('cover_no', $cover->cover_no)
+            ->where('endorsement_no', $request->endorsementNo)
+            ->where('reference', $decodedRefNo)
+            ->orderByDesc('created_at')
+            ->first();
+
+        $currentQuarter = $selectedTransaction?->quarter;
+        $currentYear = $selectedTransaction?->account_year;
+        $currentQuarterDisplay = ($currentQuarter && $currentYear)
+            ? strtoupper((string) $currentQuarter) . ' - ' . $currentYear
+            : ('Q' . now()->quarter . ' - ' . now()->year);
 
         $transactions = CoverDebit::where('endorsement_no', $request->endorsementNo)
             ->orderBy('installment', 'asc')
@@ -192,6 +206,23 @@ class CoverTransactionController extends Controller
             ->sum('items_count');
 
         $totalReinsurers = CoverRipart::where(['cover_no' => $cover->cover_no, 'endorsement_no' =>  $cover->endorsement_no])->count();
+        $cedantTreatyCapacity = (float) CoverReinProp::where('cover_no', $cover->cover_no)
+            ->where('endorsement_no', $cover->endorsement_no)
+            ->sum('treaty_amount');
+
+        if ($cedantTreatyCapacity <= 0) {
+            $cedantTreatyCapacity = (float) ($cover->effective_sum_insured ?? $cover->total_sum_insured ?? $cover->sum_insured ?? $cover->treaty_capacity ?? 0);
+        }
+
+        $cedantGrossPremium = (float) CoverRipart::where([
+            'cover_no' => $cover->cover_no,
+            'endorsement_no' => $cover->endorsement_no,
+        ])->sum('total_premium');
+        $cedantClaimAmount = (float) CoverRipart::where([
+            'cover_no' => $cover->cover_no,
+            'endorsement_no' => $cover->endorsement_no,
+        ])->sum('claim_amt');
+        $cedantIsCoverNote = $cedantClaimAmount > $cedantGrossPremium;
 
         return view('cover.transactions.cover_transaction_debit', [
             'endorsementNo' => $request->endorsementNo,
@@ -206,7 +237,10 @@ class CoverTransactionController extends Controller
             'totalDebited' => $totalDebited,
             'totalDocuments' => $totalDocuments,
             'totalDebitItems' => $totalDebitItems,
-            'totalReinsurers' => $totalReinsurers
+            'totalReinsurers' => $totalReinsurers,
+            'cedantTreatyCapacity' => $cedantTreatyCapacity,
+            'cedantIsCoverNote' => $cedantIsCoverNote,
+            'currentQuarterDisplay' => $currentQuarterDisplay,
         ]);
     }
 

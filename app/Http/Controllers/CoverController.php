@@ -3255,6 +3255,27 @@ class CoverController extends Controller
             ->get();
 
         if ($quarterlyData->isEmpty()) {
+            [$previousQuarter, $previousYear] = $this->getPreviousQuarterAndYear($quarter, (int) $postingYear);
+            $previousItems = $this->getQuarterlyTransactionItems($coverNo, $previousQuarter, $previousYear);
+
+            if (!empty($previousItems)) {
+                return response()->json([
+                    'success' => true,
+                    'has_data' => false,
+                    'prefill_from_previous' => true,
+                    'source_quarter' => $previousQuarter,
+                    'source_year' => $previousYear,
+                    'data' => [
+                        'posting_year' => $postingYear,
+                        'posting_quarter' => $quarter,
+                        'items' => $previousItems,
+                        'meta' => null,
+                        'total_amount' => 0,
+                    ],
+                    'message' => "No data found for {$quarter}. Prefilled from {$previousQuarter} {$previousYear}."
+                ]);
+            }
+
             return response()->json([
                 'success' => true,
                 'has_data' => false,
@@ -3269,23 +3290,7 @@ class CoverController extends Controller
             ->with('items')
             ->get();
 
-        $items = [];
-        foreach ($debitNotes as $debitNote) {
-            foreach ($debitNote->items as $item) {
-                if (in_array(strtoupper($item->item_code), ['IT01', 'IT02'])) {
-                    $items[] = [
-                        'item_code' => $item->item_code,
-                        'description' => $item->description,
-                        'item_type' => $item->item_type,
-                        'class_group' => $item->class_group_code,
-                        'class_name' => $item->class_code,
-                        'line_rate' => $item->original_line_rate ?? 0,
-                        'ledger' => in_array(strtoupper($item->item_code), ['IT01', 'IT26']) ? 'DR' : 'CR',
-                        'amount' => $item->original_amount ?? 0,
-                    ];
-                }
-            }
-        }
+        $items = $this->getQuarterlyTransactionItems($coverNo, $quarter, (int) $postingYear);
 
         $firstRecord = $quarterlyData->first();
         $firstDebitNote = $debitNotes->first();
@@ -3319,6 +3324,46 @@ class CoverController extends Controller
             ],
             'message' => 'Data loaded successfully for ' . $quarter
         ]);
+    }
+
+    private function getQuarterlyTransactionItems(string $coverNo, string $quarter, int $postingYear): array
+    {
+        $debitNotes = DebitNote::where('cover_no', $coverNo)
+            ->where('posting_quarter', $quarter)
+            ->where('posting_year', $postingYear)
+            ->with('items')
+            ->get();
+
+        $items = [];
+        foreach ($debitNotes as $debitNote) {
+            foreach ($debitNote->items as $item) {
+                if (in_array(strtoupper((string) $item->item_code), ['IT01', 'IT02'])) {
+                    $items[] = [
+                        'item_code' => $item->item_code,
+                        'description' => $item->description,
+                        'item_type' => $item->item_type,
+                        'class_group' => $item->class_group_code,
+                        'class_name' => $item->class_code,
+                        'line_rate' => $item->original_line_rate ?? 0,
+                        'ledger' => in_array(strtoupper((string) $item->item_code), ['IT01', 'IT26']) ? 'DR' : 'CR',
+                        'amount' => $item->original_amount ?? 0,
+                    ];
+                }
+            }
+        }
+
+        return $items;
+    }
+
+    private function getPreviousQuarterAndYear(string $quarter, int $year): array
+    {
+        return match (strtoupper($quarter)) {
+            'Q1' => ['Q4', $year - 1],
+            'Q2' => ['Q1', $year],
+            'Q3' => ['Q2', $year],
+            'Q4' => ['Q3', $year],
+            default => ['Q1', $year],
+        };
     }
 
     public function saveMdpInstallments(Request $request)

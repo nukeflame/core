@@ -873,8 +873,7 @@
 
                                 if (response.data.meta) {
                                     const meta = response.data.meta;
-                                    console.log(meta)
-                                    // Levies
+
                                     $('#compute_premium_tax').prop('checked', meta.compute_premium_tax)
                                         .trigger('change');
                                     $('#compute_reinsurance_tax').prop('checked', meta
@@ -904,6 +903,14 @@
 
                                 self.setFieldsLocked(true);
                                 self.state.loadedQuarter = quarter;
+                            } else if (response.success && response.prefill_from_previous && response
+                                .data && Array.isArray(response.data.items) && response.data.items
+                                .length) {
+                                self.populateItemsFromData(response.data);
+                                self.setFieldsLocked(false);
+                                self.applyPreviousQuarterPrefillMode(response.source_quarter, response
+                                    .source_year);
+                                self.state.loadedQuarter = null;
                             } else {
                                 self.clearTransactionItems();
                                 self.setFieldsLocked(false, true);
@@ -1070,6 +1077,41 @@
                     this.updateSummaryVisibility();
                 },
 
+                applyPreviousQuarterPrefillMode: function(sourceQuarter, sourceYear) {
+                    const self = this;
+                    this.state.isDataLocked = false;
+                    this.$el.addBtn.prop('disabled', true);
+
+                    this.$el.itemsBody.find(this.config.classes.itemRow).each(function() {
+                        const $row = $(this);
+                        $row.find('input, select').prop('disabled', true);
+
+                        $row.find(self.config.classes.itemLineRate).prop('disabled', false);
+                        $row.find(self.config.classes.itemAmount).prop('disabled', false);
+                        $row.find(self.config.classes.itemAmountHidden).prop('disabled', false);
+                        $row.find(self.config.classes.removeBtn).hide();
+
+                        $row.find(self.config.classes.itemAmount).val('');
+                        $row.find(self.config.classes.itemAmountHidden).val('');
+                    });
+
+                    $('#quarterly-data-loaded-info').remove();
+                    $('#quarterly-data-prefill-info').remove();
+
+                    const sourceLabel = [sourceQuarter, sourceYear].filter(Boolean).join(' ');
+                    const prefillHtml = `
+                        <div id="quarterly-data-prefill-info" class="alert alert-warning alert-dismissible fade show mt-2" role="alert">
+                            <i class="fas fa-info-circle me-2"></i>
+                            <strong>Note:</strong> No saved data found for this quarter. Line items were copied from ${sourceLabel}.
+                            Only commission and amount are editable, and amount has been cleared.
+                        </div>
+                    `;
+                    $(this.config.selectors.itemsBody).closest('.card').before(prefillHtml);
+
+                    this.calculateTotals();
+                    this.updateSummaryVisibility();
+                },
+
                 setFieldsLocked: function(locked, notInserted = false) {
                     const self = this;
                     this.state.isDataLocked = locked;
@@ -1135,7 +1177,7 @@
                             const infoHtml = `
                                 <div id="quarterly-data-loaded-info" class="alert alert-info alert-dismissible fade show mt-2" role="alert">
                                     <i class="fas fa-info-circle me-2"></i>
-                                    <strong>Note:</strong> Data has been loaded from existing quarterly records. 
+                                    <strong>Note:</strong> Data has been loaded from existing quarterly records.
                                     Fields are disabled. Select a different quarter to enter new data.
                                 </div>
                             `;
@@ -1144,6 +1186,7 @@
                     } else {
                         $infoMessage.remove();
                     }
+                    $('#quarterly-data-prefill-info').remove();
                 },
 
                 addItem: function() {
@@ -1763,8 +1806,6 @@
                         }
 
                         if (!itemType) {
-                            self.log('Warning: item_type not set for row', index + 1);
-
                             const ledger = $row.find('.item-ledger').val();
                             if (ledger === 'DR') {
                                 $itemType.val('DEBIT');
@@ -1817,8 +1858,7 @@
                             timeout: 30000
                         })
                         .done(function(response) {
-                            console.log(response)
-                            // self.handleSuccess(response);
+                            self.handleSuccess(response);
                         })
                         .fail(function(xhr, status, error) {
                             self.handleError(xhr, status, error);
@@ -1987,7 +2027,8 @@
                     this.state.loadedQuarter = null;
 
                     $('#quarterly-data-loaded-info').remove();
-                    self.setFieldsLocked(false, true);
+                    $('#quarterly-data-prefill-info').remove();
+                    this.setFieldsLocked(false, true);
 
                     this.setLoadingState(false);
                 },

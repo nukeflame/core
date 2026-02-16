@@ -53,17 +53,40 @@
 
     @foreach ($reinsurers as $index => $reinsurer)
         @php
-            $filteredCreditItems = collect($credit_items);
+            $sharePercent = (float) ($reinsurer->share ?? 0);
+            $shareFactor = $sharePercent > 1 ? $sharePercent / 100 : $sharePercent;
+            $premiumTaxRate = (float) ($cover->prem_tax_rate ?? 0);
+            $applyNetTaxShare = !empty($reinsurer->net_of_tax) && $premiumTaxRate > 0;
+            if ($applyNetTaxShare) {
+                $shareFactor *= (100 - min(100, max(0, $premiumTaxRate))) / 100;
+            }
+            $shareFactor = max(0, $shareFactor);
+            $reinsurerCreditItems = collect($credit_items)->map(function ($item) use ($shareFactor) {
+                $itemClone = clone $item;
+                $baseItemAmount = (float) ($item->item_amount ?? 0);
+                $baseOriginalAmount = (float) ($item->original_amount ?? $baseItemAmount);
+                $itemClone->item_amount = $baseItemAmount * $shareFactor;
+                $itemClone->original_amount = $baseOriginalAmount * $shareFactor;
+
+                return $itemClone;
+            });
+            $filteredCreditItems = $reinsurerCreditItems;
             if (!($with_brokerage ?? true)) {
                 $filteredCreditItems = $filteredCreditItems->filter(function ($item) {
-                    return !in_array($item->item_code, ['IT06', 'BROK']);
+                    $itemCode = strtoupper((string) ($item->item_code ?? ''));
+                    $itemName = strtolower((string) ($item->item_name ?? ''));
+                    $description = strtolower((string) ($item->description ?? ''));
+
+                    $isBrokerageCode = in_array($itemCode, ['IT06', 'BROK', 'BRC', 'BROKERAGE'], true);
+                    $isBrokerageText = str_contains($itemName, 'brokerage') || str_contains($description, 'brokerage');
+
+                    return !($isBrokerageCode || $isBrokerageText);
                 });
             }
 
             $totalDebit = $filteredCreditItems->filter(fn($item) => $item->ledger === 'DR')->sum('item_amount');
             $totalCredit = $filteredCreditItems->filter(fn($item) => $item->ledger === 'CR')->sum('item_amount');
             $netAmount = $totalDebit - $totalCredit;
-
             $reinsurerTotals = (object) [
                 'gross_premium' => $totals->gross_premium,
                 'commission' => $totals->commission,
@@ -71,10 +94,10 @@
                 'total_credits' => $totalCredit,
                 'net_amount' => $netAmount,
             ];
-
-            $sharePercent = (float) ($reinsurer->share ?? 0);
-            $shareFactor = $sharePercent > 1 ? ($sharePercent / 100) : $sharePercent;
-            $shareSumInsured = $reinsurer->sum_insured ?? (($cover->total_sum_insured ?? 0) * $shareFactor);
+            $displaySharePercent = $shareFactor * 100;
+            $shareSumInsured = $reinsurer->sum_insured ?? ($cover->total_sum_insured ?? 0) * $shareFactor;
+            $balanceDueLabel =
+                ($document_type ?? 'Credit Note') === 'Cover Note' ? 'BALANCE DUE TO YOU' : 'BALANCE DUE FROM YOU';
         @endphp
 
         <div class="reinsurer-page {{ $index === 0 ? 'first-page' : '' }}">
@@ -110,7 +133,7 @@
                                 <tr>
                                     <td class="">
                                         <div class="info-box uppercase">
-                                            <strong>Credit Note:</strong>
+                                            <strong>{{ $document_type ?? 'Credit Note' }}:</strong>
                                         </div>
                                         <div class="info-box text-left">
                                             {{ $credit->credit_note_no }}
@@ -166,11 +189,13 @@
                                 </tr>
                                 <tr>
                                     <td class="pt-4 courier-9"><strong>Business Class</strong></td>
-                                    <td class="pt-4 courier-9">{{ firstUpper($bus_class) }}</td>
+                                    <td class="pt-4 courier-9">
+                                        {{ firstUpper($bus_class ?? ($cover->class_code ?? 'N/A')) }}</td>
                                 </tr>
                                 <tr>
                                     <td class="pt-4 courier-9"><strong>Treaty Type</strong></td>
-                                    <td class="pt-4 courier-9">{{ firstUpper($treat_type) }}</td>
+                                    <td class="pt-4 courier-9">
+                                        {{ firstUpper($treat_type ?? ($cover->treaty_type ?? 'N/A')) }}</td>
                                 </tr>
                                 <tr>
                                     <td class="pt-4 courier-9"><strong>Reinsured Name</strong></td>
@@ -178,8 +203,8 @@
                                 </tr>
                                 <tr>
                                     <td class="pt-4 courier-9"><strong>Underwriting Quarter</strong></td>
-                                    <td class="pt-4 courier-9">{{ $credit->posting_quarter }} -
-                                        {{ $credit->posting_year }}
+                                    <td class="pt-4 courier-9">
+                                        {{ $underwriting_quarter ?? ($credit->posting_quarter ?? '') . ' - ' . ($credit->posting_year ?? '') }}
                                     </td>
                                 </tr>
                                 <tr>
@@ -191,16 +216,14 @@
                                 <tr>
                                     <td class="pt-4 courier-9"><strong>Payment Terms</strong></td>
                                     <td class="pt-4 courier-9">
-                                        Premium Due On The Posting Date
+                                        {{ firstUpper(optional($ppw ?? null)->pay_term_desc ?? 'Premium Due on the Posting Date') }}
                                     </td>
                                 </tr>
                                 <tr>
-                                    <td class="pt-4 courier-9"><strong> Your share S.I
-                                            ({{ number_format($sharePercent, 2) }}%)
-                                        </strong>
+                                    <td class="pt-4 courier-9"><strong>Your Share</strong>
                                     </td>
                                     <td class="pt-4 courier-9">
-                                        {{ number_format(abs($shareSumInsured), 2) }}
+                                        {{ number_format($displaySharePercent, 2) }}%
                                     </td>
                                 </tr>
                             </table>
@@ -227,7 +250,7 @@
                                     {{ ucwords(strtolower($item->class_name ?? '')) }}
                                 </td>
                                 <td class="no-border align-right" style="width: 32.5%; text-align: right;">
-                                    {{ number_format(abs($item->original_amount), 2) }}
+                                    {{ number_format(abs($item->original_amount ?? $item->item_amount ?? 0), 2) }}
                                     {{ $item->line_rate > 0 ? '@' . number_format($item->line_rate, 2) . '%' : '' }}
                                 </td>
                                 <td class="no-border align-right" style="width: 17.5%; text-align: right;">
@@ -246,7 +269,7 @@
                                 </td>
                             </tr>
                         @endforeach
-                        <tr style="border-top: 2px solid #181212;">
+                        {{-- <tr style="border-top: 2px solid #181212;">
                             <td class="no-border align-left" style="font-weight: bold; width: 32.5%;">TOTAL</td>
                             <td class="no-border" style="width: 32.5%;">&nbsp;</td>
                             <td class="no-border align-right" style="font-weight: bold; width: 17.5%; text-align: right;">
@@ -255,7 +278,7 @@
                             <td class="no-border align-right" style="font-weight: bold; width: 17.5%; text-align: right;">
                                 {{ number_format(abs($reinsurerTotals->total_credits), 2) }}
                             </td>
-                        </tr>
+                        </tr> --}}
                     </tbody>
                 </table>
 
@@ -263,9 +286,9 @@
                     style="width:100%; border: 1px solid #181212; border-collapse: collapse; margin-bottom: 10px; font-size:8pt;">
                     <thead>
                         <tr>
-                            <th class="no-border align-left" style="padding: 6px 8px; width: 32.5%;"><strong>BALANCE DUE
-                                    FROM
-                                    YOU</strong></th>
+                            <th class="no-border align-left" style="padding: 6px 8px; width: 32.5%;">
+                                <strong>{{ $balanceDueLabel }}</strong>
+                            </th>
                             <th class="no-border" style="padding: 6px 8px; width: 32.5%;">&nbsp;</th>
                             <th class="no-border" style="padding: 6px 8px; width: 17.5%;">&nbsp;</th>
                             <th class="no-border align-right" style="padding: 6px 8px; width: 17.5%; text-align: right;">

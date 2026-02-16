@@ -177,7 +177,7 @@
                         <tr>
                             <td style="font-size: 10.0pt; font-family: 'Calibri';">Our share </td>
                             <td style="font-size: 10.0pt; font-family: 'Calibri';">
-                                {{ number_format($cover->share_offered, 2) }}%</td>
+                                {{ number_format($share_percent ?? $cover->share_offered, 2) }}%</td>
                         </tr>
                         <tr>
                             <td style="font-size: 10.0pt; font-family: 'Calibri';">Description </td>
@@ -252,7 +252,7 @@
                 <td align="left" colspan="2"
                     style="font-size: 10.0pt; font-family: 'Calibri'; border: 1px solid #181212; padding: 8px; font-weight: bold;">
                     BALANCE DUE FROM YOU {{ number_format(abs($finalTotalDR - $finalTotalCR), 2) }} @
-                    {{ number_format($cover->share_offered, 2) }}%</td>
+                    {{ number_format($share_percent ?? $cover->share_offered, 2) }}%</td>
 
                 <td align="right"
                     style="font-size: 10.0pt; font-family: 'Calibri'; border: 1px solid #181212; padding: 8px; font-weight: bold;">

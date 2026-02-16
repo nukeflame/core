@@ -57,7 +57,7 @@
                             </td>
                         </tr>
                         <tr>
-                            <td> {{ $customer->telephone }} </td>
+                            <td> {{ $customer->phone ?? $customer->telephone ?? '' }} </td>
                         </tr>
                     </table>
                 </td>
@@ -66,7 +66,7 @@
                         <tr>
                             <td class="">
                                 <div class="info-box uppercase">
-                                    <strong>Debit Note:</strong>
+                                    <strong>{{ $document_type ?? 'Debit Note' }}:</strong>
                                 </div>
                                 <div class="info-box text-left">
                                     {{ $debit->debit_note_no }}
@@ -121,11 +121,11 @@
                         </tr>
                         <tr>
                             <td class="pt-4 courier-9"><strong>Business Class</strong></td>
-                            <td class="pt-4 courier-9">Fire</td>
+                            <td class="pt-4 courier-9">{{ firstUpper($bus_class ?? 'N/A') }}</td>
                         </tr>
                         <tr>
                             <td class="pt-4 courier-9"><strong>Treaty Type</strong></td>
-                            <td class="pt-4 courier-9">Surplus Treaty</td>
+                            <td class="pt-4 courier-9">{{ firstUpper($treat_type ?? 'N/A') }}</td>
                         </tr>
                         <tr>
                             <td class="pt-4 courier-9"><strong>Reinsured Name</strong></td>
@@ -133,7 +133,9 @@
                         </tr>
                         <tr>
                             <td class="pt-4 courier-9"><strong>Underwriting Quarter</strong></td>
-                            <td class="pt-4 courier-9">First Quarter - 2024</td>
+                            <td class="pt-4 courier-9">
+                                {{ $underwriting_quarter ?? ($debit->posting_quarter ?? '') . ' - ' . ($debit->posting_year ?? '') }}
+                            </td>
                         </tr>
                         <tr>
                             <td class="pt-4 courier-9"><strong>Period of Cover</strong></td>
@@ -143,13 +145,14 @@
                         <tr>
                             <td class="pt-4 courier-9"><strong>Payment Terms</strong></td>
                             <td class="pt-4 courier-9">
-                                Premium Due On The Posting Date
+                                {{ firstUpper($ppw->pay_term_desc ?? '') }}
                             </td>
                         </tr>
                         <tr>
                             <td class="pt-4 courier-9"><strong> Our share</strong>
                             </td>
-                            <td class="pt-4 courier-9">{{ number_format($cover->share_offered, 2) }}%</td>
+                            <td class="pt-4 courier-9">
+                                {{ number_format($share_percent ?? ($cover->share_offered ?? 0), 2) }}%</td>
                         </tr>
                     </table>
                 </td>
@@ -194,7 +197,7 @@
                         <td class="no-border" style="width: 2%;">&nbsp;</td>
                     </tr>
                 @endforeach
-                <tr style="border-top: 2px solid #181212;">
+                {{-- <tr style="border-top: 2px solid #181212;">
                     <td class="no-border align-left" style="font-weight: bold; width: 43%;">TOTAL</td>
                     <td class="no-border" style="width: 20%;">&nbsp;</td>
                     <td class="no-border align-right" style="font-weight: bold; width: 17.5%; text-align: right;">
@@ -204,7 +207,7 @@
                         {{ number_format(abs($totals->total_credits), 2) }}
                     </td>
                     <td class="no-border">&nbsp;</td>
-                </tr>
+                </tr> --}}
             </tbody>
         </table>
 
@@ -212,7 +215,7 @@
             style="width:100%; border: 1px solid #181212; border-collapse: collapse; margin-bottom: 10px; font-size:8pt;">
             <thead>
                 <tr>
-                    <th class="no-border align-left" style="padding: 6px 8px; width: 43%;"><strong>BALANCE DUE FROM
+                    <th class="no-border align-left" style="padding: 6px 8px; width: 43%;"><strong>BALANCE DUE TO
                             YOU</strong></th>
                     <th class="no-border" style="padding: 6px 8px; width: 20%;">&nbsp;</th>
                     <th class="no-border" style="padding: 6px 8px; width: 17.5%;">&nbsp;</th>
