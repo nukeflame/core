@@ -15,4 +15,12 @@ class CustomerAccDet extends Model
     public $primaryKey = ['source_code', 'doc_type', 'entry_type_descr', 'reference', 'account_year', 'account_month', 'line_no'];
     public $incrementing = false;
     protected $guarded = [];
+
+    protected $casts = [
+        'premium_levy' => 'decimal:12',
+        'reinsurance_levy' => 'decimal:12',
+        'withholding_tax' => 'decimal:12',
+        'loss_participation' => 'boolean',
+        'sliding_commission' => 'boolean',
+    ];
 }

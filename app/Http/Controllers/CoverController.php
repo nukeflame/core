@@ -627,7 +627,7 @@ class CoverController extends Controller
         $cover = $this->coverRepository->processCoverHome($request);
 
         $summaryData = ['summaryData' => []];
-        $taxRates = ['taxRates' => TaxRate::getAllCurrentRates()];
+        $taxRates = ['taxRates' => $this->getLevyRateDefaults()];
         $data = array_merge($summaryData, $taxRates, $cover);
 
         $pendingApproverId = null;
@@ -1853,6 +1853,7 @@ class CoverController extends Controller
             'reinsuranceLevy' => $validatedData['reinsurance_levy'] ?? 0,
             'withholdingTax' => $validatedData['wht_rate'] ?? 0,
             'lossParticipation' => $validatedData['loss_participation'] ?? 0,
+            'slidingCommission' => $validatedData['sliding_commission'] ?? 0,
             'showCedant' => $validatedData['show_cedant'] ?? false,
             'showReinsurer' => $validatedData['show_reinsurer'] ?? false,
             'reinsurerPosting' => 'NET',
@@ -2001,6 +2002,11 @@ class CoverController extends Controller
         $custAccount->local_taxes_amount = 0;
         $custAccount->foreign_nett_amount = $debitData['netAmount'];
         $custAccount->local_nett_amount = $debitData['netAmount'] * $debitData['currencyRate'];
+        $custAccount->premium_levy = (float) ($debitData['premiumLevy'] ?? 0);
+        $custAccount->reinsurance_levy = (float) ($debitData['reinsuranceLevy'] ?? 0);
+        $custAccount->withholding_tax = (float) ($debitData['withholdingTax'] ?? 0);
+        $custAccount->loss_participation = (bool) ($debitData['lossParticipation'] ?? false);
+        $custAccount->sliding_commission = (bool) ($debitData['slidingCommission'] ?? false);
         $custAccount->allocated_amount = 0;
         $custAccount->unallocated_amount = $debitData['grossAmount'] * $debitData['currencyRate'];
 
@@ -2188,6 +2194,7 @@ class CoverController extends Controller
             'reinsuranceLevy' => $validatedData['reinsurance_levy'] ?? 0,
             'withholdingTax' => $validatedData['wht_rate'] ?? 0,
             'lossParticipation' => $validatedData['loss_participation'] ?? 0,
+            'slidingCommission' => $validatedData['sliding_commission'] ?? 0,
             'showCedant' => $validatedData['show_cedant'] ?? false,
             'showReinsurer' => $validatedData['show_reinsurer'] ?? false,
             'reinsurerPosting' => 'NET',
@@ -3246,6 +3253,7 @@ class CoverController extends Controller
         $coverNo = $request->cover_no;
         $quarter = $request->quarter;
         $postingYear = $request->posting_year ?? Carbon::now()->year;
+        $defaultMeta = $this->getQuarterlyFigureDefaults();
 
         $quarterlyData = CustomerAccDet::where('cover_no', $coverNo)
             ->where('quarter', $quarter)
@@ -3269,7 +3277,7 @@ class CoverController extends Controller
                         'posting_year' => $postingYear,
                         'posting_quarter' => $quarter,
                         'items' => $previousItems,
-                        'meta' => null,
+                        'meta' => $defaultMeta,
                         'total_amount' => 0,
                     ],
                     'message' => "No data found for {$quarter}. Prefilled from {$previousQuarter} {$previousYear}."
@@ -3279,7 +3287,13 @@ class CoverController extends Controller
             return response()->json([
                 'success' => true,
                 'has_data' => false,
-                'data' => [],
+                'data' => [
+                    'posting_year' => $postingYear,
+                    'posting_quarter' => $quarter,
+                    'items' => [],
+                    'meta' => $defaultMeta,
+                    'total_amount' => 0,
+                ],
                 'message' => 'No data found for the selected quarter'
             ]);
         }
@@ -3294,20 +3308,23 @@ class CoverController extends Controller
 
         $firstRecord = $quarterlyData->first();
         $firstDebitNote = $debitNotes->first();
-        $meta = $firstDebitNote ? [
-            'compute_premium_tax' => (bool)$firstDebitNote->compute_premium_tax,
-            'compute_reinsurance_tax' => (bool)$firstDebitNote->compute_reinsurance_tax,
-            'compute_withholding_tax' => (bool)$firstDebitNote->compute_withholding_tax,
-            'loss_participation' => (bool)$firstDebitNote->loss_participation,
-            'sliding_commission' => (bool)$firstDebitNote->sliding_commission,
-            'brokerage_rate' => $firstDebitNote->brokerage_rate,
-            'premium_levy' => $firstDebitNote->premium_levy,
-            'reinsurance_levy' => $firstDebitNote->reinsurance_levy,
-            'withholding_tax' => $firstDebitNote->withholding_tax,
-            'comments' => $firstDebitNote->comments,
-            'show_cedant' => (bool)$firstDebitNote->show_cedant,
-            'show_reinsurer' => (bool)$firstDebitNote->show_reinsurer,
-        ] : null;
+        $meta = $defaultMeta;
+        if ($firstDebitNote) {
+            $meta = array_merge($meta, [
+                'compute_premium_tax' => (bool) $firstDebitNote->compute_premium_tax,
+                'compute_reinsurance_tax' => (bool) $firstDebitNote->compute_reinsurance_tax,
+                'compute_withholding_tax' => (bool) $firstDebitNote->compute_withholding_tax,
+                'loss_participation' => (bool) $firstDebitNote->loss_participation,
+                'sliding_commission' => (bool) $firstDebitNote->sliding_commission,
+                'brokerage_rate' => $firstDebitNote->brokerage_rate ?? $meta['brokerage_rate'],
+                'premium_levy' => $firstDebitNote->premium_levy ?? $meta['premium_levy'],
+                'reinsurance_levy' => $firstDebitNote->reinsurance_levy ?? $meta['reinsurance_levy'],
+                'withholding_tax' => $firstDebitNote->withholding_tax ?? $meta['withholding_tax'],
+                'comments' => $firstDebitNote->comments ?? '',
+                'show_cedant' => (bool) $firstDebitNote->show_cedant,
+                'show_reinsurer' => (bool) $firstDebitNote->show_reinsurer,
+            ]);
+        }
 
         return response()->json([
             'success' => true,
@@ -3324,6 +3341,37 @@ class CoverController extends Controller
             ],
             'message' => 'Data loaded successfully for ' . $quarter
         ]);
+    }
+
+    private function getLevyRateDefaults(): array
+    {
+        $rates = $this->taxService->getAllCurrentRates();
+
+        return [
+            'PREMIUM_LEVY' => (float) ($rates['PREMIUM_LEVY'] ?? $this->taxService->getCurrentRate('PREMIUM_LEVY')),
+            'REINSURANCE_LEVY' => (float) ($rates['REINSURANCE_LEVY'] ?? $this->taxService->getCurrentRate('REINSURANCE_LEVY')),
+            'WITHHOLDING_TAX' => (float) ($rates['WITHHOLDING_TAX'] ?? $this->taxService->getCurrentRate('WITHHOLDING_TAX')),
+        ];
+    }
+
+    private function getQuarterlyFigureDefaults(): array
+    {
+        $levyRates = $this->getLevyRateDefaults();
+
+        return [
+            'compute_premium_tax' => false,
+            'compute_reinsurance_tax' => false,
+            'compute_withholding_tax' => false,
+            'loss_participation' => false,
+            'sliding_commission' => false,
+            'brokerage_rate' => null,
+            'premium_levy' => $levyRates['PREMIUM_LEVY'],
+            'reinsurance_levy' => $levyRates['REINSURANCE_LEVY'],
+            'withholding_tax' => $levyRates['WITHHOLDING_TAX'],
+            'comments' => '',
+            'show_cedant' => false,
+            'show_reinsurer' => false,
+        ];
     }
 
     private function getQuarterlyTransactionItems(string $coverNo, string $quarter, int $postingYear): array

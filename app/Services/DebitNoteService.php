@@ -49,7 +49,6 @@ class DebitNoteService
 
     public function create(array $data, CoverRegister $cover): DebitNote
     {
-
         return DB::transaction(function () use ($data, $cover) {
 
             $this->validateCreateData($data);
@@ -63,6 +62,7 @@ class DebitNoteService
             $this->lineItemProcessor->createDebitNoteLineItems($debitNote, $calculation['items']);
 
             $this->transactionLogger->log($debitNote, 'CREATE');
+
             return $debitNote->fresh(['items', 'cover', 'cover.customer']);
         });
     }

@@ -55,18 +55,13 @@
         @php
             $sharePercent = (float) ($reinsurer->share ?? 0);
             $shareFactor = $sharePercent > 1 ? $sharePercent / 100 : $sharePercent;
-            $premiumTaxRate = (float) ($cover->prem_tax_rate ?? 0);
-            $applyNetTaxShare = !empty($reinsurer->net_of_tax) && $premiumTaxRate > 0;
-            if ($applyNetTaxShare) {
-                $shareFactor *= (100 - min(100, max(0, $premiumTaxRate))) / 100;
-            }
             $shareFactor = max(0, $shareFactor);
-            $reinsurerCreditItems = collect($credit_items)->map(function ($item) use ($shareFactor) {
+
+            // credit_note_items are already calculated; render values as stored.
+            $reinsurerCreditItems = collect($credit_items)->map(function ($item) {
                 $itemClone = clone $item;
-                $baseItemAmount = (float) ($item->item_amount ?? 0);
-                $baseOriginalAmount = (float) ($item->original_amount ?? $baseItemAmount);
-                $itemClone->item_amount = $baseItemAmount * $shareFactor;
-                $itemClone->original_amount = $baseOriginalAmount * $shareFactor;
+                $itemClone->item_amount = (float) ($item->item_amount ?? 0);
+                $itemClone->original_amount = (float) ($item->original_amount ?? $itemClone->item_amount);
 
                 return $itemClone;
             });
@@ -88,8 +83,8 @@
             $totalCredit = $filteredCreditItems->filter(fn($item) => $item->ledger === 'CR')->sum('item_amount');
             $netAmount = $totalDebit - $totalCredit;
             $reinsurerTotals = (object) [
-                'gross_premium' => $totals->gross_premium,
-                'commission' => $totals->commission,
+                'gross_premium' => (float) ($credit->gross_amount ?? $totals->gross_premium ?? 0),
+                'commission' => (float) ($credit->commission_amount ?? $totals->commission ?? 0),
                 'total_debits' => $totalDebit,
                 'total_credits' => $totalCredit,
                 'net_amount' => $netAmount,

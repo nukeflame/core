@@ -104,6 +104,7 @@
                                                     <input type="number" name="brokerage_rate" id="brokerage_rate"
                                                         class="form-control" step="0.01"
                                                         value="{{ number_format($cover->brokerage_comm_rate, 2) }}"
+                                                        data-default="{{ number_format($cover->brokerage_comm_rate, 2) }}"
                                                         min="0" max="100" />
                                                 </div>
                                             </div>
@@ -167,6 +168,7 @@
                                                     <input type="number" name="premium_levy" id="premium_levy"
                                                         class="form-control form-control-sm text-end" step="0.01"
                                                         value="{{ $taxRates['PREMIUM_LEVY'] }}" min="0"
+                                                        data-default="{{ $taxRates['PREMIUM_LEVY'] }}"
                                                         max="100" style="width: 75px;" />
                                                     <span class="input-group-text">%</span>
                                                 </div>
@@ -191,6 +193,7 @@
                                                         id="reinsurance_levy"
                                                         class="form-control form-control-sm text-end" step="0.01"
                                                         value="{{ $taxRates['REINSURANCE_LEVY'] }}" min="0"
+                                                        data-default="{{ $taxRates['REINSURANCE_LEVY'] }}"
                                                         max="100" style="width: 75px;" />
                                                     <span class="input-group-text">%</span>
                                                 </div>
@@ -214,6 +217,7 @@
                                                     <input type="number" name="wht_rate" id="wht_rate"
                                                         class="form-control form-control-sm text-end" step="0.01"
                                                         value="{{ $taxRates['WITHHOLDING_TAX'] }}" min="0"
+                                                        data-default="{{ $taxRates['WITHHOLDING_TAX'] }}"
                                                         max="100" style="width: 75px;" />
                                                     <span class="input-group-text">%</span>
                                                 </div>
@@ -590,7 +594,8 @@
                     validator: null,
                     calcDebounceTimer: null,
                     isDataLocked: false,
-                    loadedQuarter: null
+                    loadedQuarter: null,
+                    defaultMeta: null
                 },
 
                 urls: {
@@ -606,6 +611,7 @@
                         return;
                     }
 
+                    this.state.defaultMeta = this.getDefaultMeta();
                     this.initValidator();
                     this.bindEvents();
                 },
@@ -771,7 +777,6 @@
                         self.debouncedCalculate();
                     });
 
-                    // Sync tax rate inputs to levy checkboxes
                     $('#premium_levy').on('input change', function() {
                         var rate = $(this).val() || 0;
                         $('#compute_premium_tax').attr('data-rate', rate);
@@ -790,7 +795,6 @@
                         self.debouncedCalculate();
                     });
 
-                    // Variable commission toggle handlers
                     $('#loss_participation').on('change', function() {
                         self.debouncedCalculate();
                     });
@@ -868,38 +872,11 @@
                             }
                         })
                         .done(function(response) {
+                            const responseMeta = response && response.data ? response.data.meta : null;
+
                             if (response.success && response.has_data) {
                                 self.populateItemsFromData(response.data);
-
-                                if (response.data.meta) {
-                                    const meta = response.data.meta;
-
-                                    $('#compute_premium_tax').prop('checked', meta.compute_premium_tax)
-                                        .trigger('change');
-                                    $('#compute_reinsurance_tax').prop('checked', meta
-                                        .compute_reinsurance_tax).trigger('change');
-                                    $('#compute_withholding_tax').prop('checked', meta
-                                        .compute_withholding_tax).trigger('change');
-
-                                    $('#premium_levy').val(meta.premium_levy ?? 1);
-                                    $('#reinsurance_levy').val(meta.reinsurance_levy ?? 1);
-                                    $('#wht_rate').val(meta.withholding_tax > 5 ? 0 : meta.withholding_tax);
-
-                                    // Variable Commission
-                                    $('#loss_participation').prop('checked', meta.loss_participation)
-                                        .trigger('change');
-                                    $('#sliding_commission').prop('checked', meta.sliding_commission)
-                                        .trigger('change');
-
-                                    // Brokerage
-                                    $('#brokerage_rate').val(parseFloat(meta.brokerage_rate).toFixed(2));
-
-                                    // Comments and Show Options
-                                    $('#comments').val(meta.comments);
-                                    self.$el.commentsCount.text(meta.comments ? meta.comments.length : 0);
-                                    $('#show_cedant').prop('checked', meta.show_cedant);
-                                    $('#show_reinsurer').prop('checked', meta.show_reinsurer);
-                                }
+                                self.applyMeta(responseMeta);
 
                                 self.setFieldsLocked(true);
                                 self.state.loadedQuarter = quarter;
@@ -907,12 +884,14 @@
                                 .data && Array.isArray(response.data.items) && response.data.items
                                 .length) {
                                 self.populateItemsFromData(response.data);
+                                self.applyMeta(responseMeta);
                                 self.setFieldsLocked(false);
                                 self.applyPreviousQuarterPrefillMode(response.source_quarter, response
                                     .source_year);
                                 self.state.loadedQuarter = null;
                             } else {
                                 self.clearTransactionItems();
+                                self.applyMeta(responseMeta);
                                 self.setFieldsLocked(false, true);
                                 self.state.loadedQuarter = null;
                             }
@@ -946,12 +925,64 @@
 
                     // Reset metadata fields to defaults if not locked
                     if (!this.state.isDataLocked) {
-                        $('#compute_premium_tax, #compute_reinsurance_tax, #compute_withholding_tax, #loss_participation, #sliding_commission')
-                            .prop('checked', false).trigger('change');
-                        $('#comments').val('');
-                        this.$el.commentsCount.text('0');
-                        $('#show_cedant, #show_reinsurer').prop('checked', false);
+                        this.applyMeta(null);
                     }
+                },
+
+                getDefaultMeta: function() {
+                    return {
+                        compute_premium_tax: false,
+                        compute_reinsurance_tax: false,
+                        compute_withholding_tax: false,
+                        loss_participation: false,
+                        sliding_commission: false,
+                        brokerage_rate: this.parseNumberOrZero($('#brokerage_rate').data('default')),
+                        premium_levy: this.parseNumberOrZero($('#premium_levy').data('default')),
+                        reinsurance_levy: this.parseNumberOrZero($('#reinsurance_levy').data('default')),
+                        withholding_tax: this.parseNumberOrZero($('#wht_rate').data('default')),
+                        comments: '',
+                        show_cedant: false,
+                        show_reinsurer: false
+                    };
+                },
+
+                applyMeta: function(meta) {
+                    const defaults = this.state.defaultMeta || this.getDefaultMeta();
+                    const resolved = Object.assign({}, defaults, meta || {});
+
+                    $('#compute_premium_tax').prop('checked', !!resolved.compute_premium_tax).trigger('change');
+                    $('#compute_reinsurance_tax').prop('checked', !!resolved.compute_reinsurance_tax).trigger(
+                        'change');
+                    $('#compute_withholding_tax').prop('checked', !!resolved.compute_withholding_tax).trigger(
+                        'change');
+
+                    const premiumLevy = this.parseNumberOrZero(resolved.premium_levy);
+                    const reinsuranceLevy = this.parseNumberOrZero(resolved.reinsurance_levy);
+                    const withholdingTax = this.parseNumberOrZero(resolved.withholding_tax);
+                    const brokerageRate = (meta && meta.brokerage_rate !== undefined && meta
+                            .brokerage_rate !== null) ?
+                        this.parseNumberOrZero(meta.brokerage_rate) :
+                        this.parseNumberOrZero(defaults.brokerage_rate);
+
+                    $('#premium_levy').val(premiumLevy.toFixed(2)).trigger('change');
+                    $('#reinsurance_levy').val(reinsuranceLevy.toFixed(2)).trigger('change');
+                    $('#wht_rate').val(withholdingTax.toFixed(2)).trigger('change');
+
+                    $('#loss_participation').prop('checked', !!resolved.loss_participation).trigger('change');
+                    $('#sliding_commission').prop('checked', !!resolved.sliding_commission).trigger('change');
+
+                    $('#brokerage_rate').val(brokerageRate.toFixed(2));
+
+                    const comments = String(resolved.comments || '');
+                    $('#comments').val(comments);
+                    this.$el.commentsCount.text(comments.length);
+                    $('#show_cedant').prop('checked', !!resolved.show_cedant);
+                    $('#show_reinsurer').prop('checked', !!resolved.show_reinsurer);
+                },
+
+                parseNumberOrZero: function(value) {
+                    const parsed = parseFloat(value);
+                    return Number.isFinite(parsed) ? parsed : 0;
                 },
 
                 populateItemsFromData: function(data) {
@@ -1858,7 +1889,8 @@
                             timeout: 30000
                         })
                         .done(function(response) {
-                            self.handleSuccess(response);
+                            console.log(response)
+                            // self.handleSuccess(response);
                         })
                         .fail(function(xhr, status, error) {
                             self.handleError(xhr, status, error);
@@ -1876,16 +1908,6 @@
                     return $('meta[name="csrf-token"]').attr('content') ||
                         $('input[name="_token"]').val() ||
                         '';
-                },
-
-                logFormData: function(formData) {
-                    if (typeof console.table === 'function') {
-                        const data = {};
-                        for (let [key, value] of formData.entries()) {
-                            data[key] = value;
-                        }
-                        console.table(data);
-                    }
                 },
 
                 handleSuccess: function(response) {

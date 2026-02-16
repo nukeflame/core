@@ -547,28 +547,6 @@
         </div>
     </div>
 
-    {{-- Quick Actions --}}
-    <div class="quick-actions" role="toolbar" aria-label="Quick actions">
-        {{-- <button type="button" class="btn btn-outline-secondary quick-action-btn" id="btnRefreshSummary"
-            title="Refresh Data">
-            <i class="ri-refresh-line"></i> Refresh Data
-        </button> --}}
-        <!-- <button type="button" class="btn btn-outline-dark quick-action-btn" id="btnPreviewSlip">
-                                                                                                                                                                                                                                                                                        <i class="ri-file-text-line"></i> Preview Slip
-                                                                                                                                                                                                                                                                                    </button> -->
-        <!-- <button type="button" class="btn btn-outline-primary quick-action-btn" id="btnGenerateStatement">
-                                                                                                                                                                                                                                                                                        <i class="ri-file-list-3-line"></i> Generate Statement
-                                                                                                                                                                                                                                                                                    </button> -->
-        {{-- <button type="button" class="btn btn-outline-success quick-action-btn" id="btnExportData">
-            <i class="ri-download-2-line"></i> Export Data
-        </button> --}}
-        <!-- <button type="button" class="btn btn-primary quick-action-btn" data-bs-toggle="modal"
-                                                                                                                                                                                                                                                                                        data-bs-target="#addDebitItemModal">
-                                                                                                                                                                                                                                                                                        <i class="ri-add-line"></i> Add Debit Item
-                                                                                                                                                                                                                                                                                    </button> -->
-        <small class="text-muted ms-auto align-self-center" id="lastUpdatedTime"></small>
-    </div>
-
     <div class="financial-grid">
         <div class="financial-card debits">
             <div class="financial-label">Total Gross Premium</div>
@@ -623,7 +601,8 @@
             </div>
             <div class="summary-item">
                 <span class="summary-label">Current Quarter</span>
-                <span class="summary-value">{{ $currentQuarterDisplay ?? ('Q' . now()->quarter . ' - ' . now()->year) }}</span>
+                <span
+                    class="summary-value">{{ $currentQuarterDisplay ?? 'Q' . now()->quarter . ' - ' . now()->year }}</span>
             </div>
             <div class="summary-item">
                 <span class="summary-label">Status</span>
@@ -669,9 +648,8 @@
                             <i class="bx bx-briefcase me-1"></i> Cedant
                         </button>
 
-                        <button class="nav-link" id="nav-approvals-tab" data-bs-toggle="tab"
-                            data-bs-target="#approvals-tab" type="button" role="tab" aria-controls="approvals-tab"
-                            aria-selected="false">
+                        <button class="nav-link" id="nav-approvals-tab" data-bs-toggle="tab" data-bs-target="#approvals-tab"
+                            type="button" role="tab" aria-controls="approvals-tab" aria-selected="false">
                             <i class="bx bx-medal me-1 align-middle"></i>Approvals
                             <span class="badge bg-warning ms-1"></span>
                         </button>
@@ -1627,8 +1605,10 @@
                                     return '<div class="d-flex gap-2">' +
                                         '<a href="javascript:void(0)" class="text-primary btn-view-reinsurer text-center d-flex align-items-center" data-id="' +
                                         row.id + '" data-partner-no="' + row.partner_no +
-                                        '" data-note-type="' + noteType + '" title="' + noteLabel + '">' +
-                                        '<i class="ri-file-list-3-line fs-18"></i> <span class="d-none d-md-inline me-2">' + noteLabel + '</span>' +
+                                        '" data-note-type="' + noteType + '" title="' +
+                                        noteLabel + '">' +
+                                        '<i class="ri-file-list-3-line fs-18"></i> <span class="d-none d-md-inline me-2">' +
+                                        noteLabel + '</span>' +
                                         '</a>' +
                                         '<a href="javascript:void(0)" target="_blank" class="text-success text-center d-flex align-items-center" title="Cover Slip">' +
                                         '<i class="ri-file-shield-2-line fs-18"></i> <span class="d-none d-md-inline me-2">Cover Slip</span>' +
@@ -2239,14 +2219,14 @@
                     var cedantData = [{
                         id: '{{ $customer->customer_id ?? '' }}',
                         name: '{{ $customer->name ?? '' }}',
-                        registration_no: '{{ $customer->registration_no ?? $customer->registration_number ?? $customer->customer_id ?? '' }}',
-                        address: '{{ $customer->address ?? $customer->postal_address ?? ((trim(($customer->street ?? '') . " " . ($customer->city ?? '')) !== "") ? trim(($customer->street ?? '') . " " . ($customer->city ?? '')) : "") }}',
-                        contact_person: '{{ $customer->primaryContact->contact_name ?? $customer->contact_person ?? '' }}',
+                        registration_no: '{{ $customer->registration_no ?? ($customer->registration_number ?? ($customer->customer_id ?? '')) }}',
+                        address: '{{ $customer->address ?? ($customer->postal_address ?? (trim(($customer->street ?? '') . ' ' . ($customer->city ?? '')) !== '' ? trim(($customer->street ?? '') . ' ' . ($customer->city ?? '')) : '')) }}',
+                        contact_person: '{{ $customer->primaryContact->contact_name ?? ($customer->contact_person ?? '') }}',
                         designation: '{{ $customer->designation ?? '' }}',
                         email: '{{ $customer->email ?? '' }}',
-                        phone: '{{ $customer->phone ?? $customer->telephone ?? '' }}',
+                        phone: '{{ $customer->phone ?? ($customer->telephone ?? '') }}',
                         treaty_period: '{{ $cover && $cover->cover_from && $cover->cover_to ? \Carbon\Carbon::parse($cover->cover_from)->format('d M Y') . ' - ' . \Carbon\Carbon::parse($cover->cover_to)->format('d M Y') : '' }}',
-                        treaty_capacity: {{ $cedantTreatyCapacity ?? ($cover->effective_sum_insured ?? $cover->total_sum_insured ?? $cover->sum_insured ?? $cover->treaty_capacity ?? 0) }},
+                        treaty_capacity: {{ $cedantTreatyCapacity ?? ($cover->effective_sum_insured ?? ($cover->total_sum_insured ?? ($cover->sum_insured ?? ($cover->treaty_capacity ?? 0)))) }},
                         partner_no: '{{ $customer->customer_id ?? '' }}',
                         is_cover_note: {{ !empty($cedantIsCoverNote) ? 'true' : 'false' }},
                     }];
@@ -2331,15 +2311,20 @@
                                 searchable: false,
                                 render: function(data, type, row) {
                                     var isCoverNote = !!row.is_cover_note;
-                                    var noteLabel = isCoverNote ? 'Cover Note' : 'Debit Note';
-                                    var noteType = isCoverNote ? 'cover_note' : 'debit_note';
+                                    var noteLabel = isCoverNote ? 'Cover Note' :
+                                        'Debit Note';
+                                    var noteType = isCoverNote ? 'cover_note' :
+                                        'debit_note';
 
                                     return '<div class="d-flex gap-2">' +
                                         '<a href="javascript:void(0)" class="text-primary btn-view-cedant text-center d-flex align-items-center" data-partner_no="' +
-                                        row.partner_no + '" data-note-type="' + noteType + '" title="' + noteLabel + '">' +
-                                        '<i class="ri-file-list-3-line fs-18"></i> <span class="d-none d-md-inline me-2">' + noteLabel + '</span>' +
+                                        row.partner_no + '" data-note-type="' + noteType +
+                                        '" title="' + noteLabel + '">' +
+                                        '<i class="ri-file-list-3-line fs-18"></i> <span class="d-none d-md-inline me-2">' +
+                                        noteLabel + '</span>' +
                                         '</a>' +
-                                        '<a href="' + CONFIG.routes.previewSlip + '" target="_blank" class="text-success text-center d-flex align-items-center" title="Cover Slip">' +
+                                        '<a href="' + CONFIG.routes.previewSlip +
+                                        '" target="_blank" class="text-success text-center d-flex align-items-center" title="Cover Slip">' +
                                         '<i class="ri-file-shield-2-line fs-18"></i> <span class="d-none d-md-inline me-2">Cover Slip</span>' +
                                         '</a>' +
                                         '<a href="javascript:void(0)" class="text-info btn-send-cedant-statement text-center d-flex align-items-center" data-partner_no="' +
@@ -2606,7 +2591,6 @@
                             hour: '2-digit',
                             minute: '2-digit'
                         });
-                        $('#lastUpdatedTime').text('Last updated: ' + formattedTime);
                     }
                 },
 
