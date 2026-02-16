@@ -1147,6 +1147,75 @@
             this.counters = {};
         }
 
+        getCalcOptionKey($checkbox) {
+            const name = $checkbox.attr("name") || "";
+            const match = name.match(/\[(net_of_tax|net_of_claims|net_of_commission|net_of_premium|premium_tax|net_withholding_tax)\]$/);
+            return match ? match[1] : null;
+        }
+
+        syncCalcOptionAcrossTreaty(treatyCounter, optionKey, checked) {
+            if (!optionKey && optionKey !== "") return;
+
+            const $rows = $(
+                `#reinsurer-div-${treatyCounter} ${SELECTORS.REINSURER_SECTION}`,
+            );
+
+            $rows.each(function () {
+                const $row = $(this);
+                const rowCounter = $row.data("counter");
+                const $checkbox = $row.find(
+                    `input[name*="[${optionKey}]"]`,
+                );
+
+                if ($checkbox.length) {
+                    $checkbox.prop("checked", checked);
+                }
+
+                if (
+                    window.ReinsurerPlacement?.commissionManager &&
+                    window.ReinsurerPlacement?.brokerageManager
+                ) {
+                    window.ReinsurerPlacement.commissionManager.calculate(
+                        treatyCounter,
+                        rowCounter,
+                    );
+                    window.ReinsurerPlacement.brokerageManager.calculate(
+                        treatyCounter,
+                        rowCounter,
+                    );
+                }
+            });
+        }
+
+        copyCalcOptionsToNewRow(treatyCounter, counter) {
+            const $rows = $(
+                `#reinsurer-div-${treatyCounter} ${SELECTORS.REINSURER_SECTION}`,
+            );
+            if ($rows.length <= 1) return;
+
+            const $sourceRow = $rows.first();
+            const $targetRow = $(`#reinsurer-div-${treatyCounter}-${counter}`);
+            if (!$targetRow.length) return;
+
+            const options = [
+                "net_of_tax",
+                "net_of_claims",
+                "net_of_commission",
+                "net_of_premium",
+                "premium_tax",
+                "net_withholding_tax",
+            ];
+
+            options.forEach((optionKey) => {
+                const isChecked = $sourceRow
+                    .find(`input[name*="[${optionKey}]"]`)
+                    .is(":checked");
+                $targetRow
+                    .find(`input[name*="[${optionKey}]"]`)
+                    .prop("checked", isChecked);
+            });
+        }
+
         addRow(treatyCounter) {
             if (this.counters[treatyCounter] === undefined) {
                 this.counters[treatyCounter] = 0;
@@ -1180,6 +1249,7 @@
                     Select2Manager.initInContainer(
                         `#reinsurer-div-${treatyCounter}-${counter}`,
                     );
+                    this.copyCalcOptionsToNewRow(treatyCounter, counter);
                     this.updateNumbers(treatyCounter);
                     this.brokerageManager.handleTypeChange(
                         treatyCounter,
@@ -2447,7 +2517,20 @@
         },
 
         _setActiveTab() {
-            const hash = window.location.hash || "#schedules-tab";
+            const isCoverHomePage = window.location.pathname.includes(
+                "/cover/cover-home",
+            );
+            const hasInsClassesTab = $("#ins-classes-tab").length > 0;
+            const defaultHash =
+                isCoverHomePage && hasInsClassesTab
+                    ? "#ins-classes-tab"
+                    : "#schedules-tab";
+            let hash = window.location.hash || defaultHash;
+
+            if (!$(`.nav-link[data-bs-target="${hash}"]`).length) {
+                hash = defaultHash;
+            }
+
             this.$el.tabNav
                 .removeClass("active")
                 .attr("aria-selected", "false");
@@ -2622,8 +2705,21 @@
             $(document).on("change", ".reinsurer-calc-option", function () {
                 const tc = $(this).data("treaty-counter");
                 const c = $(this).data("counter");
-                self.commissionManager.calculate(tc, c);
-                self.brokerageManager.calculate(tc, c);
+                const $checkbox = $(this);
+                const optionKey = self.reinsurerManager.getCalcOptionKey(
+                    $checkbox,
+                );
+
+                if (optionKey) {
+                    self.reinsurerManager.syncCalcOptionAcrossTreaty(
+                        tc,
+                        optionKey,
+                        $checkbox.is(":checked"),
+                    );
+                } else {
+                    self.commissionManager.calculate(tc, c);
+                    self.brokerageManager.calculate(tc, c);
+                }
             });
 
             // Retro/fronting events
