@@ -1,10 +1,10 @@
 :root {
     --text-color: #565658;
-    --primary-color: #e1251b;
+    --primary-color: #f91520;
     --secondary-color: #4d4f51;
     /* --primary-color: #212529; */
 
-    --header-bg: #dc2626;
+    --header-bg: #f91520;
     /* --header-bg: #212529; */
     --header-border-color: #fff;
     --header-prime-color: #fff;
@@ -110,7 +110,7 @@ select {
     .main-menu
     > .slide.active
     > .side-menu__item.active {
-    border-left: 3px solid #dc2626;
+    border-left: 3px solid #f91520;
     background: rgba(220, 38, 38, 0.2);
 }
 
@@ -119,7 +119,7 @@ select {
     .main-menu
     > .slide:not(.has-sub)
     > .side-menu__item.active {
-    border-left: 3px solid #dc2626;
+    border-left: 3px solid #f91520;
 }
 
 /* [data-menu-styles="dark"]
@@ -135,9 +135,18 @@ select {
     background: rgba(220, 38, 38, 0.2);
 }
 
-[data-menu-styles="dark"] .app-sidebar .slide-menu.child1 .side-menu__item.active,
-[data-menu-styles="dark"] .app-sidebar .slide-menu.child2 .side-menu__item.active,
-[data-menu-styles="dark"] .app-sidebar .slide-menu.child3 .side-menu__item.active {
+[data-menu-styles="dark"]
+    .app-sidebar
+    .slide-menu.child1
+    .side-menu__item.active,
+[data-menu-styles="dark"]
+    .app-sidebar
+    .slide-menu.child2
+    .side-menu__item.active,
+[data-menu-styles="dark"]
+    .app-sidebar
+    .slide-menu.child3
+    .side-menu__item.active {
     border-left: 0 !important;
     background: rgba(220, 38, 38, 0.2) !important;
 }
@@ -219,6 +228,29 @@ input[type="number"]::-webkit-inner-spin-button {
     width: 38px;
     height: auto !important;
 }
+
+/* Sidebar brand logo fit for main-sidebar-header */
+.app-sidebar .main-sidebar-header.header-logo .logo-link {
+    display: flex;
+    align-items: center;
+    min-height: 54px;
+}
+
+.app-sidebar .main-sidebar-header.header-logo .logo-link .desktop-logo,
+.app-sidebar .main-sidebar-header.header-logo .logo-link .desktop-dark {
+    width: 210px;
+    max-width: 100%;
+    height: 44px !important;
+    object-fit: contain;
+    object-position: left center;
+}
+
+.app-sidebar .main-sidebar-header.header-logo .logo-link .toggle-logo,
+.app-sidebar .main-sidebar-header.header-logo .logo-link .toggle-dark {
+    width: 30px;
+    height: 30px !important;
+    object-fit: contain;
+}
 [data-menu-styles="dark"][data-nav-layout="vertical"][data-vertical-style="overlay"][data-toggled="icon-overlay-close"]
     .app-sidebar
     .main-sidebar-header
@@ -226,11 +258,11 @@ input[type="number"]::-webkit-inner-spin-button {
     margin-right: 0px;
 }
 .main-sidebar-header.header-logo {
-    background: var(--c-menu-bg);
+    background: #141414;
     height: 3.7rem;
     padding: 8px;
-    border-inline-end: 1px solid var(--c-menu-border-color);
-    border-block-end: 1px solid var(--c-menu-border-color);
+    border-inline-end: 1px solid #333;
+    border-block-end: 1px solid #333;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -2107,7 +2139,7 @@ body::-webkit-scrollbar-thumb:hover {
 }
 
 .reinsurers-details-card .nav-link:hover {
-    color: #e1251b;
+    color: #f91520;
 }
 
 .reinsurers-details-card .nav-link span {

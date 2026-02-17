@@ -327,14 +327,14 @@
         <aside class="app-sidebar sticky" id="sidebar">
             <div class="main-sidebar-header header-logo">
                 <a href="javascript:void(0);" class="header-logo logo-link">
-                    <img src="{{ asset('assets/images/brand-logos/main-horizontal-logo.png') }}" alt=""
+                    <img src="{{ asset('assets/images/brand-logos/black-logo.png') }}" alt="Acentria Group Logo"
                         class="desktop-logo" />
-                    <img src="{{ asset('assets/images/brand-logos/logo-small.png') }}" alt=""
-                        class="toggle-logo" />
-                    <img src="{{ asset('assets/images/brand-logos/main-horizontal-logo.png') }}" alt=""
+                    <img src="{{ asset('assets/images/brand-logos/logo-graphic-transparent.png') }}"
+                        alt="Acentria Group Mark" class="toggle-logo" />
+                    <img src="{{ asset('assets/images/brand-logos/black-logo.png') }}" alt="Acentria Group Logo"
                         class="desktop-dark" {{-- style="filter: grayscale(1);" --}} />
-                    <img src="{{ asset('assets/images/brand-logos/logo-small.png') }}" alt=""
-                        class="toggle-dark" {{-- style="filter: grayscale(1);"  --}} />
+                    <img src="{{ asset('assets/images/brand-logos/logo-graphic-transparent.png') }}"
+                        alt="Acentria Group Mark" class="toggle-dark" {{-- style="filter: grayscale(1);"  --}} />
                 </a>
             </div>
 

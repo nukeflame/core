@@ -291,7 +291,13 @@
 
                                                     $entryType = $account->entry_type_descr ?? '';
                                                     $viewUrl = '';
-                                                    if (in_array($entryType, ['quarterly-figures', 'portfolio', 'adjust-commission'])) {
+                                                    if (
+                                                        in_array($entryType, [
+                                                            'quarterly-figures',
+                                                            'portfolio',
+                                                            'adjust-commission',
+                                                        ])
+                                                    ) {
                                                         $viewUrl = route('cover.transactions.quarterly-figures', [
                                                             'coverNo' => $cover->cover_no,
                                                             'refNo' => $account->reference,
@@ -372,67 +378,58 @@
                                                         {{ $account->created_at ? \Carbon\Carbon::parse($account->created_at)->format('jS M Y, H:i') : '-' }}
                                                     </td>
                                                     <td>
-                                                        <div class="btn-group btn-group-sm">
-                                                            @switch($entryType)
-                                                                @case('quarterly-figures')
-                                                                @case('portfolio')
+                                                        @if ($viewUrl)
+                                                            <div class="btn-group btn-group-sm" role="group">
+                                                                <a href="{{ $viewUrl }}"
+                                                                    class="btn btn-outline-primary"
+                                                                    title="View {{ $entryTypeLabel }}">
+                                                                    <i class="bx bx-show"></i>
+                                                                </a>
+                                                                <a href="{{ $viewUrl }}" target="_blank"
+                                                                    rel="noopener noreferrer"
+                                                                    class="btn btn-outline-secondary"
+                                                                    title="Open in New Tab">
+                                                                    <i class="bx bx-link-external"></i>
+                                                                </a>
 
-                                                                @case('adjust-commission')
-                                                                    <a href="{{ route('cover.transactions.quarterly-figures', [
-                                                                        'coverNo' => $cover->cover_no,
-                                                                        'refNo' => $account->reference,
-                                                                        'endorsementNo' => $account->endorsement_no,
-                                                                    ]) }}"
-                                                                        class="btn btn-outline-primary"
-                                                                        title="View {{ Str::title(str_replace('-', ' ', $entryType)) }}">
-                                                                        <i class="bx bx-show"></i>
-                                                                    </a>
-                                                                @break
-
-                                                                @case('profit-commission')
-                                                                    <a href="{{ route('cover.transactions.profit-commission', [
-                                                                        'coverNo' => $cover->cover_no,
-                                                                        'refNo' => $account->reference,
-                                                                        'endorsementNo' => $account->endorsement_no,
-                                                                    ]) }}"
-                                                                        class="btn btn-outline-primary"
-                                                                        title="View Profit Commission">
-                                                                        <i class="bx bx-show"></i>
-                                                                    </a>
-                                                                @break
-
-                                                                @default
-                                                            @endswitch
+                                                                <button type="button"
+                                                                    class="btn btn-outline-danger js-delete-transaction"
+                                                                    title="Delete Transaction"
+                                                                    data-delete-url="{{ route('cover.transactions.destroy', ['coverNo' => $cover->cover_no, 'refNo' => $account->reference]) }}"
+                                                                    data-endorsement-no="{{ $account->endorsement_no }}"
+                                                                    data-entry-type="{{ $entryType }}">
+                                                                    <i class="bx bx-trash"></i>
+                                                                </button>
+                                                            </div>
+                                                        @endif
+                                                    </td>
+                                                </tr>
+                                            @empty
+                                                <tr>
+                                                    <td colspan="12" class="text-center py-4">
+                                                        <div class="text-muted">
+                                                            <i class="bx bx-inbox fs-1 d-block mb-3"></i>
+                                                            <p class="mb-0">No transaction records found</p>
                                                         </div>
                                                     </td>
                                                 </tr>
-                                                @empty
-                                                    <tr>
-                                                        <td colspan="12" class="text-center py-4">
-                                                            <div class="text-muted">
-                                                                <i class="bx bx-inbox fs-1 d-block mb-3"></i>
-                                                                <p class="mb-0">No transaction records found</p>
-                                                            </div>
-                                                        </td>
-                                                    </tr>
-                                                @endforelse
-                                            </tbody>
-                                            @if ($accounts->isNotEmpty())
-                                                <tfoot class="table-light">
-                                                    @php
-                                                        $totalForeignNett = $accounts->sum('foreign_nett_amount') ?? 0;
-                                                        $totalUnallocated = $accounts->sum('unallocated_amount') ?? 0;
-                                                        $totalAmountPaid = $totalForeignNett - $totalUnallocated;
-                                                    @endphp
-                                                    <tr>
-                                                        <th colspan="8" class="text-end">Page Totals:</th>
-                                                        <th>{{ number_format($totalForeignNett, 2) }}</th>
-                                                        <th colspan="3"></th>
-                                                    </tr>
-                                                </tfoot>
-                                            @endif
-                                        </table>
-                                    </div>
+                                            @endforelse
+                                        </tbody>
+                                        @if ($accounts->isNotEmpty())
+                                            <tfoot class="table-light">
+                                                @php
+                                                    $totalForeignNett = $accounts->sum('foreign_nett_amount') ?? 0;
+                                                    $totalUnallocated = $accounts->sum('unallocated_amount') ?? 0;
+                                                    $totalAmountPaid = $totalForeignNett - $totalUnallocated;
+                                                @endphp
+                                                <tr>
+                                                    <th colspan="8" class="text-end">Page Totals:</th>
+                                                    <th>{{ number_format($totalForeignNett, 2) }}</th>
+                                                    <th colspan="3"></th>
+                                                </tr>
+                                            </tfoot>
+                                        @endif
+                                    </table>
                                 </div>
                             </div>
                         </div>
@@ -440,67 +437,158 @@
                 </div>
             </div>
         </div>
+    </div>
 
-        <!-- Modals -->
-        @include('cover.modals.quarterly-figures', [
-            'itemCodes' => $itemCodes,
-            'classGroups' => $classGroups,
-            'businessClasses' => $businessClasses,
-            'treatyClasses' => $treatyClasses,
-            'taxRates' => $taxRates,
-        ])
-        @include('cover.modals.add-profit-commission')
-        @include('cover.modals.add-portfolio')
-        @include('cover.modals.adjust-comission')
-    @endsection
+    <!-- Modals -->
+    @include('cover.modals.quarterly-figures', [
+        'itemCodes' => $itemCodes,
+        'classGroups' => $classGroups,
+        'businessClasses' => $businessClasses,
+        'treatyClasses' => $treatyClasses,
+        'taxRates' => $taxRates,
+    ])
+    @include('cover.modals.add-profit-commission')
+    @include('cover.modals.add-portfolio')
+    @include('cover.modals.adjust-comission')
+@endsection
 
-    @push('script')
-        <script>
-            $(document).ready(function() {
-                var $tbody = $('#customerAccountsTable tbody');
-                var hasData = $tbody.find('tr').length > 0 &&
-                    $tbody.find('tr td[colspan="12"]').length === 0;
+@push('script')
+    <script>
+        $(document).ready(function() {
+            var $tbody = $('#customerAccountsTable tbody');
+            var hasData = $tbody.find('tr').length > 0 &&
+                $tbody.find('tr td[colspan="12"]').length === 0;
 
-                var table = $('#customerAccountsTable').DataTable({
-                    processing: true,
-                    pageLength: 25,
-                    order: [
-                        [10, 'desc']
-                    ],
-                    columnDefs: [{
-                        orderable: false,
-                        targets: [11] // Actions column
-                    }],
-                    language: {
-                        processing: '<div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div>',
-                        emptyTable: 'No transaction records available',
-                        zeroRecords: 'No matching records found'
-                    },
-                    paging: hasData,
-                    searching: hasData,
-                    info: hasData,
-                    footerCallback: function(row, data, start, end, display) {}
-                });
+            var table = $('#customerAccountsTable').DataTable({
+                processing: true,
+                pageLength: 25,
+                order: [
+                    [10, 'desc']
+                ],
+                columnDefs: [{
+                    orderable: false,
+                    targets: [11] // Actions column
+                }],
+                language: {
+                    processing: '<div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div>',
+                    emptyTable: 'No transaction records available',
+                    zeroRecords: 'No matching records found'
+                },
+                paging: hasData,
+                searching: hasData,
+                info: hasData,
+                footerCallback: function(row, data, start, end, display) {}
+            });
 
-                $('#btnApplyFilter').on('click', function() {
-                    var params = $('#filterForm').serialize();
-                    var currentUrl = window.location.pathname;
-                    window.location.href = currentUrl + '?' + params;
-                });
+            $('#btnApplyFilter').on('click', function() {
+                var params = $('#filterForm').serialize();
+                var currentUrl = window.location.pathname;
+                window.location.href = currentUrl + '?' + params;
+            });
 
-                $('#btnResetFilter').on('click', function() {
-                    $('#filterForm')[0].reset();
-                    window.location.href = window.location.pathname;
-                });
+            $('#btnResetFilter').on('click', function() {
+                $('#filterForm')[0].reset();
+                window.location.href = window.location.pathname;
+            });
 
-                $('#customerAccountsTable tbody').on('click', 'tr[data-view-url]', function(e) {
-                    if ($(e.target).closest('a, button, input, select, textarea, .btn-group').length) {
+            $('#customerAccountsTable tbody').on('click', 'tr[data-view-url]', function(e) {
+                if ($(e.target).closest('a, button, input, select, textarea, .btn-group').length) {
+                    return;
+                }
+
+                var viewUrl = $(this).data('view-url');
+                if (viewUrl) {
+                    window.location.href = viewUrl;
+                }
+            });
+
+                $(document).on('click', '.js-copy-reference', function() {
+                var reference = $(this).data('reference');
+                if (!reference) return;
+
+                var notify = function(message, type) {
+                    type = type || 'info';
+                    if (typeof toastr !== 'undefined') {
+                        toastr[type](message);
                         return;
                     }
+                    alert(message);
+                };
 
-                    var viewUrl = $(this).data('view-url');
-                    if (viewUrl) {
-                        window.location.href = viewUrl;
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(reference)
+                        .then(function() {
+                            notify('Reference copied: ' + reference, 'success');
+                        })
+                        .catch(function() {
+                            notify('Unable to copy reference automatically', 'warning');
+                        });
+                    return;
+                }
+
+                notify('Clipboard API not available on this browser', 'warning');
+                });
+
+                $(document).on('click', '.js-delete-transaction', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+
+                    var $btn = $(this);
+                    var deleteUrl = $btn.data('delete-url');
+                    var endorsementNo = $btn.data('endorsement-no');
+                    var entryType = $btn.data('entry-type');
+                    var $row = $btn.closest('tr');
+
+                    var doDelete = function() {
+                        $.ajax({
+                                url: deleteUrl,
+                                method: 'DELETE',
+                                headers: {
+                                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                                    'Accept': 'application/json'
+                                },
+                                data: {
+                                    endorsement_no: endorsementNo,
+                                    entry_type_descr: entryType
+                                }
+                            })
+                            .done(function(response) {
+                                if (table) {
+                                    table.row($row).remove().draw(false);
+                                } else {
+                                    $row.remove();
+                                }
+
+                                if (typeof toastr !== 'undefined') {
+                                    toastr.success(response.message || 'Transaction deleted successfully');
+                                }
+                            })
+                            .fail(function(xhr) {
+                                var message = xhr.responseJSON?.message || 'Failed to delete transaction';
+                                if (typeof toastr !== 'undefined') {
+                                    toastr.error(message);
+                                } else {
+                                    alert(message);
+                                }
+                            });
+                    };
+
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            title: 'Delete transaction?',
+                            text: 'This action will remove the selected transaction record.',
+                            icon: 'warning',
+                            showCancelButton: true,
+                            confirmButtonColor: '#dc3545',
+                            confirmButtonText: 'Yes, delete it',
+                            cancelButtonText: 'Cancel'
+                        }).then(function(result) {
+                            if (result.isConfirmed) {
+                                doDelete();
+                            }
+                        });
+                    } else if (confirm('Delete this transaction?')) {
+                        doDelete();
                     }
                 });
             });

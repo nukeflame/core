@@ -51,6 +51,7 @@ class QuarterlyDebitController extends Controller
         try {
             $coverNo = $request->input('cover_no');
             $endorsementNo = $request->input('endorsement_no');
+            $debitNoteNo = $request->input('debit_note_no');
 
             if (empty($coverNo) || empty($endorsementNo)) {
                 return response()->json([
@@ -122,6 +123,10 @@ class QuarterlyDebitController extends Controller
                     'tdi.status',
                     'tc.description',
                 ]);
+
+            if (!empty($debitNoteNo)) {
+                $query->where('dn.debit_note_no', $debitNoteNo);
+            }
 
             $totalRecords = (clone $query)->distinct('tdi.id')->count('tdi.id');
 
@@ -1584,13 +1589,18 @@ class QuarterlyDebitController extends Controller
                 'endorsement_no' => 'required|string',
                 'partner_no' => 'required|string',
                 'with_brokerage' => 'nullable|in:0,1',
-                'note_type' => 'nullable|in:credit_note,cover_note',
+                'note_type' => 'nullable|in:credit_note,cover_note,debit_note',
+                'posting_year' => 'nullable|integer',
+                'posting_quarter' => 'nullable|string',
             ]);
 
             $coverNo = $validated['cover_no'];
             $endorsementNo = $validated['endorsement_no'];
             $partnerNo = $validated['partner_no'];
             $withBrokerage = ($request->input('with_brokerage', '1') === '1');
+            $noteType = (string) $request->input('note_type', 'credit_note');
+            $postingYear = $request->input('posting_year');
+            $postingQuarter = $this->normalizeQuarterCode($request->input('posting_quarter'));
 
             $cover = DB::table('cover_register')
                 ->where('endorsement_no', $endorsementNo)
@@ -1605,9 +1615,150 @@ class QuarterlyDebitController extends Controller
                 ->where('customer_id', $cover->customer_id)
                 ->first();
 
+            $reinsurer = CoverRipart::where([
+                'cover_no' => $coverNo,
+                'endorsement_no' => $endorsementNo,
+                'partner_no' => $partnerNo,
+            ])->with('partner')->first();
+
+            if (! $reinsurer) {
+                abort(404, 'Reinsurer not found for this cover');
+            }
+
+            if ($noteType === 'debit_note') {
+                $debitNoteQuery = DB::table('debit_notes')
+                    ->where('cover_no', $coverNo)
+                    ->where('endorsement_no', $endorsementNo);
+                if (! empty($postingYear)) {
+                    $debitNoteQuery->where('posting_year', $postingYear);
+                }
+                if (! empty($postingQuarter)) {
+                    $debitNoteQuery->where('posting_quarter', $postingQuarter);
+                }
+                $debitNote = $debitNoteQuery
+                    ->orderByDesc('posting_date')
+                    ->orderByDesc('id')
+                    ->select([
+                        'id',
+                        'debit_note_no',
+                        'cover_no',
+                        'type_of_bus',
+                        'posting_year',
+                        'posting_quarter',
+                        'posting_date',
+                        'gross_amount',
+                        'net_amount',
+                        'commission_amount',
+                        'created_at',
+                        'other_deductions'
+                    ])
+                    ->first();
+
+                if (! $debitNote) {
+                    $quarterLabel = trim(($postingQuarter ?? '') . ' ' . ($postingYear ?? ''));
+                    $suffix = $quarterLabel !== '' ? " for {$quarterLabel}" : '';
+                    abort(404, 'Debit note not found for this cover and endorsement' . $suffix);
+                }
+
+                $debitItems = DB::table('debit_note_items as tdi')
+                    ->join('debit_notes as dn', 'tdi.debit_note_id', '=', 'dn.id')
+                    ->leftJoin('treaty_item_codes as tc', 'tdi.item_code', '=', 'tc.item_code')
+                    ->where('tdi.debit_note_id', $debitNote->id)
+                    ->select([
+                        'tdi.item_code',
+                        DB::raw('COALESCE(tc.description, tdi.description) as item_name'),
+                        'tdi.ledger',
+                        'tdi.amount as item_amount'
+                    ])
+                    ->orderBy('tdi.id', 'asc')
+                    ->get();
+
+                $statementItems = collect($debitItems)->map(function ($item) {
+                    return (object) [
+                        'item_code' => $item->item_code ?? null,
+                        'item_name' => strtoupper((string) ($item->item_name ?? '')),
+                        'to_cedant' => strtoupper((string) ($item->ledger ?? '')) === 'CR'
+                            ? (float) ($item->item_amount ?? 0)
+                            : 0.0,
+                        'to_reinsurers' => strtoupper((string) ($item->ledger ?? '')) === 'DR'
+                            ? (float) ($item->item_amount ?? 0)
+                            : 0.0,
+                    ];
+                });
+
+                $basicTotalCR = (float) $statementItems->sum('to_cedant');
+                $basicTotalDR = (float) $statementItems->sum('to_reinsurers');
+                $profitRealized = $basicTotalDR - $basicTotalCR;
+                $profitCommissionRate = (float) ($cover->profit_comm_rate ?? 0);
+                $profitCommissionAmount = $profitRealized * ($profitCommissionRate / 100);
+
+                $hasPremiumTax = $debitItems->contains(fn($item) => strtoupper((string) ($item->item_code ?? '')) === 'IT05');
+                $netTaxFactor = $this->resolveNetTaxFactor($cover, $this->isTruthy($reinsurer->net_of_tax ?? 0), $hasPremiumTax);
+                $sharePercent = (float) ($reinsurer->share ?? 0) * $netTaxFactor;
+                $shareFactor = $sharePercent > 1 ? ($sharePercent / 100) : $sharePercent;
+                $shareFactor = max(0, $shareFactor);
+                $yourShare = $shareFactor * 100;
+                $dueFromYou = $profitCommissionAmount * $shareFactor;
+
+                $businessClass = DB::table('classes')
+                    ->where('class_code', $cover->class_code ?? '')
+                    ->value('class_name');
+                $businessClass = $businessClass ?: ($cover->class_code ?? 'N/A');
+
+                $treatyType = DB::table('treaty_types')
+                    ->where('treaty_code', $cover->treaty_type ?? '')
+                    ->value('treaty_name');
+                $treatyType = $treatyType ?: ($cover->treaty_type ?? 'N/A');
+
+                $underwritingQuarter = $this->formatQuarterLabel($debitNote->posting_quarter) . ' - ' . $debitNote->posting_year;
+                $ppw = PremiumPayTerm::where('pay_term_code', $cover->premium_payment_code ?? null)->first();
+                $company = Company::first();
+
+                $statementData = [
+                    'company' => $company,
+                    'cover' => $cover,
+                    'customer' => $cedant,
+                    'recipient' => $reinsurer->partner ?? null,
+                    'debit' => $debitNote,
+                    'items' => $statementItems,
+                    'bus_class' => $businessClass,
+                    'treat_type' => $treatyType,
+                    'underwriting_quarter' => $underwritingQuarter,
+                    'ppw' => $ppw,
+                    'basicTotalCR' => $basicTotalCR,
+                    'basicTotalDR' => $basicTotalDR,
+                    'profitRealized' => $profitRealized,
+                    'profitCommissionRate' => $profitCommissionRate,
+                    'profitCommissionAmount' => $profitCommissionAmount,
+                    'yourShare' => $yourShare,
+                    'dueFromYou' => $dueFromYou,
+                    'noteHeaderLabel' => 'DEBIT NOTE',
+                    'noteNumber' => $debitNote->debit_note_no,
+                    'dueLabel' => 'DUE FROM YOU',
+                    'generated_date' => Carbon::now(),
+                ];
+
+                $pdf = Pdf::loadView('printouts.accounts.profit-commission-statement', $statementData)
+                    ->setPaper('a4', 'portrait')
+                    ->setWarnings(false);
+                $pdf->set_option('isHtml5ParserEnabled', true);
+                $pdf->set_option('isPhpEnabled', true);
+                $pdf->set_option('isRemoteEnabled', true);
+
+                $filename = 'profit-commission-debit-note-' . $debitNote->debit_note_no . '-' . $reinsurer->partner_no . '.pdf';
+
+                return $pdf->stream($filename);
+            }
+
             $creditNote = DB::table('credit_notes')
                 ->where('cover_no', $coverNo)
                 ->where('endorsement_no', $endorsementNo)
+                ->when(!empty($postingYear), function ($query) use ($postingYear) {
+                    $query->where('posting_year', $postingYear);
+                })
+                ->when(!empty($postingQuarter), function ($query) use ($postingQuarter) {
+                    $query->where('posting_quarter', $postingQuarter);
+                })
                 ->orderByDesc('posting_date')
                 ->orderByDesc('id')
                 ->select([
@@ -1678,16 +1829,6 @@ class QuarterlyDebitController extends Controller
             $underwritingQuarter = $this->formatQuarterLabel($creditNote->posting_quarter) . ' - ' . $creditNote->posting_year;
 
             $company = Company::first();
-
-            $reinsurer = CoverRipart::where([
-                'cover_no' => $coverNo,
-                'endorsement_no' => $endorsementNo,
-                'partner_no' => $partnerNo,
-            ])->with('partner')->first();
-
-            if (! $reinsurer) {
-                abort(404, 'Reinsurer not found for this cover');
-            }
 
             $claimAmount = (float) ($reinsurer->claim_amt ?? $reinsurer->total_claim_amt ?? 0);
             $grossPremium = (float) ($reinsurer->total_premium ?? 0);
@@ -1763,15 +1904,17 @@ class QuarterlyDebitController extends Controller
                 'cover_no' => 'required|string',
                 'endorsement_no' => 'required|string',
                 'cedant_id' => 'required|string',
-                'note_type' => 'nullable|in:debit_note,cover_note',
+                'note_type' => 'nullable|in:debit_note,cover_note,credit_note',
                 'posting_year' => 'nullable|integer',
                 'posting_quarter' => 'nullable|string',
             ]);
 
             $coverNo = $validated['cover_no'];
             $endorsementNo = $validated['endorsement_no'];
-            $isCoverNote = ($request->input('note_type') === 'cover_note');
-            $documentType = $isCoverNote ? 'Cover Note' : 'Debit Note';
+            $noteType = (string) $request->input('note_type', 'debit_note');
+            $isCoverNote = ($noteType === 'cover_note');
+            $isCreditNote = ($noteType === 'credit_note');
+            $documentType = $isCreditNote ? 'Credit Note' : ($isCoverNote ? 'Cover Note' : 'Debit Note');
             $postingYear = $request->input('posting_year');
             $postingQuarter = $this->normalizeQuarterCode($request->input('posting_quarter'));
 
@@ -1788,73 +1931,140 @@ class QuarterlyDebitController extends Controller
                 ->where('customer_id', $cover->customer_id)
                 ->first();
 
-            $debitNoteQuery = DB::table('debit_notes')
-                ->where('cover_no', $coverNo)
-                ->where('endorsement_no', $endorsementNo);
-            if (! empty($postingYear)) {
-                $debitNoteQuery->where('posting_year', $postingYear);
+            if ($isCreditNote) {
+                $debitNoteQuery = DB::table('credit_notes')
+                    ->where('cover_no', $coverNo)
+                    ->where('endorsement_no', $endorsementNo);
+                if (! empty($postingYear)) {
+                    $debitNoteQuery->where('posting_year', $postingYear);
+                }
+                if (! empty($postingQuarter)) {
+                    $debitNoteQuery->where('posting_quarter', $postingQuarter);
+                }
+                $debitNote = $debitNoteQuery
+                    ->orderByDesc('posting_date')
+                    ->orderByDesc('id')
+                    ->select([
+                        'id',
+                        DB::raw('credit_note_no as debit_note_no'),
+                        'cover_no',
+                        'type_of_bus',
+                        'posting_year',
+                        'posting_quarter',
+                        'posting_date',
+                        'gross_amount',
+                        'net_amount',
+                        'commission_amount',
+                        'created_at',
+                        'other_deductions'
+                    ])
+                    ->first();
+            } else {
+                $debitNoteQuery = DB::table('debit_notes')
+                    ->where('cover_no', $coverNo)
+                    ->where('endorsement_no', $endorsementNo);
+                if (! empty($postingYear)) {
+                    $debitNoteQuery->where('posting_year', $postingYear);
+                }
+                if (! empty($postingQuarter)) {
+                    $debitNoteQuery->where('posting_quarter', $postingQuarter);
+                }
+                $debitNote = $debitNoteQuery
+                    ->orderByDesc('posting_date')
+                    ->orderByDesc('id')
+                    ->select([
+                        'id',
+                        'debit_note_no',
+                        'cover_no',
+                        'type_of_bus',
+                        'posting_year',
+                        'posting_quarter',
+                        'posting_date',
+                        'gross_amount',
+                        'net_amount',
+                        'commission_amount',
+                        'created_at',
+                        'other_deductions'
+                    ])
+                    ->first();
             }
-            if (! empty($postingQuarter)) {
-                $debitNoteQuery->where('posting_quarter', $postingQuarter);
-            }
-            $debitNote = $debitNoteQuery
-                ->orderByDesc('posting_date')
-                ->orderByDesc('id')
-                ->select([
-                    'id',
-                    'debit_note_no',
-                    'cover_no',
-                    'type_of_bus',
-                    'posting_year',
-                    'posting_quarter',
-                    'posting_date',
-                    'gross_amount',
-                    'net_amount',
-                    'commission_amount',
-                    'created_at',
-                    'other_deductions'
-                ])
-                ->first();
 
             if (! $debitNote) {
                 $quarterLabel = trim(($postingQuarter ?? '') . ' ' . ($postingYear ?? ''));
                 $suffix = $quarterLabel !== '' ? " for {$quarterLabel}" : '';
-                abort(404, 'Debit note not found for this cover and endorsement' . $suffix);
+                $noteName = $isCreditNote ? 'Credit note' : 'Debit note';
+                abort(404, $noteName . ' not found for this cover and endorsement' . $suffix);
             }
 
-            $debitItems = DB::table('debit_note_items as tdi')
-                ->join('debit_notes as dn', 'tdi.debit_note_id', '=', 'dn.id')
-                ->leftJoin('treaty_item_codes as tc', 'tdi.item_code', '=', 'tc.item_code')
-                ->leftJoin('class_groups as cg', 'tdi.class_group_code', '=', 'cg.group_code')
-                ->leftJoin('reinclass_premtypes as c', function ($join) {
-                    $join->on('tdi.class_code', '=', 'c.premtype_code')
-                        ->on('tdi.class_group_code', '=', 'c.reinclass');
-                })
-                ->where('tdi.debit_note_id', $debitNote->id)
-                ->select([
-                    'tdi.id',
-                    'tdi.item_code',
-                    'tdi.item_no',
-                    'tdi.line_no',
-                    DB::raw('COALESCE(tc.description, tdi.description) as item_name'),
-                    'tdi.class_group_code',
-                    'cg.group_name',
-                    'tdi.class_code',
-                    'c.premtype_name as class_name',
-                    'tdi.line_rate',
-                    'tdi.amount as gross_amount',
-                    'tdi.ledger',
-                    'dn.debit_note_no',
-                    'dn.posting_date',
-                    'dn.commission_amount',
-                    'tdi.net_amount',
-                    'tdi.status',
-                    'tdi.amount as item_amount',
-                    'tdi.description',
-                    'tdi.original_amount'
-                ])
-                ->orderBy('id', 'asc')
-                ->get();
+            if ($isCreditNote) {
+                $debitItems = DB::table('credit_note_items as tdi')
+                    ->join('credit_notes as dn', 'tdi.credit_note_id', '=', 'dn.id')
+                    ->leftJoin('treaty_item_codes as tc', 'tdi.item_code', '=', 'tc.item_code')
+                    ->leftJoin('class_groups as cg', 'tdi.class_group_code', '=', 'cg.group_code')
+                    ->leftJoin('reinclass_premtypes as c', function ($join) {
+                        $join->on('tdi.class_code', '=', 'c.premtype_code')
+                            ->on('tdi.class_group_code', '=', 'c.reinclass');
+                    })
+                    ->where('tdi.credit_note_id', $debitNote->id)
+                    ->select([
+                        'tdi.id',
+                        'tdi.item_code',
+                        'tdi.item_no',
+                        'tdi.line_no',
+                        DB::raw('COALESCE(tc.description, tdi.description) as item_name'),
+                        'tdi.class_group_code',
+                        'cg.group_name',
+                        'tdi.class_code',
+                        'c.premtype_name as class_name',
+                        'tdi.line_rate',
+                        'tdi.amount as gross_amount',
+                        'tdi.ledger',
+                        DB::raw('dn.credit_note_no as debit_note_no'),
+                        'dn.posting_date',
+                        'dn.commission_amount',
+                        'tdi.net_amount',
+                        'tdi.status',
+                        'tdi.amount as item_amount',
+                        'tdi.description',
+                        'tdi.original_amount'
+                    ])
+                    ->orderBy('id', 'asc')
+                    ->get();
+            } else {
+                $debitItems = DB::table('debit_note_items as tdi')
+                    ->join('debit_notes as dn', 'tdi.debit_note_id', '=', 'dn.id')
+                    ->leftJoin('treaty_item_codes as tc', 'tdi.item_code', '=', 'tc.item_code')
+                    ->leftJoin('class_groups as cg', 'tdi.class_group_code', '=', 'cg.group_code')
+                    ->leftJoin('reinclass_premtypes as c', function ($join) {
+                        $join->on('tdi.class_code', '=', 'c.premtype_code')
+                            ->on('tdi.class_group_code', '=', 'c.reinclass');
+                    })
+                    ->where('tdi.debit_note_id', $debitNote->id)
+                    ->select([
+                        'tdi.id',
+                        'tdi.item_code',
+                        'tdi.item_no',
+                        'tdi.line_no',
+                        DB::raw('COALESCE(tc.description, tdi.description) as item_name'),
+                        'tdi.class_group_code',
+                        'cg.group_name',
+                        'tdi.class_code',
+                        'c.premtype_name as class_name',
+                        'tdi.line_rate',
+                        'tdi.amount as gross_amount',
+                        'tdi.ledger',
+                        'dn.debit_note_no',
+                        'dn.posting_date',
+                        'dn.commission_amount',
+                        'tdi.net_amount',
+                        'tdi.status',
+                        'tdi.amount as item_amount',
+                        'tdi.description',
+                        'tdi.original_amount'
+                    ])
+                    ->orderBy('id', 'asc')
+                    ->get();
+            }
 
             $totalGross = $debitNote->gross_amount;
             $totalCommission = $debitNote->commission_amount;
@@ -1876,6 +2086,64 @@ class QuarterlyDebitController extends Controller
             $ppw = PremiumPayTerm::where('pay_term_code', $cover->premium_payment_code ?? null)->first();
 
             $company = Company::first();
+
+            if ($isCreditNote) {
+                $statementItems = collect($debitItems)->map(function ($item) {
+                    return (object) [
+                        'item_code' => $item->item_code ?? null,
+                        'item_name' => strtoupper((string) ($item->item_name ?? $item->description ?? '')),
+                        'to_cedant' => strtoupper((string) ($item->ledger ?? '')) === 'CR'
+                            ? (float) ($item->item_amount ?? 0)
+                            : 0.0,
+                        'to_reinsurers' => strtoupper((string) ($item->ledger ?? '')) === 'DR'
+                            ? (float) ($item->item_amount ?? 0)
+                            : 0.0,
+                    ];
+                });
+
+                $basicTotalCR = (float) $statementItems->sum('to_cedant');
+                $basicTotalDR = (float) $statementItems->sum('to_reinsurers');
+                $profitRealized = $basicTotalDR - $basicTotalCR;
+                $profitCommissionRate = (float) ($cover->profit_comm_rate ?? 0);
+                $profitCommissionAmount = $profitRealized * ($profitCommissionRate / 100);
+                $yourShare = (float) ($cover->share_offered ?? 0);
+                $dueFromYou = $profitCommissionAmount * ($yourShare / 100);
+
+                $statementData = [
+                    'company' => $company,
+                    'cover' => $cover,
+                    'customer' => $cedant,
+                    'recipient' => $cedant,
+                    'debit' => $debitNote,
+                    'items' => $statementItems,
+                    'bus_class' => $businessClass,
+                    'treat_type' => $treatyType,
+                    'underwriting_quarter' => $underwritingQuarter,
+                    'ppw' => $ppw,
+                    'basicTotalCR' => $basicTotalCR,
+                    'basicTotalDR' => $basicTotalDR,
+                    'profitRealized' => $profitRealized,
+                    'profitCommissionRate' => $profitCommissionRate,
+                    'profitCommissionAmount' => $profitCommissionAmount,
+                    'yourShare' => $yourShare,
+                    'dueFromYou' => $dueFromYou,
+                    'noteHeaderLabel' => 'CREDIT NOTE',
+                    'noteNumber' => $debitNote->debit_note_no,
+                    'dueLabel' => 'DUE TO YOU',
+                    'generated_date' => Carbon::now(),
+                ];
+
+                $pdf = Pdf::loadView('printouts.accounts.profit-commission-statement', $statementData)
+                    ->setPaper('a4', 'portrait')
+                    ->setWarnings(false);
+                $pdf->set_option('isHtml5ParserEnabled', true);
+                $pdf->set_option('isPhpEnabled', true);
+                $pdf->set_option('isRemoteEnabled', true);
+
+                $filename = 'profit-commission-statement-' . $debitNote->debit_note_no . '-cedant.pdf';
+
+                return $pdf->stream($filename);
+            }
 
             $documentData = [
                 'reference_no' => $debitNote->debit_note_no,
@@ -1912,14 +2180,14 @@ class QuarterlyDebitController extends Controller
             $pdf->set_option('isPhpEnabled', true);
             $pdf->set_option('isRemoteEnabled', true);
 
-            $filenamePrefix = $isCoverNote ? 'cover-note' : 'debit-note';
+            $filenamePrefix = $isCreditNote ? 'credit-note' : ($isCoverNote ? 'cover-note' : 'debit-note');
             $filename = $filenamePrefix . '-' . $debitNote->debit_note_no . '-cedant.pdf';
 
             return $pdf->stream($filename);
         } catch (ValidationException $e) {
             abort(422, 'Invalid request parameters');
         } catch (Exception $e) {
-            abort(500, 'Failed to generate debit note: ' . $e->getMessage());
+            abort(500, 'Failed to generate statement: ' . $e->getMessage());
         }
     }
 

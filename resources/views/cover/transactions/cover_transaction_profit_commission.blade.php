@@ -533,7 +533,7 @@
 
     <div class="d-md-flex d-block align-items-center justify-content-between my-4 page-header-breadcrumb">
         <div>
-            <h1 class="page-title fw-semibold fs-18 mb-1">Profit Commission Statement</h1>
+            <h1 class="page-title fw-semibold fs-18 mb-1">Profit Commission Statement of Account</h1>
             <p class="text-muted mb-0 fw-medium">
                 {{ $cover->cover_no ?? 'N/A' }} - {{ $cover->cover_title ?? ($cover->treaty_name ?? 'Untitled') }}
             </p>
@@ -684,7 +684,6 @@
                                                 <th width="10%">Commission %</th>
                                                 <th width="10%">Gross Amount</th>
                                                 <th width="7%">Status</th>
-                                                <th width="9%">Actions</th>
                                             </tr>
                                         </thead>
                                         <tbody></tbody>
@@ -692,7 +691,7 @@
                                             <tr class="fw-bold">
                                                 <td colspan="7" class="text-end">Totals:</td>
                                                 <td class="amount-cell amount-cell--positive" id="totalAmount">-</td>
-                                                <td colspan="2"></td>
+                                                <td colspan="1"></td>
                                             </tr>
                                         </tfoot>
                                     </table>
@@ -921,6 +920,52 @@
 
     {{-- View Item Modal --}}
     {{-- @include('treaty.partials.view-item-modal') --}}
+
+    <div class="modal fade" id="sendStatementEmailModal" tabindex="-1" aria-labelledby="sendStatementEmailModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="sendStatementEmailModalLabel">
+                        <i class="ri-mail-send-line me-2 text-info"></i>Send Statement Email
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form id="sendStatementEmailForm">
+                    <div class="modal-body">
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <label for="statementEmailTo" class="form-label">To</label>
+                                <input type="email" id="statementEmailTo" class="form-control"
+                                    placeholder="recipient@example.com" required>
+                            </div>
+                            <div class="col-12">
+                                <label for="statementEmailCc" class="form-label">CC</label>
+                                <input type="text" id="statementEmailCc" class="form-control"
+                                    placeholder="Optional: cc1@example.com, cc2@example.com">
+                            </div>
+                            <div class="col-12">
+                                <label for="statementEmailSubject" class="form-label">Subject</label>
+                                <input type="text" id="statementEmailSubject" class="form-control"
+                                    placeholder="Statement subject" required>
+                            </div>
+                            <div class="col-12">
+                                <label for="statementEmailBody" class="form-label">Message Draft</label>
+                                <textarea id="statementEmailBody" class="form-control" rows="10"
+                                    placeholder="Write your statement email message here..." required></textarea>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-info">
+                            <i class="ri-send-plane-line me-1"></i>Send Email
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
 @endsection
 
 @push('script')
@@ -933,6 +978,7 @@
             var CONFIG = {
                 coverNo: '{{ $cover->cover_no ?? '' }}',
                 endorsementNo: '{{ $cover->endorsement_no ?? '' }}',
+                debitNoteNo: '{{ $selectedDebitNoteNo ?? '' }}',
                 currency: '{{ $cover->currency ?? 'KES' }}',
                 csrfToken: '{{ csrf_token() }}',
                 routes: {
@@ -1160,6 +1206,97 @@
                 }
             };
 
+            var StatementEmailComposer = {
+                modal: null,
+
+                init: function() {
+                    var modalElement = document.getElementById('sendStatementEmailModal');
+                    if (!modalElement) {
+                        return;
+                    }
+
+                    this.modal = bootstrap.Modal.getOrCreateInstance(modalElement);
+
+                    $('#sendStatementEmailForm').on('submit', function(e) {
+                        e.preventDefault();
+                        StatementEmailComposer.send();
+                    });
+                },
+
+                open: function(payload) {
+                    payload = payload || {};
+
+                    var recipientType = payload.recipientType || 'recipient';
+                    var recipientName = payload.recipientName || 'Partner';
+                    var recipientEmail = payload.recipientEmail || '';
+
+                    $('#statementEmailTo').val(recipientEmail);
+                    $('#statementEmailCc').val('');
+                    $('#statementEmailSubject').val(this.defaultSubject(recipientType));
+                    $('#statementEmailBody').val(this.defaultBody(recipientName, recipientType));
+
+                    if (this.modal) {
+                        this.modal.show();
+                    }
+                },
+
+                defaultSubject: function(recipientType) {
+                    var statementReference = CONFIG.debitNoteNo || CONFIG.endorsementNo || CONFIG.coverNo || '';
+                    var typeLabel = recipientType === 'cedant' ? 'Cedant' : 'Reinsurer';
+                    return 'Account Statement - ' + typeLabel + ' - ' + statementReference;
+                },
+
+                defaultBody: function(recipientName, recipientType) {
+                    var typeLabel = recipientType === 'cedant' ? 'cedant' : 'reinsurer';
+                    var lines = [
+                        'Dear ' + recipientName + ',',
+                        '',
+                        'Please find attached the account statement documents for your review.',
+                        '',
+                        'Cover No: ' + (CONFIG.coverNo || '-'),
+                        'Endorsement No: ' + (CONFIG.endorsementNo || '-'),
+                        '',
+                        'Kindly confirm receipt and revert for any clarification.',
+                        '',
+                        'Best regards,'
+                    ];
+
+                    if (typeLabel) {
+                        lines.splice(2, 0, 'This statement is for the ' + typeLabel + ' account.');
+                    }
+
+                    return lines.join('\n');
+                },
+
+                send: function() {
+                    var to = $('#statementEmailTo').val().trim();
+                    var cc = $('#statementEmailCc').val().trim();
+                    var subject = $('#statementEmailSubject').val().trim();
+                    var body = $('#statementEmailBody').val().trim();
+
+                    if (!to || !subject || !body) {
+                        Utils.showToast('Please complete To, Subject and Message Draft fields.', 'error');
+                        return;
+                    }
+
+                    var mailtoUrl = 'mailto:' + encodeURIComponent(to) +
+                        '?subject=' + encodeURIComponent(subject) +
+                        '&body=' + encodeURIComponent(body);
+
+                    if (cc) {
+                        mailtoUrl += '&cc=' + encodeURIComponent(cc);
+                    }
+
+                    window.location.href = mailtoUrl;
+
+                    if (this.modal) {
+                        this.modal.hide();
+                    }
+
+                    Utils.showToast('Email draft opened. Attach the statement documents and send.', 'success');
+                }
+            };
+
             var DebitItemsTable = {
                 table: null,
 
@@ -1178,6 +1315,9 @@
                             data: function(d) {
                                 d.cover_no = CONFIG.coverNo;
                                 d.endorsement_no = CONFIG.endorsementNo;
+                                if (CONFIG.debitNoteNo) {
+                                    d.debit_note_no = CONFIG.debitNoteNo;
+                                }
                             },
                             error: function(xhr, error, thrown) {
                                 console.error('DebitItems DataTable Error:', {
@@ -1226,7 +1366,8 @@
                                 name: 'class_name',
                                 render: function(data, type, row) {
                                     return '<span class="fw-medium">' + Utils.escapeHtml(row
-                                            .class_group || '') + '</span><br>' +
+                                            .group_name || '-') +
+                                        '</span><br>' +
                                         '<small class="text-muted">' + Utils.escapeHtml(
                                             data || '') + '</small>';
                                 },
@@ -1252,27 +1393,11 @@
                             {
                                 data: 'status',
                                 name: 'status',
+                                orderable: false,
                                 render: function(data) {
                                     return Utils.getStatusBadge(data);
                                 },
                                 defaultContent: '-'
-                            },
-                            {
-                                data: null,
-                                orderable: false,
-                                searchable: false,
-                                render: function(data, type, row) {
-                                    return '<div class="btn-group btn-group-sm" role="group" aria-label="Item actions">' +
-                                        '<button type="button" class="btn btn-outline-dark btn-action btn-edit-item" data-id="' +
-                                        row.id + '" title="Edit">' +
-                                        '<i class="ri-edit-line"></i>' +
-                                        '</button>' +
-                                        '<button type="button" class="btn btn-outline-danger btn-action btn-delete-item" data-id="' +
-                                        row.id + '" title="Delete">' +
-                                        '<i class="ri-delete-bin-line"></i>' +
-                                        '</button>' +
-                                        '</div>';
-                                }
                             }
                         ],
                         order: [
@@ -1288,6 +1413,11 @@
                         },
                         drawCallback: function(settings) {
                             self.updateTotals();
+                            if (self.table) {
+                                var info = self.table.page.info();
+                                $('#debitItemsCount').text((info.recordsDisplay || 0)
+                                    .toLocaleString('en-US'));
+                            }
                             // Refresh summary stats after table data loads
                             if (typeof SummaryManager !== 'undefined' && SummaryManager
                                 .triggerRefresh) {
@@ -1601,9 +1731,8 @@
                                 orderable: false,
                                 searchable: false,
                                 render: function(data, type, row) {
-                                    var isCoverNote = !!row.is_cover_note;
-                                    var noteLabel = isCoverNote ? 'Cover Note' : 'Credit Note';
-                                    var noteType = isCoverNote ? 'cover_note' : 'credit_note';
+                                    var noteLabel = 'Debit Note Statement';
+                                    var noteType = 'debit_note';
 
                                     return '<div class="d-flex gap-2">' +
                                         '<a href="javascript:void(0)" class="text-primary btn-view-reinsurer text-center d-flex align-items-center" data-id="' +
@@ -1613,28 +1742,14 @@
                                         '<i class="ri-file-list-3-line fs-18"></i> <span class="d-none d-md-inline me-2">' +
                                         noteLabel + '</span>' +
                                         '</a>' +
-                                        '<a href="javascript:void(0)" target="_blank" class="text-success text-center d-flex align-items-center" title="Cover Slip">' +
-                                        '<i class="ri-file-shield-2-line fs-18"></i> <span class="d-none d-md-inline me-2">Cover Slip</span>' +
-                                        '</a>' +
                                         '<a href="javascript:void(0)" class="text-info btn-send-statement text-center d-flex align-items-center" data-id="' +
-                                        row.id + '" title="Send Statement">' +
+                                        row.id + '" data-name="' + Utils.escapeHtml(row.name || '') +
+                                        '" data-email="' + Utils.escapeHtml(row.email || '') +
+                                        '" title="Send Statement">' +
                                         '<i class="ri-mail-send-line fs-18"></i> <span class="d-none d-md-inline">Send Statement</span>' +
                                         '</a>' +
                                         '</div>';
                                 }
-                                // render: function(data, type, row) {
-                                //     return '<div class="btn-group btn-group-sm" role="group" aria-label="Reinsurer actions">' +
-                                //         '<button type="button" class="btn btn-outline-primary btn-action btn-view-reinsurer" data-id="' +
-                                //         row.id + '" data-partner-no="' + row.partner_no +
-                                //         '" title="View Details">' +
-                                //         '<i class="ri-eye-line"></i>' +
-                                //         '</button>' +
-                                //         '<button type="button" class="btn btn-outline-info btn-action btn-send-statement" data-id="' +
-                                //         row.id + '" title="Send Statement">' +
-                                //         '<i class="ri-mail-send-line"></i>' +
-                                //         '</button>' +
-                                //         '</div>';
-                                // }
                             }
                         ],
                         order: [
@@ -2313,11 +2428,8 @@
                                 orderable: false,
                                 searchable: false,
                                 render: function(data, type, row) {
-                                    var isCoverNote = !!row.is_cover_note;
-                                    var noteLabel = isCoverNote ? 'Cover Note' :
-                                        'Debit Note';
-                                    var noteType = isCoverNote ? 'cover_note' :
-                                        'debit_note';
+                                    var noteLabel = 'Credit Note Statement';
+                                    var noteType = 'credit_note';
 
                                     return '<div class="d-flex gap-2">' +
                                         '<a href="javascript:void(0)" class="text-primary btn-view-cedant text-center d-flex align-items-center" data-partner_no="' +
@@ -2326,12 +2438,10 @@
                                         '<i class="ri-file-list-3-line fs-18"></i> <span class="d-none d-md-inline me-2">' +
                                         noteLabel + '</span>' +
                                         '</a>' +
-                                        '<a href="' + CONFIG.routes.previewSlip +
-                                        '" target="_blank" class="text-success text-center d-flex align-items-center" title="Cover Slip">' +
-                                        '<i class="ri-file-shield-2-line fs-18"></i> <span class="d-none d-md-inline me-2">Cover Slip</span>' +
-                                        '</a>' +
                                         '<a href="javascript:void(0)" class="text-info btn-send-cedant-statement text-center d-flex align-items-center" data-partner_no="' +
-                                        row.partner_no + '" title="Send Statement">' +
+                                        row.partner_no + '" data-name="' + Utils.escapeHtml(row.name || '') +
+                                        '" data-email="' + Utils.escapeHtml(row.email || '') +
+                                        '" title="Send Statement">' +
                                         '<i class="ri-mail-send-line fs-18"></i> <span class="d-none d-md-inline">Send Statement</span>' +
                                         '</a>' +
                                         '</div>';
@@ -2359,7 +2469,7 @@
 
                     $('#cedantTable').on('click', '.btn-view-cedant', function() {
                         var partnerNo = $(this).data('partner_no');
-                        var noteType = $(this).data('note-type') || 'debit_note';
+                        var noteType = $(this).data('note-type') || 'credit_note';
                         var postingYear = $('#posting_year').val() || '';
                         var postingQuarter = $('#posting_quarter').val() || '';
 
@@ -2581,7 +2691,6 @@
                     $('#summaryReinsurerShare').text(Utils.formatCurrency(financial.total_reinsurer_share ||
                         0));
 
-                    $('#debitItemsCount').text(counts.debit_items || 0);
                     $('#reinsurersCount').text(counts.reinsurers || 0);
                     $('#documentsCount').text(counts.documents || 0);
                     $('#docGenerated').text(counts.documents_generated || 0);
@@ -2628,6 +2737,7 @@
             CedantTable.init();
             DebitItemForm.init();
             SummaryManager.init();
+            StatementEmailComposer.init();
 
             $('#btnPreviewSlip').on('click', function() {
                 if (CONFIG.routes.previewSlip) {
@@ -2736,7 +2846,7 @@
 
             $(document).on('click', '.btn-view-reinsurer', function() {
                 var partnerNo = $(this).data('partner-no');
-                var noteType = $(this).data('note-type') || 'credit_note';
+                var noteType = $(this).data('note-type') || 'debit_note';
                 if (partnerNo) {
                     Swal.fire({
                         title: 'Include Broking Commission?',
@@ -2798,21 +2908,35 @@
             });
 
             $(document).on('click', '.btn-send-statement', function() {
+                var recipientName = $(this).data('name') || 'Reinsurer';
+                var recipientEmail = $(this).data('email') || '';
+
                 Utils.showConfirm(
                     'Send Statement',
                     'Send account statement to this reinsurer?',
                     function() {
-                        Utils.showToast('Statement sent successfully', 'success');
+                        StatementEmailComposer.open({
+                            recipientType: 'reinsurer',
+                            recipientName: recipientName,
+                            recipientEmail: recipientEmail
+                        });
                     }
                 );
             });
 
             $(document).on('click', '.btn-send-cedant-statement', function() {
+                var recipientName = $(this).data('name') || 'Cedant';
+                var recipientEmail = $(this).data('email') || '';
+
                 Utils.showConfirm(
                     'Send Statement',
                     'Send account statement to this cedant?',
                     function() {
-                        Utils.showToast('Statement sent successfully', 'success');
+                        StatementEmailComposer.open({
+                            recipientType: 'cedant',
+                            recipientName: recipientName,
+                            recipientEmail: recipientEmail
+                        });
                     }
                 );
             });

@@ -20,6 +20,135 @@ use Illuminate\Support\Facades\DB;
 
 class CoverTransactionController extends Controller
 {
+    public function destroyTransaction(Request $request, $coverNo, $refNo)
+    {
+        try {
+            $cover = CoverRegister::where('cover_no', $coverNo)->firstOrFail();
+            $reference = urldecode((string) $refNo);
+            $endorsementNo = (string) $request->input('endorsement_no', '');
+            $entryTypeDescr = (string) $request->input('entry_type_descr', '');
+
+            $baseQuery = DB::table('customeracc_det')
+                ->where('cover_no', $cover->cover_no)
+                ->where('reference', $reference);
+
+            if (!empty($endorsementNo)) {
+                $baseQuery->where('endorsement_no', $endorsementNo);
+            }
+
+            if (!empty($entryTypeDescr)) {
+                $baseQuery->where('entry_type_descr', $entryTypeDescr);
+            }
+
+            $transactions = $baseQuery->get([
+                'cover_no',
+                'endorsement_no',
+                'quarter',
+                'account_year',
+                'reference',
+                'entry_type_descr',
+            ]);
+
+            if ($transactions->isEmpty()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Transaction not found or already deleted.',
+                ], 404);
+            }
+
+            $deletedSummary = DB::transaction(function () use ($transactions, $baseQuery) {
+                $coverNoTx = (string) ($transactions->first()->cover_no ?? '');
+                $endorsementNoTx = (string) ($transactions->first()->endorsement_no ?? '');
+                $targetReferences = $transactions->pluck('reference')->filter()->unique()->values();
+
+                $debitNotes = collect();
+                $creditNotes = collect();
+
+                if ($targetReferences->isNotEmpty()) {
+                    $debitNotes = DB::table('debit_notes')
+                        ->where('cover_no', $coverNoTx)
+                        ->where('endorsement_no', $endorsementNoTx)
+                        ->whereIn('debit_note_no', $targetReferences->all())
+                        ->get(['id', 'debit_note_no']);
+
+                    $creditNotes = DB::table('credit_notes')
+                        ->where('cover_no', $coverNoTx)
+                        ->where('endorsement_no', $endorsementNoTx)
+                        ->whereIn('credit_note_no', $targetReferences->all())
+                        ->get(['id', 'credit_note_no']);
+                }
+
+                $debitNoteIds = $debitNotes->pluck('id')->unique()->filter()->values();
+                $creditNoteIds = $creditNotes->pluck('id')->unique()->filter()->values();
+                $debitNoteNos = $debitNotes->pluck('debit_note_no')->unique()->filter()->values();
+                $creditNoteNos = $creditNotes->pluck('credit_note_no')->unique()->filter()->values();
+
+                $debitNoteIds = $debitNoteIds->unique()->filter()->values();
+                $creditNoteIds = $creditNoteIds->unique()->filter()->values();
+                $linkedReferences = $debitNoteNos
+                    ->merge($creditNoteNos)
+                    ->merge($targetReferences)
+                    ->unique()
+                    ->filter()
+                    ->values();
+
+                // Hard delete note items first (explicit), then notes.
+                $deletedDebitItems = 0;
+                $deletedCreditItems = 0;
+                $deletedDebitNotes = 0;
+                $deletedCreditNotes = 0;
+                $deletedDocuments = 0;
+
+                if ($debitNoteIds->isNotEmpty()) {
+                    $deletedDebitItems = DB::table('debit_note_items')
+                        ->whereIn('debit_note_id', $debitNoteIds->all())
+                        ->delete();
+                    $deletedDebitNotes = DB::table('debit_notes')
+                        ->whereIn('id', $debitNoteIds->all())
+                        ->delete();
+                }
+
+                if ($creditNoteIds->isNotEmpty()) {
+                    $deletedCreditItems = DB::table('credit_note_items')
+                        ->whereIn('credit_note_id', $creditNoteIds->all())
+                        ->delete();
+                    $deletedCreditNotes = DB::table('credit_notes')
+                        ->whereIn('id', $creditNoteIds->all())
+                        ->delete();
+                }
+
+                if ($linkedReferences->isNotEmpty()) {
+                    $deletedDocuments = DB::table('treaty_documents')
+                        ->whereIn('reference', $linkedReferences->all())
+                        ->delete();
+                }
+
+                // Hard delete customer transaction records themselves.
+                $deletedTransactions = $baseQuery->delete();
+
+                return [
+                    'transactions' => $deletedTransactions,
+                    'debit_notes' => $deletedDebitNotes,
+                    'debit_note_items' => $deletedDebitItems,
+                    'credit_notes' => $deletedCreditNotes,
+                    'credit_note_items' => $deletedCreditItems,
+                    'documents' => $deletedDocuments,
+                    'skipped_periods' => 0,
+                ];
+            });
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Transaction and linked records permanently deleted.',
+                'deleted' => $deletedSummary,
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to delete transaction and linked records.',
+            ], 500);
+        }
+    }
 
     public function index(Request $request, $coverNo)
     {
@@ -180,6 +309,17 @@ class CoverTransactionController extends Controller
             ? strtoupper((string) $currentQuarter) . ' - ' . $currentYear
             : ('Q' . now()->quarter . ' - ' . now()->year);
 
+        $selectedDebitNoteNo = null;
+        if ($currentQuarter && $currentYear) {
+            $selectedDebitNoteNo = DebitNote::where('cover_no', $cover->cover_no)
+                ->where('endorsement_no', $cover->endorsement_no)
+                ->where('posting_quarter', strtoupper((string) $currentQuarter))
+                ->where('posting_year', (int) $currentYear)
+                ->orderByDesc('posting_date')
+                ->orderByDesc('id')
+                ->value('debit_note_no');
+        }
+
         $transactions = CoverDebit::where('endorsement_no', $request->endorsementNo)
             ->orderBy('installment', 'asc')
             ->get();
@@ -267,6 +407,17 @@ class CoverTransactionController extends Controller
             ? strtoupper((string) $currentQuarter) . ' - ' . $currentYear
             : ('Q' . now()->quarter . ' - ' . now()->year);
 
+        $selectedDebitNoteNo = null;
+        if ($currentQuarter && $currentYear) {
+            $selectedDebitNoteNo = DebitNote::where('cover_no', $cover->cover_no)
+                ->where('endorsement_no', $cover->endorsement_no)
+                ->where('posting_quarter', strtoupper((string) $currentQuarter))
+                ->where('posting_year', (int) $currentYear)
+                ->orderByDesc('posting_date')
+                ->orderByDesc('id')
+                ->value('debit_note_no');
+        }
+
         // Fetch profit commission transactions
         $profitCommissions = CustomerAccDet::where('endorsement_no', $request->endorsementNo)
             ->where('entry_type_descr', 'profit-commission')
@@ -295,10 +446,15 @@ class CoverTransactionController extends Controller
 
         $isTransaction = $transactions->count() > 0;
         $totalDocuments = $documents->count();
-        $totalDebitItems = DebitNote::where([
-            'cover_no' => $cover->cover_no,
-            'endorsement_no' => $cover->endorsement_no
-        ])->withCount('items')->get()->sum('items_count');
+        $totalDebitItems = 0;
+        if (!empty($selectedDebitNoteNo)) {
+            $totalDebitItems = (int) DB::table('debit_note_items as tdi')
+                ->join('debit_notes as dn', 'tdi.debit_note_id', '=', 'dn.id')
+                ->where('dn.cover_no', $cover->cover_no)
+                ->where('dn.endorsement_no', $cover->endorsement_no)
+                ->where('dn.debit_note_no', $selectedDebitNoteNo)
+                ->count('tdi.id');
+        }
 
         $totalReinsurers = CoverRipart::where([
             'cover_no' => $cover->cover_no,
@@ -340,6 +496,7 @@ class CoverTransactionController extends Controller
             'cedantTreatyCapacity' => $cedantTreatyCapacity,
             'cedantIsCoverNote' => $cedantIsCoverNote,
             'currentQuarterDisplay' => $currentQuarterDisplay,
+            'selectedDebitNoteNo' => $selectedDebitNoteNo,
         ]);
     }
 
