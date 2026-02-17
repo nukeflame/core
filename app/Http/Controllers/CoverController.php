@@ -1720,12 +1720,17 @@ class CoverController extends Controller
         DB::beginTransaction();
         try {
             $validatedData = $request->toArray();
+            $entryTypeDescr = $this->resolveEntryTypeDescr($validatedData);
+            $postingYear = (int) ($validatedData['posting_year'] ?? Carbon::now()->year);
             $existingQuarter = CustomerAccDet::where('endorsement_no', $validatedData['endorsement_no'])
                 ->where('quarter', $validatedData['posting_quarter'])
+                ->where('account_year', $postingYear)
+                ->where('entry_type_descr', $entryTypeDescr)
                 ->exists();
 
             if ($existingQuarter) {
-                throw new BusinessRuleException("Quarterly figures for {$validatedData['posting_quarter']} have already been generated for this endorsement.");
+                $entryTypeLabel = ucwords(str_replace('-', ' ', $entryTypeDescr));
+                throw new BusinessRuleException("{$entryTypeLabel} for {$validatedData['posting_quarter']} {$postingYear} has already been generated for this endorsement.");
             }
 
             $cover = CoverRegister::where('endorsement_no', $validatedData['endorsement_no'])->lockForUpdate()->first();
@@ -1756,6 +1761,18 @@ class CoverController extends Controller
             }
 
             $this->createCustomerAccount($debitData, $cover);
+
+            if (
+                $debitData['isTreaty']
+                && $entryTypeDescr === 'profit-commission'
+                && !empty($debitData['reference'])
+            ) {
+                $redirectUrl = route('cover.transactions.profit-commission', [
+                    'coverNo' => $cover->cover_no,
+                    'refNo' => $debitData['reference'],
+                    'endorsementNo' => $cover->endorsement_no,
+                ]);
+            }
 
             $cover->commited = 'Y';
             $cover->save();
@@ -1814,9 +1831,10 @@ class CoverController extends Controller
     {
         $typeOfBus = $validatedData['type_of_bus'];
         $netAmount = $this->parseNumber($validatedData['amount']);
-        $brokerageRate = (float) ($validatedData['brokerage_rate'] ?? 0);
+        $brokerageRate = (float) ($validatedData['brokerage_rate'] ?? $validatedData['profit_comm_rate'] ?? 0);
         $premiumTaxRate = (float) ($validatedData['premium_levy'] ?? 0);
         $commissionRate = (float) ($coverRegister->comm_rate ?? 0);
+        $entryTypeDescr = $this->resolveEntryTypeDescr($validatedData);
 
 
         $enhancedItems = $this->enhanceItemsWithDeductions(
@@ -1843,7 +1861,7 @@ class CoverController extends Controller
             'reference' => null,
             'currencyCode' => $validatedData['currency_code'] ?? $coverRegister->currency_code,
             'currencyRate' => (float) ($validatedData['today_currency'] ?? ($coverRegister->currency_rate ?? 1)),
-            'entryTypeDescr' => 'quarterly-figures',
+            'entryTypeDescr' => $entryTypeDescr,
             'postingYear' => $validatedData['posting_year'],
             'postingQuarter' => $validatedData['posting_quarter'],
             'postingDate' => $validatedData['posting_date'],
@@ -1970,6 +1988,9 @@ class CoverController extends Controller
 
         $debitData['sourceCode'] = $debitData['isTreaty'] ? 'TRT' : 'FAC';
         $debitData['reference'] = $this->generateDebitReference($debitData, $coverRegister);
+        $postingDate = !empty($debitData['postingDate']) ? Carbon::parse($debitData['postingDate']) : Carbon::now();
+        $postingYear = (int) ($debitData['postingYear'] ?? $postingDate->year);
+        $postingMonth = (int) $postingDate->month;
 
         $custAccount = new CustomerAccDet;
         $custAccount->branch = $coverRegister->branch_code;
@@ -1978,8 +1999,8 @@ class CoverController extends Controller
         $custAccount->doc_type = $debitData['docType'];
         $custAccount->entry_type_descr = $debitData['entryTypeDescr'];
         $custAccount->reference = $debitData['reference'];
-        $custAccount->account_year = $this->_year;
-        $custAccount->account_month = $this->_month;
+        $custAccount->account_year = $postingYear;
+        $custAccount->account_month = $postingMonth;
         $custAccount->quarter = $debitData['postingQuarter'] ?? null;
         $custAccount->line_no = 1;
         $custAccount->cheque_no = ' ';
@@ -1988,7 +2009,7 @@ class CoverController extends Controller
         $custAccount->endorsement_no = $coverRegister->endorsement_no;
         $custAccount->insured = $coverRegister->insured_name;
         $custAccount->class = $coverRegister->class_code;
-        $custAccount->currency_code = $coverRegister->currency_code;
+        $custAccount->currency_code = $debitData['currencyCode'] ?? $coverRegister->currency_code;
         $custAccount->currency_rate = $debitData['currencyRate'];
         $custAccount->created_by = Auth::user()->user_name;
         $custAccount->created_date = Carbon::now();
@@ -2157,9 +2178,10 @@ class CoverController extends Controller
     {
         $typeOfBus = $validatedData['type_of_bus'];
         $netAmount = $this->parseNumber($validatedData['amount']);
-        $brokerageRate = (float) ($validatedData['brokerage_rate'] ?? 0);
+        $brokerageRate = (float) ($validatedData['brokerage_rate'] ?? $validatedData['profit_comm_rate'] ?? 0);
         $premiumTaxRate = (float) ($validatedData['premium_levy'] ?? 0);
         $commissionRate = (float) ($coverRegister->comm_rate ?? 0);
+        $entryTypeDescr = $this->resolveEntryTypeDescr($validatedData);
 
         $enhancedItems = $this->enhanceItemsWithDeductions(
             $validatedData['items'] ?? [],
@@ -2185,7 +2207,7 @@ class CoverController extends Controller
             'reference' => null,
             'currencyCode' => $validatedData['currency_code'] ?? $coverRegister->currency_code,
             'currencyRate' => (float) ($validatedData['today_currency'] ?? ($coverRegister->currency_rate ?? 1)),
-            'entryTypeDescr' => 'quarterly-figures',
+            'entryTypeDescr' => $entryTypeDescr,
             'postingYear' => $validatedData['posting_year'],
             'postingQuarter' => $validatedData['posting_quarter'],
             'postingDate' => $validatedData['posting_date'],
@@ -2215,6 +2237,16 @@ class CoverController extends Controller
             'FPR' => 'Facultative Proportional',
             'FNP' => 'Facultative Non-Proportional',
             default => 'Unknown'
+        };
+    }
+
+    private function resolveEntryTypeDescr(array $validatedData): string
+    {
+        $entryType = strtolower(trim((string) ($validatedData['entry_type_descr'] ?? 'quarterly-figures')));
+
+        return match ($entryType) {
+            'profit-commission' => 'profit-commission',
+            default => 'quarterly-figures',
         };
     }
 
@@ -3250,16 +3282,18 @@ class CoverController extends Controller
             'cover_no' => 'required|string',
             'quarter' => 'required|string|in:Q1,Q2,Q3,Q4',
             'posting_year' => 'nullable|integer',
+            'entry_type_descr' => 'nullable|string|in:quarterly-figures,profit-commission',
         ]);
 
         $coverNo = $request->cover_no;
         $quarter = $request->quarter;
         $postingYear = $request->posting_year ?? Carbon::now()->year;
-        $defaultMeta = $this->getQuarterlyFigureDefaults();
+        $entryTypeDescr = $this->resolveEntryTypeDescr($request->all());
+        $defaultMeta = $this->getTransactionFigureDefaults($entryTypeDescr, $coverNo);
 
         $quarterlyData = CustomerAccDet::where('cover_no', $coverNo)
             ->where('quarter', $quarter)
-            ->where('entry_type_descr', 'quarterly-figures')
+            ->where('entry_type_descr', $entryTypeDescr)
             ->where('account_year', $postingYear)
             ->orderBy('line_no', 'asc')
             ->get();
@@ -3311,7 +3345,7 @@ class CoverController extends Controller
         $firstRecord = $quarterlyData->first();
         $firstDebitNote = $debitNotes->first();
         $meta = $defaultMeta;
-        if ($firstDebitNote) {
+        if ($firstDebitNote && $entryTypeDescr === 'quarterly-figures') {
             $meta = array_merge($meta, [
                 'compute_premium_tax' => (bool) $firstDebitNote->compute_premium_tax,
                 'compute_reinsurance_tax' => (bool) $firstDebitNote->compute_reinsurance_tax,
@@ -3322,6 +3356,15 @@ class CoverController extends Controller
                 'premium_levy' => $firstDebitNote->premium_levy ?? $meta['premium_levy'],
                 'reinsurance_levy' => $firstDebitNote->reinsurance_levy ?? $meta['reinsurance_levy'],
                 'withholding_tax' => $firstDebitNote->withholding_tax ?? $meta['withholding_tax'],
+                'comments' => $firstDebitNote->comments ?? '',
+                'show_cedant' => (bool) $firstDebitNote->show_cedant,
+                'show_reinsurer' => (bool) $firstDebitNote->show_reinsurer,
+            ]);
+        } elseif ($firstDebitNote && $entryTypeDescr === 'profit-commission') {
+            $meta = array_merge($meta, [
+                'currency_code' => $firstDebitNote->currency ?? $meta['currency_code'],
+                'today_currency' => $firstDebitNote->exchange_rate ?? $meta['today_currency'],
+                'profit_comm_rate' => $firstDebitNote->brokerage_rate ?? $meta['profit_comm_rate'],
                 'comments' => $firstDebitNote->comments ?? '',
                 'show_cedant' => (bool) $firstDebitNote->show_cedant,
                 'show_reinsurer' => (bool) $firstDebitNote->show_reinsurer,
@@ -3374,6 +3417,30 @@ class CoverController extends Controller
             'show_cedant' => false,
             'show_reinsurer' => false,
         ];
+    }
+
+    private function getProfitCommissionDefaults(string $coverNo): array
+    {
+        $cover = CoverRegister::where('cover_no', $coverNo)
+            ->orderByDesc('dola')
+            ->first();
+
+        return [
+            'currency_code' => $cover?->currency_code ?? 'KES',
+            'today_currency' => (float) ($cover?->currency_rate ?? 1),
+            'profit_comm_rate' => (float) ($cover?->profit_comm_rate ?? 0),
+            'comments' => '',
+            'show_cedant' => false,
+            'show_reinsurer' => false,
+        ];
+    }
+
+    private function getTransactionFigureDefaults(string $entryTypeDescr, string $coverNo): array
+    {
+        return match ($entryTypeDescr) {
+            'profit-commission' => $this->getProfitCommissionDefaults($coverNo),
+            default => $this->getQuarterlyFigureDefaults(),
+        };
     }
 
     private function getQuarterlyTransactionItems(string $coverNo, string $quarter, int $postingYear): array

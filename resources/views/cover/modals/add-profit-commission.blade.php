@@ -7,6 +7,9 @@
                 <input type="hidden" name="cover_no" value="{{ $cover->cover_no ?? '' }}" />
                 <input type="hidden" name="endorsement_no" value="{{ $cover->endorsement_no ?? '' }}" />
                 <input type="hidden" name="type_of_bus" value="{{ $cover->type_of_bus ?? '' }}" />
+                <input type="hidden" name="entry_type_descr" value="profit-commission" />
+                <input type="hidden" name="success_redirect_url"
+                    value="{{ route('cover.transactions.index', ['coverNo' => $cover->cover_no ?? '']) }}" />
                 <input type="hidden" name="installment" value="{{ $nextInstallment ?? 1 }}" />
                 <input type="hidden" name="amount" value="{{ number_format($installmentAmount ?? 0, 2, '.', '') }}" />
                 <input type="hidden" name="treatyClasses" value="{{ json_encode($treatyClasses ?? []) }}"
@@ -152,26 +155,33 @@
                         <div class="col-md-4">
                             <div class="card shadow-sm mb-3">
                                 <div class="card-header bg-light py-2">
-                                    <h6 class="mb-0 fw-semibold">Currency</h6>
+                                    <h6 class="mb-0 fw-semibold">Foreign Currency</h6>
                                 </div>
                                 <div class="card-body">
                                     @php
                                         $selectedCurrency = $cover->currency_code ?? 'KES';
-                                        $defaultExchangeRate = number_format((float) ($cover->currency_rate ?? 1), 6, '.', '');
+                                        $defaultExchangeRate = number_format(
+                                            (float) ($cover->currency_rate ?? 1),
+                                            2,
+                                            '.',
+                                            '',
+                                        );
                                     @endphp
 
                                     <div class="mb-3">
                                         <label class="form-label" for="pc_currency_code">
                                             Currency <span class="text-danger">*</span>
                                         </label>
-                                        <select name="currency_code" id="pc_currency_code" class="form-select form-select-sm"
-                                            data-default="{{ $selectedCurrency }}" required>
+                                        <select name="currency_code" id="pc_currency_code"
+                                            class="form-select form-select-sm" data-default="{{ $selectedCurrency }}"
+                                            required>
                                             <option value="">Select Currency</option>
                                             @if (isset($currencies) && count($currencies))
                                                 @foreach ($currencies as $currency)
                                                     <option value="{{ $currency->currency_code }}"
                                                         {{ $selectedCurrency === $currency->currency_code ? 'selected' : '' }}>
-                                                        {{ $currency->currency_code }} - {{ $currency->currency_name }}
+                                                        {{ $currency->currency_code }} -
+                                                        {{ $currency->currency_name }}
                                                     </option>
                                                 @endforeach
                                             @else
@@ -187,35 +197,12 @@
                                             Exchange Rate <span class="text-danger">*</span>
                                         </label>
                                         <input type="number" name="today_currency" id="pc_exchange_rate"
-                                            class="form-control form-control-sm text-end" step="0.000001" min="0.000001"
-                                            value="{{ $defaultExchangeRate }}" data-default="{{ $defaultExchangeRate }}" required />
+                                            class="form-control form-control-sm text-end" step="0.01"
+                                            min="0.01" value="{{ $defaultExchangeRate }}"
+                                            data-default="{{ $defaultExchangeRate }}" required />
                                         <small id="pc_exchange_rate_hint" class="text-muted d-block mt-1">
                                             Auto-fetched from today's rate. You can edit only when no daily rate exists.
                                         </small>
-                                    </div>
-
-                                    {{-- Premium Levy --}}
-                                    <div class="levy-row mb-2">
-                                        <div class="d-flex align-items-center justify-content-between">
-                                            <div class="form-check form-check-lg custom-checkbox mb-0">
-                                                <input class="form-check-input levy-checkbox" type="checkbox"
-                                                    name="compute_premium_tax" id="compute_premium_tax"
-                                                    value="1" data-rate="{{ $taxRates['PREMIUM_LEVY'] }}">
-                                                <label class="form-check-label" for="compute_premium_tax">
-                                                    Premium Levy
-                                                </label>
-                                            </div>
-                                            <div class="levy-rate-input">
-                                                <div class="input-group input-group-sm">
-                                                    <input type="number" name="premium_levy" id="premium_levy"
-                                                        class="form-control form-control-sm text-end" step="0.01"
-                                                        value="{{ $taxRates['PREMIUM_LEVY'] }}" min="0"
-                                                        data-default="{{ $taxRates['PREMIUM_LEVY'] }}" max="100"
-                                                        style="width: 75px;" />
-                                                    <span class="input-group-text">%</span>
-                                                </div>
-                                            </div>
-                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -283,7 +270,7 @@
 </div>
 
 {{-- Item Row Template --}}
-<template id="debit-item-row-template">
+<template id="profit-debit-item-row-template">
     <tr class="debit-item-row" data-item-index="INDEX">
         <input type="hidden" class="item-type" name="items[INDEX][item_type]" value="" />
         <td>
@@ -504,7 +491,7 @@
                         modal: '#addProfitCommissionModal',
                         form: '#profitCommissionForm',
                         itemsBody: '#debit-items-body',
-                        template: '#debit-item-row-template',
+                        template: '#profit-debit-item-row-template',
                         addBtn: '#add-debit-item',
                         saveBtn: '#debit-save-btn',
                         totalAmount: '#total-amount',
@@ -522,7 +509,6 @@
                         currencyCode: '#pc_currency_code',
                         exchangeRate: '#pc_exchange_rate',
                         exchangeRateHint: '#pc_exchange_rate_hint',
-                        treatyClasses: "#treatyClasses"
                     },
                     classes: {
                         itemRow: '.debit-item-row',
@@ -581,29 +567,30 @@
 
                 cacheElements: function() {
                     const s = this.config.selectors;
+                    const $modal = $(s.modal);
 
                     this.$el = {
-                        modal: $(s.modal),
-                        form: $(s.form),
-                        itemsBody: $(s.itemsBody),
+                        modal: $modal,
+                        form: $modal.find(s.form),
+                        itemsBody: $modal.find(s.itemsBody),
                         template: $(s.template),
-                        addBtn: $(s.addBtn),
-                        saveBtn: $(s.saveBtn),
-                        totalAmount: $(s.totalAmount),
-                        noItemsRow: $(s.noItemsRow),
-                        summarySection: $(s.summarySection),
-                        summaryGross: $(s.summaryGross),
-                        summaryDeductions: $(s.summaryDeductions),
-                        summaryNet: $(s.summaryNet),
-                        commentsField: $(s.commentsField),
-                        commentsCount: $(s.commentsCount),
-                        postingYear: $(s.postingYear),
-                        postingQuarter: $(s.postingQuarter),
-                        postingDate: $(s.postingDate),
-                        profitCommissionRate: $(s.profitCommissionRate),
-                        currencyCode: $(s.currencyCode),
-                        exchangeRate: $(s.exchangeRate),
-                        exchangeRateHint: $(s.exchangeRateHint)
+                        addBtn: $modal.find(s.addBtn),
+                        saveBtn: $modal.find(s.saveBtn),
+                        totalAmount: $modal.find(s.totalAmount),
+                        noItemsRow: $modal.find(s.noItemsRow),
+                        summarySection: $modal.find(s.summarySection),
+                        summaryGross: $modal.find(s.summaryGross),
+                        summaryDeductions: $modal.find(s.summaryDeductions),
+                        summaryNet: $modal.find(s.summaryNet),
+                        commentsField: $modal.find(s.commentsField),
+                        commentsCount: $modal.find(s.commentsCount),
+                        postingYear: $modal.find(s.postingYear),
+                        postingQuarter: $modal.find(s.postingQuarter),
+                        postingDate: $modal.find(s.postingDate),
+                        profitCommissionRate: $modal.find(s.profitCommissionRate),
+                        currencyCode: $modal.find(s.currencyCode),
+                        exchangeRate: $modal.find(s.exchangeRate),
+                        exchangeRateHint: $modal.find(s.exchangeRateHint)
                     };
                 },
 
@@ -646,7 +633,7 @@
                             today_currency: {
                                 required: true,
                                 number: true,
-                                min: 0.000001
+                                min: 0.01
                             }
                         },
                         messages: {
@@ -744,16 +731,6 @@
                         self.filterBusinessClasses($(this));
                     });
 
-                    $(c.levyCheckbox).on('change', function() {
-                        self.debouncedCalculate();
-                    });
-
-                    $('#premium_levy').on('input change', function() {
-                        var rate = $(this).val() || 0;
-                        $('#compute_premium_tax').attr('data-rate', rate);
-                        self.debouncedCalculate();
-                    });
-
                     this.$el.profitCommissionRate.on('input change', function() {
                         self.debouncedCalculate();
                     });
@@ -843,9 +820,10 @@
 
                             if (status && (status.valid === 1 || status.valid === 2) && status.rate) {
                                 const rate = parseFloat(status.rate) || 1;
-                                self.$el.exchangeRate.val(rate.toFixed(6));
+                                self.$el.exchangeRate.val(rate.toFixed(2));
                                 self.$el.exchangeRate.prop('readonly', true);
-                                self.$el.exchangeRateHint.text('Exchange rate locked to today\'s configured rate.');
+                                self.$el.exchangeRateHint.text(
+                                    'Exchange rate locked to today\'s configured rate.');
                             } else {
                                 self.$el.exchangeRate.prop('readonly', false);
                                 self.$el.exchangeRateHint.text(
@@ -867,8 +845,10 @@
 
                 fetchQuarterlyData: function(quarter) {
                     const self = this;
-                    const coverNo = $('input[name="cover_no"]').val();
+                    const coverNo = this.$el.form.find('input[name="cover_no"]').val();
                     const postingYear = this.$el.postingYear.val();
+                    const entryTypeDescr = this.$el.form.find('input[name="entry_type_descr"]').val() ||
+                        'profit-commission';
 
                     if (!coverNo || !quarter) {
                         return;
@@ -883,7 +863,8 @@
                             data: {
                                 cover_no: coverNo,
                                 quarter: quarter,
-                                posting_year: postingYear
+                                posting_year: postingYear,
+                                entry_type_descr: entryTypeDescr
                             },
                             headers: {
                                 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
@@ -950,11 +931,9 @@
 
                 getDefaultMeta: function() {
                     return {
-                        compute_premium_tax: false,
-                        currency_code: $('#pc_currency_code').data('default') || '',
-                        today_currency: this.parseNumberOrZero($('#pc_exchange_rate').data('default')),
-                        profit_comm_rate: this.parseNumberOrZero($('#profit_comm_rate').data('default')),
-                        premium_levy: this.parseNumberOrZero($('#premium_levy').data('default')),
+                        currency_code: this.$el.currencyCode.data('default') || '',
+                        today_currency: this.parseNumberOrZero(this.$el.exchangeRate.data('default')),
+                        profit_comm_rate: this.parseNumberOrZero(this.$el.profitCommissionRate.data('default')),
                         comments: '',
                         show_cedant: false,
                         show_reinsurer: false
@@ -965,25 +944,23 @@
                     const defaults = this.state.defaultMeta || this.getDefaultMeta();
                     const resolved = Object.assign({}, defaults, meta || {});
 
-                    $('#compute_premium_tax').prop('checked', !!resolved.compute_premium_tax).trigger('change');
                     const currencyCode = resolved.currency_code || defaults.currency_code || '';
-                    const exchangeRate = this.parseNumberOrZero(resolved.today_currency ?? defaults.today_currency);
-                    const premiumLevy = this.parseNumberOrZero(resolved.premium_levy);
+                    const exchangeRate = this.parseNumberOrZero(resolved.today_currency ?? defaults
+                        .today_currency);
                     const profitCommissionRate = (meta && meta.profit_comm_rate !== undefined && meta
                             .profit_comm_rate !== null) ?
                         this.parseNumberOrZero(meta.profit_comm_rate) :
                         this.parseNumberOrZero(defaults.profit_comm_rate);
 
-                    $('#pc_currency_code').val(currencyCode);
-                    $('#pc_exchange_rate').val(exchangeRate > 0 ? exchangeRate.toFixed(6) : '');
-                    $('#premium_levy').val(premiumLevy.toFixed(2)).trigger('change');
-                    $('#profit_comm_rate').val(profitCommissionRate.toFixed(2));
+                    this.$el.currencyCode.val(currencyCode);
+                    this.$el.exchangeRate.val(exchangeRate > 0 ? exchangeRate.toFixed(2) : '');
+                    this.$el.profitCommissionRate.val(profitCommissionRate.toFixed(2));
 
                     const comments = String(resolved.comments || '');
-                    $('#comments').val(comments);
+                    this.$el.commentsField.val(comments);
                     this.$el.commentsCount.text(comments.length);
-                    $('#show_cedant').prop('checked', !!resolved.show_cedant);
-                    $('#show_reinsurer').prop('checked', !!resolved.show_reinsurer);
+                    this.$el.form.find('#show_cedant').prop('checked', !!resolved.show_cedant);
+                    this.$el.form.find('#show_reinsurer').prop('checked', !!resolved.show_reinsurer);
                 },
 
                 parseNumberOrZero: function(value) {
@@ -1143,7 +1120,7 @@
                             Only commission and amount are editable, and amount has been cleared.
                         </div>
                     `;
-                    $(this.config.selectors.itemsBody).closest('.card').before(prefillHtml);
+                    this.$el.itemsBody.closest('.card').before(prefillHtml);
 
                     this.calculateTotals();
                     this.updateSummaryVisibility();
@@ -1193,15 +1170,13 @@
                         '#pc_currency_code',
                         '#pc_exchange_rate',
                         '#profit_comm_rate',
-                        '#premium_levy',
-                        '#compute_premium_tax',
                         '#comments',
                         '#show_cedant',
                         '#show_reinsurer'
                     ];
 
                     otherFields.forEach(function(selector) {
-                        $(selector).prop('disabled', locked);
+                        self.$el.form.find(selector).prop('disabled', locked);
                     });
 
                     const $infoMessage = $('#quarterly-data-loaded-info');
@@ -1214,7 +1189,7 @@
                                     Fields are disabled. Select a different quarter to enter new data.
                                 </div>
                             `;
-                            $(this.config.selectors.itemsBody).closest('.card').before(infoHtml);
+                            this.$el.itemsBody.closest('.card').before(infoHtml);
                         }
                     } else {
                         $infoMessage.remove();
@@ -1382,7 +1357,7 @@
                 },
 
                 getValidTreatyClasses: function() {
-                    const treatyClassesJson = $(this.config.selectors.treatyClasses).val();
+                    const treatyClassesJson = this.$el.form.find('input[name="treatyClasses"]').val();
                     if (!treatyClassesJson) return [];
 
                     try {
@@ -1500,7 +1475,7 @@
 
                 filterBusinessClasses: function($classType) {
                     const $row = $classType.closest(this.config.classes.itemRow);
-                    const treatyClasses = $(this.config.selectors.treatyClasses).val();
+                    const treatyClasses = this.$el.form.find('input[name="treatyClasses"]').val();
                     const $commRate = $row.find(this.config.classes.itemLineRate);
                     const classItem = $classType.val();
 
@@ -1667,15 +1642,7 @@
 
                     const profitCommissionRate = parseFloat(this.$el.profitCommissionRate.val()) || 0;
                     const profitCommissionAmount = grossAmount * (profitCommissionRate / 100);
-
-                    let levyAmount = 0;
-                    const premiumLevyRate = parseFloat($('#premium_levy').val()) || 0;
-
-                    if (premiumLevyRate > 0) {
-                        levyAmount += grossAmount * (premiumLevyRate / 100);
-                    }
-
-                    const totalDeductions = profitCommissionAmount + levyAmount + creditAmount;
+                    const totalDeductions = profitCommissionAmount + creditAmount;
                     const netAmount = grossAmount - totalDeductions;
 
                     this.$el.totalAmount.text(this.formatCurrency(grossAmount));
@@ -1914,6 +1881,11 @@
                             const url = response.redirect_url || response.redirectUrl;
                             setTimeout(function() {
                                 window.location.href = url;
+                            }, 800);
+                        } else if (this.$el.form.find('input[name="success_redirect_url"]').val()) {
+                            const fallbackUrl = this.$el.form.find('input[name="success_redirect_url"]').val();
+                            setTimeout(function() {
+                                window.location.href = fallbackUrl;
                             }, 800);
                         } else if (response.debit_note_id) {
 

@@ -517,14 +517,13 @@
         $customer = $customer ?? null;
         $debitItems = $debitItems ?? collect();
         $reinsurers = $reinsurers ?? collect();
+        $totalReinsurers = $totalReinsurers ?? $reinsurers->count();
         $cedantDetails = $cedantDetails ?? null;
         $totalDocuments = $totalDocuments ?? 0;
 
         $totalGrossPremium = $debitItems->sum('gross_premium');
         $totalCommission = $debitItems->sum('commission_amount');
         $totalNetAmount = $debitItems->sum('net_amount');
-        $totalReinsurerShare = $reinsurers->sum('share_premium');
-
         $formatCurrency = fn($amount, $currency = 'KES') => $currency . ' ' . number_format($amount ?? 0, 2);
     @endphp
 
@@ -567,9 +566,9 @@
             </div>
         </div>
         <div class="financial-card adjustments">
-            <div class="financial-label">Reinsurer Share</div>
-            <div class="financial-value" id="summaryReinsurerShare">
-                {{ $formatCurrency($totalReinsurerShare, $cover->currency ?? 'KES') }}
+            <div class="financial-label">Total Reinsurers</div>
+            <div class="financial-value" id="summaryTotalReinsurers">
+                {{ number_format($totalReinsurers) }}
             </div>
         </div>
     </div>
@@ -577,8 +576,8 @@
     <div class="summary-card mb-4">
         <div class="summary-grid">
             <div class="summary-item">
-                <span class="summary-label">Cedant</span>
-                <span class="summary-value highlight">{{ ucwords(strtolower($customer->name ?? 'N/A')) }}</span>
+                <span class="summary-label">Transaction Type</span>
+                <span class="summary-value highlight">{{ $currentEntryTypeDisplay ?? 'Quarterly Figures' }}</span>
             </div>
             <div class="summary-item">
                 <span class="summary-label">Treaty Type</span>
@@ -681,7 +680,7 @@
                                                 <th width="10%">Commission %</th>
                                                 <th width="10%">Gross Amount</th>
                                                 <th width="7%">Status</th>
-                                                <th width="9%">Actions</th>
+                                                {{-- <th width="9%">Actions</th> --}}
                                             </tr>
                                         </thead>
                                         <tbody></tbody>
@@ -1254,23 +1253,23 @@
                                 },
                                 defaultContent: '-'
                             },
-                            {
-                                data: null,
-                                orderable: false,
-                                searchable: false,
-                                render: function(data, type, row) {
-                                    return '<div class="btn-group btn-group-sm" role="group" aria-label="Item actions">' +
-                                        '<button type="button" class="btn btn-outline-dark btn-action btn-edit-item" data-id="' +
-                                        row.id + '" title="Edit">' +
-                                        '<i class="ri-edit-line"></i>' +
-                                        '</button>' +
-                                        '<button type="button" class="btn btn-outline-danger btn-action btn-delete-item" data-id="' +
-                                        row.id + '" title="Delete">' +
-                                        '<i class="ri-delete-bin-line"></i>' +
-                                        '</button>' +
-                                        '</div>';
-                                }
-                            }
+                            // {
+                            //     data: null,
+                            //     orderable: false,
+                            //     searchable: false,
+                            //     render: function(data, type, row) {
+                            //         return '<div class="btn-group btn-group-sm" role="group" aria-label="Item actions">' +
+                            //             '<button type="button" class="btn btn-outline-dark btn-action btn-edit-item" data-id="' +
+                            //             row.id + '" title="Edit">' +
+                            //             '<i class="ri-edit-line"></i>' +
+                            //             '</button>' +
+                            //             '<button type="button" class="btn btn-outline-danger btn-action btn-delete-item" data-id="' +
+                            //             row.id + '" title="Delete">' +
+                            //             '<i class="ri-delete-bin-line"></i>' +
+                            //             '</button>' +
+                            //             '</div>';
+                            //     }
+                            // }
                         ],
                         order: [
                             [3, 'desc']
@@ -2575,8 +2574,7 @@
                         0));
                     $('#summaryCommission').text(Utils.formatCurrency(financial.total_commission || 0));
                     $('#summaryNetAmount').text(Utils.formatCurrency(financial.total_net_amount || 0));
-                    $('#summaryReinsurerShare').text(Utils.formatCurrency(financial.total_reinsurer_share ||
-                        0));
+                    $('#summaryTotalReinsurers').text((counts.reinsurers || 0).toLocaleString('en-US'));
 
                     $('#debitItemsCount').text(counts.debit_items || 0);
                     $('#reinsurersCount').text(counts.reinsurers || 0);

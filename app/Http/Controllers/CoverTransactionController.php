@@ -173,6 +173,9 @@ class CoverTransactionController extends Controller
 
         $currentQuarter = $selectedTransaction?->quarter;
         $currentYear = $selectedTransaction?->account_year;
+        $currentEntryTypeDisplay = $selectedTransaction?->entry_type_descr
+            ? ucwords(str_replace('-', ' ', (string) $selectedTransaction->entry_type_descr))
+            : 'Quarterly Figures';
         $currentQuarterDisplay = ($currentQuarter && $currentYear)
             ? strtoupper((string) $currentQuarter) . ' - ' . $currentYear
             : ('Q' . now()->quarter . ' - ' . now()->year);
@@ -240,6 +243,7 @@ class CoverTransactionController extends Controller
             'totalReinsurers' => $totalReinsurers,
             'cedantTreatyCapacity' => $cedantTreatyCapacity,
             'cedantIsCoverNote' => $cedantIsCoverNote,
+            'currentEntryTypeDisplay' => $currentEntryTypeDisplay,
             'currentQuarterDisplay' => $currentQuarterDisplay,
         ]);
     }
@@ -247,24 +251,95 @@ class CoverTransactionController extends Controller
     public function profitCommission(Request $request, $coverNo, $refNo)
     {
         $cover = CoverRegister::where('endorsement_no', $request->endorsementNo)->firstOrFail();
-        $customer = Customer::where('customer_id', $cover->customer_id)->first();
+        $customer = Customer::with('primaryContact')->where('customer_id', $cover->customer_id)->first();
+        $decodedRefNo = urldecode((string) $refNo);
+
+        $selectedTransaction = CustomerAccDet::where('cover_no', $cover->cover_no)
+            ->where('endorsement_no', $request->endorsementNo)
+            ->where('entry_type_descr', 'profit-commission')
+            ->where('reference', $decodedRefNo)
+            ->orderByDesc('created_at')
+            ->first();
+
+        $currentQuarter = $selectedTransaction?->quarter;
+        $currentYear = $selectedTransaction?->account_year;
+        $currentQuarterDisplay = ($currentQuarter && $currentYear)
+            ? strtoupper((string) $currentQuarter) . ' - ' . $currentYear
+            : ('Q' . now()->quarter . ' - ' . now()->year);
 
         // Fetch profit commission transactions
         $profitCommissions = CustomerAccDet::where('endorsement_no', $request->endorsementNo)
-            ->where('entry_type_descr', 'LIKE', '%Profit Commission%')
+            ->where('entry_type_descr', 'profit-commission')
             ->orderBy('created_date', 'desc')
             ->get();
 
+        $transactions = CoverDebit::where('endorsement_no', $request->endorsementNo)
+            ->orderBy('installment', 'asc')
+            ->get();
+
+        $lastInstallment = $transactions->max('installment') ?? 0;
+        $nextInstallment = $lastInstallment + 1;
+
+        $totalDebited = $transactions->sum('gross');
+        $remainingAmount = ($cover->gross_premium ?? 0) - $totalDebited;
+
         $endorsementNarration = $this->getEndorsementNarration($cover);
-        $actionable = $cover->status !== 'CANCELLED' && $cover->status !== 'EXPIRED';
+        $actionable = $cover->status !== 'CANCELLED'
+            && $cover->status !== 'EXPIRED'
+            && $remainingAmount > 0;
+
+        $documents = TreatyDocument::where([
+            'cover_no' => $cover->cover_no,
+            'endorsement_no' => $cover->endorsement_no,
+        ])->get();
+
+        $isTransaction = $transactions->count() > 0;
+        $totalDocuments = $documents->count();
+        $totalDebitItems = DebitNote::where([
+            'cover_no' => $cover->cover_no,
+            'endorsement_no' => $cover->endorsement_no
+        ])->withCount('items')->get()->sum('items_count');
+
+        $totalReinsurers = CoverRipart::where([
+            'cover_no' => $cover->cover_no,
+            'endorsement_no' =>  $cover->endorsement_no
+        ])->count();
+        $cedantTreatyCapacity = (float) CoverReinProp::where('cover_no', $cover->cover_no)
+            ->where('endorsement_no', $cover->endorsement_no)
+            ->sum('treaty_amount');
+
+        if ($cedantTreatyCapacity <= 0) {
+            $cedantTreatyCapacity = (float) ($cover->effective_sum_insured ?? $cover->total_sum_insured ?? $cover->sum_insured ?? $cover->treaty_capacity ?? 0);
+        }
+
+        $cedantGrossPremium = (float) CoverRipart::where([
+            'cover_no' => $cover->cover_no,
+            'endorsement_no' => $cover->endorsement_no,
+        ])->sum('total_premium');
+        $cedantClaimAmount = (float) CoverRipart::where([
+            'cover_no' => $cover->cover_no,
+            'endorsement_no' => $cover->endorsement_no,
+        ])->sum('claim_amt');
+        $cedantIsCoverNote = $cedantClaimAmount > $cedantGrossPremium;
 
         return view('cover.transactions.cover_transaction_profit_commission', [
             'endorsementNo' => $request->endorsementNo,
             'cover' => $cover,
             'customer' => $customer,
+            'transactions' => $transactions,
             'profitCommissions' => $profitCommissions,
             'endorsementNarration' => $endorsementNarration,
             'actionable' => $actionable,
+            'isTransaction' => $isTransaction,
+            'nextInstallment' => $nextInstallment,
+            'remainingAmount' => $remainingAmount,
+            'totalDebited' => $totalDebited,
+            'totalDocuments' => $totalDocuments,
+            'totalDebitItems' => $totalDebitItems,
+            'totalReinsurers' => $totalReinsurers,
+            'cedantTreatyCapacity' => $cedantTreatyCapacity,
+            'cedantIsCoverNote' => $cedantIsCoverNote,
+            'currentQuarterDisplay' => $currentQuarterDisplay,
         ]);
     }
 

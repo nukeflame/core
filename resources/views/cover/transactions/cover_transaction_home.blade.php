@@ -92,6 +92,22 @@
         .h-82 {
             height: 82% !important;
         }
+
+        #customerAccountsTable tbody tr.account-row-clickable {
+            cursor: pointer;
+            transition: background-color 0.15s ease;
+        }
+
+        #customerAccountsTable tbody tr.account-row-clickable:hover {
+            background-color: rgba(13, 110, 253, 0.06);
+        }
+
+        #customerAccountsTable .amount-cell {
+            text-align: right;
+            font-family: 'JetBrains Mono', 'Consolas', monospace;
+            font-weight: 600;
+            white-space: nowrap;
+        }
     </style>
 @endpush
 
@@ -274,8 +290,31 @@
                                                     }
 
                                                     $entryType = $account->entry_type_descr ?? '';
+                                                    $viewUrl = '';
+                                                    if (in_array($entryType, ['quarterly-figures', 'portfolio', 'adjust-commission'])) {
+                                                        $viewUrl = route('cover.transactions.quarterly-figures', [
+                                                            'coverNo' => $cover->cover_no,
+                                                            'refNo' => $account->reference,
+                                                            'endorsementNo' => $account->endorsement_no,
+                                                        ]);
+                                                    } elseif ($entryType === 'profit-commission') {
+                                                        $viewUrl = route('cover.transactions.profit-commission', [
+                                                            'coverNo' => $cover->cover_no,
+                                                            'refNo' => $account->reference,
+                                                            'endorsementNo' => $account->endorsement_no,
+                                                        ]);
+                                                    }
+                                                    $entryTypeBadgeClass = match ($entryType) {
+                                                        'quarterly-figures' => 'bg-primary',
+                                                        'profit-commission' => 'bg-success',
+                                                        'portfolio' => 'bg-dark',
+                                                        'adjust-commission' => 'bg-warning text-dark',
+                                                        default => 'bg-light text-dark',
+                                                    };
+                                                    $entryTypeLabel = Str::title(str_replace('-', ' ', $entryType));
                                                 @endphp
-                                                <tr>
+                                                <tr class="{{ $viewUrl ? 'account-row-clickable' : '' }}"
+                                                    @if ($viewUrl) data-view-url="{{ $viewUrl }}" @endif>
                                                     <td class="text-center">{{ $loop->iteration }}</td>
                                                     <td>
                                                         <span class="fw-medium text-primary">
@@ -288,8 +327,8 @@
                                                         </span>
                                                     </td>
                                                     <td>
-                                                        <span class="badge bg-light text-dark px-3">
-                                                            {{ Str::title($entryType) }}
+                                                        <span class="badge {{ $entryTypeBadgeClass }} px-3">
+                                                            {{ $entryTypeLabel }}
                                                         </span>
                                                     </td>
                                                     <td>
@@ -321,7 +360,7 @@
                                                         <span
                                                             class="badge bg-secondary">{{ $account->currency_code ?? 'KES' }}</span>
                                                     </td>
-                                                    <td>
+                                                    <td class="amount-cell">
                                                         {{ number_format($foreignNettAmount, 2) }}
                                                     </td>
                                                     <td>
@@ -452,6 +491,17 @@
                 $('#btnResetFilter').on('click', function() {
                     $('#filterForm')[0].reset();
                     window.location.href = window.location.pathname;
+                });
+
+                $('#customerAccountsTable tbody').on('click', 'tr[data-view-url]', function(e) {
+                    if ($(e.target).closest('a, button, input, select, textarea, .btn-group').length) {
+                        return;
+                    }
+
+                    var viewUrl = $(this).data('view-url');
+                    if (viewUrl) {
+                        window.location.href = viewUrl;
+                    }
                 });
             });
         </script>

@@ -7,6 +7,7 @@
                 <input type="hidden" name="cover_no" value="{{ $cover->cover_no ?? '' }}" />
                 <input type="hidden" name="endorsement_no" value="{{ $cover->endorsement_no ?? '' }}" />
                 <input type="hidden" name="type_of_bus" value="{{ $cover->type_of_bus ?? '' }}" />
+                <input type="hidden" name="entry_type_descr" value="quarterly-figures" />
                 <input type="hidden" name="installment" value="{{ $nextInstallment ?? 1 }}" />
                 <input type="hidden" name="amount" value="{{ number_format($installmentAmount ?? 0, 2, '.', '') }}" />
                 <input type="hidden" name="treatyClasses" value="{{ json_encode($treatyClasses ?? []) }}"
@@ -850,6 +851,8 @@
                     const self = this;
                     const coverNo = $('input[name="cover_no"]').val();
                     const postingYear = this.$el.postingYear.val();
+                    const entryTypeDescr = this.$el.form.find('input[name="entry_type_descr"]').val() ||
+                        'quarterly-figures';
 
                     if (!coverNo || !quarter) {
                         return;
@@ -864,7 +867,8 @@
                             data: {
                                 cover_no: coverNo,
                                 quarter: quarter,
-                                posting_year: postingYear
+                                posting_year: postingYear,
+                                entry_type_descr: entryTypeDescr
                             },
                             headers: {
                                 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
@@ -1889,8 +1893,7 @@
                             timeout: 30000
                         })
                         .done(function(response) {
-                            console.log(response)
-                            // self.handleSuccess(response);
+                            self.handleSuccess(response);
                         })
                         .fail(function(xhr, status, error) {
                             self.handleError(xhr, status, error);
