@@ -140,9 +140,8 @@
                         <h5 class="card-title mb-0">Schedule Headers List</h5>
                         <small class="text-muted">View and manage schedule headers</small>
                     </div>
-                    <button type="button" class="btn btn-primary btn-sm" id="addScheduleHeaderBtn"
-                        data-bs-toggle="modal" data-bs-target="#addScheduleHeaderModal"
-                        aria-label="Add new schedule header">
+                    <button type="button" class="btn btn-primary btn-sm" id="addScheduleHeaderBtn" data-bs-toggle="modal"
+                        data-bs-target="#addScheduleHeaderModal" aria-label="Add new schedule header">
                         <i class='bx bx-plus me-1'></i>
                         Add Schedule Header
                     </button>
@@ -150,12 +149,16 @@
                 <div class="card-body">
                     <div class="table-responsive">
                         <table class="table text-nowrap table-striped table-hover" id="scheduleHeaderTable"
-                            aria-label="Schedule headers table">
+                            aria-label="Schedule headers table" style="width:100%">
                             <thead>
                                 <tr>
-                                    @foreach ($quote_schedule_columns ?? [] as $column)
-                                        <th scope="col">{{ ucwords(str_replace('_', ' ', $column)) }}</th>
-                                    @endforeach
+                                    <th style="width: 3%;">ID</th>
+                                    <th>Schedule Title</th>
+                                    <th>Class Group</th>
+                                    <th>Class Name</th>
+                                    <th>Description</th>
+                                    <th>Status</th>
+                                    <th>Action</th>
                                 </tr>
                             </thead>
                             <tbody></tbody>
@@ -180,8 +183,8 @@
                         <div class="row g-3">
                             <div class="col-md-6">
                                 <label for="sh-name" class="form-label">Name <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control" id="sh-name" name="name" maxlength="100"
-                                    required>
+                                <input type="text" class="form-control" id="sh-name" name="name"
+                                    maxlength="100" required>
                             </div>
                             <div class="col-md-6">
                                 <label for="sh-business-type" class="form-label">Business Type</label>
@@ -317,7 +320,6 @@
 
             const tableSelector = '#scheduleHeaderTable';
             const dataUrl = @json(route('bd.quote.schedule.header.data'));
-            const tableColumns = @json($quote_schedule_columns ?? []);
             const addModalSelector = '#addScheduleHeaderModal';
             const addFormSelector = '#addScheduleHeaderForm';
             const businessTypeSelector = '#sh-business-type';
@@ -325,40 +327,122 @@
             const classSelector = '#sh-class';
             const classGroupSelector = '#sh-class-group';
             const getClassUrl = @json(route('get_class'));
+            const scheduleHeaderFormUrl = @json(route('schedule.header.form'));
+            const deleteScheduleHeaderUrl = @json(route('delete.schedule.header'));
+            const csrfToken = @json(csrf_token());
+            const classGroupMap = @json($classGroups->pluck('group_name', 'group_code'));
+            const classNameMap = @json($classes->pluck('class_name', 'class_code'));
 
             $(function() {
                 if (!$.fn.DataTable) {
                     return;
                 }
 
-                const datatableColumns = tableColumns.map(function(column) {
-                    return {
-                        data: column,
-                        name: column,
+                const datatableColumns = [{
+                        data: 'id',
+                        name: 'id',
+                        defaultContent: '-'
+                    },
+                    {
+                        data: null,
+                        name: 'schedule_title',
                         defaultContent: '-',
-                        render: function(data, type) {
-                            if (data === null || typeof data === 'undefined' || data === '') {
+                        render: function(data, type, row) {
+                            return row.schedule_title || row.name || row.header_name || row
+                                .clause_title ||
+                                '-';
+                        }
+                    },
+                    {
+                        data: null,
+                        name: 'class_group',
+                        defaultContent: '-',
+                        render: function(data, type, row) {
+                            const classGroupValue = (row.class_group || '').toString().trim();
+                            const classGroupCode = (row.class_group_code || '').toString().trim();
+                            const normalizedGroupValue = classGroupValue.toUpperCase();
+                            const normalizedGroupCode = classGroupCode.toUpperCase();
+
+                            return row.class_group_name ||
+                                classGroupMap[classGroupValue] ||
+                                classGroupMap[normalizedGroupValue] ||
+                                classGroupMap[classGroupCode] ||
+                                classGroupMap[normalizedGroupCode] ||
+                                classGroupValue ||
+                                classGroupCode ||
+                                '-';
+                        }
+                    },
+                    {
+                        data: null,
+                        name: 'class_name',
+                        defaultContent: '-',
+                        render: function(data, type, row) {
+                            const classCode = (row.class_code || row.class || '').toString().trim();
+                            const className = (row.class_name || '').toString().trim() ||
+                                classNameMap[classCode] ||
+                                classNameMap[classCode.toUpperCase()] ||
+                                '';
+
+                            if (classCode && className && classCode !== className) {
+                                return `${classCode} - ${className}`;
+                            }
+
+                            return className || classCode || '-';
+                        }
+                    },
+                    {
+                        data: null,
+                        name: 'description',
+                        defaultContent: '-',
+                        render: function(data, type, row) {
+                            return row.description || row.data_determinant || '-';
+                        }
+                    },
+                    {
+                        data: null,
+                        name: 'status',
+                        orderable: false,
+                        searchable: false,
+                        defaultContent: '-',
+                        render: function(data, type, row) {
+                            const status = (row.status || '').toString().toUpperCase();
+                            if (status === 'A' || status === 'ACTIVE') {
+                                return '<span class="badge bg-success-gradient">Active</span>';
+                            }
+                            if (status) {
+                                return '<span class="badge bg-secondary-gradient">Inactive</span>';
+                            }
+                            return '-';
+                        }
+                    },
+                    {
+                        data: null,
+                        name: 'action',
+                        orderable: false,
+                        searchable: false,
+                        defaultContent: '-',
+                        render: function(data, type, row) {
+                            if (row.action) {
+                                return row.action;
+                            }
+
+                            const rowId = (row.id || '').toString().trim();
+                            if (!rowId) {
                                 return '-';
                             }
 
-                            if (type === 'display') {
-                                return $('<div>').text(String(data)).html();
-                            }
-
-                            return data;
+                            return `
+                                <div class="action-buttons">
+                                    <button type="button" class="btn btn-outline-dark btn-sm action-btn edit-schedule-header" data-id="${rowId}">Edit</button>
+                                    <button type="button" class="btn btn-outline-danger btn-sm action-btn remove-schedule-header" data-id="${rowId}" data-title="${(row.schedule_title || row.name || '').toString().trim()}">Remove</button>
+                                </div>
+                            `;
                         }
-                    };
-                });
+                    }
+                ];
 
-                if (!datatableColumns.length) {
-                    toastr.error('No columns found for quote schedule headers.');
-                    return;
-                }
-
-                const idIndex = tableColumns.indexOf('id');
-                const defaultOrder = idIndex >= 0 ? [idIndex, 'desc'] : [0, 'asc'];
-
-                $(tableSelector).DataTable({
+                const dataTable = $(tableSelector).DataTable({
                     processing: true,
                     serverSide: true,
                     ajax: {
@@ -369,8 +453,54 @@
                         }
                     },
                     columns: datatableColumns,
-                    order: [defaultOrder],
+                    order: [
+                        [0, 'asc']
+                    ],
                     pageLength: 25
+                });
+
+                $(document).on('click', '.edit-schedule-header', function() {
+                    const id = ($(this).data('id') || '').toString().trim();
+                    if (!id) {
+                        return;
+                    }
+                    window.location.href = `${scheduleHeaderFormUrl}?id=${encodeURIComponent(id)}`;
+                });
+
+                $(document).on('click', '.remove-schedule-header', function() {
+                    const id = ($(this).data('id') || '').toString().trim();
+                    const title = ($(this).data('title') || '').toString().trim();
+                    if (!id) {
+                        return;
+                    }
+
+                    const label = title ? ` "${title}"` : '';
+                    if (!window.confirm(`Delete schedule header${label}?`)) {
+                        return;
+                    }
+
+                    $.ajax({
+                        url: deleteScheduleHeaderUrl,
+                        type: 'POST',
+                        dataType: 'json',
+                        data: {
+                            _token: csrfToken,
+                            id: id
+                        },
+                        success: function(resp) {
+                            if (resp && resp.success) {
+                                toastr.success(resp.message ||
+                                    'Schedule header deleted successfully.');
+                                dataTable.ajax.reload(null, false);
+                                return;
+                            }
+                            toastr.error((resp && resp.message) ||
+                                'Failed to delete schedule header.');
+                        },
+                        error: function() {
+                            toastr.error('Failed to delete schedule header.');
+                        }
+                    });
                 });
 
                 function syncFacFieldRequirements() {
@@ -408,9 +538,12 @@
                                 if (!item || !item.class_code) {
                                     return;
                                 }
-                                const label = item.class_name ? `${item.class_code} - ${item.class_name}` :
+                                const label = item.class_name ?
+                                    `${item.class_code} - ${item.class_name}` :
                                     item.class_code;
-                                $class.append(`<option value="${item.class_code}">${label}</option>`);
+                                $class.append(
+                                    `<option value="${item.class_code}">${label}</option>`
+                                );
                             });
                         }
                     });

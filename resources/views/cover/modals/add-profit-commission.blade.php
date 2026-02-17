@@ -63,56 +63,33 @@
                                                     </select>
                                                 </div>
 
-                                                <div class="col-md-8"></div>
+                                                <div class="col-md-12">
+                                                    <div class="row">
+                                                        <div class="col-md-4">
+                                                            <label class="form-label" for="posting_date">
+                                                                Posting Date <span class="text-danger">*</span>
+                                                            </label>
+                                                            <input type="date" name="posting_date" id="posting_date"
+                                                                class="form-control" value="{{ date('Y-m-d') }}"
+                                                                required />
+                                                        </div>
 
-                                                <div class="col-md-4">
-                                                    <label class="form-label" for="posting_quarter">
-                                                        Posting Quarter <span class="text-danger">*</span>
-                                                    </label>
-                                                    <div class="cover-card">
-                                                        <select name="posting_quarter" id="posting_quarter"
-                                                            class="form-select" required>
-                                                            <option value="">Select Quarter</option>
-                                                            <option value="Q1"
-                                                                {{ date('n') <= 3 ? 'selected' : '' }}>
-                                                                Q1 - First Quarter
-                                                            </option>
-                                                            <option value="Q2"
-                                                                {{ date('n') >= 4 && date('n') <= 6 ? 'selected' : '' }}>
-                                                                Q2 - Second Quarter
-                                                            </option>
-                                                            <option value="Q3"
-                                                                {{ date('n') >= 7 && date('n') <= 9 ? 'selected' : '' }}>
-                                                                Q3 - Third Quarter
-                                                            </option>
-                                                            <option value="Q4"
-                                                                {{ date('n') >= 10 ? 'selected' : '' }}>
-                                                                Q4 - Fourth Quarter
-                                                            </option>
-                                                        </select>
+                                                        <div class="col-md-4">
+                                                            <label class="form-label" for="profit_comm_rate">Profit
+                                                                Commission
+                                                                Rate
+                                                                (%)</label>
+                                                            <input type="number" name="profit_comm_rate"
+                                                                id="profit_comm_rate" class="form-control"
+                                                                step="0.01"
+                                                                value="{{ number_format($cover->profit_comm_rate, 2) }}"
+                                                                data-default="{{ number_format($cover->profit_comm_rate, 2) }}"
+                                                                min="0" max="100" />
+                                                        </div>
                                                     </div>
                                                 </div>
 
-                                                <div class="col-md-4">
-                                                    <label class="form-label" for="posting_date">
-                                                        Posting Date <span class="text-danger">*</span>
-                                                    </label>
-                                                    <input type="date" name="posting_date" id="posting_date"
-                                                        class="form-control" value="{{ date('Y-m-d') }}" required />
-                                                </div>
-
-                                                <div class="col-md-4"></div>
-
-                                                <div class="col-md-4">
-                                                    <label class="form-label" for="profit_comm_rate">Profit Commission
-                                                        Rate
-                                                        (%)</label>
-                                                    <input type="number" name="profit_comm_rate" id="profit_comm_rate"
-                                                        class="form-control" step="0.01"
-                                                        value="{{ number_format($cover->profit_comm_rate, 2) }}"
-                                                        data-default="{{ number_format($cover->profit_comm_rate, 2) }}"
-                                                        min="0" max="100" />
-                                                </div>
+                                                <div class="col-md-12"></div>
                                             </div>
                                         </div>
                                     </div>
@@ -200,9 +177,6 @@
                                             class="form-control form-control-sm text-end" step="0.01"
                                             min="0.01" value="{{ $defaultExchangeRate }}"
                                             data-default="{{ $defaultExchangeRate }}" required />
-                                        <small id="pc_exchange_rate_hint" class="text-muted d-block mt-1">
-                                            Auto-fetched from today's rate. You can edit only when no daily rate exists.
-                                        </small>
                                     </div>
                                 </div>
                             </div>
@@ -1672,13 +1646,11 @@
                     let targetDate = '';
 
                     if (parseInt(year) === currentYear && quarter === currentQuarter) {
-                        // If it's the current quarter of current year, use today's date
                         const y = today.getFullYear();
                         const m = String(today.getMonth() + 1).padStart(2, '0');
                         const d = String(today.getDate()).padStart(2, '0');
                         targetDate = `${y}-${m}-${d}`;
                     } else {
-                        // Otherwise, use the last day of the quarter
                         const quarterEndDates = {
                             'Q1': '-03-31',
                             'Q2': '-06-30',

@@ -36,7 +36,8 @@ class BdScheduleController extends Controller
         $classes = ReinsClass::where('status', 'A')->get();
         $trans_type = 'NEW';
         $classGroups = ClassGroup::get(['group_code', 'group_name']);
-        $class = Classes::where('status', 'A')->get(['class_code', 'class_name', 'status']);
+        $class = Classes::where('status', 'A')->get(['class_code', 'class_name', 'class_group_code', 'status']);
+        $businessTypes = BusinessType::get(['bus_type_id', 'bus_type_name']);
 
         return view('business_development.settings.slip_template_data', [
             'treaty_type' => $request->treaty_type,
@@ -44,7 +45,8 @@ class BdScheduleController extends Controller
             'classes' => $classes,
             'trans_type' => $trans_type,
             'classGroups' => $classGroups,
-            'class' => $class
+            'class' => $class,
+            'businessTypes' => $businessTypes,
         ]);
     }
 
@@ -364,6 +366,359 @@ class BdScheduleController extends Controller
             ->rawColumns(['status', 'action', 'clause_wording'])
             ->make(true);
     }
+
+    public function slipTemplateDatatable(Request $request)
+    {
+        $query = DB::table('slip_templates');
+        $columns = Schema::getColumnListing('slip_templates');
+        $keyColumn = collect(['id', 'slip_id', 'clause_id'])->first(function ($column) use ($columns) {
+            return in_array($column, $columns, true);
+        });
+
+        if ($request->filled('treaty_type')) {
+            $treatyType = strtoupper(trim((string) $request->input('treaty_type')));
+            $query->where(function ($q) use ($treatyType) {
+                $q->where('type_of_bus', $treatyType)
+                    ->orWhere('treaty_type', $treatyType)
+                    ->orWhere('type_of_bus', 'like', '%"' . $treatyType . '"%')
+                    ->orWhere('type_of_bus', 'like', '%' . $treatyType . '%');
+            });
+        }
+
+        $rows = $query->get();
+        $businessTypeMap = BusinessType::get(['bus_type_id', 'bus_type_name'])->keyBy('bus_type_id');
+
+        $classMap = Classes::select(['class_code', 'class_name', 'class_group_code'])
+            ->get()
+            ->keyBy('class_code');
+        $groupMap = ClassGroup::select(['group_code', 'group_name'])
+            ->get()
+            ->keyBy('group_code');
+
+        $normalized = collect($rows)->map(function ($row, $index) use ($classMap, $groupMap, $keyColumn, $businessTypeMap) {
+            $status = strtoupper((string) ($row->status ?? 'A'));
+            $classCode = $row->class_code ?? $row->rein_class ?? $row->class ?? null;
+            $classRecord = $classCode && isset($classMap[$classCode]) ? $classMap[$classCode] : null;
+            $rawGroupCode = $row->class_group_code ?? null;
+            $rawGroupName = $row->class_group ?? $row->class_group_name ?? $row->group_name ?? null;
+            $groupCode = $rawGroupCode ?: ($classRecord->class_group_code ?? null);
+
+            if (!$groupCode && $rawGroupName) {
+                $matchedGroup = $groupMap->first(function ($group) use ($rawGroupName) {
+                    return strtolower(trim((string) $group->group_name)) === strtolower(trim((string) $rawGroupName));
+                });
+                $groupCode = $matchedGroup->group_code ?? null;
+            }
+
+            $groupRecord = $groupCode && isset($groupMap[$groupCode]) ? $groupMap[$groupCode] : null;
+            $recordKey = $keyColumn ? ($row->{$keyColumn} ?? null) : null;
+            $rawTypeOfBus = $row->type_of_bus ?? null;
+            $typeOfBusValues = [];
+
+            if (is_array($rawTypeOfBus)) {
+                $typeOfBusValues = $rawTypeOfBus;
+            } elseif (is_string($rawTypeOfBus) && $rawTypeOfBus !== '') {
+                $decoded = json_decode($rawTypeOfBus, true);
+                if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                    $typeOfBusValues = $decoded;
+                } else {
+                    $typeOfBusValues = array_map('trim', explode(',', $rawTypeOfBus));
+                }
+            }
+
+            if (empty($typeOfBusValues) && !empty($row->treaty_type)) {
+                $typeOfBusValues = [(string) $row->treaty_type];
+            }
+
+            $typeOfBusValues = collect($typeOfBusValues)
+                ->map(fn($item) => strtoupper(trim((string) $item)))
+                ->filter()
+                ->unique()
+                ->values()
+                ->all();
+
+            $typeOfBusDisplay = collect($typeOfBusValues)->map(function ($id) use ($businessTypeMap) {
+                return $businessTypeMap[$id]->bus_type_name ?? $id;
+            })->implode(', ');
+
+            return (object) [
+                'id' => $row->id ?? $row->slip_id ?? $row->clause_id ?? ($index + 1),
+                'record_key' => $recordKey,
+                'schedule_title' => $row->schedule_title ?? $row->title ?? $row->clause_title ?? 'Policy Wording',
+                'class_group_code' => $groupCode,
+                'class_code' => $classCode,
+                'class_group' => $groupRecord->group_name ?? $row->class_group ?? $row->class_group_name ?? $row->group_name ?? '-',
+                'class_name' => $classRecord->class_name ?? $row->class_name ?? $row->class ?? '-',
+                'description' => $row->description ?? '-',
+                'wording' => $row->wording ?? $row->clause_wording ?? $row->details ?? '',
+                'type_of_bus' => $typeOfBusDisplay,
+                'type_of_bus_values' => $typeOfBusValues,
+                'status' => in_array($status, ['A', 'ACTIVE'], true) ? 'A' : 'I',
+                'updated_at' => $row->updated_at ?? null,
+            ];
+        });
+
+        $lastUpdated = $normalized->pluck('updated_at')->filter()->sort()->last();
+
+        $meta = [
+            'total_templates' => $normalized->count(),
+            'class_groups' => $normalized->pluck('class_group')->filter()->unique()->count(),
+            'class_names' => $normalized->pluck('class_name')->filter()->unique()->count(),
+            'business_types' => $normalized
+                ->pluck('type_of_bus_values')
+                ->flatten()
+                ->filter()
+                ->unique()
+                ->count(),
+            'active_templates' => $normalized->where('status', 'A')->count(),
+            'inactive_templates' => $normalized->where('status', 'I')->count(),
+            'last_updated' => $lastUpdated ? (string) $lastUpdated : null,
+        ];
+
+        return dataTables::of($normalized)
+            ->addIndexColumn()
+            ->addColumn('status_badge', function ($row) {
+                if (($row->status ?? 'I') === 'A') {
+                    return '<span class="badge bg-success-gradient">Active</span>';
+                }
+                return '<span class="badge bg-secondary-gradient">Inactive</span>';
+            })
+            ->addColumn('action', function ($row) {
+                $id = (int) ($row->record_key ?? 0);
+                $scheduleTitle = e((string) ($row->schedule_title ?? ''));
+                $classGroupCode = e((string) ($row->class_group_code ?? ''));
+                $classCode = e((string) ($row->class_code ?? ''));
+                $classGroup = e((string) ($row->class_group ?? ''));
+                $className = e((string) ($row->class_name ?? ''));
+                $description = e((string) ($row->description ?? ''));
+                $wording = e((string) ($row->wording ?? ''));
+                $typeOfBus = e((string) ($row->type_of_bus ?? ''));
+                $status = e((string) ($row->status ?? 'A'));
+
+                if ($id <= 0) {
+                    return '<span class="text-muted">N/A</span>';
+                }
+
+                return
+                    '<button type="button" class="btn btn-outline-dark btn-sm action-btn edit-slip-template" ' .
+                    'data-id="' . $id . '" ' .
+                    'data-schedule-title="' . $scheduleTitle . '" ' .
+                    'data-class-group-code="' . $classGroupCode . '" ' .
+                    'data-class-code="' . $classCode . '" ' .
+                    'data-class-group="' . $classGroup . '" ' .
+                    'data-class-name="' . $className . '" ' .
+                    'data-description="' . $description . '" ' .
+                    'data-wording="' . $wording . '" ' .
+                    'data-type-of-bus="' . $typeOfBus . '" ' .
+                    'data-status="' . $status . '">Edit</button> ' .
+                    '<button type="button" class="btn btn-outline-danger btn-sm action-btn remove-slip-template" ' .
+                    'data-id="' . $id . '" ' .
+                    'data-schedule-title="' . $scheduleTitle . '">Remove</button>';
+            })
+            ->rawColumns(['status_badge', 'action'])
+            ->with(['meta' => $meta])
+            ->make(true);
+    }
+
+    public function storeSlipTemplate(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'id' => 'nullable|integer|min:1',
+            'schedule_title' => 'required|string|max:150',
+            'class_group_code' => 'nullable|string|max:20',
+            'class_code' => 'nullable|string|max:20',
+            'description' => 'nullable|string|max:255',
+            'wording' => 'nullable|string',
+            'status' => 'required|string|in:A,I',
+            'type_of_bus' => 'nullable',
+            'type_of_bus.*' => 'nullable|string|max:20',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed.',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        if (!Schema::hasTable('slip_templates')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Slip template table is not available.',
+            ], 500);
+        }
+
+        $columns = Schema::getColumnListing('slip_templates');
+        $keyColumn = collect(['id', 'slip_id', 'clause_id'])->first(function ($column) use ($columns) {
+            return in_array($column, $columns, true);
+        });
+        $id = $request->input('id');
+        $defaultTreatyType = 'FAC';
+        $submittedTypeOfBus = $request->input('type_of_bus', []);
+        if (!is_array($submittedTypeOfBus)) {
+            $submittedTypeOfBus = [$submittedTypeOfBus];
+        }
+
+        $resolvedTypeOfBusValues = collect($submittedTypeOfBus)
+            ->map(fn($item) => strtoupper(trim((string) $item)))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        $resolvedTreatyType = strtoupper(trim((string) ($request->input('treaty_type') ?: ($resolvedTypeOfBusValues[0] ?? $defaultTreatyType))));
+        $resolvedTypeOfBusValues = !empty($resolvedTypeOfBusValues) ? $resolvedTypeOfBusValues : [$resolvedTreatyType];
+
+        $classGroupCode = (string) $request->input('class_group_code', '');
+        $classCode = (string) $request->input('class_code', '');
+
+        $classGroupName = null;
+        if ($classGroupCode !== '') {
+            $classGroupName = ClassGroup::where('group_code', $classGroupCode)->value('group_name');
+        }
+
+        $className = null;
+        if ($classCode !== '') {
+            $className = Classes::where('class_code', $classCode)->value('class_name');
+        }
+        $actor = Auth::user()->user_name ?? Auth::user()->name ?? Auth::user()->email ?? 'system';
+
+        $payload = [
+            'schedule_title' => $request->input('schedule_title'),
+            'class_group_code' => $classGroupCode !== '' ? $classGroupCode : null,
+            'class_code' => $classCode !== '' ? $classCode : null,
+            'rein_class' => $classCode !== '' ? $classCode : null,
+            'class_group' => $classGroupName,
+            'class_name' => $className,
+            'description' => $request->input('description'),
+            'wording' => $request->input('wording'),
+            'status' => $request->input('status', 'A'),
+            'type_of_bus' => json_encode($resolvedTypeOfBusValues),
+            'treaty_type' => $resolvedTreatyType,
+            'title' => $request->input('schedule_title'),
+            'clause_title' => $request->input('schedule_title'),
+            'updated_by' => $actor,
+        ];
+
+        if (!$id) {
+            $payload['created_by'] = $actor;
+        }
+
+        if (in_array('updated_at', $columns, true)) {
+            $payload['updated_at'] = now();
+        }
+
+        if (!$id && in_array('created_at', $columns, true)) {
+            $payload['created_at'] = now();
+        }
+
+        $payload = collect($payload)
+            ->filter(function ($value, $key) use ($columns) {
+                return in_array($key, $columns, true);
+            })
+            ->all();
+
+        DB::beginTransaction();
+        try {
+            if ($id && $keyColumn) {
+                $exists = DB::table('slip_templates')->where($keyColumn, $id)->exists();
+                if (!$exists) {
+                    DB::rollBack();
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Slip template not found.',
+                    ], 404);
+                }
+
+                DB::table('slip_templates')->where($keyColumn, $id)->update($payload);
+                $recordId = (int) $id;
+                $message = 'Slip template updated successfully.';
+            } else {
+                if ($keyColumn === 'id') {
+                    $recordId = (int) DB::table('slip_templates')->insertGetId($payload);
+                } else {
+                    DB::table('slip_templates')->insert($payload);
+                    $recordId = 0;
+                    if ($keyColumn) {
+                        $recordId = (int) DB::table('slip_templates')->max($keyColumn);
+                    }
+                }
+                $message = 'Slip template created successfully.';
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'id' => $recordId,
+            ]);
+        } catch (\Throwable $e) {
+            DB::rollBack();
+
+            return response()->json([
+                'success' => false,
+                'message' => config('app.debug') ? $e->getMessage() : 'Failed to save slip template.',
+            ], 500);
+        }
+    }
+
+    public function deleteSlipTemplate(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'id' => 'required|integer|min:1',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed.',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $id = (int) $request->input('id');
+        $columns = Schema::getColumnListing('slip_templates');
+        $keyColumn = collect(['id', 'slip_id', 'clause_id'])->first(function ($column) use ($columns) {
+            return in_array($column, $columns, true);
+        });
+
+        if (!$keyColumn) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Could not detect slip template key column.',
+            ], 500);
+        }
+
+        DB::beginTransaction();
+        try {
+            $deleted = DB::table('slip_templates')->where($keyColumn, $id)->delete();
+
+            if (!$deleted) {
+                DB::rollBack();
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Slip template not found.',
+                ], 404);
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Slip template removed successfully.',
+            ]);
+        } catch (\Throwable $e) {
+            DB::rollBack();
+
+            return response()->json([
+                'success' => false,
+                'message' => config('app.debug') ? $e->getMessage() : 'Failed to remove slip template.',
+            ], 500);
+        }
+    }
+
     // public function save_schedule_template(Request $request)
     // {
 

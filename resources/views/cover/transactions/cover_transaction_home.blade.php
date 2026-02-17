@@ -461,7 +461,8 @@
 
             var table = $('#customerAccountsTable').DataTable({
                 processing: true,
-                pageLength: 25,
+                pageLength: 1,
+                lengthChange: false,
                 order: [
                     [10, 'desc']
                 ],

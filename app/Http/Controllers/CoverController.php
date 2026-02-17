@@ -1722,15 +1722,24 @@ class CoverController extends Controller
             $validatedData = $request->toArray();
             $entryTypeDescr = $this->resolveEntryTypeDescr($validatedData);
             $postingYear = (int) ($validatedData['posting_year'] ?? Carbon::now()->year);
-            $existingQuarter = CustomerAccDet::where('endorsement_no', $validatedData['endorsement_no'])
-                ->where('quarter', $validatedData['posting_quarter'])
+            $postingQuarter = $this->resolvePostingQuarter($validatedData, $entryTypeDescr);
+
+            $existingQuarterQuery = CustomerAccDet::where('endorsement_no', $validatedData['endorsement_no'])
                 ->where('account_year', $postingYear)
-                ->where('entry_type_descr', $entryTypeDescr)
-                ->exists();
+                ->where('entry_type_descr', $entryTypeDescr);
+
+            if ($entryTypeDescr === 'quarterly-figures' && ! empty($postingQuarter)) {
+                $existingQuarterQuery->where('quarter', $postingQuarter);
+            }
+
+            $existingQuarter = $existingQuarterQuery->exists();
 
             if ($existingQuarter) {
                 $entryTypeLabel = ucwords(str_replace('-', ' ', $entryTypeDescr));
-                throw new BusinessRuleException("{$entryTypeLabel} for {$validatedData['posting_quarter']} {$postingYear} has already been generated for this endorsement.");
+                $postingPeriod = $entryTypeDescr === 'quarterly-figures' && ! empty($postingQuarter)
+                    ? "{$postingQuarter} {$postingYear}"
+                    : (string) $postingYear;
+                throw new BusinessRuleException("{$entryTypeLabel} for {$postingPeriod} has already been generated for this endorsement.");
             }
 
             $cover = CoverRegister::where('endorsement_no', $validatedData['endorsement_no'])->lockForUpdate()->first();
@@ -1835,6 +1844,7 @@ class CoverController extends Controller
         $premiumTaxRate = (float) ($validatedData['premium_levy'] ?? 0);
         $commissionRate = (float) ($coverRegister->comm_rate ?? 0);
         $entryTypeDescr = $this->resolveEntryTypeDescr($validatedData);
+        $postingQuarter = $this->resolvePostingQuarter($validatedData, $entryTypeDescr);
 
 
         $enhancedItems = $this->enhanceItemsWithDeductions(
@@ -1863,7 +1873,7 @@ class CoverController extends Controller
             'currencyRate' => (float) ($validatedData['today_currency'] ?? ($coverRegister->currency_rate ?? 1)),
             'entryTypeDescr' => $entryTypeDescr,
             'postingYear' => $validatedData['posting_year'],
-            'postingQuarter' => $validatedData['posting_quarter'],
+            'postingQuarter' => $postingQuarter ?? '',
             'postingDate' => $validatedData['posting_date'],
             'brokerageRate' => $brokerageRate,
             'comments' => $validatedData['comments'] ?? '',
@@ -2001,7 +2011,7 @@ class CoverController extends Controller
         $custAccount->reference = $debitData['reference'];
         $custAccount->account_year = $postingYear;
         $custAccount->account_month = $postingMonth;
-        $custAccount->quarter = $debitData['postingQuarter'] ?? null;
+        $custAccount->quarter = ! empty($debitData['postingQuarter']) ? $debitData['postingQuarter'] : null;
         $custAccount->line_no = 1;
         $custAccount->cheque_no = ' ';
         $custAccount->cheque_date = null;
@@ -2037,7 +2047,7 @@ class CoverController extends Controller
 
     private function generateDebitReference(array $debitData, CoverRegister $coverRegister): string
     {
-        $quarter = $debitData['postingQuarter'] ?? 'Q1';
+        $quarter = ! empty($debitData['postingQuarter']) ? $debitData['postingQuarter'] : '';
         $year = $debitData['postingYear'] ?? $this->_year;
         $prefix = $this->getDebitReferencePrefix($coverRegister->treaty_type);
         $classCode = $coverRegister->type_of_bus;
@@ -2182,6 +2192,7 @@ class CoverController extends Controller
         $premiumTaxRate = (float) ($validatedData['premium_levy'] ?? 0);
         $commissionRate = (float) ($coverRegister->comm_rate ?? 0);
         $entryTypeDescr = $this->resolveEntryTypeDescr($validatedData);
+        $postingQuarter = $this->resolvePostingQuarter($validatedData, $entryTypeDescr);
 
         $enhancedItems = $this->enhanceItemsWithDeductions(
             $validatedData['items'] ?? [],
@@ -2209,7 +2220,7 @@ class CoverController extends Controller
             'currencyRate' => (float) ($validatedData['today_currency'] ?? ($coverRegister->currency_rate ?? 1)),
             'entryTypeDescr' => $entryTypeDescr,
             'postingYear' => $validatedData['posting_year'],
-            'postingQuarter' => $validatedData['posting_quarter'],
+            'postingQuarter' => $postingQuarter ?? '',
             'postingDate' => $validatedData['posting_date'],
             'brokerageRate' => $brokerageRate,
             'comments' => $validatedData['comments'] ?? '',
@@ -2248,6 +2259,22 @@ class CoverController extends Controller
             'profit-commission' => 'profit-commission',
             default => 'quarterly-figures',
         };
+    }
+
+    private function resolvePostingQuarter(array $validatedData, string $entryTypeDescr): ?string
+    {
+        $postingQuarter = strtoupper(trim((string) ($validatedData['posting_quarter'] ?? '')));
+        if ($postingQuarter !== '') {
+            return $postingQuarter;
+        }
+
+        if ($entryTypeDescr === 'quarterly-figures') {
+            return ! empty($validatedData['posting_date'])
+                ? 'Q' . Carbon::parse($validatedData['posting_date'])->quarter
+                : 'Q' . Carbon::now()->quarter;
+        }
+
+        return null;
     }
 
     public function saveAttachment(Request $request)

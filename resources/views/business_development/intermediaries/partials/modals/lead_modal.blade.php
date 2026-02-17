@@ -1344,10 +1344,10 @@
 
     .reinsurer-selection-panel {
         background: #f8f9fa;
-        padding: 1rem;
+        padding: 1px;
         border-radius: 8px;
         border: 1px solid #dee2e6;
-        margin-bottom: 1.5rem;
+        margin-bottom: 1rem;
     }
 
     .selected-reinsurers-section {
