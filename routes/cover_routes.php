@@ -52,6 +52,7 @@ Route::group(['prefix' => 'customer', 'middleware' => ['auth', 'check.first.logi
     Route::get('/treatyenquirypipe-data', [LeadsOnboardingController::class, 'TypeOfBusCoverDatatable'])->name('treatyenquiryLbc.data');
 
     Route::post('/cover/clear_cedant_data', [CustomerController::class, 'clearCedantData'])->name('customer.clear_cedant_data');
+    Route::post('/cover/delete_customer_data', [CustomerController::class, 'deleteCustomerData'])->name('customer.delete_customer_data');
 });
 
 Route::group(['prefix' => 'cover', 'middleware' => ['auth', 'check.first.login']], function () {
@@ -257,11 +258,51 @@ Route::group(['prefix' => 'cover', 'middleware' => ['auth', 'check.first.login']
 Route::group(
     ['prefix' => 'settings', 'middleware' => ['auth', 'check.first.login']],
     function () {
-        Route::get('/business-development/schedule-headers', [BdScheduleController::class, 'bd_schedule_info'])->name('bd.schedule-headers.index');
-        Route::redirect('/bd.schedule.info', '/business-development/schedule-headers', 301)->name('bd.schedule.info');
+        Route::get('/business-development/schedule-headers', [BdScheduleController::class, 'getScheduleHeaders'])->name('bd.schedule-headers.index');
+        Route::get('/business-development/risk-particulars', [BdScheduleController::class, 'getRiskParticulars'])->name('bd.risk-particulars');
+        Route::get('/business-development/slip-templates', [BdScheduleController::class, 'getSlipTemplates'])->name('bd-schedule-slip-template');
         Route::get('/schedule-header-form', [BdScheduleController::class, 'bd_schedule_add_form'])->name('schedule.header.form');
         Route::post('/bd-schedule-header-store', [BdScheduleController::class, 'bd_schedule_header_add'])->name('bd.schedule.header.store');
-        Route::get('bd-schedule-header-data', [BdScheduleController::class, 'bd_schedule_header_data'])->name('bd.schedule.header.data');
+        Route::get('/bd-schedule-header-data', [BdScheduleController::class, 'bd_schedule_header_data'])->name('bd.schedule.header.data');
+        Route::get('/bd-quote-schedule-header-data', [BdScheduleController::class, 'bd_quote_schedule_header_data'])->name('bd.quote.schedule.header.data');
         Route::post('/delete-schedule-header', [BdScheduleController::class, 'delete_schedule_header'])->name('delete.schedule.header');
     }
 );
+
+
+Route::prefix('docs-setup')->middleware(['auth', 'check.first.login'])->name('docs-setup.')->group(function () {
+    // Route::get('slip-template', [PrintoutSetupController::class, 'slipTemplate'])->name('slip-template');
+    // Route::get('coverslip_datatable', [PrintoutSetupController::class, 'coverslip_datatable'])->name('coverslip_datatable');
+    // Route::get('save-slip-template', [PrintoutSetupController::class, 'saveSlipTemplate'])->name('sliptemplate_form');
+    // Route::get('slip', [PrintoutSetupController::class, 'slip'])->name('slip');
+    // Route::post('save-slip', [PrintoutSetupController::class, 'saveSlip'])->name('save-slip');
+    // Route::post('save-clause', [PrintoutSetupController::class, 'saveCluse'])->name('save-clause');
+    // Route::post('edit-clause', [PrintoutSetupController::class, 'editCluse'])->name('edit-clause');
+    // Route::post('/delete_clause', [PrintoutSetupController::class, 'deleteClause'])->name('delete-clause');
+
+
+    // Route::get('/schedule_details/openword', [PrintoutSetupController::class, 'schedulesOpenWord'])->name('schedule_details.openword');
+
+    //bd template
+    // Route::get('bd-schedule-slip-template', [BdScheduleController::class, 'bd_schedule_slip_template'])->name('bd-schedule-slip-template');
+    // Route::get('bd-schedule-template', [BdScheduleController::class, 'bd_schedule_template_datatable'])->name('bd_schedule_datatable');
+    // Route::get('schedule-template-form', [BdScheduleController::class, 'save_schedule_template'])->name('bd_schedule_template_form');
+    // Route::post('save-schedule-template', [BdScheduleController::class, 'save_bd_schedule_template'])->name('save_bd_schedule_template_form');
+    // Route::post('edit-bd-schedule', [BdScheduleController::class, 'edit_bd_schedule'])->name('edit_bd_schedule_template_form');
+    // Route::post('/delete-schedule-template', [BdScheduleController::class, 'delete_schedule_template'])->name('delete-schedule-template');
+
+
+    // // Route::get('slip', [PrintoutSetupController::class, 'slip'])->name('slip');
+    // Route::get('/tenders/docsparam', [TenderController::class, 'listTenderDocsParam'])->name('tender.docsparam');
+    // Route::post('/tenders/doc_add', [TenderController::class, 'AddTenderDocParam'])->name('tender.doc_add');
+    // Route::get('/tender-document-details/{docId}', [TenderController::class, 'viewDocumentDetails'])->name('tender.document.details');
+    // Route::any('save/documents', [PipelineController::class, 'saveTenderDocs'])->name('saveTenderDocs');
+
+
+    // Route::redirect('/bd.schedule.info', '/docs-setup/bd-schedule-headers', 301)->name('bd.schedule.info');
+    // Route::get('/schedule-header-form', [BdScheduleController::class, 'bd_schedule_add_form'])->name('schedule.header.form');
+    // Route::post('/bd-schedule-header-store', [BdScheduleController::class, 'bd_schedule_header_add'])->name('bd.schedule.header.store');
+    // Route::get('bd-schedule-header-data', [BdScheduleController::class, 'bd_schedule_header_data'])->name('bd.schedule.header.data');
+    // Route::get('bd-quote-schedule-header-data', [BdScheduleController::class, 'bd_quote_schedule_header_data'])->name('bd.quote.schedule.header.data');
+    // Route::post('/delete-schedule-header', [BdScheduleController::class, 'delete_schedule_header'])->name('delete.schedule.header');
+});

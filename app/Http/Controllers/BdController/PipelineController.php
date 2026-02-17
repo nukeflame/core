@@ -121,7 +121,7 @@ class PipelineController
             $client = null;
         }
 
-        return view('Bd_views.intermediaries.pipelinemembers', compact(
+        return view('business_development.intermediaries.pipelinemembers', compact(
             'users',
             'prospect',
             'divisions',
@@ -146,7 +146,7 @@ class PipelineController
             ->orderBy('year', 'asc')
             ->get();
 
-        return view('Bd_views.intermediaries.pipeline_report', compact('pipelines'));
+        return view('business_development.intermediaries.pipeline_report', compact('pipelines'));
     }
 
     public function sales_report(Request $request)
@@ -158,7 +158,7 @@ class PipelineController
             ->orderBy('year', 'asc')
             ->get();
 
-        return view('Bd_views.intermediaries.sales_report', compact('pipelines'));
+        return view('business_development.intermediaries.sales_report', compact('pipelines'));
     }
 
     public function decline_report(Request $request)
@@ -170,7 +170,7 @@ class PipelineController
             ->orderBy('year', 'asc')
             ->get();
 
-        return view('Bd_views.intermediaries.decline_report', compact('pipelines'));
+        return view('business_development.intermediaries.decline_report', compact('pipelines'));
     }
 
     private function getPipelineYearWindow(): array
@@ -240,7 +240,7 @@ class PipelineController
             ]);
         }
 
-        return view('Bd_views.intermediaries.sales_report', compact('category_type', 'lead_status', 'classes', 'classGroups', 'customers'));
+        return view('business_development.intermediaries.sales_report', compact('category_type', 'lead_status', 'classes', 'classGroups', 'customers'));
     }
 
     public function decline_report_data(Request $request)
@@ -505,7 +505,7 @@ class PipelineController
 
     public function listing()
     {
-        return view('Bd_views.intermediaries.pipeline');
+        return view('business_development.intermediaries.pipeline');
     }
 
     public function get_leads()
@@ -611,7 +611,7 @@ class PipelineController
 
     public function returnImportExcelView()
     {
-        return view('Bd_views.intermediaries.excelimport');
+        return view('business_development.intermediaries.excelimport');
     }
 
     public function importExcel(Request $request)
@@ -696,7 +696,7 @@ class PipelineController
             $selectedPipeline = null;
         }
 
-        return view('Bd_views.intermediaries.pipeline_view', compact(
+        return view('business_development.intermediaries.pipeline_view', compact(
             'pipelines',
             'emailFrom',
             'pip',
@@ -879,7 +879,7 @@ class PipelineController
 
 
 
-            return view('Bd_views.intermediaries.treaty_pipeline_view', compact(
+            return view('business_development.intermediaries.treaty_pipeline_view', compact(
                 'pipelines',
                 'statuses',
                 'pip',
@@ -940,7 +940,7 @@ class PipelineController
         $statuses = LeadStatus::all();
         $salutations = Salutation::all();
 
-        return view('Bd_views.intermediaries.leads_edit', compact('lead', 'statuses', 'salutations'));
+        return view('business_development.intermediaries.leads_edit', compact('lead', 'statuses', 'salutations'));
     }
 
     public function edit_lead(Request $request, $code)
@@ -2074,7 +2074,7 @@ class PipelineController
 
     public function prospect_handover()
     {
-        return view('Bd_views.intermediaries.handover_bd');
+        return view('business_development.intermediaries.handover_bd');
     }
 
     public function handoverToCR(Request $request)
@@ -2141,7 +2141,7 @@ class PipelineController
                 ]
             );
 
-            return view('Bd_views.intermediaries.handover_validate', $viewData);
+            return view('business_development.intermediaries.handover_validate', $viewData);
         } catch (\Exception $e) {
             return back()->with('error', 'An error occurred while loading handover data');
         }
@@ -7660,7 +7660,7 @@ class PipelineController
     {
         $opportunityID = $request->opportunity_id;
         $data = PipelineOpportunity::where('opportunity_id', $opportunityID)->get();
-        return view('Bd_views.tenders.doc_attachment', ['opportunities' => $data]);
+        return view('business_development.tenders.doc_attachment', ['opportunities' => $data]);
     }
 
     public function getHeaders(Request $request)

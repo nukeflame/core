@@ -30,13 +30,47 @@ use Illuminate\Support\Facades\Schema;
 class BdScheduleController extends Controller
 {
 
-    public function bd_schedule_info(Request $request)
+    public function getSlipTemplates(Request $request)
+    {
+        $wording = BdScheduleData::where('type_of_bus', $request->treaty_type)->first();
+        $classes = ReinsClass::where('status', 'A')->get();
+        $trans_type = 'NEW';
+        $classGroups = ClassGroup::get(['group_code', 'group_name']);
+        $class = Classes::where('status', 'A')->get(['class_code', 'class_name', 'status']);
+
+        return view('business_development.settings.slip_template_data', [
+            'treaty_type' => $request->treaty_type,
+            'wording' => $wording,
+            'classes' => $classes,
+            'trans_type' => $trans_type,
+            'classGroups' => $classGroups,
+            'class' => $class
+        ]);
+    }
+
+
+    public function getScheduleHeaders(Request $request)
+    {
+        $classes = Classes::select(['class_name', 'class_code'])->get();
+        $classGroups = ClassGroup::select(['group_code', 'group_name'])->get();
+        $type_of_sum_insured = TypeOfSumInsured::select(['sum_insured_code', 'sum_insured_name'])->get();
+        $quote_schedule_columns = Schema::getColumnListing('quote_schedule_headers');
+
+        return view('business_development.settings.schedule_info', compact(
+            'classes',
+            'classGroups',
+            'type_of_sum_insured',
+            'quote_schedule_columns'
+        ));
+    }
+
+    public function getRiskParticulars(Request $request)
     {
         $classes = Classes::select(['class_name', 'class_code'])->get();
         $classGroups = ClassGroup::select(['group_code', 'group_name'])->get();
         $type_of_sum_insured = TypeOfSumInsured::select(['sum_insured_code', 'sum_insured_name'])->get();
 
-        return view('Bd_views.BdSchedule.Bd_schedule_info', compact(
+        return view('business_development.settings.risk_particulars_info', compact(
             'classes',
             'classGroups',
             'type_of_sum_insured'
@@ -61,7 +95,7 @@ class BdScheduleController extends Controller
             }
 
             return view(
-                'Bd_views.BdSchedule.schedule_header_add_form',
+                'business_development.settings.schedule_header_add_form',
                 compact(
                     'classes',
                     'classGroups',
@@ -71,7 +105,7 @@ class BdScheduleController extends Controller
             );
         } else {
             return view(
-                'Bd_views.BdSchedule.schedule_header_add_form',
+                'business_development.settings.schedule_header_add_form',
                 compact(
                     'classes',
                     'classGroups',
@@ -224,6 +258,19 @@ class BdScheduleController extends Controller
 
         return dataTables::of($mappedHeaders)->make(true);
     }
+
+    public function bd_quote_schedule_header_data()
+    {
+        $columns = Schema::getColumnListing('quote_schedule_headers');
+
+        if (empty($columns)) {
+            return dataTables::of(collect([]))->make(true);
+        }
+
+        $rows = DB::table('quote_schedule_headers')->select($columns)->get();
+
+        return dataTables::of($rows)->make(true);
+    }
     public function delete_schedule_header(Request $request)
     {
         $id = $request->id;
@@ -262,34 +309,18 @@ class BdScheduleController extends Controller
     public function bd_schedule_data_edit(Request $request)
     {
         $bd_schedule_data = BdScheduleData::all();
-        return view('Bd_views.BdSchedule.Bd_schedule_data_edit', [
+        return view('business_development.settings.Bd_schedule_data_edit', [
             'bd_schedule_data' => $bd_schedule_data,
         ]);
     }
     public function bd_schedule_data_create(Request $request)
     {
         $class = Classes::all();
-        return view('Bd_views.BdSchedule.Bd_schedule_data_create', [
+        return view('business_development.settings.Bd_schedule_data_create', [
             'class' => $class,
         ]);
     }
-    public function bd_schedule_slip_template(Request $request)
-    {
-        $wording = BdScheduleData::where('type_of_bus', $request->treaty_type)->first();
-        $classes = ReinsClass::where('status', 'A')->get();
-        $trans_type = 'NEW';
-        $classGroups = ClassGroup::get(['group_code', 'group_name']);
-        $class = Classes::where('status', 'A')->get(['class_code', 'class_name', 'status']);
 
-        return view('printouts.setup.bdschedule_template_data', [
-            'treaty_type' => $request->treaty_type,
-            'wording' => $wording,
-            'classes' => $classes,
-            'trans_type' => $trans_type,
-            'classGroups' => $classGroups,
-            'class' => $class
-        ]);
-    }
 
 
     public function bd_schedule_template_datatable()
@@ -333,172 +364,172 @@ class BdScheduleController extends Controller
             ->rawColumns(['status', 'action', 'clause_wording'])
             ->make(true);
     }
-    public function save_schedule_template(Request $request)
-    {
+    // public function save_schedule_template(Request $request)
+    // {
 
-        $request->validate([
-            'classcode' => 'required',
-            'class_group' => 'required',
-        ]);
-        $types_of_bus = BusinessType::get(['bus_type_id', 'bus_type_name']);
-        $classGroup = ClassGroup::where('group_code', $request->class_group)->first();
-        $classcode = Classes::where('class_code', $request->classcode)->first();
+    //     $request->validate([
+    //         'classcode' => 'required',
+    //         'class_group' => 'required',
+    //     ]);
+    //     $types_of_bus = BusinessType::get(['bus_type_id', 'bus_type_name']);
+    //     $classGroup = ClassGroup::where('group_code', $request->class_group)->first();
+    //     $classcode = Classes::where('class_code', $request->classcode)->first();
 
-        $clauses = BdScheduleData::where('clause_id', $request->clause)->first();
-        if ($clauses && $clauses->type_of_bus) {
-            $clauses->type_of_bus = json_decode($clauses->type_of_bus, true);
-        }
+    //     $clauses = BdScheduleData::where('clause_id', $request->clause)->first();
+    //     if ($clauses && $clauses->type_of_bus) {
+    //         $clauses->type_of_bus = json_decode($clauses->type_of_bus, true);
+    //     }
 
-        return view('printouts.setup.bd_schedule_template_form', [
-            'trans_type' => 'NEW',
-            'types_of_bus' => $types_of_bus,
-            'classGroup' => $classGroup,
-            'classcode' => $classcode,
-            'clauses' => $clauses,
-        ]);
-    }
+    //     return view('printouts.setup.bd_schedule_template_form', [
+    //         'trans_type' => 'NEW',
+    //         'types_of_bus' => $types_of_bus,
+    //         'classGroup' => $classGroup,
+    //         'classcode' => $classcode,
+    //         'clauses' => $clauses,
+    //     ]);
+    // }
 
-    public function bd_schedule_template(Request $request)
-    {
-        $wording = BdScheduleData::where('type_of_bus', $request->type_of_bus)->first();
-        $classes = ReinsClass::where('status', 'A')->get();
-        $trans_type = $request->type_of_bus ?? 'NEW';
-        $classGroups = ClassGroup::get(['group_code', 'group_name']);
-        $class = Classes::where('status', 'A')->get(['class_code', 'class_name', 'status']);
-        #
-        return view('printouts.setup.bd_schedule_template_data', [
-            'type_of_bus' => $request->treaty_type,
-            'wording' => $wording,
-            'classes' => $classes,
-            'trans_type' => $trans_type,
-            'classGroups' => $classGroups,
-            'class' => $class
-        ]);
-    }
-    public function edit_bd_schedule(Request $request)
-    {
-        $request->validate([
-            'clause_title' => 'required',
-            'type_of_bus' => 'required',
-            'details' => 'required',
-        ]);
+    // public function bd_schedule_template(Request $request)
+    // {
+    //     $wording = BdScheduleData::where('type_of_bus', $request->type_of_bus)->first();
+    //     $classes = ReinsClass::where('status', 'A')->get();
+    //     $trans_type = $request->type_of_bus ?? 'NEW';
+    //     $classGroups = ClassGroup::get(['group_code', 'group_name']);
+    //     $class = Classes::where('status', 'A')->get(['class_code', 'class_name', 'status']);
+    //     #
+    //     return view('printouts.setup.bd_schedule_template_data', [
+    //         'type_of_bus' => $request->treaty_type,
+    //         'wording' => $wording,
+    //         'classes' => $classes,
+    //         'trans_type' => $trans_type,
+    //         'classGroups' => $classGroups,
+    //         'class' => $class
+    //     ]);
+    // }
+    // public function edit_bd_schedule(Request $request)
+    // {
+    //     $request->validate([
+    //         'clause_title' => 'required',
+    //         'type_of_bus' => 'required',
+    //         'details' => 'required',
+    //     ]);
 
-        DB::beginTransaction();
-        try {
-            $clause = BdScheduleData::where('clause_id', $request->clause_id)->first();
-            $classes = Classes::where('class_code', $request->classcode)->first();
-            $classGroup = ClassGroup::where('group_code', $request->class_group_code)->first();
+    //     DB::beginTransaction();
+    //     try {
+    //         $clause = BdScheduleData::where('clause_id', $request->clause_id)->first();
+    //         $classes = Classes::where('class_code', $request->classcode)->first();
+    //         $classGroup = ClassGroup::where('group_code', $request->class_group_code)->first();
 
-            if ($clause) {
-                BdScheduleData::where('clause_id', $request->clause_id)
-                    ->update([
-                        'clause_title' => $request->clause_title,
-                        'class_code' => $classes->class_code,
-                        'clause_wording' => $request->details,
-                        'type_of_bus' => $request->type_of_bus,
-                        'updated_by' => Auth::user()->user_name,
-                        'class_group_code' => $classGroup->group_code,
-                    ]);
-            }
-            DB::commit();
-            Session::Flash('success', 'template has been saved successfully');
-            return redirect()->route('docs-setup.bd-schedule-slip-template');
-        } catch (\Exception $e) {
-            DB::rollback();
-            Session::Flash('error', 'Failed to save template');
-            return redirect()->back()->with('error', 'Failed to edit template');
-        }
-    }
-    public function save_bd_schedule_template(Request $request)
-    {
-        // dd($request->all());
-        $request->validate([
-            'clause_title' => 'required',
-            'type_of_bus' => 'required',
-            'details' => 'required',
-        ]);
+    //         if ($clause) {
+    //             BdScheduleData::where('clause_id', $request->clause_id)
+    //                 ->update([
+    //                     'clause_title' => $request->clause_title,
+    //                     'class_code' => $classes->class_code,
+    //                     'clause_wording' => $request->details,
+    //                     'type_of_bus' => $request->type_of_bus,
+    //                     'updated_by' => Auth::user()->user_name,
+    //                     'class_group_code' => $classGroup->group_code,
+    //                 ]);
+    //         }
+    //         DB::commit();
+    //         Session::Flash('success', 'template has been saved successfully');
+    //         return redirect()->route('bd-schedule-slip-template');
+    //     } catch (\Exception $e) {
+    //         DB::rollback();
+    //         Session::Flash('error', 'Failed to save template');
+    //         return redirect()->back()->with('error', 'Failed to edit template');
+    //     }
+    // }
+    // public function save_bd_schedule_template(Request $request)
+    // {
+    //     // dd($request->all());
+    //     $request->validate([
+    //         'clause_title' => 'required',
+    //         'type_of_bus' => 'required',
+    //         'details' => 'required',
+    //     ]);
 
-        DB::beginTransaction();
-        #
-        try {
-            $clause = BdScheduleData::where('clause_title', $request->clause_title)
-                ->whereJsonContains('type_of_bus', json_encode($request->type_of_bus))
-                ->where('clause_wording', $request->details)->exists();
-            $classes = Classes::where('class_code', $request->classcode)->first();
-            $classGroup = ClassGroup::where('group_code', $request->class_group_code)->first();
+    //     DB::beginTransaction();
+    //     #
+    //     try {
+    //         $clause = BdScheduleData::where('clause_title', $request->clause_title)
+    //             ->whereJsonContains('type_of_bus', json_encode($request->type_of_bus))
+    //             ->where('clause_wording', $request->details)->exists();
+    //         $classes = Classes::where('class_code', $request->classcode)->first();
+    //         $classGroup = ClassGroup::where('group_code', $request->class_group_code)->first();
 
-            if ($clause) {
-                BdScheduleData::where('clause_title', $request->clause_title)
-                    ->where('class_code', $request->type_of_bus)->where('details', $request->details)
-                    ->update([
-                        'clause_title' => strtolower($request->clause_title),
-                        'class_code' => $classes->class_code,
-                        'clause_wording' => $request->details,
-                        'type_of_bus' => json_encode($request->type_of_bus),
-                        'updated_by' => Auth::user()->user_name,
-                    ]);
-            } else {
-                $id = (int) BdScheduleData::max('clause_id') ?? 0;
-                $clause_id = $id + 1;
-                $data = BdScheduleData::create([
-                    'clause_id' => $clause_id,
-                    'clause_title' => strtolower($request->clause_title),
-                    'class_code' => $classes->class_code,
-                    'clause_wording' => $request->details,
-                    'type_of_bus' => json_encode($request->type_of_bus),
-                    'class_group_code' => $classGroup->group_code,
-                    'status' => 'A',
-                    'created_by' => Auth::user()->user_name,
-                    // 'updated_by' => Auth::user()->user_name,
-                ]);
-            }
+    //         if ($clause) {
+    //             BdScheduleData::where('clause_title', $request->clause_title)
+    //                 ->where('class_code', $request->type_of_bus)->where('details', $request->details)
+    //                 ->update([
+    //                     'clause_title' => strtolower($request->clause_title),
+    //                     'class_code' => $classes->class_code,
+    //                     'clause_wording' => $request->details,
+    //                     'type_of_bus' => json_encode($request->type_of_bus),
+    //                     'updated_by' => Auth::user()->user_name,
+    //                 ]);
+    //         } else {
+    //             $id = (int) BdScheduleData::max('clause_id') ?? 0;
+    //             $clause_id = $id + 1;
+    //             $data = BdScheduleData::create([
+    //                 'clause_id' => $clause_id,
+    //                 'clause_title' => strtolower($request->clause_title),
+    //                 'class_code' => $classes->class_code,
+    //                 'clause_wording' => $request->details,
+    //                 'type_of_bus' => json_encode($request->type_of_bus),
+    //                 'class_group_code' => $classGroup->group_code,
+    //                 'status' => 'A',
+    //                 'created_by' => Auth::user()->user_name,
+    //                 // 'updated_by' => Auth::user()->user_name,
+    //             ]);
+    //         }
 
-            DB::commit();
-            Session::Flash('success', 'Bd schedule template has been saved successfully');
-            return redirect()->route('docs-setup.bd-schedule-slip-template');
-        } catch (\Exception $e) {
-            DB::rollback();
-            Session::flash('error', 'Failed to save template');
-            return redirect()->back()->with('error', 'Failed to save template');
-        }
-    }
+    //         DB::commit();
+    //         Session::Flash('success', 'Bd schedule template has been saved successfully');
+    //         return redirect()->route('bd-schedule-slip-template');
+    //     } catch (\Exception $e) {
+    //         DB::rollback();
+    //         Session::flash('error', 'Failed to save template');
+    //         return redirect()->back()->with('error', 'Failed to save template');
+    //     }
+    // }
 
-    public function delete_schedule_template(Request $request)
-    {
+    // public function delete_schedule_template(Request $request)
+    // {
 
-        try {
-            $request->validate([
-                'id' => 'required',
-                'class_code' => 'required|max:20',
-                'class_group_code' => 'required|string|max:20',
-            ]);
+    //     try {
+    //         $request->validate([
+    //             'id' => 'required',
+    //             'class_code' => 'required|max:20',
+    //             'class_group_code' => 'required|string|max:20',
+    //         ]);
 
-            $clause = BdScheduleData::where('clause_id', $request->id)->first();
-            if ($clause) {
-                $clause->delete();
-            }
+    //         $clause = BdScheduleData::where('clause_id', $request->id)->first();
+    //         if ($clause) {
+    //             $clause->delete();
+    //         }
 
-            return response()->json([
-                'status' => Response::HTTP_CREATED,
-                'message' => 'Schedule  template item removed successfully'
-            ]);
-        } catch (ValidationException $e) {
-            return response()->json([
-                'status' => Response::HTTP_UNPROCESSABLE_ENTITY,
-                'errors' => $e->errors()
-            ], 422);
-        } catch (Exception $e) {
-            return response()->json([
-                'status' => $e->getCode(),
-                'message' => 'Failed to remove schedule template item'
-            ]);
-        }
-    }
+    //         return response()->json([
+    //             'status' => Response::HTTP_CREATED,
+    //             'message' => 'Schedule  template item removed successfully'
+    //         ]);
+    //     } catch (ValidationException $e) {
+    //         return response()->json([
+    //             'status' => Response::HTTP_UNPROCESSABLE_ENTITY,
+    //             'errors' => $e->errors()
+    //         ], 422);
+    //     } catch (Exception $e) {
+    //         return response()->json([
+    //             'status' => $e->getCode(),
+    //             'message' => 'Failed to remove schedule template item'
+    //         ]);
+    //     }
+    // }
 
     //lead status
     public function bd_lead_status_info(Request $request)
     {
-        return view('Bd_views.LeadStatus.Bd_lead_status_info');
+        return view('business_development.LeadStatus.Bd_lead_status_info');
     }
     public function bd_lead_status_add_form(Request $request)
     {
@@ -507,14 +538,14 @@ class BdScheduleController extends Controller
             $LeadStatus = Leadstatus::where('lead_id', $id)->first();
 
             return view(
-                'Bd_views.LeadStatus.lead_status_add_form',
+                'business_development.LeadStatus.lead_status_add_form',
                 compact(
                     'LeadStatus'
                 )
             );
         } else {
             return view(
-                'Bd_views.LeadStatus.lead_status_add_form'
+                'business_development.LeadStatus.lead_status_add_form'
             );
         }
     }
@@ -609,7 +640,7 @@ class BdScheduleController extends Controller
     // stage_doc
     public function bd_stage_doc_info(Request $request)
     {
-        return view('Bd_views.DocTypes.stage_doc_info');
+        return view('business_development.DocTypes.stage_doc_info');
     }
     public function stage_doc_form(Request $request)
     {
@@ -624,7 +655,7 @@ class BdScheduleController extends Controller
 
 
             return view(
-                'Bd_views.DocTypes.stage_doc_add_form',
+                'business_development.DocTypes.stage_doc_add_form',
                 compact(
                     'StageDocuments',
                     'Documents',
@@ -633,7 +664,7 @@ class BdScheduleController extends Controller
             );
         } else {
             return view(
-                'Bd_views.DocTypes.stage_doc_add_form',
+                'business_development.DocTypes.stage_doc_add_form',
                 compact('Documents', 'types_of_bus')
             );
         }
@@ -759,7 +790,7 @@ class BdScheduleController extends Controller
     // bd documents types
     public function bd_doc_type_info(Request $request)
     {
-        return view('Bd_views.DocTypes.doc_type_info');
+        return view('business_development.DocTypes.doc_type_info');
     }
     public function doc_type_form(Request $request)
     {
@@ -770,14 +801,14 @@ class BdScheduleController extends Controller
 
 
             return view(
-                'Bd_views.DocTypes.doc_type_add_form',
+                'business_development.DocTypes.doc_type_add_form',
                 compact(
                     'Documents',
                 )
             );
         } else {
             return view(
-                'Bd_views.DocTypes.doc_type_add_form'
+                'business_development.DocTypes.doc_type_add_form'
             );
         }
     }
@@ -905,7 +936,7 @@ class BdScheduleController extends Controller
     // checklist operation
     public function operationchecklist_info(Request $request)
     {
-        return view('Bd_views.TreatyOperationChecklist.treaty_operation_info');
+        return view('business_development.TreatyOperationChecklist.treaty_operation_info');
     }
     public function operationchecklist_form(Request $request)
     {
@@ -916,14 +947,14 @@ class BdScheduleController extends Controller
 
 
             return view(
-                'Bd_views.TreatyOperationChecklist.treaty_operation_add_form',
+                'business_development.TreatyOperationChecklist.treaty_operation_add_form',
                 compact(
                     'OperationChecklist',
                 )
             );
         } else {
             return view(
-                'Bd_views.TreatyOperationChecklist.treaty_operation_add_form'
+                'business_development.TreatyOperationChecklist.treaty_operation_add_form'
             );
         }
     }

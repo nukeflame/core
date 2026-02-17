@@ -168,8 +168,8 @@
                                                     <input type="number" name="premium_levy" id="premium_levy"
                                                         class="form-control form-control-sm text-end" step="0.01"
                                                         value="{{ $taxRates['PREMIUM_LEVY'] }}" min="0"
-                                                        data-default="{{ $taxRates['PREMIUM_LEVY'] }}"
-                                                        max="100" style="width: 75px;" />
+                                                        data-default="{{ $taxRates['PREMIUM_LEVY'] }}" max="100"
+                                                        style="width: 75px;" />
                                                     <span class="input-group-text">%</span>
                                                 </div>
                                             </div>

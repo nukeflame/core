@@ -643,7 +643,7 @@
                             <p class="mb-2">You are about to permanently delete:</p>
                             <ul class="text-danger">
                                 <li>All insurance covers for <strong>${escapeHtml(cedantName)}</strong></li>
-                                <li>All related data and records</li>
+                                <li>Cover-related records only</li>
                             </ul>
                             <p class="mb-0"><strong>This action cannot be undone.</strong></p>
                         </div>
@@ -652,7 +652,7 @@
                     showCancelButton: true,
                     confirmButtonColor: '#dc3545',
                     cancelButtonColor: '#6c757d',
-                    confirmButtonText: '<i class="bi bi-trash me-1"></i> Yes, delete everything',
+                    confirmButtonText: '<i class="bi bi-trash me-1"></i> Yes, clear covers',
                     cancelButtonText: 'Cancel',
                     reverseButtons: true,
                     focusCancel: true
@@ -708,7 +708,7 @@
                         if (xhr.status === 422 && xhr.responseJSON && xhr.responseJSON.errors) {
                             showServerSideValidationErrors(xhr.responseJSON.errors);
                         } else if (xhr.status === 404) {
-                            toastr.error('Cedant not found or already deleted', 'Error');
+                            toastr.error('Cedant not found', 'Error');
                         } else if (xhr.status === 500) {
                             toastr.error('Server error occurred. Please try again or contact support.',
                                 'Error');

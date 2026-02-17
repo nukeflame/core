@@ -1,7 +1,7 @@
 @extends('layouts.app')
 @section('header', 'Treaty Pipeline Management')
 @section('styles')
-    @include('Bd_views.intermediaries.partials.styles')
+    @include('business_development.intermediaries.partials.styles')
 @endsection
 @section('content')
 

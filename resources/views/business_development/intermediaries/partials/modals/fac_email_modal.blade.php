@@ -47,11 +47,11 @@
                         <div class="col-12">
                             <div class="tab-content" id="bdEmailTabContent">
                                 <div class="tab-pane fade show active" id="compose" role="tabpanel">
-                                    @include('Bd_views.intermediaries.partials.bd.reinsurers.compose-form')
+                                    @include('business_development.intermediaries.partials.bd.reinsurers.compose-form')
                                 </div>
 
                                 <div class="tab-pane fade" id="replies" role="tabpanel">
-                                    @include('Bd_views.intermediaries.partials.bd.reinsurers.messages-list')
+                                    @include('business_development.intermediaries.partials.bd.reinsurers.messages-list')
                                 </div>
                             </div>
                         </div>

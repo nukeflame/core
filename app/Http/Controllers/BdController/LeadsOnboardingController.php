@@ -181,7 +181,7 @@ class LeadsOnboardingController
                 'pipeYear' => $pipeYear,
             ];
 
-            return view('Bd_views.intermediaries.leads_onboarding', array_merge($commonVariables, $otherVariabales));
+            return view('business_development.intermediaries.leads_onboarding', array_merge($commonVariables, $otherVariabales));
         } catch (\Throwable $e) {
             return back()->withInput()->with('error', 'Failed to load onboarding form. Please try again.');
         }
@@ -351,9 +351,9 @@ class LeadsOnboardingController
         $allVariables = array_merge($commonVariables, $otherVariabales);
 
         if ($trans_type == 'NEW') {
-            return view('Bd_views.Treaty.leads_onboarding', $allVariables);
+            return view('business_development.Treaty.leads_onboarding', $allVariables);
         } else {
-            return view('Bd_views.Treaty.leads_onboarding_update', $allVariables);
+            return view('business_development.Treaty.leads_onboarding_update', $allVariables);
         }
     }
     public function customer_data(Request $request)
@@ -474,7 +474,7 @@ class LeadsOnboardingController
         $classGroups =  PipelineOpportunity::getClassGroupsOptions();
         $priorities = PipelineOpportunity::getPriorityOptions();
 
-        return view('Bd_views.intermediaries.leads_listing', compact(
+        return view('business_development.intermediaries.leads_listing', compact(
             'kpis',
             'statuses',
             'classGroups',
@@ -491,7 +491,7 @@ class LeadsOnboardingController
         $classGroups = PipelineOpportunity::getClassGroupsOptions();
         $priorities = PipelineOpportunity::getPriorityOptions();
 
-        return view('Bd_views.Treaty.leads_listing', compact(
+        return view('business_development.Treaty.leads_listing', compact(
             'kpis',
             'statuses',
             'classGroups',
@@ -1073,7 +1073,7 @@ class LeadsOnboardingController
         $client = DB::table('pipeline_opportunities')->where('opportunity_id', "=", $prospectId)->first();
         $email = "marketing@acentriagroup.com";
         $client_name = $client->fullname;
-        return view('Bd_views.intermediaries.pq_process_update', compact('prospectId', 'email', 'client_name'));
+        return view('business_development.intermediaries.pq_process_update', compact('prospectId', 'email', 'client_name'));
     }
 
     public function PQ_proposal_documents(Request $request)
@@ -1143,7 +1143,7 @@ class LeadsOnboardingController
             ->firstOrFail();
         $agent = Intermediary::where('global_intermediary_id', $lead->lead_owner)->first();
         $lead_owner = $lead->lead_owner == '001' ? 'Direct Lead' : $agent->full_name;
-        return view('Bd_views.intermediaries.lead_view', compact('lead', 'lead_status', 'lead_owner'));
+        return view('business_development.intermediaries.lead_view', compact('lead', 'lead_status', 'lead_owner'));
     }
 
     public function leads_edit(Request $request)
@@ -1156,7 +1156,7 @@ class LeadsOnboardingController
         $statuses = LeadStatus::all();
         $salutations = Salutation::all();
 
-        return view('Bd_views.intermediaries.leads_edit', compact('lead', 'statuses', 'salutations'));
+        return view('business_development.intermediaries.leads_edit', compact('lead', 'statuses', 'salutations'));
     }
 
     public function edit_lead(Request $request, $code)

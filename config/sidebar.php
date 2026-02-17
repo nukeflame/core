@@ -96,7 +96,6 @@ return [
 
                             ]
                         ],
-
                         [
                             'title' => 'Handovers',
                             'route' => 'pipeline.bd_handovers',
@@ -306,11 +305,11 @@ return [
                             'permission' => 'app.reins_settings.view',
                             'has_sub' => true,
                             'children' => [
-                                // [
-                                //     'title' => 'Lead Status',
-                                //     'route' => 'lead.status.info',
-                                //     'permission' => 'app.reins_settings.view'
-                                // ],
+                                [
+                                    'title' => 'Risk Particulars',
+                                    'route' => 'bd.risk-particulars',
+                                    'permission' => 'app.reins_settings.view'
+                                ],
                                 [
                                     'title' => 'Schedule Headers',
                                     'route' => 'bd.schedule-headers.index',
@@ -318,7 +317,7 @@ return [
                                 ],
                                 [
                                     'title' => 'Schedule Slip Template',
-                                    'route' => 'docs-setup.bd-schedule-slip-template',
+                                    'route' => 'bd-schedule-slip-template',
                                     'permission' => 'app.reins_settings.view'
                                 ],
                                 [
@@ -326,6 +325,11 @@ return [
                                     'route' => 'stage.doc.info',
                                     'permission' => 'app.reins_settings.view'
                                 ],
+                                // [
+                                //     'title' => 'Lead Status',
+                                //     'route' => 'lead.status.info',
+                                //     'permission' => 'app.reins_settings.view'
+                                // ],
                                 // [
                                 //     'title' => 'Document Types',
                                 //     'route' => 'doc.type.info',

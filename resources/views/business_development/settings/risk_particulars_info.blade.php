@@ -4,16 +4,16 @@
     {{-- Page Header --}}
     <div class="d-md-flex d-block align-items-center justify-content-between my-4 page-header-breadcrumb">
         <div>
-            <h1 class="page-title fw-semibold fs-18 mb-0">Schedule Headers</h1>
-            <p class="text-muted mb-0 mt-1 fs-13">Manage Business Development schedule header definitions.</p>
+            <h1 class="page-title fw-semibold fs-18 mb-0">Risk Particulars</h1>
+            <p class="text-muted mb-0 mt-1 fs-13">Manage Business Development risk particular definitions.</p>
         </div>
         <div class="ms-md-1 ms-0">
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb mb-0">
                     <li class="breadcrumb-item">
-                        <a href="{{ route('bd.schedule-headers.index') }}">Business Development</a>
+                        <a href="{{ route('bd.risk-particulars') }}">Business Development</a>
                     </li>
-                    <li class="breadcrumb-item active" aria-current="page">Schedule Headers</li>
+                    <li class="breadcrumb-item active" aria-current="page">Risk Particulars</li>
                 </ol>
             </nav>
         </div>
@@ -137,20 +137,19 @@
             <div class="card custom-card shadow-sm">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <div>
-                        <h5 class="card-title mb-0">Schedule Headers List</h5>
-                        <small class="text-muted">View and manage schedule headers</small>
+                        <h5 class="card-title mb-0">Risk Particulars List</h5>
+                        <small class="text-muted">View and manage risk particulars</small>
                     </div>
-                    <button type="button" class="btn btn-primary btn-sm" id="addScheduleHeaderBtn"
-                        data-bs-toggle="modal" data-bs-target="#addScheduleHeaderModal"
-                        aria-label="Add new schedule header">
+                    <button type="button" class="btn btn-primary btn-sm" id="addScheduleHeaderBtn" data-bs-toggle="modal"
+                        data-bs-target="#addScheduleHeaderModal" aria-label="Add new risk particular">
                         <i class='bx bx-plus me-1'></i>
-                        Add Schedule Header
+                        Add Risk Particular
                     </button>
                 </div>
                 <div class="card-body">
                     <div class="table-responsive">
                         <table class="table text-nowrap table-striped table-hover" id="scheduleHeaderTable"
-                            aria-label="Schedule headers table">
+                            aria-label="Risk particulars table">
                             <thead>
                                 <tr>
                                     <th scope="col">ID</th>
@@ -173,15 +172,15 @@
                 <form method="POST" action="{{ route('bd.schedule.header.store') }}" id="addScheduleHeaderForm">
                     @csrf
                     <div class="modal-header">
-                        <h5 class="modal-title" id="addScheduleHeaderModalLabel">Add Schedule Header</h5>
+                        <h5 class="modal-title" id="addScheduleHeaderModalLabel">Add Risk Particular</h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                     <div class="modal-body">
                         <div class="row g-3">
                             <div class="col-md-6">
                                 <label for="sh-name" class="form-label">Name <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control" id="sh-name" name="name" maxlength="100"
-                                    required>
+                                <input type="text" class="form-control" id="sh-name" name="name"
+                                    maxlength="100" required>
                             </div>
                             <div class="col-md-6">
                                 <label for="sh-business-type" class="form-label">Business Type</label>
@@ -426,7 +425,8 @@
                                 datatable.ajax.reload(null, false);
                                 return;
                             }
-                            toastr.error((response && response.message) || 'Delete failed.');
+                            toastr.error((response && response.message) ||
+                            'Delete failed.');
                         },
                         error: function() {
                             toastr.error('Delete failed.');
@@ -469,9 +469,12 @@
                                 if (!item || !item.class_code) {
                                     return;
                                 }
-                                const label = item.class_name ? `${item.class_code} - ${item.class_name}` :
+                                const label = item.class_name ?
+                                    `${item.class_code} - ${item.class_name}` :
                                     item.class_code;
-                                $class.append(`<option value="${item.class_code}">${label}</option>`);
+                                $class.append(
+                                    `<option value="${item.class_code}">${label}</option>`
+                                    );
                             });
                         }
                     });

@@ -70,6 +70,17 @@ class GenerateDebitNoteRequest extends FormRequest
                 'before_or_equal:today'
             ],
 
+            'currency_code' => [
+                'nullable',
+                'string',
+                'max:10',
+            ],
+            'today_currency' => [
+                'nullable',
+                'numeric',
+                'min:0.000001',
+            ],
+
             'brokerage_rate' => [
                 'nullable',
                 'numeric',
@@ -183,6 +194,8 @@ class GenerateDebitNoteRequest extends FormRequest
             'brokerage_rate.numeric' => 'Brokerage rate must be a number',
             'brokerage_rate.min' => 'Brokerage rate cannot be negative',
             'brokerage_rate.max' => 'Brokerage rate cannot exceed 100%',
+            'today_currency.numeric' => 'Exchange rate must be a valid number',
+            'today_currency.min' => 'Exchange rate must be greater than zero',
 
             'comments.max' => 'Comments cannot exceed 2000 characters',
 
@@ -215,6 +228,8 @@ class GenerateDebitNoteRequest extends FormRequest
             'posting_year' => 'fiscal year',
             'posting_quarter' => 'accounting period',
             'posting_date' => 'transaction date',
+            'currency_code' => 'currency',
+            'today_currency' => 'exchange rate',
             'brokerage_rate' => 'brokerage rate',
             'items.*.item_code' => 'item code',
             'items.*.item_type' => 'item type',
@@ -243,6 +258,14 @@ class GenerateDebitNoteRequest extends FormRequest
             $this->merge([
                 'brokerage_rate' => $this->brokerage_rate !== ''
                     ? (float) $this->brokerage_rate
+                    : null
+            ]);
+        }
+
+        if ($this->has('today_currency')) {
+            $this->merge([
+                'today_currency' => $this->today_currency !== ''
+                    ? (float) $this->today_currency
                     : null
             ]);
         }

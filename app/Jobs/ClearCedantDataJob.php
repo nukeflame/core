@@ -18,6 +18,7 @@ class ClearCedantDataJob implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     protected int $customerId;
+    protected bool $deleteCustomerRecord;
 
     /**
      * The number of times the job may be attempted.
@@ -32,9 +33,10 @@ class ClearCedantDataJob implements ShouldQueue
     /**
      * Create a new job instance.
      */
-    public function __construct(int $customerId)
+    public function __construct(int $customerId, bool $deleteCustomerRecord = false)
     {
         $this->customerId = $customerId;
+        $this->deleteCustomerRecord = $deleteCustomerRecord;
     }
 
     /**
@@ -80,10 +82,12 @@ class ClearCedantDataJob implements ShouldQueue
             CoverRegister::where('customer_id', $customer->customer_id)
                 ->forceDelete();
 
-            $this->deleteCustomerScopedData($customer->customer_id);
-            DB::table('customers')
-                ->where('customer_id', $customer->customer_id)
-                ->delete();
+            if ($this->deleteCustomerRecord) {
+                $this->deleteCustomerScopedData($customer->customer_id);
+                DB::table('customers')
+                    ->where('customer_id', $customer->customer_id)
+                    ->delete();
+            }
 
             $this->clearRelatedCaches($customer->customer_id, $coverNumbers);
         });
@@ -132,6 +136,18 @@ class ClearCedantDataJob implements ShouldQueue
         return $deletedCounts;
     }
 
+    /**
+     * Merge deleted record counts
+     */
+    protected function mergeDeletedRecords(array $existing, array $new): array
+    {
+        foreach ($new as $key => $count) {
+            $existing[$key] = ($existing[$key] ?? 0) + $count;
+        }
+
+        return $existing;
+    }
+
     protected function deleteCustomerScopedData(int $customerId): void
     {
         $tableMappings = [
@@ -153,18 +169,6 @@ class ClearCedantDataJob implements ShouldQueue
 
             DB::table($table)->where($column, $customerId)->delete();
         }
-    }
-
-    /**
-     * Merge deleted record counts
-     */
-    protected function mergeDeletedRecords(array $existing, array $new): array
-    {
-        foreach ($new as $key => $count) {
-            $existing[$key] = ($existing[$key] ?? 0) + $count;
-        }
-
-        return $existing;
     }
 
     /**

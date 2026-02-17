@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('styles')
-    @include('Bd_views.intermediaries.partials.styles')
+    @include('business_development.intermediaries.partials.styles')
 @endsection
 
 @section('content')
@@ -231,5 +231,5 @@
 @endsection
 
 @push('script')
-    @include('Bd_views.intermediaries.partials.scripts')
+    @include('business_development.intermediaries.partials.scripts')
 @endpush

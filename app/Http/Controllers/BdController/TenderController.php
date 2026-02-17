@@ -35,7 +35,7 @@ class TenderController extends Controller
         if (!empty($prospect_id)) {
             $cedant = PipelineOpportunity::where('opportunity_id', $prospect_id)->first();
             $tenders = Tender::where('prospect_id', $prospect_id)->paginate(10);
-            return view('Bd_views.tenders.tenders_list', [
+            return view('business_development.tenders.tenders_list', [
                 'tenders' => $tenders,
                 'prospect_id' => $prospect_id,
                 'cedant' => $cedant,
@@ -48,7 +48,7 @@ class TenderController extends Controller
 
             $tenders = Tender::whereIn('id', $tender_ids)->paginate(10);
 
-            return view('Bd_views.tenders.tenders_list', [
+            return view('business_development.tenders.tenders_list', [
                 'tenders' => $tenders,
                 'approver_review' => 1
             ]);
@@ -182,7 +182,7 @@ class TenderController extends Controller
         $approvers = User::all();
 
 
-        return view('Bd_views.tenders.tender_dtl', [
+        return view('business_development.tenders.tender_dtl', [
             'tender' => $tender,
             'tenderTocs' => $tenderTocs,
             'tenderTocSecs' => $tenderTocSecs,
@@ -370,7 +370,7 @@ class TenderController extends Controller
             ->orderByDesc('tender_doc_param.created_at')
             ->paginate(10);
 
-        return view('Bd_views.tenders.tender_doc_param', [
+        return view('business_development.tenders.tender_doc_param', [
             'tenderDocs' => $tenderDocs,
         ]);
     }

@@ -30,7 +30,7 @@ class SendEmailToCrlead implements ShouldQueue
      */
     public function handle()
     {
-        Mail::send('Bd_views.auth.emails.bd_to_crlead', $this->data, function ($message) {
+        Mail::send('business_development.auth.emails.bd_to_crlead', $this->data, function ($message) {
             $message->to($this->data['crleadMail'])
                 ->subject($this->data["title"]);
         });

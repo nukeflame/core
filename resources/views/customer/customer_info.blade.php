@@ -372,8 +372,6 @@
             $customerTbl.on('click', '.remove_process_customer', function(e) {
                 e.preventDefault();
 
-                const $btn = $(this);
-                const row = $customerTbl.row($btn.closest('tr'));
                 const customerId = $(this).data('cedant-id') || $(this).data('customer-id') || $(this).data('id');
                 const customerName = $(this).data('name') || 'this customer';
 
@@ -383,10 +381,10 @@
                 }
 
                 Swal.fire({
-                    title: 'Delete Customer Covers?',
+                    title: 'Delete Customer?',
                     html: `
                         <div class="text-start">
-                            <p class="mb-2">You are about to clear all covers for <strong>${escapeHtml(customerName)}</strong>.</p>
+                            <p class="mb-2">You are about to permanently delete <strong>${escapeHtml(customerName)}</strong> and all related data.</p>
                             <p class="mb-0 text-danger"><strong>This action cannot be undone.</strong></p>
                         </div>
                     `,
@@ -400,7 +398,6 @@
                     focusCancel: true
                 }).then((result) => {
                     if (result.isConfirmed) {
-                        row.remove().draw(false);
                         clearCustomerData(customerId);
                     }
                 });
@@ -467,7 +464,7 @@
                 });
 
                 $.ajax({
-                    url: "{{ route('customer.clear_cedant_data') }}",
+                    url: "{{ route('customer.delete_customer_data') }}",
                     method: 'POST',
                     dataType: 'json',
                     headers: {
@@ -483,6 +480,7 @@
 
                         if (data.status === 202 || data.status === 201) {
                             toastr.success(data.message || 'Customer and related data deleted successfully', 'Success');
+                            $customerTbl.ajax.reload(null, false);
                         } else if (data.status === 422 && data.errors) {
                             const firstError = getFirstValidationError(data.errors);
                             toastr.error(firstError || 'Validation failed', 'Error');

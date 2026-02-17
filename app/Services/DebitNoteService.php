@@ -240,6 +240,8 @@ class DebitNoteService
             'posting_year' => $data['postingYear'],
             'posting_quarter' => $data['postingQuarter'],
             'posting_date' => $data['postingDate'],
+            'currency' => $data['currencyCode'] ?? ($cover->currency_code ?? 'KES'),
+            'exchange_rate' => $data['currencyRate'] ?? ($cover->currency_rate ?? 1),
             'brokerage_rate' => $data['brokerageRate'] ?? 0,
             'gross_amount' => $calculation['gross_amount'],
             'commission_amount' => $calculation['commission_amount'],

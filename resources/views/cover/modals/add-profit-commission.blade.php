@@ -1,289 +1,147 @@
-<div class="modal fade" id="addProfitCommissionModal" tabindex="-1" aria-labelledby="addProfitCommissionModalLabel"
-    aria-hidden="true">
-    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
-        <div class="modal-content border-0 shadow">
-            <div class="modal-header bg-success text-white py-3">
-                <h5 class="modal-title fw-semibold" id="addProfitCommissionModalLabel">
-                    <i class="fas fa-percentage me-2"></i>Add Profit Commission
-                </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
-                    aria-label="Close"></button>
-            </div>
-            <form id="profitCommissionForm">
+<div class="modal fade effect-scale md-wrapper" id="addProfitCommissionModal" data-bs-backdrop="static"
+    data-bs-keyboard="false" aria-labelledby="addProfitCommissionModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl" style="max-width: 75%;">
+        <div class="modal-content">
+            <form method="POST" id="profitCommissionForm" action="{{ route('cover.generate-debit') }}">
                 @csrf
-                <input type="hidden" name="treaty_id" id="pc_treaty_id" value="{{ $treaty->id ?? '' }}">
-                <input type="hidden" name="transaction_id" id="pc_transaction_id" value="{{ $transaction->id ?? '' }}">
+                <input type="hidden" name="cover_no" value="{{ $cover->cover_no ?? '' }}" />
+                <input type="hidden" name="endorsement_no" value="{{ $cover->endorsement_no ?? '' }}" />
+                <input type="hidden" name="type_of_bus" value="{{ $cover->type_of_bus ?? '' }}" />
+                <input type="hidden" name="installment" value="{{ $nextInstallment ?? 1 }}" />
+                <input type="hidden" name="amount" value="{{ number_format($installmentAmount ?? 0, 2, '.', '') }}" />
+                <input type="hidden" name="treatyClasses" value="{{ json_encode($treatyClasses ?? []) }}"
+                    id="treatyClasses" />
 
-                <div class="modal-body p-4">
-                    {{-- Treaty Info Summary --}}
-                    <div class="alert alert-light border mb-4">
-                        <div class="row g-2">
-                            <div class="col-md-3">
-                                <small class="text-muted d-block">Treaty</small>
-                                <strong id="pc_treaty_name">{{ $treaty->treaty_type ?? 'SURPLUS' }}</strong>
-                            </div>
-                            <div class="col-md-3">
-                                <small class="text-muted d-block">Insured</small>
-                                <strong id="pc_insured_name">{{ $insured->insured_name ?? 'N/A' }}</strong>
-                            </div>
-                            <div class="col-md-3">
-                                <small class="text-muted d-block">Currency</small>
-                                <strong id="pc_currency">{{ $transaction->currency ?? 'KES' }}</strong>
-                            </div>
-                            <div class="col-md-3">
-                                <small class="text-muted d-block">Period</small>
-                                <strong id="pc_period">{{ $transaction->period ?? 'N/A' }}</strong>
-                            </div>
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addProfitCommissionModalLabel">
+                        <i class="bi bi-percent me-1"></i> <span>Profit Comission</span>
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                        aria-label="Close"></button>
+                </div>
+
+                <div class="modal-body">
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Cover Number</label>
+                            <input type="text" class="form-control fw-medium bg-light"
+                                value="{{ $cover->cover_no ?? '' }}" readonly />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Endorsement Number</label>
+                            <input type="text" class="form-control fw-medium bg-light"
+                                value="{{ $cover->endorsement_no ?? '' }}" readonly />
                         </div>
                     </div>
 
-                    <div class="row g-3">
-                        {{-- Period Selection --}}
-                        <div class="col-md-6">
-                            <label for="pc_from_date" class="form-label fw-medium">
-                                From Date <span class="text-danger">*</span>
-                            </label>
-                            <input type="date" class="form-control" id="pc_from_date" name="from_date" required>
-                            <div class="invalid-feedback">Please select from date</div>
-                        </div>
-
-                        <div class="col-md-6">
-                            <label for="pc_to_date" class="form-label fw-medium">
-                                To Date <span class="text-danger">*</span>
-                            </label>
-                            <input type="date" class="form-control" id="pc_to_date" name="to_date" required>
-                            <div class="invalid-feedback">Please select to date</div>
-                        </div>
-
-                        {{-- Premium Income Section --}}
-                        <div class="col-12 mt-3">
-                            <h6 class="text-success border-bottom pb-2 mb-3">
-                                <i class="fas fa-arrow-up me-2"></i>Premium Income
-                            </h6>
-                        </div>
-
-                        <div class="col-md-4">
-                            <label for="pc_premium_income" class="form-label fw-medium">
-                                Premium Income <span class="text-danger">*</span>
-                            </label>
-                            <div class="input-group">
-                                <span class="input-group-text bg-light pc-currency-label">KES</span>
-                                <input type="number" class="form-control text-end" id="pc_premium_income"
-                                    name="premium_income" step="0.01" min="0" required placeholder="0.00">
-                            </div>
-                            <div class="invalid-feedback">Please enter premium income</div>
-                        </div>
-
-                        <div class="col-md-4">
-                            <label for="pc_portfolio_premium_in" class="form-label fw-medium">Portfolio Premium
-                                In</label>
-                            <div class="input-group">
-                                <span class="input-group-text bg-light pc-currency-label">KES</span>
-                                <input type="number" class="form-control text-end" id="pc_portfolio_premium_in"
-                                    name="portfolio_premium_in" step="0.01" min="0" value="0.00"
-                                    placeholder="0.00">
-                            </div>
-                        </div>
-
-                        <div class="col-md-4">
-                            <label for="pc_portfolio_premium_out" class="form-label fw-medium">Portfolio Premium
-                                Out</label>
-                            <div class="input-group">
-                                <span class="input-group-text bg-light pc-currency-label">KES</span>
-                                <input type="number" class="form-control text-end" id="pc_portfolio_premium_out"
-                                    name="portfolio_premium_out" step="0.01" min="0" value="0.00"
-                                    placeholder="0.00">
-                            </div>
-                        </div>
-
-                        <div class="col-md-4">
-                            <label for="pc_total_income" class="form-label fw-medium">Total Income</label>
-                            <div class="input-group">
-                                <span class="input-group-text bg-success text-white pc-currency-label">KES</span>
-                                <input type="number" class="form-control text-end bg-light fw-bold"
-                                    id="pc_total_income" name="total_income" step="0.01" readonly
-                                    placeholder="0.00">
-                            </div>
-                        </div>
-
-                        {{-- Deductions Section --}}
-                        <div class="col-12 mt-4">
-                            <h6 class="text-danger border-bottom pb-2 mb-3">
-                                <i class="fas fa-arrow-down me-2"></i>Deductions
-                            </h6>
-                        </div>
-
-                        <div class="col-md-4">
-                            <label for="pc_claims_paid" class="form-label fw-medium">Claims Paid</label>
-                            <div class="input-group">
-                                <span class="input-group-text bg-light pc-currency-label">KES</span>
-                                <input type="number" class="form-control text-end" id="pc_claims_paid"
-                                    name="claims_paid" step="0.01" min="0" value="0.00"
-                                    placeholder="0.00">
-                            </div>
-                        </div>
-
-                        <div class="col-md-4">
-                            <label for="pc_claims_outstanding" class="form-label fw-medium">Claims Outstanding</label>
-                            <div class="input-group">
-                                <span class="input-group-text bg-light pc-currency-label">KES</span>
-                                <input type="number" class="form-control text-end" id="pc_claims_outstanding"
-                                    name="claims_outstanding" step="0.01" min="0" value="0.00"
-                                    placeholder="0.00">
-                            </div>
-                        </div>
-
-                        <div class="col-md-4">
-                            <label for="pc_portfolio_claims_in" class="form-label fw-medium">Portfolio Claims
-                                In</label>
-                            <div class="input-group">
-                                <span class="input-group-text bg-light pc-currency-label">KES</span>
-                                <input type="number" class="form-control text-end" id="pc_portfolio_claims_in"
-                                    name="portfolio_claims_in" step="0.01" min="0" value="0.00"
-                                    placeholder="0.00">
-                            </div>
-                        </div>
-
-                        <div class="col-md-4">
-                            <label for="pc_portfolio_claims_out" class="form-label fw-medium">Portfolio Claims
-                                Out</label>
-                            <div class="input-group">
-                                <span class="input-group-text bg-light pc-currency-label">KES</span>
-                                <input type="number" class="form-control text-end" id="pc_portfolio_claims_out"
-                                    name="portfolio_claims_out" step="0.01" min="0" value="0.00"
-                                    placeholder="0.00">
-                            </div>
-                        </div>
-
-                        <div class="col-md-4">
-                            <label for="pc_commission_paid" class="form-label fw-medium">Commission Paid</label>
-                            <div class="input-group">
-                                <span class="input-group-text bg-light pc-currency-label">KES</span>
-                                <input type="number" class="form-control text-end" id="pc_commission_paid"
-                                    name="commission_paid" step="0.01" min="0" value="0.00"
-                                    placeholder="0.00">
-                            </div>
-                        </div>
-
-                        <div class="col-md-4">
-                            <label for="pc_management_expenses_rate" class="form-label fw-medium">
-                                Management Expenses (%)
-                            </label>
-                            <div class="input-group">
-                                <input type="number" class="form-control text-end" id="pc_management_expenses_rate"
-                                    name="management_expenses_rate" step="0.01" min="0" max="100"
-                                    value="5.00" placeholder="0.00">
-                                <span class="input-group-text bg-light">%</span>
-                            </div>
-                        </div>
-
-                        <div class="col-md-4">
-                            <label for="pc_management_expenses_amount" class="form-label fw-medium">
-                                Management Expenses Amt
-                            </label>
-                            <div class="input-group">
-                                <span class="input-group-text bg-light pc-currency-label">KES</span>
-                                <input type="number" class="form-control text-end bg-light"
-                                    id="pc_management_expenses_amount" name="management_expenses_amount"
-                                    step="0.01" readonly placeholder="0.00">
-                            </div>
-                        </div>
-
-                        <div class="col-md-4">
-                            <label for="pc_reserve_rate" class="form-label fw-medium">Reserve Rate (%)</label>
-                            <div class="input-group">
-                                <input type="number" class="form-control text-end" id="pc_reserve_rate"
-                                    name="reserve_rate" step="0.01" min="0" max="100" value="0.00"
-                                    placeholder="0.00">
-                                <span class="input-group-text bg-light">%</span>
-                            </div>
-                        </div>
-
-                        <div class="col-md-4">
-                            <label for="pc_reserve_amount" class="form-label fw-medium">Reserve Amount</label>
-                            <div class="input-group">
-                                <span class="input-group-text bg-light pc-currency-label">KES</span>
-                                <input type="number" class="form-control text-end bg-light" id="pc_reserve_amount"
-                                    name="reserve_amount" step="0.01" readonly placeholder="0.00">
-                            </div>
-                        </div>
-
-                        <div class="col-md-4">
-                            <label for="pc_total_deductions" class="form-label fw-medium">Total Deductions</label>
-                            <div class="input-group">
-                                <span class="input-group-text bg-danger text-white pc-currency-label">KES</span>
-                                <input type="number" class="form-control text-end bg-light fw-bold"
-                                    id="pc_total_deductions" name="total_deductions" step="0.01" readonly
-                                    placeholder="0.00">
-                            </div>
-                        </div>
-
-                        {{-- Profit Calculation Section --}}
-                        <div class="col-12 mt-4">
-                            <h6 class="text-primary border-bottom pb-2 mb-3">
-                                <i class="fas fa-calculator me-2"></i>Profit Commission Calculation
-                            </h6>
-                        </div>
-
-                        <div class="col-md-4">
-                            <label for="pc_deficit_bf" class="form-label fw-medium">Deficit B/F (Previous
-                                Period)</label>
-                            <div class="input-group">
-                                <span class="input-group-text bg-light pc-currency-label">KES</span>
-                                <input type="number" class="form-control text-end" id="pc_deficit_bf"
-                                    name="deficit_bf" step="0.01" min="0" value="0.00"
-                                    placeholder="0.00">
-                            </div>
-                        </div>
-
-                        <div class="col-md-4">
-                            <label for="pc_profit_balance" class="form-label fw-medium">Profit Balance</label>
-                            <div class="input-group">
-                                <span class="input-group-text bg-light pc-currency-label">KES</span>
-                                <input type="number" class="form-control text-end bg-light" id="pc_profit_balance"
-                                    name="profit_balance" step="0.01" readonly placeholder="0.00">
-                            </div>
-                        </div>
-
-                        <div class="col-md-4">
-                            <label for="pc_profit_commission_rate" class="form-label fw-medium">
-                                Profit Commission Rate (%) <span class="text-danger">*</span>
-                            </label>
-                            <div class="input-group">
-                                <input type="number" class="form-control text-end" id="pc_profit_commission_rate"
-                                    name="profit_commission_rate" step="0.01" min="0" max="100"
-                                    value="20.00" placeholder="0.00" required>
-                                <span class="input-group-text bg-light">%</span>
-                            </div>
-                        </div>
-
-                        {{-- Final Amount --}}
-                        <div class="col-12">
-                            <div class="card bg-success bg-opacity-10 border-success mt-3">
-                                <div class="card-body py-3">
-                                    <div class="row align-items-center">
-                                        <div class="col-md-4">
-                                            <h6 class="mb-0 text-success">
-                                                <i class="fas fa-coins me-2"></i>Profit Commission Amount
-                                            </h6>
+                    <div class="row">
+                        <div class="col-md-8">
+                            <div class="row">
+                                <div class="col-md-12">
+                                    <div class="card shadow-sm mb-3">
+                                        <div class="card-header bg-light py-2">
+                                            <h6 class="mb-0 fw-semibold">Debit Information</h6>
                                         </div>
-                                        <div class="col-md-4">
-                                            <div class="input-group">
-                                                <span class="input-group-text bg-success text-white">KES</span>
-                                                <input type="number"
-                                                    class="form-control form-control-lg text-end fw-bold bg-light"
-                                                    id="pc_profit_commission_amount" name="profit_commission_amount"
-                                                    step="0.01" readonly placeholder="0.00">
+                                        <div class="card-body">
+                                            <div class="row g-3">
+                                                <div class="col-md-4">
+                                                    <label class="form-label" for="posting_year">
+                                                        Underwriting Year <span class="text-danger">*</span>
+                                                    </label>
+                                                    <select name="posting_year" id="posting_year" class="form-select"
+                                                        required>
+                                                        <option value="">Select Year</option>
+                                                        @for ($year = date('Y') + 1; $year >= date('Y') - 2; $year--)
+                                                            <option value="{{ $year }}"
+                                                                {{ $year == date('Y') ? 'selected' : '' }}>
+                                                                {{ $year }}
+                                                            </option>
+                                                        @endfor
+                                                    </select>
+                                                </div>
+
+                                                <div class="col-md-8"></div>
+
+                                                <div class="col-md-4">
+                                                    <label class="form-label" for="posting_quarter">
+                                                        Posting Quarter <span class="text-danger">*</span>
+                                                    </label>
+                                                    <div class="cover-card">
+                                                        <select name="posting_quarter" id="posting_quarter"
+                                                            class="form-select" required>
+                                                            <option value="">Select Quarter</option>
+                                                            <option value="Q1"
+                                                                {{ date('n') <= 3 ? 'selected' : '' }}>
+                                                                Q1 - First Quarter
+                                                            </option>
+                                                            <option value="Q2"
+                                                                {{ date('n') >= 4 && date('n') <= 6 ? 'selected' : '' }}>
+                                                                Q2 - Second Quarter
+                                                            </option>
+                                                            <option value="Q3"
+                                                                {{ date('n') >= 7 && date('n') <= 9 ? 'selected' : '' }}>
+                                                                Q3 - Third Quarter
+                                                            </option>
+                                                            <option value="Q4"
+                                                                {{ date('n') >= 10 ? 'selected' : '' }}>
+                                                                Q4 - Fourth Quarter
+                                                            </option>
+                                                        </select>
+                                                    </div>
+                                                </div>
+
+                                                <div class="col-md-4">
+                                                    <label class="form-label" for="posting_date">
+                                                        Posting Date <span class="text-danger">*</span>
+                                                    </label>
+                                                    <input type="date" name="posting_date" id="posting_date"
+                                                        class="form-control" value="{{ date('Y-m-d') }}" required />
+                                                </div>
+
+                                                <div class="col-md-4"></div>
+
+                                                <div class="col-md-4">
+                                                    <label class="form-label" for="profit_comm_rate">Profit Commission
+                                                        Rate
+                                                        (%)</label>
+                                                    <input type="number" name="profit_comm_rate" id="profit_comm_rate"
+                                                        class="form-control" step="0.01"
+                                                        value="{{ number_format($cover->profit_comm_rate, 2) }}"
+                                                        data-default="{{ number_format($cover->profit_comm_rate, 2) }}"
+                                                        min="0" max="100" />
+                                                </div>
                                             </div>
                                         </div>
-                                        <div class="col-md-4">
-                                            <label for="pc_deficit_cf" class="form-label fw-medium mb-1">Deficit
-                                                C/F</label>
-                                            <div class="input-group input-group-sm">
-                                                <span class="input-group-text bg-warning">KES</span>
-                                                <input type="number" class="form-control text-end bg-light"
-                                                    id="pc_deficit_cf" name="deficit_cf" step="0.01" readonly
-                                                    placeholder="0.00">
+                                    </div>
+                                </div>
+
+                                <div class="col-md-12 mb-2">
+                                    <label class="form-label" for="comments">Comments</label>
+                                    <textarea name="comments" id="comments" class="form-control resize-none shadow-sm" rows="3"
+                                        placeholder="Enter any additional information or remarks" maxlength="2000"></textarea>
+                                    <small class="text-muted">
+                                        <span id="comments-count">0</span>/2000 characters
+                                    </small>
+                                </div>
+
+                                <div class="col-md-12 mb-3">
+                                    <div class="row g-3">
+                                        <div class="col-md-6">
+                                            <div class="form-check form-check-lg custom-checkbox">
+                                                <input class="form-check-input" type="checkbox" name="show_cedant"
+                                                    id="show_cedant" value="1">
+                                                <label class="form-check-label" for="show_cedant">
+                                                    Show Cedant on Statement
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="form-check form-check-lg custom-checkbox">
+                                                <input class="form-check-input" type="checkbox" name="show_reinsurer"
+                                                    id="show_reinsurer" value="1">
+                                                <label class="form-check-label" for="show_reinsurer">
+                                                    Show Reinsurer on Statement
+                                                </label>
                                             </div>
                                         </div>
                                     </div>
@@ -291,24 +149,132 @@
                             </div>
                         </div>
 
-                        {{-- Remarks --}}
-                        <div class="col-12 mt-3">
-                            <label for="pc_remarks" class="form-label fw-medium">Remarks</label>
-                            <textarea class="form-control" id="pc_remarks" name="remarks" rows="2"
-                                placeholder="Enter any additional notes..."></textarea>
+                        <div class="col-md-4">
+                            <div class="card shadow-sm mb-3">
+                                <div class="card-header bg-light py-2">
+                                    <h6 class="mb-0 fw-semibold">Currency</h6>
+                                </div>
+                                <div class="card-body">
+                                    @php
+                                        $selectedCurrency = $cover->currency_code ?? 'KES';
+                                        $defaultExchangeRate = number_format((float) ($cover->currency_rate ?? 1), 6, '.', '');
+                                    @endphp
+
+                                    <div class="mb-3">
+                                        <label class="form-label" for="pc_currency_code">
+                                            Currency <span class="text-danger">*</span>
+                                        </label>
+                                        <select name="currency_code" id="pc_currency_code" class="form-select form-select-sm"
+                                            data-default="{{ $selectedCurrency }}" required>
+                                            <option value="">Select Currency</option>
+                                            @if (isset($currencies) && count($currencies))
+                                                @foreach ($currencies as $currency)
+                                                    <option value="{{ $currency->currency_code }}"
+                                                        {{ $selectedCurrency === $currency->currency_code ? 'selected' : '' }}>
+                                                        {{ $currency->currency_code }} - {{ $currency->currency_name }}
+                                                    </option>
+                                                @endforeach
+                                            @else
+                                                <option value="{{ $selectedCurrency }}" selected>
+                                                    {{ $selectedCurrency }}
+                                                </option>
+                                            @endif
+                                        </select>
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label class="form-label" for="pc_exchange_rate">
+                                            Exchange Rate <span class="text-danger">*</span>
+                                        </label>
+                                        <input type="number" name="today_currency" id="pc_exchange_rate"
+                                            class="form-control form-control-sm text-end" step="0.000001" min="0.000001"
+                                            value="{{ $defaultExchangeRate }}" data-default="{{ $defaultExchangeRate }}" required />
+                                        <small id="pc_exchange_rate_hint" class="text-muted d-block mt-1">
+                                            Auto-fetched from today's rate. You can edit only when no daily rate exists.
+                                        </small>
+                                    </div>
+
+                                    {{-- Premium Levy --}}
+                                    <div class="levy-row mb-2">
+                                        <div class="d-flex align-items-center justify-content-between">
+                                            <div class="form-check form-check-lg custom-checkbox mb-0">
+                                                <input class="form-check-input levy-checkbox" type="checkbox"
+                                                    name="compute_premium_tax" id="compute_premium_tax"
+                                                    value="1" data-rate="{{ $taxRates['PREMIUM_LEVY'] }}">
+                                                <label class="form-check-label" for="compute_premium_tax">
+                                                    Premium Levy
+                                                </label>
+                                            </div>
+                                            <div class="levy-rate-input">
+                                                <div class="input-group input-group-sm">
+                                                    <input type="number" name="premium_levy" id="premium_levy"
+                                                        class="form-control form-control-sm text-end" step="0.01"
+                                                        value="{{ $taxRates['PREMIUM_LEVY'] }}" min="0"
+                                                        data-default="{{ $taxRates['PREMIUM_LEVY'] }}" max="100"
+                                                        style="width: 75px;" />
+                                                    <span class="input-group-text">%</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="card">
+                                <div class="card-header py-2 d-flex justify-content-between align-items-center">
+                                    <strong>Transaction Line Items</strong>
+                                    <button type="button" class="btn btn-sm btn-success" id="add-debit-item">
+                                        <i class="fas fa-plus me-1"></i> Add Line Item
+                                    </button>
+                                </div>
+                                <div class="card-body p-0">
+                                    <div class="table-responsive">
+                                        <table class="table table-sm table-hover mb-0" id="debit-items-table">
+                                            <thead class="table-light">
+                                                <tr>
+                                                    <th style="width: 10%;">Item Code</th>
+                                                    <th style="width: 18%;">
+                                                        Transaction Type <span class="text-danger">*</span>
+                                                    </th>
+                                                    <th style="width: 15%;">
+                                                        Class Group <span class="text-danger">*</span>
+                                                    </th>
+                                                    <th style="width: 17%;">Business Class</th>
+                                                    <th style="width: 12%;">Commission (%) <span
+                                                            class="text-danger">*</span></th>
+                                                    <th style="width: 10%;">Ledger</th>
+                                                    <th style="width: 13%;">
+                                                        Amount <span class="text-danger">*</span>
+                                                    </th>
+                                                    <th style="width: 5%;" class="text-center">Action</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="debit-items-body">
+                                                <tr id="no-items-row">
+                                                    <td colspan="8" class="text-center text-muted py-4">
+                                                        <i class="fas fa-inbox fa-2x mb-2 d-block opacity-50"></i>
+                                                        No line items added. Click "Add Line Item" to begin.
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <div class="modal-footer bg-light py-3">
-                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
-                        <i class="fas fa-times me-1"></i>Cancel
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-light btn-sm" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-1"></i> Cancel
                     </button>
-                    <button type="button" class="btn btn-outline-info" id="pc_recalculate_btn">
-                        <i class="fas fa-calculator me-1"></i>Recalculate
-                    </button>
-                    <button type="submit" class="btn btn-success" id="pc_submit_btn">
-                        <i class="fas fa-save me-1"></i>Add Profit Commission
+                    <button type="submit" id="debit-save-btn" class="btn btn-primary btn-sm">
+                        <i class="fas fa-check me-1"></i> Profit Comission
                     </button>
                 </div>
             </form>
@@ -316,254 +282,1811 @@
     </div>
 </div>
 
+{{-- Item Row Template --}}
+<template id="debit-item-row-template">
+    <tr class="debit-item-row" data-item-index="INDEX">
+        <input type="hidden" class="item-type" name="items[INDEX][item_type]" value="" />
+        <td>
+            <select class="form-select form-select-sm item-code" name="items[INDEX][item_code]">
+                <option value="">--</option>
+                @forelse ($itemCodes ?? [] as $code => $data)
+                    @if (in_array($code, ['IT01', 'IT02']))
+                        <option value="{{ $code }}" data-type="{{ $data['type'] }}"
+                            data-description="{{ $data['description'] }}">
+                            {{ $code }}
+                        </option>
+                    @endif
+                @empty
+                    <option value="">No codes available</option>
+                @endforelse
+            </select>
+        </td>
+        <td>
+            <select name="items[INDEX][description]" class="form-select form-select-sm item-description" required>
+                <option value="">-- Select Type --</option>
+                @foreach ($itemCodes ?? [] as $code => $data)
+                    @if (in_array($code, ['IT01', 'IT02']))
+                        <option value="{{ $code }}" data-type="{{ $data['type'] }}"
+                            data-code="{{ $code }}">
+                            {{ $data['description'] }}
+                        </option>
+                    @endif
+                @endforeach
+            </select>
+        </td>
+        <td>
+            <select name="items[INDEX][class_group]" class="form-select form-select-sm item-class-group" required>
+                <option value="">-- Select Group --</option>
+                @foreach ($classGroups ?? [] as $group)
+                    <option value="{{ $group['group_code'] }}">{{ $group['group_name'] }}</option>
+                @endforeach
+            </select>
+        </td>
+        <td>
+            <select name="items[INDEX][class_name]" class="form-select form-select-sm item-class-name">
+                <option value="">-- Class --</option>
+                @if (isset($businessClasses))
+                    @foreach ($businessClasses as $category => $classes)
+                        @foreach ($classes as $code => $name)
+                            <option value="{{ $code }}" data-group="{{ $category }}"
+                                style="display: none;">
+                                {{ $name }}</option>
+                        @endforeach
+                    @endforeach
+                @endif
+            </select>
+        </td>
+        <td>
+            <input type="number" name="items[INDEX][line_rate]"
+                class="form-control form-control-sm item-line-rate text-end" step="0.01" placeholder="0.00"
+                min="0" max="100" required title="Commission rate is required (0-100%)" />
+        </td>
+        <td>
+            <select name="items[INDEX][ledger]" class="form-select form-select-sm item-ledger">
+                <option value="">--</option>
+                <option value="DR">DR</option>
+                <option value="CR">CR</option>
+            </select>
+        </td>
+        <td>
+            <input type="text" class="form-control form-control-sm item-amount text-end" placeholder="0.00"
+                inputmode="decimal" required />
+            <input type="hidden" name="items[INDEX][amount]" class="item-amount-hidden" />
+        </td>
+        <td class="text-center">
+            <button type="button" class="btn btn-sm btn-outline-danger remove-item-btn" title="Remove item">
+                <i class="bx bx-trash-alt"></i>
+            </button>
+        </td>
+    </tr>
+</template>
+
+<style>
+    #addProfitCommissionModal .modal-body {
+        max-height: 75vh;
+        overflow-y: auto;
+    }
+
+    #addProfitCommissionModal .form-label {
+        margin-bottom: 0.5rem;
+        font-weight: 600;
+        font-size: 13px;
+    }
+
+    #addProfitCommissionModal .card {
+        border: 1px solid #dee2e6;
+        border-radius: 0.375rem;
+        margin-bottom: 0px;
+    }
+
+    #addProfitCommissionModal .card-header {
+        background-color: #f8f9fa;
+        border-bottom: 1px solid #dee2e6;
+    }
+
+    #addProfitCommissionModal .form-check-input:checked {
+        background-color: #0d6efd;
+        border-color: #0d6efd;
+    }
+
+    #addProfitCommissionModal .levy-row {
+        padding: 0px;
+    }
+
+    #addProfitCommissionModal .levy-row:last-child {
+        border-bottom: none;
+    }
+
+    #addProfitCommissionModal .levy-rate-input .form-control {
+        width: 75px;
+        text-align: right;
+    }
+
+    #addProfitCommissionModal .table th {
+        font-weight: 600;
+        font-size: 0.813rem;
+        background-color: #f8f9fa;
+    }
+
+    #addProfitCommissionModal .table-responsive {
+        max-height: 600px;
+        overflow-y: auto;
+    }
+
+    #addProfitCommissionModal .resize-none {
+        resize: none;
+    }
+
+    #addProfitCommissionModal .debit-item-row {
+        transition: background-color 0.2s ease;
+    }
+
+    #addProfitCommissionModal .debit-item-row:hover {
+        background-color: #f8f9fa;
+    }
+
+    #addProfitCommissionModal .debit-item-row.is-debit {
+        background-color: #d1e7dd;
+    }
+
+    #addProfitCommissionModal .debit-item-row.is-credit {
+        background-color: #fff3cd;
+    }
+
+    #addProfitCommissionModal .error-field {
+        border-color: #dc3545 !important;
+    }
+
+    #addProfitCommissionModal .error-message {
+        color: #dc3545;
+        font-size: 0.75rem;
+        margin-top: 0.25rem;
+        display: block;
+    }
+
+    #addProfitCommissionModal .table-responsive::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+    }
+
+    #addProfitCommissionModal .table-responsive::-webkit-scrollbar-track {
+        background: #f1f1f1;
+    }
+
+    #addProfitCommissionModal .table-responsive::-webkit-scrollbar-thumb {
+        background: #888;
+        border-radius: 4px;
+    }
+
+    #addProfitCommissionModal .table-responsive::-webkit-scrollbar-thumb:hover {
+        background: #555;
+    }
+
+    /* Visual indicator for item type */
+    #addProfitCommissionModal .item-type-badge {
+        font-size: 0.65rem;
+        padding: 0.15rem 0.4rem;
+        border-radius: 0.25rem;
+        margin-left: 0.25rem;
+    }
+
+    #addProfitCommissionModal .item-type-badge.debit {
+        background-color: #198754;
+        color: white;
+    }
+
+    #addProfitCommissionModal .item-type-badge.credit {
+        background-color: #ffc107;
+        color: #212529;
+    }
+
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(-5px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+</style>
+
 @push('script')
     <script>
-        $(document).ready(function() {
-            // Cache DOM elements
-            const $modal = $('#addProfitCommissionModal');
-            const $form = $('#profitCommissionForm');
-            const $submitBtn = $('#pc_submit_btn');
+        (function($) {
+            'use strict';
 
-            // Input elements
-            const $premiumIncome = $('#pc_premium_income');
-            const $portfolioPremiumIn = $('#pc_portfolio_premium_in');
-            const $portfolioPremiumOut = $('#pc_portfolio_premium_out');
-            const $totalIncome = $('#pc_total_income');
-            const $claimsPaid = $('#pc_claims_paid');
-            const $claimsOutstanding = $('#pc_claims_outstanding');
-            const $portfolioClaimsIn = $('#pc_portfolio_claims_in');
-            const $portfolioClaimsOut = $('#pc_portfolio_claims_out');
-            const $commissionPaid = $('#pc_commission_paid');
-            const $managementExpensesRate = $('#pc_management_expenses_rate');
-            const $managementExpensesAmount = $('#pc_management_expenses_amount');
-            const $reserveRate = $('#pc_reserve_rate');
-            const $reserveAmount = $('#pc_reserve_amount');
-            const $totalDeductions = $('#pc_total_deductions');
-            const $deficitBf = $('#pc_deficit_bf');
-            const $profitBalance = $('#pc_profit_balance');
-            const $profitCommissionRate = $('#pc_profit_commission_rate');
-            const $profitCommissionAmount = $('#pc_profit_commission_amount');
-            const $deficitCf = $('#pc_deficit_cf');
-
-            // Main calculation function
-            function calculateProfitCommission() {
-                // Calculate Total Income
-                const premiumIncome = parseFloat($premiumIncome.val()) || 0;
-                const portfolioPremiumIn = parseFloat($portfolioPremiumIn.val()) || 0;
-                const portfolioPremiumOut = parseFloat($portfolioPremiumOut.val()) || 0;
-                const totalIncome = premiumIncome + portfolioPremiumIn - portfolioPremiumOut;
-                $totalIncome.val(totalIncome.toFixed(2));
-
-                // Calculate Management Expenses Amount
-                const managementExpensesRate = parseFloat($managementExpensesRate.val()) || 0;
-                const managementExpensesAmount = (premiumIncome * managementExpensesRate) / 100;
-                $managementExpensesAmount.val(managementExpensesAmount.toFixed(2));
-
-                // Calculate Reserve Amount
-                const reserveRate = parseFloat($reserveRate.val()) || 0;
-                const reserveAmount = (premiumIncome * reserveRate) / 100;
-                $reserveAmount.val(reserveAmount.toFixed(2));
-
-                // Calculate Total Deductions
-                const claimsPaid = parseFloat($claimsPaid.val()) || 0;
-                const claimsOutstanding = parseFloat($claimsOutstanding.val()) || 0;
-                const portfolioClaimsIn = parseFloat($portfolioClaimsIn.val()) || 0;
-                const portfolioClaimsOut = parseFloat($portfolioClaimsOut.val()) || 0;
-                const commissionPaid = parseFloat($commissionPaid.val()) || 0;
-
-                const totalDeductions = claimsPaid + claimsOutstanding + portfolioClaimsIn -
-                    portfolioClaimsOut + commissionPaid + managementExpensesAmount + reserveAmount;
-                $totalDeductions.val(totalDeductions.toFixed(2));
-
-                // Calculate Profit Balance
-                const deficitBf = parseFloat($deficitBf.val()) || 0;
-                const profitBalance = totalIncome - totalDeductions - deficitBf;
-                $profitBalance.val(profitBalance.toFixed(2));
-
-                // Style based on profit/loss
-                if (profitBalance >= 0) {
-                    $profitBalance.removeClass('text-danger').addClass('text-success');
-                } else {
-                    $profitBalance.removeClass('text-success').addClass('text-danger');
-                }
-
-                // Calculate Profit Commission
-                const profitCommissionRate = parseFloat($profitCommissionRate.val()) || 0;
-                let profitCommissionAmount = 0;
-                let deficitCf = 0;
-
-                if (profitBalance > 0) {
-                    profitCommissionAmount = (profitBalance * profitCommissionRate) / 100;
-                } else {
-                    deficitCf = Math.abs(profitBalance);
-                }
-
-                $profitCommissionAmount.val(profitCommissionAmount.toFixed(2));
-                $deficitCf.val(deficitCf.toFixed(2));
-            }
-
-            // Bind calculation to all editable inputs
-            const $editableInputs = $form.find(
-                '#pc_premium_income, #pc_portfolio_premium_in, #pc_portfolio_premium_out, ' +
-                '#pc_claims_paid, #pc_claims_outstanding, #pc_portfolio_claims_in, ' +
-                '#pc_portfolio_claims_out, #pc_commission_paid, #pc_management_expenses_rate, ' +
-                '#pc_reserve_rate, #pc_deficit_bf, #pc_profit_commission_rate'
-            );
-
-            $editableInputs.on('input change', calculateProfitCommission);
-
-            // Recalculate button
-            $('#pc_recalculate_btn').on('click', calculateProfitCommission);
-
-            // Reset form when modal closes
-            $modal.on('hidden.bs.modal', function() {
-                $form[0].reset();
-                // Clear calculated fields
-                $totalIncome.val('');
-                $managementExpensesAmount.val('');
-                $reserveAmount.val('');
-                $totalDeductions.val('');
-                $profitBalance.val('').removeClass('text-success text-danger');
-                $profitCommissionAmount.val('');
-                $deficitCf.val('');
-                $form.find('.is-invalid').removeClass('is-invalid');
-            });
-
-            // Set default dates when modal opens
-            $modal.on('shown.bs.modal', function() {
-                const today = new Date();
-                const $fromDate = $('#pc_from_date');
-                const $toDate = $('#pc_to_date');
-
-                if (!$fromDate.val()) {
-                    $fromDate.val(today.getFullYear() + '-01-01');
-                }
-                if (!$toDate.val()) {
-                    $toDate.val(today.toISOString().split('T')[0]);
-                }
-            });
-
-            // Form submission with jQuery AJAX
-            $form.on('submit', function(e) {
-                e.preventDefault();
-
-                // Remove previous validation states
-                $form.find('.is-invalid').removeClass('is-invalid');
-
-                // Validate required fields
-                let isValid = true;
-                $form.find('[required]').each(function() {
-                    if (!$(this).val()) {
-                        $(this).addClass('is-invalid');
-                        isValid = false;
-                    }
-                });
-
-                if (!isValid) {
-                    if (typeof Swal !== 'undefined') {
-                        Swal.fire('Validation Error', 'Please fill in all required fields.', 'error');
-                    } else {
-                        alert('Please fill in all required fields.');
-                    }
-                    return;
-                }
-
-                // Validate dates
-                const fromDate = new Date($('#pc_from_date').val());
-                const toDate = new Date($('#pc_to_date').val());
-
-                if (toDate < fromDate) {
-                    $('#pc_to_date').addClass('is-invalid');
-                    if (typeof Swal !== 'undefined') {
-                        Swal.fire('Validation Error', 'To Date must be after From Date', 'error');
-                    } else {
-                        alert('To Date must be after From Date');
-                    }
-                    return;
-                }
-
-                // Show loading state
-                const originalBtnText = $submitBtn.html();
-                $submitBtn.prop('disabled', true).html(
-                    '<i class="fas fa-spinner fa-spin me-1"></i>Saving...');
-
-                // AJAX request
-                $.ajax({
-                    url: "{{ route('treaty.profit-commission.store') }}",
-                    type: 'POST',
-                    data: $form.serialize(),
-                    dataType: 'json',
-                    headers: {
-                        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+            const ProfitCommissionModal = {
+                config: {
+                    selectors: {
+                        modal: '#addProfitCommissionModal',
+                        form: '#profitCommissionForm',
+                        itemsBody: '#debit-items-body',
+                        template: '#debit-item-row-template',
+                        addBtn: '#add-debit-item',
+                        saveBtn: '#debit-save-btn',
+                        totalAmount: '#total-amount',
+                        noItemsRow: '#no-items-row',
+                        summarySection: '#summary-section',
+                        summaryGross: '#summary-gross',
+                        summaryDeductions: '#summary-deductions',
+                        summaryNet: '#summary-net',
+                        commentsField: '#comments',
+                        commentsCount: '#comments-count',
+                        postingYear: '#posting_year',
+                        postingQuarter: '#posting_quarter',
+                        postingDate: '#posting_date',
+                        profitCommissionRate: '#profit_comm_rate',
+                        currencyCode: '#pc_currency_code',
+                        exchangeRate: '#pc_exchange_rate',
+                        exchangeRateHint: '#pc_exchange_rate_hint',
+                        treatyClasses: "#treatyClasses"
                     },
-                    success: function(response) {
-                        $modal.modal('hide');
+                    classes: {
+                        itemRow: '.debit-item-row',
+                        removeBtn: '.remove-item-btn',
+                        itemAmount: '.item-amount',
+                        itemAmountHidden: '.item-amount-hidden',
+                        itemDescription: '.item-description',
+                        itemCode: '.item-code',
+                        itemType: '.item-type',
+                        itemClassGroup: '.item-class-group',
+                        itemClassName: '.item-class-name',
+                        itemLedger: '.item-ledger',
+                        itemLineRate: '.item-line-rate',
+                        levyCheckbox: '.levy-checkbox',
+                        errorField: 'error-field',
+                        errorMessage: 'error-message'
+                    },
+                    debitTypeCodes: ['IT01', 'IT26'],
+                    creditTypeCodes: ['IT02', 'IT03', 'IT04', 'IT05', 'IT06', 'IT07', 'IT08'],
+                    allowedKeys: [
+                        'Backspace', 'Delete', 'Tab', 'Escape', 'Enter',
+                        'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown',
+                        'Home', 'End'
+                    ],
+                    calcDebounceMs: 150
+                },
 
-                        if (typeof Swal !== 'undefined') {
-                            Swal.fire({
-                                title: 'Success!',
-                                text: response.message ||
-                                    'Profit commission added successfully!',
-                                icon: 'success',
-                                confirmButtonText: 'OK'
-                            }).then(function() {
-                                location.reload();
-                            });
-                        } else {
-                            alert(response.message ||
-                                'Profit commission added successfully!');
-                            location.reload();
+                state: {
+                    itemIndex: 0,
+                    isSubmitting: false,
+                    validator: null,
+                    calcDebounceTimer: null,
+                    isDataLocked: false,
+                    loadedQuarter: null,
+                    defaultMeta: null
+                },
+
+                urls: {
+                    getQuarterlyByQuarter: '{{ route('cover.get_quarterly_by_quarter') }}',
+                    getTodaysRate: '{{ route('get_todays_rate') }}'
+                },
+
+                $el: {},
+
+                init: function() {
+                    this.cacheElements();
+
+                    if (!this.$el.modal.length) {
+                        return;
+                    }
+
+                    this.state.defaultMeta = this.getDefaultMeta();
+                    this.initValidator();
+                    this.bindEvents();
+                },
+
+                cacheElements: function() {
+                    const s = this.config.selectors;
+
+                    this.$el = {
+                        modal: $(s.modal),
+                        form: $(s.form),
+                        itemsBody: $(s.itemsBody),
+                        template: $(s.template),
+                        addBtn: $(s.addBtn),
+                        saveBtn: $(s.saveBtn),
+                        totalAmount: $(s.totalAmount),
+                        noItemsRow: $(s.noItemsRow),
+                        summarySection: $(s.summarySection),
+                        summaryGross: $(s.summaryGross),
+                        summaryDeductions: $(s.summaryDeductions),
+                        summaryNet: $(s.summaryNet),
+                        commentsField: $(s.commentsField),
+                        commentsCount: $(s.commentsCount),
+                        postingYear: $(s.postingYear),
+                        postingQuarter: $(s.postingQuarter),
+                        postingDate: $(s.postingDate),
+                        profitCommissionRate: $(s.profitCommissionRate),
+                        currencyCode: $(s.currencyCode),
+                        exchangeRate: $(s.exchangeRate),
+                        exchangeRateHint: $(s.exchangeRateHint)
+                    };
+                },
+
+                initValidator: function() {
+                    const self = this;
+
+                    $.validator.addMethod('quarterMatchesDate', function() {
+                        const postingDate = self.$el.postingDate.val();
+                        const postingQuarter = self.$el.postingQuarter.val();
+
+                        if (!postingDate || !postingQuarter) return true;
+
+                        const month = new Date(postingDate).getMonth() + 1;
+                        const expectedQuarter = self.getQuarterFromMonth(month);
+
+                        return postingQuarter === expectedQuarter;
+                    }, 'Quarter does not match posting date');
+
+                    this.state.validator = this.$el.form.validate({
+                        rules: {
+                            posting_year: {
+                                required: true
+                            },
+                            posting_quarter: {
+                                required: true,
+                                quarterMatchesDate: true
+                            },
+                            posting_date: {
+                                required: true,
+                                date: true
+                            },
+                            profit_comm_rate: {
+                                number: true,
+                                min: 0,
+                                max: 100
+                            },
+                            currency_code: {
+                                required: true
+                            },
+                            today_currency: {
+                                required: true,
+                                number: true,
+                                min: 0.000001
+                            }
+                        },
+                        messages: {
+                            posting_year: {
+                                required: 'Please select a year'
+                            },
+                            posting_quarter: {
+                                required: 'Please select a quarter'
+                            },
+                            posting_date: {
+                                required: 'Please enter a date',
+                                date: 'Please enter a valid date'
+                            },
+                            profit_comm_rate: {
+                                number: 'Please enter a valid number',
+                                min: 'Minimum value is 0%',
+                                max: 'Maximum value is 100%'
+                            },
+                            currency_code: {
+                                required: 'Please select a currency'
+                            },
+                            today_currency: {
+                                required: 'Exchange rate is required',
+                                number: 'Please enter a valid exchange rate',
+                                min: 'Exchange rate must be greater than 0'
+                            }
+                        },
+                        errorElement: 'span',
+                        errorClass: this.config.classes.errorMessage,
+                        errorPlacement: function(error, element) {
+                            if (element.closest(self.config.classes.itemRow).length) return;
+                            error.insertAfter(element);
+                        },
+                        highlight: function(element) {
+                            $(element).addClass(self.config.classes.errorField);
+                        },
+                        unhighlight: function(element) {
+                            $(element).removeClass(self.config.classes.errorField);
+                        },
+                        submitHandler: function() {
+                            self.handleSubmit();
+                            return false;
                         }
-                    },
-                    error: function(xhr, status, error) {
-                        console.error('Error:', xhr.responseJSON);
+                    });
+                },
 
-                        let errorMessage = 'An error occurred while saving.';
+                bindEvents: function() {
+                    const self = this;
+                    const c = this.config.classes;
 
-                        if (xhr.responseJSON) {
-                            if (xhr.responseJSON.message) {
-                                errorMessage = xhr.responseJSON.message;
-                            } else if (xhr.responseJSON.errors) {
-                                const errors = xhr.responseJSON.errors;
-                                errorMessage = Object.values(errors).flat().join('\n');
+                    this.$el.addBtn.on('click', function(e) {
+                        e.preventDefault();
+                        self.addItem();
+                    });
 
-                                $.each(errors, function(field, messages) {
-                                    $form.find('[name="' + field + '"]').addClass(
-                                        'is-invalid');
-                                });
+                    this.$el.itemsBody.on('click', c.removeBtn, function(e) {
+                        e.preventDefault();
+                        self.removeItem($(this));
+                    });
+
+                    this.$el.itemsBody
+                        .on('input', c.itemAmount, function() {
+                            self.formatAmountInput($(this));
+                            self.debouncedCalculate();
+                        })
+                        .on('blur', c.itemAmount, function() {
+                            self.formatAmountOnBlur($(this));
+                        })
+                        .on('focus', c.itemAmount, function() {
+                            $(this).select();
+                        })
+                        .on('keydown', c.itemAmount, function(e) {
+                            return self.validateAmountKeypress(e);
+                        })
+                        .on('paste', c.itemAmount, function(e) {
+                            self.handleAmountPaste(e, $(this));
+                        });
+
+                    this.$el.itemsBody
+                        .on('change', c.itemCode, function() {
+                            self.syncFromItemCode($(this));
+                        })
+                        .on('change', c.itemDescription, function() {
+                            self.syncFromDescription($(this));
+                        })
+                        .on('change', c.itemLedger, function() {
+                            self.syncItemTypeFromLedger($(this));
+                        });
+
+                    this.$el.itemsBody.on('change', c.itemClassGroup, function() {
+                        self.filterBusinessClassGroup($(this));
+                    });
+
+                    this.$el.itemsBody.on('change', c.itemClassName, function() {
+                        self.filterBusinessClasses($(this));
+                    });
+
+                    $(c.levyCheckbox).on('change', function() {
+                        self.debouncedCalculate();
+                    });
+
+                    $('#premium_levy').on('input change', function() {
+                        var rate = $(this).val() || 0;
+                        $('#compute_premium_tax').attr('data-rate', rate);
+                        self.debouncedCalculate();
+                    });
+
+                    this.$el.profitCommissionRate.on('input change', function() {
+                        self.debouncedCalculate();
+                    });
+
+                    this.$el.currencyCode.on('change', function() {
+                        self.handleCurrencyChange();
+                    });
+
+                    this.$el.commentsField.on('input', function() {
+                        self.$el.commentsCount.text($(this).val().length);
+                    });
+
+                    this.$el.postingDate.on('change', function() {
+                        self.syncQuarterToDate();
+                    });
+
+                    this.$el.postingQuarter.on('change', function() {
+                        self.syncDateToQuarter();
+                        const quarter = $(this).val();
+                        if (quarter) {
+                            self.fetchQuarterlyData(quarter);
+                        } else {
+                            self.setFieldsLocked(false, true);
+                        }
+                    });
+
+                    this.$el.postingYear.on('change', function() {
+                        self.syncDateToQuarter();
+                        const quarter = self.$el.postingQuarter.val();
+                        if (quarter) {
+                            self.fetchQuarterlyData(quarter);
+                        }
+                    });
+
+                    this.$el.modal
+                        .on('hidden.bs.modal', function() {
+                            self.resetForm();
+                        })
+                        .on('shown.bs.modal', function() {
+                            self.$el.postingYear.trigger('focus');
+                            self.handleCurrencyChange();
+                            const quarter = self.$el.postingQuarter.val();
+                            if (quarter) {
+                                self.fetchQuarterlyData(quarter);
+                            }
+                        });
+                },
+
+                handleCurrencyChange: function() {
+                    const currencyCode = this.$el.currencyCode.val();
+
+                    if (!currencyCode) {
+                        this.$el.exchangeRate.val('');
+                        this.$el.exchangeRate.prop('readonly', false);
+                        this.$el.exchangeRateHint.text('Select a currency to fetch today\'s exchange rate.');
+                        return;
+                    }
+
+                    this.fetchTodaysRate(currencyCode);
+                },
+
+                fetchTodaysRate: function(currencyCode) {
+                    const self = this;
+
+                    this.$el.exchangeRate.prop('readonly', true);
+                    this.$el.exchangeRateHint.text('Fetching today\'s exchange rate...');
+
+                    $.ajax({
+                            url: this.urls.getTodaysRate,
+                            method: 'GET',
+                            data: {
+                                currency_code: currencyCode
+                            },
+                            headers: {
+                                'Accept': 'application/json'
+                            }
+                        })
+                        .done(function(response) {
+                            let status = response;
+                            if (typeof response === 'string') {
+                                try {
+                                    status = JSON.parse(response);
+                                } catch (e) {
+                                    status = null;
+                                }
+                            }
+
+                            if (status && (status.valid === 1 || status.valid === 2) && status.rate) {
+                                const rate = parseFloat(status.rate) || 1;
+                                self.$el.exchangeRate.val(rate.toFixed(6));
+                                self.$el.exchangeRate.prop('readonly', true);
+                                self.$el.exchangeRateHint.text('Exchange rate locked to today\'s configured rate.');
+                            } else {
+                                self.$el.exchangeRate.prop('readonly', false);
+                                self.$el.exchangeRateHint.text(
+                                    'No rate configured for today. Enter exchange rate manually.'
+                                );
+                                self.notify(
+                                    `No daily rate found for ${currencyCode}. Please enter exchange rate manually.`,
+                                    'warning'
+                                );
+                            }
+                        })
+                        .fail(function() {
+                            self.$el.exchangeRate.prop('readonly', false);
+                            self.$el.exchangeRateHint.text(
+                                'Unable to fetch rate automatically. Enter exchange rate manually.'
+                            );
+                        });
+                },
+
+                fetchQuarterlyData: function(quarter) {
+                    const self = this;
+                    const coverNo = $('input[name="cover_no"]').val();
+                    const postingYear = this.$el.postingYear.val();
+
+                    if (!coverNo || !quarter) {
+                        return;
+                    }
+
+                    this.$el.saveBtn.prop('disabled', true);
+                    this.$el.addBtn.prop('disabled', true);
+
+                    $.ajax({
+                            url: this.urls.getQuarterlyByQuarter,
+                            method: 'GET',
+                            data: {
+                                cover_no: coverNo,
+                                quarter: quarter,
+                                posting_year: postingYear
+                            },
+                            headers: {
+                                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
+                                'Accept': 'application/json'
+                            }
+                        })
+                        .done(function(response) {
+                            const responseMeta = response && response.data ? response.data.meta : null;
+
+                            if (response.success && response.has_data) {
+                                self.populateItemsFromData(response.data);
+                                self.applyMeta(responseMeta);
+
+                                self.setFieldsLocked(true);
+                                self.state.loadedQuarter = quarter;
+                            } else if (response.success && response.prefill_from_previous && response
+                                .data && Array.isArray(response.data.items) && response.data.items
+                                .length) {
+                                self.populateItemsFromData(response.data);
+                                self.applyMeta(responseMeta);
+                                self.setFieldsLocked(false);
+                                self.applyPreviousQuarterPrefillMode(response.source_quarter, response
+                                    .source_year);
+                                self.state.loadedQuarter = null;
+                            } else {
+                                self.clearTransactionItems();
+                                self.applyMeta(responseMeta);
+                                self.setFieldsLocked(false, true);
+                                self.state.loadedQuarter = null;
+                            }
+                        })
+                        .fail(function(xhr, status, error) {
+                            console.error('Error fetching quarterly data:', error);
+                            self.setFieldsLocked(false, true);
+                            self.state.loadedQuarter = null;
+                        })
+                        .always(function() {
+                            self.$el.saveBtn.prop('disabled', false);
+                            if (!self.state.isDataLocked) {
+                                self.$el.addBtn.prop('disabled', false);
+                            }
+                        });
+                },
+
+                clearTransactionItems: function() {
+                    this.$el.itemsBody.find(this.config.classes.itemRow).remove();
+
+                    this.$el.noItemsRow.show();
+
+                    this.state.itemIndex = 0;
+
+                    this.$el.totalAmount.text('0.00');
+                    this.$el.summaryGross.text('0.00');
+                    this.$el.summaryDeductions.text('0.00');
+                    this.$el.summaryNet.text('0.00');
+
+                    this.updateSummaryVisibility();
+
+                    // Reset metadata fields to defaults if not locked
+                    if (!this.state.isDataLocked) {
+                        this.applyMeta(null);
+                    }
+                },
+
+                getDefaultMeta: function() {
+                    return {
+                        compute_premium_tax: false,
+                        currency_code: $('#pc_currency_code').data('default') || '',
+                        today_currency: this.parseNumberOrZero($('#pc_exchange_rate').data('default')),
+                        profit_comm_rate: this.parseNumberOrZero($('#profit_comm_rate').data('default')),
+                        premium_levy: this.parseNumberOrZero($('#premium_levy').data('default')),
+                        comments: '',
+                        show_cedant: false,
+                        show_reinsurer: false
+                    };
+                },
+
+                applyMeta: function(meta) {
+                    const defaults = this.state.defaultMeta || this.getDefaultMeta();
+                    const resolved = Object.assign({}, defaults, meta || {});
+
+                    $('#compute_premium_tax').prop('checked', !!resolved.compute_premium_tax).trigger('change');
+                    const currencyCode = resolved.currency_code || defaults.currency_code || '';
+                    const exchangeRate = this.parseNumberOrZero(resolved.today_currency ?? defaults.today_currency);
+                    const premiumLevy = this.parseNumberOrZero(resolved.premium_levy);
+                    const profitCommissionRate = (meta && meta.profit_comm_rate !== undefined && meta
+                            .profit_comm_rate !== null) ?
+                        this.parseNumberOrZero(meta.profit_comm_rate) :
+                        this.parseNumberOrZero(defaults.profit_comm_rate);
+
+                    $('#pc_currency_code').val(currencyCode);
+                    $('#pc_exchange_rate').val(exchangeRate > 0 ? exchangeRate.toFixed(6) : '');
+                    $('#premium_levy').val(premiumLevy.toFixed(2)).trigger('change');
+                    $('#profit_comm_rate').val(profitCommissionRate.toFixed(2));
+
+                    const comments = String(resolved.comments || '');
+                    $('#comments').val(comments);
+                    this.$el.commentsCount.text(comments.length);
+                    $('#show_cedant').prop('checked', !!resolved.show_cedant);
+                    $('#show_reinsurer').prop('checked', !!resolved.show_reinsurer);
+                },
+
+                parseNumberOrZero: function(value) {
+                    const parsed = parseFloat(value);
+                    return Number.isFinite(parsed) ? parsed : 0;
+                },
+
+                populateItemsFromData: function(data) {
+                    const self = this;
+                    const items = data.items || [];
+
+                    this.$el.itemsBody.find(this.config.classes.itemRow).remove();
+                    this.state.itemIndex = 0;
+
+                    if (items.length === 0) {
+                        this.$el.noItemsRow.show();
+                        return;
+                    }
+
+                    this.$el.noItemsRow.hide();
+
+                    items.forEach(function(item) {
+                        const html = self.$el.template.html().replace(/INDEX/g, self.state.itemIndex);
+                        self.$el.itemsBody.append(html);
+
+                        const $newRow = self.$el.itemsBody.find(self.config.classes.itemRow).last();
+
+                        let itemType = item.item_type;
+                        let ledger = item.ledger;
+                        let itemCode = item.item_code;
+                        let description = item.item_code;
+
+                        if (!itemType && ledger) {
+                            itemType = ledger === 'DR' ? 'DEBIT' : 'CREDIT';
+                        }
+
+                        if (!ledger && itemType) {
+                            ledger = itemType === 'DEBIT' ? 'DR' : 'CR';
+                        }
+                        if (!itemType && !ledger) {
+                            itemType = 'DEBIT';
+                            ledger = 'DR';
+                        }
+
+                        if (!itemCode) {
+                            itemCode = itemType === 'DEBIT' ? 'IT01' : 'IT02';
+                        }
+
+                        if (!description) {
+                            description = itemCode;
+                        }
+
+                        const $itemCodeSelect = $newRow.find(self.config.classes.itemCode);
+                        $itemCodeSelect.val(itemCode);
+
+                        const $descriptionSelect = $newRow.find(self.config.classes.itemDescription);
+                        $descriptionSelect.val(description);
+
+                        const $itemTypeHidden = $newRow.find(self.config.classes.itemType);
+                        $itemTypeHidden.val(itemType);
+
+                        if (itemType === 'DEBIT' || ledger === 'DR') {
+                            $newRow.removeClass('is-credit').addClass('is-debit');
+                        } else {
+                            $newRow.removeClass('is-debit').addClass('is-credit');
+                        }
+
+                        $newRow.find(self.config.classes.itemLedger).val(ledger);
+
+                        const $classGroupSelect = $newRow.find(self.config.classes.itemClassGroup);
+                        const classGroup = item.class_group;
+
+                        if (classGroup) {
+                            $classGroupSelect.val(classGroup);
+
+                            const $classSelect = $newRow.find(self.config.classes.itemClassName);
+                            $classSelect.find('option').each(function() {
+                                const $option = $(this);
+                                const optionValue = $option.val();
+
+                                if (optionValue === '') {
+                                    $option.show();
+                                } else {
+                                    const optionGroup = $option.data('group');
+                                    if (Number(optionGroup) === Number(classGroup)) {
+                                        $option.show();
+                                    } else {
+                                        $option.hide();
+                                    }
+                                }
+                            });
+
+                            if (item.class_name) {
+                                $classSelect.val(item.class_name);
+                            } else {
+                                const $firstVisible = $classSelect.find('option:visible').not(
+                                    '[value=""]').first();
+                                if ($firstVisible.length) {
+                                    $classSelect.val($firstVisible.val());
+                                }
+                            }
+                        } else {
+                            const $firstGroup = $classGroupSelect.find('option').not('[value=""]')
+                                .first();
+                            if ($firstGroup.length) {
+                                $classGroupSelect.val($firstGroup.val());
+                                self.filterBusinessClassGroup($classGroupSelect);
                             }
                         }
 
-                        if (typeof Swal !== 'undefined') {
-                            Swal.fire('Error', errorMessage, 'error');
-                        } else {
-                            alert('Error: ' + errorMessage);
+                        const lineRate = item.line_rate ?? 0;
+                        $newRow.find(self.config.classes.itemLineRate).val(Number(lineRate).toFixed(2));
+
+                        if (itemType === 'CREDIT') {
+                            $newRow.find(self.config.classes.itemLineRate).val('0').prop('disabled',
+                                true);
                         }
-                    },
-                    complete: function() {
-                        $submitBtn.prop('disabled', false).html(originalBtnText);
+
+                        const amount = item.amount ?? 0;
+                        const formattedAmount = self.formatCurrency(amount);
+                        $newRow.find(self.config.classes.itemAmount).val(formattedAmount);
+                        $newRow.find(self.config.classes.itemAmountHidden).val(amount);
+
+                        self.state.itemIndex++;
+                    });
+
+                    this.calculateTotals();
+                    this.updateSummaryVisibility();
+                },
+
+                applyPreviousQuarterPrefillMode: function(sourceQuarter, sourceYear) {
+                    const self = this;
+                    this.state.isDataLocked = false;
+                    this.$el.addBtn.prop('disabled', true);
+
+                    this.$el.itemsBody.find(this.config.classes.itemRow).each(function() {
+                        const $row = $(this);
+                        $row.find('input, select').prop('disabled', true);
+
+                        $row.find(self.config.classes.itemLineRate).prop('disabled', false);
+                        $row.find(self.config.classes.itemAmount).prop('disabled', false);
+                        $row.find(self.config.classes.itemAmountHidden).prop('disabled', false);
+                        $row.find(self.config.classes.removeBtn).hide();
+
+                        $row.find(self.config.classes.itemAmount).val('');
+                        $row.find(self.config.classes.itemAmountHidden).val('');
+                    });
+
+                    $('#quarterly-data-loaded-info').remove();
+                    $('#quarterly-data-prefill-info').remove();
+
+                    const sourceLabel = [sourceQuarter, sourceYear].filter(Boolean).join(' ');
+                    const prefillHtml = `
+                        <div id="quarterly-data-prefill-info" class="alert alert-warning alert-dismissible fade show mt-2" role="alert">
+                            <i class="fas fa-info-circle me-2"></i>
+                            <strong>Note:</strong> No saved data found for this quarter. Line items were copied from ${sourceLabel}.
+                            Only commission and amount are editable, and amount has been cleared.
+                        </div>
+                    `;
+                    $(this.config.selectors.itemsBody).closest('.card').before(prefillHtml);
+
+                    this.calculateTotals();
+                    this.updateSummaryVisibility();
+                },
+
+                setFieldsLocked: function(locked, notInserted = false) {
+                    const self = this;
+                    this.state.isDataLocked = locked;
+
+                    this.$el.addBtn.prop('disabled', locked);
+
+                    this.$el.itemsBody.find(this.config.classes.itemRow).each(function() {
+                        const $row = $(this);
+
+                        $row.find('input, select').prop('disabled', locked);
+
+                        if (notInserted) {
+                            $row.find('input, select').prop('disabled', true);
+                            $row.find(self.config.classes.itemLineRate).prop('disabled', false);
+                            $row.find(self.config.classes.itemLedger).prop('disabled', false);
+                            $row.find(self.config.classes.itemAmount).prop('disabled', false);
+                            $row.find(self.config.classes.itemAmountHidden).prop('disabled', false);
+
+                            $row.find(self.config.classes.itemLineRate).val('');
+                            $row.find(self.config.classes.itemAmount).val('');
+                        }
+
+
+                        if (locked) {
+                            let $hiddenCode = $row.find('.item-code-hidden');
+                            if (!$hiddenCode.length) {
+                                const codeName = $row.find(self.config.classes.itemCode).attr('name');
+                                $hiddenCode = $('<input type="hidden" class="item-code-hidden">').attr(
+                                    'name', codeName);
+                                $row.append($hiddenCode);
+                            }
+                            $hiddenCode.val($row.find(self.config.classes.itemCode).val());
+
+                            $row.find(self.config.classes.removeBtn).hide();
+                        } else {
+                            $row.find('.item-code-hidden').remove();
+                            $row.find(self.config.classes.removeBtn).hide();
+                        }
+                    });
+
+                    const otherFields = [
+                        '#pc_currency_code',
+                        '#pc_exchange_rate',
+                        '#profit_comm_rate',
+                        '#premium_levy',
+                        '#compute_premium_tax',
+                        '#comments',
+                        '#show_cedant',
+                        '#show_reinsurer'
+                    ];
+
+                    otherFields.forEach(function(selector) {
+                        $(selector).prop('disabled', locked);
+                    });
+
+                    const $infoMessage = $('#quarterly-data-loaded-info');
+                    if (locked) {
+                        if (!$infoMessage.length) {
+                            const infoHtml = `
+                                <div id="quarterly-data-loaded-info" class="alert alert-info alert-dismissible fade show mt-2" role="alert">
+                                    <i class="fas fa-info-circle me-2"></i>
+                                    <strong>Note:</strong> Data has been loaded from existing quarterly records.
+                                    Fields are disabled. Select a different quarter to enter new data.
+                                </div>
+                            `;
+                            $(this.config.selectors.itemsBody).closest('.card').before(infoHtml);
+                        }
+                    } else {
+                        $infoMessage.remove();
                     }
-                });
+                    $('#quarterly-data-prefill-info').remove();
+                },
+
+                addItem: function() {
+                    if (!this.$el.template.length) {
+                        this.notify('Template not found', 'error');
+                        return;
+                    }
+
+                    this.$el.noItemsRow.hide();
+
+                    const html = this.$el.template.html().replace(/INDEX/g, this.state.itemIndex);
+                    this.$el.itemsBody.append(html);
+
+                    const $newRow = this.$el.itemsBody.find(this.config.classes.itemRow).last();
+                    $newRow.find(this.config.classes.itemDescription).trigger('focus');
+
+                    const $amountInput = $newRow.find(this.config.classes.itemAmount);
+                    const $hiddenInput = $newRow.find(this.config.classes.itemAmountHidden);
+                    $hiddenInput.val('0.00');
+
+                    $newRow.find(this.config.classes.itemDescription).trigger('focus');
+
+                    this.state.itemIndex++;
+                    this.updateSummaryVisibility();
+                },
+
+                removeItem: function($btn) {
+                    const self = this;
+                    const $row = $btn.closest(this.config.classes.itemRow);
+
+                    if (!$row.length) return;
+
+                    const confirmRemove = function() {
+                        self.performRemoveItem($row);
+                    };
+
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            title: 'Remove Item?',
+                            text: 'This line item will be removed.',
+                            icon: 'warning',
+                            showCancelButton: true,
+                            confirmButtonColor: '#dc3545',
+                            confirmButtonText: 'Yes, remove it'
+                        }).then(function(result) {
+                            if (result.isConfirmed) confirmRemove();
+                        });
+                    } else if (confirm('Remove this line item?')) {
+                        confirmRemove();
+                    }
+                },
+
+                performRemoveItem: function($row) {
+                    const self = this;
+
+                    $row.fadeOut(200, function() {
+                        $(this).remove();
+                        self.calculateTotals();
+                        self.updateSummaryVisibility();
+                        self.refreshAllClassDropdowns();
+
+                        if (self.$el.itemsBody.find(self.config.classes.itemRow).length === 0) {
+                            self.$el.noItemsRow.fadeIn(150);
+                        }
+                    });
+                },
+
+                syncFromItemCode: function($itemCode) {
+                    const $row = $itemCode.closest(this.config.classes.itemRow);
+                    const code = $itemCode.val();
+                    const $selectedOption = $itemCode.find('option:selected');
+                    const itemType = $selectedOption.data('type') || '';
+
+                    $row.find(this.config.classes.itemDescription).val(code);
+                    this.setItemTypeAndLedger($row, code, itemType);
+                },
+
+                syncFromDescription: function($description) {
+                    const $row = $description.closest(this.config.classes.itemRow);
+                    const code = $description.val();
+                    const $selectedOption = $description.find('option:selected');
+                    const itemType = $selectedOption.data('type') || '';
+
+                    $row.find(this.config.classes.itemCode).val(code);
+
+                    this.setItemTypeAndLedger($row, code, itemType);
+                },
+
+                setItemTypeAndLedger: function($row, code, itemType) {
+                    const $itemTypeField = $row.find(this.config.classes.itemType);
+                    const $ledger = $row.find(this.config.classes.itemLedger);
+                    const $commRate = $row.find(this.config.classes.itemLineRate);
+
+                    let resolvedType = itemType;
+
+                    if (!resolvedType && code) {
+                        if (this.config.debitTypeCodes.includes(code)) {
+                            resolvedType = 'DEBIT';
+                        } else if (this.config.creditTypeCodes.includes(code)) {
+                            resolvedType = 'CREDIT';
+                        } else {
+                            return;
+                        }
+                    }
+
+                    $itemTypeField.val(resolvedType);
+
+                    if (resolvedType === 'DEBIT') {
+                        $ledger.val('DR');
+                        $commRate.val('');
+                        $commRate.prop('disabled', false);
+                        $row.removeClass('is-credit').addClass('is-debit');
+                    } else if (resolvedType === 'CREDIT') {
+                        $ledger.val('CR');
+                        $commRate.val('0');
+                        $commRate.prop('disabled', true);
+                        $row.removeClass('is-debit').addClass('is-credit');
+                    } else {
+                        $row.removeClass('is-debit is-credit');
+                    }
+
+                    this.refreshAllClassDropdowns();
+                },
+
+                syncItemTypeFromLedger: function($ledger) {
+                    const $row = $ledger.closest(this.config.classes.itemRow);
+                    const $itemTypeField = $row.find(this.config.classes.itemType);
+                    const ledgerValue = $ledger.val();
+
+                    if (ledgerValue === 'DR') {
+                        $itemTypeField.val('DEBIT');
+                        $row.removeClass('is-credit').addClass('is-debit');
+                    } else if (ledgerValue === 'CR') {
+                        $itemTypeField.val('CREDIT');
+                        $row.removeClass('is-debit').addClass('is-credit');
+                    }
+
+                    this.debouncedCalculate();
+                    this.refreshAllClassDropdowns();
+                },
+
+                getSelectedCombinations: function($excludeRow) {
+                    const self = this;
+                    const combinations = [];
+
+                    this.$el.itemsBody.find(this.config.classes.itemRow).each(function() {
+                        const $row = $(this);
+                        if ($excludeRow && $row.is($excludeRow)) {
+                            return;
+                        }
+                        const typeValue = $row.find(self.config.classes.itemCode).val();
+                        const classValue = $row.find(self.config.classes.itemClassName).val();
+
+                        if (typeValue && classValue) {
+                            combinations.push(typeValue + '|' + classValue);
+                        }
+                    });
+
+                    return combinations;
+                },
+
+                getValidTreatyClasses: function() {
+                    const treatyClassesJson = $(this.config.selectors.treatyClasses).val();
+                    if (!treatyClassesJson) return [];
+
+                    try {
+                        const treatyClasses = JSON.parse(treatyClassesJson) ?? [];
+                        return treatyClasses.map(tc => String(tc.class_code));
+                    } catch (e) {
+                        console.warn('Failed to parse treatyClasses:', e);
+                        return [];
+                    }
+                },
+
+                filterBusinessClassGroup: function($classGroup) {
+                    const $row = $classGroup.closest(this.config.classes.itemRow);
+                    const selectedGroup = $classGroup.val();
+                    const $classSelect = $row.find(this.config.classes.itemClassName);
+                    const selectedType = $row.find(this.config.classes.itemCode).val();
+
+                    $classSelect.val('');
+
+                    if (!selectedGroup) {
+                        $classSelect.find('option').each(function() {
+                            const $option = $(this);
+                            if ($option.val() !== '') {
+                                $option.hide();
+                            }
+                        });
+                        return;
+                    }
+
+                    const selectedCombinations = this.getSelectedCombinations($row);
+                    const validTreatyClasses = this.getValidTreatyClasses();
+                    let hasVisibleOptions = false;
+
+                    $classSelect.find('option').each(function() {
+                        const $option = $(this);
+                        const optionValue = $option.val();
+
+                        if (optionValue === '') {
+                            $option.show();
+                            return;
+                        }
+
+                        const optionGroup = $option.data('group');
+                        const isInGroup = Number(optionGroup) === Number(selectedGroup);
+
+                        const comboKey = (selectedType || '') + '|' + optionValue;
+                        const isAlreadySelected = selectedType && selectedCombinations.includes(
+                            comboKey);
+
+                        const isValidTreatyClass = validTreatyClasses.length === 0 || validTreatyClasses
+                            .includes(String(optionValue));
+
+                        if (isInGroup && !isAlreadySelected && isValidTreatyClass) {
+                            $option.show();
+                            hasVisibleOptions = true;
+                        } else {
+                            $option.hide();
+                        }
+                    });
+
+                    if (hasVisibleOptions) {
+                        const visibleOptions = $classSelect.find('option:visible').not('[value=""]');
+                        if (visibleOptions.length === 1) {
+                            $classSelect.val(visibleOptions.val());
+                            this.filterBusinessClasses($classSelect);
+                        }
+                    }
+                },
+
+                refreshAllClassDropdowns: function() {
+                    const self = this;
+                    const validTreatyClasses = this.getValidTreatyClasses();
+
+                    this.$el.itemsBody.find(this.config.classes.itemRow).each(function() {
+                        const $row = $(this);
+                        const $classGroup = $row.find(self.config.classes.itemClassGroup);
+                        const $classSelect = $row.find(self.config.classes.itemClassName);
+                        const selectedType = $row.find(self.config.classes.itemCode).val();
+                        const currentValue = $classSelect.val();
+                        const selectedGroup = $classGroup.val();
+
+                        if (!selectedGroup) return;
+
+                        const selectedCombinations = self.getSelectedCombinations($row);
+
+                        $classSelect.find('option').each(function() {
+                            const $option = $(this);
+                            const optionValue = $option.val();
+
+                            if (optionValue === '') {
+                                $option.show();
+                                return;
+                            }
+
+                            const optionGroup = $option.data('group');
+                            const isInGroup = Number(optionGroup) === Number(selectedGroup);
+
+                            const comboKey = (selectedType || '') + '|' + optionValue;
+                            const isAlreadySelected = selectedType && selectedCombinations
+                                .includes(comboKey);
+
+                            const isCurrentValue = optionValue === currentValue;
+                            const isValidTreatyClass = validTreatyClasses.length === 0 ||
+                                validTreatyClasses.includes(String(optionValue));
+
+                            if (isInGroup && (!isAlreadySelected || isCurrentValue) &&
+                                isValidTreatyClass) {
+                                $option.show();
+                            } else {
+                                $option.hide();
+                            }
+                        });
+                    });
+                },
+
+                filterBusinessClasses: function($classType) {
+                    const $row = $classType.closest(this.config.classes.itemRow);
+                    const treatyClasses = $(this.config.selectors.treatyClasses).val();
+                    const $commRate = $row.find(this.config.classes.itemLineRate);
+                    const classItem = $classType.val();
+
+                    if (!classItem) {
+                        $commRate.val('');
+                        this.refreshAllClassDropdowns();
+                        return;
+                    }
+
+                    const result = JSON.parse(treatyClasses) ?? [];
+                    const comm = result.find((x) => Number(x.class_code) === Number(classItem));
+
+                    const $itemTypeField = $row.find(this.config.classes.itemType);
+
+                    if ($itemTypeField.val() === 'DEBIT') {
+                        $commRate.val(comm?.commission ?? '');
+                    } else {
+                        $commRate.val('0');
+                    }
+
+                    this.refreshAllClassDropdowns();
+                },
+
+                formatAmountInput: function($input) {
+                    let value = $input.val();
+                    const cursorPos = $input[0].selectionStart;
+                    const originalLength = value.length;
+
+                    value = value.replace(/[^0-9.]/g, '');
+
+                    const parts = value.split('.');
+                    if (parts.length > 2) {
+                        value = parts[0] + '.' + parts.slice(1).join('');
+                    }
+
+                    if (parts.length === 2 && parts[1].length > 2) {
+                        value = parts[0] + '.' + parts[1].substring(0, 2);
+                    }
+
+                    let formattedValue;
+                    if (value.includes('.')) {
+                        const intPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+                        formattedValue = intPart + '.' + (parts[1] || '');
+                    } else if (value) {
+                        formattedValue = value.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+                    } else {
+                        formattedValue = '';
+                    }
+
+                    $input.val(formattedValue);
+
+                    const newLength = formattedValue.length;
+                    const diff = newLength - originalLength;
+                    const newCursorPos = Math.max(0, cursorPos + diff);
+
+                    if ($input.is(':focus')) {
+                        $input[0].setSelectionRange(newCursorPos, newCursorPos);
+                    }
+
+                    this.syncHiddenAmount($input);
+                },
+
+                formatAmountOnBlur: function($input) {
+                    const value = this.parseFormattedNumber($input.val());
+
+                    if (value > 0) {
+                        $input.val(this.formatCurrency(value));
+                    } else {
+                        $input.val('0');
+                    }
+
+                    this.syncHiddenAmount($input);
+                },
+
+                syncHiddenAmount: function($input) {
+                    const $row = $input.closest(this.config.classes.itemRow);
+                    const $hidden = $row.find(this.config.classes.itemAmountHidden);
+                    const numericValue = this.parseFormattedNumber($input.val());
+
+                    $hidden.val(numericValue > 0 ? numericValue.toFixed(2) : '');
+                },
+
+                handleAmountPaste: function(e, $input) {
+                    e.preventDefault();
+
+                    const pastedText = (e.originalEvent.clipboardData || window.clipboardData).getData('text');
+                    const numericValue = this.parseFormattedNumber(pastedText);
+
+                    if (!isNaN(numericValue) && numericValue >= 0) {
+                        $input.val(this.formatCurrency(numericValue));
+                        this.syncHiddenAmount($input);
+                        this.debouncedCalculate();
+                    }
+                },
+
+                validateAmountKeypress: function(e) {
+                    const key = e.key;
+                    const $input = $(e.target);
+                    const value = $input.val();
+
+                    if (this.config.allowedKeys.includes(key)) return true;
+                    if (e.ctrlKey || e.metaKey) return true;
+                    if (key === '.') return !value.includes('.');
+                    if (/^[0-9]$/.test(key)) return true;
+
+                    e.preventDefault();
+                    return false;
+                },
+
+                parseFormattedNumber: function(formattedValue) {
+                    if (!formattedValue) return 0;
+
+                    const cleaned = String(formattedValue).replace(/[^0-9.-]/g, '');
+                    const parsed = parseFloat(cleaned);
+
+                    if (isNaN(parsed) || !isFinite(parsed)) {
+                        console.warn('Invalid number:', formattedValue);
+                        return 0;
+                    }
+
+                    return Math.max(0, parsed);
+                },
+
+                formatCurrency: function(amount) {
+                    if (amount === null || amount === undefined || amount === '') return '';
+
+                    const num = parseFloat(amount);
+                    if (isNaN(num)) return '';
+
+                    return num.toLocaleString('en-US', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                    });
+                },
+
+                debouncedCalculate: function() {
+                    const self = this;
+
+                    clearTimeout(this.state.calcDebounceTimer);
+                    this.state.calcDebounceTimer = setTimeout(function() {
+                        self.calculateTotals();
+                    }, this.config.calcDebounceMs);
+                },
+
+                calculateTotals: function() {
+                    const self = this;
+                    let grossAmount = 0;
+                    let creditAmount = 0;
+
+                    this.$el.itemsBody.find(this.config.classes.itemRow).each(function() {
+                        const $row = $(this);
+                        const amount = self.parseFormattedNumber($row.find('.item-amount').val());
+                        const itemType = $row.find('.item-type').val();
+                        const ledger = $row.find('.item-ledger').val();
+
+                        const isDebit = itemType === 'DEBIT' || (!itemType && ledger === 'DR');
+
+                        if (isDebit) {
+                            grossAmount += amount;
+                        } else {
+                            creditAmount += amount;
+                        }
+                    });
+
+                    const profitCommissionRate = parseFloat(this.$el.profitCommissionRate.val()) || 0;
+                    const profitCommissionAmount = grossAmount * (profitCommissionRate / 100);
+
+                    let levyAmount = 0;
+                    const premiumLevyRate = parseFloat($('#premium_levy').val()) || 0;
+
+                    if (premiumLevyRate > 0) {
+                        levyAmount += grossAmount * (premiumLevyRate / 100);
+                    }
+
+                    const totalDeductions = profitCommissionAmount + levyAmount + creditAmount;
+                    const netAmount = grossAmount - totalDeductions;
+
+                    this.$el.totalAmount.text(this.formatCurrency(grossAmount));
+                    this.$el.summaryGross.text(this.formatCurrency(grossAmount));
+                    this.$el.summaryDeductions.text(this.formatCurrency(totalDeductions));
+                    this.$el.summaryNet.text(this.formatCurrency(netAmount));
+
+                    this.updateSummaryVisibility();
+                },
+
+                updateSummaryVisibility: function() {
+                    const hasItems = this.$el.itemsBody.find(this.config.classes.itemRow).length > 0;
+                    this.$el.summarySection.toggle(hasItems);
+                },
+
+                syncDateToQuarter: function() {
+                    const quarter = this.$el.postingQuarter.val();
+                    const year = this.$el.postingYear.val();
+
+                    if (!quarter || !year) return;
+
+                    const today = new Date();
+                    const currentYear = today.getFullYear();
+                    const currentMonth = today.getMonth() + 1;
+                    const currentQuarter = this.getQuarterFromMonth(currentMonth);
+
+                    let targetDate = '';
+
+                    if (parseInt(year) === currentYear && quarter === currentQuarter) {
+                        // If it's the current quarter of current year, use today's date
+                        const y = today.getFullYear();
+                        const m = String(today.getMonth() + 1).padStart(2, '0');
+                        const d = String(today.getDate()).padStart(2, '0');
+                        targetDate = `${y}-${m}-${d}`;
+                    } else {
+                        // Otherwise, use the last day of the quarter
+                        const quarterEndDates = {
+                            'Q1': '-03-31',
+                            'Q2': '-06-30',
+                            'Q3': '-09-30',
+                            'Q4': '-12-31'
+                        };
+                        targetDate = year + quarterEndDates[quarter];
+                    }
+
+                    if (targetDate) {
+                        this.$el.postingDate.val(targetDate);
+                        this.validateQuarterDate();
+                    }
+                },
+
+                syncQuarterToDate: function() {
+                    const dateVal = this.$el.postingDate.val();
+                    if (!dateVal) return;
+
+                    const date = new Date(dateVal);
+                    if (isNaN(date.getTime())) return;
+
+                    const month = date.getMonth() + 1;
+                    const quarter = this.getQuarterFromMonth(month);
+
+                    this.$el.postingQuarter.val(quarter);
+                    this.validateQuarterDate();
+                },
+
+                getQuarterFromMonth: function(month) {
+                    if (month <= 3) return 'Q1';
+                    if (month <= 6) return 'Q2';
+                    if (month <= 9) return 'Q3';
+                    return 'Q4';
+                },
+
+                validateQuarterDate: function() {
+                    const postingDate = this.$el.postingDate.val();
+                    const postingQuarter = this.$el.postingQuarter.val();
+
+                    if (!postingDate || !postingQuarter) return true;
+
+                    const month = new Date(postingDate).getMonth() + 1;
+                    const expectedQuarter = this.getQuarterFromMonth(month);
+
+                    if (postingQuarter !== expectedQuarter) {
+                        return false;
+                    }
+                    return true;
+                },
+
+                validateLineItems: function() {
+                    const self = this;
+                    const $rows = this.$el.itemsBody.find(this.config.classes.itemRow);
+                    const errorClass = this.config.classes.errorField;
+
+                    if ($rows.length === 0) {
+                        this.notify('Please add at least one line item', 'warning');
+                        return false;
+                    }
+
+                    let valid = true;
+                    let totalAmount = 0;
+                    const errors = [];
+
+                    $rows.each(function(index) {
+                        const $row = $(this);
+                        const $description = $row.find('.item-description');
+                        const $amount = $row.find('.item-amount');
+                        const $commissionRate = $row.find('.item-line-rate');
+                        const $itemType = $row.find('.item-type');
+                        const $classGroup = $row.find('.item-class-group');
+
+                        const description = $description.val();
+                        const amount = self.parseFormattedNumber($amount.val());
+                        const commissionRateValue = $commissionRate.val();
+                        const itemType = $itemType.val();
+                        const classGroup = $classGroup.val()
+
+                        if (!description) {
+                            $description.addClass(errorClass);
+                            errors.push(`Row ${index + 1}: Transaction type is required`);
+                            valid = false;
+                        } else {
+                            $description.removeClass(errorClass);
+                        }
+
+                        if (!classGroup) {
+                            $classGroup.addClass(errorClass);
+                            errors.push(`Row ${index + 1}: Class group is required`);
+                            valid = false;
+                        } else {
+                            $classGroup.removeClass(errorClass);
+                        }
+
+                        if (amount <= 0) {
+                            $amount.addClass(errorClass);
+                            errors.push(`Row ${index + 1}: Amount must be greater than 0`);
+                            valid = false;
+                        } else {
+                            $amount.removeClass(errorClass);
+                            totalAmount += amount;
+                        }
+
+                        const commissionRate = parseFloat(commissionRateValue);
+
+                        if (!commissionRateValue || commissionRateValue.trim() === '') {
+                            $commissionRate.addClass(errorClass);
+                            errors.push(`Row ${index + 1}: Commission rate is required`);
+                            valid = false;
+                        } else if (commissionRate < 0) {
+                            $commissionRate.addClass(errorClass);
+                            errors.push(`Row ${index + 1}: Commission rate cannot be negative`);
+                            valid = false;
+                        } else if (commissionRate > 100) {
+                            $commissionRate.addClass(errorClass);
+                            errors.push(`Row ${index + 1}: Commission rate cannot exceed 100%`);
+                            valid = false;
+                        } else {
+                            $commissionRate.removeClass(errorClass);
+                        }
+
+                        if (!itemType) {
+                            const ledger = $row.find('.item-ledger').val();
+                            if (ledger === 'DR') {
+                                $itemType.val('DEBIT');
+                            } else if (ledger === 'CR') {
+                                $itemType.val('CREDIT');
+                            }
+                        }
+                    });
+
+                    if (!valid) {
+                        this.notify(errors[0] || 'Please complete all required fields', 'error');
+                    } else if (totalAmount <= 0) {
+                        this.notify('Total amount must be greater than 0', 'error');
+                        valid = false;
+                    }
+
+                    return valid;
+                },
+
+                handleSubmit: function() {
+                    const self = this;
+
+                    if (this.state.isSubmitting) return;
+
+                    if (!this.validateQuarterDate()) {
+                        this.notify('Posting quarter does not match posting date', 'error');
+                        return;
+                    }
+
+                    this.state.isSubmitting = true;
+                    this.setLoadingState(true);
+
+                    const disabledFields = this.$el.form.find(':disabled');
+                    disabledFields.prop('disabled', false);
+
+                    const formData = new FormData(this.$el.form[0]);
+
+                    disabledFields.prop('disabled', true);
+
+                    $.ajax({
+                            url: this.$el.form.attr('action'),
+                            method: 'POST',
+                            data: formData,
+                            processData: false,
+                            contentType: false,
+                            headers: {
+                                'X-CSRF-TOKEN': this.getCsrfToken(),
+                                'Accept': 'application/json'
+                            },
+                            timeout: 30000
+                        })
+                        .done(function(response) {
+                            self.handleSuccess(response);
+                        })
+                        .fail(function(xhr, status, error) {
+                            self.handleError(xhr, status, error);
+                        })
+                        .always(function() {
+                            self.state.isSubmitting = false;
+                            self.setLoadingState(false);
+                        });
+
+
+                    return false;
+                },
+
+                getCsrfToken: function() {
+                    return $('meta[name="csrf-token"]').attr('content') ||
+                        $('input[name="_token"]').val() ||
+                        '';
+                },
+
+                handleSuccess: function(response) {
+                    if (response.success) {
+                        this.notify(response.message || 'Debit note generated successfully', 'success');
+                        if (response.redirect_url || response.redirectUrl) {
+                            const url = response.redirect_url || response.redirectUrl;
+                            setTimeout(function() {
+                                window.location.href = url;
+                            }, 800);
+                        } else if (response.debit_note_id) {
+
+                            if (response.view_url) {
+                                window.open(response.view_url, '_blank');
+                            }
+                            this.$el.modal.modal('hide');
+                            this.refreshParent();
+                        } else {
+                            this.$el.modal.modal('hide');
+                            this.refreshParent();
+                        }
+                    } else {
+                        this.notify(response.message || 'Operation completed with warnings', 'warning');
+                    }
+                },
+
+                handleError: function(xhr, status, error) {
+                    const messages = {
+                        401: 'Session expired. Please refresh the page.',
+                        403: 'You do not have permission for this action.',
+                        404: 'Resource not found.',
+                        422: xhr.responseJSON?.message || 'Please correct the errors and try again.',
+                        500: 'Server error. Please contact support.'
+                    };
+
+                    let message = messages[xhr.status] ||
+                        (status === 'timeout' ? 'Request timed out. Please try again.' :
+                            xhr.status === 0 ? 'Network error. Check your connection.' :
+                            xhr.responseJSON?.message || 'An error occurred.');
+
+                    if (xhr.status === 422) {
+                        this.handleValidationErrors(xhr.responseJSON);
+                    }
+
+                    if (xhr.status === 401) {
+                        setTimeout(function() {
+                            window.location.reload();
+                        }, 2000);
+                    }
+
+                    this.notify(message, 'error');
+                },
+
+                handleValidationErrors: function(response) {
+                    if (!response?.errors) return;
+
+                    const self = this;
+                    const errorClass = this.config.classes.errorField;
+                    const errorMsgClass = this.config.classes.errorMessage;
+
+                    this.$el.form.find('.server-error').remove();
+                    this.$el.form.find('.' + errorClass).removeClass(errorClass);
+
+                    $.each(response.errors, function(field, messages) {
+                        let $field;
+
+                        if (field.includes('[')) {
+                            $field = self.$el.form.find('[name="' + field + '"]');
+                        } else {
+                            $field = self.$el.form.find('#' + field + ', [name="' + field + '"]')
+                                .first();
+                        }
+
+                        if ($field.length) {
+                            $field.addClass(errorClass);
+
+                            if (!$field.closest(self.config.classes.itemRow).length) {
+                                $field.after(
+                                    '<span class="' + errorMsgClass + ' server-error">' +
+                                    messages[0] + '</span>'
+                                );
+                            }
+                        }
+                    });
+                },
+
+                setLoadingState: function(loading) {
+                    const $btn = this.$el.saveBtn;
+
+                    if (loading) {
+                        $btn.prop('disabled', true)
+                            .data('original-html', $btn.html())
+                            .html('<i class="fas fa-spinner fa-spin me-1"></i> Processing...');
+                    } else {
+                        $btn.prop('disabled', false)
+                            .html($btn.data('original-html') ||
+                                '<i class="fas fa-check me-1"></i> Submit Profit Comission');
+                    }
+                },
+
+                refreshParent: function() {
+                    if (typeof window.refreshData === 'function') {
+                        window.refreshData();
+                    } else if (typeof window.refreshCoverData === 'function') {
+                        window.refreshCoverData();
+                    } else {
+                        window.location.reload();
+                    }
+                },
+
+                resetForm: function() {
+                    clearTimeout(this.state.calcDebounceTimer);
+
+                    if (this.state.validator) {
+                        this.state.validator.resetForm();
+                    }
+
+                    this.$el.form[0].reset();
+
+                    const errorClass = this.config.classes.errorField;
+                    this.$el.form.find('.' + errorClass).removeClass(errorClass);
+                    this.$el.form.find('.server-error, .' + this.config.classes.errorMessage).remove();
+
+                    this.$el.itemsBody.find(this.config.classes.itemRow).remove();
+                    this.$el.noItemsRow.show();
+
+                    this.$el.totalAmount.text('0.00');
+                    this.$el.summaryGross.text('0.00');
+                    this.$el.summaryDeductions.text('0.00');
+                    this.$el.summaryNet.text('0.00');
+                    this.$el.summarySection.hide();
+
+                    this.$el.commentsField.val('');
+                    this.$el.commentsCount.text('0');
+
+                    this.state.itemIndex = 0;
+                    this.state.isSubmitting = false;
+                    this.state.isDataLocked = false;
+                    this.state.loadedQuarter = null;
+
+                    $('#quarterly-data-loaded-info').remove();
+                    $('#quarterly-data-prefill-info').remove();
+                    this.setFieldsLocked(false, true);
+
+                    this.setLoadingState(false);
+                },
+
+                notify: function(message, type) {
+                    type = type || 'info';
+                    const timeout = type === 'error' ? 8000 : 5000;
+
+                    if (typeof toastr !== 'undefined') {
+                        toastr[type](message, '', {
+                            closeButton: true,
+                            progressBar: true,
+                            positionClass: 'toast-top-right',
+                            timeOut: timeout
+                        });
+                        return;
+                    }
+
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            icon: type === 'error' ? 'error' : type,
+                            text: message,
+                            toast: true,
+                            position: 'top-end',
+                            showConfirmButton: false,
+                            timer: timeout
+                        });
+                        return;
+                    }
+
+                    alert(message);
+                },
+            };
+
+            $(function() {
+                ProfitCommissionModal.init();
             });
-        });
 
-        // Function to load data into modal
-        function loadProfitCommissionModal(data) {
-            if (!data) return;
-
-            if (data.treaty_id) $('#pc_treaty_id').val(data.treaty_id);
-            if (data.transaction_id) $('#pc_transaction_id').val(data.transaction_id);
-            if (data.treaty_name) $('#pc_treaty_name').text(data.treaty_name);
-            if (data.insured_name) $('#pc_insured_name').text(data.insured_name);
-            if (data.currency) {
-                $('#pc_currency').text(data.currency);
-                $('.pc-currency-label').text(data.currency);
-            }
-            if (data.period) $('#pc_period').text(data.period);
-
-            // Pre-fill with existing data if available
-            if (data.premium_income) $('#pc_premium_income').val(data.premium_income);
-            if (data.deficit_bf) $('#pc_deficit_bf').val(data.deficit_bf);
-        }
+            window.ProfitCommissionModal = ProfitCommissionModal;
+        })(jQuery);
     </script>
 @endpush

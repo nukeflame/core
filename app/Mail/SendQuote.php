@@ -42,7 +42,7 @@ class SendQuote extends Mailable
     public function content(): Content
     {
         return new Content(
-            view: 'Bd_views.mail.quote-mail',
+            view: 'business_development.mail.quote-mail',
         );
     }
 

@@ -540,7 +540,7 @@ class CustomerController extends Controller
 
             return response()->json([
                 'status' => Response::HTTP_CREATED,
-                'message' => 'Customer and related data deleted successfully'
+                'message' => 'Customer covers cleared successfully'
             ], Response::HTTP_CREATED);
         } catch (ValidationException $e) {
             return response()->json([
@@ -551,6 +551,32 @@ class CustomerController extends Controller
             return response()->json([
                 'status' => Response::HTTP_INTERNAL_SERVER_ERROR,
                 'message' => 'Failed to queue cedant data clearing'
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    public function deleteCustomerData(Request $request): JsonResponse
+    {
+        try {
+            $request->validate([
+                'id' => 'required|integer|exists:customers,customer_id',
+            ]);
+
+            ClearCedantDataJob::dispatchSync((int) $request->input('id'), true);
+
+            return response()->json([
+                'status' => Response::HTTP_CREATED,
+                'message' => 'Customer and related data deleted successfully'
+            ], Response::HTTP_CREATED);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'status' => Response::HTTP_UNPROCESSABLE_ENTITY,
+                'errors' => $e->errors()
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => Response::HTTP_INTERNAL_SERVER_ERROR,
+                'message' => 'Failed to delete customer data'
             ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -642,7 +668,7 @@ class CustomerController extends Controller
             '<button class="remove_process_customer btn btn-sm btn-danger"
                 data-name="%s"
                 data-cedant-id="%s"
-                title="Delete all covers">
+                title="Delete customer and related data">
                 <i class="bx bx-trash"></i> Delete
             </button>',
             htmlspecialchars($customer->name),

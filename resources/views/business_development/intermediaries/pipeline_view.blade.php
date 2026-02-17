@@ -3,12 +3,12 @@
 @section('content')
     <div>
         <div class="d-md-flex d-block align-items-center justify-content-between my-4 page-header-breadcrumb">
-            <h1 class="page-title fw-semibold fs-18 mb-0">Treaty Sales Management</h1>
+            <h1 class="page-title fw-semibold fs-18 mb-0">Facultative Sales Management</h1>
             <div class="ms-md-1 ms-0">
                 <nav>
                     <ol class="breadcrumb mb-0">
                         <li class="breadcrumb-item"><a href="/">Business Development</a></li>
-                        <li class="breadcrumb-item"><a href="/">Treaty Sales Management</a></li>
+                        <li class="breadcrumb-item"><a href="/">Facultative Sales Management</a></li>
                         <li class="breadcrumb-item active" aria-current="page">Facultative</li>
                     </ol>
                 </nav>
@@ -20,7 +20,6 @@
                 <div class="card-title">Pipeline Details</div>
             </div>
             <div class="card-body">
-                <!-- Pipeline Year Selection -->
                 <div class="mb-4">
                     <form id="pip_year_form" action="{{ route('pipeline.view') }}" method="get">
                         <input type="hidden" id="opp_id" name="opp_id">
@@ -40,7 +39,20 @@
                     </form>
                 </div>
 
-                <!-- Chart Container -->
+                <div id="pipeline-meta" class="alert alert-light border d-flex flex-wrap align-items-center gap-3 mb-4">
+                    <span class="fw-semibold">Selected Pipeline:</span>
+                    <span
+                        id="pipeline-meta-name">{{ isset($selectedPipeline->year) ? 'Pipeline ' . $selectedPipeline->year : 'N/A' }}</span>
+                    <span class="badge bg-primary-subtle text-primary-emphasis" id="pipeline-meta-year">
+                        Year: {{ $selectedPipeline->year ?? 'N/A' }}
+                    </span>
+                    <span class="badge bg-info-subtle text-info-emphasis" id="pipeline-meta-opp">Opportunities: --</span>
+                    <span class="badge bg-success-subtle text-success-emphasis" id="pipeline-meta-won">Won: --</span>
+                    <span class="badge bg-danger-subtle text-danger-emphasis" id="pipeline-meta-lost">Lost: --</span>
+                    <span class="badge bg-secondary-subtle text-secondary-emphasis" id="pipeline-meta-worth">Worth:
+                        --</span>
+                </div>
+
                 <div class="d-flex justify-content-center flex-wrap chart-container">
                     <div id="pipeline-chart" class="ct-chart-ranking ct-golden-section ct-series-a"></div>
                     <div id="chart-loading" class="d-none">
@@ -54,7 +66,6 @@
                     </div>
                 </div>
 
-                <!-- Chart Legend -->
                 <div class="row">
                     <hr>
                     <div class="d-flex justify-content-center flex-wrap">
@@ -82,7 +93,6 @@
 
         <div class="card custom-card">
             <div class="card-body">
-                <!-- Tab Navigation -->
                 <ul class="nav nav-pills nav-style-3 mb-4 pb-1" role="tablist">
                     @php
                         $quarters = [
@@ -105,11 +115,10 @@
                     @endforeach
                 </ul>
 
-                <!-- Tab Content -->
                 <div class="tab-content p-0 mt-1 border-none">
                     @foreach ($quarters as $index => $quarter)
                         <div class="tab-pane {{ $quarter['active'] ?? false ? 'active' : '' }} border-none"
-                            id="{{ $quarter['id'] }}">
+                            id="{{ $quarter['id'] }}" style="border: none;">
                             <div class="row">
                                 <div class="table-responsive">
                                     @php
@@ -166,25 +175,26 @@
         </div>
 
         {{-- Email Modal: For sending BD notifications to reinsurers and contacts --}}
-        @include('Bd_views.intermediaries.partials.modals.fac_email_modal')
+        @include('business_development.intermediaries.partials.modals.fac_email_modal')
 
         {{-- Lead Modal: Initial stage - capture basic opportunity information --}}
-        @include('Bd_views.intermediaries.partials.modals.lead_modal')
+        @include('business_development.intermediaries.partials.modals.lead_modal')
 
         {{-- Proposal Modal: Second stage - select reinsurers and prepare proposals --}}
-        @include('Bd_views.intermediaries.partials.modals.proposal_modal')
+        @include('business_development.intermediaries.partials.modals.proposal_modal')
 
         {{-- Negotiation Modal: Third stage - negotiate terms with selected reinsurers --}}
-        @include('Bd_views.intermediaries.partials.modals.negotiation_modal')
+        @include('business_development.intermediaries.partials.modals.negotiation_modal')
 
         {{-- Final Stage Modal: Complete the deal and prepare for handover --}}
-        @include('Bd_views.intermediaries.partials.modals.final_stage_modal')
+        @include('business_development.intermediaries.partials.modals.final_stage_modal')
     </div>
 
     <script>
         window.pipelineRoutes = {
             pipelineData: "{{ route('pipeline.sales.get_pipeline_data') }}",
             chartData: "{{ route('pipeline.sales.get_pipeline_chart_data') }}",
+            pipelineDetailsTemplate: "{{ route('getpipelineDetails', ['pipeline' => '__PIPELINE__']) }}",
             scheduleHeaders: "{{ route('schedule.headers.get') }}",
             slipDocuments: "{{ route('schedule.get_stage_documents') }}",
             getBdTerms: "{{ route('get.bd_terms') }}",
@@ -195,8 +205,7 @@
         };
     </script>
 
-    {{-- <script type="module" src="{{ asset('js/pipeline-manager.js') }}"></script> --}}
-    {{-- <script type="module" src="js/pipeline-manager.js"></script> --}}
+    <script type="module" src="{{ asset('js/pipeline-manager.js') }}"></script>
 @endsection
 
 @section('styles')
