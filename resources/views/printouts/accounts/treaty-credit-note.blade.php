@@ -83,8 +83,8 @@
             $totalCredit = $filteredCreditItems->filter(fn($item) => $item->ledger === 'CR')->sum('item_amount');
             $netAmount = $totalDebit - $totalCredit;
             $reinsurerTotals = (object) [
-                'gross_premium' => (float) ($credit->gross_amount ?? $totals->gross_premium ?? 0),
-                'commission' => (float) ($credit->commission_amount ?? $totals->commission ?? 0),
+                'gross_premium' => (float) ($credit->gross_amount ?? ($totals->gross_premium ?? 0)),
+                'commission' => (float) ($credit->commission_amount ?? ($totals->commission ?? 0)),
                 'total_debits' => $totalDebit,
                 'total_credits' => $totalCredit,
                 'net_amount' => $netAmount,
@@ -245,7 +245,7 @@
                                     {{ ucwords(strtolower($item->class_name ?? '')) }}
                                 </td>
                                 <td class="no-border align-right" style="width: 32.5%; text-align: right;">
-                                    {{ number_format(abs($item->original_amount ?? $item->item_amount ?? 0), 2) }}
+                                    {{ number_format(abs($item->original_amount ?? ($item->item_amount ?? 0)), 2) }}
                                     {{ $item->line_rate > 0 ? '@' . number_format($item->line_rate, 2) . '%' : '' }}
                                 </td>
                                 <td class="no-border align-right" style="width: 17.5%; text-align: right;">

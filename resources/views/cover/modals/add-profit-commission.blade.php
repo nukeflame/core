@@ -64,7 +64,7 @@
                                                 </div>
 
                                                 <div class="col-md-12">
-                                                    <div class="row">
+                                                    <div class="row g-3">
                                                         <div class="col-md-4">
                                                             <label class="form-label" for="posting_date">
                                                                 Posting Date <span class="text-danger">*</span>
@@ -73,18 +73,60 @@
                                                                 class="form-control" value="{{ date('Y-m-d') }}"
                                                                 required />
                                                         </div>
+                                                    </div>
+                                                </div>
 
-                                                        <div class="col-md-4">
+                                                <div class="col-md-12">
+                                                    <div class="row g-3">
+                                                        <div class="col-md-3">
+                                                            <label class="form-label" for="port_prem_rate">
+                                                                Portfolio Premium Rate (%) <span
+                                                                    class="text-danger">*</span>
+                                                            </label>
+                                                            <input type="number" name="port_prem_rate"
+                                                                id="port_prem_rate" class="form-control" step="0.01"
+                                                                value="{{ number_format((float) ($cover->port_prem_rate ?? 0), 2) }}"
+                                                                data-default="{{ number_format((float) ($cover->port_prem_rate ?? 0), 2) }}"
+                                                                min="0" max="100" required />
+                                                        </div>
+
+                                                        <div class="col-md-3">
+                                                            <label class="form-label" for="port_loss_rate">
+                                                                Portfolio Loss Rate (%) <span
+                                                                    class="text-danger">*</span>
+                                                            </label>
+                                                            <input type="number" name="port_loss_rate"
+                                                                id="port_loss_rate" class="form-control"
+                                                                step="0.01"
+                                                                value="{{ number_format((float) ($cover->port_loss_rate ?? 0), 2) }}"
+                                                                data-default="{{ number_format((float) ($cover->port_loss_rate ?? 0), 2) }}"
+                                                                min="0" max="100" required />
+                                                        </div>
+
+                                                        <div class="col-md-3">
                                                             <label class="form-label" for="profit_comm_rate">Profit
                                                                 Commission
                                                                 Rate
-                                                                (%)</label>
+                                                                (%) <span class="text-danger">*</span></label>
                                                             <input type="number" name="profit_comm_rate"
                                                                 id="profit_comm_rate" class="form-control"
                                                                 step="0.01"
-                                                                value="{{ number_format($cover->profit_comm_rate, 2) }}"
-                                                                data-default="{{ number_format($cover->profit_comm_rate, 2) }}"
-                                                                min="0" max="100" />
+                                                                value="{{ number_format((float) ($cover->profit_comm_rate ?? 0), 2) }}"
+                                                                data-default="{{ number_format((float) ($cover->profit_comm_rate ?? 0), 2) }}"
+                                                                min="0" max="100" required />
+                                                        </div>
+
+                                                        <div class="col-md-3">
+                                                            <label class="form-label" for="mgnt_exp_rate">
+                                                                Management Expense Rate (%) <span
+                                                                    class="text-danger">*</span>
+                                                            </label>
+                                                            <input type="number" name="mgnt_exp_rate"
+                                                                id="mgnt_exp_rate" class="form-control"
+                                                                step="0.01"
+                                                                value="{{ number_format((float) ($cover->mgnt_exp_rate ?? 0), 2) }}"
+                                                                data-default="{{ number_format((float) ($cover->mgnt_exp_rate ?? 0), 2) }}"
+                                                                min="0" max="100" required />
                                                         </div>
                                                     </div>
                                                 </div>
@@ -130,6 +172,86 @@
                         </div>
 
                         <div class="col-md-4">
+                            <div class="card shadow-sm mb-3">
+                                <div class="card-header bg-light py-2">
+                                    <h6 class="mb-0 fw-semibold">Statutory Levies</h6>
+                                </div>
+                                <div class="card-body">
+                                    {{-- Premium Levy --}}
+                                    <div class="levy-row mb-2">
+                                        <div class="d-flex align-items-center justify-content-between">
+                                            <div class="form-check form-check-lg custom-checkbox mb-0">
+                                                <input class="form-check-input levy-checkbox" type="checkbox"
+                                                    name="compute_premium_tax" id="compute_premium_tax"
+                                                    value="1" data-rate="{{ $taxRates['PREMIUM_LEVY'] }}">
+                                                <label class="form-check-label" for="compute_premium_tax">
+                                                    Premium Levy
+                                                </label>
+                                            </div>
+                                            <div class="levy-rate-input">
+                                                <div class="input-group input-group-sm">
+                                                    <input type="number" name="premium_levy" id="premium_levy"
+                                                        class="form-control form-control-sm text-end" step="0.01"
+                                                        value="{{ $taxRates['PREMIUM_LEVY'] }}" min="0"
+                                                        data-default="{{ $taxRates['PREMIUM_LEVY'] }}" max="100"
+                                                        style="width: 75px;" />
+                                                    <span class="input-group-text">%</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {{-- Reinsurance Levy --}}
+                                    <div class="levy-row mb-2">
+                                        <div class="d-flex align-items-center justify-content-between">
+                                            <div class="form-check form-check-lg custom-checkbox mb-0">
+                                                <input class="form-check-input levy-checkbox" type="checkbox"
+                                                    name="compute_reinsurance_tax" id="compute_reinsurance_tax"
+                                                    value="1" data-rate="{{ $taxRates['REINSURANCE_LEVY'] }}">
+                                                <label class="form-check-label" for="compute_reinsurance_tax">
+                                                    Reinsurance Levy
+                                                </label>
+                                            </div>
+                                            <div class="levy-rate-input">
+                                                <div class="input-group input-group-sm">
+                                                    <input type="number" name="reinsurance_levy"
+                                                        id="reinsurance_levy"
+                                                        class="form-control form-control-sm text-end" step="0.01"
+                                                        value="{{ $taxRates['REINSURANCE_LEVY'] }}" min="0"
+                                                        data-default="{{ $taxRates['REINSURANCE_LEVY'] }}"
+                                                        max="100" style="width: 75px;" />
+                                                    <span class="input-group-text">%</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {{-- Withholding Tax --}}
+                                    <div class="levy-row mb-0">
+                                        <div class="d-flex align-items-center justify-content-between">
+                                            <div class="form-check form-check-lg custom-checkbox mb-0">
+                                                <input class="form-check-input levy-checkbox" type="checkbox"
+                                                    name="compute_withholding_tax" id="compute_withholding_tax"
+                                                    value="1" data-rate="{{ $taxRates['WITHHOLDING_TAX'] }}">
+                                                <label class="form-check-label" for="compute_withholding_tax">
+                                                    Withholding Tax
+                                                </label>
+                                            </div>
+                                            <div class="levy-rate-input">
+                                                <div class="input-group input-group-sm">
+                                                    <input type="number" name="wht_rate" id="wht_rate"
+                                                        class="form-control form-control-sm text-end" step="0.01"
+                                                        value="{{ $taxRates['WITHHOLDING_TAX'] }}" min="0"
+                                                        data-default="{{ $taxRates['WITHHOLDING_TAX'] }}"
+                                                        max="100" style="width: 75px;" />
+                                                    <span class="input-group-text">%</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
                             <div class="card shadow-sm mb-3">
                                 <div class="card-header bg-light py-2">
                                     <h6 class="mb-0 fw-semibold">Foreign Currency</h6>
@@ -201,22 +323,17 @@
                                                     <th style="width: 18%;">
                                                         Transaction Type <span class="text-danger">*</span>
                                                     </th>
-                                                    <th style="width: 15%;">
-                                                        Class Group <span class="text-danger">*</span>
-                                                    </th>
-                                                    <th style="width: 17%;">Business Class</th>
-                                                    <th style="width: 12%;">Commission (%) <span
-                                                            class="text-danger">*</span></th>
-                                                    <th style="width: 10%;">Ledger</th>
+                                                    <th style="width: 10%;">Rate %</th>
+                                                    <th style="width: 12%;">Ledger</th>
                                                     <th style="width: 13%;">
                                                         Amount <span class="text-danger">*</span>
                                                     </th>
-                                                    <th style="width: 5%;" class="text-center">Action</th>
+                                                    <th style="width: 8%;" class="text-center">Action</th>
                                                 </tr>
                                             </thead>
                                             <tbody id="debit-items-body">
                                                 <tr id="no-items-row">
-                                                    <td colspan="8" class="text-center text-muted py-4">
+                                                    <td colspan="6" class="text-center text-muted py-4">
                                                         <i class="fas fa-inbox fa-2x mb-2 d-block opacity-50"></i>
                                                         No line items added. Click "Add Line Item" to begin.
                                                     </td>
@@ -251,7 +368,7 @@
             <select class="form-select form-select-sm item-code" name="items[INDEX][item_code]">
                 <option value="">--</option>
                 @forelse ($itemCodes ?? [] as $code => $data)
-                    @if (in_array($code, ['IT01', 'IT02']))
+                    @if (!in_array($code, ['IT04', 'IT06']))
                         <option value="{{ $code }}" data-type="{{ $data['type'] }}"
                             data-description="{{ $data['description'] }}">
                             {{ $code }}
@@ -266,7 +383,7 @@
             <select name="items[INDEX][description]" class="form-select form-select-sm item-description" required>
                 <option value="">-- Select Type --</option>
                 @foreach ($itemCodes ?? [] as $code => $data)
-                    @if (in_array($code, ['IT01', 'IT02']))
+                    @if (!in_array($code, ['IT04', 'IT06']))
                         <option value="{{ $code }}" data-type="{{ $data['type'] }}"
                             data-code="{{ $code }}">
                             {{ $data['description'] }}
@@ -276,31 +393,9 @@
             </select>
         </td>
         <td>
-            <select name="items[INDEX][class_group]" class="form-select form-select-sm item-class-group" required>
-                <option value="">-- Select Group --</option>
-                @foreach ($classGroups ?? [] as $group)
-                    <option value="{{ $group['group_code'] }}">{{ $group['group_name'] }}</option>
-                @endforeach
-            </select>
-        </td>
-        <td>
-            <select name="items[INDEX][class_name]" class="form-select form-select-sm item-class-name">
-                <option value="">-- Class --</option>
-                @if (isset($businessClasses))
-                    @foreach ($businessClasses as $category => $classes)
-                        @foreach ($classes as $code => $name)
-                            <option value="{{ $code }}" data-group="{{ $category }}"
-                                style="display: none;">
-                                {{ $name }}</option>
-                        @endforeach
-                    @endforeach
-                @endif
-            </select>
-        </td>
-        <td>
             <input type="number" name="items[INDEX][line_rate]"
-                class="form-control form-control-sm item-line-rate text-end" step="0.01" placeholder="0.00"
-                min="0" max="100" required title="Commission rate is required (0-100%)" />
+                class="form-control form-control-sm item-line-rate text-end" step="0.01" min="0"
+                max="100" placeholder="0.00" />
         </td>
         <td>
             <select name="items[INDEX][ledger]" class="form-select form-select-sm item-ledger">
@@ -479,7 +574,10 @@
                         postingYear: '#posting_year',
                         postingQuarter: '#posting_quarter',
                         postingDate: '#posting_date',
+                        portfolioPremiumRate: '#port_prem_rate',
+                        portfolioLossRate: '#port_loss_rate',
                         profitCommissionRate: '#profit_comm_rate',
+                        managementExpenseRate: '#mgnt_exp_rate',
                         currencyCode: '#pc_currency_code',
                         exchangeRate: '#pc_exchange_rate',
                         exchangeRateHint: '#pc_exchange_rate_hint',
@@ -561,7 +659,10 @@
                         postingYear: $modal.find(s.postingYear),
                         postingQuarter: $modal.find(s.postingQuarter),
                         postingDate: $modal.find(s.postingDate),
+                        portfolioPremiumRate: $modal.find(s.portfolioPremiumRate),
+                        portfolioLossRate: $modal.find(s.portfolioLossRate),
                         profitCommissionRate: $modal.find(s.profitCommissionRate),
+                        managementExpenseRate: $modal.find(s.managementExpenseRate),
                         currencyCode: $modal.find(s.currencyCode),
                         exchangeRate: $modal.find(s.exchangeRate),
                         exchangeRateHint: $modal.find(s.exchangeRateHint)
@@ -596,7 +697,26 @@
                                 required: true,
                                 date: true
                             },
+                            port_prem_rate: {
+                                required: true,
+                                number: true,
+                                min: 0,
+                                max: 100
+                            },
+                            port_loss_rate: {
+                                required: true,
+                                number: true,
+                                min: 0,
+                                max: 100
+                            },
                             profit_comm_rate: {
+                                required: true,
+                                number: true,
+                                min: 0,
+                                max: 100
+                            },
+                            mgnt_exp_rate: {
+                                required: true,
                                 number: true,
                                 min: 0,
                                 max: 100
@@ -621,7 +741,26 @@
                                 required: 'Please enter a date',
                                 date: 'Please enter a valid date'
                             },
+                            port_prem_rate: {
+                                required: 'Portfolio premium rate is required',
+                                number: 'Please enter a valid number',
+                                min: 'Minimum value is 0%',
+                                max: 'Maximum value is 100%'
+                            },
+                            port_loss_rate: {
+                                required: 'Portfolio loss rate is required',
+                                number: 'Please enter a valid number',
+                                min: 'Minimum value is 0%',
+                                max: 'Maximum value is 100%'
+                            },
                             profit_comm_rate: {
+                                required: 'Profit commission rate is required',
+                                number: 'Please enter a valid number',
+                                min: 'Minimum value is 0%',
+                                max: 'Maximum value is 100%'
+                            },
+                            mgnt_exp_rate: {
+                                required: 'Management expense rate is required',
                                 number: 'Please enter a valid number',
                                 min: 'Minimum value is 0%',
                                 max: 'Maximum value is 100%'
@@ -705,7 +844,35 @@
                         self.filterBusinessClasses($(this));
                     });
 
+                    this.$el.itemsBody.on('input change', c.itemLineRate, function() {
+                        self.updateRowAmountFromRates($(this).closest(c.itemRow));
+                        self.debouncedCalculate();
+                    });
+
                     this.$el.profitCommissionRate.on('input change', function() {
+                        self.updateAllRowAmountsFromRates();
+                        self.debouncedCalculate();
+                    });
+
+                    $(c.levyCheckbox).on('change', function() {
+                        self.debouncedCalculate();
+                    });
+
+                    $('#premium_levy').on('input change', function() {
+                        var rate = $(this).val() || 0;
+                        $('#compute_premium_tax').attr('data-rate', rate);
+                        self.debouncedCalculate();
+                    });
+
+                    $('#reinsurance_levy').on('input change', function() {
+                        var rate = $(this).val() || 0;
+                        $('#compute_reinsurance_tax').attr('data-rate', rate);
+                        self.debouncedCalculate();
+                    });
+
+                    $('#wht_rate').on('input change', function() {
+                        var rate = $(this).val() || 0;
+                        $('#compute_withholding_tax').attr('data-rate', rate);
                         self.debouncedCalculate();
                     });
 
@@ -907,7 +1074,13 @@
                     return {
                         currency_code: this.$el.currencyCode.data('default') || '',
                         today_currency: this.parseNumberOrZero(this.$el.exchangeRate.data('default')),
+                        port_prem_rate: this.parseNumberOrZero(this.$el.portfolioPremiumRate.data(
+                            'default')),
+                        port_loss_rate: this.parseNumberOrZero(this.$el.portfolioLossRate.data(
+                            'default')),
                         profit_comm_rate: this.parseNumberOrZero(this.$el.profitCommissionRate.data('default')),
+                        mgnt_exp_rate: this.parseNumberOrZero(this.$el.managementExpenseRate.data(
+                            'default')),
                         comments: '',
                         show_cedant: false,
                         show_reinsurer: false
@@ -921,14 +1094,29 @@
                     const currencyCode = resolved.currency_code || defaults.currency_code || '';
                     const exchangeRate = this.parseNumberOrZero(resolved.today_currency ?? defaults
                         .today_currency);
+                    const portfolioPremiumRate = (meta && meta.port_prem_rate !== undefined && meta
+                            .port_prem_rate !== null) ?
+                        this.parseNumberOrZero(meta.port_prem_rate) :
+                        this.parseNumberOrZero(defaults.port_prem_rate);
+                    const portfolioLossRate = (meta && meta.port_loss_rate !== undefined && meta
+                            .port_loss_rate !== null) ?
+                        this.parseNumberOrZero(meta.port_loss_rate) :
+                        this.parseNumberOrZero(defaults.port_loss_rate);
                     const profitCommissionRate = (meta && meta.profit_comm_rate !== undefined && meta
                             .profit_comm_rate !== null) ?
                         this.parseNumberOrZero(meta.profit_comm_rate) :
                         this.parseNumberOrZero(defaults.profit_comm_rate);
+                    const managementExpenseRate = (meta && meta.mgnt_exp_rate !== undefined && meta
+                            .mgnt_exp_rate !== null) ?
+                        this.parseNumberOrZero(meta.mgnt_exp_rate) :
+                        this.parseNumberOrZero(defaults.mgnt_exp_rate);
 
                     this.$el.currencyCode.val(currencyCode);
                     this.$el.exchangeRate.val(exchangeRate > 0 ? exchangeRate.toFixed(2) : '');
+                    this.$el.portfolioPremiumRate.val(portfolioPremiumRate.toFixed(2));
+                    this.$el.portfolioLossRate.val(portfolioLossRate.toFixed(2));
                     this.$el.profitCommissionRate.val(profitCommissionRate.toFixed(2));
+                    this.$el.managementExpenseRate.val(managementExpenseRate.toFixed(2));
 
                     const comments = String(resolved.comments || '');
                     this.$el.commentsField.val(comments);
@@ -991,6 +1179,7 @@
                         $itemCodeSelect.val(itemCode);
 
                         const $descriptionSelect = $newRow.find(self.config.classes.itemDescription);
+                        self.filterTransactionTypeOptions($newRow, itemCode);
                         $descriptionSelect.val(description);
 
                         const $itemTypeHidden = $newRow.find(self.config.classes.itemType);
@@ -1049,8 +1238,7 @@
                         $newRow.find(self.config.classes.itemLineRate).val(Number(lineRate).toFixed(2));
 
                         if (itemType === 'CREDIT') {
-                            $newRow.find(self.config.classes.itemLineRate).val('0').prop('disabled',
-                                true);
+                            $newRow.find(self.config.classes.itemLineRate).val('0');
                         }
 
                         const amount = item.amount ?? 0;
@@ -1091,7 +1279,7 @@
                         <div id="quarterly-data-prefill-info" class="alert alert-warning alert-dismissible fade show mt-2" role="alert">
                             <i class="fas fa-info-circle me-2"></i>
                             <strong>Note:</strong> No saved data found for this quarter. Line items were copied from ${sourceLabel}.
-                            Only commission and amount are editable, and amount has been cleared.
+                            Only amount is editable, and amount has been cleared.
                         </div>
                     `;
                     this.$el.itemsBody.closest('.card').before(prefillHtml);
@@ -1113,7 +1301,6 @@
 
                         if (notInserted) {
                             $row.find('input, select').prop('disabled', true);
-                            $row.find(self.config.classes.itemLineRate).prop('disabled', false);
                             $row.find(self.config.classes.itemLedger).prop('disabled', false);
                             $row.find(self.config.classes.itemAmount).prop('disabled', false);
                             $row.find(self.config.classes.itemAmountHidden).prop('disabled', false);
@@ -1143,7 +1330,10 @@
                     const otherFields = [
                         '#pc_currency_code',
                         '#pc_exchange_rate',
+                        '#port_prem_rate',
+                        '#port_loss_rate',
                         '#profit_comm_rate',
+                        '#mgnt_exp_rate',
                         '#comments',
                         '#show_cedant',
                         '#show_reinsurer'
@@ -1189,6 +1379,8 @@
                     const $hiddenInput = $newRow.find(this.config.classes.itemAmountHidden);
                     $hiddenInput.val('0.00');
 
+                    this.filterTransactionTypeOptions($newRow, $newRow.find(this.config.classes.itemCode)
+                        .val());
                     $newRow.find(this.config.classes.itemDescription).trigger('focus');
 
                     this.state.itemIndex++;
@@ -1242,6 +1434,7 @@
                     const $selectedOption = $itemCode.find('option:selected');
                     const itemType = $selectedOption.data('type') || '';
 
+                    this.filterTransactionTypeOptions($row, code);
                     $row.find(this.config.classes.itemDescription).val(code);
                     this.setItemTypeAndLedger($row, code, itemType);
                 },
@@ -1253,8 +1446,36 @@
                     const itemType = $selectedOption.data('type') || '';
 
                     $row.find(this.config.classes.itemCode).val(code);
+                    this.filterTransactionTypeOptions($row, code);
 
                     this.setItemTypeAndLedger($row, code, itemType);
+                },
+
+                filterTransactionTypeOptions: function($row, selectedCode) {
+                    const $descriptionSelect = $row.find(this.config.classes.itemDescription);
+                    const normalizedCode = String(selectedCode || '');
+
+                    $descriptionSelect.find('option').each(function() {
+                        const $option = $(this);
+                        const optionValue = String($option.val() || '');
+
+                        if (optionValue === '') {
+                            $option.show();
+                            return;
+                        }
+
+                        if (!normalizedCode || optionValue === normalizedCode) {
+                            $option.show();
+                        } else {
+                            $option.hide();
+                        }
+                    });
+
+                    if (normalizedCode) {
+                        $descriptionSelect.val(normalizedCode);
+                    } else {
+                        $descriptionSelect.val('');
+                    }
                 },
 
                 setItemTypeAndLedger: function($row, code, itemType) {
@@ -1278,13 +1499,11 @@
 
                     if (resolvedType === 'DEBIT') {
                         $ledger.val('DR');
-                        $commRate.val('');
-                        $commRate.prop('disabled', false);
+                        $commRate.val('0');
                         $row.removeClass('is-credit').addClass('is-debit');
                     } else if (resolvedType === 'CREDIT') {
                         $ledger.val('CR');
                         $commRate.val('0');
-                        $commRate.prop('disabled', true);
                         $row.removeClass('is-debit').addClass('is-credit');
                     } else {
                         $row.removeClass('is-debit is-credit');
@@ -1300,9 +1519,11 @@
 
                     if (ledgerValue === 'DR') {
                         $itemTypeField.val('DEBIT');
+                        $row.find(this.config.classes.itemLineRate).val('0');
                         $row.removeClass('is-credit').addClass('is-debit');
                     } else if (ledgerValue === 'CR') {
                         $itemTypeField.val('CREDIT');
+                        $row.find(this.config.classes.itemLineRate).val('0');
                         $row.removeClass('is-debit').addClass('is-credit');
                     }
 
@@ -1532,6 +1753,36 @@
                     $hidden.val(numericValue > 0 ? numericValue.toFixed(2) : '');
                 },
 
+                updateRowAmountFromRates: function($row) {
+                    if (!$row || !$row.length) return;
+
+                    const $lineRateField = $row.find(this.config.classes.itemLineRate);
+                    const $amountField = $row.find(this.config.classes.itemAmount);
+                    const lineRateRaw = String($lineRateField.val() ?? '').trim();
+                    const lineRate = parseFloat(lineRateRaw);
+
+                    if (!lineRateRaw || !Number.isFinite(lineRate) || lineRate <= 0) {
+                        $amountField.val('');
+                        this.syncHiddenAmount($amountField);
+                        return;
+                    }
+
+                    const baseRate = this.parseNumberOrZero(this.$el.profitCommissionRate.val());
+                    const calculatedAmount = lineRate * baseRate;
+
+                    console.log(baseRate)
+
+                    $amountField.val(this.formatCurrency(calculatedAmount));
+                    this.syncHiddenAmount($amountField);
+                },
+
+                updateAllRowAmountsFromRates: function() {
+                    const self = this;
+                    this.$el.itemsBody.find(this.config.classes.itemRow).each(function() {
+                        self.updateRowAmountFromRates($(this));
+                    });
+                },
+
                 handleAmountPaste: function(e, $input) {
                     e.preventDefault();
 
@@ -1616,7 +1867,31 @@
 
                     const profitCommissionRate = parseFloat(this.$el.profitCommissionRate.val()) || 0;
                     const profitCommissionAmount = grossAmount * (profitCommissionRate / 100);
-                    const totalDeductions = profitCommissionAmount + creditAmount;
+
+                    let levyAmount = 0;
+
+                    if ($('#compute_premium_tax').is(':checked')) {
+                        const premiumLevyRate = parseFloat($('#premium_levy').val()) || 0;
+                        if (premiumLevyRate > 0) {
+                            levyAmount += grossAmount * (premiumLevyRate / 100);
+                        }
+                    }
+
+                    if ($('#compute_reinsurance_tax').is(':checked')) {
+                        const reinsuranceLevyRate = parseFloat($('#reinsurance_levy').val()) || 0;
+                        if (reinsuranceLevyRate > 0) {
+                            levyAmount += grossAmount * (reinsuranceLevyRate / 100);
+                        }
+                    }
+
+                    if ($('#compute_withholding_tax').is(':checked')) {
+                        const withholdingTaxRate = parseFloat($('#wht_rate').val()) || 0;
+                        if (withholdingTaxRate > 0) {
+                            levyAmount += grossAmount * (withholdingTaxRate / 100);
+                        }
+                    }
+
+                    const totalDeductions = profitCommissionAmount + levyAmount + creditAmount;
                     const netAmount = grossAmount - totalDeductions;
 
                     this.$el.totalAmount.text(this.formatCurrency(grossAmount));
@@ -1720,15 +1995,11 @@
                         const $row = $(this);
                         const $description = $row.find('.item-description');
                         const $amount = $row.find('.item-amount');
-                        const $commissionRate = $row.find('.item-line-rate');
                         const $itemType = $row.find('.item-type');
-                        const $classGroup = $row.find('.item-class-group');
 
                         const description = $description.val();
                         const amount = self.parseFormattedNumber($amount.val());
-                        const commissionRateValue = $commissionRate.val();
                         const itemType = $itemType.val();
-                        const classGroup = $classGroup.val()
 
                         if (!description) {
                             $description.addClass(errorClass);
@@ -1738,14 +2009,6 @@
                             $description.removeClass(errorClass);
                         }
 
-                        if (!classGroup) {
-                            $classGroup.addClass(errorClass);
-                            errors.push(`Row ${index + 1}: Class group is required`);
-                            valid = false;
-                        } else {
-                            $classGroup.removeClass(errorClass);
-                        }
-
                         if (amount <= 0) {
                             $amount.addClass(errorClass);
                             errors.push(`Row ${index + 1}: Amount must be greater than 0`);
@@ -1753,24 +2016,6 @@
                         } else {
                             $amount.removeClass(errorClass);
                             totalAmount += amount;
-                        }
-
-                        const commissionRate = parseFloat(commissionRateValue);
-
-                        if (!commissionRateValue || commissionRateValue.trim() === '') {
-                            $commissionRate.addClass(errorClass);
-                            errors.push(`Row ${index + 1}: Commission rate is required`);
-                            valid = false;
-                        } else if (commissionRate < 0) {
-                            $commissionRate.addClass(errorClass);
-                            errors.push(`Row ${index + 1}: Commission rate cannot be negative`);
-                            valid = false;
-                        } else if (commissionRate > 100) {
-                            $commissionRate.addClass(errorClass);
-                            errors.push(`Row ${index + 1}: Commission rate cannot exceed 100%`);
-                            valid = false;
-                        } else {
-                            $commissionRate.removeClass(errorClass);
                         }
 
                         if (!itemType) {

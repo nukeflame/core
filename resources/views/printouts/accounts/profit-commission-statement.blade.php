@@ -22,12 +22,8 @@
             padding: 4px 6px;
         }
 
-        .pc-box {
-            border: 1px solid #111;
-        }
-
         .pc-box td {
-            border: 1px solid #111;
+            /* border: 1px solid #111; */
             padding: 2px 6px;
             font-size: 8.5pt;
         }
@@ -92,7 +88,7 @@
 
     <div class="pc-wrap">
         @php
-            $recipient = $recipient ?? $customer ?? null;
+            $recipient = $recipient ?? ($customer ?? null);
             $noteHeaderLabel = strtoupper((string) ($noteHeaderLabel ?? 'DEBIT NOTE'));
             $noteNumber = $noteNumber ?? ($debit->debit_note_no ?? 'N/A');
             $dueLabel = strtoupper((string) ($dueLabel ?? 'DUE FROM YOU'));
@@ -118,11 +114,7 @@
                         </tr>
                         <tr>
                             <td style="text-align: right;"><strong>CURRENCY :</strong></td>
-                            <td style="text-align: right;">{{ $cover->currency_code ?? $cover->currency ?? 'KES' }}</td>
-                        </tr>
-                        <tr>
-                            <td style="text-align: right;"><strong>POSTING NO :</strong></td>
-                            <td style="text-align: right;">{{ $noteNumber }}</td>
+                            <td style="text-align: right;">{{ $cover->currency_code ?? ($cover->currency ?? 'KES') }}</td>
                         </tr>
                     </table>
                 </td>

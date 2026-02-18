@@ -57,7 +57,7 @@
                             </td>
                         </tr>
                         <tr>
-                            <td> {{ $customer->phone ?? $customer->telephone ?? '' }} </td>
+                            <td> {{ $customer->phone ?? ($customer->telephone ?? '') }} </td>
                         </tr>
                     </table>
                 </td>
