@@ -461,15 +461,29 @@
 
             var table = $('#customerAccountsTable').DataTable({
                 processing: true,
-                pageLength: 1,
-                lengthChange: false,
+                pageLength: 25,
+                lengthMenu: [
+                    [10, 25, 50, 100, -1],
+                    [10, 25, 50, 100, 'All']
+                ],
+                lengthChange: true,
                 order: [
                     [10, 'desc']
                 ],
-                columnDefs: [{
-                    orderable: false,
-                    targets: [11] // Actions column
-                }],
+                columns: [
+                    { name: 'row_no', orderable: false, searchable: false },
+                    { name: 'reference' },
+                    { name: 'treaty' },
+                    { name: 'type' },
+                    { name: 'title' },
+                    { name: 'endorsement' },
+                    { name: 'posting_quarter' },
+                    { name: 'currency' },
+                    { name: 'amount', className: 'amount-cell' },
+                    { name: 'period' },
+                    { name: 'created_at' },
+                    { name: 'actions', orderable: false, searchable: false }
+                ],
                 language: {
                     processing: '<div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div>',
                     emptyTable: 'No transaction records available',
@@ -478,7 +492,29 @@
                 paging: hasData,
                 searching: hasData,
                 info: hasData,
-                footerCallback: function(row, data, start, end, display) {}
+                footerCallback: function() {
+                    if (!hasData) return;
+
+                    var api = this.api();
+                    var parseAmount = function(value) {
+                        if (typeof value === 'number') return value;
+                        if (!value) return 0;
+                        var text = $('<div>').html(value).text();
+                        return parseFloat(String(text).replace(/[^0-9.-]/g, '')) || 0;
+                    };
+
+                    var pageTotal = api.column(8, { page: 'current' }).data().reduce(function(sum, value) {
+                        return sum + parseAmount(value);
+                    }, 0);
+
+                    var footerCell = api.column(8).footer();
+                    if (footerCell) {
+                        footerCell.innerHTML = pageTotal.toLocaleString('en-US', {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2
+                        });
+                    }
+                }
             });
 
             $('#btnApplyFilter').on('click', function() {

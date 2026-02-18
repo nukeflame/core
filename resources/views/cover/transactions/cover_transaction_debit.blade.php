@@ -675,6 +675,7 @@
                                                 <th width="12%">Item Number</th>
                                                 <th width="12%">Transaction Type</th>
                                                 <th width="10%">Date</th>
+                                                <th width="10%">Quarter</th>
                                                 <th width="10%">Treaty Type</th>
                                                 <th width="10%">Class</th>
                                                 <th width="10%">Commission %</th>
@@ -685,7 +686,7 @@
                                         <tbody></tbody>
                                         <tfoot class="table-light">
                                             <tr class="fw-bold">
-                                                <td colspan="7" class="text-end">Totals:</td>
+                                                <td colspan="8" class="text-end">Totals:</td>
                                                 <td class="amount-cell amount-cell--positive" id="totalAmount">-</td>
                                                 <td colspan="1"></td>
                                             </tr>
@@ -709,7 +710,6 @@
                                                 <th width="7%">Share %</th>
                                                 <th width="9%">Gross Premium</th>
                                                 <th width="9%">Commission</th>
-                                                <th width="9%">Brokerage</th>
                                                 <th width="9%">Prem. Tax Amount</th>
                                                 <th width="9%">WHT Amount</th>
                                                 <th width="9%">RI Tax</th>
@@ -725,7 +725,6 @@
                                                 <td class="amount-cell" id="totalSharePercent">-</td>
                                                 <td class="amount-cell" id="totalGrossPremium">-</td>
                                                 <td class="amount-cell" id="totalCommission">-</td>
-                                                <td class="amount-cell" id="totalBrokerage">-</td>
                                                 <td class="amount-cell" id="totalPremiumTax">-</td>
                                                 <td class="amount-cell" id="totalWHT">-</td>
                                                 <td class="amount-cell" id="totalRITax">-</td>
@@ -962,7 +961,7 @@
                     cedantDebitNoteView: '{{ route('treaty.cedant.debit-note.view') }}'
                 },
                 dataTables: {
-                    pageLength: 10,
+                    pageLength: 25,
                     lengthMenu: [
                         [10, 25, 50, 100, -1],
                         [10, 25, 50, 100, "All"]
@@ -1310,6 +1309,13 @@
                                 defaultContent: '-'
                             },
                             {
+                                data: 'quarter_figure',
+                                name: 'posting_quarter',
+                                orderable: false,
+                                searchable: false,
+                                defaultContent: '-'
+                            },
+                            {
                                 data: 'treaty_type',
                                 name: 'treaty_type',
                                 render: function(data) {
@@ -1625,15 +1631,6 @@
                                 defaultContent: '-'
                             },
                             {
-                                data: 'brokerage_amount',
-                                name: 'brokerage_amount',
-                                className: 'amount-cell',
-                                render: function(data) {
-                                    return Utils.formatCurrency(data);
-                                },
-                                defaultContent: '-'
-                            },
-                            {
                                 data: 'premium_tax_amount',
                                 name: 'premium_tax_amount',
                                 className: 'amount-cell',
@@ -1760,31 +1757,25 @@
                                 return parseCurrency(a) + parseCurrency(b);
                             }, 0);
 
-                            var brokerageTotal = api.column(5, {
+                            var premiumTaxTotal = api.column(5, {
                                 page: 'current'
                             }).data().reduce(function(a, b) {
                                 return parseCurrency(a) + parseCurrency(b);
                             }, 0);
 
-                            var premiumTaxTotal = api.column(6, {
+                            var whtTotal = api.column(6, {
                                 page: 'current'
                             }).data().reduce(function(a, b) {
                                 return parseCurrency(a) + parseCurrency(b);
                             }, 0);
 
-                            var whtTotal = api.column(7, {
+                            var riTaxTotal = api.column(7, {
                                 page: 'current'
                             }).data().reduce(function(a, b) {
                                 return parseCurrency(a) + parseCurrency(b);
                             }, 0);
 
-                            var riTaxTotal = api.column(8, {
-                                page: 'current'
-                            }).data().reduce(function(a, b) {
-                                return parseCurrency(a) + parseCurrency(b);
-                            }, 0);
-
-                            var netAmountTotal = api.column(9, {
+                            var netAmountTotal = api.column(8, {
                                 page: 'current'
                             }).data().reduce(function(a, b) {
                                 return parseCurrency(a) + parseCurrency(b);
@@ -1794,7 +1785,6 @@
                             $('#totalSharePercent').text(Utils.formatPercentage(sharePercentTotal));
                             $('#totalGrossPremium').text(Utils.formatCurrency(grossPremiumTotal));
                             $('#totalCommission').text(Utils.formatCurrency(commissionTotal));
-                            $('#totalBrokerage').text(Utils.formatCurrency(brokerageTotal));
                             $('#totalPremiumTax').text(Utils.formatCurrency(premiumTaxTotal));
                             $('#totalWHT').text(Utils.formatCurrency(whtTotal));
                             $('#totalRITax').text(Utils.formatCurrency(riTaxTotal));

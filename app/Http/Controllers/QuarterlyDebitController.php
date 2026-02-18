@@ -118,6 +118,8 @@ class QuarterlyDebitController extends Controller
                     'tdi.ledger',
                     'dn.debit_note_no',
                     'dn.posting_date',
+                    'dn.posting_quarter',
+                    'dn.posting_year',
                     'dn.commission_amount',
                     'tdi.net_amount',
                     'tdi.status',
@@ -164,6 +166,9 @@ class QuarterlyDebitController extends Controller
                         'ledger' => $row->ledger,
                         'debit_note_no' => $row->debit_note_no,
                         'posting_date' => $row->posting_date,
+                        'quarter_figure' => ($row->posting_quarter && $row->posting_year)
+                            ? ($this->formatQuarterLabel($row->posting_quarter) . ' - ' . $row->posting_year)
+                            : '-',
                         'gross_amount' => $row->gross_amount,
                         'commission_amount' => $row->commission_amount,
                         'net_amount' => $row->net_amount,
@@ -1685,6 +1690,17 @@ class QuarterlyDebitController extends Controller
                             : 0.0,
                     ];
                 });
+
+                if (! $withBrokerage) {
+                    $statementItems = $statementItems->filter(function ($item) {
+                        $itemCode = strtoupper((string) ($item->item_code ?? ''));
+                        $itemName = strtolower((string) ($item->item_name ?? ''));
+                        $isBrokerageCode = in_array($itemCode, ['IT06', 'BROK', 'BRC', 'BROKERAGE'], true);
+                        $isBrokerageText = str_contains($itemName, 'brokerage');
+
+                        return ! ($isBrokerageCode || $isBrokerageText);
+                    })->values();
+                }
 
                 $basicTotalCR = (float) $statementItems->sum('to_cedant');
                 $basicTotalDR = (float) $statementItems->sum('to_reinsurers');
