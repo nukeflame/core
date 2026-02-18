@@ -12,6 +12,8 @@
                 <input type="hidden" name="total_placed_shares" id="propPlacedShare">
                 <input type="hidden" name="total_unplaced_shares" id="propUnPlacedShare">
                 <input type="hidden" name="selected_reinsurers" class="selected_reinsurers">
+                <input type="hidden" name="slip_type" class="slip_type">
+                <input type="hidden" name="category_type" class="category_type">
 
                 <div class="modal-body fac-slip-container">
                     <div class="fac-slip-header">
@@ -585,7 +587,9 @@
     </div>
 </div>
 
-<form id="proposal-quoteslip-form" method="POST" action="{{ route('quote.quotationCoverSlip') }}" target="_blank"
+<form id="proposal-quoteslip-form" method="POST" action="{{ route('quote.quotationCoverSlip.facultative') }}"
+    data-quotation-action="{{ route('quote.quotationCoverSlip.quotation') }}"
+    data-facultative-action="{{ route('quote.quotationCoverSlip.facultative') }}" target="_blank"
     style="display: none;">
     @csrf
 </form>
@@ -602,6 +606,11 @@
                 reinsurers: [],
                 totalShare: 0,
                 isInitialized: false
+            };
+
+            const PREVIEW_ROUTES = {
+                quotation: "{{ route('quote.quotationCoverSlip.quotation') }}",
+                facultative: "{{ route('quote.quotationCoverSlip.facultative') }}",
             };
 
             const $form = $("#proposalForm");
@@ -1029,11 +1038,13 @@
 
                         $('#totalWrittenReinsurerShare').val(proposalState.totalShare.toFixed(2));
                         $('#reinsurerCount').text(proposalState.reinsurers.length);
+                        toggleProposalPreviewSlipButton();
                     } catch (error) {
                         proposalState.reinsurers = [];
                         proposalState.totalShare = 0;
                         $('#totalWrittenReinsurerShare').val('0.00');
                         $('#reinsurerCount').text('0');
+                        toggleProposalPreviewSlipButton();
                     }
                 }
             });
@@ -1060,6 +1071,7 @@
                 $('#propReinsurersTable tbody').empty();
                 $('#reinsurerCount').text('0');
                 $('#totalNegReinsurerShare').val('0.00');
+                toggleProposalPreviewSlipButton();
             }
 
             $('#previewPdfModal').on('show.bs.modal', function() {
@@ -1712,6 +1724,7 @@
 
                 selectedReinsurers.add(reinsurerID);
                 $('#reinsurerCount').text(selectedReinsurers.size);
+                toggleProposalPreviewSlipButton();
 
                 updateSharesDisplay();
 
@@ -1744,6 +1757,14 @@
                 $('#propUnPlacedShare').val(unplacedShare.toFixed(2));
             }
 
+            function toggleProposalPreviewSlipButton() {
+                const badgeCount = parseInt(($("#reinsurerCount").text() || "0").toString(), 10) || 0;
+                const tableRows = $("#propReinsurersTable tbody tr").length;
+                const hasReinsurer = badgeCount > 0 || selectedReinsurers.size > 0 || (proposalState.reinsurers
+                    ?.length || 0) > 0 || tableRows > 0;
+                $("#proposal-view-slip").toggle(hasReinsurer);
+            }
+
             function escapeHtml(text) {
                 const div = document.createElement('div');
                 div.textContent = text;
@@ -1753,10 +1774,18 @@
             function previewCoverSlip(printoutType = 0) {
                 const sourceForm = $form
                 const postForm = $('#proposal-quoteslip-form');
+                const hasReinsurer = (proposalState.reinsurers?.length || 0) > 0 || selectedReinsurers.size > 0;
+                if (!hasReinsurer) {
+                    toastr.warning('Please add at least one reinsurer before previewing the slip.');
+                    return;
+                }
 
                 postForm.find('input[type="hidden"]:not([name="_token"])').remove();
 
                 const formData = prepareFormData();
+                const categoryType = Number($form.find(".category_type").val() || formData.get("category_type") || 2);
+                const targetAction = categoryType === 1 ? PREVIEW_ROUTES.quotation : PREVIEW_ROUTES.facultative;
+                postForm.attr("action", targetAction);
 
                 for (let [key, value] of formData.entries()) {
                     if (value instanceof File) {
@@ -1793,9 +1822,12 @@
 
                 selectedReinsurers.delete(reinsurerID);
                 $('#reinsurerCount').text(selectedReinsurers.size);
+                toggleProposalPreviewSlipButton();
 
                 updateSharesDisplay();
             });
+
+            toggleProposalPreviewSlipButton();
         });
     </script>
 @endpush

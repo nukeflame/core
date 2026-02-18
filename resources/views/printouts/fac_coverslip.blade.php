@@ -3,6 +3,11 @@
 @section('content')
     <style>
         .debit-reinsurer-page,
+        .debit-reinsurer-page * {
+            font-family: 'Aptos', sans-serif !important;
+        }
+
+        .debit-reinsurer-page,
         .row-header {
             font-family: 'Aptos', sans-serif;
             font-optical-sizing: auto;

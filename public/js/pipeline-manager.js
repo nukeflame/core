@@ -85,6 +85,7 @@ class PipelineManager {
                     window.pipelineRoutes?.pipelineDetailsTemplate || "",
                 scheduleHeaders: window.pipelineRoutes?.scheduleHeaders || "",
                 slipDocuments: window.pipelineRoutes?.slipDocuments || "",
+                bdEmailData: window.pipelineRoutes?.bdEmailData || "",
                 getBdTerms: window.pipelineRoutes?.getBdTerms || "",
                 declineReinsurer: window.pipelineRoutes?.declineReinsurer || "",
                 getSelectedReinsurers:
@@ -1099,11 +1100,15 @@ class PipelineManager {
                 }
             }
 
+            const normalizedCategoryType =
+                Number(dealInfo.category_type) === 1 ? 1 : 2;
+
             let $slipTitle = "";
-            if (Number(dealInfo.category_type) === 1) {
+            if (normalizedCategoryType === 1) {
                 $slipTitle = "Quotation Slip";
 
                 $modal.find(".slip_type").val("quotation");
+                $modal.find(".category_type").val("1");
 
                 $modal.find(".fac-rates").hide();
 
@@ -1113,6 +1118,7 @@ class PipelineManager {
                 $slipTitle = "Facultative Slip";
 
                 $modal.find(".slip_type").val("facultative");
+                $modal.find(".category_type").val("2");
 
                 $modal.find(".fac-rates").show();
 
@@ -1214,7 +1220,8 @@ class PipelineManager {
     }
 
     loadSelectedReinsurers(data) {
-        if (!data.dealId || !data.class || !data.classGroup) {
+        const opportunityId = data.opportunityId || data.dealId;
+        if (!opportunityId) {
             return;
         }
 
@@ -1229,7 +1236,7 @@ class PipelineManager {
             url: this.config.routes.getSelectedReinsurers,
             method: "GET",
             data: {
-                opportunity_id: data.opportunityId,
+                opportunity_id: opportunityId,
             },
             success: (response) => {
                 if (response.success) {
@@ -1532,11 +1539,27 @@ class PipelineManager {
                     success: (response) => {
                         if (response.status === 1) {
                             toastr.success("Reinsurer declined successfully");
-                            this.loadSelectedReinsurers({
+                            const $proposalModal = $("#proposalModal");
+                            const refreshData = {
                                 dealId: data.opportunityId,
                                 opportunityId: data.opportunityId,
                                 modalId: "proposalModal",
+                                class: $proposalModal.find(".class_code").val(),
+                                classGroup: $proposalModal
+                                    .find(".class_group_code")
+                                    .val(),
+                                typeOfBus:
+                                    window.currentDealInfo?.type_of_business,
+                                stage: "proposal",
+                                categoryType: $proposalModal
+                                    .find(".category_type")
+                                    .val(),
+                            };
+
+                            this.loadSelectedReinsurers({
+                                ...refreshData,
                             });
+                            this.loadSlipDocuments(refreshData);
                             $("#declineReinsurerModal").modal("hide");
                         } else {
                             toastr.error("An error occured!");
@@ -1909,6 +1932,13 @@ class PipelineManager {
 
         const $modal = $(`#${data.modalId}`);
         const container = $modal.find("#termsConditions");
+        const reinsurerCount = parseInt(
+            ($modal.find("#reinsurerCount").first().text() || "0").toString(),
+            10,
+        );
+        const hasSelectedReinsurers = Number.isFinite(reinsurerCount)
+            ? reinsurerCount > 0
+            : false;
         if (container.length === 0) {
             return;
         }
@@ -1970,8 +2000,13 @@ class PipelineManager {
             .find("#documentsContent")
             .closest(".form-section");
         if ($docsSection.length) {
-            $docsSection.show();
-            $docsSection.prev("hr").show();
+            if (data.modalId === "leadModal" && !hasSelectedReinsurers) {
+                $docsSection.hide();
+                $docsSection.prev("hr").hide();
+            } else {
+                $docsSection.show();
+                $docsSection.prev("hr").show();
+            }
         }
 
         let fieldsHtml = "";
@@ -2036,6 +2071,48 @@ class PipelineManager {
     }
 
     renderSlipDocuments(res, data, $modal) {
+        this.renderSupportingDocumentsReinsurerStatus(res, data, $modal);
+
+        const existingDocuments = Array.isArray(res.prosp_doc)
+            ? res.prosp_doc
+            : [];
+
+        // Proposal modal should only show documents already inserted at lead stage.
+        if (data?.modalId === "proposalModal") {
+            const leadDocuments = existingDocuments.filter((doc) => {
+                const fileName = (doc?.file || "").toString().trim();
+                return fileName.length > 0;
+            });
+
+            if (leadDocuments.length === 0) {
+                const $container = $modal.find("#documentsContent");
+                if ($container.length) {
+                    $container.html(
+                        '<p class="text-muted text-center my-3">No lead-stage documents available.</p>',
+                    );
+                }
+                return;
+            }
+
+            const transformedLeadDocs = leadDocuments.map((doc) => ({
+                id: doc.id,
+                name: doc.description || doc.original_name || "Supporting Document",
+                doc_type: doc.description || "Supporting Document",
+                file_name: `leadDoc_${doc.id}`,
+                required: false,
+                icon: "bx-file-blank",
+                accepts: doc.mimetype || ".pdf,.doc,.docx,.jpg,.jpeg,.png",
+                description: "",
+                max_size: DEFAULT_MAX_FILE_SIZE,
+                multiple: false,
+                existing_file_url: doc.s3_url || "",
+                existing_file_name: doc.original_name || doc.file || "document",
+            }));
+
+            this.generateDocumentFields(transformedLeadDocs, $modal);
+            return;
+        }
+
         if (!res.docs || !res.docs.length) {
             const $container = $modal.find("#documentsContent");
             if ($container.length) {
@@ -2060,20 +2137,112 @@ class PipelineManager {
             multiple: true,
         });
 
-        const transformedDocs = docs.map((doc) => ({
-            id: doc.id,
-            name: doc.name || doc.doc_type,
-            doc_type: doc.doc_type,
-            file_name: doc.file_name,
-            required: doc.mandatory === "Y",
-            icon: doc.icon ?? "bx-file-blank",
-            accepts: doc.mimetype ?? ".pdf,.doc,.docx,.jpg,.jpeg,.png",
-            description: doc.description ?? "",
-            max_size: doc.max_size ?? DEFAULT_MAX_FILE_SIZE,
-            multiple: doc.multiple ?? true,
-        }));
+        const transformedDocs = docs.map((doc) => {
+            const existingDoc = this.findExistingDocumentForType(
+                existingDocuments,
+                doc,
+            );
+
+            return {
+                id: doc.id,
+                name: doc.name || doc.doc_type,
+                doc_type: doc.doc_type,
+                file_name: doc.file_name,
+                required: doc.mandatory === "Y",
+                icon: doc.icon ?? "bx-file-blank",
+                accepts: doc.mimetype ?? ".pdf,.doc,.docx,.jpg,.jpeg,.png",
+                description: doc.description ?? "",
+                max_size: doc.max_size ?? DEFAULT_MAX_FILE_SIZE,
+                multiple: doc.multiple ?? true,
+                existing_file_url: existingDoc?.s3_url || "",
+                existing_file_name:
+                    existingDoc?.original_name || existingDoc?.file || "",
+            };
+        });
 
         this.generateDocumentFields(transformedDocs, $modal);
+    }
+
+    renderSupportingDocumentsReinsurerStatus(res, data, $modal) {
+        if (data?.modalId !== "proposalModal") {
+            return;
+        }
+
+        const $documentsContent = $modal.find("#documentsContent");
+        if ($documentsContent.length === 0) {
+            return;
+        }
+
+        $documentsContent.find(".supporting-reinsurer-status").remove();
+
+        const reinsurers = Array.isArray(res?.quoteReinsurers)
+            ? res.quoteReinsurers
+            : [];
+        if (reinsurers.length === 0) {
+            return;
+        }
+
+        const statusItems = reinsurers
+            .map((reinsurer) => {
+                const name = this.escapeHtml(
+                    reinsurer?.reinsurer_name || "Unknown Reinsurer",
+                );
+                const isDeclined =
+                    reinsurer?.is_declined === true ||
+                    reinsurer?.is_declined === 1 ||
+                    !!(
+                        reinsurer?.decline_reason &&
+                        reinsurer.decline_reason.toString().trim()
+                    );
+                const badgeClass = isDeclined ? "bg-danger" : "bg-success";
+                const badgeText = isDeclined ? "Declined" : "Active";
+
+                return `<span class="badge ${badgeClass} me-1 mb-1">${name}: ${badgeText}</span>`;
+            })
+            .join("");
+
+        const statusHtml = `
+            <div class="supporting-reinsurer-status mb-3">
+                <div class="small text-muted mb-1">Reinsurer Status</div>
+                <div>${statusItems}</div>
+            </div>
+        `;
+
+        $documentsContent.prepend(statusHtml);
+    }
+
+    normalizeDocumentKey(value) {
+        return (value || "")
+            .toString()
+            .toLowerCase()
+            .replace(/[^a-z0-9]/g, "");
+    }
+
+    findExistingDocumentForType(existingDocuments, doc) {
+        if (!Array.isArray(existingDocuments) || !doc) {
+            return null;
+        }
+
+        const keys = [
+            this.normalizeDocumentKey(doc.name),
+            this.normalizeDocumentKey(doc.doc_type),
+            this.normalizeDocumentKey(this.toPascalCase(doc.name || "")),
+            this.normalizeDocumentKey(this.toPascalCase(doc.doc_type || "")),
+            this.normalizeDocumentKey(doc.file_name),
+        ].filter(Boolean);
+
+        if (keys.length === 0) {
+            return null;
+        }
+
+        return (
+            existingDocuments.find((item) => {
+                const descriptionKey = this.normalizeDocumentKey(
+                    item?.description,
+                );
+                return keys.includes(descriptionKey);
+            }) || null
+        );
     }
 
     generateDocumentFields(documents, $modal) {
@@ -2100,51 +2269,75 @@ class PipelineManager {
         }
 
         documents.forEach((doc, index) => {
-            const colSize = documents.length <= 2 ? "col-12" : "col-md-6";
-            const maxSizeText = this.formatFileSize(
-                doc.max_size || DEFAULT_MAX_FILE_SIZE,
-            );
-            const acceptsText = doc.accepts.replace(/\./g, "").toUpperCase();
-
             const escapedName = this.escapeHtml(doc.name);
-            const escapedDescription = this.escapeHtml(doc.description);
+            const isAdditionalDocument = this.isAdditionalDocument(doc);
+            const existingFileUrl = (doc.existing_file_url || "").toString();
+            const escapedExistingFileUrl = this.escapeHtml(existingFileUrl);
+            const escapedExistingFileName = this.escapeHtml(
+                doc.existing_file_name || "document",
+            );
+            const titleInputAttributes = isAdditionalDocument
+                ? 'data-additional-title="1"'
+                : "readonly";
+            const fileAreaHtml = isAdditionalDocument
+                ? `<div class="supporting-doc-upload-line"
+                                    data-field="${doc.id}"
+                                    data-field_name="${escapedName}"
+                                    data-is-additional="${isAdditionalDocument ? "1" : "0"}">
+                                    <button type="button" class="supporting-doc-choose-btn">Choose File</button>
+                                    <span class="supporting-doc-file-name">No file chosen</span>
+                                    ${
+                                        isAdditionalDocument
+                                            ? `<button type="button" class="supporting-doc-add-btn" title="Add file">
+                                        <i class="bx bx-plus"></i>
+                                    </button>`
+                                            : ""
+                                    }
+                                    <button type="button" class="supporting-doc-view-trigger" title="View selected file" disabled>
+                                        <i class="bx bx-show"></i>
+                                    </button>
+                                    <input type="file" class="d-none file-input"
+                                        name="${doc.file_name}"
+                                        ${doc.required ? "required" : ""}
+                                        accept="${doc.accepts}"
+                                        ${doc.multiple ? "multiple" : ""}
+                                        data-max-size="${
+                                            doc.max_size || DEFAULT_MAX_FILE_SIZE
+                                        }">
+                                </div>`
+                : `<div class="supporting-doc-static-line">
+                                    <span class="supporting-doc-file-name">
+                                        Document already populated
+                                    </span>
+                                    ${
+                                        existingFileUrl
+                                            ? `<a href="${escapedExistingFileUrl}" target="_blank" rel="noopener noreferrer" class="supporting-doc-preview-link" title="Preview ${escapedExistingFileName}">
+                                        Preview
+                                    </a>`
+                                            : ""
+                                    }
+                                </div>`;
 
             const fieldHtml = `
-                <div class="${colSize} fade-in" style="animation-delay: ${
+                <div class="col-12 fade-in" style="animation-delay: ${
                     index * 0.1
                 }s">
-                    <div class="document-field-group">
-                        <div class="form-group">
-                            <label class="form-label fw-semibold">
-                                <i class="bx ${doc.icon} me-2"></i>
-                                ${escapedName}
-                                ${
-                                    doc.required
-                                        ? '<span class="required-indicator text-danger">*</span>'
-                                        : ""
-                                }
-                            </label>
-                            <div class="file-upload-area border rounded p-3 text-center" data-field="${
-                                doc.id
-                            }" data-field_name="${escapedName}">
-                                <i class="bx ${
-                                    doc.icon
-                                } upload-icon fs-2 text-muted"></i>
-                                <div class="upload-text fw-semibold">${escapedName}</div>
-                                <div class="upload-subtext text-muted small">${escapedDescription}</div>
-                                <input type="file" class="d-none file-input"
-                                    name="${doc.file_name}"
-                                    ${doc.required ? "required" : ""}
-                                    accept="${doc.accepts}"
-                                    ${doc.multiple ? "multiple" : ""}
-                                    data-max-size="${
-                                        doc.max_size || DEFAULT_MAX_FILE_SIZE
-                                    }">
-                                <div class="upload-constraints small text-muted mt-2">
-                                    <i class="bx bx-info-circle me-1"></i>
-                                    Max size: ${maxSizeText} | Formats: ${acceptsText}
-                                </div>
-                                <div class="file-count-badge badge bg-secondary position-absolute" style="top: 10px; right: 10px;">0</div>
+                    <div class="document-field-group supporting-doc-group">
+                        <div class="supporting-doc-grid">
+                            <div class="supporting-doc-title-col">
+                                <label class="supporting-doc-label">Document Title</label>
+                                <input type="text" class="form-control supporting-doc-title-input"
+                                    value="${escapedName}" ${titleInputAttributes}>
+                            </div>
+                            <div class="supporting-doc-file-col">
+                                <label class="supporting-doc-label">
+                                    File${
+                                        isAdditionalDocument && doc.required
+                                            ? '<span class="text-danger">*</span>'
+                                            : ""
+                                    }
+                                </label>
+                                ${fileAreaHtml}
                             </div>
                             <div class="file-preview-container mt-2"></div>
                         </div>
@@ -2163,16 +2356,218 @@ class PipelineManager {
         if ($summarySection.length) $summarySection.show();
     }
 
-    initializeFileUploads() {
-        $(".file-upload-area").off(".fileUpload");
-        $(".file-input").off(".fileUpload");
+    isAdditionalDocument(doc) {
+        const name = (doc?.name || "").toString().toLowerCase();
+        const fileName = (doc?.file_name || "").toString().toLowerCase();
+        const docType = (doc?.doc_type || "").toString().toLowerCase();
 
-        $(".file-upload-area").each((index, element) => {
+        return (
+            name.includes("additional") ||
+            fileName.includes("additional") ||
+            docType.includes("additional")
+        );
+    }
+
+    createAdditionalFieldId() {
+        return `additional_${Date.now()}_${Math.random()
+            .toString(36)
+            .slice(2, 10)}`;
+    }
+
+    createAdditionalDocumentRowHtml(config = {}) {
+        const fieldId = this.createAdditionalFieldId();
+        const accepts = this.escapeHtml(
+            config.accepts || ".pdf,.doc,.docx,.jpg,.jpeg,.png",
+        );
+        const maxSize = parseInt(config.maxSize, 10) || DEFAULT_MAX_FILE_SIZE;
+        const defaultTitle = this.escapeHtml(
+            config.defaultTitle || "Additional Documents",
+        );
+        const showAddButton = config.showAddButton === true;
+        const showRemoveButton = config.showRemoveButton === true;
+
+        return `
+            <div class="col-12 fade-in">
+                <div class="document-field-group supporting-doc-group">
+                    <div class="supporting-doc-grid">
+                        <div class="supporting-doc-title-col">
+                            <label class="supporting-doc-label">Document Title</label>
+                            <input type="text" class="form-control supporting-doc-title-input"
+                                value="${defaultTitle}" data-additional-title="1" placeholder="Enter document title">
+                        </div>
+                        <div class="supporting-doc-file-col">
+                            <label class="supporting-doc-label">File</label>
+                            <div class="supporting-doc-upload-line"
+                                data-field="${fieldId}"
+                                data-field_name="${defaultTitle}"
+                                data-is-additional="1">
+                                <button type="button" class="supporting-doc-choose-btn">Choose File</button>
+                                <span class="supporting-doc-file-name">No file chosen</span>
+                                ${
+                                    showAddButton
+                                        ? `<button type="button" class="supporting-doc-add-btn" title="Add file">
+                                    <i class="bx bx-plus"></i>
+                                </button>`
+                                        : ""
+                                }
+                                ${
+                                    showRemoveButton
+                                        ? `<button type="button" class="supporting-doc-row-remove-btn" title="Remove document">
+                                    <i class="bx bx-trash"></i>
+                                </button>`
+                                        : ""
+                                }
+                                <button type="button" class="supporting-doc-view-trigger" title="View selected file" disabled>
+                                    <i class="bx bx-show"></i>
+                                </button>
+                                <input type="file" class="d-none file-input"
+                                    name="additionalDocs"
+                                    accept="${accepts}"
+                                    multiple
+                                    data-max-size="${maxSize}">
+                            </div>
+                        </div>
+                        <div class="file-preview-container mt-2"></div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    addAdditionalDocumentRow($uploadArea) {
+        const $groupColumn = $uploadArea.closest(".col-12");
+        if ($groupColumn.length === 0) {
+            return;
+        }
+
+        const $input = $uploadArea.find(".file-input");
+        const rowHtml = this.createAdditionalDocumentRowHtml({
+            accepts: $input.attr("accept"),
+            maxSize: $input.data("max-size"),
+            defaultTitle: "Additional Documents",
+            showAddButton: false,
+            showRemoveButton: true,
+        });
+
+        $groupColumn.after(rowHtml);
+        this.initializeFileUploads();
+    }
+
+    removeAdditionalDocumentRow($removeBtn) {
+        const $uploadArea = $removeBtn
+            .closest(".supporting-doc-upload-line")
+            .first();
+        const fieldId = $uploadArea.data("field");
+
+        if (fieldId && this.uploadedFiles[fieldId]) {
+            delete this.uploadedFiles[fieldId];
+        }
+
+        const $groupColumn = $removeBtn.closest(".col-12");
+        if ($groupColumn.length > 0) {
+            $groupColumn.remove();
+        }
+    }
+
+    syncAdditionalDocumentFieldName($titleInput) {
+        const $group = $titleInput.closest(".supporting-doc-grid");
+        const $uploadArea = $group.find(".supporting-doc-upload-line").first();
+        if ($uploadArea.length === 0) {
+            return;
+        }
+
+        const fieldId = $uploadArea.data("field");
+        const title = ($titleInput.val() || "").toString().trim();
+        const normalizedTitle = title || "Additional Documents";
+        const normalizedFileName =
+            this.toPascalCase(normalizedTitle) || "additionalDocuments";
+
+        $uploadArea.attr("data-field_name", normalizedTitle);
+        $uploadArea.data("field_name", normalizedTitle);
+
+        if (fieldId && Array.isArray(this.uploadedFiles[fieldId])) {
+            this.uploadedFiles[fieldId].forEach((file) => {
+                file.fileName = normalizedFileName;
+            });
+        }
+    }
+
+    resolveDocumentFieldName($uploadArea) {
+        const $titleInput = $uploadArea
+            .closest(".supporting-doc-grid")
+            .find(".supporting-doc-title-input")
+            .first();
+
+        const titleFromInput = ($titleInput.val() || "").toString().trim();
+        const titleFromData = ($uploadArea.data("field_name") || "")
+            .toString()
+            .trim();
+
+        return titleFromInput || titleFromData || "additionalDocuments";
+    }
+
+    initializeFileUploads() {
+        const uploadSelector = ".supporting-doc-upload-line, .file-upload-area";
+        $(uploadSelector).off(".fileUpload");
+        $(".file-input").off(".fileUpload");
+        $(".supporting-doc-choose-btn, .supporting-doc-add-btn, .supporting-doc-view-trigger").off(".fileUpload");
+        $(".supporting-doc-row-remove-btn").off(".fileUpload");
+        $(".supporting-doc-title-input[data-additional-title='1']").off(
+            ".additionalTitle",
+        );
+
+        $(uploadSelector).each((index, element) => {
             const $uploadArea = $(element);
             const $input = $uploadArea.find(".file-input");
             const $previewContainer = $uploadArea.siblings(
                 ".file-preview-container",
             );
+            const $chooseBtn = $uploadArea.find(".supporting-doc-choose-btn");
+            const $addBtn = $uploadArea.find(".supporting-doc-add-btn");
+            const $removeRowBtn = $uploadArea.find(
+                ".supporting-doc-row-remove-btn",
+            );
+            const $viewBtn = $uploadArea.find(".supporting-doc-view-trigger");
+            const isAdditionalUpload =
+                String($uploadArea.data("is-additional")) === "1";
+
+            $chooseBtn.on("click.fileUpload", (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if ($input.length > 0 && $input[0]) {
+                    $input[0].click();
+                }
+            });
+
+            $addBtn.on("click.fileUpload", (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+
+                if (isAdditionalUpload) {
+                    this.addAdditionalDocumentRow($uploadArea);
+                    return;
+                }
+
+                if ($input.length > 0 && $input[0]) {
+                    $input[0].click();
+                }
+            });
+
+            $removeRowBtn.on("click.fileUpload", (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                this.removeAdditionalDocumentRow($removeRowBtn);
+            });
+
+            $viewBtn.on("click.fileUpload", (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const fieldId = $uploadArea.data("field");
+                const firstFile = this.uploadedFiles[fieldId]?.[0];
+                if (firstFile) {
+                    this.viewFile(fieldId, firstFile.fileId);
+                }
+            });
 
             $uploadArea.on("click.fileUpload", (e) => {
                 const $target = $(e.target);
@@ -2236,6 +2631,13 @@ class PipelineManager {
                 }
             });
         });
+
+        $(".supporting-doc-title-input[data-additional-title='1']").on(
+            "input.additionalTitle change.additionalTitle",
+            (e) => {
+                this.syncAdditionalDocumentFieldName($(e.currentTarget));
+            },
+        );
     }
 
     handleFileSelection(files, $uploadArea, $previewContainer) {
@@ -2244,7 +2646,7 @@ class PipelineManager {
         }
 
         const fieldId = $uploadArea.data("field");
-        const fieldName = $uploadArea.data("field_name");
+        const fieldName = this.resolveDocumentFieldName($uploadArea);
         const maxSize =
             parseInt($uploadArea.find(".file-input").data("max-size")) ||
             DEFAULT_MAX_FILE_SIZE;
@@ -2286,16 +2688,34 @@ class PipelineManager {
 
     updateFileCountBadge($uploadArea, fieldId) {
         const $badge = $uploadArea.find(".file-count-badge");
+        const $nameText = $uploadArea.find(".supporting-doc-file-name");
+        const $viewTrigger = $uploadArea.find(".supporting-doc-view-trigger");
         const fileCount = this.uploadedFiles[fieldId]
             ? this.uploadedFiles[fieldId].length
             : 0;
 
-        $badge.text(fileCount);
+        if ($badge.length) {
+            $badge.text(fileCount);
 
-        if (fileCount > 0) {
-            $badge.removeClass("bg-secondary").addClass("bg-success");
-        } else {
-            $badge.removeClass("bg-success").addClass("bg-secondary");
+            if (fileCount > 0) {
+                $badge.removeClass("bg-secondary").addClass("bg-success");
+            } else {
+                $badge.removeClass("bg-success").addClass("bg-secondary");
+            }
+        }
+
+        if ($nameText.length) {
+            if (fileCount === 0) {
+                $nameText.text("No file chosen");
+            } else if (fileCount === 1) {
+                $nameText.text(this.uploadedFiles[fieldId][0]?.name || "1 file selected");
+            } else {
+                $nameText.text(`${fileCount} files selected`);
+            }
+        }
+
+        if ($viewTrigger.length) {
+            $viewTrigger.prop("disabled", fileCount === 0);
         }
     }
 
@@ -2410,10 +2830,6 @@ class PipelineManager {
                 return;
             }
 
-            const fileExtension = fileToView.name
-                .split(".")
-                .pop()
-                .toLowerCase();
             const fileUrl = URL.createObjectURL(fileToView);
 
             if (!this.activeFileUrls) {
@@ -2422,29 +2838,22 @@ class PipelineManager {
 
             this.activeFileUrls.add(fileUrl);
 
-            const imageExtensions = [
-                "jpg",
-                "jpeg",
-                "png",
-                "gif",
-                "bmp",
-                "webp",
-                "svg",
-            ];
-            const pdfExtensions = ["pdf"];
-            const textExtensions = ["txt", "csv", "json", "xml", "log"];
+            const opened = window.open(fileUrl, "_blank", "noopener,noreferrer");
 
-            if (imageExtensions.includes(fileExtension)) {
-                this.showImageModal(fileToView.name, fileUrl);
-            } else if (pdfExtensions.includes(fileExtension)) {
-                window.open(fileUrl, "_blank");
-                setTimeout(() => this.revokeFileUrl(fileUrl), 1000);
-            } else if (textExtensions.includes(fileExtension)) {
-                this.showTextFileModal(fileToView, fileUrl);
-            } else {
+            if (!opened) {
                 this.downloadFile(fileToView.name, fileUrl);
-                setTimeout(() => this.revokeFileUrl(fileUrl), 1000);
             }
+
+            const existingModalEl = document.getElementById("fileViewModal");
+            if (existingModalEl) {
+                const existingModal = bootstrap.Modal.getInstance(existingModalEl);
+                if (existingModal) {
+                    existingModal.dispose();
+                }
+                existingModalEl.remove();
+            }
+
+            setTimeout(() => this.revokeFileUrl(fileUrl), 5000);
         } catch (error) {
             this.handleError("Error viewing file", error);
         }
@@ -2467,14 +2876,19 @@ class PipelineManager {
         }
     }
 
-    showImageModal(fileName, fileUrl) {
-        $("#leadModal").modal("hide");
+    restoreParentModalLayout() {
+        const hasOpenParentModal = $(".modal.show").not("#fileViewModal").length > 0;
+        if (hasOpenParentModal) {
+            $("body").addClass("modal-open");
+        }
+    }
 
+    showImageModal(fileName, fileUrl) {
         const escapedFileName = this.escapeHtml(fileName);
 
         const modalHtml = `
             <div class="modal fade effect-scale md-wrapper" id="fileViewModal"
-                tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+                tabindex="-1" data-bs-backdrop="false" data-bs-keyboard="true">
                 <div class="modal-dialog modal-lg modal-dialog-centered">
                     <div class="modal-content">
                         <div class="modal-header">
@@ -2495,17 +2909,26 @@ class PipelineManager {
             </div>
         `;
 
-        $("#fileViewModal").remove();
+        const existingModalEl = document.getElementById("fileViewModal");
+        if (existingModalEl) {
+            const existingModal = bootstrap.Modal.getInstance(existingModalEl);
+            if (existingModal) {
+                existingModal.dispose();
+            }
+            existingModalEl.remove();
+        }
         $("body").append(modalHtml);
 
-        const modal = new bootstrap.Modal(
-            document.getElementById("fileViewModal"),
-        );
+        const modal = new bootstrap.Modal(document.getElementById("fileViewModal"), {
+            backdrop: false,
+            keyboard: true,
+            focus: true,
+        });
 
         $("#fileViewModal").on("hidden.bs.modal", () => {
             this.revokeFileUrl(fileUrl);
             $("#fileViewModal").remove();
-            $("#leadModal").modal("show");
+            this.restoreParentModalLayout();
         });
 
         modal.show();
@@ -2540,15 +2963,28 @@ class PipelineManager {
                 </div>
             `;
 
-            $("#fileViewModal").remove();
+            const existingModalEl = document.getElementById("fileViewModal");
+            if (existingModalEl) {
+                const existingModal = bootstrap.Modal.getInstance(existingModalEl);
+                if (existingModal) {
+                    existingModal.dispose();
+                }
+                existingModalEl.remove();
+            }
             $("body").append(modalHtml);
             const modal = new bootstrap.Modal(
                 document.getElementById("fileViewModal"),
+                {
+                    backdrop: false,
+                    keyboard: true,
+                    focus: true,
+                },
             );
 
-            $("#fileViewModal").on("hidden.bs.modal", function () {
-                URL.revokeObjectURL(fileUrl);
-                $(this).remove();
+            $("#fileViewModal").on("hidden.bs.modal", () => {
+                this.revokeFileUrl(fileUrl);
+                $("#fileViewModal").remove();
+                this.restoreParentModalLayout();
             });
 
             modal.show();
@@ -2918,7 +3354,7 @@ class PipelineManager {
             this.$pipYearSelect?.off("change");
             $('a[data-bs-toggle="tab"]').off("shown.bs.tab");
             $(document).off("ajaxError");
-            $(".file-upload-area").off(".fileUpload");
+            $(".supporting-doc-upload-line, .file-upload-area").off(".fileUpload");
             $(".file-input").off(".fileUpload");
             $(".file-remove-btn").off(".fileRemove");
             $(".file-view-btn").off(".fileView");
@@ -2995,7 +3431,9 @@ class PipelineManager {
             }
 
             const opportunityId = this.currentDealId;
-            const currentStage = buttonData.current_stage;
+            const currentStage = this.normalizeStageKey(
+                buttonData.current_stage,
+            );
 
             this.checkEmailConnectionBeforeLoad(opportunityId, currentStage);
         } catch (error) {
@@ -3015,33 +3453,38 @@ class PipelineManager {
                         this.loadBdEssentials(opportunityId, currentStage);
                     } else {
                         this.hideLoading();
-                        Swal.fire({
-                            icon: "warning",
-                            title: "Email Service Disconnected",
-                            html: `
-                            <p>Your email service is currently not connected.</p>
-                            <p>Please reconnect before sending notifications.</p>
-                        `,
-                            confirmButtonText: "Reconnect",
-                            showCancelButton: true,
-                            cancelButtonText: "Cancel",
-                        }).then((result) => {
-                            if (result.isConfirmed) {
-                                this.handleEmailReconnect(
-                                    opportunityId,
-                                    currentStage,
-                                );
-                            }
-                        });
+                        this.promptMailRedirect();
                     }
                 })
                 .catch((error) => {
                     console.error("Connection check failed:", error);
-                    this.loadBdEssentials(opportunityId, currentStage);
+                    this.hideLoading();
+                    this.promptMailRedirect();
                 });
         } else {
-            this.loadBdEssentials(opportunityId, currentStage);
+            this.hideLoading();
+            this.promptMailRedirect();
         }
+    }
+
+    promptMailRedirect() {
+        Swal.fire({
+            icon: "warning",
+            title: "Outlook Not Connected",
+            html: `
+                <p>Your Outlook account is not connected.</p>
+                <p>Please connect from Mail before sending notifications.</p>
+            `,
+            confirmButtonText: "Go to Mail",
+            showCancelButton: true,
+            cancelButtonText: "Cancel",
+            confirmButtonColor: "#3085d6",
+        }).then((result) => {
+            if (result.isConfirmed) {
+                const returnTo = encodeURIComponent(window.location.href);
+                window.location.href = `/mail?return_to=${returnTo}`;
+            }
+        });
     }
 
     handleEmailReconnect(opportunityId, currentStage) {
@@ -3082,12 +3525,16 @@ class PipelineManager {
             }
 
             const opportunityId = this.currentDealId;
-            const stage = buttonData.current_stage;
+            const stage = this.normalizeStageKey(buttonData.current_stage);
             const printout_flag = 1;
 
             const $form = $("#previewPdfForm");
-            const $s = stage.toLowerCase();
+            const $s = stage || STAGE_NAMES.LEAD;
             const currentStage = this.config.stageFlow[$s];
+
+            if (!currentStage) {
+                throw new Error(`Invalid stage for PDF preview: ${$s}`);
+            }
 
             $form.find("#pdf_opportunity_id").val(opportunityId);
             $form.find("#pdf_current_stage").val($s);
@@ -3102,12 +3549,15 @@ class PipelineManager {
     }
 
     loadBdEssentials(opportunityId, currentStage) {
+        const normalizedStage =
+            this.normalizeStageKey(currentStage) || STAGE_NAMES.LEAD;
+
         $.ajax({
-            url: "bd/bd_email_data",
+            url: this.config.routes.bdEmailData || "bd/bd_email_data",
             method: "POST",
             data: {
                 opportunity_id: opportunityId,
-                current_stage: currentStage,
+                current_stage: normalizedStage,
             },
             headers: {
                 "X-Requested-With": "XMLHttpRequest",
@@ -3122,7 +3572,7 @@ class PipelineManager {
                         contacts: response.data.contacts,
                         template: response.data.reinsurersTemplates,
                         attachedFiles: response.data.attachedFiles,
-                        bdEmailTitle: currentStage,
+                        bdEmailTitle: normalizedStage,
                         opportunityId: opportunityId,
                         customerId: response.data.customerId,
                     };
@@ -3166,25 +3616,44 @@ class PipelineManager {
         });
     }
 
+    normalizeStageKey(stageValue) {
+        return String(stageValue || "")
+            .trim()
+            .toLowerCase()
+            .replace(/[\s-]+/g, "_");
+    }
+
     prepareBDEmailModal(opportunityId, data) {
         try {
             const $bdMailModal = $("#sendBDEmailModal");
             const $bdNotificationForm = $("#bdNotificationForm");
+
+            if (!$bdMailModal.length || !$bdNotificationForm.length) {
+                throw new Error("BD email modal/form is not available in the DOM");
+            }
 
             if (!data?.bdEmailTitle) {
                 return;
             }
 
             const stageTitle = data.bdEmailTitle.toLowerCase();
-            const stage = this.config.stageFlow[stageTitle];
+            const stage = this.config.stageFlow[stageTitle] || {};
+            const templateMap = data.template || {};
+            const categoryKey =
+                stage.previous || stageTitle || STAGE_NAMES.LEAD;
+            const template =
+                templateMap[categoryKey] ||
+                templateMap[stageTitle] ||
+                templateMap[STAGE_NAMES.LEAD] || {
+                    subject: "",
+                    message: "",
+                };
 
             $bdMailModal.find(".modal-bd-title").text(`- ${data.bdEmailTitle}`);
             $bdMailModal
                 .find("#category")
-                .val(stage.previous)
+                .val(categoryKey)
                 .trigger("change");
-
-            const template = data.template[stage.previous];
 
             $bdNotificationForm.find(".subject").val(template.subject);
             $bdNotificationForm.find(".message").val(template.message);
@@ -3518,10 +3987,13 @@ class PipelineManager {
                 .attr("title", "Send BD Notification");
         } else {
             $mailButtons
-                .prop("disabled", true)
+                .prop("disabled", false)
                 .removeClass("btn-primary")
                 .addClass("btn-secondary")
-                .attr("title", "Email service disconnected");
+                .attr(
+                    "title",
+                    "Email service disconnected. Click to reconnect and continue",
+                );
         }
     }
 }

@@ -18,6 +18,8 @@
                 <input type="hidden" name="opportunity_id" class="opportunity_id">
                 <input type="hidden" name="is_reply" class="is_reply" id="isReply" value="0">
                 <input type="hidden" name="customer_id" class="customer_id">
+                <input type="hidden" name="message_id" id="messageId" value="">
+                <input type="hidden" name="conversation_id" id="conversationId" value="">
 
                 <div class="modal-body pb-0">
                     <div class="row">
@@ -67,7 +69,7 @@
                         <button type="button" class="btn btn-outline-default btn-sm" data-bs-dismiss="modal">
                             Cancel
                         </button>
-                        <button type="submit" class="btn btn-primary">
+                        <button type="submit" class="btn btn-primary" id="sendNotificationBtn">
                             <i class="bx bx-paper-plane me-1"></i>Send Notification
                         </button>
                     </div>
@@ -168,13 +170,33 @@
 </div>
 
 <style>
+    #sendBDEmailModal .modal-dialog,
+    #confirmationModal .modal-dialog {
+        max-height: calc(100vh - 1.5rem);
+        margin: 0.75rem auto;
+    }
+
+    #sendBDEmailModal .modal-content,
+    #confirmationModal .modal-content {
+        max-height: calc(100vh - 1.5rem);
+        overflow: hidden;
+    }
+
+    #sendBDEmailModal .modal-body,
+    #confirmationModal .modal-body {
+        overflow-y: auto;
+    }
+
     #bdEmailTabContent {
-        min-height: 50vh;
+        min-height: 0;
+        max-height: calc(100vh - 280px);
+        overflow: hidden;
     }
 
     #bdEmailTabContent .tab-pane {
         padding-top: 1rem;
         border: none;
+        max-height: inherit;
     }
 
     .invalid-feedback {
@@ -198,15 +220,42 @@
 
                 captureFormData() {
                     this.formData = {
-                        isReply: $('#replyToId').val() ? true : false,
-                        originalMessageId: $('#originalMessageId').val(),
+                        isReply: $('#isReply').val() === '1',
+                        messageId: $('#messageId').val(),
+                        conversationId: $('#conversationId').val(),
                         toEmail: $('#toEmail').val(),
+                        toContacts: $('#toContacts').val() || [],
+                        ccEmail: $('#ccEmail').val() || [],
+                        bccEmail: $('#bccEmail').val() || [],
                         subject: $('#subject').val(),
                         message: $('#message').val(),
                         category: $('#category').val(),
                         priority: $('#priority').val(),
-                        reference: $('#reference').val()
+                        reference: $('#reference').val(),
+                        showOriginalEmail: !$('#emailBody').hasClass('hidden')
                     };
+                },
+
+                restoreFormData() {
+                    if (!this.formData || Object.keys(this.formData).length === 0) {
+                        return;
+                    }
+
+                    $('#isReply').val(this.formData.isReply ? '1' : '0');
+                    $('#messageId').val(this.formData.messageId || '');
+                    $('#conversationId').val(this.formData.conversationId || '');
+                    $('#toEmail').val(this.formData.toEmail || '');
+                    $('#subject').val(this.formData.subject || '');
+                    $('#message').val(this.formData.message || '');
+                    $('#category').val(this.formData.category || 'lead').trigger('change.select2');
+                    $('#priority').val(this.formData.priority || 'normal').trigger('change.select2');
+                    $('#reference').val(this.formData.reference || '');
+                    $('#toContacts').val(this.formData.toContacts || []).trigger('change.select2');
+                    $('#ccEmail').val(this.formData.ccEmail || []).trigger('change.select2');
+                    $('#bccEmail').val(this.formData.bccEmail || []).trigger('change.select2');
+
+                    $('#emailBody').toggleClass('hidden', !this.formData.showOriginalEmail);
+                    $('#toggleEmailBodyBtn').css('display', this.formData.isReply ? 'block' : 'none');
                 }
             };
 
@@ -242,6 +291,7 @@
 
             function bindEvents() {
                 $("#resetMailForm").hide();
+                updateSendButtonVisibility();
 
                 $('#generateRefBtn').on('click', generateReference);
                 $('#toggleEmailBodyBtn').on('click', toggleEmailBody);
@@ -256,9 +306,24 @@
                 $(CONFIG.selectors.form).on('submit', handleEmailSubmit);
                 $(CONFIG.selectors.form).on('change input', () => EmailState.captureFormData());
                 $(CONFIG.selectors.category).on('change', handleCategoryChange);
+                $('#emailTabs button[data-bs-toggle="tab"]').on('shown.bs.tab', function(e) {
+                    updateSendButtonVisibility();
+
+                    const targetId = e.target.id;
+                    if (targetId === 'replies-tab') {
+                        EmailState.captureFormData();
+                    } else if (targetId === 'compose-tab') {
+                        EmailState.restoreFormData();
+                    }
+                });
 
                 $(`${CONFIG.selectors.toContacts}, ${CONFIG.selectors.ccEmail}, ${CONFIG.selectors.bccEmail}`)
                     .on('change', handleEmailFieldChange);
+            }
+
+            function updateSendButtonVisibility() {
+                const isReplyTabActive = $('#replies-tab').hasClass('active');
+                $('#sendNotificationBtn').toggle(!isReplyTabActive);
             }
 
             function handleCategoryChange() {
@@ -459,8 +524,11 @@
 
                 EmailState.reset();
 
-                $('#replyToId, #originalMessageId').val('');
+                $('#isReply').val('0');
+                $('#messageId').val('');
+                $('#conversationId').val('');
                 $('#composeTitle').text('Compose New Email');
+                $('#clearFormBtn').hide();
                 $form.removeClass('reply-context-highlight');
                 $('#emailBody').addClass('hidden');
 
@@ -499,8 +567,11 @@
 
                 EmailState.reset();
 
-                $('#replyToId, #originalMessageId').val('');
+                $('#isReply').val('0');
+                $('#messageId').val('');
+                $('#conversationId').val('');
                 $('#composeTitle').text('Compose New Email');
+                $('#clearFormBtn').hide();
                 $('#resetMailForm').hide();
                 $form.removeClass('reply-context-highlight');
                 $('#emailBody').addClass('hidden');
@@ -603,7 +674,7 @@
 
             function resolveDuplicates(changedField, newlySelectedEmails) {
                 newlySelectedEmails.forEach(email => {
-                    if (changedField === 'tocontacts') {
+                    if (changedField === 'toContacts') {
                         removeEmailFromDropdown(CONFIG.selectors.ccEmail, email);
                         removeEmailFromDropdown(CONFIG.selectors.bccEmail, email);
                     } else if (changedField === 'ccEmail') {
@@ -637,8 +708,9 @@
                 if (!confirm('This will switch to reply mode. Continue?')) return;
 
                 try {
-                    $('#replyToId').val(message.id);
-                    $('#originalMessageId').val(message.id);
+                    $('#isReply').val('1');
+                    $('#messageId').val(message.messageId || message.id || '');
+                    $('#conversationId').val(message.conversationId || '');
                     $(CONFIG.selectors.toEmail).val(message.from);
 
                     let subject = message.subject;
@@ -678,7 +750,10 @@
                     ${message.preview || 'Original message content...'}
                 `.trim();
 
-                $('#threadMessage').val(threadContent);
+                const threadFrame = document.getElementById('threadMessages');
+                if (threadFrame && threadFrame.contentDocument && threadFrame.contentDocument.body) {
+                    threadFrame.contentDocument.body.innerHTML = threadContent.replace(/\n/g, '<br>');
+                }
             }
 
             function updateUIForReplyMode(message) {
@@ -686,13 +761,32 @@
                 EmailState.originalMessage = message;
 
                 $('#composeTitle').text('Reply to Message');
+                $('#clearFormBtn').show();
                 $('#resetMailForm').show();
                 $(CONFIG.selectors.form).addClass('reply-context-highlight');
             }
 
             window.BDEmailModal = {
                 populateReplyForm,
-                resetForm
+                resetForm,
+                captureFormData: function() {
+                    EmailState.captureFormData();
+                },
+                restoreFormData: function() {
+                    EmailState.restoreFormData();
+                },
+                checkEmailConnection: async function() {
+                    if (window.emailManager && typeof window.emailManager.checkConnection === 'function') {
+                        return await window.emailManager.checkConnection();
+                    }
+                    return true;
+                },
+                refreshConnectionStatus: async function() {
+                    if (window.emailManager && typeof window.emailManager.checkConnection === 'function') {
+                        return await window.emailManager.checkConnection();
+                    }
+                    return true;
+                }
             };
         });
     </script>

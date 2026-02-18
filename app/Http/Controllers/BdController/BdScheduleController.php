@@ -56,29 +56,79 @@ class BdScheduleController extends Controller
 
     public function getSlipTemplateHeaders(Request $request)
     {
-        $classGroupCode = $request->input('class_group_code', '');
-        $classCode = $request->input('class_code', '');
+        $classGroupCode = $request->input('class_group_code', $request->input('class_group', ''));
+        $classCode = $request->input('class_code', $request->input('class', ''));
+        $rawBusType = strtoupper(trim((string) $request->input('business_type', $request->input('bus_type', ''))));
+        $headerKeyword = trim((string) $request->input('header_keyword', ''));
 
-        if (!$classGroupCode && !$classCode) {
+        $requestedScheduleHeaderIds = collect($request->input('schedule_header_ids', []))
+            ->map(fn($id) => (int) $id)
+            ->filter(fn($id) => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+
+        if (!$classGroupCode && !$classCode && !$rawBusType && !$headerKeyword && empty($requestedScheduleHeaderIds)) {
             return response()->json([
                 'success' => false,
-                'message' => 'Class group or class code is required.',
+                'message' => 'Schedule headers, class group, class code, or business type is required.',
                 'headers' => [],
             ]);
         }
 
         $query = SlipTemplate::where('status', 'A');
 
+        $busType = match ($rawBusType) {
+            'FAC', 'FACULTATIVE', 'FPR', 'FNP' => 'FAC',
+            'TRT', 'TREATY', 'TPR', 'TNP' => 'TRT',
+            default => null,
+        };
+
         if ($classGroupCode) {
             $query->where('class_group_code', $classGroupCode);
         }
+
         if ($classCode) {
             $query->where('class_code', $classCode);
         }
 
-        $templates = $query->with('scheduleHeaders:id,name,position,amount_field,sum_insured_type,business_type')->get();
+        $scheduleHeaderIds = collect($requestedScheduleHeaderIds);
+        if ($scheduleHeaderIds->isEmpty() && ($headerKeyword !== '' || $classCode || $classGroupCode || $busType)) {
+            $headerQuery = QuoteScheduleHeader::query();
 
-        if ($templates->isEmpty()) {
+            if ($classCode) {
+                $headerQuery->where('class', $classCode);
+            }
+            if ($classGroupCode) {
+                $headerQuery->where('class_group', $classGroupCode);
+            }
+            if ($busType) {
+                $headerQuery->where('business_type', $busType);
+            }
+            if ($headerKeyword !== '') {
+                $headerQuery->where('name', 'like', "%{$headerKeyword}%");
+            }
+
+            $scheduleHeaderIds = $headerQuery->pluck('id');
+        }
+
+        $hasScheduleHeaderFilter = $scheduleHeaderIds->isNotEmpty();
+        if ($hasScheduleHeaderFilter) {
+            $schIds = $scheduleHeaderIds->values()->all();
+            $query->whereHas('scheduleHeaders', function ($q) use ($schIds) {
+                $q->whereIn('quote_schedule_headers.id', $schIds);
+            });
+        }
+
+        $templatesQuery = $query
+            ->with('scheduleHeaders:id,name,position,amount_field,sum_insured_type,business_type');
+
+        $template = $templatesQuery
+            ->orderByDesc('updated_at')
+            ->orderByDesc('id')
+            ->first();
+
+        if (!$template) {
             return response()->json([
                 'success' => false,
                 'message' => 'No slip template found for the selected class.',
@@ -86,14 +136,32 @@ class BdScheduleController extends Controller
             ]);
         }
 
-        // Collect all unique schedule headers across matching templates
-        $headers = $templates->flatMap(function ($template) {
-            return $template->scheduleHeaders;
-        })->unique('id')->sortBy('position')->values();
+        $templateHeaders = $template->scheduleHeaders;
+
+        if ($hasScheduleHeaderFilter) {
+            $matchingHeader = $templateHeaders
+                ->whereIn('id', $scheduleHeaderIds->values()->all())
+                ->sortBy('position')
+                ->first();
+        } else {
+            $matchingHeader = [];
+        }
+
+        $headers = collect($matchingHeader ? [$matchingHeader] : []);
+        $wording = (string) ($template->wording ?? '');
 
         return response()->json([
             'success' => true,
-            'template_count' => $templates->count(),
+            'template_count' => 1,
+            'template' => [
+                'id' => $template->id,
+                'schedule_title' => $template->schedule_title,
+                'class_group_code' => $template->class_group_code,
+                'class_code' => $template->class_code,
+                'wording' => $wording,
+                'description' => $template->description,
+            ],
+            'wording' => $wording,
             'headers' => $headers->map(function ($h) {
                 return [
                     'id' => $h->id,
@@ -179,7 +247,18 @@ class BdScheduleController extends Controller
 
         $id = $request->id;
         $bus_type = $request->business_type;
-        $table = 'schedule_headers';
+        $requestedTable = (string) $request->input('source_table', '');
+        $allowedTables = ['schedule_headers', 'quote_schedule_headers'];
+
+        if (in_array($requestedTable, $allowedTables, true)) {
+            $table = $requestedTable;
+        } elseif ($id && Schema::hasTable('quote_schedule_headers') && DB::table('quote_schedule_headers')->where('id', $id)->exists()) {
+            // Backward-compatible fallback for existing quote schedule header edits.
+            $table = 'quote_schedule_headers';
+        } else {
+            $table = 'schedule_headers';
+        }
+
         $columns = Schema::getColumnListing($table);
         // dd($request->all());
 
@@ -1420,10 +1499,9 @@ class BdScheduleController extends Controller
             );
         }
     }
+
     public function operationchecklist_add(Request $request)
     {
-
-
         $id = $request->id;
         try {
             DB::beginTransaction();
@@ -1451,24 +1529,16 @@ class BdScheduleController extends Controller
                 ]);
             }
 
-
-
             DB::commit();
-            if (isset($id)) {
-                Session::flash('success', 'bd treaty operation updated successfully');
-            } else {
-                Session::flash('success', 'bd operation saved successfully');
-            }
+
 
             return redirect()->route('operationchecklist.info');
         } catch (\Exception $e) {
             DB::rollBack();
-            \Log::error('Error saving  document: ' . $e->getMessage());
-
-            Session::flash('error', 'An error occurred while saving');
             return redirect()->back()->with('error', 'Failed to save');
         }
     }
+
     public function operationchecklist_data()
     {
         $doc_types = DB::table('treaty_operation_checklists')->get();
@@ -1484,6 +1554,7 @@ class BdScheduleController extends Controller
             ->rawColumns(['edit', 'delete'])
             ->make(true);
     }
+
     public function delete_operationchecklist(Request $request)
     {
         $id = $request->id;
@@ -1492,11 +1563,11 @@ class BdScheduleController extends Controller
             $doc_type = OperationChecklist::where('id', $id)->first();
             $doc_type->delete();
             DB::commit();
-            Session::flash('success', 'operation checklist deleted successfully');
+
             return redirect()->route('doc.type.info');
         } catch (\Exception $e) {
             DB::rollback();
-            Session::flash('error', 'Failed to delete operation checklist');
+
             return redirect()->back()->with('error', 'Failed to delete operation checklist');
         }
     }

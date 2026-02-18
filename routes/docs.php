@@ -33,3 +33,8 @@ Route::prefix('docs')->middleware(['auth', 'check.first.login'])->name('docs.')-
     Route::get('/view/renewal_notice', [PrintoutController::class, 'viewRenewalNotice'])->name('view.renewal_notice');
     Route::get('/download/renewal_notice', [PrintoutController::class, 'downloadRenewalNotice'])->name('download.renewal_notice');
 });
+
+Route::prefix('doc')->middleware(['auth', 'check.first.login'])->group(function () {
+    Route::post('coverslip/quotation', [QuotationController::class, 'quotationCoverSlip'])->name('quote.quotationCoverSlip.quotation');
+    Route::post('coverslip/facultative', [QuotationController::class, 'quotationCoverSlip'])->name('quote.quotationCoverSlip.facultative');
+});

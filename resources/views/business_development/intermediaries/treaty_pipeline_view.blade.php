@@ -187,6 +187,7 @@
             chartData: "{{ route('pipeline.sales.get_pipeline_chart_data') }}",
             scheduleHeaders: "{{ route('schedule.headers.get') }}",
             slipDocuments: "{{ route('schedule.get_stage_documents') }}",
+            bdEmailData: "{{ route('fetch.bd_email_data') }}",
             getBdTerms: "{{ route('get.bd_terms') }}",
             declineReinsurer: "{{ route('reinsurer.decline') }}",
             getSelectedReinsurers: "{{ route('get.selected_bd_reinsurers') }}",

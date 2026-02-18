@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 
 class OutlookOAuthController extends Controller
 {
@@ -40,6 +41,7 @@ class OutlookOAuthController extends Controller
 
             $code = $request->get('code');
             $state = $request->get('state');
+            $returnTo = Redis::get("azure_auth_return_{$state}");
 
             $pkceData = Redis::get("azure_auth_state_{$state}");
             if (!$pkceData) {
@@ -50,6 +52,7 @@ class OutlookOAuthController extends Controller
             $codeVerifier = $pkceInfo['code_verifier'];
 
             Redis::del("azure_auth_state_{$state}");
+            Redis::del("azure_auth_return_{$state}");
 
             $tokenData = $this->outlookService->getAccessToken($code, $codeVerifier);
 
@@ -74,7 +77,9 @@ class OutlookOAuthController extends Controller
             SyncUserEmails::dispatch($request->user()->id, 'full')
                 ->delay(now()->addSeconds(5));
 
-            return redirect()->route('mail.index', ['outlook_connected' => 'true'])->with([
+            $redirectTarget = $this->sanitizeReturnTo($returnTo) ?: route('mail.index', ['outlook_connected' => 'true']);
+
+            return redirect()->to($redirectTarget)->with([
                 'success' => 'Outlook connected successfully.',
                 'connected' => true,
                 'user' => $userProfile
@@ -118,6 +123,7 @@ class OutlookOAuthController extends Controller
     {
         try {
             $user = $request->user();
+            $returnTo = $this->sanitizeReturnTo($request->input('return_to'));
 
             if (!$user) {
                 return response()->json([
@@ -140,6 +146,10 @@ class OutlookOAuthController extends Controller
             }
 
             $auth = $this->outlookService->getAuthUrl();
+
+            if (!empty($auth['state']) && $returnTo) {
+                Redis::setex("azure_auth_return_{$auth['state']}", 600, $returnTo);
+            }
 
             return response()->json([
                 'success' => true,
@@ -352,5 +362,30 @@ class OutlookOAuthController extends Controller
         } catch (\Throwable $e) {
             report($e);
         }
+    }
+
+    private function sanitizeReturnTo(?string $returnTo): ?string
+    {
+        if (!$returnTo) {
+            return null;
+        }
+
+        $returnTo = trim((string) $returnTo);
+        if ($returnTo === '') {
+            return null;
+        }
+
+        if (Str::startsWith($returnTo, '/')) {
+            return $returnTo;
+        }
+
+        $targetHost = parse_url($returnTo, PHP_URL_HOST);
+        $appHost = parse_url(config('app.url'), PHP_URL_HOST);
+
+        if ($targetHost && $appHost && strcasecmp($targetHost, $appHost) === 0) {
+            return $returnTo;
+        }
+
+        return null;
     }
 }

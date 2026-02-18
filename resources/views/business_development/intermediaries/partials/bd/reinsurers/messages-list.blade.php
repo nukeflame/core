@@ -117,10 +117,17 @@
     }
 
     #messagesContainer {
-        height: 680px;
+        height: auto;
+        max-height: calc(100vh - 430px);
         overflow-x: hidden;
         overflow-y: auto;
         padding-right: 7px;
+    }
+
+    @media (max-width: 768px) {
+        #messagesContainer {
+            max-height: calc(100vh - 360px);
+        }
     }
 
     .priority-low {
@@ -372,7 +379,6 @@
                 this.isConnected = false;
                 this.currentFolder = 'inbox';
                 this.isLoading = false;
-                this.mailRouteEnabled = this.isMailRoute();
 
                 this.handleSearch = this.debounce(this.filterMessages.bind(this), 500);
                 this.handleFilterChange = this.handleFilterChange.bind(this);
@@ -380,18 +386,11 @@
                 this.initialize();
             }
 
-            isMailRoute() {
-                const path = (window.location.pathname || '/').replace(/\/+$/, '') || '/';
-                return path === '/mail' || path.startsWith('/mail/');
-            }
-
             async initialize() {
                 try {
                     this.bindEventListeners();
                     await this.checkConnection();
-                    if (this.isConnected && this.mailRouteEnabled) {
-                        await this.loadMessages();
-                    }
+                    await this.loadMessages();
                 } catch (error) {
                     console.error('Email manager initialization failed:', error);
                     this.showErrorMessage('Failed to initialize email system');
@@ -406,9 +405,7 @@
                     const targetId = e.target.id;
                     if (targetId === 'replies-tab') {
                         $("#resetMailForm").show();
-                        if (this.mailRouteEnabled) {
-                            this.loadMessages();
-                        }
+                        this.loadMessages();
                     }
                 });
 
@@ -431,12 +428,12 @@
                 $('#fetchMoreBtn').on('click', () => this.fetchMoreEmails());
                 $('#clearFiltersBtn').on('click', () => this.clearFilters());
                 $('#saveDraftBtn').on('click', () => this.saveDraft());
-                $('#newEmailBtn, #newEmailInstead').on('click', () => this.handleNewEmail());
+                $('#newEmailBtn, #clearFormBtn, #newEmailInstead').on('click', () => this.handleNewEmail());
             }
 
             async checkConnection() {
                 try {
-                    const connectionStatus = true; //@json(auth()->user()->hasOutlookConnection());
+                    const connectionStatus = @json(auth()->user()->hasOutlookConnection());
                     this.isConnected = Boolean(connectionStatus);
                     this.updateConnectionUI(this.isConnected);
                     return this.isConnected;
@@ -469,7 +466,6 @@
             }
 
             async loadMessages(forceRefresh = false) {
-                if (!this.mailRouteEnabled) return;
                 if (this.isLoading) return;
 
                 this.isLoading = true;
@@ -480,11 +476,8 @@
                         await this.checkConnection();
                     }
 
-                    if (this.isConnected) {
-                        await this.loadOutlookMessages(forceRefresh, this.currentFolder);
-                    } else {
-                        this.showErrorMessage('Outlook not connected. Please connect to continue.');
-                    }
+                    // Try fetching even when local connection flag is false; backend is source of truth.
+                    await this.loadOutlookMessages(forceRefresh, this.currentFolder);
                 } catch (error) {
                     console.error('Load messages failed:', error);
                     this.showErrorMessage('Failed to load messages: ' + error.message);
@@ -948,7 +941,7 @@
                 }
 
                 try {
-                    $('#to').val(message.from);
+                    $('#toEmail').val(message.from);
                     $('#subject').val(message.subject.startsWith('Re:') ? message.subject : `Re: ${message.subject}`)
                         .attr('readonly', true);
                     $('#category').val(message.category);
@@ -966,7 +959,8 @@
 
                     $('#isReply').val('1');
                     $('#composeTitle').text('Reply to Message');
-                    $('#newEmailInstead').removeClass('d-none');
+                    $('#clearFormBtn').show();
+                    $('#resetMailForm').show();
 
                     const c = $('#category').val() || 'proposal';
                     const category = c.toUpperCase().substring(0, 3)
@@ -983,10 +977,12 @@
                     const preview = subject.length > 50 ? subject.substring(0, 50) + '...' : subject;
                     // this.showToast('success', `Replying to: ${preview}`);
 
-                    $('#bdNotificationForm').append(
-                        `<input type="hidden" name="message_id" value="${message.messageId}">`);
-                    $('#bdNotificationForm').append(
-                        `<input type="hidden" name="conversation_id" value="${message.conversationId}">`);
+                    $('#messageId').val(message.messageId || '');
+                    $('#conversationId').val(message.conversationId || '');
+
+                    if (window.BDEmailModal && typeof window.BDEmailModal.captureFormData === 'function') {
+                        window.BDEmailModal.captureFormData();
+                    }
 
                     $('#attachedFilesList').find('.row').empty();
                 } catch (error) {
@@ -1001,11 +997,12 @@
             }
 
             resetForm() {
-                $('#emailForm')[0].reset();
+                $('#bdNotificationForm')[0].reset();
                 $('#isReply').val('0');
-                $('#originalMessageId').val('');
+                $('#messageId').val('');
+                $('#conversationId').val('');
                 $('#composeTitle').text('Compose New Email');
-                $('#newEmailInstead').addClass('d-none');
+                $('#clearFormBtn').hide();
                 $('#threadMessage').css('display', 'none');
                 $('.compose_attachement').show();
             }
@@ -1019,12 +1016,12 @@
                         '<span class="spinner-border spinner-border-sm me-1"></span> Refreshing...');
 
                     await this.loadMessages(true);
-                    // this.showToast('success', 'Messages refreshed successfully!');
+                    this.showToast('success', 'Messages refreshed successfully');
                 } catch (error) {
                     console.error('Refresh failed:', error);
                     this.showToast('error', 'Failed to refresh messages');
                 } finally {
-                    // $btn.prop('disabled', false).html(originalHtml);
+                    $btn.prop('disabled', false).html(originalHtml);
                 }
             }
 
@@ -1048,7 +1045,7 @@
 
             async saveDraft() {
                 try {
-                    const formData = new FormData($('#emailForm')[0]);
+                    const formData = new FormData($('#bdNotificationForm')[0]);
                     formData.append('save_as_draft', '1');
 
                     this.showToast('info', 'Draft save functionality needs backend implementation');
@@ -1060,7 +1057,8 @@
             }
 
             redirectToMail() {
-                window.location.href = '/mail';
+                const returnTo = encodeURIComponent(window.location.href);
+                window.location.href = `/mail?return_to=${returnTo}`;
             }
 
             showLoadingState() {
@@ -1155,10 +1153,8 @@
         $(document).ready(function() {
             window.emailManager = new EmailManager();
 
-            if (window.emailManager.mailRouteEnabled) {
-                initializeEmailSync();
-                setTimeout(initializeEmailSync, 500);
-            }
+            initializeEmailSync();
+            setTimeout(initializeEmailSync, 500);
 
         });
 

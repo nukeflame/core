@@ -215,6 +215,7 @@
                 <form method="POST" action="{{ route('bd.schedule.header.store') }}" id="addScheduleHeaderForm">
                     @csrf
                     <input type="hidden" name="id" id="sh-id" value="" />
+                    <input type="hidden" name="source_table" id="sh-source-table" value="quote_schedule_headers" />
 
                     <div class="modal-header">
                         <h5 class="modal-title" id="addScheduleHeaderModalLabel">Add Schedule Header</h5>

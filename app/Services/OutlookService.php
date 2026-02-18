@@ -1597,11 +1597,14 @@ class OutlookService
             return [];
         }
 
-        $userEmail = auth()->user()->email;
+        $user = auth()->user();
+        $userEmail = $user->email;
+        $userId = $user->id;
 
-        return DB::transaction(function () use ($emails, $folder, $userEmail) {
+        return DB::transaction(function () use ($emails, $folder, $userEmail, $userId) {
             $messageIds = collect($emails)->pluck('message_id')->filter()->toArray();
             $existing = DB::table('fetched_emails')
+                ->where('user_id', $userId)
                 ->where('user_email', $userEmail)
                 ->where('folder', $folder)
                 ->whereIn('message_id', $messageIds)
@@ -1643,6 +1646,7 @@ class OutlookService
                     $toUpdate[] = array_merge($emailData, ['message_id' => $email['message_id']]);
                 } else {
                     $toInsert[] = array_merge($emailData, [
+                        'user_id' => $userId,
                         'message_id' => $email['message_id'],
                         'user_email' => $userEmail,
                         'created_at' => now()
@@ -1659,6 +1663,7 @@ class OutlookService
             if (!empty($toUpdate)) {
                 foreach ($toUpdate as $update) {
                     DB::table('fetched_emails')
+                        ->where('user_id', $userId)
                         ->where('message_id', $update['message_id'])
                         ->where('user_email', $userEmail)
                         ->update(Arr::except($update, ['message_id']));
@@ -1666,12 +1671,14 @@ class OutlookService
             }
 
             DB::table('fetched_emails')
+                ->where('user_id', $userId)
                 ->where('user_email', $userEmail)
                 ->where('folder', $folder)
                 ->whereNotIn('message_id', $messageIds)
                 ->delete();
 
             return DB::table('fetched_emails')
+                ->where('user_id', $userId)
                 ->where('user_email', $userEmail)
                 ->where('folder', $folder)
                 ->orderBy('date_received', 'desc')

@@ -82,23 +82,18 @@ class MailController extends Controller
             }
 
             if ($forceRefresh) {
-                $userId = $request->user()->id;
-                $syncType = $request->input('type', 'delta');
+                $user = $request->user();
+                $this->outlookService->setAuthenticatedUser($user);
 
-                $syncState = EmailSyncState::where('user_id', $userId)->first();
-
-                if ($syncState && ($syncState->is_locked || ($syncState->is_syncing ?? false))) {
-                    return response()->json([
-                        'message' => 'Sync already in progress',
-                        'status' => 'locked'
-                    ], 409);
-                }
-
-                SyncUserEmails::dispatch($userId, $syncType);
+                // Fetch directly from Outlook and persist locally so refresh is immediate.
+                $emails = $this->outlookService->fetchEmails($user, [
+                    'folder' => $folder,
+                    'limit' => $limit,
+                    'force_refresh' => true,
+                ]);
+            } else {
+                $emails = $this->mailService->getEmails($folder, $limit);
             }
-
-
-            $emails = $this->mailService->getEmails($folder, $limit);
 
             return response()->json([
                 'success' => true,

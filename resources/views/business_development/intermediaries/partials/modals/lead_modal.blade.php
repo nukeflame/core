@@ -15,6 +15,7 @@
                 <input type="hidden" name="total_unplaced_shares" class="reinsurers_data" id="totalUnplacedShares">
                 <input type="hidden" class="cedant_id" id="lead_cedant_id" name="cedant_id" />
                 <input type="hidden" class="slip_type" id="slipType" name="slip_type" />
+                <input type="hidden" class="category_type" id="leadCategoryType" name="category_type" />
 
                 <div class="modal-body fac-slip-container">
                     <div class="fac-slip-header">
@@ -290,7 +291,7 @@
                                 </div>
                             </div>
                             <div class="documents-section-content" id="documentsContent">
-                                <div id="documentFields" class="row g-4" style="display: none;"></div>
+                                <div id="documentFields" class="row" style="display: none;"></div>
                             </div>
                         </div>
                     </div>
@@ -382,6 +383,7 @@
             <div class="modal-body">
 
                 <div class="mb-4" id="primary-contacts">
+                    <input type="hidden" id="contactsOpportunityId" value="">
                     <h6 class="text-uppercase fw-bold text-muted mb-3">
                         <i class="bx bx-star text-warning me-2"></i>Primary Contact
                     </h6>
@@ -499,7 +501,9 @@
     </div>
 </div>
 
-<form id="proposal-quoteslip-form" method="POST" action="{{ route('quote.quotationCoverSlip') }}" target="_blank"
+<form id="proposal-quoteslip-form" method="POST" action="{{ route('quote.quotationCoverSlip.facultative') }}"
+    data-quotation-action="{{ route('quote.quotationCoverSlip.quotation') }}"
+    data-facultative-action="{{ route('quote.quotationCoverSlip.facultative') }}" target="_blank"
     style="display: none;">
     @csrf
 </form>
@@ -1488,6 +1492,11 @@
                 suppressLeadModalReset: false,
             };
 
+            const PREVIEW_ROUTES = {
+                quotation: "{{ route('quote.quotationCoverSlip.quotation') }}",
+                facultative: "{{ route('quote.quotationCoverSlip.facultative') }}",
+            };
+
             $.ajaxSetup({
                 headers: {
                     "X-CSRF-TOKEN": $('meta[name="csrf-token"]').attr("content"),
@@ -1853,8 +1862,46 @@
                     .attr("aria-valuenow", progressWidth);
             }
 
+            function clearTermsConditionsValues() {
+                const $termsContainer = $("#leadModal #termsConditions");
+                if ($termsContainer.length === 0) {
+                    return;
+                }
+
+                $termsContainer.find("textarea, input, select").each(function() {
+                    if ($(this).is(":checkbox, :radio")) {
+                        $(this).prop("checked", false);
+                        return;
+                    }
+                    $(this).val("");
+                });
+            }
+
+            function toggleReinsurerDependentSections() {
+                const hasReinsurer = state.selectedReinsurers.size > 0;
+                const $termsSection = $("#leadModal #termsConditions").closest(".form-section");
+                const $documentsSection = $("#leadModal #documentsContent").closest(".form-section");
+
+                $termsSection.toggle(hasReinsurer);
+                $termsSection.prev("hr").toggle(hasReinsurer);
+
+                $documentsSection.toggle(hasReinsurer);
+                $documentsSection.prev("hr").toggle(hasReinsurer);
+            }
+
+            function togglePreviewSlipButton() {
+                const hasReinsurer = state.selectedReinsurers.size > 0;
+                $("#previewSlipBtn").toggle(hasReinsurer);
+            }
+
             function updateReinsurerCount() {
                 $("#reinsurerCount").text(state.selectedReinsurers.size);
+                toggleReinsurerDependentSections();
+                togglePreviewSlipButton();
+
+                if (state.selectedReinsurers.size === 0) {
+                    clearTermsConditionsValues();
+                }
             }
 
             function resetReinsurerForm() {
@@ -1884,11 +1931,16 @@
             function loadReinsurerContacts(reinsurerID) {
                 const row = $(`tr[data-reinsurer-id="${reinsurerID}"]`);
                 const reinsurerName = row.find("td:first .fw-medium").text();
-                const opportunityId = $('#leadOpportunityId').val();
+                const opportunityId = $("#leadOpportunityId").val() || $("#contactsOpportunityId").val();
                 const $button = $(`.contacts-reinsurer[data-reinsurer-id="${reinsurerID}"]`);
 
                 if (!reinsurerID) {
                     showAlert("Reinsurer ID not found", "error");
+                    return;
+                }
+
+                if (!opportunityId) {
+                    showAlert("Opportunity ID is missing for this lead.", "error");
                     return;
                 }
 
@@ -1904,9 +1956,18 @@
                     },
                     success: function(response) {
                         if (response.success) {
+                            $("#contactsOpportunityId").val(opportunityId);
                             populateContactsModal(response.data, response.data.reinsurer.name);
-                            $("#leadModal").modal("hide");
-                            $("#contactsModal").modal("show");
+                            state.suppressLeadModalReset = true;
+
+                            if ($("#leadModal").hasClass("show")) {
+                                $("#leadModal").one("hidden.bs.modal.contacts-transition", function() {
+                                    $("#contactsModal").modal("show");
+                                });
+                                $("#leadModal").modal("hide");
+                            } else {
+                                $("#contactsModal").modal("show");
+                            }
                         } else {
                             showAlert(response.message || "Failed to fetch contacts", "error");
                         }
@@ -1960,7 +2021,7 @@
                 const showLabels = index === 0;
 
                 return `
-            <div class="contact-item rounded px-3 pb-1" data-contact-id="${contact.id || index}">
+            <div class="contact-item rounded px-3 pb-1" data-contact-id="${contact.id ?? ""}">
                 <div class="row align-items-center">
                     <div class="col-md-3">
                         ${showLabels ? '<label class="form-label fw-semibold mb-1">Contact Name</label>' : ""}
@@ -1989,7 +2050,15 @@
             }
 
             function saveContactsModal() {
-                const contacts = collectContacts();
+                const {
+                    contacts,
+                    errors
+                } = collectContacts();
+
+                if (errors.length > 0) {
+                    showAlert(errors[0], "warning");
+                    return;
+                }
 
                 if (contacts.length === 0) {
                     showAlert("Please add at least one contact.", "warning");
@@ -1998,7 +2067,13 @@
 
                 const $submitBtn = $("#submitContactModal");
                 $submitBtn.prop("disabled", true);
-                const opportunity_id = $('#leadOpportunityId').val();
+                const opportunity_id = $("#contactsOpportunityId").val() || $("#leadOpportunityId").val();
+
+                if (!opportunity_id) {
+                    showAlert("Opportunity ID is missing. Please reopen the modal and try again.", "error");
+                    $submitBtn.prop("disabled", false);
+                    return;
+                }
 
                 $.ajax({
                     url: "{{ route('rein.contacts.update') }}",
@@ -2012,12 +2087,20 @@
                         if (response.success) {
                             showAlert("Contact information has been updated.", "success");
                             $("#contactsModal").modal("hide");
-                            $("#leadModal").modal("show");
                         }
                     },
                     error: function(xhr, status, error) {
                         console.error("Contact update error:", error);
-                        showAlert("Failed to update contacts", "error");
+                        const validationErrors = xhr.responseJSON?.errors;
+                        if (validationErrors) {
+                            const firstErrorKey = Object.keys(validationErrors)[0];
+                            const firstError = firstErrorKey ? validationErrors[firstErrorKey]?.[0] :
+                                null;
+                            showAlert(firstError || "Failed to update contacts", "error");
+                            return;
+                        }
+
+                        showAlert(xhr.responseJSON?.message || "Failed to update contacts", "error");
                     },
                     complete: function() {
                         $submitBtn.prop("disabled", false);
@@ -2027,34 +2110,83 @@
 
             function collectContacts() {
                 const contacts = [];
+                const errors = [];
+
+                const isValidEmail = (email) => {
+                    if (!email) return false;
+                    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+                };
+
+                const normalizeText = (value) => {
+                    return (value || "").toString().trim();
+                };
+
+                const normalizeId = (value) => {
+                    const parsed = parseInt(value, 10);
+                    return Number.isInteger(parsed) ? parsed : null;
+                };
 
                 const primaryData = {
-                    id: parseInt($("#primary-contacts .primary-contact_id").val()),
-                    name: $("#primary-contacts .primary-name").val(),
-                    email: $("#primary-contacts .primary-email").val(),
+                    id: normalizeId($("#primary-contacts .primary-contact_id").val()),
+                    name: normalizeText($("#primary-contacts .primary-name").val()),
+                    email: normalizeText($("#primary-contacts .primary-email").val()),
                     cc_email: false,
                     is_primary: true,
                 };
 
-                if (primaryData.name || primaryData.email) {
-                    contacts.push(primaryData);
+                if (primaryData.name.toUpperCase() === "N/A") {
+                    primaryData.name = "";
                 }
 
-                $("#departmentContacts .contact-item").each(function() {
+                if (primaryData.email.toUpperCase() === "N/A") {
+                    primaryData.email = "";
+                }
+
+                if (primaryData.name || primaryData.email) {
+                    if (!primaryData.name || !primaryData.email) {
+                        errors.push("Primary contact must include both name and email.");
+                    } else if (!isValidEmail(primaryData.email)) {
+                        errors.push("Primary contact email format is invalid.");
+                    } else if (primaryData.id !== null) {
+                        contacts.push(primaryData);
+                    }
+                }
+
+                $("#departmentContacts .contact-item").each(function(index) {
+                    const name = normalizeText($(this).find(".contact-name").val());
+                    const email = normalizeText($(this).find(".contact-email").val());
+
+                    if (!name && !email) {
+                        return;
+                    }
+
                     const contactData = {
-                        id: parseInt($(this).data("contact-id")),
-                        name: $(this).find(".contact-name").val().trim(),
-                        email: $(this).find(".contact-email").val().trim(),
+                        id: normalizeId($(this).data("contact-id")),
+                        name,
+                        email,
                         cc_email: $(this).find(".mailc-checkbox").is(":checked"),
                         is_primary: false,
                     };
 
-                    if (contactData.name || contactData.email) {
+                    if (!contactData.name || !contactData.email) {
+                        errors.push(`Department contact ${index + 1} must include both name and email.`);
+                        return;
+                    }
+
+                    if (!isValidEmail(contactData.email)) {
+                        errors.push(`Department contact ${index + 1} email format is invalid.`);
+                        return;
+                    }
+
+                    if (contactData.id !== null) {
                         contacts.push(contactData);
                     }
                 });
 
-                return contacts;
+                return {
+                    contacts,
+                    errors
+                };
             }
 
             function validateLeadForm() {
@@ -2244,6 +2376,11 @@
                 $submitBtn.html('<i class="bx bx-loader-alt bx-spin me-1"></i> Sending Lead...')
                     .prop("disabled", true);
 
+                const opportunityId = $("#leadOpportunityId").val() ||
+                    $("#leadForm input[name='opportunity_id']").val() || "";
+                const currentStage = $("#leadCurrentStage").val() ||
+                    $("#leadForm input[name='current_stage']").val() || "lead";
+
                 const formData = prepareFormData();
 
                 $.ajax({
@@ -2255,7 +2392,7 @@
                     timeout: 30000,
                     success: function(response) {
                         if (response.success) {
-                            handleSubmissionSuccess();
+                            handleSubmissionSuccess(opportunityId, currentStage);
                         } else {
                             throw new Error(response.message || "Submission failed");
                         }
@@ -2295,25 +2432,50 @@
                 }
             }
 
-            function handleSubmissionSuccess() {
-                resetLeadModal();
+            function openLeadEmailModal(opportunityId, currentStage) {
+                if (!opportunityId) {
+                    toastr.warning("Opportunity ID missing. Unable to open email modal.");
+                    return;
+                }
+
+                if (typeof window.pipelineManager !== "undefined") {
+                    if (typeof window.pipelineManager.checkEmailConnectionBeforeLoad === "function") {
+                        window.pipelineManager.checkEmailConnectionBeforeLoad(opportunityId, currentStage);
+                        return;
+                    }
+
+                    if (typeof window.pipelineManager.loadBdEssentials === "function") {
+                        window.pipelineManager.loadBdEssentials(opportunityId, currentStage);
+                        return;
+                    }
+                }
+
+                toastr.warning("Email modal is not available right now.");
+            }
+
+            function handleSubmissionSuccess(opportunityId, currentStage) {
                 Swal.fire({
                     icon: "success",
                     title: "Lead Saved Successfully!",
-                    text: "Your lead has been submitted",
-                    showConfirmButton: true,
+                    text: "Your lead has been submitted. Open email modal now?",
+                    showCancelButton: true,
+                    confirmButtonText: "Yes, Open Email",
+                    cancelButtonText: "No",
                 }).then((result) => {
+                    if (typeof window.pipelineManager !== 'undefined' &&
+                        typeof window.pipelineManager.reloadAllTables === 'function') {
+                        window.pipelineManager.reloadAllTables();
+                    }
+
+                    if (typeof window.pipelineManager !== 'undefined' &&
+                        typeof window.pipelineManager.loadChartData === 'function') {
+                        window.pipelineManager.loadChartData();
+                    }
+
                     if (result.isConfirmed) {
-                        if (typeof window.pipelineManager !== 'undefined' &&
-                            typeof window.pipelineManager.reloadAllTables === 'function') {
-                            window.pipelineManager.reloadAllTables();
-                        }
-
-                        if (typeof window.pipelineManager !== 'undefined' &&
-                            typeof window.pipelineManager.loadChartData === 'function') {
-                            window.pipelineManager.loadChartData();
-                        }
-
+                        $("#leadModal").one("hidden.bs.modal", function() {
+                            openLeadEmailModal(opportunityId, currentStage || "lead");
+                        });
                         $("#leadModal").modal("hide");
                     } else {
                         $("#leadModal").modal("hide");
@@ -2416,12 +2578,23 @@
             }
 
             function previewCoverSlip(printoutType = 0) {
-                const sourceForm = $('#leadForm');
-                const postForm = $('#quoteSlipForm');
+                const postForm = $('#proposal-quoteslip-form');
+                if (state.selectedReinsurers.size === 0) {
+                    toastr.warning('Please add at least one reinsurer before previewing the slip.');
+                    return;
+                }
+
+                if (!postForm.length) {
+                    toastr.error('Preview form not found.');
+                    return;
+                }
 
                 postForm.find('input[type="hidden"]:not([name="_token"])').remove();
 
                 const formData = prepareFormData();
+                const categoryType = Number($("#leadCategoryType").val() || formData.get("category_type") || 2);
+                const targetAction = categoryType === 1 ? PREVIEW_ROUTES.quotation : PREVIEW_ROUTES.facultative;
+                postForm.attr("action", targetAction);
 
                 // if (state.dataTable.rows().length > 0) {
                 //     toastr.warning('Please select at least 1 reinsurer', 'Select Reinsurer');
@@ -2455,22 +2628,14 @@
                     this.isPreviewMode = false;
                     this.currentTextarea = null;
                     this.textareaId = null;
+                    this.currentFieldLabel = "";
                     this.modal = null;
                     this.pendingContent = "";
                     this.initTimer = null;
                     this.initToken = 0;
 
                     this.templates = {
-                        standard: `
-                            <h3>Standard Coverage Breakdown</h3>
-                            <ul>
-                                <li><strong>Building Structure:</strong> Coverage for physical damage to buildings</li>
-                                <li><strong>Contents:</strong> Protection for business equipment and inventory</li>
-                                <li><strong>Business Interruption:</strong> Loss of income coverage</li>
-                                <li><strong>Public Liability:</strong> Third party claims protection</li>
-                            </ul>
-                            <p><em>All amounts subject to policy terms and conditions.</em></p>
-                        `,
+                        standard: ``,
                     };
 
                     this.init();
@@ -2544,6 +2709,8 @@
                             state.suppressLeadModalReset = false;
                             this.cleanupEditor();
                             this.currentTextarea = null;
+                            this.textareaId = null;
+                            this.currentFieldLabel = "";
                             $("#leadModal").modal("show");
                         });
                 }
@@ -2565,6 +2732,7 @@
 
                     const fieldLabel = $textarea.closest(".form-group")
                         .find("label").first().text().trim();
+                    this.currentFieldLabel = fieldLabel || "";
 
                     $("#breakdownModalLabel").html(
                         `<i class="bx bx-edit-alt me-2"></i>${fieldLabel || ""}`
@@ -2695,15 +2863,25 @@
                     if (!this.quill) return;
                 }
 
+                restorePendingContent() {
+                    if (this.pendingContent && this.pendingContent.trim()) {
+                        this.quill.root.innerHTML = this.pendingContent;
+                        this.updateStatistics();
+                        toastr.success("Data loaded successfully");
+                        return true;
+                    }
+                    return false;
+                }
+
                 applyTemplate(templateName) {
                     if (!this.quill) return;
 
                     if (templateName === "standard") {
                         const classGroupCode = $("#leadClassGroupCode").val() || "";
                         const classCode = $("#leadClassCode").val() || "";
+                        const opportunityId = $('#leadOpportunityId').val();
 
-                        if (!classGroupCode && !classCode) {
-                            // No class context — fall back to existing content
+                        if (!classGroupCode && !classCode && !opportunityId) {
                             if (this.pendingContent && this.pendingContent.trim()) {
                                 this.quill.root.innerHTML = this.pendingContent;
                                 this.updateStatistics();
@@ -2714,74 +2892,48 @@
                             return;
                         }
 
-                        // Show loading state
                         const $btn = $(".template-btn[data-template='standard']");
                         const origText = $btn.html();
                         $btn.html('<i class="bx bx-loader-alt bx-spin"></i> Loading...').prop("disabled", true);
+                        const busType = $("#slipType").val() || "facultative";
+                        const breakdownLabel = ($("#breakdownModalLabel").text() || this.currentFieldLabel ||
+                            "").trim();
+                        const headerKeyword = (this.currentFieldLabel || "").trim();
 
                         $.ajax({
                             url: "{{ route('bd.slip-template.headers') }}",
                             method: "GET",
                             data: {
                                 class_group_code: classGroupCode,
-                                class_code: classCode
+                                class_code: classCode,
+                                bus_type: busType,
+                                class_group: classGroupCode,
+                                class: classCode,
+                                business_type: busType,
+                                header_keyword: headerKeyword,
+                                breakdown_label: breakdownLabel,
+                                opportunity_id: opportunityId,
                             },
                             success: (response) => {
                                 $btn.html(origText).prop("disabled", false);
 
-                                if (response.success && response.headers && response.headers
-                                    .length > 0) {
-                                    let html =
-                                        '<table style="width:100%;border-collapse:collapse;border:1px solid #ddd;">';
-                                    html += '<thead><tr style="background:#f5f5f5;">';
-                                    html +=
-                                        '<th style="border:1px solid #ddd;padding:8px;text-align:left;">#</th>';
-                                    html +=
-                                        '<th style="border:1px solid #ddd;padding:8px;text-align:left;">Schedule Header</th>';
-                                    html +=
-                                        '<th style="border:1px solid #ddd;padding:8px;text-align:right;">Amount</th>';
-                                    html += '</tr></thead><tbody>';
-
-                                    response.headers.forEach((header, idx) => {
-                                        html += '<tr>';
-                                        html +=
-                                            '<td style="border:1px solid #ddd;padding:8px;">' +
-                                            (idx + 1) + '</td>';
-                                        html +=
-                                            '<td style="border:1px solid #ddd;padding:8px;">' +
-                                            (header.name || 'N/A') + '</td>';
-                                        html +=
-                                            '<td style="border:1px solid #ddd;padding:8px;text-align:right;">0.00</td>';
-                                        html += '</tr>';
-                                    });
-
-                                    html += '</tbody></table>';
-
-                                    this.quill.root.innerHTML = html;
+                                const wording = String(response?.wording || response?.template
+                                    ?.wording || "").trim();
+                                if (response?.success && wording) {
+                                    this.quill.root.innerHTML = wording;
                                     this.updateStatistics();
-                                    toastr.success("Loaded " + response.headers.length +
-                                        " schedule header(s) from slip template");
-                                } else {
-                                    // No template match — fall back to pendingContent
-                                    if (this.pendingContent && this.pendingContent.trim()) {
-                                        this.quill.root.innerHTML = this.pendingContent;
-                                        this.updateStatistics();
-                                        toastr.success("Data loaded successfully");
-                                    } else {
-                                        toastr.info(response.message ||
-                                            "No slip template found for this class");
-                                    }
+                                    toastr.success("Slip template wording loaded successfully");
+                                    return;
+                                }
+
+                                if (!this.restorePendingContent()) {
+                                    toastr.info(response?.message ||
+                                        "No wording found in slip templates");
                                 }
                             },
-                            error: (xhr) => {
+                            error: () => {
                                 $btn.html(origText).prop("disabled", false);
-                                console.error("Failed to load slip template headers:", xhr);
-                                // Fall back to pendingContent on error
-                                if (this.pendingContent && this.pendingContent.trim()) {
-                                    this.quill.root.innerHTML = this.pendingContent;
-                                    this.updateStatistics();
-                                    toastr.success("Data loaded successfully");
-                                } else {
+                                if (!this.restorePendingContent()) {
                                     toastr.error("Failed to load template data");
                                 }
                             }
@@ -2930,6 +3082,7 @@
 
                 $("#leadOpportunityId, #reinsurersData, #specialConditionsContent, #leadClassCode, #leadClassGroupCode")
                     .val("");
+                clearTermsConditionsValues();
 
                 $(".slip-display, .created_at-display, .insured-name-display, .insured-contact-name-display, .insured-email-display, .insured-phone-display, .sum_insured_type")
                     .text("");
@@ -2949,6 +3102,7 @@
 
                 state.slipType = VALIDATION_CONFIG.SLIP_TYPE;
                 $("#slipType").val(VALIDATION_CONFIG.SLIP_TYPE);
+                $("#leadCategoryType").val("2");
             }
 
             function handleCategoryUpdate(e) {
@@ -3058,7 +3212,12 @@
             });
 
             $("#contactsModal").on("hidden.bs.modal", function() {
-                $("#leadModal").modal("show");
+                $("#contactsOpportunityId").val("");
+
+                if (state.suppressLeadModalReset) {
+                    $("#leadModal").modal("show");
+                    state.suppressLeadModalReset = false;
+                }
             });
 
             $("#leadModal").on("hidden.bs.modal", function() {
@@ -3077,8 +3236,6 @@
 
                 state.slipType = VALIDATION_CONFIG.SLIP_TYPE;
                 state.selectedReinsurers.clear();
-                // state.uploadedFiles = {};
-
                 updateReinsurerCount();
 
                 $(".total-shares-display").remove();
@@ -3093,6 +3250,7 @@
                 initializeReinsurerTable();
                 initializeReinsurerSelect();
                 state.breakdownEditor = new BreakdownEditor();
+                updateReinsurerCount();
             } catch (error) {
                 showAlert("Failed to initialize components. Please refresh the page.", "error");
             }

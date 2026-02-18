@@ -2,6 +2,11 @@
 
 @section('content')
     <style>
+        .fac-page,
+        .fac-page * {
+            font-family: 'Aptos', sans-serif !important;
+        }
+
         .fac-page {
             page-break-after: always;
             page-break-inside: avoid;
@@ -220,7 +225,7 @@
                                 </td>
                             </tr>
                             <tr>
-                                <td style="width: 35%; font-weight: 600; padding: 5px;">Cedant Commission Rate:</td>
+                                <td style="width: 35%; font-weight: 600; padding: 5px;">Reinsurer Commission Rate (%):</td>
                                 <td style="width: 65%; padding: 5px;">
                                     {{ number_format($opportunity['commission_rate'] ?? 0, 2) }}%
                                 </td>
@@ -450,6 +455,12 @@
                         <td style="width: 35%; font-weight: 600; padding: 5px;">Premium (100%):</td>
                         <td style="width: 65%; padding: 5px;">
                             {{ number_format($opportunity['premium'] ?? 0, 2) }}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="width: 35%; font-weight: 600; padding: 5px;">Reinsurer Commission Rate (%):</td>
+                        <td style="width: 65%; padding: 5px;">
+                            {{ number_format($opportunity['commission_rate'] ?? 0, 2) }}%
                         </td>
                     </tr>
                     <tr>

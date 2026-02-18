@@ -305,9 +305,18 @@ class PipelineController
                 return ['status' => 0, 'message' => 'Pipeline opportunity not found'];
             }
 
-            $prosp_doc = DB::table('prospect_docs')
-                ->where('prospect_id', $pros->opportunity_id)
-                ->get();
+            $prospDocQuery = DB::table('prospect_docs')
+                ->where('prospect_id', $pros->opportunity_id);
+
+            // In proposal stage, Supporting Documents should reflect only uploaded lead-stage documents.
+            if ((int) $pros->stage === 2) {
+                $prospDocQuery
+                    ->where('prospect_status', 1)
+                    ->whereNotNull('file')
+                    ->where('file', '!=', '');
+            }
+
+            $prosp_doc = $prospDocQuery->get();
 
             $classcode = DB::table('classes')->where('class_code', $request->class)->first();
 
@@ -321,6 +330,7 @@ class PipelineController
             foreach ($quoteReinsurers as $reinsurer) {
                 $reinsurer->contacts = json_decode($reinsurer->contacts);
                 $reinsurer->decline_reason = $declined[$reinsurer->reinsurer_id] ?? null;
+                $reinsurer->is_declined = !empty($reinsurer->decline_reason);
 
                 if (json_last_error() !== JSON_ERROR_NONE) {
                     $reinsurer->contacts = [];
@@ -3628,7 +3638,7 @@ class PipelineController
         $escapedId = htmlspecialchars((string) $id, ENT_QUOTES, 'UTF-8');
         $stage = (int) $opp->stage;
         $opportunity_id = $opp->opportunity_id;
-        $currentStage = Str::title($opp->status);
+        $currentStage = Str::of((string) $opp->status)->trim()->lower()->replace(' ', '_')->value();
 
         $btnActions = '';
         if ($stage > 1 && $stage <= 4) {
@@ -6112,7 +6122,7 @@ class PipelineController
                 'priority' => $emailData['priority'],
                 'category' => $emailData['category'],
                 'reference' => $emailData['reference'],
-                'replyToId' => $emailData['is_reply'],
+                'replyToId' => $emailData['is_reply'] ? $emailData['message_id'] : null,
                 'allRecipients' => $allRecipients,
                 'attachments' => $attached_files,
                 'toEmails' => $toEmails,
@@ -7666,22 +7676,30 @@ class PipelineController
     public function getHeaders(Request $request)
     {
         try {
-            $typeOfBus = $request->get('business_type', 'FPR');
+            $typeOfBus = strtoupper(trim((string) $request->get('business_type', 'FPR')));
             $classGroup = $request->get('class_group');
             $class = $request->get('class');
+            $headerKeyword = trim((string) $request->get('header_keyword', ''));
 
-            $businessType = null;
-            if ($typeOfBus === 'FPR') {
-                $businessType = 'FAC';
-            } else if ($typeOfBus === 'FNP') {
-                $businessType = 'FAC';
+            $businessType = match ($typeOfBus) {
+                'FPR', 'FNP', 'FACULTATIVE', 'FAC' => 'FAC',
+                'TPR', 'TNP', 'TREATY', 'TRT' => 'TRT',
+                default => null,
+            };
+
+            $query = QuoteScheduleHeader::query()
+                ->where('class', $class)
+                ->where('class_group', $classGroup);
+
+            if ($businessType) {
+                $query->where('business_type', $businessType);
             }
 
-            $query = QuoteScheduleHeader::where([
-                'class'         => $class,
-                'class_group'    => $classGroup,
-                'business_type' => $businessType
-            ])->orderBy('position', 'asc');
+            if ($headerKeyword !== '') {
+                $query->where('name', 'like', '%' . $headerKeyword . '%');
+            }
+
+            $query->orderBy('position', 'asc');
 
             $headers = $query->get();
 
@@ -7752,41 +7770,41 @@ class PipelineController
             $contacts = $request->contacts;
             $updatedContacts = [];
 
-            $reinContact = DB::table('bd_reinsurers_contacts')
-                ->where('opportunity_id', $opportunity_id)
-                ->first();
-
             if (count($contacts) > 0) {
                 foreach ($contacts as $contactData) {
-                    if ($reinContact) {
-                        $affected = DB::table('bd_reinsurers_contacts')
+                    $customerContactId = $contactData['id'] ?? null;
+                    $existingContact = null;
+
+                    if ($customerContactId !== null) {
+                        $existingContact = DB::table('bd_reinsurers_contacts')
                             ->where('opportunity_id', $opportunity_id)
-                            ->where('customer_contact_id', $contactData['id'])
+                            ->where('customer_contact_id', $customerContactId)
+                            ->first();
+                    }
+
+                    if ($existingContact) {
+                        DB::table('bd_reinsurers_contacts')
+                            ->where('id', $existingContact->id)
                             ->update([
                                 'full_name' => $contactData['name'],
                                 'email' => $contactData['email'],
-                                'is_cc_email' => $contactData['cc_email'],
-                                'is_primary' => $contactData['is_primary'],
+                                'is_cc_email' => (bool) $contactData['cc_email'],
+                                'is_primary' => (bool) $contactData['is_primary'],
                                 'updated_at' => now(),
                             ]);
 
-                        if ($affected > 0) {
-                            $contact = DB::table('bd_reinsurers_contacts')
-                                ->where('opportunity_id', $opportunity_id)
-                                ->where('customer_contact_id', $contactData['id'])
-                                ->first();
-
-                            $updatedContacts[] = $contact;
-                        }
+                        $contact = DB::table('bd_reinsurers_contacts')
+                            ->where('id', $existingContact->id)
+                            ->first();
                     } else {
                         $contactId = DB::table('bd_reinsurers_contacts')->insertGetId([
                             'opportunity_id' => $opportunity_id,
-                            'customer_contact_id' => $contactData['id'] ?? null,
+                            'customer_contact_id' => $customerContactId,
                             'full_name' => $contactData['name'],
                             'email' => $contactData['email'],
                             'is_active' => true,
-                            'is_cc_email' => $contactData['cc_email'],
-                            'is_primary' => $contactData['is_primary'],
+                            'is_cc_email' => (bool) $contactData['cc_email'],
+                            'is_primary' => (bool) $contactData['is_primary'],
                             'created_by' => auth()->id(),
                             'created_at' => now(),
                             'updated_at' => now(),
@@ -7795,9 +7813,9 @@ class PipelineController
                         $contact = DB::table('bd_reinsurers_contacts')
                             ->where('id', $contactId)
                             ->first();
-
-                        $updatedContacts[] = $contact;
                     }
+
+                    $updatedContacts[] = $contact;
                 }
             }
 
@@ -7876,6 +7894,7 @@ class PipelineController
         try {
             $oppId = $request->opportunity_id;
             if (!$oppId) {
+                DB::rollBack();
                 return [
                     'success' => false,
                     'message' => 'Opportunity ID is required',
@@ -7890,6 +7909,15 @@ class PipelineController
                     'customer_id'
                 ])
                 ->first();
+
+            if (!$opp) {
+                DB::rollBack();
+                return [
+                    'success' => false,
+                    'message' => 'Opportunity not found',
+                    'data' => []
+                ];
+            }
 
             $opportunityId = $opp->opportunity_id;
 

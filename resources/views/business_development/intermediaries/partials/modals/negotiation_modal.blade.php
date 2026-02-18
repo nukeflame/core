@@ -13,6 +13,8 @@
                 <input type="hidden" name="total_unplaced_shares" id="negUnPlacedShare">
                 <input type="hidden" name="selected_reinsurers" class="selected_reinsurers">
                 <input type="hidden" name="reinsurers_data" class="reinsurers_data" id="negReinsurersData">
+                <input type="hidden" name="slip_type" class="slip_type">
+                <input type="hidden" name="category_type" class="category_type">
 
                 <div class="modal-body fac-slip-container">
                     <div class="fac-slip-header">
@@ -264,7 +266,9 @@
     </div>
 </div>
 
-<form id="negotiation-quoteslip-form" method="POST" action="{{ route('quote.quotationCoverSlip') }}"
+<form id="negotiation-quoteslip-form" method="POST" action="{{ route('quote.quotationCoverSlip.facultative') }}"
+    data-quotation-action="{{ route('quote.quotationCoverSlip.quotation') }}"
+    data-facultative-action="{{ route('quote.quotationCoverSlip.facultative') }}"
     target="_blank" style="display: none;">
     @csrf
 </form>
@@ -300,6 +304,11 @@
                 reinsurers: [],
                 totalShare: 0,
                 isInitialized: false
+            };
+
+            const PREVIEW_ROUTES = {
+                quotation: "{{ route('quote.quotationCoverSlip.quotation') }}",
+                facultative: "{{ route('quote.quotationCoverSlip.facultative') }}",
             };
 
             const $modal = $("#negotiationModal");
@@ -794,6 +803,15 @@
 
             function updateReinsurerCount() {
                 $('#reinsurerCount').text(negotiationState.reinsurers.length);
+                toggleNegotiationPreviewSlipButton();
+            }
+
+            function toggleNegotiationPreviewSlipButton() {
+                const badgeCount = parseInt(($("#reinsurerCount").text() || "0").toString(), 10) || 0;
+                const tableRows = $("#negReinsurersTable tbody tr").length;
+                const hasReinsurer = badgeCount > 0 || (negotiationState.reinsurers?.length || 0) > 0 ||
+                    tableRows > 0;
+                $("#negotiation-view-slip").toggle(hasReinsurer);
             }
 
             function updateTotalShare() {
@@ -1149,10 +1167,17 @@
             function previewCoverSlip(printoutType = 0) {
                 const sourceForm = $form
                 const postForm = $('#negotiation-quoteslip-form');
+                if ((negotiationState.reinsurers?.length || 0) === 0) {
+                    toastr.warning('Please add at least one reinsurer before previewing the slip.');
+                    return;
+                }
 
                 postForm.find('input[type="hidden"]:not([name="_token"])').remove();
 
                 const formData = prepareFormData();
+                const categoryType = Number($form.find(".category_type").val() || formData.get("category_type") || 2);
+                const targetAction = categoryType === 1 ? PREVIEW_ROUTES.quotation : PREVIEW_ROUTES.facultative;
+                postForm.attr("action", targetAction);
 
                 for (let [key, value] of formData.entries()) {
                     if (value instanceof File) {
@@ -1176,6 +1201,7 @@
             }
 
             $("#negotiation-view-slip").on("click", () => previewCoverSlip());
+            toggleNegotiationPreviewSlipButton();
         });
     </script>
 @endpush

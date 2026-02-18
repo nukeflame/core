@@ -182,7 +182,12 @@
                                     <td colspan="2" class="text-center">
                                         <div class="d-flex justify-content-between">
                                             <div>
-                                                <b>{{ $customer->quote_title_intro . ' - ' . $customer->class_name . ' ' . '(' . now()->format('Y') . ')' . ' - ' . strtoupper($customer->insured_name ?? 'N/A') }}</b>
+                                                @php
+                                                    $isQuotationTitle =
+                                                        (int) ($customer->stageType ?? $stageType ?? 0) === 1;
+                                                    $titleYear = $isQuotationTitle ? ' (' . now()->format('Y') . ')' : '';
+                                                @endphp
+                                                <b>{{ $customer->quote_title_intro . ' - ' . $customer->class_name . $titleYear . ' - ' . strtoupper($customer->insured_name ?? 'N/A') }}</b>
                                             </div>
                                         </div>
 

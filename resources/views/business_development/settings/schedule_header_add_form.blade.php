@@ -32,6 +32,7 @@
             <form id="store_schedule_header" action="{{ route('bd.schedule.header.store') }}" method="post">
                 {{ csrf_field() }}
                 <input type="hidden" name="id" value="{{ isset($schedule) ? $schedule->id : '' }}">
+                <input type="hidden" name="source_table" value="schedule_headers">
 
                 <div class="form-group">
                     <h4>Schedule Header Details</h4>

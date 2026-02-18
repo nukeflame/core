@@ -118,7 +118,7 @@
 
                 <div class="email-content-box">
                     <div class="original-content" id="originalContent">
-                        <iframe id="threadMessages" style="width:100%;height:400px;border:none;"
+                        <iframe id="threadMessages" style="width:100%;height:min(400px, 40vh);border:none;"
                             sandbox="allow-same-origin allow-popups allow-forms allow-scripts"></iframe>
                     </div>
                 </div>
@@ -313,10 +313,17 @@
     }
 
     #bdComposeFormDiv {
-        height: 990px;
+        height: auto;
+        max-height: calc(100vh - 360px);
         overflow-x: hidden;
         overflow-y: auto;
         margin-right: -8px;
         padding-right: 14px;
+    }
+
+    @media (max-width: 768px) {
+        #bdComposeFormDiv {
+            max-height: calc(100vh - 320px);
+        }
     }
 </style>

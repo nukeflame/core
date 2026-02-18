@@ -175,6 +175,9 @@
                 $spinner.removeClass('d-none');
                 $connectBtn.prop('disabled', true);
 
+                const urlParams = new URLSearchParams(window.location.search);
+                const returnTo = urlParams.get('return_to') || window.location.href;
+
                 // Show connection modal
                 $("#outlook-setup-modal").modal('hide')
                 $("#outlook-connection-modal").modal('show');
@@ -187,6 +190,9 @@
                             'Content-Type': 'application/json',
                             'X-CSRF-TOKEN': '{{ csrf_token() }}'
                         },
+                        data: JSON.stringify({
+                            return_to: returnTo
+                        }),
                         dataType: 'json'
                     })
                     .done(function(data) {

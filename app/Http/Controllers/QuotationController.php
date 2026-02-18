@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Enums\Stage;
 use App\Models\Company;
 use App\Models\Customer;
 use App\Services\SequenceService;
@@ -33,7 +32,9 @@ class QuotationController extends Controller
             $validated = $request->validate([
                 'opportunity_id' => 'required',
                 'printout_flag' => 'sometimes|boolean',
-                'reinsurers_data' => 'required'
+                'reinsurers_data' => 'required',
+                'category_type' => 'nullable|in:1,2',
+                'slip_type' => 'nullable|in:quotation,facultative',
             ]);
 
             $activity = $this->fetchOpportunityData($validated['opportunity_id']);
@@ -61,12 +62,12 @@ class QuotationController extends Controller
             $year = Carbon::parse($formattedActivity['effective_date'])->year;
             $updated_written_share_total = 0;
 
-            if ($stage === Stage::LEAD) {
-                $title = 'FACULTATIVE PLACEMENT - ' . strtoupper($formattedActivity['class_name'] ?? 'N/A') . ' - ' . strtoupper($formattedActivity['insured_name'] ?? 'N/A');
-                $updated_written_share_total = 100;
-            } else {
+            if ((int) ($requestData['stageType'] ?? 2) === 1) {
                 $title = 'QUOTATION PLACEMENT - ' . strtoupper($formattedActivity['class_name'] ?? 'N/A') . ' (' . $year . ') - ' . strtoupper($formattedActivity['insured_name'] ?? 'N/A');
                 $updated_written_share_total =  100;
+            } else {
+                $title = 'FACULTATIVE PLACEMENT - ' . strtoupper($formattedActivity['class_name'] ?? 'N/A') . ' - ' . strtoupper($formattedActivity['insured_name'] ?? 'N/A');
+                $updated_written_share_total = 100;
             }
 
             $data = [
@@ -98,7 +99,11 @@ class QuotationController extends Controller
                     'isRemoteEnabled' => true,
                 ]);
 
-            return $dompdf->stream('Quotation_Cover_Slip_' . time() . '.pdf');
+            $filePrefix = ((int) ($requestData['stageType'] ?? 2) === 1)
+                ? 'Quotation_Cover_Slip_'
+                : 'Facultative_Cover_Slip_';
+
+            return $dompdf->stream($filePrefix . time() . '.pdf');
         } catch (ValidationException $e) {
             return response()->json([
                 'status' => 422,
@@ -140,6 +145,18 @@ class QuotationController extends Controller
 
     private function formatActivityData($activity, $request)
     {
+        $requestedCategoryType = $request->input('category_type');
+        $requestedSlipType = strtolower((string) $request->input('slip_type', ''));
+        $resolvedStageType = null;
+
+        if (in_array((string) $requestedCategoryType, ['1', '2'], true)) {
+            $resolvedStageType = (int) $requestedCategoryType;
+        } elseif ($requestedSlipType === 'quotation') {
+            $resolvedStageType = 1;
+        } elseif ($requestedSlipType === 'facultative') {
+            $resolvedStageType = 2;
+        }
+
         return [
             'customer_id' => $activity->customer_id ?? 'N/A',
             'customer_name' => $activity->customer_name ?? 'N/A',
@@ -150,7 +167,7 @@ class QuotationController extends Controller
             'type_of_bus' => $activity->type_of_bus,
             'currency_code' => $activity->currency_code,
             'class_name' => $activity->class_name,
-            'stageType' => $activity->category_type ?? null,
+            'stageType' => $resolvedStageType ?? ($activity->category_type ?? null),
             'sum_insured' => $activity->total_sum_insured ?? $request->total_sum_insured,
             'premium' => $activity->cede_premium ?? $request->premium,
             'commission_rate' => $activity->comm_rate ?? 0
@@ -216,15 +233,9 @@ class QuotationController extends Controller
 
     private function prepareCustomerObjects(array $requestData)
     {
-        $reinsurers = [];
-
-        if (!empty($requestData['selected_reinsurers'])) {
-            $reinsurers = $requestData['selected_reinsurers'];
-        } else {
-            $reinsurers = collect($requestData['shares'])->map(function ($reinsurer, $index) use ($requestData) {
-                return (object) $this->createCustomerObject($requestData, $reinsurer);
-            });
-        }
+        $reinsurers = !empty($requestData['selected_reinsurers'])
+            ? $requestData['selected_reinsurers']
+            : ($requestData['shares'] ?? []);
 
         return collect($reinsurers)->map(function ($reinsurer, $index) use ($requestData) {
             return (object) $this->createCustomerObject($requestData, $reinsurer);
@@ -243,17 +254,29 @@ class QuotationController extends Controller
 
     private function createCustomerObject(array $requestData, $reinsurer)
     {
-        $rein = Customer::where('customer_id', $reinsurer['id'])->first();
+        $reinsurerId = is_array($reinsurer)
+            ? ($reinsurer['id'] ?? $reinsurer['customer_id'] ?? null)
+            : ($reinsurer->id ?? $reinsurer->customer_id ?? null);
+
+        $writtenShare = is_array($reinsurer)
+            ? ($reinsurer['written_share'] ?? 0)
+            : ($reinsurer->written_share ?? 0);
+
+        $signedShare = is_array($reinsurer)
+            ? ($reinsurer['signed_share'] ?? 0)
+            : ($reinsurer->signed_share ?? 0);
+
+        $rein = $reinsurerId ? Customer::where('customer_id', $reinsurerId)->first() : null;
 
         return [
-            'customer_id' => $rein->customer_id,
-            'customer_name' => $rein->name,
-            'address' => $rein->address,
-            'city' => $rein->city,
-            'country' => $rein->country_iso ? 'Kenya' : '',
+            'customer_id' => $rein->customer_id ?? $reinsurerId,
+            'customer_name' => $rein->name ?? '',
+            'address' => $rein->address ?? '',
+            'city' => $rein->city ?? '',
+            'country' => ($rein && !empty($rein->country_iso)) ? 'Kenya' : '',
             'contact_name' => '',
-            'written_share' => $reinsurer['written_share'] ?? 0,
-            'signed_share' => $reinsurer['signed_share'] ?? 0,
+            'written_share' => $writtenShare,
+            'signed_share' => $signedShare,
             'schedule_details' => $requestData['schedule_details'],
             'facschedule_details' => $requestData['facschedule_details'],
             'quote_title_intro' => $requestData['quote_title_intro'],
