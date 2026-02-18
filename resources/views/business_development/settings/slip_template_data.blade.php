@@ -168,7 +168,8 @@
                                     <th>Schedule Title</th>
                                     <th>Class Group</th>
                                     <th>Class Name</th>
-                                    <th style="width: 35%;">Description</th>
+                                    <th>Schedule Headers</th>
+                                    <th style="width: 25%;">Description</th>
                                     <th>Status</th>
                                     <th>Action</th>
                                 </tr>
@@ -237,6 +238,13 @@
                                     <option value="">-- Select Class --</option>
                                 </select>
                             </div>
+                            <div class="col-md-6">
+                                <label for="st-schedule-headers" class="form-label">Schedule Headers <span
+                                        class="text-danger">*</span></label>
+                                <select class="form-select" id="st-schedule-headers" name="schedule_header_ids[]"
+                                    multiple required>
+                                </select>
+                            </div>
                             <div class="col-12">
                                 <label for="st-description" class="form-label">Description</label>
                                 <input type="text" class="form-control" id="st-description" name="description"
@@ -289,6 +297,7 @@
                 var classes = @json($class ?? []);
                 var classGroups = @json($classGroups ?? []);
                 var businessTypes = @json($businessTypes ?? []);
+                var scheduleHeadersData = @json($scheduleHeaders ?? []);
                 var saveUrl = @json(route('bd.slip-template.store'));
                 var deleteUrl = @json(route('bd.slip-template.delete'));
                 var treatyType = @json($treaty_type ?? '');
@@ -332,6 +341,7 @@
                         wordingQuill.setContents([]);
                     }
                     $('#st-wording').val('');
+                    $('#st-schedule-headers').val([]).trigger('change');
                     syncWordingScrollClass();
                 }
 
@@ -362,6 +372,42 @@
                     });
                 }
 
+                function filterScheduleHeaders(selectedGroupCode, selectedClassCode, preserveValues) {
+                    var $sh = $('#st-schedule-headers');
+                    var currentValues = preserveValues || $sh.val() || [];
+                    $sh.empty();
+
+                    if (!selectedGroupCode && !selectedClassCode) {
+                        $sh.trigger('change');
+                        return;
+                    }
+
+                    scheduleHeadersData.forEach(function(header) {
+                        if (!header || !header.id) return;
+
+                        var headerClassGroup = (header.class_group || '').trim();
+                        var headerClass = (header.class || header.class_code || '').trim();
+                        var groupMatch = !selectedGroupCode || headerClassGroup === '' ||
+                            headerClassGroup === selectedGroupCode;
+                        var classMatch = !selectedClassCode || headerClass === '' || headerClass ===
+                            selectedClassCode;
+
+                        if (groupMatch && classMatch) {
+                            var isSelected = currentValues.indexOf(String(header.id)) !== -1 ?
+                                ' selected' : '';
+                            var label = header.name || 'N/A';
+                            var busType = (header.business_type || '').trim();
+                            if (busType) {
+                                label += ' (' + busType + ')';
+                            }
+                            $sh.append('<option value="' + header.id + '"' + isSelected + '>' + label +
+                                '</option>');
+                        }
+                    });
+
+                    $sh.trigger('change');
+                }
+
                 function resolveClassGroupCode(rowData, $btn) {
                     var directCode = rowData.class_group_code || $btn.data('class-group-code') || '';
                     if (directCode) {
@@ -376,7 +422,7 @@
                     var normalized = String(groupName).trim().toLowerCase();
                     var matched = classGroups.find(function(item) {
                         return item && item.group_name && String(item.group_name).trim()
-                        .toLowerCase() ===
+                            .toLowerCase() ===
                             normalized;
                     });
 
@@ -401,17 +447,17 @@
                         }
 
                         var sameGroup = !classGroupCode || String(item.class_group_code || '')
-                        .trim() ===
+                            .trim() ===
                             String(classGroupCode).trim();
                         var sameName = item.class_name && String(item.class_name).trim()
-                        .toLowerCase() ===
+                            .toLowerCase() ===
                             normalized;
 
                         return sameGroup && sameName;
                     });
 
                     return matchedClass && matchedClass.class_code ? String(matchedClass.class_code).trim() :
-                    '';
+                        '';
                 }
 
                 function normalizeTypeOfBusValues(value, treatyFallback) {
@@ -604,6 +650,11 @@
                             defaultContent: '-'
                         },
                         {
+                            data: 'schedule_headers',
+                            name: 'schedule_headers',
+                            defaultContent: '-'
+                        },
+                        {
                             data: 'description',
                             name: 'description',
                             defaultContent: '-'
@@ -643,7 +694,8 @@
                         var inactiveTemplates = meta.inactive_templates || 0;
 
                         $('#stat-total-headers').text(totalTemplates);
-                        $('#stat-total-change').text('A: ' + activeTemplates + ' | I: ' + inactiveTemplates);
+                        $('#stat-total-change').text('A: ' + activeTemplates + ' | I: ' +
+                            inactiveTemplates);
                         $('#stat-visible-rows').text(filteredRows);
                         $('#stat-class-groups').text(meta.class_names || 0);
                         $('#stat-types-breakdown').text((meta.class_groups || 0) +
@@ -661,7 +713,15 @@
                 });
 
                 $('#st-class-group-code').on('change', function() {
-                    populateClassOptions($(this).val() || '', '');
+                    var groupCode = $(this).val() || '';
+                    populateClassOptions(groupCode, '');
+                    filterScheduleHeaders(groupCode, '');
+                });
+
+                $('#st-class-code').on('change', function() {
+                    var groupCode = $('#st-class-group-code').val() || '';
+                    var classCode = $(this).val() || '';
+                    filterScheduleHeaders(groupCode, classCode);
                 });
 
                 $(document).on('click', '.edit-slip-template', function() {
@@ -685,6 +745,8 @@
                         rowData.treaty_type || treatyType
                     );
 
+                    var scheduleHeaderIds = rowData.schedule_header_ids || [];
+
                     $('#st-id').val(id);
                     $('#st-schedule-title').val(scheduleTitle);
                     $('#st-type-of-bus').val(typeOfBusValues).trigger('change');
@@ -694,6 +756,8 @@
                     $('#st-description').val(description);
                     setWordingContent(wording);
                     $('#st-status').val(status);
+                    filterScheduleHeaders(classGroupCode, classCode, scheduleHeaderIds
+                        .map(String));
                     $('#slipTemplateModalLabel').html(
                         '<i class="bx bx-edit-alt me-2"></i>Edit Schedule Slip Template');
                     $('#slipTemplateSaveBtn').text('Update');

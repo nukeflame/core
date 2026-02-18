@@ -136,8 +136,7 @@
                     <div class="header-element header-search">
                         <a href="javascript:void(0);" class="header-link" data-bs-toggle="modal"
                             data-bs-target="#searchModal">
-                            <span class="rel-icon">🔍</span>
-                            {{-- <i class="bx bx-search-alt-2 header-link-icon"></i> --}}
+                            <i class="bx bx-search-alt-2 header-link-icon"></i>
                         </a>
                     </div>
 
@@ -145,12 +144,10 @@
                         <a href="javascript:void(0);" onclick="toggleTheme()" class="header-link layout-setting"
                             id="toggle-layout-setting">
                             <span class="light-layout">
-                                {{-- <i class="bx bx-moon header-link-icon"></i> --}}
-                                <span class="rel-icon">🌙</span>
+                                <i class="bx bx-moon header-link-icon"></i>
                             </span>
                             <span class="dark-layout">
-                                <span class="rel-icon">☀️</span>
-                                {{-- <i class="bx bx-sun header-link-icon"></i> --}}
+                                <i class="bx bx-sun header-link-icon"></i>
                             </span>
                         </a>
                     </div>
@@ -159,8 +156,7 @@
                         <a href="javascript:void(0);" id="notificationCounter" class="header-link dropdown-toggle"
                             data-bs-toggle="dropdown" data-bs-auto-close="outside" id="messageDropdown"
                             aria-expanded="false">
-                            <span class="rel-icon">🔔</span>
-                            {{-- <i class="bx bx-bell header-link-icon"></i> --}}
+                            <i class="bx bx-bell header-link-icon"></i>
                             <span id="notification-icon-badge" data-counter="0"
                                 class="notification-badge  translate-middle rounded-pill d-none">
                                 <span class="visually-hidden">unread messages</span>

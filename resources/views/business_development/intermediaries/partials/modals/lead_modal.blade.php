@@ -1061,8 +1061,8 @@
     .template-section {
         background: #f8f9fa;
         border-radius: 8px;
-        padding: 16px;
-        margin-bottom: 20px;
+        padding: 12px;
+        margin-bottom: 11px;
         border: 1px solid #ddd;
     }
 
@@ -2601,8 +2601,6 @@
 
                     const container = document.getElementById("breakdownEditor");
                     if (container) {
-                        // Quill toolbar is injected as a sibling of #breakdownEditor, not inside it.
-                        // Remove stale toolbars to prevent duplicate rows on repeated modal opens.
                         const wrapper = container.closest(".quill-container");
                         if (wrapper) {
                             wrapper.querySelectorAll(".ql-toolbar").forEach((toolbar) => toolbar.remove());
@@ -2632,7 +2630,6 @@
                     this.initTimer = setTimeout(() => {
                         this.initTimer = null;
 
-                        // Skip stale init calls from previous modal openings.
                         if (token !== this.initToken) {
                             return;
                         }
@@ -2670,7 +2667,6 @@
                                 },
                             });
 
-                            // Auto-populate editor with existing content for the selected breakdown field.
                             this.pendingContent = this.currentTextarea ? (this.currentTextarea.val() ||
                                 "") : "";
                             if (this.pendingContent && this.pendingContent.trim()) {
@@ -2703,13 +2699,93 @@
                     if (!this.quill) return;
 
                     if (templateName === "standard") {
-                        if (this.pendingContent && this.pendingContent.trim()) {
-                            this.quill.root.innerHTML = this.pendingContent;
-                            this.updateStatistics();
-                            toastr.success("Data loaded successfully");
-                        } else {
-                            toastr.info("No existing data to load");
+                        const classGroupCode = $("#leadClassGroupCode").val() || "";
+                        const classCode = $("#leadClassCode").val() || "";
+
+                        if (!classGroupCode && !classCode) {
+                            // No class context — fall back to existing content
+                            if (this.pendingContent && this.pendingContent.trim()) {
+                                this.quill.root.innerHTML = this.pendingContent;
+                                this.updateStatistics();
+                                toastr.success("Data loaded successfully");
+                            } else {
+                                toastr.info("No class group/class selected to load template data");
+                            }
+                            return;
                         }
+
+                        // Show loading state
+                        const $btn = $(".template-btn[data-template='standard']");
+                        const origText = $btn.html();
+                        $btn.html('<i class="bx bx-loader-alt bx-spin"></i> Loading...').prop("disabled", true);
+
+                        $.ajax({
+                            url: "{{ route('bd.slip-template.headers') }}",
+                            method: "GET",
+                            data: {
+                                class_group_code: classGroupCode,
+                                class_code: classCode
+                            },
+                            success: (response) => {
+                                $btn.html(origText).prop("disabled", false);
+
+                                if (response.success && response.headers && response.headers
+                                    .length > 0) {
+                                    let html =
+                                        '<table style="width:100%;border-collapse:collapse;border:1px solid #ddd;">';
+                                    html += '<thead><tr style="background:#f5f5f5;">';
+                                    html +=
+                                        '<th style="border:1px solid #ddd;padding:8px;text-align:left;">#</th>';
+                                    html +=
+                                        '<th style="border:1px solid #ddd;padding:8px;text-align:left;">Schedule Header</th>';
+                                    html +=
+                                        '<th style="border:1px solid #ddd;padding:8px;text-align:right;">Amount</th>';
+                                    html += '</tr></thead><tbody>';
+
+                                    response.headers.forEach((header, idx) => {
+                                        html += '<tr>';
+                                        html +=
+                                            '<td style="border:1px solid #ddd;padding:8px;">' +
+                                            (idx + 1) + '</td>';
+                                        html +=
+                                            '<td style="border:1px solid #ddd;padding:8px;">' +
+                                            (header.name || 'N/A') + '</td>';
+                                        html +=
+                                            '<td style="border:1px solid #ddd;padding:8px;text-align:right;">0.00</td>';
+                                        html += '</tr>';
+                                    });
+
+                                    html += '</tbody></table>';
+
+                                    this.quill.root.innerHTML = html;
+                                    this.updateStatistics();
+                                    toastr.success("Loaded " + response.headers.length +
+                                        " schedule header(s) from slip template");
+                                } else {
+                                    // No template match — fall back to pendingContent
+                                    if (this.pendingContent && this.pendingContent.trim()) {
+                                        this.quill.root.innerHTML = this.pendingContent;
+                                        this.updateStatistics();
+                                        toastr.success("Data loaded successfully");
+                                    } else {
+                                        toastr.info(response.message ||
+                                            "No slip template found for this class");
+                                    }
+                                }
+                            },
+                            error: (xhr) => {
+                                $btn.html(origText).prop("disabled", false);
+                                console.error("Failed to load slip template headers:", xhr);
+                                // Fall back to pendingContent on error
+                                if (this.pendingContent && this.pendingContent.trim()) {
+                                    this.quill.root.innerHTML = this.pendingContent;
+                                    this.updateStatistics();
+                                    toastr.success("Data loaded successfully");
+                                } else {
+                                    toastr.error("Failed to load template data");
+                                }
+                            }
+                        });
                         return;
                     }
 

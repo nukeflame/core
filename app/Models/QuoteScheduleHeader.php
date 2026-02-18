@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class QuoteScheduleHeader extends Model
 {
@@ -23,4 +24,14 @@ class QuoteScheduleHeader extends Model
         'created_at',
         'updated_at',
     ];
+
+    public function slipTemplates(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            SlipTemplate::class,
+            'schedule_header_slip_template',
+            'schedule_header_id',
+            'slip_template_id'
+        )->withTimestamps();
+    }
 }

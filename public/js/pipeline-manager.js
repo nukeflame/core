@@ -305,7 +305,7 @@ class PipelineManager {
                         showLabel: false,
                         offset: 0,
                     },
-                }
+                },
             );
 
             this.chartInstance.on("draw", (data) => {
@@ -355,7 +355,10 @@ class PipelineManager {
             return;
         }
 
-        if (this.currentChartRequest && this.currentChartRequest.readyState !== 4) {
+        if (
+            this.currentChartRequest &&
+            this.currentChartRequest.readyState !== 4
+        ) {
             this.currentChartRequest.abort();
         }
 
@@ -367,7 +370,9 @@ class PipelineManager {
             data: { pipeline_id: requestedPipelineId },
             timeout: AJAX_TIMEOUT,
             success: (response) => {
-                const activePipelineId = String(this.$pipYearSelect?.val() ?? "");
+                const activePipelineId = String(
+                    this.$pipYearSelect?.val() ?? "",
+                );
                 if (activePipelineId !== requestedPipelineId) {
                     return;
                 }
@@ -509,7 +514,7 @@ class PipelineManager {
             } catch (error) {
                 this.handleError(
                     `Error initializing DataTable for ${tableId}`,
-                    error
+                    error,
                 );
                 finalizeInitialTableLoad();
             }
@@ -540,14 +545,16 @@ class PipelineManager {
         `;
     }
     bindEvents() {
-        this.$pipYearSelect?.off("change.pipeline").on("change.pipeline", () => {
-            this.debounce(() => {
-                this.updateBrowserUrl();
-                this.loadPipelineDetails();
-                this.loadChartData();
-                this.reloadAllTables();
-            }, DEBOUNCE_DELAY)();
-        });
+        this.$pipYearSelect
+            ?.off("change.pipeline")
+            .on("change.pipeline", () => {
+                this.debounce(() => {
+                    this.updateBrowserUrl();
+                    this.loadPipelineDetails();
+                    this.loadChartData();
+                    this.reloadAllTables();
+                }, DEBOUNCE_DELAY)();
+            });
 
         $('a[data-bs-toggle="tab"]')
             .off("shown.bs.tab.pipeline")
@@ -570,12 +577,10 @@ class PipelineManager {
                 });
             });
 
-        this.$pipelineSearch
-            ?.off("input.pipeline")
-            .on(
-                "input.pipeline",
-                this.debounce(() => this.reloadAllTables(), DEBOUNCE_DELAY)
-            );
+        this.$pipelineSearch?.off("input.pipeline").on(
+            "input.pipeline",
+            this.debounce(() => this.reloadAllTables(), DEBOUNCE_DELAY),
+        );
 
         this.$pipelineStatusFilter
             ?.off("change.pipeline")
@@ -589,10 +594,12 @@ class PipelineManager {
             ?.off("change.pipeline")
             .on("change.pipeline", () => this.reloadAllTables());
 
-        this.$pipelineClearFilters?.off("click.pipeline").on("click.pipeline", () => {
-            this.clearPipelineFilters();
-            this.reloadAllTables();
-        });
+        this.$pipelineClearFilters
+            ?.off("click.pipeline")
+            .on("click.pipeline", () => {
+                this.clearPipelineFilters();
+                this.reloadAllTables();
+            });
     }
 
     getPipelineFilters() {
@@ -679,12 +686,12 @@ class PipelineManager {
         this.$pipelineMetaName?.text(details?.name || "N/A");
         this.$pipelineMetaYear?.text(`Year: ${details?.year ?? "N/A"}`);
         this.$pipelineMetaOpp?.text(
-            `Opportunities: ${Number(details?.opportunities ?? 0)}`
+            `Opportunities: ${Number(details?.opportunities ?? 0)}`,
         );
         this.$pipelineMetaWon?.text(`Won: ${Number(details?.won ?? 0)}`);
         this.$pipelineMetaLost?.text(`Lost: ${Number(details?.lost ?? 0)}`);
         this.$pipelineMetaWorth?.text(
-            `Worth: ${this.formatCurrencyValue(details?.worth)}`
+            `Worth: ${this.formatCurrencyValue(details?.worth)}`,
         );
     }
 
@@ -812,7 +819,7 @@ class PipelineManager {
                     nextStage,
                     modalId,
                     this.currentDealId,
-                    dealInfo
+                    dealInfo,
                 );
             }
 
@@ -832,7 +839,7 @@ class PipelineManager {
             }
 
             $("#updateCategoryForm #opportunity_id").val(
-                buttonData.opportunity_id
+                buttonData.opportunity_id,
             );
             $("#updateCategoryTypeModal").modal("show");
         } catch (error) {
@@ -923,7 +930,7 @@ class PipelineManager {
                             this.escapeHtml(insuredName) || "this opportunity"
                         }</strong>
                         back to a previous pipeline stage <strong>${this.escapeHtml(
-                            revertStage
+                            revertStage,
                         )}?</strong>
                     </p>
                     <p class="text-muted mb-0">This action will update its current sales stage accordingly.</p>
@@ -1052,7 +1059,7 @@ class PipelineManager {
                 modalId,
                 dealId,
                 this.currentStage,
-                dealInfo
+                dealInfo,
             );
 
             $modal.modal("show");
@@ -1084,7 +1091,7 @@ class PipelineManager {
                     };
                     const formattedDate = dateObj.toLocaleDateString(
                         "en-US",
-                        options
+                        options,
                     );
                     $modal.find(".created_at-display").text(formattedDate);
                 } catch (dateError) {
@@ -1289,10 +1296,10 @@ class PipelineManager {
                 name: reinsurer.reinsurer_name,
                 written_share: parseFloat(0).toFixed(2),
                 previous_written_share: parseFloat(
-                    reinsurer.written_share || 0
+                    reinsurer.written_share || 0,
                 ).toFixed(2),
                 commission: parseFloat(reinsurer.brokerage_rate || 0).toFixed(
-                    2
+                    2,
                 ),
                 status: reinsurer.status,
                 is_declined: reinsurer.is_declined,
@@ -1306,11 +1313,11 @@ class PipelineManager {
     calculateTotals(tableData) {
         const totalShare = tableData.reduce(
             (sum, r) => sum + parseFloat(r.written_share),
-            0
+            0,
         );
         const totalCommission = tableData.reduce(
             (sum, r) => sum + parseFloat(r.commission),
-            0
+            0,
         );
 
         return { totalShare, totalCommission };
@@ -1431,7 +1438,7 @@ class PipelineManager {
                 reinsurerName: $(e.currentTarget).data("reinsurer-name"),
                 written_share: $(e.currentTarget).data("written-share"),
                 previous_written_share: $(e.currentTarget).data(
-                    "previous-written-share"
+                    "previous-written-share",
                 ),
             };
 
@@ -1600,7 +1607,7 @@ class PipelineManager {
         $("#shareInputError").text("");
 
         const editModal = new bootstrap.Modal(
-            document.getElementById("editReinsurerShareModal")
+            document.getElementById("editReinsurerShareModal"),
         );
 
         $("#editReinsurerShareModal").one("shown.bs.modal", function () {
@@ -1626,7 +1633,7 @@ class PipelineManager {
                 if (numValue <= 0 || numValue > 100) {
                     $("#editShareInput").addClass("is-invalid");
                     $("#shareInputError").text(
-                        "Please enter a value between 0.01 and 100"
+                        "Please enter a value between 0.01 and 100",
                     );
                     return;
                 }
@@ -1682,7 +1689,7 @@ class PipelineManager {
 
         const totalShare = updatedData.reduce(
             (sum, r) => sum + parseFloat(r.written_share),
-            0
+            0,
         );
 
         $(".selected_reinsurers").val(JSON.stringify(updatedData) || []);
@@ -1711,8 +1718,8 @@ class PipelineManager {
             placedNum === targetTotal
                 ? "text-success"
                 : placedNum > targetTotal
-                ? "text-danger"
-                : "text-primary";
+                  ? "text-danger"
+                  : "text-primary";
 
         sharesDisplay
             .find(".placed-value")
@@ -1724,8 +1731,8 @@ class PipelineManager {
             unplacedNum === 0
                 ? "text-success"
                 : unplacedNum < 0
-                ? "text-danger"
-                : "text-warning";
+                  ? "text-danger"
+                  : "text-warning";
 
         sharesDisplay
             .find(".unplaced-value")
@@ -1743,8 +1750,8 @@ class PipelineManager {
             placedNum === targetTotal
                 ? "bg-success"
                 : placedNum > targetTotal
-                ? "bg-danger"
-                : "bg-primary";
+                  ? "bg-danger"
+                  : "bg-primary";
 
         sharesDisplay
             .find(".placed-progress")
@@ -1769,7 +1776,7 @@ class PipelineManager {
 
         const totalShare = updatedData.reduce(
             (sum, r) => sum + parseFloat(r.written_share),
-            0
+            0,
         );
 
         const $counterBadge = $("#reinsurerCount");
@@ -1829,7 +1836,9 @@ class PipelineManager {
                 continue;
             }
 
-            const plainText = $("<div>").html(short_content || "").text();
+            const plainText = $("<div>")
+                .html(short_content || "")
+                .text();
             $plain.val(plainText);
             $html.val(content || "");
         }
@@ -1844,7 +1853,7 @@ class PipelineManager {
 
         if ($documentsSubtitle.length > 0) {
             $documentsSubtitle.html(
-                '<small><span class="loading-spinner"></span> Loading documents...</small>'
+                '<small><span class="loading-spinner"></span> Loading documents...</small>',
             );
         }
 
@@ -1865,14 +1874,14 @@ class PipelineManager {
                         $documentsSubtitle.html(
                             `<small>Documents for ${
                                 response.class_name || "this class"
-                            }</small>`
+                            }</small>`,
                         );
                     }
                     this.renderSlipDocuments(response, data, $modal);
                 } else {
                     if ($documentsSubtitle.length > 0) {
                         $documentsSubtitle.html(
-                            `<small>No documents found</small>`
+                            `<small>No documents found</small>`,
                         );
                     }
                 }
@@ -1886,7 +1895,7 @@ class PipelineManager {
                 this.showError("Failed to load slip documents");
                 if ($documentsSubtitle.length > 0) {
                     $documentsSubtitle.html(
-                        `<small>Error loading documents</small>`
+                        `<small>Error loading documents</small>`,
                     );
                 }
             },
@@ -1908,7 +1917,7 @@ class PipelineManager {
 
         if (!Array.isArray(headers)) {
             container.html(
-                '<p class="text-muted text-center my-4">Invalid headers data.</p>'
+                '<p class="text-muted text-center my-4">Invalid headers data.</p>',
             );
             return;
         }
@@ -1920,7 +1929,7 @@ class PipelineManager {
 
             const hasValidSumInsuredType = h.sum_insured_type?.trim() === "";
             const isNotExcluded = !EXCLUDED_TERMS.some((term) =>
-                h.name?.replace(/\s+/g, " ").trim().includes(term)
+                h.name?.replace(/\s+/g, " ").trim().includes(term),
             );
 
             return hasValidSumInsuredType && isNotExcluded;
@@ -1934,8 +1943,8 @@ class PipelineManager {
 
         const deductible = headers.filter((h) =>
             DEDUCTIBLE_TERMS.some((term) =>
-                h?.name?.replace(/\s+/g, " ").trim().includes(term)
-            )
+                h?.name?.replace(/\s+/g, " ").trim().includes(term),
+            ),
         );
 
         $(".deductible_excess_div").hide();
@@ -1945,9 +1954,24 @@ class PipelineManager {
 
         if (validHeaders.length === 0) {
             container.html(
-                '<p class="text-muted text-center my-4">No schedule headers configured.</p>'
+                '<p class="text-muted text-center my-4">No schedule headers configured.</p>',
             );
+            const $docsSection = $modal
+                .find("#documentsContent")
+                .closest(".form-section");
+            if ($docsSection.length) {
+                $docsSection.hide();
+                $docsSection.prev("hr").hide();
+            }
             return;
+        }
+
+        const $docsSection = $modal
+            .find("#documentsContent")
+            .closest(".form-section");
+        if ($docsSection.length) {
+            $docsSection.show();
+            $docsSection.prev("hr").show();
         }
 
         let fieldsHtml = "";
@@ -1967,10 +1991,10 @@ class PipelineManager {
                     <div class="form-group mb-3">
                         <label for="${fieldId}" class="form-label capitalize">
                             ${headerName}${
-                header.amount_field === "Y"
-                    ? ' <span class="text-danger pl-1">*</span>'
-                    : ""
-            }
+                                header.amount_field === "Y"
+                                    ? ' <span class="text-danger pl-1">*</span>'
+                                    : ""
+                            }
                         </label>
                         ${fieldInput}
                         ${hiddenInput}
@@ -1986,7 +2010,6 @@ class PipelineManager {
 
         container.html(fieldsHtml);
 
-        // Re-apply cached terms after dynamic fields are rendered.
         const cacheKey = `${data.modalId}:${data.opportunityId || data.dealId}`;
         const cachedTerms = this.bdTermsCache.get(cacheKey);
         if (Array.isArray(cachedTerms) && cachedTerms.length > 0) {
@@ -2017,7 +2040,7 @@ class PipelineManager {
             const $container = $modal.find("#documentsContent");
             if ($container.length) {
                 $container.html(
-                    '<p class="text-muted text-center my-3">No documents available for this stage.</p>'
+                    '<p class="text-muted text-center my-3">No documents available for this stage.</p>',
                 );
             }
             return;
@@ -2079,18 +2102,17 @@ class PipelineManager {
         documents.forEach((doc, index) => {
             const colSize = documents.length <= 2 ? "col-12" : "col-md-6";
             const maxSizeText = this.formatFileSize(
-                doc.max_size || DEFAULT_MAX_FILE_SIZE
+                doc.max_size || DEFAULT_MAX_FILE_SIZE,
             );
             const acceptsText = doc.accepts.replace(/\./g, "").toUpperCase();
 
-            // XSS Protection: Escape document name and description
             const escapedName = this.escapeHtml(doc.name);
             const escapedDescription = this.escapeHtml(doc.description);
 
             const fieldHtml = `
                 <div class="${colSize} fade-in" style="animation-delay: ${
-                index * 0.1
-            }s">
+                    index * 0.1
+                }s">
                     <div class="document-field-group">
                         <div class="form-group">
                             <label class="form-label fw-semibold">
@@ -2149,17 +2171,17 @@ class PipelineManager {
             const $uploadArea = $(element);
             const $input = $uploadArea.find(".file-input");
             const $previewContainer = $uploadArea.siblings(
-                ".file-preview-container"
+                ".file-preview-container",
             );
 
             $uploadArea.on("click.fileUpload", (e) => {
                 const $target = $(e.target);
                 const isInteractiveElement =
                     $target.is(
-                        "button, input, a, .file-action-btn, .file-remove-btn"
+                        "button, input, a, .file-action-btn, .file-remove-btn",
                     ) ||
                     $target.closest(
-                        "button, .file-action-btn, .file-remove-btn"
+                        "button, .file-action-btn, .file-remove-btn",
                     ).length > 0;
 
                 if (!isInteractiveElement) {
@@ -2178,7 +2200,7 @@ class PipelineManager {
                     this.handleFileSelection(
                         e.target.files,
                         $uploadArea,
-                        $previewContainer
+                        $previewContainer,
                     );
                 }
 
@@ -2209,7 +2231,7 @@ class PipelineManager {
                     this.handleFileSelection(
                         files,
                         $uploadArea,
-                        $previewContainer
+                        $previewContainer,
                     );
                 }
             });
@@ -2239,7 +2261,7 @@ class PipelineManager {
                 this.showError(
                     `File "${
                         file.name
-                    }" exceeds maximum size of ${this.formatFileSize(maxSize)}`
+                    }" exceeds maximum size of ${this.formatFileSize(maxSize)}`,
                 );
                 rejectedFiles++;
                 return;
@@ -2292,7 +2314,6 @@ class PipelineManager {
             file.fileId = fileId;
         }
 
-        // XSS Protection: Escape file name
         const escapedFileName = this.escapeHtml(fileName);
 
         const previewHtml = `
@@ -2324,7 +2345,7 @@ class PipelineManager {
         $container.append(previewHtml);
 
         const $removeBtn = $container.find(
-            `[data-file-id="${fileId}"] .file-remove-btn`
+            `[data-file-id="${fileId}"] .file-remove-btn`,
         );
         $removeBtn.off("click.fileRemove").on("click.fileRemove", (e) => {
             e.stopPropagation();
@@ -2333,7 +2354,7 @@ class PipelineManager {
         });
 
         const $viewBtn = $container.find(
-            `[data-file-id="${fileId}"] .file-view-btn`
+            `[data-file-id="${fileId}"] .file-view-btn`,
         );
         $viewBtn.off("click.fileView").on("click.fileView", (e) => {
             e.stopPropagation();
@@ -2345,7 +2366,7 @@ class PipelineManager {
     removeFile(fieldId, fileId) {
         try {
             const $previewItem = $(
-                `.file-preview-item[data-file-id="${fileId}"]`
+                `.file-preview-item[data-file-id="${fileId}"]`,
             );
             if ($previewItem.length > 0) {
                 $previewItem.remove();
@@ -2381,7 +2402,7 @@ class PipelineManager {
     viewFile(fieldId, fileId) {
         try {
             const fileToView = this.uploadedFiles[fieldId]?.find(
-                (f) => f.fileId === fileId
+                (f) => f.fileId === fileId,
             );
 
             if (!fileToView) {
@@ -2478,7 +2499,7 @@ class PipelineManager {
         $("body").append(modalHtml);
 
         const modal = new bootstrap.Modal(
-            document.getElementById("fileViewModal")
+            document.getElementById("fileViewModal"),
         );
 
         $("#fileViewModal").on("hidden.bs.modal", () => {
@@ -2522,7 +2543,7 @@ class PipelineManager {
             $("#fileViewModal").remove();
             $("body").append(modalHtml);
             const modal = new bootstrap.Modal(
-                document.getElementById("fileViewModal")
+                document.getElementById("fileViewModal"),
             );
 
             $("#fileViewModal").on("hidden.bs.modal", function () {
@@ -2621,7 +2642,7 @@ class PipelineManager {
                 }
                 return `<select class="form-select ${baseInputClass.replace(
                     "form-control",
-                    ""
+                    "",
                 )}" id="${fieldId}" name="schedule_headers[${fieldId}]" ${required}>${options}</select>`;
             } else {
                 const isTextarea =
@@ -2735,10 +2756,7 @@ class PipelineManager {
 
         const finishReload = () => {
             pendingReloads = Math.max(0, pendingReloads - 1);
-            if (
-                pendingReloads === 0 &&
-                reloadToken === this.tableReloadToken
-            ) {
+            if (pendingReloads === 0 && reloadToken === this.tableReloadToken) {
                 this.hideLoading();
             }
         };
@@ -2776,7 +2794,10 @@ class PipelineManager {
                 try {
                     setTableProcessing(dataTable, false);
                 } catch (error) {
-                    console.error("Error stopping DataTable processing state", error);
+                    console.error(
+                        "Error stopping DataTable processing state",
+                        error,
+                    );
                 }
             });
 
@@ -2880,7 +2901,7 @@ class PipelineManager {
                 } catch (error) {
                     console.error(
                         `Error destroying DataTable ${tableId}:`,
-                        error
+                        error,
                     );
                 }
             });
@@ -3008,7 +3029,7 @@ class PipelineManager {
                             if (result.isConfirmed) {
                                 this.handleEmailReconnect(
                                     opportunityId,
-                                    currentStage
+                                    currentStage,
                                 );
                             }
                         });
@@ -3184,7 +3205,7 @@ class PipelineManager {
                 $select
                     .empty()
                     .append(
-                        `<option value="" disabled>${placeholder}</option>`
+                        `<option value="" disabled>${placeholder}</option>`,
                     );
             };
 
@@ -3216,7 +3237,7 @@ class PipelineManager {
 
                     let optionText = contact.name
                         ? `${this.escapeHtml(contact.name)} (${this.escapeHtml(
-                              email
+                              email,
                           )})`
                         : this.escapeHtml(email);
                     if (contact.phone)
@@ -3258,7 +3279,7 @@ class PipelineManager {
                             if ($select.hasClass("select2-hidden-accessible")) {
                                 $select.trigger("change.select2");
                             }
-                        }
+                        },
                     );
                 }, 100);
             }
@@ -3511,11 +3532,11 @@ $(document).ready(function () {
     } catch (error) {
         if (typeof toastr !== "undefined") {
             toastr.error(
-                "Failed to initialize the application. Please refresh the page."
+                "Failed to initialize the application. Please refresh the page.",
             );
         } else {
             alert(
-                "Failed to initialize the application. Please refresh the page."
+                "Failed to initialize the application. Please refresh the page.",
             );
         }
     }
@@ -3537,7 +3558,7 @@ window.addEventListener("unhandledrejection", function (event) {
     ) {
         window.pipelineManager.handleError(
             "Unhandled Promise Rejection",
-            event.reason
+            event.reason,
         );
     }
 });

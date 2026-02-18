@@ -1644,11 +1644,11 @@ footer {
 #financialAccordion .accordion-header {
     border-radius: 0px !important;
 }
-.main-header-container .rel-icon {
+.main-header-container .header-link-icon {
     font-size: 20px !important;
-    padding: 10px 17px !important;
-    width: auto !important;
-    height: auto !important;
+    line-height: 1 !important;
+    width: 20px !important;
+    height: 20px !important;
 }
 .main-header-container .header-link {
     padding: 0px !important;

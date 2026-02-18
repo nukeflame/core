@@ -265,6 +265,7 @@ Route::group(
         Route::get('/business-development/slip-templates-data', [BdScheduleController::class, 'slipTemplateDatatable'])->name('bd.slip-template.data');
         Route::post('/business-development/slip-templates-store', [BdScheduleController::class, 'storeSlipTemplate'])->name('bd.slip-template.store');
         Route::post('/business-development/slip-templates-delete', [BdScheduleController::class, 'deleteSlipTemplate'])->name('bd.slip-template.delete');
+        Route::get('/business-development/slip-template-headers', [BdScheduleController::class, 'getSlipTemplateHeaders'])->name('bd.slip-template.headers');
         Route::get('/schedule-header-form', [BdScheduleController::class, 'bd_schedule_add_form'])->name('schedule.header.form');
         Route::post('/bd-schedule-header-store', [BdScheduleController::class, 'bd_schedule_header_add'])->name('bd.schedule.header.store');
         Route::get('/bd-schedule-header-data', [BdScheduleController::class, 'bd_schedule_header_data'])->name('bd.schedule.header.data');

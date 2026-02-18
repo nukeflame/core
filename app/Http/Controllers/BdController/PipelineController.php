@@ -7683,7 +7683,7 @@ class PipelineController
                 'business_type' => $businessType
             ])->orderBy('position', 'asc');
 
-            $headers = []; // $query->get();
+            $headers = $query->get();
 
             return response()->json([
                 'success' => true,
@@ -7702,7 +7702,7 @@ class PipelineController
                     ];
                 })
             ]);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch schedule headers',

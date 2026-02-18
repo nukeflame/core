@@ -11,8 +11,10 @@ use App\Models\Classes;
 use App\Models\ClassGroup;
 use App\Models\CustomerTypes;
 use App\Models\Bd\DocType;
+use App\Models\QuoteScheduleHeader;
 use App\Models\ReinsClass;
 use App\Models\ScheduleHeader;
+use App\Models\SlipTemplate;
 use App\Models\Bd\StageDocument;
 use App\Models\TypeOfSumInsured;
 use Auth;
@@ -38,6 +40,7 @@ class BdScheduleController extends Controller
         $classGroups = ClassGroup::get(['group_code', 'group_name']);
         $class = Classes::where('status', 'A')->get(['class_code', 'class_name', 'class_group_code', 'status']);
         $businessTypes = BusinessType::get(['bus_type_id', 'bus_type_name']);
+        $scheduleHeaders = QuoteScheduleHeader::select('id', 'name', 'class', 'class_group', 'business_type')->orderBy('name')->get();
 
         return view('business_development.settings.slip_template_data', [
             'treaty_type' => $request->treaty_type,
@@ -47,13 +50,67 @@ class BdScheduleController extends Controller
             'classGroups' => $classGroups,
             'class' => $class,
             'businessTypes' => $businessTypes,
+            'scheduleHeaders' => $scheduleHeaders,
+        ]);
+    }
+
+    public function getSlipTemplateHeaders(Request $request)
+    {
+        $classGroupCode = $request->input('class_group_code', '');
+        $classCode = $request->input('class_code', '');
+
+        if (!$classGroupCode && !$classCode) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Class group or class code is required.',
+                'headers' => [],
+            ]);
+        }
+
+        $query = SlipTemplate::where('status', 'A');
+
+        if ($classGroupCode) {
+            $query->where('class_group_code', $classGroupCode);
+        }
+        if ($classCode) {
+            $query->where('class_code', $classCode);
+        }
+
+        $templates = $query->with('scheduleHeaders:id,name,position,amount_field,sum_insured_type,business_type')->get();
+
+        if ($templates->isEmpty()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No slip template found for the selected class.',
+                'headers' => [],
+            ]);
+        }
+
+        // Collect all unique schedule headers across matching templates
+        $headers = $templates->flatMap(function ($template) {
+            return $template->scheduleHeaders;
+        })->unique('id')->sortBy('position')->values();
+
+        return response()->json([
+            'success' => true,
+            'template_count' => $templates->count(),
+            'headers' => $headers->map(function ($h) {
+                return [
+                    'id' => $h->id,
+                    'name' => $h->name,
+                    'position' => $h->position,
+                    'amount_field' => $h->amount_field,
+                    'sum_insured_type' => $h->sum_insured_type,
+                    'business_type' => $h->business_type,
+                ];
+            }),
         ]);
     }
 
 
     public function getScheduleHeaders(Request $request)
     {
-        $classes = Classes::select(['class_name', 'class_code'])->get();
+        $classes = Classes::select(['class_name', 'class_code', 'class_group_code'])->get();
         $classGroups = ClassGroup::select(['group_code', 'group_name'])->get();
         $type_of_sum_insured = TypeOfSumInsured::select(['sum_insured_code', 'sum_insured_name'])->get();
         $quote_schedule_columns = Schema::getColumnListing('quote_schedule_headers');
@@ -261,7 +318,7 @@ class BdScheduleController extends Controller
         return dataTables::of($mappedHeaders)->make(true);
     }
 
-    public function bd_quote_schedule_header_data()
+    public function bd_quote_schedule_header_data(Request $request)
     {
         $columns = Schema::getColumnListing('quote_schedule_headers');
 
@@ -269,7 +326,21 @@ class BdScheduleController extends Controller
             return dataTables::of(collect([]))->make(true);
         }
 
-        $rows = DB::table('quote_schedule_headers')->select($columns)->get();
+        $query = DB::table('quote_schedule_headers')->select($columns);
+
+        if ($request->filled('filter_business_type') && in_array('business_type', $columns, true)) {
+            $query->where('business_type', $request->input('filter_business_type'));
+        }
+
+        if ($request->filled('filter_class_group') && in_array('class_group', $columns, true)) {
+            $query->where('class_group', $request->input('filter_class_group'));
+        }
+
+        if ($request->filled('filter_class_name') && in_array('class', $columns, true)) {
+            $query->where('class', $request->input('filter_class_name'));
+        }
+
+        $rows = $query->get();
 
         return dataTables::of($rows)->make(true);
     }
@@ -441,6 +512,18 @@ class BdScheduleController extends Controller
                 return $businessTypeMap[$id]->bus_type_name ?? $id;
             })->implode(', ');
 
+            // Fetch linked schedule headers for this slip template
+            $slipId = $row->id ?? $row->slip_id ?? $row->clause_id ?? null;
+            $linkedHeaders = [];
+            $linkedHeaderIds = [];
+            if ($slipId) {
+                $slipModel = SlipTemplate::find($slipId);
+                if ($slipModel) {
+                    $linkedHeaders = $slipModel->scheduleHeaders->pluck('name')->toArray();
+                    $linkedHeaderIds = $slipModel->scheduleHeaders->pluck('id')->toArray();
+                }
+            }
+
             return (object) [
                 'id' => $row->id ?? $row->slip_id ?? $row->clause_id ?? ($index + 1),
                 'record_key' => $recordKey,
@@ -455,6 +538,8 @@ class BdScheduleController extends Controller
                 'type_of_bus_values' => $typeOfBusValues,
                 'status' => in_array($status, ['A', 'ACTIVE'], true) ? 'A' : 'I',
                 'updated_at' => $row->updated_at ?? null,
+                'schedule_headers' => implode(', ', $linkedHeaders) ?: '-',
+                'schedule_header_ids' => $linkedHeaderIds,
             ];
         });
 
@@ -532,6 +617,8 @@ class BdScheduleController extends Controller
             'status' => 'required|string|in:A,I',
             'type_of_bus' => 'nullable',
             'type_of_bus.*' => 'nullable|string|max:20',
+            'schedule_header_ids' => 'required|array|min:1',
+            'schedule_header_ids.*' => 'required|integer|exists:quote_schedule_headers,id',
         ]);
 
         if ($validator->fails()) {
@@ -647,6 +734,20 @@ class BdScheduleController extends Controller
                 $message = 'Slip template created successfully.';
             }
 
+            // Sync schedule headers via pivot table
+            if ($recordId > 0) {
+                $slipTemplate = SlipTemplate::find($recordId);
+                if ($slipTemplate) {
+                    $headerIds = collect($request->input('schedule_header_ids', []))
+                        ->filter()
+                        ->map(fn($v) => (int) $v)
+                        ->unique()
+                        ->values()
+                        ->all();
+                    $slipTemplate->scheduleHeaders()->sync($headerIds);
+                }
+            }
+
             DB::commit();
 
             return response()->json([
@@ -693,6 +794,12 @@ class BdScheduleController extends Controller
 
         DB::beginTransaction();
         try {
+            // Detach schedule headers from pivot table before deleting
+            $slipTemplate = SlipTemplate::find($id);
+            if ($slipTemplate) {
+                $slipTemplate->scheduleHeaders()->detach();
+            }
+
             $deleted = DB::table('slip_templates')->where($keyColumn, $id)->delete();
 
             if (!$deleted) {
