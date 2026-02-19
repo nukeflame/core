@@ -321,6 +321,11 @@ return [
                                     'permission' => 'app.reins_settings.view'
                                 ],
                                 [
+                                    'title' => 'Document Types',
+                                    'route' => 'doc.type.info',
+                                    'permission' => 'app.reins_settings.view'
+                                ],
+                                [
                                     'title' => 'Stage Documents',
                                     'route' => 'stage.doc.info',
                                     'permission' => 'app.reins_settings.view'
@@ -330,11 +335,7 @@ return [
                                 //     'route' => 'lead.status.info',
                                 //     'permission' => 'app.reins_settings.view'
                                 // ],
-                                // [
-                                //     'title' => 'Document Types',
-                                //     'route' => 'doc.type.info',
-                                //     'permission' => 'app.reins_settings.view'
-                                // ],
+
                                 // [
                                 //     'title' => 'Operation Checklists',
                                 //     'route' => 'operationchecklist.info',

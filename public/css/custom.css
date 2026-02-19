@@ -957,7 +957,8 @@ div.dataTables_wrapper div.dataTables_length select {
     background-color: var(--option-bg);
 }
 .dataTables_wrapper .dataTables_filter input {
-    width: 260px;
+    width: 320px;
+    max-width: 100%;
 }
 .customer-endorsement {
     background: var(--bg-white-transparent);

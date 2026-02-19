@@ -5753,11 +5753,18 @@ class PipelineController
                                 );
                                 $s3FilePath = $uploadsPath . '/' . $uniqueFilename;
 
-                                $uploaded = Storage::disk('s3')->putFileAs(
-                                    $uploadsPath,
-                                    $file,
-                                    $uniqueFilename,
-                                    ['visibility' => 'public']
+                                $fileContents = file_get_contents($file->getRealPath());
+                                if ($fileContents === false) {
+                                    throw new \Exception("Failed to read uploaded file: {$originalName}");
+                                }
+
+                                $uploaded = Storage::disk('s3')->put(
+                                    $s3FilePath,
+                                    $fileContents,
+                                    [
+                                        'visibility' => 'public',
+                                        'ContentType' => $mimetype,
+                                    ]
                                 );
 
                                 if (!$uploaded) {

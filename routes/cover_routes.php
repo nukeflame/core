@@ -139,17 +139,17 @@ Route::group(['prefix' => 'cover', 'middleware' => ['auth', 'check.first.login']
     Route::post('/bd-delete-lead-status', [BdScheduleController::class, 'delete_lead_status'])->name('delete.lead.status');
 
 
-    Route::get('/bd-stage-doc-info', [BdScheduleController::class, 'bd_stage_doc_info'])->name('stage.doc.info');
-    Route::get('/bd-stage-doc-form', [BdScheduleController::class, 'stage_doc_form'])->name('stage.doc.form');
-    Route::post('/bd-stage-doc-store', [BdScheduleController::class, 'bd_stage_doc_add'])->name('stage.doc.store');
-    Route::get('/bd-stage-doc-data', [BdScheduleController::class, 'bd_stage_doc_data'])->name('stage.doc.data');
-    Route::post('/bd-delete-stage-doc', [BdScheduleController::class, 'delete_stage_doc'])->name('delete.stage.doc');
+    Route::redirect('/bd-stage-doc-info', '/settings/business-development/stage-documents', 301);
+    Route::get('/bd-stage-doc-form', [BdScheduleController::class, 'stage_doc_form']);
+    Route::post('/bd-stage-doc-store', [BdScheduleController::class, 'bd_stage_doc_add']);
+    Route::get('/bd-stage-doc-data', [BdScheduleController::class, 'bd_stage_doc_data']);
+    Route::post('/bd-delete-stage-doc', [BdScheduleController::class, 'delete_stage_doc']);
 
-    Route::get('/bd-doc-type-info', [BdScheduleController::class, 'bd_doc_type_info'])->name('doc.type.info');
-    Route::get('/bd-doc-type-form', [BdScheduleController::class, 'doc_type_form'])->name('doc.type.form');
-    Route::post('/bd-doc-type-store', [BdScheduleController::class, 'bd_doc_type_add'])->name('doc.type.store');
-    Route::get('/bd-doc-type-data', [BdScheduleController::class, 'bd_doc_type_data'])->name('doc.type.data');
-    Route::post('/bd-doc-type', [BdScheduleController::class, 'delete_doc_type'])->name('delete.doc.type');
+    Route::redirect('/bd-doc-type-info', '/settings/business-development/document-types', 301);
+    Route::get('/bd-doc-type-form', [BdScheduleController::class, 'doc_type_form']);
+    Route::post('/bd-doc-type-store', [BdScheduleController::class, 'bd_doc_type_add']);
+    Route::get('/bd-doc-type-data', [BdScheduleController::class, 'bd_doc_type_data']);
+    Route::post('/bd-doc-type', [BdScheduleController::class, 'delete_doc_type']);
 
     Route::get('/bd-treaty-operation-checklist-info', [BdScheduleController::class, 'operationchecklist_info'])->name('operationchecklist.info');
     Route::get('/treaty-operation-checklist-form', [BdScheduleController::class, 'operationchecklist_form'])->name('operationchecklist.form');
@@ -266,6 +266,16 @@ Route::group(
         Route::post('/business-development/slip-templates-store', [BdScheduleController::class, 'storeSlipTemplate'])->name('bd.slip-template.store');
         Route::post('/business-development/slip-templates-delete', [BdScheduleController::class, 'deleteSlipTemplate'])->name('bd.slip-template.delete');
         Route::get('/business-development/slip-template-headers', [BdScheduleController::class, 'getSlipTemplateHeaders'])->name('bd.slip-template.headers');
+        Route::get('/business-development/stage-documents', [BdScheduleController::class, 'bd_stage_doc_info'])->name('stage.doc.info');
+        Route::get('/business-development/stage-documents/form', [BdScheduleController::class, 'stage_doc_form'])->name('stage.doc.form');
+        Route::post('/business-development/stage-documents/store', [BdScheduleController::class, 'bd_stage_doc_add'])->name('stage.doc.store');
+        Route::get('/business-development/stage-documents/data', [BdScheduleController::class, 'bd_stage_doc_data'])->name('stage.doc.data');
+        Route::post('/business-development/stage-documents/delete', [BdScheduleController::class, 'delete_stage_doc'])->name('delete.stage.doc');
+        Route::get('/business-development/document-types', [BdScheduleController::class, 'bd_doc_type_info'])->name('doc.type.info');
+        Route::get('/business-development/document-types/form', [BdScheduleController::class, 'doc_type_form'])->name('doc.type.form');
+        Route::post('/business-development/document-types/store', [BdScheduleController::class, 'bd_doc_type_add'])->name('doc.type.store');
+        Route::get('/business-development/document-types/data', [BdScheduleController::class, 'bd_doc_type_data'])->name('doc.type.data');
+        Route::post('/business-development/document-types/delete', [BdScheduleController::class, 'delete_doc_type'])->name('delete.doc.type');
         Route::get('/schedule-header-form', [BdScheduleController::class, 'bd_schedule_add_form'])->name('schedule.header.form');
         Route::post('/bd-schedule-header-store', [BdScheduleController::class, 'bd_schedule_header_add'])->name('bd.schedule.header.store');
         Route::get('/bd-schedule-header-data', [BdScheduleController::class, 'bd_schedule_header_data'])->name('bd.schedule.header.data');

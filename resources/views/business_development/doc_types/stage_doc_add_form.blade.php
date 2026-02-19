@@ -38,8 +38,28 @@
                     <div class="row gy-4 partner_info">
                         <div class="col-xl-4">
                             <label class="form-label">Stage</label>
-                            <input type="number" class="form-inputs" aria-label="stage" id="stage" name="stage"
-                                required value="{{ isset($StageDocuments) ? $StageDocuments->stage : '' }}">
+                            @php
+                                $selectedStage = isset($StageDocuments)
+                                    ? strtolower((string) $StageDocuments->stage)
+                                    : '';
+                                $selectedStage = match ($selectedStage) {
+                                    '1' => 'lead',
+                                    '2' => 'proposal',
+                                    '3' => 'negotiation',
+                                    '4', 'final_stage' => 'final',
+                                    default => $selectedStage,
+                                };
+                            @endphp
+                            <select class="form-inputs select2" aria-label="stage" id="stage" name="stage" required>
+                                <option value="">Select Stage</option>
+                                <option value="lead" {{ $selectedStage === 'lead' ? 'selected' : '' }}>Lead</option>
+                                <option value="proposal" {{ $selectedStage === 'proposal' ? 'selected' : '' }}>Proposal
+                                </option>
+                                <option value="negotiation" {{ $selectedStage === 'negotiation' ? 'selected' : '' }}>
+                                    Negotiation
+                                </option>
+                                <option value="final" {{ $selectedStage === 'final' ? 'selected' : '' }}>Final</option>
+                            </select>
                         </div>
                         <div class="col-xl-4">
                             <label class="form-label">Doc Type</label>
@@ -83,14 +103,14 @@
                         </div>
                         <div class="col-xl-4">
                             <label class="form-label">category</label>
-                            <select class="form-inputs select2" name="category_type" id="mandatory" required>
+                            <select class="form-inputs select2" name="category_type" id="category_type" required>
                                 <option value="">Select</option>
                                 <option value="1"
-                                    {{ isset($StageDocuments) && $StageDocuments->category_type === 1 ? 'selected' : '' }}>
+                                    {{ isset($StageDocuments) && (string) $StageDocuments->category_type === '1' ? 'selected' : '' }}>
                                     Quotation
                                 </option>
                                 <option value="2"
-                                    {{ isset($StageDocuments) && $StageDocuments->category_type === 2 ? 'selected' : '' }}>
+                                    {{ isset($StageDocuments) && (string) $StageDocuments->category_type === '2' ? 'selected' : '' }}>
                                     Fac Offer
                                 </option>
                             </select>
@@ -133,13 +153,7 @@
                     category_type: {
                         required: true
                     },
-                    class: {
-                        required: true
-                    },
-                    class_group: {
-                        required: true
-                    },
-                     type_of_bus: {
+                    type_of_bus: {
                         required: true
                     }
                 },
@@ -155,13 +169,10 @@
                     mandatory: {
                         required: "amount field is required",
                     },
-                   category_type: {
+                    category_type: {
                         required: "category is required"
                     },
-                    class_group: {
-                        required: "class group is required"
-                    },
-                     type_of_bus: {
+                    type_of_bus: {
                         required: "type of bus is required"
                     }
                 },

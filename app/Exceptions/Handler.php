@@ -2,10 +2,14 @@
 
 namespace App\Exceptions;
 
+use Aws\Exception\AwsException;
+use Aws\S3\Exception\S3Exception;
 use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
 use Illuminate\Http\Response;
 use App\Mail\ErrorNotification;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Log;
+use League\Flysystem\FilesystemException;
 use Exception;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Session\TokenMismatchException;
@@ -92,6 +96,10 @@ class Handler extends ExceptionHandler
 
             if ($e instanceof \Spatie\Permission\Exceptions\PermissionDoesNotExist) {
                 return redirect()->back()->withErrors(['error' => 'Permission does not exist.']);
+            }
+
+            if ($this->isS3AccessDeniedException($e)) {
+                return $this->handleS3AccessDenied($request, $e);
             }
 
             if ($request->expectsJson()) {
@@ -185,5 +193,63 @@ class Handler extends ExceptionHandler
         }
 
         return false;
+    }
+
+    /**
+     * Check if exception is an S3 AccessDenied error (direct or wrapped).
+     */
+    private function isS3AccessDeniedException(Exception $e): bool
+    {
+        $current = $e;
+
+        while ($current instanceof \Throwable) {
+            if ($current instanceof S3Exception || $current instanceof AwsException) {
+                $errorCode = method_exists($current, 'getAwsErrorCode') ? $current->getAwsErrorCode() : null;
+                $statusCode = method_exists($current, 'getStatusCode') ? $current->getStatusCode() : null;
+
+                if ($errorCode === 'AccessDenied' || (int) $statusCode === 403) {
+                    return true;
+                }
+            }
+
+            if ($current instanceof FilesystemException) {
+                $message = $current->getMessage();
+                if (stripos($message, 'AccessDenied') !== false || stripos($message, 'Access Denied') !== false) {
+                    return true;
+                }
+            }
+
+            $message = $current->getMessage();
+            if (stripos($message, '<Code>AccessDenied</Code>') !== false || stripos($message, 'Access Denied') !== false) {
+                return true;
+            }
+
+            $current = $current->getPrevious();
+        }
+
+        return false;
+    }
+
+    /**
+     * Return a consistent response for S3 access denied errors.
+     */
+    private function handleS3AccessDenied($request, Exception $e)
+    {
+        Log::warning('S3 AccessDenied', [
+            'message' => $e->getMessage(),
+            'url' => $request->fullUrl(),
+            'method' => $request->method(),
+        ]);
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'message' => 'S3 access denied',
+                'error' => 'AccessDenied',
+            ], 403);
+        }
+
+        return redirect()->back()->withErrors([
+            'error' => 'S3 access denied. Please verify bucket/object permissions.',
+        ]);
     }
 }

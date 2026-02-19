@@ -3,13 +3,58 @@
 namespace App\Services;
 
 use Carbon\Carbon;
+use Illuminate\Contracts\Filesystem\Cloud;
+use Illuminate\Filesystem\FilesystemAdapter;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Http;
 use Exception;
 
 class S3AttachmentHandler
 {
+    /**
+     * Upload a request file to S3 and return upload metadata.
+     */
+    public function uploadUploadedFile(UploadedFile $file, string $s3UploadPath): array
+    {
+        if (!$file->isValid()) {
+            throw new \InvalidArgumentException('Invalid file upload.');
+        }
+
+        $mimeType = $file->getClientMimeType();
+        $filename = uniqid('file_', true) . '.' . $file->getClientOriginalExtension();
+        $normalizedUploadPath = trim($s3UploadPath, '/');
+        $uploadedFilePath = $normalizedUploadPath . '/' . $filename;
+
+        $fileContents = file_get_contents($file->getRealPath());
+        if ($fileContents === false) {
+            throw new Exception('Failed to read uploaded file contents.');
+        }
+
+        $uploaded = Storage::disk('s3')->put(
+            $uploadedFilePath,
+            $fileContents,
+            [
+                'visibility' => 'public',
+                'ContentType' => $mimeType,
+            ]
+        );
+
+        if (!$uploaded) {
+            throw new Exception('Failed to upload file to S3.');
+        }
+
+        if (!Storage::disk('s3')->exists($uploadedFilePath)) {
+            throw new Exception('Failed to upload file to S3.');
+        }
+
+        return [
+            'mimetype' => $mimeType,
+            'filename' => $filename,
+            'path' => $uploadedFilePath,
+        ];
+    }
+
     /**
      * Download attachments from S3 and prepare for email
      */
@@ -47,6 +92,7 @@ class S3AttachmentHandler
 
     public function storeInS3($content, string $filename): array
     {
+        /** @var Cloud $disk */
         $disk = Storage::disk('s3');
 
         if (is_object($content) && method_exists($content, 'output')) {
@@ -157,7 +203,9 @@ class S3AttachmentHandler
     public function downloadWithPresignedUrl(string $s3Path, string $fileName, string $mimeType, int $expiresIn = 3600): ?array
     {
         try {
-            $url = Storage::disk('s3')->temporaryUrl($s3Path, now()->addSeconds($expiresIn));
+            /** @var FilesystemAdapter $disk */
+            $disk = Storage::disk('s3');
+            $url = $disk->temporaryUrl($s3Path, now()->addSeconds($expiresIn));
 
             return $this->downloadFromUrl($url, $fileName, $mimeType);
         } catch (Exception $e) {

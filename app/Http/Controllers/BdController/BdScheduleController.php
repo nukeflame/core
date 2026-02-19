@@ -16,16 +16,16 @@ use App\Models\ReinsClass;
 use App\Models\ScheduleHeader;
 use App\Models\SlipTemplate;
 use App\Models\Bd\StageDocument;
+use App\Services\S3AttachmentHandler;
 use App\Models\TypeOfSumInsured;
-use Auth;
+use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Route;
-use Session;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 use Yajra\Datatables\Datatables;
-use Illuminate\Validation\ValidationException;
-use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
@@ -356,7 +356,7 @@ class BdScheduleController extends Controller
             DB::commit();
 
             return redirect()->route('bd.schedule-headers.index');
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             DB::rollBack();
             return redirect()->back()->with('error', 'Failed to save schedule header');
         }
@@ -431,7 +431,7 @@ class BdScheduleController extends Controller
             DB::table('schedule_headers')->where('id', $id)->delete();
             DB::commit();
             return response()->json(['success' => true, 'message' => 'Schedule header deleted successfully']);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             DB::rollback();
             return response()->json(['error' => true, 'message' => 'Failed to delete schedule header']);
         }
@@ -748,7 +748,7 @@ class BdScheduleController extends Controller
         if ($classCode !== '') {
             $className = Classes::where('class_code', $classCode)->value('class_name');
         }
-        $actor = Auth::user()->user_name ?? Auth::user()->name ?? Auth::user()->email ?? 'system';
+        $actor = auth()->user()->user_name ?? auth()->user()->name ?? auth()->user()->email ?? 'system';
 
         $payload = [
             'schedule_title' => $request->input('schedule_title'),
@@ -905,178 +905,16 @@ class BdScheduleController extends Controller
         }
     }
 
-    // public function save_schedule_template(Request $request)
-    // {
-
-    //     $request->validate([
-    //         'classcode' => 'required',
-    //         'class_group' => 'required',
-    //     ]);
-    //     $types_of_bus = BusinessType::get(['bus_type_id', 'bus_type_name']);
-    //     $classGroup = ClassGroup::where('group_code', $request->class_group)->first();
-    //     $classcode = Classes::where('class_code', $request->classcode)->first();
-
-    //     $clauses = BdScheduleData::where('clause_id', $request->clause)->first();
-    //     if ($clauses && $clauses->type_of_bus) {
-    //         $clauses->type_of_bus = json_decode($clauses->type_of_bus, true);
-    //     }
-
-    //     return view('printouts.setup.bd_schedule_template_form', [
-    //         'trans_type' => 'NEW',
-    //         'types_of_bus' => $types_of_bus,
-    //         'classGroup' => $classGroup,
-    //         'classcode' => $classcode,
-    //         'clauses' => $clauses,
-    //     ]);
-    // }
-
-    // public function bd_schedule_template(Request $request)
-    // {
-    //     $wording = BdScheduleData::where('type_of_bus', $request->type_of_bus)->first();
-    //     $classes = ReinsClass::where('status', 'A')->get();
-    //     $trans_type = $request->type_of_bus ?? 'NEW';
-    //     $classGroups = ClassGroup::get(['group_code', 'group_name']);
-    //     $class = Classes::where('status', 'A')->get(['class_code', 'class_name', 'status']);
-    //     #
-    //     return view('printouts.setup.bd_schedule_template_data', [
-    //         'type_of_bus' => $request->treaty_type,
-    //         'wording' => $wording,
-    //         'classes' => $classes,
-    //         'trans_type' => $trans_type,
-    //         'classGroups' => $classGroups,
-    //         'class' => $class
-    //     ]);
-    // }
-    // public function edit_bd_schedule(Request $request)
-    // {
-    //     $request->validate([
-    //         'clause_title' => 'required',
-    //         'type_of_bus' => 'required',
-    //         'details' => 'required',
-    //     ]);
-
-    //     DB::beginTransaction();
-    //     try {
-    //         $clause = BdScheduleData::where('clause_id', $request->clause_id)->first();
-    //         $classes = Classes::where('class_code', $request->classcode)->first();
-    //         $classGroup = ClassGroup::where('group_code', $request->class_group_code)->first();
-
-    //         if ($clause) {
-    //             BdScheduleData::where('clause_id', $request->clause_id)
-    //                 ->update([
-    //                     'clause_title' => $request->clause_title,
-    //                     'class_code' => $classes->class_code,
-    //                     'clause_wording' => $request->details,
-    //                     'type_of_bus' => $request->type_of_bus,
-    //                     'updated_by' => Auth::user()->user_name,
-    //                     'class_group_code' => $classGroup->group_code,
-    //                 ]);
-    //         }
-    //         DB::commit();
-    //         Session::Flash('success', 'template has been saved successfully');
-    //         return redirect()->route('bd-schedule-slip-template');
-    //     } catch (\Exception $e) {
-    //         DB::rollback();
-    //         Session::Flash('error', 'Failed to save template');
-    //         return redirect()->back()->with('error', 'Failed to edit template');
-    //     }
-    // }
-    // public function save_bd_schedule_template(Request $request)
-    // {
-    //     // dd($request->all());
-    //     $request->validate([
-    //         'clause_title' => 'required',
-    //         'type_of_bus' => 'required',
-    //         'details' => 'required',
-    //     ]);
-
-    //     DB::beginTransaction();
-    //     #
-    //     try {
-    //         $clause = BdScheduleData::where('clause_title', $request->clause_title)
-    //             ->whereJsonContains('type_of_bus', json_encode($request->type_of_bus))
-    //             ->where('clause_wording', $request->details)->exists();
-    //         $classes = Classes::where('class_code', $request->classcode)->first();
-    //         $classGroup = ClassGroup::where('group_code', $request->class_group_code)->first();
-
-    //         if ($clause) {
-    //             BdScheduleData::where('clause_title', $request->clause_title)
-    //                 ->where('class_code', $request->type_of_bus)->where('details', $request->details)
-    //                 ->update([
-    //                     'clause_title' => strtolower($request->clause_title),
-    //                     'class_code' => $classes->class_code,
-    //                     'clause_wording' => $request->details,
-    //                     'type_of_bus' => json_encode($request->type_of_bus),
-    //                     'updated_by' => Auth::user()->user_name,
-    //                 ]);
-    //         } else {
-    //             $id = (int) BdScheduleData::max('clause_id') ?? 0;
-    //             $clause_id = $id + 1;
-    //             $data = BdScheduleData::create([
-    //                 'clause_id' => $clause_id,
-    //                 'clause_title' => strtolower($request->clause_title),
-    //                 'class_code' => $classes->class_code,
-    //                 'clause_wording' => $request->details,
-    //                 'type_of_bus' => json_encode($request->type_of_bus),
-    //                 'class_group_code' => $classGroup->group_code,
-    //                 'status' => 'A',
-    //                 'created_by' => Auth::user()->user_name,
-    //                 // 'updated_by' => Auth::user()->user_name,
-    //             ]);
-    //         }
-
-    //         DB::commit();
-    //         Session::Flash('success', 'Bd schedule template has been saved successfully');
-    //         return redirect()->route('bd-schedule-slip-template');
-    //     } catch (\Exception $e) {
-    //         DB::rollback();
-    //         Session::flash('error', 'Failed to save template');
-    //         return redirect()->back()->with('error', 'Failed to save template');
-    //     }
-    // }
-
-    // public function delete_schedule_template(Request $request)
-    // {
-
-    //     try {
-    //         $request->validate([
-    //             'id' => 'required',
-    //             'class_code' => 'required|max:20',
-    //             'class_group_code' => 'required|string|max:20',
-    //         ]);
-
-    //         $clause = BdScheduleData::where('clause_id', $request->id)->first();
-    //         if ($clause) {
-    //             $clause->delete();
-    //         }
-
-    //         return response()->json([
-    //             'status' => Response::HTTP_CREATED,
-    //             'message' => 'Schedule  template item removed successfully'
-    //         ]);
-    //     } catch (ValidationException $e) {
-    //         return response()->json([
-    //             'status' => Response::HTTP_UNPROCESSABLE_ENTITY,
-    //             'errors' => $e->errors()
-    //         ], 422);
-    //     } catch (Exception $e) {
-    //         return response()->json([
-    //             'status' => $e->getCode(),
-    //             'message' => 'Failed to remove schedule template item'
-    //         ]);
-    //     }
-    // }
-
-    //lead status
     public function bd_lead_status_info(Request $request)
     {
         return view('business_development.LeadStatus.Bd_lead_status_info');
     }
+
     public function bd_lead_status_add_form(Request $request)
     {
         $id = $request->id;
         if (isset($id)) {
-            $LeadStatus = Leadstatus::where('lead_id', $id)->first();
+            $LeadStatus = LeadStatus::where('lead_id', $id)->first();
 
             return view(
                 'business_development.LeadStatus.lead_status_add_form',
@@ -1090,10 +928,9 @@ class BdScheduleController extends Controller
             );
         }
     }
+
     public function bd_lead_status_add(Request $request)
     {
-
-
         $id = $request->id;
         try {
             DB::beginTransaction();
@@ -1129,19 +966,17 @@ class BdScheduleController extends Controller
 
 
             DB::commit();
-            if (isset($id)) {
-                Session::flash('success', 'Lead status  information updated successfully');
-            } else {
-                Session::flash('success', 'Lead status information saved successfully');
-            }
+
+
 
             return redirect()->route('lead.status.info');
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             DB::rollBack();
-            Session::flash('error', 'An error occurred while saving the lead status');
+
             return redirect()->back()->with('error', 'Failed to save lead status');
         }
     }
+
     public function bd_lead_status_data()
     {
         $LeadStatus = DB::table('lead_status')->get();
@@ -1161,6 +996,7 @@ class BdScheduleController extends Controller
             ->rawColumns(['edit', 'delete'])
             ->make(true);
     }
+
     public function delete_lead_status(Request $request)
     {
         $id = $request->id;
@@ -1169,20 +1005,23 @@ class BdScheduleController extends Controller
             $LeadStatus = LeadStatus::where('lead_id', $id)->first();
             $LeadStatus->delete();
             DB::commit();
-            Session::flash('success', 'lead status deleted successfully');
+
             return redirect()->route('bd.lead.status.info');
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             DB::rollback();
-            Session::flash('error', 'Failed to delete lead status');
+
             return redirect()->back()->with('error', 'Failed to delete lead status');
         }
     }
 
-    // stage_doc
     public function bd_stage_doc_info(Request $request)
     {
-        return view('business_development.DocTypes.stage_doc_info');
+        $documents = DocType::orderBy('doc_type')->get(['id', 'doc_type']);
+        $typesOfBus = BusinessType::orderBy('bus_type_name')->get(['bus_type_id', 'bus_type_name']);
+
+        return view('business_development.doc_types.stage_doc_info', compact('documents', 'typesOfBus'));
     }
+
     public function stage_doc_form(Request $request)
     {
         $id = $request->id;
@@ -1196,7 +1035,7 @@ class BdScheduleController extends Controller
 
 
             return view(
-                'business_development.DocTypes.stage_doc_add_form',
+                'business_development.doc_types.stage_doc_add_form',
                 compact(
                     'StageDocuments',
                     'Documents',
@@ -1205,11 +1044,12 @@ class BdScheduleController extends Controller
             );
         } else {
             return view(
-                'business_development.DocTypes.stage_doc_add_form',
+                'business_development.doc_types.stage_doc_add_form',
                 compact('Documents', 'types_of_bus')
             );
         }
     }
+
     public function bd_stage_doc_add(Request $request)
     {
 
@@ -1217,22 +1057,35 @@ class BdScheduleController extends Controller
         try {
             DB::beginTransaction();
 
+            $stageId = $this->resolveStageDocumentStageId($request->input('stage'));
+            $request->merge([
+                'stage' => $stageId ?? $request->input('stage'),
+            ]);
+
             $validator = Validator::make($request->all(), [
-                'stage' => 'required',
+                'stage' => ['required', 'integer', Rule::in([1, 2, 3, 4])],
                 'doc_type' => 'required',
-                'mandatory' => 'required',
+                'mandatory' => 'required|in:Y,N',
                 'category_type' => 'required',
-                'type_of_bus' => 'required',
+                'type_of_bus' => 'required|array|min:1',
+                'type_of_bus.*' => 'required',
             ]);
 
             if ($validator->fails()) {
+                if ($request->ajax() || $request->wantsJson()) {
+                    return response()->json([
+                        'message' => 'Validation failed.',
+                        'errors' => $validator->errors(),
+                    ], 422);
+                }
+
                 return back()
                     ->withErrors($validator)
                     ->withInput();
             }
             if (isset($id)) {
                 StageDocument::where('id', $id)->update([
-                    'stage' => $request->stage,
+                    'stage' => $stageId,
                     'doc_type' => $request->doc_type,
                     'mandatory' => $request->mandatory,
                     'category_type' => $request->category_type,
@@ -1242,7 +1095,7 @@ class BdScheduleController extends Controller
             } else {
 
                 StageDocument::create([
-                    'stage' => $request->stage,
+                    'stage' => $stageId,
                     'doc_type' => $request->doc_type,
                     'mandatory' => $request->mandatory,
                     'category_type' => $request->category_type,
@@ -1254,36 +1107,68 @@ class BdScheduleController extends Controller
 
 
             DB::commit();
-            if (isset($id)) {
-                Session::flash('success', 'Lead status  information updated successfully');
-            } else {
-                Session::flash('success', 'Lead status information saved successfully');
+
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'status' => 'success',
+                    'message' => isset($id) ? 'Stage document updated successfully.' : 'Stage document saved successfully.',
+                ]);
             }
 
             return redirect()->route('stage.doc.info');
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             DB::rollBack();
-            \Log::error('Error saving stage document: ' . $e->getMessage());
+            \Log::error('Failed to save stage document', [
+                'error' => $e->getMessage(),
+                'id' => $id,
+                'payload' => $request->except(['_token']),
+            ]);
 
-            Session::flash('error', 'An error occurred while saving the stage document');
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Failed to save stage document. ' . $e->getMessage(),
+                ], 500);
+            }
+
             return redirect()->back()->with('error', 'Failed to save stage document');
         }
     }
+
     public function bd_stage_doc_data()
     {
-        $StageDocuments = DB::table('stage_documents')->get();
+        $StageDocuments = DB::table('stage_documents')->orderByDesc('id');
         return dataTables::of($StageDocuments)
-
+            ->addIndexColumn()
+            ->editColumn('stage', function ($fn) {
+                $normalizedStage = $this->normalizeStageDocumentStage($fn->stage);
+                return $normalizedStage ? ucfirst($normalizedStage) : 'N/A';
+            })
             ->editColumn('mandatory_1', function ($fn) {
-                return $fn->mandatory == 'Y' ? 'Yes' : ($fn->mandatory == 'N' ? 'No' : 'N/A');
+                if ($fn->mandatory == 'Y') {
+                    return '<span class="badge bg-success-transparent text-success">Yes</span>';
+                }
+
+                if ($fn->mandatory == 'N') {
+                    return '<span class="badge bg-danger-transparent text-danger">No</span>';
+                }
+
+                return '<span class="badge bg-secondary-transparent text-secondary">N/A</span>';
             })
             ->editColumn('doc_type', function ($fn) {
                 $doc_type = DB::table('doc_types')->where('id', $fn->doc_type)->value('doc_type');
                 return $doc_type ?? 'N/A';
             })
             ->editColumn('category', function ($fn) {
+                if ($fn->category_type == '1') {
+                    return '<span class="badge bg-primary-transparent text-primary">Quotation</span>';
+                }
 
-                return $fn->category_type == '1' ? 'Quotation' : ($fn->category_type == '2' ? 'Fac Offer' : 'N/A');
+                if ($fn->category_type == '2') {
+                    return '<span class="badge bg-info-transparent text-info">Facultative Offer</span>';
+                }
+
+                return '<span class="badge bg-secondary-transparent text-secondary">N/A</span>';
             })
             ->editColumn('busines_type', function ($fn) {
                 $busTypes = json_decode($fn->type_of_bus, true);
@@ -1294,45 +1179,132 @@ class BdScheduleController extends Controller
                         ->pluck('bus_type_name')
                         ->toArray();
 
-                    return implode(', ', $names); // Join names with comma
+                    $palette = [
+                        ['bg' => 'bg-primary-transparent', 'text' => 'text-primary'],
+                        ['bg' => 'bg-success-transparent', 'text' => 'text-success'],
+                        ['bg' => 'bg-info-transparent', 'text' => 'text-info'],
+                        ['bg' => 'bg-warning-transparent', 'text' => 'text-warning'],
+                        ['bg' => 'bg-danger-transparent', 'text' => 'text-danger'],
+                        ['bg' => 'bg-secondary-transparent', 'text' => 'text-secondary'],
+                    ];
+
+                    $badges = array_map(function ($name) use ($palette) {
+                        $color = $palette[crc32((string) $name) % count($palette)];
+                        return '<span class="badge ' . $color['bg'] . ' ' . $color['text'] . ' me-1 mb-1">' . e($name) . '</span>';
+                    }, $names);
+
+                    return implode(' ', $badges);
                 }
 
-                return 'N/A';
+                return '<span class="badge bg-secondary-transparent text-secondary">N/A</span>';
             })
+            ->addColumn('action', function ($fn) {
+                $stageValue = match ((int) $fn->stage) {
+                    1 => 'lead',
+                    2 => 'proposal',
+                    3 => 'negotiation',
+                    4 => 'final',
+                    default => '',
+                };
 
-            ->addColumn('edit', function ($fn) {
+                $typeOfBus = json_decode($fn->type_of_bus, true);
+                $typeOfBus = is_array($typeOfBus) ? $typeOfBus : [];
 
-                return '<a href="#" class="text-white update_stage_doc_type btn btn-sm btn-success rounded-pill" title="Update stage docs" data-id="' . $fn->id . '"> <i class="bx bx-refresh"></i>Edit</a>';
+                $editBtn = '<button type="button" class="btn btn-outline-dark btn-sm action-btn update_stage_doc_type" title="Update stage document" data-id="' . $fn->id . '" data-stage="' . e($stageValue) . '" data-doc-type="' . e($fn->doc_type) . '" data-mandatory="' . e($fn->mandatory) . '" data-category-type="' . e($fn->category_type) . '" data-type-of-bus="' . e(json_encode($typeOfBus)) . '">Edit</button>';
+                $deleteBtn = '<button type="button" class="btn btn-outline-danger btn-sm action-btn remove_stage_doc_type" title="Delete stage document" data-id="' . $fn->id . '">Remove</button>';
+                return '<div class="action-buttons">' . $editBtn . ' ' . $deleteBtn . '</div>';
             })
-            ->addColumn('delete', function ($fn) {
-
-                return '<a href="#" class="text-white delete btn btn-sm btn-danger rounded-pill" title="Delete stage doc" data-id="' . $fn->id . '"> <i class="bx bx-trash"></i>Delete</a>';
-            })
-            ->rawColumns(['edit', 'delete'])
+            ->rawColumns(['mandatory_1', 'category', 'busines_type', 'action'])
             ->make(true);
     }
+
     public function delete_stage_doc(Request $request)
     {
         $id = $request->id;
         try {
             DB::beginTransaction();
-            $StageDocument = StageDocument::where('id', $id)->first();
-            $StageDocument->delete();
+            $deleted = DB::table('stage_documents')->where('id', $id)->delete();
             DB::commit();
-            Session::flash('success', 'Stage document deleted successfully');
-            return redirect()->route('stage.doc.type.info');
-        } catch (\Exception $e) {
+
+            if (!$deleted) {
+                if ($request->ajax() || $request->wantsJson()) {
+                    return response()->json([
+                        'status' => 'error',
+                        'message' => 'Stage document not found.',
+                    ], 404);
+                }
+
+                return redirect()->back()->with('error', 'Stage document not found');
+            }
+
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'status' => 'success',
+                    'message' => 'Stage document removed successfully.',
+                ]);
+            }
+
+            return redirect()->route('stage.doc.info');
+        } catch (Exception $e) {
             DB::rollback();
-            Session::flash('error', 'Failed to delete stage document');
+
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Failed to delete stage document.',
+                ], 500);
+            }
+
             return redirect()->back()->with('error', 'Failed to delete stage document');
         }
     }
 
-    // bd documents types
+    private function normalizeStageDocumentStage($stage): ?string
+    {
+        $value = strtolower(trim((string) $stage));
+
+        return match ($value) {
+            '1', 'lead' => 'lead',
+            '2', 'proposal' => 'proposal',
+            '3', 'negotiation' => 'negotiation',
+            '4', 'final', 'final_stage' => 'final',
+            default => null,
+        };
+    }
+
+    private function resolveStageDocumentStageId($stage): ?int
+    {
+        $value = strtolower(trim((string) $stage));
+
+        return match ($value) {
+            '1', 'lead' => 1,
+            '2', 'proposal' => 2,
+            '3', 'negotiation' => 3,
+            '4', 'final', 'final_stage' => 4,
+            default => null,
+        };
+    }
+
     public function bd_doc_type_info(Request $request)
     {
-        return view('business_development.DocTypes.doc_type_info');
+        return view('business_development.doc_types.doc_type_info', [
+            'docTypeStats' => $this->getDocTypeStats(),
+        ]);
     }
+
+    private function getDocTypeStats(): array
+    {
+        return [
+            'total' => DB::table('doc_types')->count(),
+            'required' => DB::table('doc_types')->where('is_required', 'Y')->count(),
+            'default' => DB::table('doc_types')->where('is_default', 'Y')->count(),
+            'uploaded' => DB::table('doc_types')
+                ->whereNotNull('file_name')
+                ->where('file_name', '!=', '')
+                ->count(),
+        ];
+    }
+
     public function doc_type_form(Request $request)
     {
         $id = $request->id;
@@ -1342,120 +1314,197 @@ class BdScheduleController extends Controller
 
 
             return view(
-                'business_development.DocTypes.doc_type_add_form',
+                'business_development.doc_types.doc_type_add_form',
                 compact(
                     'Documents',
                 )
             );
         } else {
             return view(
-                'business_development.DocTypes.doc_type_add_form'
+                'business_development.doc_types.doc_type_add_form'
             );
         }
     }
+
     public function bd_doc_type_add(Request $request)
     {
-
-
         $id = $request->id;
         try {
             DB::beginTransaction();
 
             $validator = Validator::make($request->all(), [
+                'code' => 'required|string|max:50',
                 'doc_type' => 'required',
                 'description' => 'required',
-                'bus_type' => 'required',
+                'country' => 'required|string|max:100',
+                'is_required' => 'required|in:Y,N',
+                'is_default' => 'required|in:Y,N',
+                'cedant_file' => 'nullable|file|max:10240|mimes:pdf,doc,docx,xls,xlsx,jpg,jpeg,png',
             ]);
 
             if ($validator->fails()) {
+                if ($request->ajax() || $request->wantsJson()) {
+                    return response()->json([
+                        'message' => 'Validation failed.',
+                        'errors' => $validator->errors(),
+                    ], 422);
+                }
+
                 return back()
                     ->withErrors($validator)
                     ->withInput();
             }
+
+            $file = $request->file('cedant_file');
+            $mimetype = null;
+            $Filename = null;
+            $s3UploadPath = 'uploads/cedant_docs';
+            $s3AttachmentHandler = app(S3AttachmentHandler::class);
+
+            if (!is_null($file)) {
+                try {
+                    $uploadResult = $s3AttachmentHandler->uploadUploadedFile($file, $s3UploadPath);
+                    $mimetype = $uploadResult['mimetype'];
+                    $Filename = $uploadResult['filename'];
+                } catch (\InvalidArgumentException $e) {
+                    if ($request->ajax() || $request->wantsJson()) {
+                        return response()->json(['message' => 'Invalid file upload.'], 422);
+                    }
+                    return redirect()->back()->with('error', 'Invalid file upload');
+                }
+            }
+
             if (isset($id)) {
-                DocType::where('id', $id)->update([
+                $existingDocType = DocType::where('id', $id)->first();
+                if (!$existingDocType) {
+                    throw new Exception('Document type not found.');
+                }
+
+                $payload = [
+                    'code' => strtoupper(trim((string) $request->code)),
                     'doc_type' => $request->doc_type,
                     'description' => $request->description,
-                    'checkbox_doc' => $request->checkbox_doc,
+                    'country' => trim((string) $request->country),
+                    'is_required' => $request->is_required ?? 'Y',
+                    'is_default' => $request->is_default ?? 'Y',
+                    'checkbox_doc' => $request->checkbox_doc ?? null,
                     'attachment_file' => $request->attachment_file ?? '',
                     'bus_type' => $request->bus_type ?? '',
                     'updated_at' => now(),
-                ]);
-            } else {
-
-
-                $file = $request->cedant_file;
-                $mimetype = null;
-                $Filename = null;
+                ];
 
                 if (!is_null($file)) {
-
-                    if ($file->isValid()) {
-                        $uploadsPath = 'uploads/cedant_docs';
-                        if (!file_exists($uploadsPath)) {
-                            mkdir($uploadsPath, 0777, true);
+                    if (!empty($existingDocType->file_name)) {
+                        $oldFilePath = str_starts_with($existingDocType->file_name, 'uploads/')
+                            ? $existingDocType->file_name
+                            : $s3UploadPath . '/' . $existingDocType->file_name;
+                        if (Storage::disk('s3')->exists($oldFilePath)) {
+                            Storage::disk('s3')->delete($oldFilePath);
                         }
-                    } else {
-                        return redirect()->back()->with('error', 'Invalid file upload');
                     }
 
-                    $mimetype = $file->getClientMimeType();
-                    $fileContent = file_get_contents($file);
-                    $encodedFileContent = base64_encode($fileContent);
-
-                    $originalNameWithoutExtension = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
-
-                    $Filename = mt_rand() . '_' . $originalNameWithoutExtension . '.' . $file->getClientOriginalExtension();
-                    $generatedFilePath = $uploadsPath . '/' . $Filename;
-
-                    // $file->move($uploadsPath, $Filename);
-                    $file->move($uploadsPath, $Filename);
+                    $payload['mimetype'] = $mimetype;
+                    $payload['file_name'] = $Filename;
                 }
+
+                $existingDocType->update($payload);
+            } else {
                 DocType::create([
+                    'code' => strtoupper(trim((string) $request->code)),
                     'doc_type' => $request->doc_type,
                     'description' => $request->description,
+                    'country' => trim((string) $request->country),
+                    'is_required' => $request->is_required ?? 'Y',
+                    'is_default' => $request->is_default ?? 'Y',
                     'attachment_file' => $request->attachment_file ?? '',
                     'bus_type' => $request->bus_type ?? '',
-                    'checkbox_doc' => $request->checkbox_doc,
+                    'checkbox_doc' => $request->checkbox_doc ?? null,
                     'mimetype' => $mimetype,
                     'file_name' => $Filename,
                     'created_at' => now(),
                 ]);
             }
 
-
-
             DB::commit();
-            if (isset($id)) {
-                Session::flash('success', 'bd  doc updated successfully');
-            } else {
-                Session::flash('success', 'bd doc saved successfully');
+
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'status' => 'success',
+                    'message' => isset($id) ? 'Document type updated successfully.' : 'Document type saved successfully.',
+                ]);
             }
 
             return redirect()->route('doc.type.info');
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             DB::rollBack();
-            \Log::error('Error saving  document: ' . $e->getMessage());
 
-            Session::flash('error', 'An error occurred while saving the  document');
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'message' => 'Failed to save document.',
+                ], 500);
+            }
+
             return redirect()->back()->with('error', 'Failed to save document');
         }
     }
+
     public function bd_doc_type_data()
     {
         $doc_types = DB::table('doc_types')->get();
+
         return dataTables::of($doc_types)
-            ->addColumn('edit', function ($fn) {
-
-                return '<a href="#" class="text-white update_doc_type btn btn-sm btn-success rounded-pill" title="Update stage docs" data-id="' . $fn->id . '"> <i class="bx bx-refresh"></i>Edit</a>';
+            ->addIndexColumn()
+            ->addColumn('code', function ($fn) {
+                $code = $fn->code ?: 'N/A';
+                return '<strong>' . e($code) . '</strong>';
             })
-            ->addColumn('delete', function ($fn) {
-
-                return '<a href="#" class="text-white delete btn btn-sm btn-danger rounded-pill" title="Delete  doc type" data-id="' . $fn->id . '"> <i class="bx bx-trash"></i>Delete</a>';
+            ->addColumn('country', function ($fn) {
+                return $fn->country ?: 'All';
             })
-            ->rawColumns(['edit', 'delete'])
+            ->addColumn('required_label', function ($fn) {
+                $isRequired = ($fn->is_required ?? 'Y') === 'Y';
+                if ($isRequired) {
+                    return '<span class="badge bg-success-transparent text-success">Yes</span>';
+                }
+                return '<span class="badge bg-danger-transparent text-danger">No</span>';
+            })
+            ->addColumn('default_label', function ($fn) {
+                $isDefault = ($fn->is_default ?? 'Y') === 'Y';
+                if ($isDefault) {
+                    return '<span class="badge bg-primary-transparent text-primary">Yes</span>';
+                }
+                return '<span class="badge bg-secondary-transparent text-secondary">No</span>';
+            })
+            ->addColumn('file_status', function ($fn) {
+                if (!empty($fn->file_name)) {
+                    $filePath = str_starts_with($fn->file_name, 'uploads/')
+                        ? $fn->file_name
+                        : 'uploads/cedant_docs/' . $fn->file_name;
+                    $fileUrl = Storage::disk('s3')->url($filePath);
+
+                    return '<span class="badge bg-success-transparent text-success">Uploaded</span> ' .
+                        '<a href="' . e($fileUrl) . '" target="_blank" rel="noopener" title="View file" class="ms-1 text-primary">' .
+                        '<i class="bx bx-show fs-5 align-middle"></i></a>';
+                }
+                return '<span class="badge bg-warning-transparent text-warning">Not Uploaded</span>';
+            })
+            ->addColumn('action', function ($fn) {
+                $hasFile = !empty($fn->file_name);
+                $buttonText = $hasFile ? 'View / Replace' : 'Upload';
+                $filePath = $hasFile
+                    ? (str_starts_with($fn->file_name, 'uploads/') ? $fn->file_name : 'uploads/cedant_docs/' . $fn->file_name)
+                    : '';
+                $fileUrl = $hasFile ? Storage::disk('s3')->url($filePath) : '';
+
+                $editBtn = '<button type="button" class="btn btn-outline-dark btn-sm action-btn update_doc_type" title="Update document type" data-id="' . $fn->id . '" data-code="' . e($fn->code ?? '') . '" data-doc-type="' . e($fn->doc_type) . '" data-description="' . e($fn->description) . '" data-country="' . e($fn->country ?? 'All') . '" data-is-required="' . e($fn->is_required ?? 'Y') . '" data-is-default="' . e($fn->is_default ?? 'Y') . '" data-file-url="' . e($fileUrl) . '" data-file-status="' . e($hasFile ? 'Uploaded' : 'Not Uploaded') . '">' . e($buttonText) . '</button>';
+                $deleteBtn = '<button type="button" class="btn btn-outline-danger btn-sm action-btn remove_doc_type" title="Delete document type" data-id="' . $fn->id . '">Remove</button>';
+                return '<div class="action-buttons">' . $editBtn . ' ' . $deleteBtn . '</div>';
+            })
+            ->rawColumns(['code', 'required_label', 'default_label', 'file_status', 'action'])
+            ->with(['stats' => $this->getDocTypeStats()])
             ->make(true);
     }
+
     public function delete_doc_type(Request $request)
     {
         $id = $request->id;
@@ -1464,21 +1513,34 @@ class BdScheduleController extends Controller
             $doc_type = DocType::where('id', $id)->first();
             $doc_type->delete();
             DB::commit();
-            Session::flash('success', 'document deleted successfully');
+
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'status' => 'success',
+                    'message' => 'Document type removed successfully.',
+                ]);
+            }
+
             return redirect()->route('doc.type.info');
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             DB::rollback();
-            Session::flash('error', 'Failed to delete document');
+
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Failed to delete document.',
+                ], 500);
+            }
+
             return redirect()->back()->with('error', 'Failed to delete document');
         }
     }
 
-
-    // checklist operation
     public function operationchecklist_info(Request $request)
     {
         return view('business_development.TreatyOperationChecklist.treaty_operation_info');
     }
+
     public function operationchecklist_form(Request $request)
     {
         $id = $request->id;
@@ -1524,7 +1586,7 @@ class BdScheduleController extends Controller
 
                 OperationChecklist::create([
                     'name' => $request->name,
-                    'created_by' => Auth::user()->user_name,
+                    'created_by' => auth()->user()->user_name,
                     'created_at' => now(),
                 ]);
             }
@@ -1533,7 +1595,7 @@ class BdScheduleController extends Controller
 
 
             return redirect()->route('operationchecklist.info');
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             DB::rollBack();
             return redirect()->back()->with('error', 'Failed to save');
         }
@@ -1565,7 +1627,7 @@ class BdScheduleController extends Controller
             DB::commit();
 
             return redirect()->route('doc.type.info');
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             DB::rollback();
 
             return redirect()->back()->with('error', 'Failed to delete operation checklist');
