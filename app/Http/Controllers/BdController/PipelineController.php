@@ -74,9 +74,9 @@ use App\Jobs\GenerateBdCoverSlipJob;
 use App\Models\BdFacReinsurer;
 use App\Services\MailService;
 use App\Services\S3AttachmentHandler;
+use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\QueryException;
-use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
 
 class PipelineController
@@ -90,10 +90,30 @@ class PipelineController
         $this->s3Handler = new S3AttachmentHandler();
     }
 
+    private function getS3Url(string $path): string
+    {
+        /** @var FilesystemAdapter $s3Disk */
+        $s3Disk = Storage::disk('s3');
+
+        return $s3Disk->url($path);
+    }
+
+    private function decryptQueryString(string $encrypted): object
+    {
+        if ($encrypted === '') {
+            return (object) [];
+        }
+
+        $decrypted = (string) Crypt::decrypt($encrypted);
+        parse_str($decrypted, $params);
+
+        return (object) $params;
+    }
+
     public function index(Request $request)
     {
-        $string = $request->qstring;
-        $request = decryptRequest($string);
+        $string = (string) $request->input('qstring', '');
+        $request = $this->decryptQueryString($string);
 
         $statuses = LeadStatus::all()->orderBy('lead_id');
         $salutations = Salutation::all();
@@ -309,7 +329,6 @@ class PipelineController
             $prospDocQuery = DB::table('prospect_docs')
                 ->where('prospect_id', $pros->opportunity_id);
 
-            // In proposal stage, Supporting Documents should reflect only uploaded lead-stage documents.
             if ((int) $pros->stage === 2) {
                 $prospDocQuery
                     ->where('prospect_status', 1)
@@ -317,7 +336,29 @@ class PipelineController
                     ->where('file', '!=', '');
             }
 
-            $prosp_doc = $prospDocQuery->get();
+            $prosp_doc = $prospDocQuery->get()->map(function ($doc) {
+                if (!empty($doc->s3_url)) {
+                    return $doc;
+                }
+
+                $candidatePath = trim((string) ($doc->s3_path ?? ''));
+                if ($candidatePath === '') {
+                    $candidatePath = trim((string) ($doc->file ?? ''));
+                }
+
+                if ($candidatePath !== '') {
+                    if (preg_match('/^https?:\/\//i', $candidatePath)) {
+                        $doc->s3_url = $candidatePath;
+                    } else {
+                        try {
+                            $doc->s3_url = $this->getS3Url($candidatePath);
+                        } catch (\Throwable $e) {
+                        }
+                    }
+                }
+
+                return $doc;
+            });
 
             $classcode = DB::table('classes')->where('class_code', $request->class)->first();
 
@@ -389,7 +430,19 @@ class PipelineController
             )->get();
         }
 
-        return $docs;
+        return $docs->map(function ($doc) {
+            $s3Path = trim((string) ($doc->s3_path ?? ''));
+            if ($s3Path === '' || preg_match('/^https?:\/\//i', $s3Path)) {
+                return $doc;
+            }
+
+            try {
+                $doc->s3_path = $this->getS3Url($s3Path);
+            } catch (\Throwable $e) {
+            }
+
+            return $doc;
+        });
     }
 
     private function resolveStageId($stage): ?int
@@ -424,14 +477,15 @@ class PipelineController
                 $query->orWhere('stage_documents.stage', $allStageId)
                     ->orWhereRaw('LOWER(CAST(stage_documents.stage AS TEXT)) = ?', [$allStageKey]);
             })
-            ->where(function ($query) use ($typeOfBus, $type_of_bus) {
+            ->where(function ($query) use ($typeOfBus) {
+                $lowerTypeOfBus = strtolower($typeOfBus);
                 $query->whereJsonContains('stage_documents.type_of_bus', $typeOfBus)
-                    ->orWhere('stage_documents.type_of_bus', (string) $type_of_bus)
-                    ->orWhere('stage_documents.type_of_bus', $typeOfBus)
-                    ->orWhere('stage_documents.type_of_bus', 'like', '%"' . $typeOfBus . '"%')
-                    ->orWhere('stage_documents.type_of_bus', 'like', '%' . $typeOfBus . '%')
-                    ->orWhereRaw('LOWER(CAST(stage_documents.type_of_bus AS TEXT)) LIKE ?', ['%"' . strtolower($typeOfBus) . '"%'])
-                    ->orWhereRaw('LOWER(CAST(stage_documents.type_of_bus AS TEXT)) LIKE ?', ['%' . strtolower($typeOfBus) . '%']);
+                    ->orWhereRaw(
+                        "LOWER(TRIM(BOTH '\"' FROM CAST(stage_documents.type_of_bus AS TEXT))) = ?",
+                        [$lowerTypeOfBus]
+                    )
+                    ->orWhereRaw('LOWER(CAST(stage_documents.type_of_bus AS TEXT)) LIKE ?', ['%"' . $lowerTypeOfBus . '"%'])
+                    ->orWhereRaw('LOWER(CAST(stage_documents.type_of_bus AS TEXT)) LIKE ?', ['%' . $lowerTypeOfBus . '%']);
             });
 
         switch ((int) $prosStage) {
@@ -445,6 +499,7 @@ class PipelineController
                     'doc_types.file_name',
                     'doc_types.description',
                     'doc_types.mimetype',
+                    'doc_types.s3_path',
                     'stage_documents.mandatory',
                     'stage_documents.stage'
                 );
@@ -458,6 +513,7 @@ class PipelineController
                     'doc_types.file_name',
                     'doc_types.description',
                     'doc_types.mimetype',
+                    'doc_types.s3_path',
                     'stage_documents.mandatory'
                 );
         }
@@ -481,8 +537,6 @@ class PipelineController
                     'uploaded_at' => $doc->created_at
                 ];
             });
-
-        // logger()->debug(json_encode($documents, JSON_PRETTY_PRINT));
 
         return response()->json([
             'status' => 200,
@@ -976,8 +1030,8 @@ class PipelineController
 
     public function leads_edit(Request $request)
     {
-        $string = $request->qstring;
-        $request = decryptRequest($string);
+        $string = (string) $request->input('qstring', '');
+        $request = $this->decryptQueryString($string);
 
         $lead = Leads::where('code', $request->lead)->firstOrFail();
 
@@ -5811,7 +5865,7 @@ class PipelineController
 
                                 $uploadedFiles[] = $s3FilePath;
 
-                                $s3Url = Storage::disk('s3')->url($s3FilePath);
+                                $s3Url = $this->getS3Url($s3FilePath);
 
                                 $prospectDocId = DB::table('prospect_docs')->insertGetId([
                                     'description' => $documentType,
@@ -8093,7 +8147,8 @@ class PipelineController
                 ->where('opportunity_id', $validated['prospect_id'])
                 ->update([
                     'stage' => $previousStage['value'],
-                    'category_type' => $previousStage['value'],
+                    // Keep the original category type (quotation/facultative) when reverting stages.
+                    'category_type' => $pipeline->category_type,
                     'status' => $previousStage['key'],
                     'reverted_to_pipeline' => 'YES',
                     'updated_at' => now()

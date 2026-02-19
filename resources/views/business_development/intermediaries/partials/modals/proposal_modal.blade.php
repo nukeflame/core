@@ -1593,6 +1593,34 @@
                 });
             }
 
+            function getCurrentTotalPlacedShares() {
+                const dt = initializeDataTable();
+                let totalPlacedShares = 0;
+
+                dt.rows().every(function() {
+                    const row = $(this.node());
+                    const existingShare = parseFloat(row.attr("data-written-share")) || 0;
+                    totalPlacedShares += existingShare;
+                });
+
+                return totalPlacedShares;
+            }
+
+            function updateProposalCapacityState() {
+                const targetShare = 100;
+                const currentPlacedShares = getCurrentTotalPlacedShares();
+                const remainingCapacity = Math.max(targetShare - currentPlacedShares, 0);
+                const $shareInput = $("#propReinShare");
+
+                $shareInput.attr("max", remainingCapacity.toFixed(2));
+                $shareInput.attr(
+                    "placeholder",
+                    remainingCapacity > 0
+                        ? `0.01 - ${remainingCapacity.toFixed(2)}`
+                        : "No capacity left",
+                );
+            }
+
             $("#addPropReinsurer").click(function(e) {
                 e.preventDefault();
 
@@ -1653,17 +1681,11 @@
                     return false;
                 }
 
-                const dt = initializeDataTable();
-                let currentTotalPlacedShares = 0;
+                const currentTotalPlacedShares = getCurrentTotalPlacedShares();
+                const targetShare = 100;
 
-                dt.rows().every(function(index) {
-                    const row = $(this.node());
-                    const existingShare = parseFloat(row.attr("data-written-share")) || 0;
-                    currentTotalPlacedShares += existingShare;
-                });
-
-                if (currentTotalPlacedShares + writtenSharePercent > 100) {
-                    const remainingCapacity = 100 - currentTotalPlacedShares;
+                if (currentTotalPlacedShares + writtenSharePercent > targetShare) {
+                    const remainingCapacity = Math.max(targetShare - currentTotalPlacedShares, 0);
                     Swal.fire({
                         icon: "warning",
                         title: "Insufficient Capacity",
@@ -1755,6 +1777,7 @@
 
                 $('#propPlacedShare').val(totalShare.toFixed(2));
                 $('#propUnPlacedShare').val(unplacedShare.toFixed(2));
+                updateProposalCapacityState();
             }
 
             function toggleProposalPreviewSlipButton() {
@@ -1827,6 +1850,7 @@
                 updateSharesDisplay();
             });
 
+            updateProposalCapacityState();
             toggleProposalPreviewSlipButton();
         });
     </script>

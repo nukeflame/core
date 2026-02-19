@@ -112,6 +112,14 @@ class BdScheduleController extends Controller
             $scheduleHeaderIds = $headerQuery->pluck('id');
         }
 
+        if ($headerKeyword !== '' && $scheduleHeaderIds->isEmpty()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No matching schedule header found for the selected breakdown.',
+                'headers' => [],
+            ]);
+        }
+
         $hasScheduleHeaderFilter = $scheduleHeaderIds->isNotEmpty();
         if ($hasScheduleHeaderFilter) {
             $schIds = $scheduleHeaderIds->values()->all();
@@ -1016,7 +1024,7 @@ class BdScheduleController extends Controller
 
     public function bd_stage_doc_info(Request $request)
     {
-        $documents = DocType::orderBy('doc_type')->get(['id', 'doc_type']);
+        $documents = DocType::orderBy('doc_type')->get(['id', 'doc_type', 'path', 's3_path']);
         $typesOfBus = BusinessType::orderBy('bus_type_name')->get(['bus_type_id', 'bus_type_name']);
 
         return view('business_development.doc_types.stage_doc_info', compact('documents', 'typesOfBus'));
@@ -1052,15 +1060,34 @@ class BdScheduleController extends Controller
 
     public function bd_stage_doc_add(Request $request)
     {
-
         $id = $request->id;
+
         try {
             DB::beginTransaction();
-
             $stageId = $this->resolveStageDocumentStageId($request->input('stage'));
             $request->merge([
                 'stage' => $stageId ?? $request->input('stage'),
             ]);
+            $docTypeId = (int) $request->input('doc_type');
+            $docType = $docTypeId > 0
+                ? DocType::query()->select('id', 'path', 's3_path')->find($docTypeId)
+                : null;
+
+            $requestPath = trim((string) $request->input('path', ''));
+            $requestS3Path = trim((string) $request->input('s3_path', ''));
+            $legacyS3UploadedFilePath = trim((string) $request->input('s3UploadedFilePath', ''));
+
+            $resolvedPath = $requestPath !== '' ? $requestPath : trim((string) optional($docType)->path);
+            $resolvedS3Path = $requestS3Path !== '' ? $requestS3Path : trim((string) optional($docType)->s3_path);
+
+            if ($legacyS3UploadedFilePath !== '') {
+                if ($resolvedPath === '') {
+                    $resolvedPath = $legacyS3UploadedFilePath;
+                }
+                if ($resolvedS3Path === '') {
+                    $resolvedS3Path = $legacyS3UploadedFilePath;
+                }
+            }
 
             $validator = Validator::make($request->all(), [
                 'stage' => ['required', 'integer', Rule::in([0, 1, 2, 3, 4])],
@@ -1083,28 +1110,36 @@ class BdScheduleController extends Controller
                     ->withErrors($validator)
                     ->withInput();
             }
+
             if (isset($id)) {
-                StageDocument::where('id', $id)->update([
+                $updatePayload = [
                     'stage' => $stageId,
                     'doc_type' => $request->doc_type,
                     'mandatory' => $request->mandatory,
                     'category_type' => $request->category_type,
                     'type_of_bus' => json_encode($request->type_of_bus),
+                    'path' =>  $resolvedPath,
+                    's3_path' => $resolvedS3Path,
                     'updated_at' => now(),
-                ]);
-            } else {
+                ];
 
-                StageDocument::create([
+                StageDocument::where('id', $id)->update($updatePayload);
+            } else {
+                logger()->debug(json_encode($resolvedPath, JSON_PRETTY_PRINT));
+
+                $createPayload = [
                     'stage' => $stageId,
                     'doc_type' => $request->doc_type,
                     'mandatory' => $request->mandatory,
                     'category_type' => $request->category_type,
                     'type_of_bus' => json_encode($request->type_of_bus),
+                    'path' =>  $resolvedPath,
+                    's3_path' => $resolvedS3Path,
                     'created_at' => now(),
-                ]);
+                ];
+
+                StageDocument::create($createPayload);
             }
-
-
 
             DB::commit();
 
@@ -1118,12 +1153,6 @@ class BdScheduleController extends Controller
             return redirect()->route('stage.doc.info');
         } catch (Exception $e) {
             DB::rollBack();
-            \Log::error('Failed to save stage document', [
-                'error' => $e->getMessage(),
-                'id' => $id,
-                'payload' => $request->except(['_token']),
-            ]);
-
             if ($request->ajax() || $request->wantsJson()) {
                 return response()->json([
                     'status' => 'error',
@@ -1228,8 +1257,10 @@ class BdScheduleController extends Controller
 
                 $typeOfBus = json_decode($fn->type_of_bus, true);
                 $typeOfBus = is_array($typeOfBus) ? $typeOfBus : [];
+                $stagePath = trim((string) ($fn->path ?? ''));
+                $stageS3Path = trim((string) ($fn->s3_path ?? ''));
 
-                $editBtn = '<button type="button" class="btn btn-outline-dark btn-sm action-btn update_stage_doc_type" title="Update stage document" data-id="' . $fn->id . '" data-stage="' . e($stageValue) . '" data-doc-type="' . e($fn->doc_type) . '" data-mandatory="' . e($fn->mandatory) . '" data-category-type="' . e($fn->category_type) . '" data-type-of-bus="' . e(json_encode($typeOfBus)) . '">Edit</button>';
+                $editBtn = '<button type="button" class="btn btn-outline-dark btn-sm action-btn update_stage_doc_type" title="Update stage document" data-id="' . $fn->id . '" data-stage="' . e($stageValue) . '" data-doc-type="' . e($fn->doc_type) . '" data-mandatory="' . e($fn->mandatory) . '" data-category-type="' . e($fn->category_type) . '" data-type-of-bus="' . e(json_encode($typeOfBus)) . '" data-path="' . e($stagePath) . '" data-s3-path="' . e($stageS3Path) . '">Edit</button>';
                 $deleteBtn = '<button type="button" class="btn btn-outline-danger btn-sm action-btn remove_stage_doc_type" title="Delete stage document" data-id="' . $fn->id . '">Remove</button>';
                 return '<div class="action-buttons">' . $editBtn . ' ' . $deleteBtn . '</div>';
             })
@@ -1242,6 +1273,23 @@ class BdScheduleController extends Controller
         $id = $request->id;
         try {
             DB::beginTransaction();
+            $record = DB::table('stage_documents')->where('id', $id)->first();
+            if (!$record) {
+                DB::rollBack();
+                if ($request->ajax() || $request->wantsJson()) {
+                    return response()->json([
+                        'status' => 'error',
+                        'message' => 'Stage document not found.',
+                    ], 404);
+                }
+                return redirect()->back()->with('error', 'Stage document not found');
+            }
+
+            $s3Path = trim((string) ($record->s3_path ?? ($record->path ?? '')));
+            if ($s3Path !== '' && !preg_match('/^https?:\/\//i', $s3Path) && Storage::disk('s3')->exists($s3Path)) {
+                Storage::disk('s3')->delete($s3Path);
+            }
+
             $deleted = DB::table('stage_documents')->where('id', $id)->delete();
             DB::commit();
 
@@ -1309,6 +1357,14 @@ class BdScheduleController extends Controller
 
         try {
             DB::beginTransaction();
+            $records = DB::table('stage_documents')->whereIn('id', $ids)->get(['id', 's3_path', 'path']);
+            foreach ($records as $record) {
+                $s3Path = trim((string) ($record->s3_path ?? ($record->path ?? '')));
+                if ($s3Path !== '' && !preg_match('/^https?:\/\//i', $s3Path) && Storage::disk('s3')->exists($s3Path)) {
+                    Storage::disk('s3')->delete($s3Path);
+                }
+            }
+
             $deletedCount = DB::table('stage_documents')->whereIn('id', $ids)->delete();
             DB::commit();
 
@@ -1401,6 +1457,8 @@ class BdScheduleController extends Controller
         $id = $request->id;
         try {
             DB::beginTransaction();
+            $hasPathColumn = Schema::hasColumn('doc_types', 'path');
+            $hasS3PathColumn = Schema::hasColumn('doc_types', 's3_path');
 
             $validator = Validator::make($request->all(), [
                 'code' => 'required|string|max:50',
@@ -1428,6 +1486,7 @@ class BdScheduleController extends Controller
             $file = $request->file('cedant_file');
             $mimetype = null;
             $Filename = null;
+            $s3UploadedFilePath = trim((string) $request->input('s3UploadedFilePath', ''));
             $s3UploadPath = 'uploads/cedant_docs';
             $s3AttachmentHandler = app(S3AttachmentHandler::class);
 
@@ -1436,6 +1495,7 @@ class BdScheduleController extends Controller
                     $uploadResult = $s3AttachmentHandler->uploadUploadedFile($file, $s3UploadPath);
                     $mimetype = $uploadResult['mimetype'];
                     $Filename = $uploadResult['filename'];
+                    $s3UploadedFilePath = trim((string) ($uploadResult['path'] ?? $s3UploadedFilePath));
                 } catch (\InvalidArgumentException $e) {
                     if ($request->ajax() || $request->wantsJson()) {
                         return response()->json(['message' => 'Invalid file upload.'], 422);
@@ -1463,11 +1523,21 @@ class BdScheduleController extends Controller
                     'updated_at' => now(),
                 ];
 
+                if ($hasS3PathColumn && $s3UploadedFilePath !== '') {
+                    $payload['s3_path'] = $s3UploadedFilePath;
+                }
+                if ($hasPathColumn && $s3UploadedFilePath !== '') {
+                    $payload['path'] = $s3UploadedFilePath;
+                }
+
                 if (!is_null($file)) {
-                    if (!empty($existingDocType->file_name)) {
+                    $oldFilePath = trim((string) ($existingDocType->path ?? ($existingDocType->s3_path ?? '')));
+                    if ($oldFilePath === '' && !empty($existingDocType->file_name)) {
                         $oldFilePath = str_starts_with($existingDocType->file_name, 'uploads/')
                             ? $existingDocType->file_name
                             : $s3UploadPath . '/' . $existingDocType->file_name;
+                    }
+                    if (!empty($oldFilePath) && !preg_match('/^https?:\/\//i', $oldFilePath)) {
                         if (Storage::disk('s3')->exists($oldFilePath)) {
                             Storage::disk('s3')->delete($oldFilePath);
                         }
@@ -1479,7 +1549,7 @@ class BdScheduleController extends Controller
 
                 $existingDocType->update($payload);
             } else {
-                DocType::create([
+                $createPayload = [
                     'code' => strtoupper(trim((string) $request->code)),
                     'doc_type' => $request->doc_type,
                     'description' => $request->description,
@@ -1492,7 +1562,16 @@ class BdScheduleController extends Controller
                     'mimetype' => $mimetype,
                     'file_name' => $Filename,
                     'created_at' => now(),
-                ]);
+                ];
+
+                if ($hasS3PathColumn && $s3UploadedFilePath !== '') {
+                    $createPayload['s3_path'] = $s3UploadedFilePath;
+                }
+                if ($hasPathColumn && $s3UploadedFilePath !== '') {
+                    $createPayload['path'] = $s3UploadedFilePath;
+                }
+
+                DocType::create($createPayload);
             }
 
             DB::commit();
@@ -1546,11 +1625,17 @@ class BdScheduleController extends Controller
                 return '<span class="badge bg-secondary-transparent text-secondary">No</span>';
             })
             ->addColumn('file_status', function ($fn) {
-                if (!empty($fn->file_name)) {
+                $filePath = trim((string) ($fn->path ?? ($fn->s3_path ?? '')));
+                if ($filePath === '' && !empty($fn->file_name)) {
                     $filePath = str_starts_with($fn->file_name, 'uploads/')
                         ? $fn->file_name
                         : 'uploads/cedant_docs/' . $fn->file_name;
-                    $fileUrl = Storage::disk('s3')->url($filePath);
+                }
+
+                if (!empty($filePath)) {
+                    $fileUrl = preg_match('/^https?:\/\//i', $filePath)
+                        ? $filePath
+                        : Storage::disk('s3')->url($filePath);
 
                     return '<span class="badge bg-success-transparent text-success">Uploaded</span> ' .
                         '<a href="' . e($fileUrl) . '" target="_blank" rel="noopener" title="View file" class="ms-1 text-primary">' .
@@ -1559,14 +1644,20 @@ class BdScheduleController extends Controller
                 return '<span class="badge bg-warning-transparent text-warning">Not Uploaded</span>';
             })
             ->addColumn('action', function ($fn) {
-                $hasFile = !empty($fn->file_name);
-                $buttonText = $hasFile ? 'View / Replace' : 'Upload';
-                $filePath = $hasFile
-                    ? (str_starts_with($fn->file_name, 'uploads/') ? $fn->file_name : 'uploads/cedant_docs/' . $fn->file_name)
-                    : '';
-                $fileUrl = $hasFile ? Storage::disk('s3')->url($filePath) : '';
+                $filePath = trim((string) ($fn->path ?? ($fn->s3_path ?? '')));
+                if ($filePath === '' && !empty($fn->file_name)) {
+                    $filePath = str_starts_with($fn->file_name, 'uploads/')
+                        ? $fn->file_name
+                        : 'uploads/cedant_docs/' . $fn->file_name;
+                }
 
-                $editBtn = '<button type="button" class="btn btn-outline-dark btn-sm action-btn update_doc_type" title="Update document type" data-id="' . $fn->id . '" data-code="' . e($fn->code ?? '') . '" data-doc-type="' . e($fn->doc_type) . '" data-description="' . e($fn->description) . '" data-country="' . e($fn->country ?? 'All') . '" data-is-required="' . e($fn->is_required ?? 'Y') . '" data-is-default="' . e($fn->is_default ?? 'Y') . '" data-file-url="' . e($fileUrl) . '" data-file-status="' . e($hasFile ? 'Uploaded' : 'Not Uploaded') . '">' . e($buttonText) . '</button>';
+                $hasFile = !empty($filePath);
+                $buttonText = $hasFile ? 'View / Replace' : 'Upload';
+                $fileUrl = $hasFile
+                    ? (preg_match('/^https?:\/\//i', $filePath) ? $filePath : Storage::disk('s3')->url($filePath))
+                    : '';
+
+                $editBtn = '<button type="button" class="btn btn-outline-dark btn-sm action-btn update_doc_type" title="Update document type" data-id="' . $fn->id . '" data-code="' . e($fn->code ?? '') . '" data-doc-type="' . e($fn->doc_type) . '" data-description="' . e($fn->description) . '" data-country="' . e($fn->country ?? 'All') . '" data-is-required="' . e($fn->is_required ?? 'Y') . '" data-is-default="' . e($fn->is_default ?? 'Y') . '" data-file-url="' . e($fileUrl) . '" data-file-path="' . e($filePath) . '" data-file-status="' . e($hasFile ? 'Uploaded' : 'Not Uploaded') . '">' . e($buttonText) . '</button>';
                 $deleteBtn = '<button type="button" class="btn btn-outline-danger btn-sm action-btn remove_doc_type" title="Delete document type" data-id="' . $fn->id . '">Remove</button>';
                 return '<div class="action-buttons">' . $editBtn . ' ' . $deleteBtn . '</div>';
             })
@@ -1581,6 +1672,29 @@ class BdScheduleController extends Controller
         try {
             DB::beginTransaction();
             $doc_type = DocType::where('id', $id)->first();
+
+            if (!$doc_type) {
+                DB::rollBack();
+                if ($request->ajax() || $request->wantsJson()) {
+                    return response()->json([
+                        'status' => 'error',
+                        'message' => 'Document type not found.',
+                    ], 404);
+                }
+                return redirect()->back()->with('error', 'Document type not found');
+            }
+
+            $s3Path = trim((string) ($doc_type->path ?? ($doc_type->s3_path ?? '')));
+            if ($s3Path === '' && !empty($doc_type->file_name)) {
+                $s3Path = str_starts_with($doc_type->file_name, 'uploads/')
+                    ? $doc_type->file_name
+                    : 'uploads/cedant_docs/' . $doc_type->file_name;
+            }
+
+            if ($s3Path !== '' && !preg_match('/^https?:\/\//i', $s3Path) && Storage::disk('s3')->exists($s3Path)) {
+                Storage::disk('s3')->delete($s3Path);
+            }
+
             $doc_type->delete();
             DB::commit();
 

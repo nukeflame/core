@@ -15,7 +15,9 @@ class StageDocument extends Model
         'doc_type',
         'mandatory',
         'category_type',
-        'type_of_bus'
+        'type_of_bus',
+        'path',
+        's3_path',
      ];
 
    

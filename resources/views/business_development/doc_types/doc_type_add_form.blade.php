@@ -33,6 +33,8 @@
                 method="post">
                 {{ csrf_field() }}
                 <input type="hidden" name="id" value="{{ isset($Documents) ? $Documents->id : '' }}">
+                <input type="hidden" name="s3UploadedFilePath"
+                    value="{{ isset($Documents) ? ($Documents->path ?? '') : '' }}">
 
                 <div class="form-group">
                     <h4>Bd Doc type Details</h4>

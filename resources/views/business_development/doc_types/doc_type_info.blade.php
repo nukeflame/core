@@ -150,6 +150,7 @@
                 $('#dt-country').val('All');
                 $('#dt-is-required').val('Y');
                 $('#dt-is-default').val('Y');
+                $('#dt-s3-uploaded-file-path').val('');
                 $('#docTypeModalLabel').html('<i class="bx bx-plus-circle me-2"></i>Add Document Type');
                 $('#docTypeSaveBtn').html('<i class="bi bi-save me-1"></i>Save');
                 $('.doc-type-error').text('');
@@ -171,6 +172,7 @@
                 $('#dt-country').val($btn.data('country') || 'All');
                 $('#dt-is-required').val(($btn.data('is-required') || 'Y').toString().toUpperCase());
                 $('#dt-is-default').val(($btn.data('is-default') || 'Y').toString().toUpperCase());
+                $('#dt-s3-uploaded-file-path').val($btn.data('file-path') || '');
                 $('#docTypeModalLabel').html('<i class="bx bx-edit me-2"></i>Update Document Type');
                 $('#docTypeSaveBtn').html('<i class="bi bi-save me-1"></i>Update');
 

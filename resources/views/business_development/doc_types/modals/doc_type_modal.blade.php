@@ -5,6 +5,7 @@
             <form id="docTypeForm" enctype="multipart/form-data">
                 @csrf
                 <input type="hidden" name="id" id="dt-id">
+                <input type="hidden" name="s3UploadedFilePath" id="dt-s3-uploaded-file-path">
 
                 <div class="modal-header bg-primary text-white">
                     <h5 class="modal-title text-white" id="docTypeModalLabel">

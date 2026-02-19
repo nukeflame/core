@@ -5,6 +5,9 @@
             <form id="stageDocForm">
                 @csrf
                 <input type="hidden" name="id" id="sd-id">
+                <input type="hidden" name="path" id="sd-path">
+                <input type="hidden" name="s3_path" id="sd-s3-path">
+                <input type="hidden" name="s3UploadedFilePath" id="sd-s3-uploaded-file-path">
 
                 <div class="modal-header bg-primary text-white">
                     <h5 class="modal-title text-white" id="stageDocModalLabel">
@@ -35,7 +38,11 @@
                             <select id="sd-doc-type" name="doc_type" class="form-select" required>
                                 <option value="">Select Doc Type</option>
                                 @foreach ($documents as $document)
-                                    <option value="{{ $document->id }}">{{ $document->doc_type }}</option>
+                                    <option value="{{ $document->id }}"
+                                        data-path="{{ $document->path ?? '' }}"
+                                        data-s3-path="{{ $document->s3_path ?? '' }}">
+                                        {{ $document->doc_type }}
+                                    </option>
                                 @endforeach
                             </select>
                             <small class="text-danger stage-doc-error" data-error-for="doc_type"></small>

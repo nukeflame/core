@@ -116,6 +116,7 @@
         $reinsurersToDisplay = !empty($reinsurers) ? $reinsurers : [];
         $currency = $currency ?? 'KES';
         $reference_no = $reference_no ?? 'N/A';
+        $stage = $stage ?? '';
     @endphp
 
     @if ($stage !== 'negotiation')

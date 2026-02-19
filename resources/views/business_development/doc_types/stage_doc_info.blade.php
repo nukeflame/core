@@ -176,6 +176,9 @@
                     form.reset();
                 }
                 $('#sd-id').val('');
+                $('#sd-path').val('');
+                $('#sd-s3-path').val('');
+                $('#sd-s3-uploaded-file-path').val('');
                 $('#sd-stage').val('');
                 $('#sd-mandatory').val('');
                 $('#sd-doc-type').val(null).trigger('change');
@@ -189,6 +192,16 @@
                 if (formValidator) {
                     formValidator.resetForm();
                 }
+            }
+
+            function syncSelectedDocTypePaths() {
+                var $selectedOption = $('#sd-doc-type option:selected');
+                var path = ($selectedOption.data('path') || '').toString();
+                var s3Path = ($selectedOption.data('s3-path') || '').toString();
+
+                $('#sd-path').val(path);
+                $('#sd-s3-path').val(s3Path);
+                $('#sd-s3-uploaded-file-path').val(s3Path || path);
             }
 
             initStageDocSelect2();
@@ -278,6 +291,9 @@
             }
 
             $('#sd-stage, #sd-doc-type, #sd-mandatory, #sd-category-type, #sd-type-of-bus').on('change', function() {
+                if (this.id === 'sd-doc-type') {
+                    syncSelectedDocTypePaths();
+                }
                 if (formValidator) {
                     $(this).valid();
                 }
@@ -399,6 +415,8 @@
                 var docType = ($btn.data('doc-type') || '').toString();
                 var mandatory = ($btn.data('mandatory') || '').toString();
                 var categoryType = ($btn.data('category-type') || '').toString();
+                var path = ($btn.data('path') || '').toString();
+                var s3Path = ($btn.data('s3-path') || '').toString();
                 var typeOfBusRaw = $btn.attr('data-type-of-bus') || '[]';
                 var typeOfBus = [];
 
@@ -414,6 +432,9 @@
                 $('#sd-doc-type').val(docType).trigger('change');
                 $('#sd-mandatory').val(mandatory).trigger('change');
                 $('#sd-category-type').val(categoryType).trigger('change');
+                $('#sd-path').val(path);
+                $('#sd-s3-path').val(s3Path);
+                $('#sd-s3-uploaded-file-path').val(s3Path);
                 $('#sd-type-of-bus').val(typeOfBus).trigger('change');
 
                 $('#stageDocModalLabel').html('<i class="bx bx-edit me-2"></i>Update Stage Document');

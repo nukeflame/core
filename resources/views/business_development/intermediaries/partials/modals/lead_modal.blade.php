@@ -212,7 +212,7 @@
                                                 </label>
                                                 <input type="number" class="form-inputs total_reinsurer_share"
                                                     id="leadTotalReinsurerShare" name="total_reinsurer_share"
-                                                    placeholder="100.00" step="0.01" min="100"
+                                                    placeholder="100.00" step="0.01" min="0.01"
                                                     max="100" required value="100">
                                             </div>
                                         </div>
@@ -256,6 +256,40 @@
                                         </table>
                                     </div>
 
+                                    <div class="total-shares-display mt-3 d-block">
+                                        <div class="row g-3">
+                                            <div class="col-md-6">
+                                                <div class="shares-card placed-shares">
+                                                    <div class="shares-icon">
+                                                        <i class="bx bx-check-circle"></i>
+                                                    </div>
+                                                    <div class="shares-info">
+                                                        <span class="shares-label">Placed Shares</span>
+                                                        <span class="shares-value placed-value">0.00%</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="shares-card unplaced-shares">
+                                                    <div class="shares-icon">
+                                                        <i class="bx bx-time-five"></i>
+                                                    </div>
+                                                    <div class="shares-info">
+                                                        <span class="shares-label">Unplaced Shares</span>
+                                                        <span class="shares-value unplaced-value">100.00%</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="shares-progress mt-2">
+                                            <div class="progress" style="height: 8px;">
+                                                <div class="progress-bar bg-success placed-progress" role="progressbar"
+                                                    style="width: 0%" aria-valuenow="0" aria-valuemin="0"
+                                                    aria-valuemax="100">
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -1600,6 +1634,7 @@
                 const slipType = $("#slipType").val() || state.slipType;
                 const writtenSharePercent = parseFloat($("#reinsurerShare").val());
                 const showShareColumn = slipType === VALIDATION_CONFIG.SLIP_TYPE;
+                const configuredTotalWrittenShare = parseFloat($("#leadTotalReinsurerShare").val()) || VALIDATION_CONFIG.MAX_PERCENTAGE;
 
                 if (!selectedOption.val()) {
                     toastr.warning('Please select a reinsurer from the dropdown.', 'Select Reinsurer');
@@ -1607,11 +1642,11 @@
                 }
 
                 if (showShareColumn) {
-                    if (!writtenSharePercent || writtenSharePercent <= 0 || writtenSharePercent > 100) {
+                    if (!writtenSharePercent || writtenSharePercent <= 0 || writtenSharePercent > configuredTotalWrittenShare) {
                         Swal.fire({
                             icon: "error",
                             title: "Invalid Written Share",
-                            text: "Please enter a valid written share percentage between 0.01% and 100%.",
+                            text: `Please enter a valid written share percentage between 0.01% and ${configuredTotalWrittenShare.toFixed(2)}%.`,
                             confirmButtonColor: "#3085d6",
                         });
                         $("#reinsurerShare").focus();
@@ -1619,12 +1654,12 @@
                     }
 
                     const currentTotalPlacedShares = calculateTotalPlacedShares();
-                    if (currentTotalPlacedShares + writtenSharePercent > 100) {
-                        const remainingCapacity = 100 - currentTotalPlacedShares;
+                    if (currentTotalPlacedShares + writtenSharePercent > configuredTotalWrittenShare) {
+                        const remainingCapacity = Math.max(configuredTotalWrittenShare - currentTotalPlacedShares, 0);
                         Swal.fire({
                             icon: "warning",
                             title: "Insufficient Capacity",
-                            text: `Maximum available share is ${remainingCapacity.toFixed(2)}%. Total placed shares cannot exceed 100%.`,
+                            text: `Maximum available share is ${remainingCapacity.toFixed(2)}%. Total placed shares cannot exceed Total Written Share (${configuredTotalWrittenShare.toFixed(2)}%).`,
                             confirmButtonColor: "#f39c12",
                         });
                         return;
@@ -1765,28 +1800,98 @@
                 const totalPlacedShares = calculateTotalPlacedShares();
                 const totalUnplacedShares = leadTotalReinsurerShare - totalPlacedShares;
 
-                let sharesDisplay = $(".total-shares-display");
+                let sharesDisplay = $("#leadModal .total-shares-display");
 
                 if (sharesDisplay.length === 0) {
                     const displayHtml = createSharesDisplayHTML();
-                    $(".selected-reinsurers-section").append(displayHtml);
-                    sharesDisplay = $(".total-shares-display");
+                    $("#leadModal .selected-reinsurers-section").append(displayHtml);
+                    sharesDisplay = $("#leadModal .total-shares-display");
                 }
 
                 updateShareValue(sharesDisplay, totalPlacedShares, totalUnplacedShares, leadTotalReinsurerShare);
                 updateProgressBar(sharesDisplay, totalPlacedShares, leadTotalReinsurerShare);
 
+                $("#totalPlacedShares").val(totalPlacedShares.toFixed(2));
+                $("#totalUnplacedShares").val(totalUnplacedShares.toFixed(2));
                 $("#retainedShareValue").val(totalUnplacedShares.toFixed(2));
+            }
+
+            function parseReinsurersPayload(rawPayload) {
+                if (!rawPayload) {
+                    return [];
+                }
+
+                if (Array.isArray(rawPayload)) {
+                    return rawPayload;
+                }
+
+                if (typeof rawPayload === "string") {
+                    try {
+                        const parsed = JSON.parse(rawPayload);
+                        return Array.isArray(parsed) ? parsed : [];
+                    } catch (e) {
+                        return [];
+                    }
+                }
+
+                return [];
+            }
+
+            function hydrateLeadReinsurers(reinsurersPayload) {
+                const reinsurers = parseReinsurersPayload(reinsurersPayload);
+                const slipType = $("#slipType").val() || state.slipType || VALIDATION_CONFIG.SLIP_TYPE;
+                const showShareColumn = slipType === VALIDATION_CONFIG.SLIP_TYPE;
+
+                if (!state.dataTable) {
+                    initializeReinsurerTable();
+                }
+
+                updateTableHeader(slipType);
+                state.dataTable.clear().draw();
+                state.selectedReinsurers.clear();
+
+                reinsurers.forEach((reinsurer) => {
+                    const reinsurerId = reinsurer.reinsurer_id ?? reinsurer.id;
+                    if (!reinsurerId) {
+                        return;
+                    }
+
+                    const writtenShareRaw = parseFloat(reinsurer.written_share ?? 0);
+                    const writtenShare = Number.isFinite(writtenShareRaw) ? writtenShareRaw : 0;
+
+                    const reinsurerData = {
+                        id: reinsurerId,
+                        name: reinsurer.reinsurer_name || reinsurer.name || "Unknown Reinsurer",
+                        email: reinsurer.email || "-",
+                        country: reinsurer.country || "-",
+                        writtenShare: showShareColumn ? writtenShare : 0,
+                    };
+
+                    addReinsurerToTable(reinsurerData, slipType);
+                    state.selectedReinsurers.add(reinsurerId.toString());
+                });
+
+                updateReinsurerCount();
+                toggleTotalWrittenShareField();
+
+                if (showShareColumn) {
+                    updateSharesDisplay();
+                } else {
+                    $("#leadModal .total-shares-display").hide();
+                }
             }
 
             function toggleShareFields(slipType) {
                 const showShareColumn = slipType === VALIDATION_CONFIG.SLIP_TYPE;
                 const $shareFields = $('.fac-rates');
+                const $sharesDisplay = $("#leadModal .total-shares-display");
 
                 if (showShareColumn) {
                     $shareFields.show();
+                    $sharesDisplay.show();
                 } else {
                     $shareFields.hide();
+                    $sharesDisplay.hide();
                 }
             }
 
@@ -2572,7 +2677,8 @@
 
                 formData.append("reinsurers_data", JSON.stringify(reinsurersData));
                 formData.append("total_placed_shares", totalPlacedShares.toFixed(2));
-                formData.append("total_unplaced_shares", (100 - totalPlacedShares).toFixed(2));
+                const totalWrittenShare = parseFloat($("#leadTotalReinsurerShare").val()) || 0;
+                formData.append("total_unplaced_shares", (totalWrittenShare - totalPlacedShares).toFixed(2));
 
                 return formData;
             }
@@ -2873,6 +2979,17 @@
                     return false;
                 }
 
+                resolveHeaderKeyword() {
+                    const fieldId = (this.textareaId || "").toLowerCase();
+                    const fieldLabel = (this.currentFieldLabel || "").toLowerCase();
+
+                    if (fieldId === "specialconditions" || fieldLabel.includes("sum insured breakdown")) {
+                        return "sum insured breakdown";
+                    }
+
+                    return (this.currentFieldLabel || "").trim();
+                }
+
                 applyTemplate(templateName) {
                     if (!this.quill) return;
 
@@ -2898,7 +3015,7 @@
                         const busType = $("#slipType").val() || "facultative";
                         const breakdownLabel = ($("#breakdownModalLabel").text() || this.currentFieldLabel ||
                             "").trim();
-                        const headerKeyword = (this.currentFieldLabel || "").trim();
+                        const headerKeyword = this.resolveHeaderKeyword();
 
                         $.ajax({
                             url: "{{ route('bd.slip-template.headers') }}",
@@ -3078,7 +3195,13 @@
                 });
                 $("#reinsurerShare, #retainedShareValue, #totalPlacedShares, #totalUnplacedShares").val("");
 
-                $(".total-shares-display").remove();
+                $("#leadModal .total-shares-display").show();
+                $("#leadModal .placed-value").text("0.00%").removeClass("text-success text-danger text-warning")
+                    .addClass("text-primary");
+                $("#leadModal .unplaced-value").text("100.00%").removeClass("text-success text-danger text-primary")
+                    .addClass("text-warning");
+                $("#leadModal .placed-progress").css("width", "0%").attr("aria-valuenow", 0).removeClass("bg-danger bg-primary")
+                    .addClass("bg-success");
 
                 $("#leadOpportunityId, #reinsurersData, #specialConditionsContent, #leadClassCode, #leadClassGroupCode")
                     .val("");
@@ -3206,9 +3329,18 @@
 
                 toggleShareFields(slipType);
                 updateTableHeader(slipType);
+                hydrateLeadReinsurers($("#reinsurersData").val());
 
                 $("#leadForm .is-invalid").removeClass("is-invalid");
                 $("#leadForm .invalid-feedback, .reinsurer-validation-error").remove();
+            });
+
+            $("#leadModal").on("pipeline:reinsurers-loaded", function(event, payload = {}) {
+                if (!$(this).hasClass("show")) {
+                    return;
+                }
+
+                hydrateLeadReinsurers(payload.reinsurers || []);
             });
 
             $("#contactsModal").on("hidden.bs.modal", function() {
@@ -3238,7 +3370,7 @@
                 state.selectedReinsurers.clear();
                 updateReinsurerCount();
 
-                $(".total-shares-display").remove();
+                $("#leadModal .total-shares-display").show();
 
                 $(".quote-rein").removeClass("col-md-8 col-md-6").addClass("col-md-6");
                 $(".quote-rein").attr("data-quote", "false");

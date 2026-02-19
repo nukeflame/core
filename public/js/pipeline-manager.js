@@ -1052,7 +1052,6 @@ class PipelineManager {
             // ) {
             //     this.loadSelectedReinsurers(data);
             // }
-
             this.loadSelectedReinsurers(data);
             this.loadSlipDocuments(data);
             this.loadScheduleHeaders(data);
@@ -1250,6 +1249,13 @@ class PipelineManager {
                     $modal
                         .find(".selected_reinsurers")
                         .val(JSON.stringify(reinsurers));
+
+                    $modal.trigger("pipeline:reinsurers-loaded", [
+                        {
+                            reinsurers,
+                            count: response.count ?? reinsurers.length,
+                        },
+                    ]);
                     this.renderReinsurersTable(reinsurers, $table, data);
                 }
             },
@@ -1277,7 +1283,10 @@ class PipelineManager {
         $table.find("tbody").empty();
 
         const tableData = this.transformReinsurerData(reinsurers);
-        // const totals = this.calculateTotals(tableData);
+        const totalShare = tableData.reduce(
+            (sum, r) => sum + parseFloat(r.written_share || 0),
+            0,
+        );
 
         const dataTable = $table.DataTable({
             data: tableData,
@@ -1296,21 +1305,30 @@ class PipelineManager {
         });
 
         this.reinsurerDataTable = dataTable;
+        this.updatePlacedShare(totalShare);
     }
     transformReinsurerData(reinsurers) {
         return reinsurers.map((reinsurer) => {
+            const isDeclined =
+                reinsurer.is_declined === true ||
+                Number(reinsurer.is_declined) === 1;
+            const parsedWrittenShare = parseFloat(reinsurer.written_share || 0);
+            const normalizedWrittenShare = Number.isFinite(parsedWrittenShare)
+                ? parsedWrittenShare
+                : 0;
+
             return {
                 id: reinsurer.reinsurer_id,
                 name: reinsurer.reinsurer_name,
-                written_share: parseFloat(0).toFixed(2),
-                previous_written_share: parseFloat(
-                    reinsurer.written_share || 0,
-                ).toFixed(2),
+                written_share: (isDeclined ? 0 : normalizedWrittenShare).toFixed(
+                    2,
+                ),
+                previous_written_share: normalizedWrittenShare.toFixed(2),
                 commission: parseFloat(reinsurer.brokerage_rate || 0).toFixed(
                     2,
                 ),
                 status: reinsurer.status,
-                is_declined: reinsurer.is_declined,
+                is_declined: isDeclined,
                 country: reinsurer.country,
                 contact: reinsurer.email || "-",
                 action: "",
@@ -1811,6 +1829,8 @@ class PipelineManager {
         if (typeof toastr !== "undefined") {
             toastr.success("Reinsurer removed successfully");
         }
+
+        this.updatePlacedShare(totalShare);
     }
 
     loadBdTerms(data) {
@@ -1894,6 +1914,8 @@ class PipelineManager {
                 category_type: data.categoryType,
             },
             success: (response) => {
+                console.log(`response`, response);
+
                 if (response.status) {
                     if ($documentsSubtitle.length > 0) {
                         $documentsSubtitle.html(
@@ -2078,9 +2100,9 @@ class PipelineManager {
         const existingDocuments = Array.isArray(res.prosp_doc)
             ? res.prosp_doc
             : [];
-        const hasConfiguredStageDocs = Array.isArray(res.docs) && res.docs.length > 0;
+        const hasConfiguredStageDocs =
+            Array.isArray(res.docs) && res.docs.length > 0;
 
-        // Proposal modal should only show documents already inserted at lead stage.
         if (data?.modalId === "proposalModal") {
             const leadDocuments = existingDocuments.filter((doc) => {
                 const fileName = (doc?.file || "").toString().trim();
@@ -2088,7 +2110,6 @@ class PipelineManager {
             });
 
             if (leadDocuments.length === 0) {
-                // If there are no uploaded lead docs yet, fall back to configured stage documents.
                 if (!hasConfiguredStageDocs) {
                     const $container = $modal.find("#documentsContent");
                     if ($container.length) {
@@ -2101,7 +2122,10 @@ class PipelineManager {
             } else {
                 const transformedLeadDocs = leadDocuments.map((doc) => ({
                     id: doc.id,
-                    name: doc.description || doc.original_name || "Supporting Document",
+                    name:
+                        doc.description ||
+                        doc.original_name ||
+                        "Supporting Document",
                     doc_type: doc.description || "Supporting Document",
                     file_name: `leadDoc_${doc.id}`,
                     required: false,
@@ -2111,7 +2135,8 @@ class PipelineManager {
                     max_size: DEFAULT_MAX_FILE_SIZE,
                     multiple: false,
                     existing_file_url: doc.s3_url || "",
-                    existing_file_name: doc.original_name || doc.file || "document",
+                    existing_file_name:
+                        doc.original_name || doc.file || "document",
                 }));
 
                 this.generateDocumentFields(transformedLeadDocs, $modal);
@@ -2141,6 +2166,7 @@ class PipelineManager {
             description: "Any additional supporting documents",
             max_size: 5242880,
             multiple: true,
+            s3_path: "",
         });
 
         const transformedDocs = docs.map((doc) => {
@@ -2163,6 +2189,7 @@ class PipelineManager {
                 existing_file_url: existingDoc?.s3_url || "",
                 existing_file_name:
                     existingDoc?.original_name || existingDoc?.file || "",
+                s3_path: doc.s3_path || "",
             };
         });
 
@@ -2277,7 +2304,7 @@ class PipelineManager {
         documents.forEach((doc, index) => {
             const escapedName = this.escapeHtml(doc.name);
             const isAdditionalDocument = this.isAdditionalDocument(doc);
-            const existingFileUrl = (doc.existing_file_url || "").toString();
+            const existingFileUrl = (doc.s3_path || "").toString();
             const escapedExistingFileUrl = this.escapeHtml(existingFileUrl);
             const escapedExistingFileName = this.escapeHtml(
                 doc.existing_file_name || "document",
@@ -2285,6 +2312,7 @@ class PipelineManager {
             const titleInputAttributes = isAdditionalDocument
                 ? 'data-additional-title="1"'
                 : "readonly";
+            console.log(doc.s3_path);
             const fileAreaHtml = isAdditionalDocument
                 ? `<div class="supporting-doc-upload-line"
                                     data-field="${doc.id}"
@@ -2308,7 +2336,8 @@ class PipelineManager {
                                         accept="${doc.accepts}"
                                         ${doc.multiple ? "multiple" : ""}
                                         data-max-size="${
-                                            doc.max_size || DEFAULT_MAX_FILE_SIZE
+                                            doc.max_size ||
+                                            DEFAULT_MAX_FILE_SIZE
                                         }">
                                 </div>`
                 : `<div class="supporting-doc-static-line">
@@ -2516,7 +2545,9 @@ class PipelineManager {
         const uploadSelector = ".supporting-doc-upload-line, .file-upload-area";
         $(uploadSelector).off(".fileUpload");
         $(".file-input").off(".fileUpload");
-        $(".supporting-doc-choose-btn, .supporting-doc-add-btn, .supporting-doc-view-trigger").off(".fileUpload");
+        $(
+            ".supporting-doc-choose-btn, .supporting-doc-add-btn, .supporting-doc-view-trigger",
+        ).off(".fileUpload");
         $(".supporting-doc-row-remove-btn").off(".fileUpload");
         $(".supporting-doc-title-input[data-additional-title='1']").off(
             ".additionalTitle",
@@ -2714,7 +2745,9 @@ class PipelineManager {
             if (fileCount === 0) {
                 $nameText.text("No file chosen");
             } else if (fileCount === 1) {
-                $nameText.text(this.uploadedFiles[fieldId][0]?.name || "1 file selected");
+                $nameText.text(
+                    this.uploadedFiles[fieldId][0]?.name || "1 file selected",
+                );
             } else {
                 $nameText.text(`${fileCount} files selected`);
             }
@@ -2844,7 +2877,11 @@ class PipelineManager {
 
             this.activeFileUrls.add(fileUrl);
 
-            const opened = window.open(fileUrl, "_blank", "noopener,noreferrer");
+            const opened = window.open(
+                fileUrl,
+                "_blank",
+                "noopener,noreferrer",
+            );
 
             if (!opened) {
                 this.downloadFile(fileToView.name, fileUrl);
@@ -2852,7 +2889,8 @@ class PipelineManager {
 
             const existingModalEl = document.getElementById("fileViewModal");
             if (existingModalEl) {
-                const existingModal = bootstrap.Modal.getInstance(existingModalEl);
+                const existingModal =
+                    bootstrap.Modal.getInstance(existingModalEl);
                 if (existingModal) {
                     existingModal.dispose();
                 }
@@ -2883,7 +2921,8 @@ class PipelineManager {
     }
 
     restoreParentModalLayout() {
-        const hasOpenParentModal = $(".modal.show").not("#fileViewModal").length > 0;
+        const hasOpenParentModal =
+            $(".modal.show").not("#fileViewModal").length > 0;
         if (hasOpenParentModal) {
             $("body").addClass("modal-open");
         }
@@ -2925,11 +2964,14 @@ class PipelineManager {
         }
         $("body").append(modalHtml);
 
-        const modal = new bootstrap.Modal(document.getElementById("fileViewModal"), {
-            backdrop: false,
-            keyboard: true,
-            focus: true,
-        });
+        const modal = new bootstrap.Modal(
+            document.getElementById("fileViewModal"),
+            {
+                backdrop: false,
+                keyboard: true,
+                focus: true,
+            },
+        );
 
         $("#fileViewModal").on("hidden.bs.modal", () => {
             this.revokeFileUrl(fileUrl);
@@ -2971,7 +3013,8 @@ class PipelineManager {
 
             const existingModalEl = document.getElementById("fileViewModal");
             if (existingModalEl) {
-                const existingModal = bootstrap.Modal.getInstance(existingModalEl);
+                const existingModal =
+                    bootstrap.Modal.getInstance(existingModalEl);
                 if (existingModal) {
                     existingModal.dispose();
                 }
@@ -3360,7 +3403,9 @@ class PipelineManager {
             this.$pipYearSelect?.off("change");
             $('a[data-bs-toggle="tab"]').off("shown.bs.tab");
             $(document).off("ajaxError");
-            $(".supporting-doc-upload-line, .file-upload-area").off(".fileUpload");
+            $(".supporting-doc-upload-line, .file-upload-area").off(
+                ".fileUpload",
+            );
             $(".file-input").off(".fileUpload");
             $(".file-remove-btn").off(".fileRemove");
             $(".file-view-btn").off(".fileView");
@@ -3635,7 +3680,9 @@ class PipelineManager {
             const $bdNotificationForm = $("#bdNotificationForm");
 
             if (!$bdMailModal.length || !$bdNotificationForm.length) {
-                throw new Error("BD email modal/form is not available in the DOM");
+                throw new Error(
+                    "BD email modal/form is not available in the DOM",
+                );
             }
 
             if (!data?.bdEmailTitle) {
@@ -3647,8 +3694,7 @@ class PipelineManager {
             const templateMap = data.template || {};
             const categoryKey =
                 stage.previous || stageTitle || STAGE_NAMES.LEAD;
-            const template =
-                templateMap[categoryKey] ||
+            const template = templateMap[categoryKey] ||
                 templateMap[stageTitle] ||
                 templateMap[STAGE_NAMES.LEAD] || {
                     subject: "",
@@ -3656,10 +3702,7 @@ class PipelineManager {
                 };
 
             $bdMailModal.find(".modal-bd-title").text(`- ${data.bdEmailTitle}`);
-            $bdMailModal
-                .find("#category")
-                .val(categoryKey)
-                .trigger("change");
+            $bdMailModal.find("#category").val(categoryKey).trigger("change");
 
             $bdNotificationForm.find(".subject").val(template.subject);
             $bdNotificationForm.find(".message").val(template.message);
