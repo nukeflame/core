@@ -1038,6 +1038,7 @@ class PipelineManager {
                 class: dealInfo?.class,
                 classGroup: dealInfo?.class_group,
                 stage: stage,
+                currentStage: this.currentStage,
                 categoryType: dealInfo?.category_type,
                 sumInsuredType: dealInfo?.sum_insured_type,
                 riskType: dealInfo?.risk_type,
@@ -1889,6 +1890,7 @@ class PipelineManager {
                 class_group: data.classGroup,
                 business_type: data.typeOfBus,
                 stage: data.stage,
+                current_stage: data.currentStage,
                 category_type: data.categoryType,
             },
             success: (response) => {
@@ -2076,6 +2078,7 @@ class PipelineManager {
         const existingDocuments = Array.isArray(res.prosp_doc)
             ? res.prosp_doc
             : [];
+        const hasConfiguredStageDocs = Array.isArray(res.docs) && res.docs.length > 0;
 
         // Proposal modal should only show documents already inserted at lead stage.
         if (data?.modalId === "proposalModal") {
@@ -2085,32 +2088,35 @@ class PipelineManager {
             });
 
             if (leadDocuments.length === 0) {
-                const $container = $modal.find("#documentsContent");
-                if ($container.length) {
-                    $container.html(
-                        '<p class="text-muted text-center my-3">No lead-stage documents available.</p>',
-                    );
+                // If there are no uploaded lead docs yet, fall back to configured stage documents.
+                if (!hasConfiguredStageDocs) {
+                    const $container = $modal.find("#documentsContent");
+                    if ($container.length) {
+                        $container.html(
+                            '<p class="text-muted text-center my-3">No documents available for this stage.</p>',
+                        );
+                    }
+                    return;
                 }
+            } else {
+                const transformedLeadDocs = leadDocuments.map((doc) => ({
+                    id: doc.id,
+                    name: doc.description || doc.original_name || "Supporting Document",
+                    doc_type: doc.description || "Supporting Document",
+                    file_name: `leadDoc_${doc.id}`,
+                    required: false,
+                    icon: "bx-file-blank",
+                    accepts: doc.mimetype || ".pdf,.doc,.docx,.jpg,.jpeg,.png",
+                    description: "",
+                    max_size: DEFAULT_MAX_FILE_SIZE,
+                    multiple: false,
+                    existing_file_url: doc.s3_url || "",
+                    existing_file_name: doc.original_name || doc.file || "document",
+                }));
+
+                this.generateDocumentFields(transformedLeadDocs, $modal);
                 return;
             }
-
-            const transformedLeadDocs = leadDocuments.map((doc) => ({
-                id: doc.id,
-                name: doc.description || doc.original_name || "Supporting Document",
-                doc_type: doc.description || "Supporting Document",
-                file_name: `leadDoc_${doc.id}`,
-                required: false,
-                icon: "bx-file-blank",
-                accepts: doc.mimetype || ".pdf,.doc,.docx,.jpg,.jpeg,.png",
-                description: "",
-                max_size: DEFAULT_MAX_FILE_SIZE,
-                multiple: false,
-                existing_file_url: doc.s3_url || "",
-                existing_file_name: doc.original_name || doc.file || "document",
-            }));
-
-            this.generateDocumentFields(transformedLeadDocs, $modal);
-            return;
         }
 
         if (!res.docs || !res.docs.length) {

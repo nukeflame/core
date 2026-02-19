@@ -43,6 +43,7 @@
                                     ? strtolower((string) $StageDocuments->stage)
                                     : '';
                                 $selectedStage = match ($selectedStage) {
+                                    '0', 'all' => 'all',
                                     '1' => 'lead',
                                     '2' => 'proposal',
                                     '3' => 'negotiation',
@@ -52,6 +53,7 @@
                             @endphp
                             <select class="form-inputs select2" aria-label="stage" id="stage" name="stage" required>
                                 <option value="">Select Stage</option>
+                                <option value="all" {{ $selectedStage === 'all' ? 'selected' : '' }}>All Stages</option>
                                 <option value="lead" {{ $selectedStage === 'lead' ? 'selected' : '' }}>Lead</option>
                                 <option value="proposal" {{ $selectedStage === 'proposal' ? 'selected' : '' }}>Proposal
                                 </option>

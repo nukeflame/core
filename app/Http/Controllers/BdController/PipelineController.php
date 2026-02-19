@@ -294,6 +294,7 @@ class PipelineController
         try {
             $prospect = $request->opportunity_id;
             $stage = $request->stage;
+            $currentStage = $request->current_stage;
             $category_type = $request->category_type;
             $type_of_bus = $request->business_type;
 
@@ -320,7 +321,7 @@ class PipelineController
 
             $classcode = DB::table('classes')->where('class_code', $request->class)->first();
 
-            $docs = $this->getStageDocuments($stage, $category_type, $type_of_bus, $pros->stage);
+            $docs = $this->getStageDocuments($stage, $category_type, $type_of_bus, $pros->stage, $currentStage);
 
             $quoteReinsurers = $this->getQuoteReinsurers($request->prospect, $pros->stage);
 
@@ -355,55 +356,87 @@ class PipelineController
         }
     }
 
-    private function getStageDocuments($stage, $category_type, $type_of_bus, $prosStage)
+    private function getStageDocuments($stage, $category_type, $type_of_bus, $prosStage, $currentStage = null)
     {
-        $stageVal = Stage::fromKeyValue($stage);
-        if (!$stageVal) return [];
+        $requestedStageId = $this->resolveStageId($stage);
+        $fallbackStageId = $this->resolveStageId($currentStage) ?? (int) $prosStage;
 
-        $currentStage = $stageVal->getStage();
+        if (!$requestedStageId && !$fallbackStageId) {
+            return collect();
+        }
+
+        $docs = collect();
+
+        if ($requestedStageId) {
+            $docs = $this->buildStageDocumentsQuery(
+                $requestedStageId,
+                $category_type,
+                $type_of_bus,
+                $prosStage
+            )->get();
+        }
+
+        if (
+            $docs->isEmpty()
+            && $fallbackStageId
+            && (int) $fallbackStageId !== (int) $requestedStageId
+        ) {
+            $docs = $this->buildStageDocumentsQuery(
+                $fallbackStageId,
+                $category_type,
+                $type_of_bus,
+                $prosStage
+            )->get();
+        }
+
+        return $docs;
+    }
+
+    private function resolveStageId($stage): ?int
+    {
+        $stageVal = Stage::fromKeyValue((string) $stage);
+        if ($stageVal) {
+            return (int) $stageVal->getStage();
+        }
+
+        $stageNumber = (int) $stage;
+        return in_array($stageNumber, [1, 2, 3, 4, 5, 6], true) ? $stageNumber : null;
+    }
+
+    private function buildStageDocumentsQuery(int $stageId, $category_type, $type_of_bus, $prosStage)
+    {
+        $typeOfBus = strtoupper(trim((string) $type_of_bus));
+        $normalizedCategoryType = is_null($category_type) || $category_type === ''
+            ? (in_array($typeOfBus, ['FPR', 'FNP'], true) ? '2' : '1')
+            : (string) $category_type;
+        $legacyStageKey = Stage::fromStageValue((string) $stageId);
+        $allStageId = 0;
+        $allStageKey = 'all';
 
         $baseQuery = DB::table('stage_documents')
-            ->where('stage_documents.category_type', $category_type)
+            ->where('stage_documents.category_type', $normalizedCategoryType)
             ->join('doc_types', 'stage_documents.doc_type', '=', 'doc_types.id')
-            ->where('stage', $currentStage)
-            ->whereJsonContains('type_of_bus', $type_of_bus);
+            ->where(function ($query) use ($stageId, $legacyStageKey, $allStageId, $allStageKey) {
+                $query->where('stage_documents.stage', $stageId);
+                if (!empty($legacyStageKey)) {
+                    $query->orWhereRaw('LOWER(CAST(stage_documents.stage AS TEXT)) = ?', [strtolower($legacyStageKey)]);
+                }
+                $query->orWhere('stage_documents.stage', $allStageId)
+                    ->orWhereRaw('LOWER(CAST(stage_documents.stage AS TEXT)) = ?', [$allStageKey]);
+            })
+            ->where(function ($query) use ($typeOfBus, $type_of_bus) {
+                $query->whereJsonContains('stage_documents.type_of_bus', $typeOfBus)
+                    ->orWhere('stage_documents.type_of_bus', (string) $type_of_bus)
+                    ->orWhere('stage_documents.type_of_bus', $typeOfBus)
+                    ->orWhere('stage_documents.type_of_bus', 'like', '%"' . $typeOfBus . '"%')
+                    ->orWhere('stage_documents.type_of_bus', 'like', '%' . $typeOfBus . '%')
+                    ->orWhereRaw('LOWER(CAST(stage_documents.type_of_bus AS TEXT)) LIKE ?', ['%"' . strtolower($typeOfBus) . '"%'])
+                    ->orWhereRaw('LOWER(CAST(stage_documents.type_of_bus AS TEXT)) LIKE ?', ['%' . strtolower($typeOfBus) . '%']);
+            });
 
-        switch ($prosStage) {
-            case 2:
-                return $baseQuery->select(
-                    'doc_types.id',
-                    'doc_types.doc_type',
-                    'doc_types.checkbox_doc',
-                    'doc_types.file_name',
-                    'doc_types.description',
-                    'doc_types.mimetype',
-                    'stage_documents.mandatory',
-                )->get();
-
+        switch ((int) $prosStage) {
             case 3:
-                return $baseQuery->select(
-                    'doc_types.id',
-                    'doc_types.doc_type',
-                    'doc_types.checkbox_doc',
-                    'doc_types.file_name',
-                    'doc_types.description',
-                    'doc_types.mimetype',
-                    'stage_documents.mandatory',
-                    'stage_documents.stage'
-                )->get();
-
             case 4:
-                return $baseQuery->select(
-                    'doc_types.id',
-                    'doc_types.doc_type',
-                    'doc_types.checkbox_doc',
-                    'doc_types.file_name',
-                    'doc_types.description',
-                    'doc_types.mimetype',
-                    'stage_documents.mandatory',
-                    'stage_documents.stage'
-                )->get();
-
             case 5:
                 return $baseQuery->select(
                     'doc_types.id',
@@ -414,8 +447,9 @@ class PipelineController
                     'doc_types.mimetype',
                     'stage_documents.mandatory',
                     'stage_documents.stage'
-                )->get();
+                );
 
+            case 2:
             default:
                 return $baseQuery->select(
                     'doc_types.id',
@@ -425,7 +459,7 @@ class PipelineController
                     'doc_types.description',
                     'doc_types.mimetype',
                     'stage_documents.mandatory'
-                )->get();
+                );
         }
     }
 

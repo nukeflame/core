@@ -271,6 +271,7 @@ Route::group(
         Route::post('/business-development/stage-documents/store', [BdScheduleController::class, 'bd_stage_doc_add'])->name('stage.doc.store');
         Route::get('/business-development/stage-documents/data', [BdScheduleController::class, 'bd_stage_doc_data'])->name('stage.doc.data');
         Route::post('/business-development/stage-documents/delete', [BdScheduleController::class, 'delete_stage_doc'])->name('delete.stage.doc');
+        Route::post('/business-development/stage-documents/delete-bulk', [BdScheduleController::class, 'delete_stage_doc_bulk'])->name('delete.stage.doc.bulk');
         Route::get('/business-development/document-types', [BdScheduleController::class, 'bd_doc_type_info'])->name('doc.type.info');
         Route::get('/business-development/document-types/form', [BdScheduleController::class, 'doc_type_form'])->name('doc.type.form');
         Route::post('/business-development/document-types/store', [BdScheduleController::class, 'bd_doc_type_add'])->name('doc.type.store');

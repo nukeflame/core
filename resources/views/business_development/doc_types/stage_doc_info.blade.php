@@ -75,9 +75,15 @@
                         <h5 class="card-title mb-0">Stage Document List</h5>
                         <small class="text-muted">View and manage stage document requirements</small>
                     </div>
-                    <button type="button" class="btn btn-primary btn-sm" id="add_stage_document">
-                        <i class='bx bx-plus me-1'></i>Add Stage Document
-                    </button>
+                    <div class="d-flex align-items-center gap-2">
+                        <button type="button" class="btn btn-outline-danger btn-sm d-none" id="bulk_delete_stage_docs"
+                            title="Delete selected stage documents">
+                            <i class='bx bx-trash me-1'></i><span id="bulk_delete_count">0</span>
+                        </button>
+                        <button type="button" class="btn btn-primary btn-sm" id="add_stage_document">
+                            <i class='bx bx-plus me-1'></i>Add Stage Document
+                        </button>
+                    </div>
                 </div>
                 <div class="card-body pb-0">
                     <div class="table-responsive">
@@ -85,12 +91,16 @@
                             aria-label="Stage document table" style="width:100%">
                             <thead>
                                 <tr>
+                                    <th style="width:3%;">
+                                        <input type="checkbox" class="form-check-input" id="stage-doc-select-all"
+                                            aria-label="Select all stage documents">
+                                    </th>
                                     <th style="width:3%;">ID</th>
                                     <th style="width:10%;">Stage</th>
                                     <th style="width:22%;">Doc Type</th>
                                     <th style="width:8%;">Mandatory</th>
                                     <th style="width:8%;">Category Type</th>
-                                    <th style="width:34%;">Business Type</th>
+                                    <th style="width:31%;">Business Type</th>
                                     <th style="width:15%;">Action</th>
                                 </tr>
                             </thead>
@@ -110,6 +120,7 @@
             var modalEl = document.getElementById('stageDocModal');
             var stageDocModal = modalEl && window.bootstrap ? new bootstrap.Modal(modalEl) : null;
             var formValidator = null;
+            var selectedStageDocIds = new Set();
 
             function initStageDocSelect2() {
                 if (!$.fn.select2) {
@@ -165,9 +176,12 @@
                     form.reset();
                 }
                 $('#sd-id').val('');
+                $('#sd-stage').val('');
+                $('#sd-mandatory').val('');
                 $('#sd-doc-type').val(null).trigger('change');
                 $('#sd-category-type').val(null).trigger('change');
                 $('#sd-type-of-bus').val([]).trigger('change');
+                $('#stageDocForm').find('.is-invalid, .is-valid').removeClass('is-invalid is-valid');
                 $('.stage-doc-error').text('');
                 $('#stageDocModalLabel').html('<i class="bx bx-plus-circle me-2"></i>Add Stage Document');
                 $('#stageDocSaveBtn').html('<i class="bi bi-save me-1"></i>Save');
@@ -178,6 +192,29 @@
             }
 
             initStageDocSelect2();
+
+            if (modalEl) {
+                modalEl.addEventListener('hidden.bs.modal', function() {
+                    resetStageDocForm();
+                });
+            }
+
+            function updateBulkDeleteState() {
+                var count = selectedStageDocIds.size;
+                $('#bulk_delete_count').text(count);
+                $('#bulk_delete_stage_docs').toggleClass('d-none', count === 0);
+            }
+
+            function syncSelectAllCheckbox() {
+                var $rowCheckboxes = $('.stage-doc-row-checkbox');
+                if (!$rowCheckboxes.length) {
+                    $('#stage-doc-select-all').prop('checked', false);
+                    return;
+                }
+
+                var selectedVisible = $rowCheckboxes.filter(':checked').length;
+                $('#stage-doc-select-all').prop('checked', selectedVisible === $rowCheckboxes.length);
+            }
 
             if ($.fn.validate) {
                 formValidator = $('#stageDocForm').validate({
@@ -257,6 +294,13 @@
                     [13, 50, 100]
                 ],
                 columns: [{
+                        data: 'select_row',
+                        name: 'select_row',
+                        searchable: false,
+                        orderable: false,
+                        defaultContent: '-'
+                    },
+                    {
                         data: 'DT_RowIndex',
                         name: 'DT_RowIndex',
                         searchable: false,
@@ -274,17 +318,17 @@
                     },
                     {
                         data: 'mandatory_1',
-                        name: 'mandatory_1',
+                        name: 'mandatory',
                         defaultContent: "<b class='dashes'>_</b>"
                     },
                     {
                         data: 'category',
-                        name: 'category',
+                        name: 'category_type',
                         defaultContent: "<b class='dashes'>_</b>"
                     },
                     {
                         data: 'busines_type',
-                        name: 'busines_type',
+                        name: 'type_of_bus',
                         defaultContent: "<b class='dashes'>_</b>"
                     },
 
@@ -310,7 +354,41 @@
                     $('#stat-filtered-rows').text(totalFiltered);
                     $('#stat-mandatory-docs').text(mandatoryCount);
                     $('#stat-optional-docs').text(Math.max(totalVisible - mandatoryCount, 0));
+
+                    $('.stage-doc-row-checkbox').each(function() {
+                        var id = parseInt($(this).data('id'), 10);
+                        if (selectedStageDocIds.has(id)) {
+                            $(this).prop('checked', true);
+                        }
+                    });
+                    syncSelectAllCheckbox();
+                    updateBulkDeleteState();
                 }
+            });
+
+            $(document).on('change', '#stage-doc-select-all', function() {
+                var isChecked = $(this).is(':checked');
+                $('.stage-doc-row-checkbox').each(function() {
+                    var id = parseInt($(this).data('id'), 10);
+                    $(this).prop('checked', isChecked);
+                    if (isChecked) {
+                        selectedStageDocIds.add(id);
+                    } else {
+                        selectedStageDocIds.delete(id);
+                    }
+                });
+                updateBulkDeleteState();
+            });
+
+            $(document).on('change', '.stage-doc-row-checkbox', function() {
+                var id = parseInt($(this).data('id'), 10);
+                if ($(this).is(':checked')) {
+                    selectedStageDocIds.add(id);
+                } else {
+                    selectedStageDocIds.delete(id);
+                }
+                syncSelectAllCheckbox();
+                updateBulkDeleteState();
             });
 
             $(document).on('click', '.update_stage_doc_type', function(e) {
@@ -360,6 +438,7 @@
                         },
                         success: function(response) {
                             notify('success', 'Stage document deleted successfully');
+                            selectedStageDocIds.delete(parseInt(id, 10));
                             table.ajax.reload(null, false);
                         },
                         error: function(xhr, status, error) {
@@ -391,6 +470,57 @@
                 }
             });
 
+            $('#bulk_delete_stage_docs').on('click', function() {
+                var ids = Array.from(selectedStageDocIds);
+                if (!ids.length) {
+                    return;
+                }
+
+                var proceedBulkDelete = function() {
+                    $.ajax({
+                        url: "{{ route('delete.stage.doc.bulk') }}",
+                        method: 'POST',
+                        data: {
+                            ids: ids,
+                            _token: '{{ csrf_token() }}'
+                        },
+                        success: function(response) {
+                            notify('success', response.message || 'Selected stage documents removed successfully');
+                            selectedStageDocIds.clear();
+                            $('#stage-doc-select-all').prop('checked', false);
+                            table.ajax.reload(null, false);
+                        },
+                        error: function(xhr) {
+                            var message = (xhr.responseJSON && xhr.responseJSON.message) ?
+                                xhr.responseJSON.message : 'Failed to delete selected stage documents';
+                            notify('error', message);
+                        }
+                    });
+                };
+
+                if (window.Swal) {
+                    Swal.fire({
+                        title: 'Delete selected stage documents?',
+                        text: 'This action cannot be undone.',
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonColor: '#d33',
+                        cancelButtonColor: '#6c757d',
+                        confirmButtonText: 'Yes, delete',
+                        cancelButtonText: 'Cancel'
+                    }).then(function(result) {
+                        if (result.isConfirmed) {
+                            proceedBulkDelete();
+                        }
+                    });
+                    return;
+                }
+
+                if (confirm('Delete selected stage documents?')) {
+                    proceedBulkDelete();
+                }
+            });
+
 
             $("#add_stage_document").click(function() {
                 resetStageDocForm();
@@ -417,7 +547,6 @@
                         if (stageDocModal) {
                             stageDocModal.hide();
                         }
-                        resetStageDocForm();
                         table.ajax.reload(null, false);
                     },
                     error: function(xhr) {

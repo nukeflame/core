@@ -20,6 +20,7 @@
                             <label for="sd-stage" class="form-label">Stage <span class="text-danger">*</span></label>
                             <select id="sd-stage" name="stage" class="form-select" required>
                                 <option value="">Select Stage</option>
+                                <option value="all">All Stages</option>
                                 <option value="lead">Lead</option>
                                 <option value="proposal">Proposal</option>
                                 <option value="negotiation">Negotiation</option>

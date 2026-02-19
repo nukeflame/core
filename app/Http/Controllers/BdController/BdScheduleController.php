@@ -1063,7 +1063,7 @@ class BdScheduleController extends Controller
             ]);
 
             $validator = Validator::make($request->all(), [
-                'stage' => ['required', 'integer', Rule::in([1, 2, 3, 4])],
+                'stage' => ['required', 'integer', Rule::in([0, 1, 2, 3, 4])],
                 'doc_type' => 'required',
                 'mandatory' => 'required|in:Y,N',
                 'category_type' => 'required',
@@ -1139,10 +1139,16 @@ class BdScheduleController extends Controller
     {
         $StageDocuments = DB::table('stage_documents')->orderByDesc('id');
         return dataTables::of($StageDocuments)
+            ->addColumn('select_row', function ($fn) {
+                return '<input type="checkbox" class="form-check-input stage-doc-row-checkbox" data-id="' . (int) $fn->id . '" aria-label="Select stage document">';
+            })
             ->addIndexColumn()
             ->editColumn('stage', function ($fn) {
                 $normalizedStage = $this->normalizeStageDocumentStage($fn->stage);
-                return $normalizedStage ? ucfirst($normalizedStage) : 'N/A';
+                if (!$normalizedStage) {
+                    return 'N/A';
+                }
+                return $normalizedStage === 'all' ? 'All Stages' : ucfirst($normalizedStage);
             })
             ->editColumn('mandatory_1', function ($fn) {
                 if ($fn->mandatory == 'Y') {
@@ -1199,13 +1205,26 @@ class BdScheduleController extends Controller
                 return '<span class="badge bg-secondary-transparent text-secondary">N/A</span>';
             })
             ->addColumn('action', function ($fn) {
-                $stageValue = match ((int) $fn->stage) {
-                    1 => 'lead',
-                    2 => 'proposal',
-                    3 => 'negotiation',
-                    4 => 'final',
+                $normalizedStage = $this->normalizeStageDocumentStage($fn->stage);
+                $stageValue = match ($normalizedStage) {
+                    'all' => 'all',
+                    'lead' => 'lead',
+                    'proposal' => 'proposal',
+                    'negotiation' => 'negotiation',
+                    'final' => 'final',
                     default => '',
                 };
+
+                if ($stageValue === '') {
+                    $stageValue = match ((int) $fn->stage) {
+                        0 => 'all',
+                        1 => 'lead',
+                        2 => 'proposal',
+                        3 => 'negotiation',
+                        4 => 'final',
+                        default => '',
+                    };
+                }
 
                 $typeOfBus = json_decode($fn->type_of_bus, true);
                 $typeOfBus = is_array($typeOfBus) ? $typeOfBus : [];
@@ -1214,7 +1233,7 @@ class BdScheduleController extends Controller
                 $deleteBtn = '<button type="button" class="btn btn-outline-danger btn-sm action-btn remove_stage_doc_type" title="Delete stage document" data-id="' . $fn->id . '">Remove</button>';
                 return '<div class="action-buttons">' . $editBtn . ' ' . $deleteBtn . '</div>';
             })
-            ->rawColumns(['mandatory_1', 'category', 'busines_type', 'action'])
+            ->rawColumns(['select_row', 'mandatory_1', 'category', 'busines_type', 'action'])
             ->make(true);
     }
 
@@ -1259,11 +1278,61 @@ class BdScheduleController extends Controller
         }
     }
 
+    public function delete_stage_doc_bulk(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'ids' => 'required|array|min:1',
+            'ids.*' => 'required|integer|min:1',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Validation failed.',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $ids = collect($request->input('ids', []))
+            ->map(fn($id) => (int) $id)
+            ->filter(fn($id) => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+
+        if (empty($ids)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'No stage documents selected.',
+            ], 422);
+        }
+
+        try {
+            DB::beginTransaction();
+            $deletedCount = DB::table('stage_documents')->whereIn('id', $ids)->delete();
+            DB::commit();
+
+            return response()->json([
+                'status' => 'success',
+                'message' => $deletedCount . ' stage document(s) removed successfully.',
+                'deleted_count' => $deletedCount,
+            ]);
+        } catch (Exception $e) {
+            DB::rollback();
+
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Failed to delete selected stage documents.',
+            ], 500);
+        }
+    }
+
     private function normalizeStageDocumentStage($stage): ?string
     {
         $value = strtolower(trim((string) $stage));
 
         return match ($value) {
+            '0', 'all' => 'all',
             '1', 'lead' => 'lead',
             '2', 'proposal' => 'proposal',
             '3', 'negotiation' => 'negotiation',
@@ -1277,6 +1346,7 @@ class BdScheduleController extends Controller
         $value = strtolower(trim((string) $stage));
 
         return match ($value) {
+            '0', 'all' => 0,
             '1', 'lead' => 1,
             '2', 'proposal' => 2,
             '3', 'negotiation' => 3,
