@@ -247,25 +247,25 @@ return [
                             'has_sub' => true,
                             'children' => [
                                 [
-                                    'title' => 'Classes',
-                                    'route' => 'class.info',
-                                    'permission' => 'reins_settings.classes.view'
-                                ],
-                                [
                                     'title' => 'Class Groups',
                                     'route' => 'classGroup.info',
                                     'permission' => 'reins_settings.class_groups.view'
+                                ],
+                                [
+                                    'title' => 'Classes',
+                                    'route' => 'class.info',
+                                    'permission' => 'reins_settings.classes.view'
                                 ],
                                 [
                                     'title' => 'Sum Insured Types',
                                     'route' => 'sumInsType.info',
                                     'permission' => 'reins_settings.sum_insured_types.view'
                                 ],
-                                [
-                                    'title' => 'Policy Clauses',
-                                    'route' => 'clauseparam.info',
-                                    'permission' => 'reins_settings.policy_clauses.view'
-                                ],
+                                // [
+                                //     'title' => 'Policy Clauses',
+                                //     'route' => 'clauseparam.info',
+                                //     'permission' => 'reins_settings.policy_clauses.view'
+                                // ],
                                 [
                                     'title' => 'Binder Classes',
                                     'route' => 'binder.info',

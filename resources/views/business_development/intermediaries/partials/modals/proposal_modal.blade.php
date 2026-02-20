@@ -79,7 +79,7 @@
                                                 <input type="text" class="form-inputs total_sum_insured"
                                                     name="total_sum_insured" required placeholder="0.00"
                                                     onkeyup="this.value=numberWithCommas(this.value)"
-                                                    onchange="this.value=numberWithCommas(this.value)" readonly>
+                                                    onchange="this.value=numberWithCommas(this.value)">
                                             </div>
                                         </div>
                                     </div>
@@ -94,7 +94,7 @@
                                                 <input type="text" class="form-inputs premium" name="premium"
                                                     required placeholder="0.00"
                                                     onkeyup="this.value=numberWithCommas(this.value)"
-                                                    onchange="this.value=numberWithCommas(this.value)" readonly>
+                                                    onchange="this.value=numberWithCommas(this.value)">
                                             </div>
                                         </div>
                                     </div>
@@ -267,7 +267,7 @@
                                 </div>
                             </div>
                             <div class="documents-section-content" id="documentsContent">
-                                <div id="documentFields" class="row g-4" style="display: none;"></div>
+                                <div id="documentFields" class="row" style="display: none;"></div>
                             </div>
                         </div>
                     </div>
@@ -466,6 +466,282 @@
 </div>
 
 <style>
+    .fac-slip-container {
+        border-block-end: 1px solid var(--default-border);
+        border-top-left-radius: .5rem;
+        border-top-right-radius: .5rem;
+        padding: 0px !important;
+    }
+
+    .fac-slip-header {
+        background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+        color: white;
+        padding: 1rem;
+        position: relative;
+        overflow: hidden;
+        padding-top: 1.5rem;
+        border-top-left-radius: .5rem;
+        border-top-right-radius: .5rem;
+    }
+
+    .fac-slip-header::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -50%;
+        width: 200%;
+        height: 200%;
+        background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="2" fill="rgba(255,255,255,0.1)"/></svg>') repeat;
+        animation: float 20s infinite linear;
+    }
+
+    @keyframes float {
+        0% {
+            transform: translate(-50%, -50%) rotate(0deg);
+        }
+
+        100% {
+            transform: translate(-50%, -50%) rotate(360deg);
+        }
+    }
+
+    .slip-title {
+        font-size: 24px;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+        position: relative;
+        z-index: 2;
+    }
+
+    .slip-subtitle {
+        font-size: 14px;
+        opacity: 0.9;
+        position: relative;
+        z-index: 2;
+    }
+
+    .company-info {
+        background: #0a0a0a0a;
+        padding: 1rem;
+        border-radius: 8px;
+        backdrop-filter: blur(10px);
+        margin-top: .5rem;
+        position: relative;
+        z-index: 2;
+    }
+
+    .form-group {
+        border: none !important;
+        margin-bottom: 0px !important;
+    }
+
+    .section-box {
+        padding: 1rem;
+        padding-top: 0px;
+        height: 70vh;
+        overflow-x: hidden;
+        overflow-y: auto;
+    }
+
+    .section-title {
+        color: #c02e2e;
+        font-size: 16px;
+        font-weight: 600;
+        margin-bottom: 0px;
+    }
+
+    .form-label {
+        font-weight: 600;
+        color: var(--bs-gray-700);
+    }
+
+    .required-asterisk {
+        color: var(--bs-danger);
+        margin-left: 0.25rem;
+    }
+
+    .currency-input {
+        position: relative;
+    }
+
+    .currency-symbol {
+        position: absolute;
+        left: 12px;
+        top: 10px;
+        color: var(--gray-700);
+        font-weight: 600;
+        z-index: 10;
+        font-size: 15px;
+    }
+
+    .currency-input .form-inputs {
+        padding-left: 2.5rem !important;
+    }
+
+    .form-inputs {
+        margin-bottom: 0px;
+    }
+
+    .form-section {
+        margin-bottom: 15px;
+    }
+
+    .selected-reinsurers-table>:not(caption)>*>* {
+        padding: .5rem .5rem;
+        color: var(--bs-table-color-state, var(--bs-table-color-type, var(--bs-table-color)));
+        background-color: var(--bs-table-bg);
+        border-bottom-width: var(--bs-border-width);
+        box-shadow: inset 0 0 0 9999px var(--bs-table-bg-state, var(--bs-table-bg-type, var(--bs-table-accent-bg)));
+    }
+
+    .insured-email-display {
+        text-transform: lowercase !important;
+    }
+
+    .insured-contact-name-display {
+        text-transform: capitalize !important;
+    }
+
+    .documents-section-content {
+        padding-top: 10px;
+    }
+
+    .reinsurer-selection-panel {
+        background: #f8f9fa;
+        padding: 1px;
+        border-radius: 8px;
+        border: 1px solid #dee2e6;
+        margin-bottom: 1rem;
+    }
+
+    .selected-reinsurers-section {
+        margin-top: 1.5rem;
+    }
+
+    .selected-reinsurers-section h6 {
+        color: #495057;
+        font-weight: 600;
+    }
+
+    .selected-reinsurers-table thead {
+        background: #f8f9fa;
+    }
+
+    .selected-reinsurers-table tbody tr:hover {
+        background: #f8f9fa;
+    }
+
+    #reinsurerCount {
+        font-size: 0.875rem;
+        padding: 0.35em 0.65em;
+    }
+
+    .shares-card {
+        background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+        border: 2px solid #e9ecef;
+        border-radius: 12px;
+        padding: 9px 12px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+
+    .shares-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    .shares-card.placed-shares {
+        border-left: 2px solid #198754;
+    }
+
+    .shares-card.unplaced-shares {
+        border-left: 2px solid #ffc107;
+    }
+
+    .shares-icon {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 20px;
+        flex-shrink: 0;
+    }
+
+    .placed-shares .shares-icon {
+        background: rgba(25, 135, 84, 0.1);
+        color: #198754;
+    }
+
+    .unplaced-shares .shares-icon {
+        background: rgba(255, 193, 7, 0.1);
+        color: #ffc107;
+    }
+
+    .shares-info {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        flex: 1;
+    }
+
+    .shares-label {
+        font-size: 13px;
+        color: #6c757d;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+
+    .shares-value {
+        font-size: 13px;
+        font-weight: 700;
+        line-height: 14px;
+    }
+
+    .shares-progress {
+        margin-top: 1rem;
+    }
+
+    .shares-progress .progress {
+        background-color: #e9ecef;
+        border-radius: 10px;
+        overflow: hidden;
+    }
+
+    .shares-progress .progress-bar {
+        transition: width 0.6s ease;
+        border-radius: 10px;
+    }
+
+    .total-shares-display {
+        margin-top: 1.5rem;
+        padding: 1rem;
+        background: #f8f9fa;
+        border-radius: 8px;
+        border: 1px solid #dee2e6;
+    }
+
+    .shares-value.text-success {
+        color: #198754 !important;
+    }
+
+    .shares-value.text-danger {
+        color: #dc3545 !important;
+    }
+
+    .shares-value.text-warning {
+        color: #ffc107 !important;
+    }
+
+    .shares-value.text-primary {
+        color: #0d6efd !important;
+    }
+
     .pdf-item {
         border: 1px solid #dee2e6;
         border-radius: 8px;
@@ -525,6 +801,10 @@
         height: 80vh;
         overflow-x: hidden;
         overflow-y: auto;
+    }
+
+    #propContactsModal .form-label {
+        color: #000;
     }
 </style>
 
@@ -618,37 +898,111 @@
             const $table = $modal.find("#propReinsurersTable");
 
             function validateField($field) {
-                const val = $field.val();
-                const fieldType = $field.attr('type');
-                const isRequired = $field.attr('required') !== undefined;
+                const fieldName = $field.attr("name") || $field.attr("id");
+                const rawValue = $field.val();
+                const fieldValue = typeof rawValue === "string" ? rawValue.trim() : "";
+                const isRequired = $field.prop("required");
 
-                $field.removeClass('is-invalid');
+                clearFieldValidation($field);
 
-                if (isRequired && (!val || val.trim() === '')) {
-                    $field.addClass('is-invalid');
+                if (isRequired && !fieldValue) {
+                    showFieldError($field, "This field is required");
                     return false;
                 }
 
-                if (fieldType === 'number' && val) {
-                    const numVal = parseFloat(val);
-                    const min = parseFloat($field.attr('min'));
-                    const max = parseFloat($field.attr('max'));
-
-                    if (isNaN(numVal) || (min && numVal < min) || (max && numVal > max)) {
-                        $field.addClass('is-invalid');
+                if (fieldValue) {
+                    const validation = getFieldValidation($field, fieldValue, fieldName);
+                    if (!validation.isValid) {
+                        showFieldError($field, validation.message);
                         return false;
                     }
-                }
-
-                if (fieldType === 'email' && val) {
-                    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-                    if (!emailRegex.test(val)) {
-                        $field.addClass('is-invalid');
-                        return false;
-                    }
+                    $field.addClass("is-v");
                 }
 
                 return true;
+            }
+
+            function getFieldValidation($field, fieldValue, fieldName) {
+                const numericValue = parseFloat(fieldValue.replace(/,/g, ""));
+
+                if (isCurrencyField($field, fieldName)) {
+                    if (!/^\d+(\.\d{1,2})?$/.test(fieldValue.replace(/,/g, ""))) {
+                        return {
+                            isValid: false,
+                            message: "Enter a valid amount"
+                        };
+                    }
+                    if (numericValue <= 0) {
+                        return {
+                            isValid: false,
+                            message: "Amount must be greater than 0"
+                        };
+                    }
+                }
+
+                if (isPercentageField(fieldName) && !isNaN(numericValue)) {
+                    if (numericValue < 0 || numericValue > 100) {
+                        return {
+                            isValid: false,
+                            message: "Percentage must be between 0 and 100"
+                        };
+                    }
+                }
+
+                if (isEmailField($field, fieldName)) {
+                    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                    if (!emailRegex.test(fieldValue)) {
+                        return {
+                            isValid: false,
+                            message: "Please enter a valid email address"
+                        };
+                    }
+                }
+
+                if ($field.attr("type") === "number") {
+                    const min = parseFloat($field.attr("min"));
+                    const max = parseFloat($field.attr("max"));
+                    if (!isNaN(min) && numericValue < min) {
+                        return {
+                            isValid: false,
+                            message: `Value must be at least ${min}`
+                        };
+                    }
+                    if (!isNaN(max) && numericValue > max) {
+                        return {
+                            isValid: false,
+                            message: `Value must be at most ${max}`
+                        };
+                    }
+                }
+
+                return {
+                    isValid: true
+                };
+            }
+
+            function isCurrencyField($field, fieldName) {
+                return $field.closest(".currency-input").length ||
+                    fieldName?.includes("premium") ||
+                    fieldName?.includes("sum_insured");
+            }
+
+            function isPercentageField(fieldName) {
+                return fieldName?.toLowerCase().includes("share") || fieldName?.toLowerCase().includes("rate");
+            }
+
+            function isEmailField($field, fieldName) {
+                return $field.attr("type") === "email" || fieldName?.toLowerCase().includes("email");
+            }
+
+            function clearFieldValidation($field) {
+                $field.removeClass("is-invalid is-v");
+                $field.siblings(".invalid-feedback").remove();
+            }
+
+            function showFieldError($field, message) {
+                $field.addClass("is-invalid");
+                $field.after(`<div class="invalid-feedback">${message}</div>`);
             }
 
             function validateReinsurerSelection() {
@@ -1075,24 +1429,14 @@
             }
 
             $('#previewPdfModal').on('show.bs.modal', function() {
-                const currentStage = $('#pdf_current_stage').val();
-                const previousStage = $('#pdf_previous_stage').val();
                 const opportunityId = $('#pdf_opportunity_id').val();
 
-                $('#lead-loading').addClass('d-none');
-                $('#proposal-loading').addClass('d-none');
-                $('#negotiation-loading').addClass('d-none');
-                $('#close-won-loading').addClass('d-none');
-                $('#final-loading').addClass('d-none');
                 $('#lead-tab').tab('show');
 
-                const data = {
-                    currentStage,
-                    previousStage,
+                fetchPdfUrls({
+                    stage: 'lead',
                     opportunityId
-                }
-
-                fetchPdfUrls(data);
+                });
             });
 
             $('#previewPdfModal').on('hidden.bs.modal', function() {
@@ -1103,17 +1447,13 @@
             });
 
             $('#pdfStageTabs button[data-bs-toggle="tab"]').on('shown.bs.tab', function(e) {
-                const currentStage = $(e.target).attr('id').replace('-tab', '');
-                const previousStage = $('#pdf_previous_stage').val();
+                const stage = $(e.target).attr('id').replace('-tab', '');
                 const opportunityId = $('#pdf_opportunity_id').val();
 
-                const data = {
-                    currentStage,
-                    previousStage: currentStage,
+                fetchPdfUrls({
+                    stage,
                     opportunityId
-                }
-
-                fetchPdfUrls(data);
+                });
             });
 
             $('#downloadPdfBtn').on('click', function() {
@@ -1123,25 +1463,25 @@
             });
 
             function fetchPdfUrls(data) {
-                const currentStage = data.currentStage
-                const previousStage = data.previousStage
-                const $listContainer = $(`#${previousStage}-pdf-list`);
-                const $loadingDiv = $(`#${previousStage}-loading`);
-                const $noPdfDiv = $(`#${previousStage}-no-pdf`);
-                const $tabDiv = $(`#${previousStage}-tab`);
+                const stage = data.stage || 'lead';
+                const $listContainer = $(`#${stage}-pdf-list`);
+                const $loadingDiv = $(`#${stage}-loading`);
+                const $noPdfDiv = $(`#${stage}-no-pdf`);
+                const opportunityId = data.opportunityId;
 
-                const opportunityId = data.opportunityId
+                if (!$listContainer.length || !$loadingDiv.length || !$noPdfDiv.length) {
+                    return;
+                }
 
                 $loadingDiv.removeClass('d-none');
-                $listContainer.addClass('d-none');
+                $listContainer.addClass('d-none').empty();
                 $noPdfDiv.addClass('d-none');
-                $tabDiv.tab('show');
 
                 $.ajax({
                         url: `opportunities/${opportunityId}/pdfs`,
                         method: 'GET',
                         data: {
-                            stage: previousStage
+                            stage
                         },
                         dataType: 'json'
                     })
@@ -1310,19 +1650,17 @@
                         opportunity_id: opportunityId
                     },
                     success: function(response) {
-                        console.log(response)
-
-                        // if (response.success) {
-                        //     populatePropContactsModal(response, cedantName);
-                        //     $('#proposalModal').modal('hide');
-                        //     $('#propContactsModal').modal('show');
-                        // } else {
-                        //     Swal.fire({
-                        //         icon: 'error',
-                        //         title: 'Error',
-                        //         text: response.message || 'Failed to fetch contacts'
-                        //     });
-                        // }
+                        if (response.success) {
+                            populatePropContactsModal(response, cedantName);
+                            $('#proposalModal').modal('hide');
+                            $('#propContactsModal').modal('show');
+                        } else {
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Error',
+                                text: response.message || 'Failed to fetch contacts'
+                            });
+                        }
                     },
                     error: function(xhr) {
                         let errorMessage = 'Failed to fetch cedant contacts';
@@ -1585,10 +1923,18 @@
                     info: false,
                     ordering: false,
                     destroy: true,
-                    columns: [
-                        { data: null, defaultContent: '' },
-                        { data: null, defaultContent: '' },
-                        { data: null, defaultContent: '' }
+                    columns: [{
+                            data: null,
+                            defaultContent: ''
+                        },
+                        {
+                            data: null,
+                            defaultContent: ''
+                        },
+                        {
+                            data: null,
+                            defaultContent: ''
+                        }
                     ]
                 });
             }
@@ -1615,9 +1961,9 @@
                 $shareInput.attr("max", remainingCapacity.toFixed(2));
                 $shareInput.attr(
                     "placeholder",
-                    remainingCapacity > 0
-                        ? `0.01 - ${remainingCapacity.toFixed(2)}`
-                        : "No capacity left",
+                    remainingCapacity > 0 ?
+                    `0.01 - ${remainingCapacity.toFixed(2)}` :
+                    "No capacity left",
                 );
             }
 
@@ -1734,6 +2080,7 @@
                 `;
 
                 try {
+                    const dt = initializeDataTable();
                     dt.row.add($(rowHtml)).draw();
                 } catch (err) {
                     Swal.fire({
@@ -1770,14 +2117,49 @@
                 });
 
                 const unplacedShare = 100 - totalShare;
+                const targetShare = 100;
+                const $sharesDisplay = $("#proposalModal .total-shares-display");
 
-                $('.placed-value').text(totalShare.toFixed(2) + '%');
-                $('.unplaced-value').text(unplacedShare.toFixed(2) + '%');
-                $('.placed-progress').css('width', totalShare + '%');
+                updateShareValue($sharesDisplay, totalShare, unplacedShare, targetShare);
+                updateProgressBar($sharesDisplay, totalShare, targetShare);
 
                 $('#propPlacedShare').val(totalShare.toFixed(2));
                 $('#propUnPlacedShare').val(unplacedShare.toFixed(2));
                 updateProposalCapacityState();
+            }
+
+            function updateShareValue($sharesDisplay, totalPlaced, totalUnplaced, targetTotal) {
+                const placedValueClass = totalPlaced === targetTotal ? "text-success" :
+                    totalPlaced > targetTotal ? "text-danger" : "text-primary";
+
+                $sharesDisplay.find(".placed-value")
+                    .removeClass("text-success text-danger text-primary text-warning")
+                    .addClass(placedValueClass)
+                    .text(`${totalPlaced.toFixed(2)}%`);
+
+                const unplacedValueClass = totalUnplaced === 0 ? "text-success" :
+                    totalUnplaced < 0 ? "text-danger" : "text-warning";
+
+                $sharesDisplay.find(".unplaced-value")
+                    .removeClass("text-success text-danger text-primary text-warning")
+                    .addClass(unplacedValueClass)
+                    .text(`${totalUnplaced.toFixed(2)}%`);
+            }
+
+            function updateProgressBar($sharesDisplay, totalPlaced, targetTotal) {
+                let progressWidth = 0;
+                if (targetTotal > 0) {
+                    progressWidth = Math.min((totalPlaced / targetTotal) * 100, 100);
+                }
+
+                const progressClass = totalPlaced === targetTotal ? "bg-success" :
+                    totalPlaced > targetTotal ? "bg-danger" : "bg-primary";
+
+                $sharesDisplay.find(".placed-progress")
+                    .removeClass("bg-success bg-danger bg-primary")
+                    .addClass(progressClass)
+                    .css("width", `${progressWidth}%`)
+                    .attr("aria-valuenow", progressWidth);
             }
 
             function toggleProposalPreviewSlipButton() {
@@ -1806,7 +2188,8 @@
                 postForm.find('input[type="hidden"]:not([name="_token"])').remove();
 
                 const formData = prepareFormData();
-                const categoryType = Number($form.find(".category_type").val() || formData.get("category_type") || 2);
+                const categoryType = Number($form.find(".category_type").val() || formData.get("category_type") ||
+                    2);
                 const targetAction = categoryType === 1 ? PREVIEW_ROUTES.quotation : PREVIEW_ROUTES.facultative;
                 postForm.attr("action", targetAction);
 

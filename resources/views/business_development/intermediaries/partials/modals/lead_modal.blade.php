@@ -283,9 +283,9 @@
                                         </div>
                                         <div class="shares-progress mt-2">
                                             <div class="progress" style="height: 8px;">
-                                                <div class="progress-bar bg-success placed-progress" role="progressbar"
-                                                    style="width: 0%" aria-valuenow="0" aria-valuemin="0"
-                                                    aria-valuemax="100">
+                                                <div class="progress-bar bg-success placed-progress"
+                                                    role="progressbar" style="width: 0%" aria-valuenow="0"
+                                                    aria-valuemin="0" aria-valuemax="100">
                                                 </div>
                                             </div>
                                         </div>
@@ -468,7 +468,7 @@
 <!-- Breakdown Text Editor -->
 <div class="modal fade breakdown-modal effect-scale md-wrapper" id="breakdownModal" tabindex="-1"
     data-bs-backdrop="static" data-bs-keyboard="false" aria-labelledby="breakdownModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-xl">
+    <div class="modal-dialog modal-dialog-centered modal-xl" style="max-width: 85%; width: 85%;">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="breakdownModalLabel">
@@ -495,14 +495,14 @@
                         <!-- Quick Templates Section -->
                         <div class="template-section">
                             <h6 class="mb-3 fw-bold text-primary">
-                                <i class="bx bx-layout me-2"></i>Editor Tools
+                                <i class="bx bx-layout me-2"></i>Editor Actions
                             </h6>
                             <div class="d-flex flex-wrap">
                                 <button type="button" class="template-btn" data-template="standard">
-                                    Load Data
+                                    Load Existing Content
                                 </button>
                                 <button type="button" class="template-btn" data-template="clear">
-                                    Clear All
+                                    Clear Content
                                 </button>
                             </div>
                         </div>
@@ -1531,6 +1531,20 @@
                 facultative: "{{ route('quote.quotationCoverSlip.facultative') }}",
             };
 
+            function isQuotationSlipMode(slipType) {
+                const normalizedSlipType = (slipType || $("#slipType").val() || state.slipType || "").toString()
+                    .toLowerCase();
+                const categoryType = Number($("#leadCategoryType").val() || 2);
+                return normalizedSlipType === "quotation" || categoryType === 1;
+            }
+
+            function shouldShowShares(slipType) {
+                const normalizedSlipType = (slipType || $("#slipType").val() || state.slipType || "").toString()
+                    .toLowerCase();
+                return normalizedSlipType === VALIDATION_CONFIG.SLIP_TYPE && !isQuotationSlipMode(
+                    normalizedSlipType);
+            }
+
             $.ajaxSetup({
                 headers: {
                     "X-CSRF-TOKEN": $('meta[name="csrf-token"]').attr("content"),
@@ -1633,8 +1647,9 @@
                 const selectedOption = $("#availableReinsurers option:selected");
                 const slipType = $("#slipType").val() || state.slipType;
                 const writtenSharePercent = parseFloat($("#reinsurerShare").val());
-                const showShareColumn = slipType === VALIDATION_CONFIG.SLIP_TYPE;
-                const configuredTotalWrittenShare = parseFloat($("#leadTotalReinsurerShare").val()) || VALIDATION_CONFIG.MAX_PERCENTAGE;
+                const showShareColumn = shouldShowShares(slipType);
+                const configuredTotalWrittenShare = parseFloat($("#leadTotalReinsurerShare").val()) ||
+                    VALIDATION_CONFIG.MAX_PERCENTAGE;
 
                 if (!selectedOption.val()) {
                     toastr.warning('Please select a reinsurer from the dropdown.', 'Select Reinsurer');
@@ -1642,7 +1657,8 @@
                 }
 
                 if (showShareColumn) {
-                    if (!writtenSharePercent || writtenSharePercent <= 0 || writtenSharePercent > configuredTotalWrittenShare) {
+                    if (!writtenSharePercent || writtenSharePercent <= 0 || writtenSharePercent >
+                        configuredTotalWrittenShare) {
                         Swal.fire({
                             icon: "error",
                             title: "Invalid Written Share",
@@ -1655,7 +1671,8 @@
 
                     const currentTotalPlacedShares = calculateTotalPlacedShares();
                     if (currentTotalPlacedShares + writtenSharePercent > configuredTotalWrittenShare) {
-                        const remainingCapacity = Math.max(configuredTotalWrittenShare - currentTotalPlacedShares, 0);
+                        const remainingCapacity = Math.max(configuredTotalWrittenShare - currentTotalPlacedShares,
+                            0);
                         Swal.fire({
                             icon: "warning",
                             title: "Insufficient Capacity",
@@ -1702,7 +1719,7 @@
             }
 
             function updateTableHeader(slipType) {
-                const showShareColumn = slipType === VALIDATION_CONFIG.SLIP_TYPE;
+                const showShareColumn = shouldShowShares(slipType);
 
                 const headerHtml = showShareColumn ? `
                     <tr>
@@ -1721,7 +1738,7 @@
             }
 
             function addReinsurerToTable(reinsurerData, slipType) {
-                const showShareColumn = slipType === VALIDATION_CONFIG.SLIP_TYPE;
+                const showShareColumn = shouldShowShares(slipType);
 
                 const shareColumnHtml = `
                     <td class="text-start share-column" ${!showShareColumn ? 'style="display: none;"' : ''}>
@@ -1840,7 +1857,7 @@
             function hydrateLeadReinsurers(reinsurersPayload) {
                 const reinsurers = parseReinsurersPayload(reinsurersPayload);
                 const slipType = $("#slipType").val() || state.slipType || VALIDATION_CONFIG.SLIP_TYPE;
-                const showShareColumn = slipType === VALIDATION_CONFIG.SLIP_TYPE;
+                const showShareColumn = shouldShowShares(slipType);
 
                 if (!state.dataTable) {
                     initializeReinsurerTable();
@@ -1882,7 +1899,7 @@
             }
 
             function toggleShareFields(slipType) {
-                const showShareColumn = slipType === VALIDATION_CONFIG.SLIP_TYPE;
+                const showShareColumn = shouldShowShares(slipType);
                 const $shareFields = $('.fac-rates');
                 const $sharesDisplay = $("#leadModal .total-shares-display");
 
@@ -2320,7 +2337,7 @@
                 const TOLERANCE = 0.01;
 
                 const writtenSharePercent = parseFloat($("#reinsurerShare").val());
-                const showShareColumn = slipType === VALIDATION_CONFIG.SLIP_TYPE;
+                const showShareColumn = shouldShowShares(slipType);
 
                 if (showShareColumn) {
                     if (sharesDifference > TOLERANCE) {
@@ -2361,6 +2378,11 @@
                 const isRequired = $field.prop("required") || VALIDATION_CONFIG.REQUIRED_FIELDS.includes(fieldName);
 
                 clearFieldValidation($field);
+
+                // Commission rate is not validated for quotation slips.
+                if (fieldName === "brokerage_rate" && isQuotationSlipMode()) {
+                    return true;
+                }
 
                 if (isRequired && !fieldValue) {
                     showFieldError($field, "This field is required");
@@ -3170,7 +3192,7 @@
             function toggleShareColumnVisibility(slipType) {
                 if (!state.dataTable) return;
 
-                const showShareColumn = slipType === VALIDATION_CONFIG.SLIP_TYPE;
+                const showShareColumn = shouldShowShares(slipType);
 
                 state.dataTable.column(1).visible(showShareColumn);
             }
@@ -3195,12 +3217,13 @@
                 });
                 $("#reinsurerShare, #retainedShareValue, #totalPlacedShares, #totalUnplacedShares").val("");
 
-                $("#leadModal .total-shares-display").show();
+                toggleShareFields($("#slipType").val() || state.slipType);
                 $("#leadModal .placed-value").text("0.00%").removeClass("text-success text-danger text-warning")
                     .addClass("text-primary");
                 $("#leadModal .unplaced-value").text("100.00%").removeClass("text-success text-danger text-primary")
                     .addClass("text-warning");
-                $("#leadModal .placed-progress").css("width", "0%").attr("aria-valuenow", 0).removeClass("bg-danger bg-primary")
+                $("#leadModal .placed-progress").css("width", "0%").attr("aria-valuenow", 0).removeClass(
+                        "bg-danger bg-primary")
                     .addClass("bg-success");
 
                 $("#leadOpportunityId, #reinsurersData, #specialConditionsContent, #leadClassCode, #leadClassGroupCode")
@@ -3370,7 +3393,7 @@
                 state.selectedReinsurers.clear();
                 updateReinsurerCount();
 
-                $("#leadModal .total-shares-display").show();
+                toggleShareFields($("#slipType").val() || state.slipType);
 
                 $(".quote-rein").removeClass("col-md-8 col-md-6").addClass("col-md-6");
                 $(".quote-rein").attr("data-quote", "false");

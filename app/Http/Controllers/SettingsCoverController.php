@@ -136,7 +136,8 @@ class SettingsCoverController extends Controller
                     $status = 'Activate';
                 }
                 return '<button class="btn btn-outline-primary btn-sm" id="edit_classGroup">Edit</button>
-                    <button class="btn btn-outline-primary btn-sm" id="activate_classGroup" value="' . $status . '">' . $status . '</button>';
+                    <button class="btn btn-outline-primary btn-sm" id="activate_classGroup" value="' . $status . '">' . $status . '</button>
+                    <button class="btn btn-outline-danger btn-sm" id="delete_classGroup">Delete</button>';
             })->make(true);
     }
 
@@ -145,26 +146,38 @@ class SettingsCoverController extends Controller
         try {
             $validator = Validator::make($request->all(), [
                 'group_code' => 'required|int|max:5',
-                'group_name' => 'required|string|max:100'
+                'group_name' => 'required|string|max:100',
+                'status' => 'required|in:A,D',
             ]);
-            if ($validator) {
-                // If the validation passes, you can proceed to store the data in the database or perform other actions
-                ClassGroup::create(
-                    [
-                        'group_code' => $request->group_code,
-                        'group_name' => $request->group_name,
-                        'status' => "A",
-                    ]
-                );
-                // Redirect or return a response as needed
-                return redirect('/settings/cover/classGroup')->with('success', 'class group information saved successfully');
-            } else {
-                Session::flash('error', 'some field are missing');
-                return [
-                    'code' => -1,
-                    'msg' => $validator->errors(),
-                ];
+
+            if ($validator->fails()) {
+                if ($request->ajax() || $request->wantsJson()) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Validation failed',
+                        'errors' => $validator->errors(),
+                    ], Response::HTTP_UNPROCESSABLE_ENTITY);
+                }
+
+                return redirect('/settings/cover/class-groups')
+                    ->withErrors($validator)
+                    ->withInput();
             }
+
+            ClassGroup::create([
+                'group_code' => $request->group_code,
+                'group_name' => $request->group_name,
+                'status' => $request->status,
+            ]);
+
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Class group saved successfully',
+                ]);
+            }
+
+            return redirect('/settings/cover/class-groups')->with('success', 'class group information saved successfully');
         } catch (\Throwable $e) {
             throw $e;
         }
@@ -173,13 +186,48 @@ class SettingsCoverController extends Controller
     public function ClassGroupEditData(Request $request)
     {
         try {
+            $validator = Validator::make($request->all(), [
+                'ed_group_code' => 'required|int|max:5',
+                'ed_group_name' => 'required|string|max:100',
+                'ed_status' => 'required|in:A,D',
+            ]);
+
+            if ($validator->fails()) {
+                if ($request->ajax() || $request->wantsJson()) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Validation failed',
+                        'errors' => $validator->errors(),
+                    ], Response::HTTP_UNPROCESSABLE_ENTITY);
+                }
+
+                return redirect('/settings/cover/class-groups')
+                    ->withErrors($validator)
+                    ->withInput();
+            }
+
             $ClassGroup = ClassGroup::findOrFail($request->ed_group_code);
             $ClassGroup->group_name = $request->input('ed_group_name');
+            $ClassGroup->status = $request->input('ed_status');
             $ClassGroup->save();
-            // Redirect or return a response as needed
-            return redirect('/settings/cover/classGroup')->with('success', 'class group information saved successfully');
+
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Class group updated successfully',
+                ]);
+            }
+
+            return redirect('/settings/cover/class-groups')->with('success', 'class group information saved successfully');
         } catch (ModelNotFoundException $exception) {
-            return redirect('/settings/cover/classGroup')->with('error', 'Specified code was not found.');
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Specified code was not found.',
+                ], Response::HTTP_NOT_FOUND);
+            }
+
+            return redirect('/settings/cover/class-groups')->with('error', 'Specified code was not found.');
         } catch (\Throwable $e) {
             throw $e;
         }
@@ -189,18 +237,40 @@ class SettingsCoverController extends Controller
     {
         try {
             $ClassGroup = ClassGroup::findOrFail($request->del_group_code);
-            if ($ClassGroup->status == "A") {
-                $status = "D";
+            $mode = (string) $request->input('mode', 'toggle');
+
+            if ($mode === 'delete') {
+                $ClassGroup->delete();
+                $message = 'class group deleted successfully';
             } else {
-                $status = "A";
+                if ($ClassGroup->status == "A") {
+                    $status = "D";
+                } else {
+                    $status = "A";
+                }
+                $ClassGroup->update([
+                    'status' => $status,
+                ]);
+                $message = 'class group status updated successfully';
             }
-            $ClassGroup->update([
-                'status' => $status,
-            ]);
-            // Redirect or return a response as needed
-            return redirect('/settings/cover/classGroup')->with('success', 'class group deleted successfully');
+
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => $message,
+                ]);
+            }
+
+            return redirect('/settings/cover/class-groups')->with('success', $message);
         } catch (ModelNotFoundException $exception) {
-            return redirect('/settings/cover/classGroup')->with('error', 'Specified code was not found.');
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Specified code was not found.',
+                ], Response::HTTP_NOT_FOUND);
+            }
+
+            return redirect('/settings/cover/class-groups')->with('error', 'Specified code was not found.');
         } catch (\Throwable $e) {
             throw $e;
         }
@@ -248,7 +318,7 @@ class SettingsCoverController extends Controller
                     ]
                 );
                 // Redirect or return a response as needed
-                return redirect('/settings/cover/class')->with('success', 'class information saved successfully');
+                return redirect('/settings/cover/classes')->with('success', 'class information saved successfully');
             } else {
                 Session::flash('error', 'some field are missing');
                 return [
@@ -270,9 +340,9 @@ class SettingsCoverController extends Controller
             $Classes->class_group_code = $request->input('ed_class_group_code');
             $Classes->save();
             // Redirect or return a response as needed
-            return redirect('/settings/cover/class')->with('success', 'class information saved successfully');
+            return redirect('/settings/cover/classes')->with('success', 'class information saved successfully');
         } catch (ModelNotFoundException $exception) {
-            return redirect('/settings/cover/class')->with('error', 'Specified code was not found.');
+            return redirect('/settings/cover/classes')->with('error', 'Specified code was not found.');
         } catch (\Throwable $e) {
             throw $e;
         }
@@ -291,9 +361,9 @@ class SettingsCoverController extends Controller
                 'status' => $status,
             ]);
             // Redirect or return a response as needed
-            return redirect('/settings/cover/class')->with('success', 'class deleted successfully');
+            return redirect('/settings/cover/classes')->with('success', 'class deleted successfully');
         } catch (ModelNotFoundException $exception) {
-            return redirect('/settings/cover/class')->with('error', 'Specified code was not found.');
+            return redirect('/settings/cover/classes')->with('error', 'Specified code was not found.');
         } catch (\Throwable $e) {
             throw $e;
         }
@@ -418,8 +488,8 @@ class SettingsCoverController extends Controller
                 } else {
                     $status = 'Activate';
                 }
-                return '<button class="btn btn-outline-primary btn-sm" id="edit_cust_type">Edit</button>
-                <button class="btn btn-outline-primary btn-sm" id="activate_cust_type" value="' . $status . '">' . $status . '</button>';
+                return '<button class="btn btn-outline-primary btn-sm" id="edit_cust_type"><i class="bx bx-edit me-1"></i>Edit</button>
+                <button class="btn btn-outline-warning btn-sm" id="activate_cust_type" value="' . $status . '"><i class="bx bx-power-off me-1"></i>' . $status . '</button>';
             })->make(true);
     }
 
@@ -442,7 +512,7 @@ class SettingsCoverController extends Controller
                 );
                 Session::flash('success', 'Customer Type information saved successfully');
                 // Redirect or return a response as needed
-                return redirect('/settings/cover/customerType')->with('success', 'Customer Type information saved successfully');
+                return redirect('/settings/cover/customer-types')->with('success', 'Customer Type information saved successfully');
             } else {
                 Session::flash('error', 'some field are missing');
                 return [
@@ -463,9 +533,9 @@ class SettingsCoverController extends Controller
             $CustomerTypes->type_name = $request->input('ed_type_name');
             $CustomerTypes->save();
             // Redirect or return a response as needed
-            return redirect('/settings/cover/customerType')->with('success', 'Customer Type information saved successfully');
+            return redirect('/settings/cover/customer-types')->with('success', 'Customer Type information saved successfully');
         } catch (ModelNotFoundException $exception) {
-            return redirect('/settings/cover/customerType')->with('error', 'Specified code was not found.');
+            return redirect('/settings/cover/customer-types')->with('error', 'Specified code was not found.');
         } catch (\Throwable $e) {
             throw $e;
         }
@@ -484,9 +554,9 @@ class SettingsCoverController extends Controller
                 'status' => $status,
             ]);
             // Redirect or return a response as needed
-            return redirect('/settings/cover/customerType')->with('success', 'Customer type deleted successfully');
+            return redirect('/settings/cover/customer-types')->with('success', 'Customer type deleted successfully');
         } catch (ModelNotFoundException $exception) {
-            return redirect('/settings/cover/customerType')->with('error', 'Specified code was not found.');
+            return redirect('/settings/cover/customer-types')->with('error', 'Specified code was not found.');
         } catch (\Throwable $e) {
             throw $e;
         }
@@ -510,8 +580,8 @@ class SettingsCoverController extends Controller
                 } else {
                     $status = 'Activate';
                 }
-                return '<button class="btn btn-outline-primary btn-sm" id="edit_country">Edit</button>
-                <button class="btn btn-outline-primary btn-sm" id="activate_country" value="' . $status . '">' . $status . '</button>';
+                return '<button class="btn btn-outline-primary btn-sm" id="edit_country"><i class="bx bx-edit me-1"></i>Edit</button>
+                <button class="btn btn-outline-warning btn-sm" id="activate_country" value="' . $status . '"><i class="bx bx-power-off me-1"></i>' . $status . '</button>';
             })->make(true);
     }
 
@@ -531,7 +601,7 @@ class SettingsCoverController extends Controller
                     ]
                 );
                 // Redirect or return a response as needed
-                return redirect('/settings/cover/country')->with('success', 'Country information saved successfully');
+                return redirect('/settings/cover/countries')->with('success', 'Country information saved successfully');
             } else {
                 Session::flash('error', 'some field are missing');
                 return [
@@ -551,9 +621,9 @@ class SettingsCoverController extends Controller
             $Country->country_name = $request->input('ed_country_name');
             $Country->save();
             // Redirect or return a response as needed
-            return redirect('/settings/cover/country')->with('success', 'Country information saved successfully');
+            return redirect('/settings/cover/countries')->with('success', 'Country information saved successfully');
         } catch (ModelNotFoundException $exception) {
-            return redirect('/settings/cover/country')->with('error', 'Specified code was not found.');
+            return redirect('/settings/cover/countries')->with('error', 'Specified code was not found.');
         } catch (\Throwable $e) {
             throw $e;
         }
@@ -572,9 +642,9 @@ class SettingsCoverController extends Controller
                 'status' => $status,
             ]);
             // Redirect or return a response as needed
-            return redirect('/settings/cover/country')->with('success', 'Country deleted successfully');
+            return redirect('/settings/cover/countries')->with('success', 'Country deleted successfully');
         } catch (ModelNotFoundException $exception) {
-            return redirect('/settings/cover/country')->with('error', 'Specified code was not found.');
+            return redirect('/settings/cover/countries')->with('error', 'Specified code was not found.');
         } catch (\Throwable $e) {
             throw $e;
         }
@@ -593,7 +663,7 @@ class SettingsCoverController extends Controller
         $BusinessType = BusinessType::select(['bus_type_id', 'bus_type_name']);
         return DataTables::Of($BusinessType)
             ->addColumn('action', function ($row) {
-                return '<button class="btn btn-outline-primary btn-sm" id="edit_businessType">Edit</button>';
+                return '<button class="btn btn-outline-primary btn-sm" id="edit_businessType"><i class="bx bx-edit me-1"></i>Edit</button>';
             })->make(true);
     }
 
@@ -613,7 +683,7 @@ class SettingsCoverController extends Controller
                     ]
                 );
                 // Redirect or return a response as needed
-                return redirect('/settings/cover/businessType')->with('success', 'businessType information saved successfully');
+                return redirect('/settings/cover/business-types')->with('success', 'businessType information saved successfully');
             } else {
                 Session::flash('error', 'some field are missing');
                 return [
@@ -633,9 +703,9 @@ class SettingsCoverController extends Controller
             $BusinessType->bus_type_name = $request->input('ed_bus_type_name');
             $BusinessType->save();
             // Redirect or return a response as needed
-            return redirect('/settings/cover/businessType')->with('success', 'BusinessType information saved successfully');
+            return redirect('/settings/cover/business-types')->with('success', 'BusinessType information saved successfully');
         } catch (ModelNotFoundException $exception) {
-            return redirect('/settings/cover/businessType')->with('error', 'Specified code was not found.');
+            return redirect('/settings/cover/business-types')->with('error', 'Specified code was not found.');
         } catch (\Throwable $e) {
             throw $e;
         }
@@ -718,7 +788,7 @@ class SettingsCoverController extends Controller
         $PayMethod = PayMethod::all();
         return DataTables::Of($PayMethod)
             ->addColumn('action', function ($row) {
-                return '<button class="btn btn-outline-primary btn-sm" id="edit_payMethod">Edit</button>';
+                return '<button class="btn btn-outline-primary btn-sm" id="edit_payMethod"><i class="bx bx-edit me-1"></i>Edit</button>';
             })->make(true);
     }
 
@@ -736,7 +806,7 @@ class SettingsCoverController extends Controller
                     ]
                 );
                 // Redirect or return a response as needed
-                return redirect('/settings/cover/payMethod')->with('success', 'payMethod information saved successfully');
+                return redirect('/settings/cover/pay-methods')->with('success', 'payMethod information saved successfully');
             } else {
                 Session::flash('error', 'some field are missing');
                 return [
@@ -757,9 +827,9 @@ class SettingsCoverController extends Controller
             $PayMethod->short_description = $request->input('ed_short_description');
             $PayMethod->save();
             // Redirect or return a response as needed
-            return redirect('/settings/cover/payMethod')->with('success', 'payMethod information saved successfully');
+            return redirect('/settings/cover/pay-methods')->with('success', 'payMethod information saved successfully');
         } catch (ModelNotFoundException $exception) {
-            return redirect('/settings/cover/payMethod')->with('error', 'Specified code was not found.');
+            return redirect('/settings/cover/pay-methods')->with('error', 'Specified code was not found.');
         } catch (\Throwable $e) {
             throw $e;
         }
@@ -797,7 +867,7 @@ class SettingsCoverController extends Controller
                     ]
                 );
                 // Redirect or return a response as needed
-                return redirect('/settings/cover/sumInsType')->with('success', 'sumInsType information saved successfully');
+                return redirect('/settings/cover/sum-insured-types')->with('success', 'sumInsType information saved successfully');
             } else {
                 Session::flash('error', 'some field are missing');
                 return [
@@ -817,9 +887,9 @@ class SettingsCoverController extends Controller
             $TypeOfSumInsured->sum_insured_name = $request->input('ed_sum_insured_name');
             $TypeOfSumInsured->save();
             // Redirect or return a response as needed
-            return redirect('/settings/cover/sumInsType')->with('success', 'sumInsType information saved successfully');
+            return redirect('/settings/cover/sum-insured-types')->with('success', 'sumInsType information saved successfully');
         } catch (ModelNotFoundException $exception) {
-            return redirect('/settings/cover/sumInsType')->with('error', 'Specified code was not found.');
+            return redirect('/settings/cover/sum-insured-types')->with('error', 'Specified code was not found.');
         } catch (\Throwable $e) {
             throw $e;
         }
@@ -845,8 +915,9 @@ class SettingsCoverController extends Controller
                 } else {
                     $status = 'Activate';
                 }
-                return '<button class="btn btn-outline-primary btn-sm" id="edit_reinsDivision">Edit</button>
-                <button class="btn btn-outline-primary btn-sm" id="activate_reinsDivision" value="' . $status . '">' . $status . '</button>';
+                return '<button class="btn btn-outline-primary btn-sm" id="edit_reinsDivision"><i class="bx bx-edit me-1"></i>Edit</button>
+                <button class="btn btn-outline-warning btn-sm" id="activate_reinsDivision" value="' . $status . '"><i class="bx bx-power-off me-1"></i>' . $status . '</button>
+                <button class="btn btn-outline-danger btn-sm" id="delete_reinsDivision"><i class="bx bx-trash me-1"></i>Delete</button>';
             })->make(true);
     }
 
@@ -864,7 +935,7 @@ class SettingsCoverController extends Controller
                     ]
                 );
                 // Redirect or return a response as needed
-                return redirect('/settings/cover/reinsDivision')->with('success', 'reinsDivision information saved successfully');
+                return redirect('/settings/cover/reins-divisions')->with('success', 'reinsDivision information saved successfully');
             } else {
                 Session::flash('error', 'some field are missing');
                 return [
@@ -884,9 +955,9 @@ class SettingsCoverController extends Controller
             $ReinsDivision->division_name = $request->input('ed_division_name');
             $ReinsDivision->save();
             // Redirect or return a response as needed
-            return redirect('/settings/cover/reinsDivision')->with('success', 'reinsDivision information saved successfully');
+            return redirect('/settings/cover/reins-divisions')->with('success', 'reinsDivision information saved successfully');
         } catch (ModelNotFoundException $exception) {
-            return redirect('/settings/cover/reinsDivision')->with('error', 'Specified code was not found.');
+            return redirect('/settings/cover/reins-divisions')->with('error', 'Specified code was not found.');
         } catch (\Throwable $e) {
             throw $e;
         }
@@ -896,6 +967,13 @@ class SettingsCoverController extends Controller
     {
         try {
             $ReinsDivision = ReinsDivision::findOrFail($request->del_division_code);
+            $mode = (string) $request->input('mode', 'toggle');
+
+            if ($mode === 'delete') {
+                $ReinsDivision->delete();
+                return redirect('/settings/cover/reins-divisions')->with('success', 'reinsDivision deleted successfully');
+            }
+
             if ($ReinsDivision->status == "A") {
                 $status = "D";
             } else {
@@ -903,9 +981,9 @@ class SettingsCoverController extends Controller
             }
             $ReinsDivision->update(['status' => $status]);
             // Redirect or return a response as needed
-            return redirect('/settings/cover/reinsDivision')->with('success', 'reinsDivision deleted successfully');
+            return redirect('/settings/cover/reins-divisions')->with('success', 'reinsDivision deleted successfully');
         } catch (ModelNotFoundException $exception) {
-            return redirect('/settings/cover/reinsDivision')->with('error', 'Specified code was not found.');
+            return redirect('/settings/cover/reins-divisions')->with('error', 'Specified code was not found.');
         } catch (\Throwable $e) {
             throw $e;
         }
@@ -933,8 +1011,8 @@ class SettingsCoverController extends Controller
                 } else {
                     $status = 'Activate';
                 }
-                return '<button class="btn btn-outline-primary btn-sm" id="edit_reinsClass">Edit</button>
-                <button class="btn btn-outline-primary btn-sm" id="activate_reinsClass" value="' . $status . '">' . $status . '</button>';
+                return '<button class="btn btn-outline-primary btn-sm" id="edit_reinsClass"><i class="bx bx-edit me-1"></i>Edit</button>
+                <button class="btn btn-outline-warning btn-sm" id="activate_reinsClass" value="' . $status . '"><i class="bx bx-power-off me-1"></i>' . $status . '</button>';
             })->make(true);
     }
 
@@ -953,7 +1031,7 @@ class SettingsCoverController extends Controller
                     ]
                 );
                 // Redirect or return a response as needed
-                return redirect('/settings/cover/reinsClass')->with('success', 'reinsClass information saved successfully');
+                return redirect('/settings/cover/reins-classes')->with('success', 'reinsClass information saved successfully');
             } else {
                 Session::flash('error', 'some field are missing');
                 return [
@@ -974,9 +1052,9 @@ class SettingsCoverController extends Controller
             $ReinsClass->class_group = $request->input('ed_class_group');
             $ReinsClass->save();
             // Redirect or return a response as needed
-            return redirect('/settings/cover/reinsClass')->with('success', 'reinsClass information saved successfully');
+            return redirect('/settings/cover/reins-classes')->with('success', 'reinsClass information saved successfully');
         } catch (ModelNotFoundException $exception) {
-            return redirect('/settings/cover/reinsClass')->with('error', 'Specified code was not found.');
+            return redirect('/settings/cover/reins-classes')->with('error', 'Specified code was not found.');
         } catch (\Throwable $e) {
             throw $e;
         }
@@ -993,9 +1071,9 @@ class SettingsCoverController extends Controller
             }
             $ReinsClass->update(['status' => $status]);
             // Redirect or return a response as needed
-            return redirect('/settings/cover/reinsClass')->with('success', 'reinsClass deleted successfully');
+            return redirect('/settings/cover/reins-classes')->with('success', 'reinsClass deleted successfully');
         } catch (ModelNotFoundException $exception) {
-            return redirect('/settings/cover/reinsClass')->with('error', 'Specified code was not found.');
+            return redirect('/settings/cover/reins-classes')->with('error', 'Specified code was not found.');
         } catch (\Throwable $e) {
             throw $e;
         }
@@ -1020,9 +1098,9 @@ class SettingsCoverController extends Controller
         $TreatyType = TreatyType::select(['type_of_bus', 'treaty_code', 'treaty_name', 'status']);
         return DataTables::Of($TreatyType)
             ->addColumn('type_of_bus', function ($row) {
-                // get reinclass
+                // Resolve business type label safely; fallback to raw code if missing.
                 $reinClass = BusinessType::where('bus_type_id', $row->type_of_bus)->first();
-                return $reinClass->bus_type_name;
+                return $reinClass->bus_type_name ?? $row->type_of_bus;
             })
             ->addColumn('action', function ($row) {
                 if ($row->status === 'A') {
@@ -1030,8 +1108,9 @@ class SettingsCoverController extends Controller
                 } else {
                     $status = 'Activate';
                 }
-                return '<button class="btn btn-outline-primary btn-sm" id="edit_treatyType">Edit</button>
-                    <button class="btn btn-outline-primary btn-sm" id="activate_treatyType" value="' . $status . '">' . $status . '</button>';
+                return '<button class="btn btn-outline-primary btn-sm" id="edit_treatyType"><i class="bx bx-edit me-1"></i>Edit</button>
+                    <button class="btn btn-outline-warning btn-sm" id="activate_treatyType" value="' . $status . '"><i class="bx bx-power-off me-1"></i>' . $status . '</button>
+                    <button class="btn btn-outline-danger btn-sm" id="delete_treatyType"><i class="bx bx-trash me-1"></i>Delete</button>';
             })->make(true);
     }
 
@@ -1050,7 +1129,7 @@ class SettingsCoverController extends Controller
                     ]
                 );
                 // Redirect or return a response as needed
-                return redirect('/settings/cover/treatyType')->with('success', 'treatyType information saved successfully');
+                return redirect('/settings/cover/treaty-types')->with('success', 'treatyType information saved successfully');
             } else {
                 Session::flash('error', 'some field are missing');
                 return [
@@ -1070,9 +1149,9 @@ class SettingsCoverController extends Controller
             $TreatyType->treaty_name = $request->input('ed_treaty_name');
             $TreatyType->save();
             // Redirect or return a response as needed
-            return redirect('/settings/cover/treatyType')->with('success', 'treatyType information saved successfully');
+            return redirect('/settings/cover/treaty-types')->with('success', 'treatyType information saved successfully');
         } catch (ModelNotFoundException $exception) {
-            return redirect('/settings/cover/treatyType')->with('error', 'Specified code was not found.');
+            return redirect('/settings/cover/treaty-types')->with('error', 'Specified code was not found.');
         } catch (\Throwable $e) {
             throw $e;
         }
@@ -1082,6 +1161,13 @@ class SettingsCoverController extends Controller
     {
         try {
             $TreatyType = TreatyType::findOrFail($request->del_treaty_code);
+            $mode = (string) $request->input('mode', 'toggle');
+
+            if ($mode === 'delete') {
+                $TreatyType->delete();
+                return redirect('/settings/cover/treaty-types')->with('success', 'treatyType deleted successfully');
+            }
+
             if ($TreatyType->status == "A") {
                 $status = "D";
             } else {
@@ -1089,9 +1175,9 @@ class SettingsCoverController extends Controller
             }
             $TreatyType->update(['status' => $status]);
             // Redirect or return a response as needed
-            return redirect('/settings/cover/treatyType')->with('success', 'treatyType changed status successfully');
+            return redirect('/settings/cover/treaty-types')->with('success', 'treatyType changed status successfully');
         } catch (ModelNotFoundException $exception) {
-            return redirect('/settings/cover/treatyType')->with('error', 'Specified code was not found.');
+            return redirect('/settings/cover/treaty-types')->with('error', 'Specified code was not found.');
         } catch (\Throwable $e) {
             throw $e;
         }
@@ -1115,7 +1201,7 @@ class SettingsCoverController extends Controller
             ->addColumn('reinclass_name', function ($row) {
                 // get reinclass
                 $reinClass = ReinsClass::where('class_code', $row->reinclass)->first();
-                return $reinClass->class_name;
+                return $reinClass->class_name ?? $row->reinclass;
             })
             ->addColumn('action', function ($row) {
                 if ($row->status === 'A') {
@@ -1123,8 +1209,9 @@ class SettingsCoverController extends Controller
                 } else {
                     $status = 'Activate';
                 }
-                return '<button class="btn btn-outline-primary btn-sm" id="edit_reinsClassPremtypes">Edit</button>
-                            <button class="btn btn-outline-primary btn-sm" id="activate_reinsClassPremtypes" value="' . $status . '">' . $status . '</button>';
+                return '<button class="btn btn-outline-primary btn-sm" id="edit_reinsClassPremtypes"><i class="bx bx-edit me-1"></i>Edit</button>
+                            <button class="btn btn-outline-warning btn-sm" id="activate_reinsClassPremtypes" value="' . $status . '"><i class="bx bx-power-off me-1"></i>' . $status . '</button>
+                            <button class="btn btn-outline-danger btn-sm" id="delete_reinsClassPremtypes"><i class="bx bx-trash me-1"></i>Delete</button>';
             })
             ->rawColumns(['action'])
             ->make(true);
@@ -1145,7 +1232,7 @@ class SettingsCoverController extends Controller
                     ]
                 );
                 // Redirect or return a response as needed
-                return redirect('/settings/cover/reinsClassPremtypes')->with('success', 'reins class premtype information saved successfully');
+                return redirect('/settings/cover/reins-class-premtypes')->with('success', 'reins class premtype information saved successfully');
             } else {
                 Session::flash('error', 'some field are missing');
                 return [
@@ -1171,9 +1258,9 @@ class SettingsCoverController extends Controller
             // $reinsClassPremtypes->premtype_name = $request->input('ed_premtype_name');
             // $reinsClassPremtypes->save();
             // Redirect or return a response as needed
-            return redirect('/settings/cover/reinsClassPremtypes')->with('success', 'reins class premtype edited successfully');
+            return redirect('/settings/cover/reins-class-premtypes')->with('success', 'reins class premtype edited successfully');
         } catch (ModelNotFoundException $exception) {
-            return redirect('/settings/cover/reinsClassPremtypes')->with('error', 'Specified code was not found.');
+            return redirect('/settings/cover/reins-class-premtypes')->with('error', 'Specified code was not found.');
         } catch (\Throwable $e) {
             throw $e;
         }
@@ -1187,6 +1274,16 @@ class SettingsCoverController extends Controller
             $Premtype = ReinclassPremtype::where('reinclass', $request->del_reinclass)
                 ->where('premtype_code', $request->del_premtype_code)
                 ->first();
+            if (!$Premtype) {
+                return redirect('/settings/cover/reins-class-premtypes')->with('error', 'Specified code was not found.');
+            }
+
+            $mode = (string) $request->input('mode', 'toggle');
+            if ($mode === 'delete') {
+                $Premtype->delete();
+                return redirect('/settings/cover/reins-class-premtypes')->with('success', 'reins class premtype deleted successfully');
+            }
+
             $Premtype_status = $Premtype->status;
             $reinClass = ReinsClass::where('class_code', $request->del_reinclass)->first();
 
@@ -1205,9 +1302,10 @@ class SettingsCoverController extends Controller
                 ]);
 
             // Redirect or return a response as needed
-            return redirect('/settings/cover/reinsClassPremtypes')->with('success', '' . $reinClass->class_name . '-' . $Premtype->premtype_name . ' has been ' . $status_name . ' successfully');
+            $reinClassName = $reinClass->class_name ?? $request->del_reinclass;
+            return redirect('/settings/cover/reins-class-premtypes')->with('success', '' . $reinClassName . '-' . $Premtype->premtype_name . ' has been ' . $status_name . ' successfully');
         } catch (ModelNotFoundException $exception) {
-            return redirect('/settings/cover/reinsClassPremtypes')->with('error', 'Specified code was not found.');
+            return redirect('/settings/cover/reins-class-premtypes')->with('error', 'Specified code was not found.');
         } catch (\Throwable $e) {
             throw $e;
         }

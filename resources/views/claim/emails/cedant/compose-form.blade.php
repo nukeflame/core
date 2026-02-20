@@ -133,7 +133,7 @@
         </div>
 
         <textarea class="form-inputs @error('cedMessage') is-invalid @enderror" id="cedMessage" name="message"
-            rows="14" required placeholder="Reply message...">{{ $defaultCedantMessage ?? '' }}</textarea>
+            rows="10" required placeholder="Reply message...">{{ $defaultCedantMessage ?? '' }}</textarea>
         <div class="invalid-feedback"></div>
     </div>
 </div>

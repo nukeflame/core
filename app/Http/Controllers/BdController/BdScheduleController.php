@@ -160,26 +160,26 @@ class BdScheduleController extends Controller
 
         return response()->json([
             'success' => true,
-            'template_count' => 1,
-            'template' => [
-                'id' => $template->id,
-                'schedule_title' => $template->schedule_title,
-                'class_group_code' => $template->class_group_code,
-                'class_code' => $template->class_code,
-                'wording' => $wording,
-                'description' => $template->description,
-            ],
-            'wording' => $wording,
-            'headers' => $headers->map(function ($h) {
-                return [
-                    'id' => $h->id,
-                    'name' => $h->name,
-                    'position' => $h->position,
-                    'amount_field' => $h->amount_field,
-                    'sum_insured_type' => $h->sum_insured_type,
-                    'business_type' => $h->business_type,
-                ];
-            }),
+            // 'template_count' => 1,
+            // 'template' => [
+            //     'id' => $template->id,
+            //     'schedule_title' => $template->schedule_title,
+            //     'class_group_code' => $template->class_group_code,
+            //     'class_code' => $template->class_code,
+            //     'wording' => $wording,
+            //     'description' => $template->description,
+            // ],
+            // 'wording' => $wording,
+            // 'headers' => $headers->map(function ($h) {
+            //     return [
+            //         'id' => $h->id,
+            //         'name' => $h->name,
+            //         'position' => $h->position,
+            //         'amount_field' => $h->amount_field,
+            //         'sum_insured_type' => $h->sum_insured_type,
+            //         'business_type' => $h->business_type,
+            //     ];
+            // }),
         ]);
     }
 

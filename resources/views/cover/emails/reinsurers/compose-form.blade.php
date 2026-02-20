@@ -132,7 +132,7 @@
                     </div>
                 </div>
 
-                <textarea class="form-inputs @error('message') is-invalid @enderror" id="message" name="message" rows="14"
+                <textarea class="form-inputs @error('message') is-invalid @enderror" id="message" name="message" rows="10"
                     required placeholder="Reply message...">{{ $defaultMessage ?? '' }}</textarea>
                 <div class="invalid-feedback"></div>
             </div>

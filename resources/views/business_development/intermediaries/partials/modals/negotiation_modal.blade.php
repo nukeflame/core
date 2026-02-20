@@ -240,7 +240,7 @@
                                 </div>
                             </div>
                             <div class="documents-section-content" id="documentsContent">
-                                <div id="documentFields" class="row g-4" style="display: none;"></div>
+                                <div id="documentFields" class="row" style="display: none;"></div>
                             </div>
                         </div>
                     </div>
@@ -268,8 +268,8 @@
 
 <form id="negotiation-quoteslip-form" method="POST" action="{{ route('quote.quotationCoverSlip.facultative') }}"
     data-quotation-action="{{ route('quote.quotationCoverSlip.quotation') }}"
-    data-facultative-action="{{ route('quote.quotationCoverSlip.facultative') }}"
-    target="_blank" style="display: none;">
+    data-facultative-action="{{ route('quote.quotationCoverSlip.facultative') }}" target="_blank"
+    style="display: none;">
     @csrf
 </form>
 
@@ -1175,7 +1175,8 @@
                 postForm.find('input[type="hidden"]:not([name="_token"])').remove();
 
                 const formData = prepareFormData();
-                const categoryType = Number($form.find(".category_type").val() || formData.get("category_type") || 2);
+                const categoryType = Number($form.find(".category_type").val() || formData.get("category_type") ||
+                    2);
                 const targetAction = categoryType === 1 ? PREVIEW_ROUTES.quotation : PREVIEW_ROUTES.facultative;
                 postForm.attr("action", targetAction);
 

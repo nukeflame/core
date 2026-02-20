@@ -125,7 +125,7 @@
             </div>
 
             <textarea class="form-inputs message resize-none @error('message') is-invalid @enderror" id="message"
-                name="message" rows="15" placeholder="Enter Message..."></textarea>
+                name="message" rows="10" placeholder="Enter Message..."></textarea>
             <div class="invalid-feedback"></div>
         </div>
     </div>
