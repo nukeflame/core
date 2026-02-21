@@ -1029,6 +1029,7 @@ class PipelineManager {
             if ($modal.length === 0) {
                 throw new Error(`Modal not found: ${modalId}`);
             }
+            $modal.attr("data-deal-id", dealId);
 
             const data = {
                 dealId: dealId,
@@ -1079,6 +1080,7 @@ class PipelineManager {
             if (!dealInfo) {
                 return;
             }
+            $modal.attr("data-deal-id", dealId || "");
 
             $modal.find(".slip-display").text(dealInfo.id || "");
 
@@ -1320,9 +1322,10 @@ class PipelineManager {
             return {
                 id: reinsurer.reinsurer_id,
                 name: reinsurer.reinsurer_name,
-                written_share: (isDeclined ? 0 : normalizedWrittenShare).toFixed(
-                    2,
-                ),
+                written_share: (isDeclined
+                    ? 0
+                    : normalizedWrittenShare
+                ).toFixed(2),
                 previous_written_share: normalizedWrittenShare.toFixed(2),
                 commission: parseFloat(reinsurer.brokerage_rate || 0).toFixed(
                     2,
@@ -1914,8 +1917,6 @@ class PipelineManager {
                 category_type: data.categoryType,
             },
             success: (response) => {
-                console.log(`response`, response);
-
                 if (response.status) {
                     if ($documentsSubtitle.length > 0) {
                         $documentsSubtitle.html(
@@ -1981,7 +1982,14 @@ class PipelineManager {
                 return false;
             }
 
-            const hasValidSumInsuredType = h.sum_insured_type?.trim() === "";
+            const normalizedSumInsuredType = (
+                h.sum_insured_type ??
+                h.type_of_sum_insured ??
+                ""
+            )
+                .toString()
+                .trim();
+            const hasValidSumInsuredType = normalizedSumInsuredType === "";
             const isNotExcluded = !EXCLUDED_TERMS.some((term) =>
                 h.name?.replace(/\s+/g, " ").trim().includes(term),
             );
@@ -2014,8 +2022,13 @@ class PipelineManager {
                 .find("#documentsContent")
                 .closest(".form-section");
             if ($docsSection.length) {
-                $docsSection.hide();
-                $docsSection.prev("hr").hide();
+                if (data.modalId === "leadModal" && !hasSelectedReinsurers) {
+                    $docsSection.hide();
+                    $docsSection.prev("hr").hide();
+                } else {
+                    $docsSection.show();
+                    $docsSection.prev("hr").show();
+                }
             }
             return;
         }
@@ -2312,7 +2325,7 @@ class PipelineManager {
             const titleInputAttributes = isAdditionalDocument
                 ? 'data-additional-title="1"'
                 : "readonly";
-            console.log(doc.s3_path);
+
             const fileAreaHtml = isAdditionalDocument
                 ? `<div class="supporting-doc-upload-line"
                                     data-field="${doc.id}"

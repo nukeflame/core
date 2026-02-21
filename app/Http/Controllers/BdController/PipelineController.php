@@ -319,7 +319,10 @@ class PipelineController
             $type_of_bus = $request->business_type;
 
             $pros = DB::table('pipeline_opportunities')
-                ->where('id', $prospect)
+                ->where(function ($query) use ($prospect) {
+                    $query->where('id', $prospect)
+                        ->orWhere('opportunity_id', $prospect);
+                })
                 ->first();
 
             if (!$pros) {
@@ -366,7 +369,7 @@ class PipelineController
 
             $quoteReinsurers = $this->getQuoteReinsurers($request->prospect, $pros->stage);
 
-            $declined = ReinsurersDeclined::where('opportunity_id', $request->prospect)
+            $declined = ReinsurersDeclined::where('opportunity_id', $pros->opportunity_id)
                 ->pluck('reason', 'customer_id');
 
             foreach ($quoteReinsurers as $reinsurer) {

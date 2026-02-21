@@ -351,7 +351,7 @@
                         <button type="button" class="btn btn-outline-light btn-sm" data-bs-dismiss="modal">
                             <i class="fas fa-times me-1"></i> Cancel
                         </button>
-                        <button type="submit" class="btn btn-primary btn-sm">
+                        <button type="submit" class="btn btn-primary btn-sm" id="scheduleHeaderSubmitBtn">
                             <i class="fas fa-check me-1"></i> Save Schedule Header
                         </button>
                     </div>
@@ -458,10 +458,136 @@
             const csrfToken = @json(csrf_token());
             const classGroupMap = @json($classGroups->pluck('group_name', 'group_code'));
             const classNameMap = @json($classes->pluck('class_name', 'class_code'));
+            const classCodeToGroupMap = @json($classes->pluck('class_group_code', 'class_code'));
+            const classGroupNameToCodeMap = Object.entries(classGroupMap || {}).reduce((acc, [code, name]) => {
+                const normalizedName = (name || '').toString().trim().toUpperCase();
+                if (normalizedName) {
+                    acc[normalizedName] = code;
+                }
+                return acc;
+            }, {});
+            const classNameToCodeMap = Object.entries(classNameMap || {}).reduce((acc, [code, name]) => {
+                const normalizedName = (name || '').toString().trim().toUpperCase();
+                if (normalizedName && !acc[normalizedName]) {
+                    acc[normalizedName] = code;
+                }
+                return acc;
+            }, {});
 
             $(function() {
                 if (!$.fn.DataTable) {
                     return;
+                }
+
+                function normalizeBusType(value) {
+                    const normalized = (value || '').toString().trim().toUpperCase();
+                    if (!normalized) return '';
+                    if (normalized === 'FAC' || normalized === 'FACULTATIVE') return 'FAC';
+                    if (normalized === 'TRT' || normalized === 'TREATY') return 'TRT';
+                    if (normalized.includes('FAC')) return 'FAC';
+                    if (normalized.includes('TREAT')) return 'TRT';
+                    return normalized;
+                }
+
+                function normalizeAmountField(value) {
+                    const normalized = (value == null ? '' : value).toString().trim().toUpperCase();
+                    if (!normalized) return '';
+                    if (['Y', 'YES', '1', 'TRUE', 'T'].includes(normalized)) return 'Y';
+                    if (['N', 'NO', '0', 'FALSE', 'F'].includes(normalized)) return 'N';
+                    return normalized;
+                }
+
+                function normalizeDataDeterminant(value) {
+                    const normalized = (value == null ? '' : value).toString().trim().toUpperCase();
+                    if (!normalized) return '';
+                    if (['COM', 'COMMISSION'].includes(normalized)) return 'COM';
+                    if (['PREM', 'PREMIUM'].includes(normalized)) return 'PREM';
+                    if (['SI', 'SUM INSURED', 'SUM_INSURED'].includes(normalized)) return 'SI';
+                    return normalized;
+                }
+
+                function decodeHtmlEntities(value) {
+                    const raw = (value == null ? '' : value).toString();
+                    if (!raw) return '';
+                    const textarea = document.createElement('textarea');
+                    textarea.innerHTML = raw;
+                    return textarea.value;
+                }
+
+                function resolveClassGroupCode(row) {
+                    const directCode = (row.class_group_code || '').toString().trim();
+                    if (directCode) {
+                        return directCode;
+                    }
+
+                    const classGroupRaw = (row.class_group || row.class_group_name || '').toString().trim();
+                    if (!classGroupRaw) {
+                        return '';
+                    }
+
+                    const normalized = classGroupRaw.toUpperCase();
+                    return classGroupNameToCodeMap[normalized] || classGroupRaw;
+                }
+
+                function resolveClassCode(row) {
+                    const directCode = (row.class_code || '').toString().trim();
+                    if (directCode) {
+                        return directCode;
+                    }
+
+                    const classRaw = (row.class || row.class_name || '').toString().trim();
+                    if (!classRaw) {
+                        return '';
+                    }
+
+                    const normalized = classRaw.toUpperCase();
+                    return classNameToCodeMap[normalized] || classRaw;
+                }
+
+                function resolveSelectValueByText(selector, rawValue) {
+                    const value = (rawValue || '').toString().trim();
+                    if (!value) {
+                        return '';
+                    }
+
+                    const $select = $(selector);
+                    const hasValue = $select.find('option').filter(function() {
+                        return ($(this).val() || '').toString().trim().toUpperCase() === value.toUpperCase();
+                    }).first();
+
+                    if (hasValue.length) {
+                        return hasValue.val();
+                    }
+
+                    const hasText = $select.find('option').filter(function() {
+                        return ($(this).text() || '').toString().trim().toUpperCase() === value.toUpperCase();
+                    }).first();
+
+                    return hasText.length ? hasText.val() : value;
+                }
+
+                function resolveSelectValue(selector, rawValue) {
+                    const value = (rawValue || '').toString().trim();
+                    if (!value) {
+                        return '';
+                    }
+
+                    const $select = $(selector);
+                    const byValue = $select.find('option').filter(function() {
+                        return ($(this).val() || '').toString().trim().toUpperCase() === value.toUpperCase();
+                    }).first();
+                    if (byValue.length) {
+                        return byValue.val();
+                    }
+
+                    const byText = $select.find('option').filter(function() {
+                        return ($(this).text() || '').toString().trim().toUpperCase() === value.toUpperCase();
+                    }).first();
+                    if (byText.length) {
+                        return byText.val();
+                    }
+
+                    return value;
                 }
 
                 const datatableColumns = [{
@@ -668,38 +794,48 @@
 
                     // Populate fields
                     $('#sh-id').val(row.id);
-                    $('#sh-name').val(row.name || row.schedule_title || '');
+                    $('#sh-source-table').val(row.source_table || 'quote_schedule_headers');
+                    $('#sh-name').val(decodeHtmlEntities(row.name || row.schedule_title || ''));
                     $('#sh-position').val(row.position != null ? row.position : '');
 
-                    const busType = (row.business_type || row.bus_type || '').toString().trim()
-                        .toUpperCase();
+                    const busType = normalizeBusType(row.business_type || row.bus_type || row.type_of_bus || '');
                     $('#sh-business-type').val(busType);
 
-                    const amtField = (row.amount_field != null ? row.amount_field : '').toString()
-                        .trim().toUpperCase();
+                    const amtField = normalizeAmountField(row.amount_field);
                     $('#sh-amount-field').val(amtField);
 
-                    $('#sh-sum-insured-type').val(
+                    $('#sh-sum-insured-type').val(resolveSelectValueByText(
+                        '#sh-sum-insured-type',
                         row.sum_insured_type || row.type_of_sum_insured || ''
-                    );
+                    ));
 
-                    const dataDet = (row.data_determinant != null ? row.data_determinant : '')
-                        .toString().trim().toUpperCase();
+                    const dataDet = normalizeDataDeterminant(row.data_determinant);
                     $('#sh-data-determinant').val(dataDet);
 
-                    const classGroupVal = (row.class_group || row.class_group_code || '').toString()
-                        .trim();
+                    let classGroupVal = resolveSelectValue(
+                        '#sh-class-group',
+                        resolveClassGroupCode(row)
+                    );
+                    const classValue = resolveClassCode(row);
+                    if (!classGroupVal && classValue) {
+                        classGroupVal = resolveSelectValue(
+                            '#sh-class-group',
+                            classCodeToGroupMap[classValue] || classCodeToGroupMap[classValue.toUpperCase()] || ''
+                        );
+                    }
                     $('#sh-class-group').val(classGroupVal);
 
                     // Update dependent visibility
                     syncFacFieldRequirements();
                     syncAmountDependentFields();
 
-                    // Update modal title
+                    // Update modal title/buttons for edit mode
                     $('#addScheduleHeaderModalLabel').text('Edit Schedule Header');
+                    $('#scheduleHeaderSubmitBtn').html(
+                        '<i class="fas fa-pen me-1"></i> Update Schedule Header'
+                    );
 
                     // Load classes by group, then set selected class
-                    const classValue = (row.class || row.class_code || '').toString().trim();
                     if (classGroupVal) {
                         $.ajax({
                             url: getClassUrl,
@@ -723,9 +859,22 @@
                                         );
                                     });
                                 }
+                                if (classValue && !$cls.find('option').filter(function() {
+                                        return ($(this).val() || '').toString().trim().toUpperCase() ===
+                                            classValue.toUpperCase();
+                                    }).length) {
+                                    $cls.append(`<option value="${classValue}">${classValue}</option>`);
+                                }
                                 $cls.val(classValue);
                             }
                         });
+                    } else {
+                        const $cls = $(classSelector);
+                        $cls.empty().append('<option value="">-- Select Class --</option>');
+                        if (classValue) {
+                            $cls.append(`<option value="${classValue}">${classValue}</option>`);
+                            $cls.val(classValue);
+                        }
                     }
 
                     // Open the modal
@@ -925,6 +1074,53 @@
                     },
                     unhighlight: function(element) {
                         $(element).removeClass('is-invalid');
+                    },
+                    submitHandler: function(form, event) {
+                        event.preventDefault();
+
+                        const $form = $(form);
+                        const $submitBtn = $('#scheduleHeaderSubmitBtn');
+                        const originalBtnHtml = $submitBtn.html();
+
+                        $submitBtn.prop('disabled', true).html(
+                            '<i class="fas fa-spinner fa-spin me-1"></i> Saving...'
+                        );
+
+                        $.ajax({
+                            url: $form.attr('action'),
+                            type: 'POST',
+                            dataType: 'json',
+                            data: $form.serialize(),
+                            success: function(resp) {
+                                if (resp && resp.success) {
+                                    toastr.success(resp.message || 'Schedule header saved successfully.');
+                                    const modalEl = document.querySelector(addModalSelector);
+                                    const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+                                    modal.hide();
+                                    dataTable.ajax.reload(null, false);
+                                    return;
+                                }
+
+                                toastr.error((resp && resp.message) || 'Failed to save schedule header.');
+                            },
+                            error: function(xhr) {
+                                const responseErrors = xhr?.responseJSON?.errors || {};
+                                const responseMessage = xhr?.responseJSON?.message ||
+                                    'Failed to save schedule header.';
+
+                                Object.keys(responseErrors).forEach(function(fieldName) {
+                                    const $field = $form.find(`[name="${fieldName}"]`);
+                                    if ($field.length) {
+                                        $field.addClass('is-invalid');
+                                    }
+                                });
+
+                                toastr.error(responseMessage);
+                            },
+                            complete: function() {
+                                $submitBtn.prop('disabled', false).html(originalBtnHtml);
+                            }
+                        });
                     }
                 });
 
@@ -937,9 +1133,13 @@
                     if (!isEditMode) {
                         $(addFormSelector)[0].reset();
                         $('#sh-id').val('');
+                        $('#sh-source-table').val('quote_schedule_headers');
                         scheduleHeaderValidator.resetForm();
                         $(addFormSelector).find('.is-invalid').removeClass('is-invalid');
                         $('#addScheduleHeaderModalLabel').text('Add Schedule Header');
+                        $('#scheduleHeaderSubmitBtn').html(
+                            '<i class="fas fa-check me-1"></i> Save Schedule Header'
+                        );
                         syncFacFieldRequirements();
                         syncAmountDependentFields();
                         loadClassesByGroup();

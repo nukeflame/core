@@ -76,6 +76,7 @@ class BdScheduleController extends Controller
             ]);
         }
 
+
         $query = SlipTemplate::where('status', 'A');
 
         $busType = match ($rawBusType) {
@@ -160,26 +161,26 @@ class BdScheduleController extends Controller
 
         return response()->json([
             'success' => true,
-            // 'template_count' => 1,
-            // 'template' => [
-            //     'id' => $template->id,
-            //     'schedule_title' => $template->schedule_title,
-            //     'class_group_code' => $template->class_group_code,
-            //     'class_code' => $template->class_code,
-            //     'wording' => $wording,
-            //     'description' => $template->description,
-            // ],
-            // 'wording' => $wording,
-            // 'headers' => $headers->map(function ($h) {
-            //     return [
-            //         'id' => $h->id,
-            //         'name' => $h->name,
-            //         'position' => $h->position,
-            //         'amount_field' => $h->amount_field,
-            //         'sum_insured_type' => $h->sum_insured_type,
-            //         'business_type' => $h->business_type,
-            //     ];
-            // }),
+            'template_count' => 1,
+            'template' => [
+                'id' => $template->id,
+                'schedule_title' => $template->schedule_title,
+                'class_group_code' => $template->class_group_code,
+                'class_code' => $template->class_code,
+                'wording' => $wording,
+                'description' => $template->description,
+            ],
+            'wording' => $wording,
+            'headers' => $headers->map(function ($h) {
+                return [
+                    'id' => $h->id,
+                    'name' => $h->name,
+                    'position' => $h->position,
+                    'amount_field' => $h->amount_field,
+                    'sum_insured_type' => $h->sum_insured_type,
+                    'business_type' => $h->business_type,
+                ];
+            }),
         ]);
     }
 
@@ -253,14 +254,15 @@ class BdScheduleController extends Controller
     public function bd_schedule_header_add(Request $request)
     {
 
-        $id = $request->id;
+        $id = (int) $request->input('id', 0);
+        $hasId = $id > 0;
         $bus_type = $request->business_type;
         $requestedTable = (string) $request->input('source_table', '');
         $allowedTables = ['schedule_headers', 'quote_schedule_headers'];
 
         if (in_array($requestedTable, $allowedTables, true)) {
             $table = $requestedTable;
-        } elseif ($id && Schema::hasTable('quote_schedule_headers') && DB::table('quote_schedule_headers')->where('id', $id)->exists()) {
+        } elseif ($hasId && Schema::hasTable('quote_schedule_headers') && DB::table('quote_schedule_headers')->where('id', $id)->exists()) {
             // Backward-compatible fallback for existing quote schedule header edits.
             $table = 'quote_schedule_headers';
         } else {
@@ -272,6 +274,15 @@ class BdScheduleController extends Controller
 
         try {
             DB::beginTransaction();
+
+            $normalizedName = trim(html_entity_decode(
+                (string) $request->input('name', ''),
+                ENT_QUOTES | ENT_HTML5,
+                'UTF-8'
+            ));
+            if ($normalizedName !== '') {
+                $request->merge(['name' => $normalizedName]);
+            }
 
             $rules = [
                 'name' => 'required|string|max:100',
@@ -287,6 +298,14 @@ class BdScheduleController extends Controller
             $validator = Validator::make($request->all(), $rules);
 
             if ($validator->fails()) {
+                if ($request->ajax() || $request->wantsJson()) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Validation failed.',
+                        'errors' => $validator->errors(),
+                    ], 422);
+                }
+
                 return back()
                     ->withErrors($validator)
                     ->withInput();
@@ -336,7 +355,7 @@ class BdScheduleController extends Controller
                 })
                 ->all();
 
-            if (isset($id)) {
+            if ($hasId) {
                 DB::table($table)->where('id', $id)->update($scheduleData);
             } else {
                 $checkColumns = ['name', 'position', 'amount_field', 'sum_insured_type', 'data_determinant', 'class', 'class_group', 'business_type', 'bus_type'];
@@ -352,6 +371,12 @@ class BdScheduleController extends Controller
 
 
                 if ($exists) {
+                    if ($request->ajax() || $request->wantsJson()) {
+                        return response()->json([
+                            'success' => false,
+                            'message' => 'Schedule header with the same details already exists',
+                        ], 422);
+                    }
                     return redirect()->back()->with('error', 'Schedule header with the same details already exists');
                 } else {
                     // dd($request->all());
@@ -363,9 +388,24 @@ class BdScheduleController extends Controller
 
             DB::commit();
 
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => $hasId ? 'Schedule header updated successfully.' : 'Schedule header created successfully.',
+                ]);
+            }
+
             return redirect()->route('bd.schedule-headers.index');
         } catch (Exception $e) {
             DB::rollBack();
+
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Failed to save schedule header',
+                ], 500);
+            }
+
             return redirect()->back()->with('error', 'Failed to save schedule header');
         }
     }
@@ -414,22 +454,166 @@ class BdScheduleController extends Controller
         }
 
         $query = DB::table('quote_schedule_headers')->select($columns);
-
-        if ($request->filled('filter_business_type') && in_array('business_type', $columns, true)) {
-            $query->where('business_type', $request->input('filter_business_type'));
-        }
-
-        if ($request->filled('filter_class_group') && in_array('class_group', $columns, true)) {
-            $query->where('class_group', $request->input('filter_class_group'));
-        }
-
-        if ($request->filled('filter_class_name') && in_array('class', $columns, true)) {
-            $query->where('class', $request->input('filter_class_name'));
-        }
-
         $rows = $query->get();
 
-        return dataTables::of($rows)->make(true);
+        $businessTypeMap = BusinessType::get(['bus_type_id', 'bus_type_name'])
+            ->keyBy(fn($item) => strtoupper(trim((string) $item->bus_type_id)));
+
+        $businessTypeNameToCode = BusinessType::get(['bus_type_id', 'bus_type_name'])
+            ->mapWithKeys(function ($item) {
+                return [strtoupper(trim((string) $item->bus_type_name)) => strtoupper(trim((string) $item->bus_type_id))];
+            });
+
+        $classMap = Classes::select(['class_code', 'class_name', 'class_group_code'])
+            ->get()
+            ->keyBy('class_code');
+
+        $classGroupMap = ClassGroup::select(['group_code', 'group_name'])
+            ->get()
+            ->keyBy('group_code');
+
+        $classGroupNameToCode = $classGroupMap->mapWithKeys(function ($group) {
+            return [strtoupper(trim((string) $group->group_name)) => (string) $group->group_code];
+        });
+
+        $normalizeBusinessType = function ($rawValue) use ($businessTypeMap, $businessTypeNameToCode) {
+            $raw = strtoupper(trim((string) $rawValue));
+            if ($raw === '') {
+                return '';
+            }
+
+            if (in_array($raw, ['FAC', 'FACULTATIVE'], true)) {
+                return 'FAC';
+            }
+
+            if (in_array($raw, ['TRT', 'TREATY'], true)) {
+                return 'TRT';
+            }
+
+            if (isset($businessTypeMap[$raw])) {
+                $mappedId = strtoupper(trim((string) ($businessTypeMap[$raw]->bus_type_id ?? '')));
+                if (in_array($mappedId, ['FAC', 'TRT'], true)) {
+                    return $mappedId;
+                }
+                $mappedName = strtoupper(trim((string) ($businessTypeMap[$raw]->bus_type_name ?? '')));
+                if (str_contains($mappedName, 'FAC')) {
+                    return 'FAC';
+                }
+                if (str_contains($mappedName, 'TREAT')) {
+                    return 'TRT';
+                }
+            }
+
+            if (isset($businessTypeNameToCode[$raw])) {
+                $mappedCode = strtoupper(trim((string) $businessTypeNameToCode[$raw]));
+                if (in_array($mappedCode, ['FAC', 'TRT'], true)) {
+                    return $mappedCode;
+                }
+            }
+
+            if (str_contains($raw, 'FAC')) {
+                return 'FAC';
+            }
+
+            if (str_contains($raw, 'TREAT')) {
+                return 'TRT';
+            }
+
+            return $raw;
+        };
+
+        $normalizeAmountField = function ($rawValue) {
+            $raw = strtoupper(trim((string) $rawValue));
+            if (in_array($raw, ['Y', 'YES', '1', 'TRUE', 'T'], true)) {
+                return 'Y';
+            }
+            if (in_array($raw, ['N', 'NO', '0', 'FALSE', 'F'], true)) {
+                return 'N';
+            }
+            return $raw;
+        };
+
+        $normalizedRows = collect($rows)->map(function ($row) use (
+            $normalizeBusinessType,
+            $normalizeAmountField,
+            $classMap,
+            $classGroupMap,
+            $classGroupNameToCode
+        ) {
+            $classCode = trim((string) ($row->class_code ?? $row->class ?? ''));
+            $classRecord = $classCode !== '' ? ($classMap[$classCode] ?? null) : null;
+
+            $rawClassGroupCode = trim((string) ($row->class_group_code ?? ''));
+            $rawClassGroup = trim((string) ($row->class_group ?? $row->class_group_name ?? $row->group_name ?? ''));
+
+            $classGroupCode = $rawClassGroupCode;
+            if ($classGroupCode === '' && $rawClassGroup !== '') {
+                $upperGroup = strtoupper($rawClassGroup);
+                $classGroupCode = $classGroupNameToCode[$upperGroup] ?? $rawClassGroup;
+            }
+
+            if ($classGroupCode === '' && $classRecord) {
+                $classGroupCode = (string) ($classRecord->class_group_code ?? '');
+            }
+
+            $classGroupName = '';
+            if ($classGroupCode !== '' && isset($classGroupMap[$classGroupCode])) {
+                $classGroupName = (string) ($classGroupMap[$classGroupCode]->group_name ?? '');
+            } elseif ($rawClassGroup !== '') {
+                $classGroupName = $rawClassGroup;
+            }
+
+            $businessTypeRaw = $row->business_type ?? $row->bus_type ?? $row->type_of_bus ?? '';
+            $businessType = $normalizeBusinessType($businessTypeRaw);
+            $amountField = $normalizeAmountField($row->amount_field ?? '');
+            $headerName = trim(html_entity_decode(
+                (string) ($row->name ?? $row->schedule_title ?? $row->header_name ?? ''),
+                ENT_QUOTES | ENT_HTML5,
+                'UTF-8'
+            ));
+
+            $row->name = $headerName !== '' ? $headerName : ($row->name ?? null);
+            $row->schedule_title = $headerName !== '' ? $headerName : ($row->schedule_title ?? null);
+            $row->class_code = $classCode;
+            $row->class = $classCode !== '' ? $classCode : ($row->class ?? null);
+            $row->class_name = $row->class_name ?? ($classRecord->class_name ?? null);
+            $row->class_group_code = $classGroupCode;
+            $row->class_group = $classGroupCode !== '' ? $classGroupCode : $rawClassGroup;
+            $row->class_group_name = $classGroupName;
+            $row->business_type = $businessType;
+            $row->bus_type = $businessType;
+            $row->amount_field = $amountField;
+            $row->source_table = 'quote_schedule_headers';
+
+            return $row;
+        });
+
+        if ($request->filled('filter_business_type')) {
+            $filterBusinessType = strtoupper(trim((string) $request->input('filter_business_type')));
+            $normalizedRows = $normalizedRows->filter(function ($row) use ($filterBusinessType) {
+                $value = strtoupper(trim((string) ($row->business_type ?? $row->bus_type ?? '')));
+                return $value === $filterBusinessType;
+            })->values();
+        }
+
+        if ($request->filled('filter_class_group')) {
+            $filterClassGroup = strtoupper(trim((string) $request->input('filter_class_group')));
+            $normalizedRows = $normalizedRows->filter(function ($row) use ($filterClassGroup) {
+                $groupCode = strtoupper(trim((string) ($row->class_group_code ?? '')));
+                $groupValue = strtoupper(trim((string) ($row->class_group ?? '')));
+                return $groupCode === $filterClassGroup || $groupValue === $filterClassGroup;
+            })->values();
+        }
+
+        if ($request->filled('filter_class_name')) {
+            $filterClassCode = strtoupper(trim((string) $request->input('filter_class_name')));
+            $normalizedRows = $normalizedRows->filter(function ($row) use ($filterClassCode) {
+                $classCode = strtoupper(trim((string) ($row->class_code ?? $row->class ?? '')));
+                return $classCode === $filterClassCode;
+            })->values();
+        }
+
+        return dataTables::of($normalizedRows)->make(true);
     }
     public function delete_schedule_header(Request $request)
     {

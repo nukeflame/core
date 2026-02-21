@@ -1524,12 +1524,402 @@
                 breakdownEditor: null,
                 slipType: '',
                 suppressLeadModalReset: false,
+                returningFromBreakdown: false,
+                pendingDocumentsDraft: null,
             };
 
             const PREVIEW_ROUTES = {
                 quotation: "{{ route('quote.quotationCoverSlip.quotation') }}",
                 facultative: "{{ route('quote.quotationCoverSlip.facultative') }}",
             };
+            const LEAD_MODAL_DRAFT_STORAGE_KEY = "facultative_lead_modal_draft_v1";
+            const LEAD_MODAL_DRAFT_PATH = "/pipelines/facultative/view";
+            const LEAD_MODAL_DISPLAY_SELECTORS = [
+                ".slip-display",
+                ".created_at-display",
+                ".insured-name-display",
+                ".insured-contact-name-display",
+                ".insured-email-display",
+                ".insured-phone-display",
+                ".sum_insured_type",
+            ];
+            let persistLeadModalTimer = null;
+
+            function canPersistLeadModalDraft() {
+                const currentPath = (window.location.pathname || "").replace(/\/+$/, "");
+                const expectedPath = LEAD_MODAL_DRAFT_PATH.replace(/\/+$/, "");
+                return currentPath === expectedPath && typeof window.localStorage !== "undefined";
+            }
+
+            function getLeadModalDisplaySnapshot() {
+                const snapshot = {};
+                LEAD_MODAL_DISPLAY_SELECTORS.forEach((selector) => {
+                    const $el = $("#leadModal").find(selector).first();
+                    snapshot[selector] = $el.length ? $el.text() : "";
+                });
+                return snapshot;
+            }
+
+            function applyLeadModalDisplaySnapshot(snapshot) {
+                if (!snapshot || typeof snapshot !== "object") {
+                    return;
+                }
+
+                LEAD_MODAL_DISPLAY_SELECTORS.forEach((selector) => {
+                    if (!Object.prototype.hasOwnProperty.call(snapshot, selector)) {
+                        return;
+                    }
+                    $("#leadModal").find(selector).text(snapshot[selector] || "");
+                });
+            }
+
+            function collectLeadModalFieldSnapshot() {
+                const fields = [];
+
+                $("#leadForm").find("input:not([type='file']), select, textarea").each(function() {
+                    const $field = $(this);
+                    const type = ($field.attr("type") || "").toLowerCase();
+                    const fieldSnapshot = {
+                        type: type,
+                        value: $field.val(),
+                        checked: $field.is(":checked"),
+                    };
+                    fields.push(fieldSnapshot);
+                });
+
+                return fields;
+            }
+
+            function applyLeadModalFieldSnapshot(fields) {
+                if (!Array.isArray(fields) || fields.length === 0) {
+                    return;
+                }
+
+                $("#leadForm").find("input:not([type='file']), select, textarea").each(function(index) {
+                    const snapshot = fields[index];
+                    if (!snapshot) {
+                        return;
+                    }
+
+                    const $field = $(this);
+                    const type = (($field.attr("type") || "") + "").toLowerCase();
+
+                    if (type === "checkbox" || type === "radio") {
+                        $field.prop("checked", Boolean(snapshot.checked));
+                        return;
+                    }
+
+                    $field.val(snapshot.value);
+                });
+
+                $("#leadForm").find("select").trigger("change");
+            }
+
+            function getLeadModalReinsurersSnapshot() {
+                if (!state.dataTable) {
+                    return [];
+                }
+
+                const reinsurers = [];
+                state.dataTable.rows().every(function() {
+                    const $row = $(this.node());
+                    const reinsurerId = $row.data("reinsurer-id");
+                    if (!reinsurerId) {
+                        return;
+                    }
+
+                    const writtenShare = parseFloat($row.attr("data-written-share")) || 0;
+                    const metaText = $row.find("td:first small").text().trim();
+                    const metaMatch = metaText.match(/^\((.*)\)\s*-\s*(.*)$/);
+                    reinsurers.push({
+                        id: reinsurerId,
+                        reinsurer_name: $row.find("td:first .fw-medium").text().trim() || "Unknown Reinsurer",
+                        email: metaMatch && metaMatch[1] ? metaMatch[1].trim() : "-",
+                        country: metaMatch && metaMatch[2] ? metaMatch[2].trim() : "-",
+                        written_share: writtenShare,
+                    });
+                });
+
+                return reinsurers;
+            }
+
+            function getLeadModalContextSnapshot() {
+                const dealId = ($("#leadModal").attr("data-deal-id") || "").toString().trim();
+                const opportunityId = ($("#leadOpportunityId").val() || "").toString().trim();
+                const classCode = ($("#leadClassCode").val() || "").toString().trim();
+                const classGroupCode = ($("#leadClassGroupCode").val() || "").toString().trim();
+                const categoryType = ($("#leadCategoryType").val() || "").toString().trim();
+                const currentStage = ($("#leadCurrentStage").val() || "lead").toString().trim();
+                const typeOfBus = (
+                    window.currentDealInfo?.type_of_business ||
+                    window.currentDealInfo?.business_type ||
+                    "FPR"
+                ).toString().trim();
+
+                return {
+                    dealId,
+                    opportunityId,
+                    classCode,
+                    classGroupCode,
+                    categoryType,
+                    currentStage: currentStage || "lead",
+                    typeOfBus: typeOfBus || "FPR",
+                };
+            }
+
+            function getLeadDocumentsSnapshot() {
+                const additionalTitles = [];
+                $("#leadModal #documentFields .supporting-doc-title-input[data-additional-title='1']").each(function() {
+                    additionalTitles.push(($(this).val() || "").toString());
+                });
+
+                return {
+                    additionalTitles,
+                };
+            }
+
+            function applyLeadDocumentsSnapshot(snapshot) {
+                if (!snapshot || typeof snapshot !== "object") {
+                    return;
+                }
+
+                const titles = Array.isArray(snapshot.additionalTitles) ?
+                    snapshot.additionalTitles.map((title) => (title || "").toString()) :
+                    [];
+
+                if (titles.length === 0) {
+                    return;
+                }
+
+                const pipelineManager = window.pipelineManager;
+                if (!pipelineManager) {
+                    return;
+                }
+
+                const $fieldsContainer = $("#leadModal #documentFields");
+                if ($fieldsContainer.length === 0 || $fieldsContainer.children().length === 0) {
+                    return;
+                }
+
+                const $currentInputs = $fieldsContainer.find(
+                    ".supporting-doc-title-input[data-additional-title='1']",
+                );
+
+                if ($currentInputs.length === 0) {
+                    return;
+                }
+
+                if (typeof pipelineManager.createAdditionalDocumentRowHtml === "function") {
+                    while (
+                        $fieldsContainer.find(".supporting-doc-title-input[data-additional-title='1']").length <
+                        titles.length
+                    ) {
+                        const rowHtml = pipelineManager.createAdditionalDocumentRowHtml({
+                            defaultTitle: "Additional Documents",
+                            showAddButton: false,
+                            showRemoveButton: true,
+                        });
+
+                        const $lastAdditionalColumn = $fieldsContainer
+                            .find(".supporting-doc-title-input[data-additional-title='1']")
+                            .last()
+                            .closest(".col-12");
+
+                        if ($lastAdditionalColumn.length > 0) {
+                            $lastAdditionalColumn.after(rowHtml);
+                        } else {
+                            $fieldsContainer.append(rowHtml);
+                        }
+                    }
+                }
+
+                if (typeof pipelineManager.initializeFileUploads === "function") {
+                    pipelineManager.initializeFileUploads();
+                }
+
+                $fieldsContainer
+                    .find(".supporting-doc-title-input[data-additional-title='1']")
+                    .each(function(index) {
+                        const nextTitle = titles[index];
+                        if (typeof nextTitle === "undefined") {
+                            return;
+                        }
+                        $(this).val(nextTitle).trigger("input");
+                    });
+            }
+
+            function restoreLeadDocumentsDraftWhenReady(snapshot, retries = 15) {
+                if (!snapshot || typeof snapshot !== "object") {
+                    return;
+                }
+
+                const $fieldsContainer = $("#leadModal #documentFields");
+                const isReady = $fieldsContainer.length > 0 && $fieldsContainer.children().length > 0;
+
+                if (isReady) {
+                    applyLeadDocumentsSnapshot(snapshot);
+                    state.pendingDocumentsDraft = null;
+                    return;
+                }
+
+                if (retries <= 0) {
+                    return;
+                }
+
+                setTimeout(() => {
+                    restoreLeadDocumentsDraftWhenReady(snapshot, retries - 1);
+                }, 200);
+            }
+
+            function saveLeadModalDraft() {
+                if (!canPersistLeadModalDraft()) {
+                    return;
+                }
+
+                try {
+                    const payload = {
+                        savedAt: Date.now(),
+                        isOpen: $("#leadModal").hasClass("show") || state.suppressLeadModalReset,
+                        fields: collectLeadModalFieldSnapshot(),
+                        display: getLeadModalDisplaySnapshot(),
+                        reinsurers: getLeadModalReinsurersSnapshot(),
+                        documents: getLeadDocumentsSnapshot(),
+                        context: getLeadModalContextSnapshot(),
+                    };
+
+                    localStorage.setItem(LEAD_MODAL_DRAFT_STORAGE_KEY, JSON.stringify(payload));
+                } catch (error) {
+                    console.warn("Unable to save lead modal draft:", error);
+                }
+            }
+
+            function queueLeadModalDraftSave() {
+                if (!canPersistLeadModalDraft()) {
+                    return;
+                }
+
+                if (persistLeadModalTimer) {
+                    clearTimeout(persistLeadModalTimer);
+                }
+
+                persistLeadModalTimer = setTimeout(() => {
+                    persistLeadModalTimer = null;
+                    saveLeadModalDraft();
+                }, 200);
+            }
+
+            function clearLeadModalDraft() {
+                if (!canPersistLeadModalDraft()) {
+                    return;
+                }
+                localStorage.removeItem(LEAD_MODAL_DRAFT_STORAGE_KEY);
+            }
+
+            function reloadLeadDynamicSections(overrideContext = null, retries = 10) {
+                const context = (overrideContext && typeof overrideContext === "object") ?
+                    overrideContext :
+                    {};
+
+                const dealId = (
+                    context.dealId ||
+                    $("#leadModal").attr("data-deal-id") ||
+                    context.opportunityId ||
+                    $("#leadOpportunityId").val() ||
+                    ""
+                ).toString().trim();
+                const opportunityId = (context.opportunityId || $("#leadOpportunityId").val() || "").toString().trim();
+                if (!dealId && !opportunityId) {
+                    return;
+                }
+
+                const pipelineManager = window.pipelineManager;
+                if (!pipelineManager) {
+                    if (retries > 0) {
+                        setTimeout(() => reloadLeadDynamicSections(retries - 1), 150);
+                    }
+                    return;
+                }
+
+                const classCode = (context.classCode || $("#leadClassCode").val() || "").toString().trim();
+                const classGroupCode = (context.classGroupCode || $("#leadClassGroupCode").val() || "").toString().trim();
+                const categoryType = (context.categoryType || $("#leadCategoryType").val() || "").toString().trim();
+                const currentStage = (context.currentStage || $("#leadCurrentStage").val() || "lead").toString().trim();
+                const typeOfBus = (
+                    context.typeOfBus ||
+                    window.currentDealInfo?.type_of_business ||
+                    window.currentDealInfo?.business_type ||
+                    "FPR"
+                ).toString().trim();
+
+                const reloadData = {
+                    dealId: dealId || opportunityId,
+                    opportunityId: opportunityId,
+                    modalId: "leadModal",
+                    class: classCode,
+                    classGroup: classGroupCode,
+                    typeOfBus: typeOfBus || "FPR",
+                    stage: "lead",
+                    currentStage: currentStage || "lead",
+                    categoryType: categoryType || "2",
+                };
+
+                if (typeof pipelineManager.loadScheduleHeaders === "function") {
+                    pipelineManager.loadScheduleHeaders(reloadData);
+                }
+                if (typeof pipelineManager.loadSlipDocuments === "function") {
+                    pipelineManager.loadSlipDocuments(reloadData);
+                }
+                if (typeof pipelineManager.loadBdTerms === "function") {
+                    pipelineManager.loadBdTerms(reloadData);
+                }
+            }
+
+            function restoreLeadModalDraftIfAny() {
+                if (!canPersistLeadModalDraft()) {
+                    return;
+                }
+
+                let rawDraft = null;
+                try {
+                    rawDraft = localStorage.getItem(LEAD_MODAL_DRAFT_STORAGE_KEY);
+                } catch (error) {
+                    return;
+                }
+
+                if (!rawDraft) {
+                    return;
+                }
+
+                let draft = null;
+                try {
+                    draft = JSON.parse(rawDraft);
+                } catch (error) {
+                    clearLeadModalDraft();
+                    return;
+                }
+
+                if (!draft || !draft.isOpen) {
+                    return;
+                }
+
+                applyLeadModalFieldSnapshot(draft.fields || []);
+                applyLeadModalDisplaySnapshot(draft.display || {});
+                state.pendingDocumentsDraft = draft.documents || null;
+
+                if (Array.isArray(draft.reinsurers) && draft.reinsurers.length > 0) {
+                    $("#reinsurersData").val(JSON.stringify(draft.reinsurers));
+                    $("#reinsurerCount").text(draft.reinsurers.length);
+                }
+
+                if (!$("#leadOpportunityId").val() && !(draft.context && draft.context.dealId)) {
+                    return;
+                }
+
+                reloadLeadDynamicSections(draft.context || null);
+
+                state.suppressLeadModalReset = false;
+                $("#leadModal").modal("show");
+            }
 
             function isQuotationSlipMode(slipType) {
                 const normalizedSlipType = (slipType || $("#slipType").val() || state.slipType || "").toString()
@@ -1716,6 +2106,7 @@
                     `${reinsurerData.name} has been successfully added.`;
 
                 toastr.success(successMessage, 'Reinsurer Added!');
+                queueLeadModalDraftSave();
             }
 
             function updateTableHeader(slipType) {
@@ -1798,6 +2189,7 @@
                         toggleTotalWrittenShareField();
 
                         toastr.info(`${reinsurerName} has been removed from the list.`, 'Removed!');
+                        queueLeadModalDraftSave();
                     }
                 });
             }
@@ -2589,6 +2981,8 @@
                     confirmButtonText: "Yes, Open Email",
                     cancelButtonText: "No",
                 }).then((result) => {
+                    clearLeadModalDraft();
+
                     if (typeof window.pipelineManager !== 'undefined' &&
                         typeof window.pipelineManager.reloadAllTables === 'function') {
                         window.pipelineManager.reloadAllTables();
@@ -2834,11 +3228,11 @@
                         .on("show.bs.modal", () => this.cleanupEditor())
                         .on("shown.bs.modal", () => this.initializeQuill())
                         .on("hidden.bs.modal", () => {
-                            state.suppressLeadModalReset = false;
                             this.cleanupEditor();
                             this.currentTextarea = null;
                             this.textareaId = null;
                             this.currentFieldLabel = "";
+                            state.returningFromBreakdown = true;
                             $("#leadModal").modal("show");
                         });
                 }
@@ -2936,13 +3330,23 @@
                                 modules: {
                                     toolbar: [
                                         [{
+                                            font: []
+                                        }, {
+                                            size: []
+                                        }],
+                                        [{
                                             header: [1, 2, 3, false]
                                         }],
-                                        ["bold", "italic", "underline"],
+                                        ["bold", "italic", "underline", "strike"],
                                         [{
                                             color: []
                                         }, {
                                             background: []
+                                        }],
+                                        [{
+                                            script: "super"
+                                        }, {
+                                            script: "sub"
                                         }],
                                         [{
                                             list: "ordered"
@@ -3167,6 +3571,7 @@
                                 $(`#${title}Content`).val(content);
 
                                 this.modal.hide();
+                                queueLeadModalDraftSave();
                                 toastr.success("Saved successfully");
                             } else {
                                 throw new Error(response.message || "Save failed");
@@ -3238,6 +3643,7 @@
                 $("#documentFields").empty().hide();
                 $("#documentsSubtitle").html("");
                 state.uploadedFiles = {};
+                state.pendingDocumentsDraft = null;
 
                 if (typeof window.pipelineManager !== 'undefined' &&
                     typeof window.pipelineManager.clearAllFiles === 'function') {
@@ -3339,31 +3745,53 @@
             $("#leadForm").on("input", ".form-inputs", function() {
                 validateField($(this));
             });
+            $("#leadForm").on("input change", "input:not([type='file']), select, textarea", function() {
+                queueLeadModalDraftSave();
+            });
             $("#leadTotalReinsurerShare").on("input", function() {
                 const value = parseFloat($(this).val());
                 if (value > 100) {
                     $(this).val("100");
                     toastr.warning("Total Written Share adjusted to 100%");
                 }
+                queueLeadModalDraftSave();
             });
 
             $("#leadModal").on("shown.bs.modal", function() {
+                if (state.returningFromBreakdown) {
+                    state.returningFromBreakdown = false;
+                    state.suppressLeadModalReset = false;
+                    queueLeadModalDraftSave();
+                    return;
+                }
+
                 const slipType = $("#slipType").val();
 
                 toggleShareFields(slipType);
                 updateTableHeader(slipType);
                 hydrateLeadReinsurers($("#reinsurersData").val());
 
+                const hasTermsContent = $("#leadModal #termsConditions").children().length > 0;
+                const hasDocumentsFields = $("#leadModal #documentFields").children().length > 0;
+                const hasDocumentsMessage = ($("#leadModal #documentsContent").text() || "").trim().length > 0;
+                const hasDocumentsContent = hasDocumentsFields || hasDocumentsMessage;
+                if (!hasTermsContent || !hasDocumentsContent) {
+                    reloadLeadDynamicSections();
+                }
+                restoreLeadDocumentsDraftWhenReady(state.pendingDocumentsDraft);
+
                 $("#leadForm .is-invalid").removeClass("is-invalid");
                 $("#leadForm .invalid-feedback, .reinsurer-validation-error").remove();
+                queueLeadModalDraftSave();
+            });
+
+            $("#leadModal").on("click", ".supporting-doc-add-btn, .supporting-doc-row-remove-btn", function() {
+                queueLeadModalDraftSave();
             });
 
             $("#leadModal").on("pipeline:reinsurers-loaded", function(event, payload = {}) {
-                if (!$(this).hasClass("show")) {
-                    return;
-                }
-
-                hydrateLeadReinsurers(payload.reinsurers || []);
+                const reinsurers = Array.isArray(payload.reinsurers) ? payload.reinsurers : [];
+                hydrateLeadReinsurers(reinsurers);
             });
 
             $("#contactsModal").on("hidden.bs.modal", function() {
@@ -3377,10 +3805,12 @@
 
             $("#leadModal").on("hidden.bs.modal", function() {
                 if (state.suppressLeadModalReset) {
+                    queueLeadModalDraftSave();
                     return;
                 }
 
                 resetLeadModal();
+                clearLeadModalDraft();
 
                 toggleShareColumnVisibility(VALIDATION_CONFIG.SLIP_TYPE);
                 toggleShareFields(VALIDATION_CONFIG.SLIP_TYPE);
@@ -3406,6 +3836,7 @@
                 initializeReinsurerSelect();
                 state.breakdownEditor = new BreakdownEditor();
                 updateReinsurerCount();
+                restoreLeadModalDraftIfAny();
             } catch (error) {
                 showAlert("Failed to initialize components. Please refresh the page.", "error");
             }

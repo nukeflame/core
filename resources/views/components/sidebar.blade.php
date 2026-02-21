@@ -1,3 +1,27 @@
+<style>
+    #sidebar-scroll .version-meta-item {
+        position: sticky;
+        bottom: 0.5rem;
+        z-index: 1;
+        padding-top: 0.75rem;
+    }
+
+    #sidebar-scroll .version-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        font-size: 12px;
+        line-height: 1;
+        letter-spacing: 0.02em;
+        padding: 0.35rem 0px;
+        color: var(--text-muted, #8c9097);
+    }
+
+    #sidebar-scroll .version-badge .version-prefix {
+        font-weight: 500;
+        opacity: 0.85;
+    }
+</style>
 <div class="main-sidebar" id="sidebar-scroll">
     <nav class="main-menu-container nav nav-pills flex-column sub-open">
         <div class="slide-left" id="slide-left">
@@ -17,9 +41,10 @@
                 @endforeach
             @endforeach
 
-            <li class="slide__category"
-                style="bottom: calc(100vh - 73rem); position: absolute; letter-spacing: 0px; left: 0px;">
-                <span class="category-name fs-14 font-monospace"><span class="fs-12 font-monospace">V</span>0.0.2</span>
+            <li class="slide__category version-meta-item">
+                <span class="version-badge">
+                    <span class="version-prefix">v</span>0.2.2
+                </span>
             </li>
         </ul>
 
