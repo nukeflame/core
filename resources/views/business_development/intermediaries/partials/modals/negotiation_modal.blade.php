@@ -798,7 +798,143 @@
                     e.stopPropagation();
 
                     const reinsurerId = $(this).data('reinsurer-id');
+                    let reinsurerName = $(this).data('reinsurer-name');
+                    const $button = $(this);
+
+                    if (!reinsurerName) {
+                        reinsurerName = $button.closest('tr').find('td:first .fw-medium').text().trim() || 'Reinsurer';
+                    }
+                    const opportunityId = $('.opportunity_id').first().val();
+
+                    if (!reinsurerId) {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: 'Reinsurer ID not found'
+                        });
+                        return;
+                    }
+
+                    if (!opportunityId) {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: 'Opportunity ID not found'
+                        });
+                        return;
+                    }
+
+                    if ($button.data('contact-loading')) {
+                        return;
+                    }
+
+                    const originalHtml = $button.html();
+                    $button.data('contact-loading', true);
+                    $button.html('<i class="bx bx-loader bx-spin"></i>');
+                    $button.prop('disabled', true);
+
+                    $.ajax({
+                        url: '/customer/contact-info',
+                        method: 'GET',
+                        data: {
+                            customer_id: reinsurerId,
+                            opportunity_id: opportunityId
+                        },
+                        success: function(response) {
+                            if (response.success) {
+                                populatePropContactsModal(response, reinsurerName);
+                                $('#negotiationModal').modal('hide');
+                                $('#propContactsModal').modal('show');
+                            } else {
+                                Swal.fire({
+                                    icon: 'error',
+                                    title: 'Error',
+                                    text: response.message || 'Failed to fetch contacts'
+                                });
+                            }
+                        },
+                        error: function(xhr) {
+                            let errorMessage = 'Failed to fetch reinsurer contacts';
+                            if (xhr.responseJSON && xhr.responseJSON.message) {
+                                errorMessage = xhr.responseJSON.message;
+                            }
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Error',
+                                text: errorMessage
+                            });
+                        },
+                        complete: function() {
+                            $button.html(originalHtml);
+                            $button.prop('disabled', false);
+                            $button.removeData('contact-loading');
+                        }
+                    });
                 });
+            }
+
+            function populatePropContactsModal(response, customerName) {
+                $('#propContactsModalLabel').html(
+                    `<i class="bx bx-building me-1"></i>${escapeHtml(customerName)} - Contact Management`
+                );
+
+                if (response.primary_contact) {
+                    $('#prop-primary-contacts .prop-primary-name').val(
+                        response.primary_contact.contact_name || 'N/A'
+                    );
+                    $('#prop-primary-contacts .prop-primary-email').val(
+                        response.primary_contact.contact_email || 'N/A'
+                    );
+                    $('#prop-primary-contacts .prop-primary-contact_id').val(
+                        response.primary_contact.contact_id
+                    );
+                } else {
+                    $('#prop-primary-contacts .prop-primary-name').val('N/A');
+                    $('#prop-primary-contacts .prop-primary-email').val('N/A');
+                    $('#prop-primary-contacts .prop-primary-contact_id').val('');
+                }
+
+                $('#propDepartmentContacts').empty();
+
+                if (response.department_contacts && response.department_contacts.length > 0) {
+                    response.department_contacts.forEach(function(contact, index) {
+                        const showLabels = index === 0;
+                        const contactHtml = `
+                            <div class="contact-item rounded px-3 pb-1 mb-3" data-contact-id="${escapeHtml(contact.contact_id || index)}">
+                                <div class="row align-items-center">
+                                    <div class="col-md-3">
+                                        ${showLabels ? '<label class="form-label fw-semibold small">Name</label>' : ''}
+                                        <input type="text" class="form-control-plaintext"
+                                            value="${escapeHtml(contact.contact_name || 'N/A')}" readonly>
+                                    </div>
+                                    <div class="col-md-4">
+                                        ${showLabels ? '<label class="form-label fw-semibold small">Email</label>' : ''}
+                                        <input type="email" class="form-control-plaintext"
+                                            value="${escapeHtml(contact.contact_email || 'N/A')}" readonly>
+                                    </div>
+                                    <div class="col-md-2">
+                                        ${showLabels ? '<label class="form-label fw-semibold small">Mobile</label>' : ''}
+                                        <input type="text" class="form-control-plaintext"
+                                            value="${escapeHtml(contact.contact_mobile_no || 'N/A')}" readonly>
+                                    </div>
+                                    <div class="col-md-3">
+                                        ${showLabels ? '<label class="form-label fw-semibold small">Position</label>' : ''}
+                                        <input type="text" class="form-control-plaintext"
+                                            value="${escapeHtml(contact.contact_position || 'N/A')}" readonly>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                        $('#propDepartmentContacts').append(contactHtml);
+                    });
+                } else {
+                    $('#propDepartmentContacts').html(`
+                        <div class="text-center py-4">
+                            <i class="bx bx-info-circle bx-2x text-muted mb-2 fs-15"></i>
+                            <p class="text-muted">No department contacts found.</p>
+                        </div>
+                    `);
+                }
             }
 
             function updateReinsurerCount() {

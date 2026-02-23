@@ -211,6 +211,7 @@
                 isReply: false,
                 originalMessage: null,
                 formData: {},
+                initialFormData: null,
 
                 reset() {
                     this.isReply = false;
@@ -232,8 +233,67 @@
                         category: $('#category').val(),
                         priority: $('#priority').val(),
                         reference: $('#reference').val(),
+                        includeReplyAttachments: $('#includeReplyAttachments').is(':checked'),
                         showOriginalEmail: !$('#emailBody').hasClass('hidden')
                     };
+                },
+
+                captureInitialFormData() {
+                    if ($('#isReply').val() !== '1' && !$(CONFIG.selectors.reference).val()?.trim()) {
+                        generateReference();
+                    }
+
+                    this.captureFormData();
+                    this.initialFormData = {
+                        ...this.formData,
+                        isReply: false,
+                        messageId: '',
+                        conversationId: '',
+                        showOriginalEmail: false
+                    };
+                },
+
+                restoreInitialFormData() {
+                    if (!this.initialFormData || Object.keys(this.initialFormData).length === 0) {
+                        return false;
+                    }
+
+                    const initial = this.initialFormData;
+
+                    this.isReply = false;
+                    this.originalMessage = null;
+                    this.formData = { ...initial };
+
+                    $('#isReply').val('0');
+                    $('#messageId').val('');
+                    $('#conversationId').val('');
+                    $('#toEmail').val(initial.toEmail || '');
+                    $('#subject').val(initial.subject || '').attr('readonly', false);
+                    $('#message').val(initial.message || '');
+                    $('#category').val(initial.category || 'lead').trigger('change.select2');
+                    $('#priority').val(initial.priority || 'normal').trigger('change.select2');
+                    $('#reference').val(initial.reference || '');
+                    $('#toContacts').val(initial.toContacts || []).trigger('change.select2');
+                    $('#ccEmail').val(initial.ccEmail || []).trigger('change.select2');
+                    $('#bccEmail').val(initial.bccEmail || []).trigger('change.select2');
+                    $('#includeReplyAttachments').prop('checked', false);
+
+                    $('#composeTitle').text('Compose New Email');
+                    $('#resetMailForm').hide();
+                    $(CONFIG.selectors.form).removeClass('reply-context-highlight');
+                    $('#emailBody').addClass('hidden');
+                    syncToggleEmailBodyButton();
+                    applyReplyAttachmentVisibility();
+                    updateSendButtonVisibility();
+                    syncResetButtonVisibility();
+
+                    $('#originalFrom, #originalSent, #originalTo, #originalSubject').text('');
+                    const threadFrame = document.getElementById('threadMessages');
+                    if (threadFrame) {
+                        threadFrame.srcdoc = '';
+                    }
+
+                    return true;
                 },
 
                 restoreFormData() {
@@ -253,9 +313,13 @@
                     $('#toContacts').val(this.formData.toContacts || []).trigger('change.select2');
                     $('#ccEmail').val(this.formData.ccEmail || []).trigger('change.select2');
                     $('#bccEmail').val(this.formData.bccEmail || []).trigger('change.select2');
+                    $('#includeReplyAttachments').prop('checked', !!this.formData.includeReplyAttachments);
 
                     $('#emailBody').toggleClass('hidden', !this.formData.showOriginalEmail);
-                    $('#toggleEmailBodyBtn').css('display', this.formData.isReply ? 'block' : 'none');
+                    syncToggleEmailBodyButton();
+                    applyReplyAttachmentVisibility();
+                    updateSendButtonVisibility();
+                    syncResetButtonVisibility();
                 }
             };
 
@@ -290,7 +354,7 @@
             }
 
             function bindEvents() {
-                $("#resetMailForm").hide();
+                syncResetButtonVisibility();
                 updateSendButtonVisibility();
 
                 $('#generateRefBtn').on('click', generateReference);
@@ -299,6 +363,10 @@
                 $('#insertTemplateBtn').on('click', insertTemplate);
                 $('#saveDraftBtn').on('click', saveDraft);
                 $('#confirmSendBtn').on('click', confirmAndSendEmail);
+                $('#includeReplyAttachments').on('change', function() {
+                    applyReplyAttachmentVisibility();
+                    EmailState.captureFormData();
+                });
                 $('#cancelEmailConfirmation').on('click', () => {
                     $(CONFIG.selectors.modal).modal('show');
                 });
@@ -308,6 +376,7 @@
                 $(CONFIG.selectors.category).on('change', handleCategoryChange);
                 $('#emailTabs button[data-bs-toggle="tab"]').on('shown.bs.tab', function(e) {
                     updateSendButtonVisibility();
+                    syncResetButtonVisibility();
 
                     const targetId = e.target.id;
                     if (targetId === 'replies-tab') {
@@ -323,7 +392,19 @@
 
             function updateSendButtonVisibility() {
                 const isReplyTabActive = $('#replies-tab').hasClass('active');
-                $('#sendNotificationBtn').toggle(!isReplyTabActive);
+                const isReplyMode = $('#isReply').val() === '1';
+                const $sendBtn = $('#sendNotificationBtn');
+
+                $sendBtn.toggle(!isReplyTabActive);
+                $sendBtn.html(
+                    isReplyMode ?
+                    '<i class="bx bx-reply me-1"></i>Send Reply' :
+                    '<i class="bx bx-paper-plane me-1"></i>Send Notification'
+                );
+            }
+
+            function syncResetButtonVisibility() {
+                $('#resetMailForm').toggle($('#isReply').val() === '1');
             }
 
             function handleCategoryChange() {
@@ -347,7 +428,8 @@
 
             function generateReference() {
                 try {
-                    const category = $(CONFIG.selectors.category).val().toUpperCase().substring(0, 3);
+                    const categoryValue = ($(CONFIG.selectors.category).val() || 'lead').toString();
+                    const category = categoryValue.toUpperCase().substring(0, 3) || 'REF';
                     const year = new Date().getFullYear();
                     const random = Math.floor(Math.random() * 1000000).toString().padStart(6, '0');
                     const reference = `${category}-${year}-${random}`;
@@ -360,18 +442,29 @@
 
             function toggleEmailBody() {
                 const $emailBody = $('#emailBody');
-                const $toggleBtn = $('#toggleEmailBodyBtn');
-                const $message = $(CONFIG.selectors.message);
+                $emailBody.toggleClass('hidden');
+                syncToggleEmailBodyButton();
+            }
 
-                if ($emailBody.hasClass('hidden')) {
-                    $emailBody.removeClass('hidden');
-                    $toggleBtn.html('<i class="bx bx-chevron-up me-1"></i>Hide Original Email');
-                    $message.attr('rows', 15);
-                } else {
-                    $emailBody.addClass('hidden');
-                    $toggleBtn.html('<i class="bx bx-chevron-down me-1"></i>Show Original Email');
-                    $message.attr('rows', 15);
+            function syncToggleEmailBodyButton() {
+                const $emailBody = $('#emailBody');
+                const $toggleBtn = $('#toggleEmailBodyBtn');
+                const isReply = $('#isReply').val() === '1';
+                const isVisible = !$emailBody.hasClass('hidden');
+
+                if (!isReply) {
+                    $toggleBtn.hide();
+                    return;
                 }
+
+                $toggleBtn
+                    .show()
+                    .attr('aria-expanded', isVisible ? 'true' : 'false')
+                    .html(
+                        isVisible ?
+                        '<i class="bx bx-chevron-up me-1"></i>Hide Original Email' :
+                        '<i class="bx bx-chevron-down me-1"></i>Show Original Email'
+                    );
             }
 
             function insertTemplate() {
@@ -447,6 +540,8 @@
                 const contactsTo = $(CONFIG.selectors.toEmail).val() || [];
                 const ccEmails = $(CONFIG.selectors.ccEmail).val() || [];
                 const bccEmails = $(CONFIG.selectors.bccEmail).val() || [];
+                const isReply = $('#isReply').val() === '1';
+                const includeReplyAttachments = $('#includeReplyAttachments').is(':checked');
 
                 $('#contactsTo').text(toEmails.length ? toEmails.join(', ') : 'None');
                 $('#confirmTo').text(contactsTo.length ? contactsTo : 'None');
@@ -457,7 +552,7 @@
                 $('#confirmPriority').text($(`${CONFIG.selectors.priority} option:selected`).text());
                 $('#confirmCategory').text($(`${CONFIG.selectors.category} option:selected`).text());
                 $('#confirmMessage').text($(CONFIG.selectors.message).val());
-                $('#confirmAttachments').text($('#fileCount').text() || 'None');
+                $('#confirmAttachments').text(isReply && !includeReplyAttachments ? 'None' : ($('#fileCount').text() || 'None'));
 
                 $('#replyWarning').toggle(EmailState.isReply);
 
@@ -498,7 +593,13 @@
                     },
                     error: (xhr) => {
                         console.error('Email send failed:', xhr);
-                        toastr.error('Failed to send email. Please try again.');
+                        if (xhr.status === 422 && xhr.responseJSON?.errors) {
+                            const firstField = Object.keys(xhr.responseJSON.errors)[0];
+                            const firstMessage = xhr.responseJSON.errors[firstField]?.[0];
+                            toastr.error(firstMessage || 'Validation failed. Please check the form.');
+                            return;
+                        }
+                        toastr.error(xhr.responseJSON?.message || 'Failed to send email. Please try again.');
                     },
                     complete: () => {
                         setButtonLoadingState($sendBtn, $notificationBtn, false);
@@ -508,10 +609,17 @@
 
             function setButtonLoadingState($sendBtn, $notificationBtn, isLoading) {
                 const loadingHtml = '<span class="spinner-border spinner-border-sm me-1"></span>Sending...';
-                const normalHtml = '<i class="bx bx-paper-plane me-1"></i>Send Email';
+                const normalHtml = '<i class="bx bx-paper-plane me-1"></i>Send Notification';
 
-                $sendBtn.prop('disabled', isLoading).html(isLoading ? loadingHtml : normalHtml);
-                $notificationBtn.prop('disabled', isLoading).html(isLoading ? loadingHtml : normalHtml);
+                if (isLoading) {
+                    $sendBtn.prop('disabled', true).html(loadingHtml);
+                    $notificationBtn.prop('disabled', true).html(loadingHtml);
+                    return;
+                }
+
+                $sendBtn.prop('disabled', false).html(normalHtml);
+                $notificationBtn.prop('disabled', false).html(normalHtml);
+                updateSendButtonVisibility();
             }
 
             function resetButtonState($sendBtn, $notificationBtn) {
@@ -522,25 +630,35 @@
                 const $form = $(CONFIG.selectors.form);
                 $('#compose-tab').tab('show');
 
+                if (EmailState.restoreInitialFormData()) {
+                    $('.is-invalid').removeClass('is-invalid');
+                    $('.invalid-feedback').text('');
+                    $('.error-message').remove();
+                    updateSendButtonVisibility();
+                    syncResetButtonVisibility();
+                    return;
+                }
+
                 EmailState.reset();
 
                 $('#isReply').val('0');
                 $('#messageId').val('');
                 $('#conversationId').val('');
                 $('#composeTitle').text('Compose New Email');
-                $('#clearFormBtn').hide();
                 $form.removeClass('reply-context-highlight');
                 $('#emailBody').addClass('hidden');
+                syncToggleEmailBodyButton();
+                $('#includeReplyAttachments').prop('checked', false);
+                applyReplyAttachmentVisibility();
 
                 $('.is-invalid').removeClass('is-invalid');
                 $('.invalid-feedback').text('');
                 $('.error-message').remove();
 
                 const $originalSubject = $form.find('#subject');
-                $val = $originalSubject.val().startsWith('Re: ') ? $originalSubject.val().substring(4).trim() :
-                    $originalSubject.val()
+                const normalizedSubject = $originalSubject.val().replace(/^re:\s*/i, '').trim();
 
-                $originalSubject.val($val).attr('readonly', false);
+                $originalSubject.val(normalizedSubject).attr('readonly', false);
 
                 const templates = $("#categoryTemplates").val();
                 const category = $(CONFIG.selectors.category);
@@ -557,6 +675,8 @@
 
                 $('#emailBody').addClass('hidden');
                 $('#resetMailForm').hide();
+                updateSendButtonVisibility();
+                syncResetButtonVisibility();
             }
 
             function resetForm() {
@@ -571,14 +691,19 @@
                 $('#messageId').val('');
                 $('#conversationId').val('');
                 $('#composeTitle').text('Compose New Email');
-                $('#clearFormBtn').hide();
                 $('#resetMailForm').hide();
                 $form.removeClass('reply-context-highlight');
                 $('#emailBody').addClass('hidden');
+                syncToggleEmailBodyButton();
+                $('#includeReplyAttachments').prop('checked', false);
+                applyReplyAttachmentVisibility();
 
                 $('.is-invalid').removeClass('is-invalid');
                 $('.invalid-feedback').text('');
                 $('.error-message').remove();
+                $(CONFIG.selectors.subject).attr('readonly', false);
+                updateSendButtonVisibility();
+                syncResetButtonVisibility();
 
                 $(`${CONFIG.selectors.toContacts}, ${CONFIG.selectors.ccEmail}, ${CONFIG.selectors.bccEmail}`)
                     .val(null).trigger('change');
@@ -609,6 +734,16 @@
 
             function validateEmailSelection() {
                 $('.error-message').remove();
+
+                const isReply = $('#isReply').val() === '1';
+                if (isReply) {
+                    const replyTo = ($(CONFIG.selectors.toEmail).val() || '').trim();
+                    if (!replyTo) {
+                        showError(CONFIG.selectors.toEmail, 'Reply recipient is required');
+                        return false;
+                    }
+                    return true;
+                }
 
                 const toEmails = $(CONFIG.selectors.toContacts).val() || [];
                 const ccEmails = $(CONFIG.selectors.ccEmail).val() || [];
@@ -705,27 +840,33 @@
             }
 
             function populateReplyForm(message) {
-                if (!confirm('This will switch to reply mode. Continue?')) return;
-
                 try {
                     $('#isReply').val('1');
-                    $('#messageId').val(message.messageId || message.id || '');
-                    $('#conversationId').val(message.conversationId || '');
+                    const fallbackMessageId = message.messageId || message.id || '';
+                    $('#messageId').val(fallbackMessageId);
+                    $('#conversationId').val(message.conversationId || fallbackMessageId);
                     $(CONFIG.selectors.toEmail).val(message.from);
 
-                    let subject = message.subject;
-                    if (!subject.toLowerCase().startsWith('re:')) {
+                    let subject = (message.subject || '').trim();
+                    if (!/^re:/i.test(subject)) {
                         subject = `RE: ${subject}`;
                     }
-                    $(CONFIG.selectors.subject).val(subject);
+                    $(CONFIG.selectors.subject).val(subject).attr('readonly', true);
 
-                    if (message.category) $(CONFIG.selectors.category).val(message.category).trigger('change');
-                    if (message.priority) $(CONFIG.selectors.priority).val(message.priority).trigger('change');
-                    if (message.reference) $(CONFIG.selectors.reference).val(message.reference);
+                    if (message.category && $(CONFIG.selectors.category).find(`option[value="${message.category}"]`).length) {
+                        $(CONFIG.selectors.category).val(message.category).trigger('change');
+                    }
+                    if (message.priority && $(CONFIG.selectors.priority).find(`option[value="${message.priority}"]`).length) {
+                        $(CONFIG.selectors.priority).val(message.priority).trigger('change');
+                    }
+                    generateReference();
+                    $(CONFIG.selectors.message).val('').attr('rows', 15);
 
                     populateOriginalMessageDetails(message);
                     createThreadMessage(message);
                     updateUIForReplyMode(message);
+                    $('#compose-tab').tab('show');
+                    EmailState.captureFormData();
                 } catch (error) {
                     console.error('Error populating reply form:', error);
                     toastr.error('Failed to populate reply form');
@@ -735,24 +876,51 @@
             function populateOriginalMessageDetails(message) {
                 $('#originalFrom').text(message.fromName || message.from);
                 $('#originalSent').text(message.date);
-                $('#originalTo').text(message.from);
+                $('#originalTo').text(message.toList || message.from);
                 $('#originalSubject').text(message.subject);
             }
 
             function createThreadMessage(message) {
-                const threadContent = `
-                    --- Original Message ---
-                    From: ${message.fromName || message.from} <${message.from}>
-                    Date: ${message.date}
-                    Subject: ${message.subject}
-                    ${message.reference ? 'Reference: ' + message.reference : ''}
-
-                    ${message.preview || 'Original message content...'}
-                `.trim();
-
                 const threadFrame = document.getElementById('threadMessages');
-                if (threadFrame && threadFrame.contentDocument && threadFrame.contentDocument.body) {
-                    threadFrame.contentDocument.body.innerHTML = threadContent.replace(/\n/g, '<br>');
+                if (!threadFrame) return;
+
+                const bodyHtml = message.bodyHtml || `
+                    <div style="font-family: Arial, sans-serif; font-size: 13px;">
+                        <p><strong>From:</strong> ${message.fromName || message.from} &lt;${message.from}&gt;</p>
+                        <p><strong>Date:</strong> ${message.date}</p>
+                        <p><strong>Subject:</strong> ${message.subject}</p>
+                        <hr />
+                        <p>${message.preview || 'Original message content...'}</p>
+                    </div>
+                `;
+
+                const docHtml = `
+                    <!doctype html>
+                    <html>
+                    <head>
+                        <meta charset="utf-8">
+                        <style>
+                            body { margin: 0; padding: 12px; font-family: Arial, sans-serif; font-size: 13px; line-height: 1.5; color: #212529; }
+                            img { max-width: 100%; height: auto; }
+                            table { max-width: 100%; }
+                        </style>
+                    </head>
+                    <body>${bodyHtml}</body>
+                    </html>
+                `;
+
+                // Use srcdoc for reliable rendering in sandboxed iframe.
+                threadFrame.srcdoc = docHtml;
+
+                // Fallback for browsers/environments where srcdoc is restricted.
+                try {
+                    if (threadFrame.contentDocument && threadFrame.contentDocument.body) {
+                        threadFrame.contentDocument.open();
+                        threadFrame.contentDocument.write(docHtml);
+                        threadFrame.contentDocument.close();
+                    }
+                } catch (e) {
+                    // No-op: srcdoc path already covers rendering.
                 }
             }
 
@@ -761,14 +929,34 @@
                 EmailState.originalMessage = message;
 
                 $('#composeTitle').text('Reply to Message');
-                $('#clearFormBtn').show();
-                $('#resetMailForm').show();
                 $(CONFIG.selectors.form).addClass('reply-context-highlight');
+                $('#emailBody').removeClass('hidden');
+                syncToggleEmailBodyButton();
+                $('#includeReplyAttachments').prop('checked', false);
+                applyReplyAttachmentVisibility();
+                updateSendButtonVisibility();
+                syncResetButtonVisibility();
+            }
+
+            function applyReplyAttachmentVisibility() {
+                const isReply = $('#isReply').val() === '1';
+                const includeReplyAttachments = $('#includeReplyAttachments').is(':checked');
+
+                if (isReply) {
+                    $('#replyAttachmentOptionWrap').show();
+                    $('#attachedFilesList').toggle(includeReplyAttachments);
+                } else {
+                    $('#replyAttachmentOptionWrap').hide();
+                    $('#attachedFilesList').show();
+                }
             }
 
             window.BDEmailModal = {
                 populateReplyForm,
                 resetForm,
+                captureInitialState: function() {
+                    EmailState.captureInitialFormData();
+                },
                 captureFormData: function() {
                     EmailState.captureFormData();
                 },

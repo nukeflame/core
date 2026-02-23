@@ -28,7 +28,6 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 
 class SettingsCoverController extends Controller
 {
-    // BRANCHES ==================================================================================================
     public function BranchInfo(Request $request)
     {
         return view('settings.cover.branch', [

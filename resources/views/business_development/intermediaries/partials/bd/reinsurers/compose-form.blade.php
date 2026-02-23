@@ -1,9 +1,6 @@
 <div id="bdComposeFormDiv" class="customScrollBar">
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h2 class="mb-0" id="composeTitle">Compose New Email</h2>
-        <button type="button" class="btn btn-outline-secondary btn-sm" id="clearFormBtn" style="display: none;">
-            Start New Email Instead
-        </button>
     </div>
 
     <div class="row">
@@ -22,13 +19,16 @@
     </div>
 
     <div class="row mb-3">
-        <div class="col-md-6">
+        <div class="col-md-12">
             <label for="ccEmail" class="form-label">CC:</label>
             <select class="form-inputs select2" id="ccEmail" name="cc_email[]" multiple
                 placeholder="-- Select CC emails --"></select>
             <div class="invalid-feedback"></div>
         </div>
-        <div class="col-md-6">
+    </div>
+
+    <div class="row mb-3">
+        <div class="col-md-12">
             <label for="bccEmail" class="form-label">BCC:</label>
             <select class="form-inputs select2" id="bccEmail" name="bcc_email[]" multiple
                 placeholder="-- Select BCC emails --"></select>
@@ -119,7 +119,7 @@
                 <div class="email-content-box">
                     <div class="original-content" id="originalContent">
                         <iframe id="threadMessages" style="width:100%;height:min(400px, 40vh);border:none;"
-                            sandbox="allow-same-origin allow-popups allow-forms allow-scripts"></iframe>
+                            sandbox="allow-popups allow-forms allow-scripts"></iframe>
                     </div>
                 </div>
             </div>
@@ -128,6 +128,14 @@
                 name="message" rows="10" placeholder="Enter Message..."></textarea>
             <div class="invalid-feedback"></div>
         </div>
+    </div>
+
+    <div class="form-check mb-2" id="replyAttachmentOptionWrap" style="display: none;">
+        <input class="form-check-input" type="checkbox" value="1" id="includeReplyAttachments"
+            name="include_reply_attachments">
+        <label class="form-check-label" for="includeReplyAttachments">
+            Include attached files in this reply
+        </label>
     </div>
 
     <div id="attachedFilesList">
@@ -284,7 +292,6 @@
     }
 
     .reply-context-highlight {
-        background-color: #fff3cd !important;
         border-left: 4px solid #ffc107 !important;
     }
 

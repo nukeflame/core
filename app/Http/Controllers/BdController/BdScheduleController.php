@@ -1065,7 +1065,6 @@ class BdScheduleController extends Controller
 
         DB::beginTransaction();
         try {
-            // Detach schedule headers from pivot table before deleting
             $slipTemplate = SlipTemplate::find($id);
             if ($slipTemplate) {
                 $slipTemplate->scheduleHeaders()->detach();

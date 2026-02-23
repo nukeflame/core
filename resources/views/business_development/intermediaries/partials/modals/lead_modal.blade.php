@@ -1532,7 +1532,7 @@
                 quotation: "{{ route('quote.quotationCoverSlip.quotation') }}",
                 facultative: "{{ route('quote.quotationCoverSlip.facultative') }}",
             };
-            const LEAD_MODAL_DRAFT_STORAGE_KEY = "facultative_lead_modal_draft_v1";
+            const LEAD_MODAL_DRAFT_STORAGE_KEY = "fac_lead_modal_draft_v1";
             const LEAD_MODAL_DRAFT_PATH = "/pipelines/facultative/view";
             const LEAD_MODAL_DISPLAY_SELECTORS = [
                 ".slip-display",
@@ -1633,7 +1633,8 @@
                     const metaMatch = metaText.match(/^\((.*)\)\s*-\s*(.*)$/);
                     reinsurers.push({
                         id: reinsurerId,
-                        reinsurer_name: $row.find("td:first .fw-medium").text().trim() || "Unknown Reinsurer",
+                        reinsurer_name: $row.find("td:first .fw-medium").text().trim() ||
+                            "Unknown Reinsurer",
                         email: metaMatch && metaMatch[1] ? metaMatch[1].trim() : "-",
                         country: metaMatch && metaMatch[2] ? metaMatch[2].trim() : "-",
                         written_share: writtenShare,
@@ -1669,9 +1670,10 @@
 
             function getLeadDocumentsSnapshot() {
                 const additionalTitles = [];
-                $("#leadModal #documentFields .supporting-doc-title-input[data-additional-title='1']").each(function() {
-                    additionalTitles.push(($(this).val() || "").toString());
-                });
+                $("#leadModal #documentFields .supporting-doc-title-input[data-additional-title='1']").each(
+                    function() {
+                        additionalTitles.push(($(this).val() || "").toString());
+                    });
 
                 return {
                     additionalTitles,
@@ -1684,8 +1686,7 @@
                 }
 
                 const titles = Array.isArray(snapshot.additionalTitles) ?
-                    snapshot.additionalTitles.map((title) => (title || "").toString()) :
-                    [];
+                    snapshot.additionalTitles.map((title) => (title || "").toString()) : [];
 
                 if (titles.length === 0) {
                     return;
@@ -1817,8 +1818,7 @@
 
             function reloadLeadDynamicSections(overrideContext = null, retries = 10) {
                 const context = (overrideContext && typeof overrideContext === "object") ?
-                    overrideContext :
-                    {};
+                    overrideContext : {};
 
                 const dealId = (
                     context.dealId ||
@@ -1827,7 +1827,9 @@
                     $("#leadOpportunityId").val() ||
                     ""
                 ).toString().trim();
-                const opportunityId = (context.opportunityId || $("#leadOpportunityId").val() || "").toString().trim();
+
+                const opportunityId = (context.opportunityId || $("#leadOpportunityId").val() || "").toString()
+                    .trim();
                 if (!dealId && !opportunityId) {
                     return;
                 }
@@ -1841,9 +1843,11 @@
                 }
 
                 const classCode = (context.classCode || $("#leadClassCode").val() || "").toString().trim();
-                const classGroupCode = (context.classGroupCode || $("#leadClassGroupCode").val() || "").toString().trim();
+                const classGroupCode = (context.classGroupCode || $("#leadClassGroupCode").val() || "").toString()
+                    .trim();
                 const categoryType = (context.categoryType || $("#leadCategoryType").val() || "").toString().trim();
-                const currentStage = (context.currentStage || $("#leadCurrentStage").val() || "lead").toString().trim();
+                const currentStage = (context.currentStage || $("#leadCurrentStage").val() || "lead").toString()
+                    .trim();
                 const typeOfBus = (
                     context.typeOfBus ||
                     window.currentDealInfo?.type_of_business ||
@@ -1852,23 +1856,27 @@
                 ).toString().trim();
 
                 const reloadData = {
-                    dealId: dealId || opportunityId,
+                    dealId: Number(dealId) || opportunityId,
                     opportunityId: opportunityId,
                     modalId: "leadModal",
                     class: classCode,
                     classGroup: classGroupCode,
                     typeOfBus: typeOfBus || "FPR",
-                    stage: "lead",
+                    stage: "proposal",
                     currentStage: currentStage || "lead",
                     categoryType: categoryType || "2",
+                    riskType: '',
+                    sumInsuredType: ''
                 };
 
                 if (typeof pipelineManager.loadScheduleHeaders === "function") {
                     pipelineManager.loadScheduleHeaders(reloadData);
                 }
+
                 if (typeof pipelineManager.loadSlipDocuments === "function") {
                     pipelineManager.loadSlipDocuments(reloadData);
                 }
+
                 if (typeof pipelineManager.loadBdTerms === "function") {
                     pipelineManager.loadBdTerms(reloadData);
                 }
@@ -1983,8 +1991,8 @@
                                 q: params.term || "",
                                 page: params.page || 1,
                                 cedantId: $("#lead_cedant_id").val(),
-                                stage: '',
-                                oppId: '',
+                                stage: 'lead',
+                                oppId: $("#leadOpportunityId").val() || '',
                             };
                         },
                         processResults: function(data) {
@@ -2130,37 +2138,51 @@
 
             function addReinsurerToTable(reinsurerData, slipType) {
                 const showShareColumn = shouldShowShares(slipType);
+                const isDeclined = reinsurerData.is_declined === true || reinsurerData.is_declined === 1 ||
+                    reinsurerData.is_declined === '1';
+                const declineReason = (reinsurerData.decline_reason || '').toString().trim();
 
                 const shareColumnHtml = `
                     <td class="text-start share-column" ${!showShareColumn ? 'style="display: none;"' : ''}>
                         <div class="share-display">
-                            <strong>${showShareColumn ? reinsurerData.writtenShare.toFixed(2) + '%' : 'N/A'}</strong>
+                            <strong>${showShareColumn ? (isDeclined ? '--' : reinsurerData.writtenShare.toFixed(2) + '%') : 'N/A'}</strong>
                         </div>
                     </td>
                 `;
 
+                const declineNoteHtml = isDeclined ?
+                    `<div><small class="text-danger">Declined${declineReason ? `: ${escapeHtml(declineReason)}` : ''}</small></div>` :
+                    '';
+
+                const actionHtml = isDeclined ?
+                    `<span class="badge bg-danger">Declined</span>` :
+                    `
+                        <button type="button" class="btn btn-primary btn-sm contacts-reinsurer"
+                                data-reinsurer-id="${reinsurerData.id}"
+                                title="Contacts">
+                            <i class="bx bx-book"></i>
+                        </button>
+                        <button type="button" class="btn btn-danger btn-sm remove-reinsurer"
+                                data-reinsurer-id="${reinsurerData.id}"
+                                title="Remove Reinsurer">
+                            <i class="bx bx-trash"></i>
+                        </button>
+                    `;
+
                 const rowHtml = `
-                    <tr data-reinsurer-id="${reinsurerData.id}" ${showShareColumn ? `data-written-share="${reinsurerData.writtenShare}"` : 'data-written-share="0"'}>
+                    <tr data-reinsurer-id="${reinsurerData.id}" data-is-declined="${isDeclined ? 1 : 0}" ${showShareColumn ? `data-written-share="${isDeclined ? 0 : reinsurerData.writtenShare}"` : 'data-written-share="0"'}>
                         <td>
                             <div class="d-flex align-items-center">
                                 <div>
                                     <div class="fw-medium">${escapeHtml(reinsurerData.name)}</div>
                                     <small class="text-muted">(${escapeHtml(reinsurerData.email)}) - ${escapeHtml(reinsurerData.country)}</small>
+                                    ${declineNoteHtml}
                                 </div>
                             </div>
                         </td>
                         ${shareColumnHtml}
                         <td class="text-start">
-                            <button type="button" class="btn btn-primary btn-sm contacts-reinsurer"
-                                    data-reinsurer-id="${reinsurerData.id}"
-                                    title="Contacts">
-                                <i class="bx bx-book"></i>
-                            </button>
-                            <button type="button" class="btn btn-danger btn-sm remove-reinsurer"
-                                    data-reinsurer-id="${reinsurerData.id}"
-                                    title="Remove Reinsurer">
-                                <i class="bx bx-trash"></i>
-                            </button>
+                            ${actionHtml}
                         </td>
                     </tr>
                 `;
@@ -2267,13 +2289,17 @@
 
                     const writtenShareRaw = parseFloat(reinsurer.written_share ?? 0);
                     const writtenShare = Number.isFinite(writtenShareRaw) ? writtenShareRaw : 0;
+                    const isDeclined = reinsurer.is_declined === true || reinsurer.is_declined === 1 ||
+                        reinsurer.is_declined === '1';
 
                     const reinsurerData = {
                         id: reinsurerId,
                         name: reinsurer.reinsurer_name || reinsurer.name || "Unknown Reinsurer",
                         email: reinsurer.email || "-",
                         country: reinsurer.country || "-",
-                        writtenShare: showShareColumn ? writtenShare : 0,
+                        writtenShare: showShareColumn ? (isDeclined ? 0 : writtenShare) : 0,
+                        is_declined: isDeclined,
+                        decline_reason: reinsurer.decline_reason || "",
                     };
 
                     addReinsurerToTable(reinsurerData, slipType);
@@ -3068,14 +3094,48 @@
                     Object.entries(allUploadedFiles).forEach(([fieldId, filesData]) => {
                         filesData.forEach((file) => {
                             formData.append('facultative_files[]', file);
-                            formData.append('facultative_document_types[]', file.fileName ||
+                            formData.append('facultative_document_types[]', file.documentTypeName || file.fileName ||
                                 'additionalDocuments');
-                            if (file.fileId) {
-                                formData.append('facultative_document_type_ids[]', file.fileId);
+                            if (Number.isInteger(file.documentTypeId)) {
+                                formData.append('facultative_document_type_ids[]', file.documentTypeId);
                             }
                         });
                     });
                 }
+
+                const defaultDocs = [];
+                $("#leadModal #documentFields .document-field-group").each(function() {
+                    const $group = $(this);
+                    const isAdditionalDocument = String($group.data("is-additional-document")) === "1";
+                    if (isAdditionalDocument) {
+                        return;
+                    }
+
+                    const rawId = ($group.data("document-id") ?? "").toString().trim();
+                    const titleFromInput = ($group.find(".supporting-doc-title-input").first().val() || "")
+                        .toString()
+                        .trim();
+                    const titleFromData = ($group.data("document-name") || "").toString().trim();
+                    const documentName = titleFromInput || titleFromData;
+
+                    if (!rawId && !documentName) {
+                        return;
+                    }
+
+                    defaultDocs.push({
+                        id: /^\d+$/.test(rawId) ? parseInt(rawId, 10) : rawId,
+                        name: documentName,
+                    });
+                });
+
+                defaultDocs.forEach((doc, index) => {
+                    if (doc.id !== null && doc.id !== undefined && doc.id !== "") {
+                        formData.append(`facultative_default_docs[${index}][id]`, doc.id);
+                    }
+                    if (doc.name) {
+                        formData.append(`facultative_default_docs[${index}][name]`, doc.name);
+                    }
+                });
 
                 const reinsurersData = [];
                 let totalPlacedShares = 0;
@@ -3083,11 +3143,13 @@
                 state.dataTable.rows().every(function() {
                     const $row = $(this.node());
                     const writtenShare = parseFloat($row.attr("data-written-share")) || 0;
+                    const isDeclined = parseInt($row.attr("data-is-declined"), 10) === 1;
                     totalPlacedShares += writtenShare;
 
                     reinsurersData.push({
                         id: $row.data("reinsurer-id"),
                         written_share: writtenShare,
+                        is_declined: isDeclined,
                     });
                 });
 
@@ -3773,12 +3835,13 @@
 
                 const hasTermsContent = $("#leadModal #termsConditions").children().length > 0;
                 const hasDocumentsFields = $("#leadModal #documentFields").children().length > 0;
-                const hasDocumentsMessage = ($("#leadModal #documentsContent").text() || "").trim().length > 0;
+                const hasDocumentsMessage = ($("#leadModal #documentsContent").text() || "").trim().length >
+                    0;
                 const hasDocumentsContent = hasDocumentsFields || hasDocumentsMessage;
                 if (!hasTermsContent || !hasDocumentsContent) {
                     reloadLeadDynamicSections();
                 }
-                restoreLeadDocumentsDraftWhenReady(state.pendingDocumentsDraft);
+                // restoreLeadDocumentsDraftWhenReady(state.pendingDocumentsDraft);
 
                 $("#leadForm .is-invalid").removeClass("is-invalid");
                 $("#leadForm .invalid-feedback, .reinsurer-validation-error").remove();

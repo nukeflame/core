@@ -200,6 +200,7 @@
             bdEmailData: "{{ route('fetch.bd_email_data') }}",
             getBdTerms: "{{ route('get.bd_terms') }}",
             declineReinsurer: "{{ route('reinsurer.decline') }}",
+            resetProposalToLead: "{{ route('proposal.reset_to_lead') }}",
             getSelectedReinsurers: "{{ route('get.selected_bd_reinsurers') }}",
             revert: "{{ route('prospect.revert') }}",
             addPipeline: "{!! route('prospect.add.pipeline') !!}"

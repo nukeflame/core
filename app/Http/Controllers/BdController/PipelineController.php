@@ -15,7 +15,6 @@ use App\Models\Bd\Gender;
 use App\Models\Bd\Occupation;
 use App\Models\Bd\PipelineOpportunity;
 use App\Models\Bd\Salutation;
-use App\Models\Bd\Status;
 use App\Models\ClassGroup;
 use App\Models\Country;
 use App\Models\Bd\StageComment;
@@ -312,7 +311,7 @@ class PipelineController
     public function stageDocuments(Request $request)
     {
         try {
-            $prospect = $request->opportunity_id;
+            $prospect = trim((string) $request->opportunity_id);
             $stage = $request->stage;
             $currentStage = $request->current_stage;
             $category_type = $request->category_type;
@@ -320,14 +319,19 @@ class PipelineController
 
             $pros = DB::table('pipeline_opportunities')
                 ->where(function ($query) use ($prospect) {
-                    $query->where('id', $prospect)
-                        ->orWhere('opportunity_id', $prospect);
+                    if (ctype_digit($prospect)) {
+                        $query->where('id', (int) $prospect);
+                    }
+
+                    $query->orWhere('opportunity_id', $prospect);
                 })
                 ->first();
 
             if (!$pros) {
                 return ['status' => 0, 'message' => 'Pipeline opportunity not found'];
             }
+
+            $prospect = (string) $pros->opportunity_id;
 
             $prospDocQuery = DB::table('prospect_docs')
                 ->where('prospect_id', $pros->opportunity_id);
@@ -391,7 +395,7 @@ class PipelineController
             ];
 
             return $res;
-        } catch (\Throwable $e) {
+        } catch (Exception $e) {
             return [
                 'status' => 0,
                 'message' => 'An error occurred while fetching stage documents',
@@ -2587,7 +2591,6 @@ class PipelineController
 
                 $uploadedFiles[] = $filename;
             } catch (\Exception $e) {
-                logger($e);
                 return ['error' => 'Document upload failed: ' . $e->getMessage()];
             }
         }
@@ -3211,7 +3214,7 @@ class PipelineController
 
             $opportunities = $query->skip($start)->take($length)->orderBy('created_at', 'desc')->get();
 
-            $data = $opportunities->map(function ($opp) {
+            $data = $opportunities->map(function ($opp) use ($quarter) {
                 $urgencyLevel = $this->resolveUrgencyLevel($opp);
 
                 return [
@@ -3227,7 +3230,7 @@ class PipelineController
                     'status' => $this->formatStatus($opp),
                     'category' => $this->formatCategory($opp->category_type),
                     'approval_status' => $this->formatApprovalStatus($opp->handed_over),
-                    'stage_actions' => $this->formatStageActions($opp),
+                    'stage_actions' => $this->formatStageActions($opp, $quarter),
                     'action' => $this->getActionButtons($opp),
                     'urgency_level' => $urgencyLevel,
                     'urgency_class' => 'row-urgency-' . $urgencyLevel,
@@ -3475,7 +3478,7 @@ class PipelineController
         return $catText;
     }
 
-    private function formatStageActions($opp)
+    private function formatStageActions($opp, ?string $quarter = null)
     {
         $currentStage = Stage::fromStageValue($opp->stage);
         if ($currentStage === null) {
@@ -3543,6 +3546,15 @@ class PipelineController
 
                 $btn = "<button id='stageAction-{$id}' data-deal_id='{$id}' data-type_of_business='{$type_of_business}' data-current_stage='{$current_stage}' class='stage-btn {$btnStage} stage_btn_action' style='opacity: 1; cursor: pointer;'>{$buttonIcon}{$displayText}</button>";
 
+                $shouldShowResetToLead = $currentStage === Stage::PROPOSAL
+                    && $quarter === 'all'
+                    && (bool) ($opp->has_declined_reinsurers ?? false);
+
+                if ($shouldShowResetToLead) {
+                    $opportunityId = e($opp->opportunity_id);
+                    $btn .= "<button type='button' data-opportunity_id='{$opportunityId}' data-current_stage='{$current_stage}' class='stage-btn btn-outline-warning reset_proposal_to_lead_btn ms-2' style='opacity: 1; cursor: pointer;'><i class='bx bx-reset me-1'></i>Reset To Lead</button>";
+                }
+
                 return $btn;
             }
         } else {
@@ -3569,6 +3581,18 @@ class PipelineController
     private function buildOpportunityQuery($pipelineId, $quarter)
     {
         $query = PipelineOpportunity::where('pipeline_id', $pipelineId)
+            ->select('pipeline_opportunities.*')
+            ->selectRaw("
+                CASE
+                    WHEN EXISTS (
+                        SELECT 1
+                        FROM bd_fac_reinsurers bfr
+                        WHERE bfr.opportunity_id = pipeline_opportunities.opportunity_id
+                          AND bfr.is_declined = TRUE
+                    ) THEN 1
+                    ELSE 0
+                END AS has_declined_reinsurers
+            ")
             ->whereIn('type_of_bus', ['FPR', 'FNP']);
 
         if ($quarter !== 'all' && is_numeric($quarter)) {
@@ -4110,10 +4134,19 @@ class PipelineController
         $page = max(1, $page);
         $perPage = min(max(1, $perPage), 100);
         $bdFacsCustomerIds = [];
+        $declinedCustomerIds = [];
 
         if (isset($stage) && $stage === 'proposal') {
             $bdFacsCustomerIds = DB::table('bd_fac_reinsurers')
                 ->where('opportunity_id', $oppId)
+                ->pluck('reinsurer_id')
+                ->toArray();
+        }
+
+        if (!empty($oppId)) {
+            $declinedCustomerIds = DB::table('bd_fac_reinsurers')
+                ->where('opportunity_id', $oppId)
+                ->where('is_declined', true)
                 ->pluck('reinsurer_id')
                 ->toArray();
         }
@@ -4141,6 +4174,10 @@ class PipelineController
             ->when(
                 !empty($bdFacsCustomerIds),
                 fn($q) => $q->whereNotIn('customers.customer_id', $bdFacsCustomerIds)
+            )
+            ->when(
+                !empty($declinedCustomerIds),
+                fn($q) => $q->whereNotIn('customers.customer_id', $declinedCustomerIds)
             )
             ->when(
                 $search,
@@ -5786,33 +5823,124 @@ class PipelineController
                         'status'            => Stage::PROPOSAL
                     ];
 
-                    if ($request->hasFile('facultative_files')) {
-                        try {
-                            $prospectDetails = DB::table('pipeline_opportunities as po')
-                                ->leftJoin('customers as c', function ($join) {
-                                    $join->on(DB::raw("NULLIF(po.customer_id, '')::INTEGER"), '=', 'c.customer_id');
-                                })
-                                ->leftJoin('classes as cl', 'po.classcode', '=', 'cl.class_code')
-                                ->where('po.opportunity_id', $opportunityId)
-                                ->select([
-                                    'c.name as client_name',
-                                    'po.opportunity_id as policy_number',
-                                    'cl.class_name as policy_type',
-                                    'po.effective_date'
-                                ])
-                                ->first();
+                    try {
+                        $prospectDetails = DB::table('pipeline_opportunities as po')
+                            ->leftJoin('customers as c', function ($join) {
+                                $join->on(DB::raw("NULLIF(po.customer_id, '')::INTEGER"), '=', 'c.customer_id');
+                            })
+                            ->leftJoin('classes as cl', 'po.classcode', '=', 'cl.class_code')
+                            ->where('po.opportunity_id', $opportunityId)
+                            ->select([
+                                'c.name as client_name',
+                                'po.opportunity_id as policy_number',
+                                'cl.class_name as policy_type',
+                                'po.effective_date'
+                            ])
+                            ->first();
 
-                            // $clientName = $this->sanitizeFileName($prospectDetails->client_name ?? 'Unknown_Client');
-                            $policyNumber = $prospectDetails->policy_number ?? 'NO_POLICY';
-                            $policyType = $this->sanitizeFileName($prospectDetails->policy_type ?? 'Unknown_Type');
-                            $effectiveDate = $prospectDetails->effective_date
-                                ? Carbon::parse($prospectDetails->effective_date)->format('Ymd')
-                                : Carbon::now()->format('Ymd');
+                        // $clientName = $this->sanitizeFileName($prospectDetails->client_name ?? 'Unknown_Client');
+                        $policyNumber = $prospectDetails->policy_number ?? 'NO_POLICY';
+                        $policyType = $this->sanitizeFileName($prospectDetails->policy_type ?? 'Unknown_Type');
+                        $effectiveDate = $prospectDetails->effective_date
+                            ? Carbon::parse($prospectDetails->effective_date)->format('Ymd')
+                            : Carbon::now()->format('Ymd');
 
-                            $uploadedFiles = [];
-                            $uploadResults = [];
-                            $version = 1;
+                        $uploadedFiles = [];
+                        $uploadResults = [];
+                        $version = 1;
 
+                        $defaultDocs = $request->input('facultative_default_docs', []);
+                        if (is_array($defaultDocs) && !empty($defaultDocs)) {
+                            $defaultDocTypeIds = collect($defaultDocs)
+                                ->pluck('id')
+                                ->filter(fn($id) => is_numeric($id))
+                                ->map(fn($id) => (int) $id)
+                                ->unique()
+                                ->values()
+                                ->all();
+
+                            $docTypeLookup = [];
+                            if (!empty($defaultDocTypeIds)) {
+                                $docTypeLookup = DB::table('doc_types')
+                                    ->whereIn('id', $defaultDocTypeIds)
+                                    ->get(['id', 'doc_type', 'file_name', 'mimetype', 's3_path', 'path'])
+                                    ->keyBy('id')
+                                    ->all();
+                            }
+
+                            foreach ($defaultDocs as $doc) {
+                                $rawDocId = data_get($doc, 'id');
+                                $docId = is_numeric($rawDocId) ? (int) $rawDocId : null;
+                                $docName = trim((string) data_get($doc, 'name', ''));
+                                $docType = !is_null($docId) ? ($docTypeLookup[$docId] ?? null) : null;
+
+                                $resolvedS3Path = trim((string) ($docType->s3_path ?? $docType->path ?? ''));
+                                $resolvedFile = trim((string) ($docType->file_name ?? ''));
+                                $resolvedMime = trim((string) ($docType->mimetype ?? ''));
+
+                                if ($resolvedS3Path === '' && $resolvedFile !== '') {
+                                    $resolvedS3Path = $resolvedFile;
+                                }
+
+                                if ($resolvedFile === '' && $resolvedS3Path !== '') {
+                                    $resolvedFile = basename($resolvedS3Path);
+                                }
+
+                                $resolvedS3Url = null;
+                                $resolvedFileSize = null;
+                                if ($resolvedS3Path !== '') {
+                                    $resolvedS3Url = $this->getS3Url($resolvedS3Path);
+                                    try {
+                                        if (Storage::disk('s3')->exists($resolvedS3Path)) {
+                                            $resolvedFileSize = Storage::disk('s3')->size($resolvedS3Path);
+                                        }
+                                    } catch (\Throwable $e) {
+                                        $resolvedFileSize = null;
+                                    }
+                                }
+
+                                if (is_null($docId) && $docName === '') {
+                                    continue;
+                                }
+
+                                $insertData = [
+                                    'description' => $docName !== '' ? $docName : trim((string) ($docType->doc_type ?? 'Document')),
+                                    'prospect_id' => $opportunityId,
+                                    'prospect_status' => $stage,
+                                    'document_type_id' => $docId,
+                                    'mimetype' => $resolvedMime !== '' ? $resolvedMime : null,
+                                    'file' => $resolvedFile !== '' ? $resolvedFile : null,
+                                    's3_path' => $resolvedS3Path !== '' ? $resolvedS3Path : null,
+                                    's3_url' => $resolvedS3Url,
+                                    'file_size' => $resolvedFileSize,
+                                    'original_name' => $resolvedFile !== '' ? basename($resolvedFile) : null,
+                                    'bus_type' => $request->input('bus_type'),
+                                    'updated_at' => now(),
+                                ];
+
+                                if (!is_null($docId)) {
+                                    DB::table('prospect_docs')->updateOrInsert(
+                                        [
+                                            'prospect_id' => $opportunityId,
+                                            'prospect_status' => $stage,
+                                            'document_type_id' => $docId,
+                                        ],
+                                        $insertData + ['created_at' => now()]
+                                    );
+                                } else {
+                                    DB::table('prospect_docs')->updateOrInsert(
+                                        [
+                                            'prospect_id' => $opportunityId,
+                                            'prospect_status' => $stage,
+                                            'description' => $insertData['description'],
+                                        ],
+                                        $insertData + ['created_at' => now()]
+                                    );
+                                }
+                            }
+                        }
+
+                        if ($request->hasFile('facultative_files')) {
                             foreach ($request->file('facultative_files') as $index => $file) {
                                 if (!$file->isValid()) {
                                     continue;
@@ -5823,15 +5951,18 @@ class PipelineController
                                 $fileSize = $file->getSize();
                                 $originalName = $file->getClientOriginalName();
 
-                                $documentType = $request->input("facultative_document_types.{$index}", 'Uknown');
-                                $documentType = Str::studly($this->sanitizeFileName($documentType));
+                                $documentTypeInput = (string) $request->input("facultative_document_types.{$index}", 'Unknown');
+                                $documentType = trim($documentTypeInput) !== ''
+                                    ? trim($documentTypeInput)
+                                    : 'Unknown';
+                                $documentTypeFileToken = $this->sanitizeFileName($documentType);
 
                                 $uniqueFilename = sprintf(
                                     '%s_%s_%s_%s_v%s.%s',
                                     $policyNumber,
                                     $policyType,
                                     $effectiveDate,
-                                    $documentType,
+                                    $documentTypeFileToken,
                                     str_pad($version, 3, '0', STR_PAD_LEFT),
                                     $originalExtension
                                 );
@@ -5899,27 +6030,27 @@ class PipelineController
 
                                 $version++;
                             }
-
-                            // DB::commit();
-                        } catch (\Aws\S3\Exception\S3Exception $e) {
-                            DB::rollBack();
-                            $this->cleanupS3Files($uploadedFiles);
-
-                            return response()->json([
-                                'success' => false,
-                                'message' => 'Failed to upload files to S3',
-                                'error' => config('app.debug') ? $e->getMessage() : 'Storage error occurred'
-                            ], 500);
-                        } catch (\Exception $e) {
-                            DB::rollBack();
-                            $this->cleanupS3Files($uploadedFiles);
-
-                            return response()->json([
-                                'success' => false,
-                                'message' => 'An error occurred while uploading files',
-                                'error' => config('app.debug') ? $e->getMessage() : 'Please contact support'
-                            ], 500);
                         }
+
+                        DB::commit();
+                    } catch (\Aws\S3\Exception\S3Exception $e) {
+                        DB::rollBack();
+                        $this->cleanupS3Files($uploadedFiles);
+
+                        return response()->json([
+                            'success' => false,
+                            'message' => 'Failed to upload files to S3',
+                            'error' => config('app.debug') ? $e->getMessage() : 'Storage error occurred'
+                        ], 500);
+                    } catch (\Exception $e) {
+                        DB::rollBack();
+                        $this->cleanupS3Files($uploadedFiles);
+
+                        return response()->json([
+                            'success' => false,
+                            'message' => 'An error occurred while uploading files',
+                            'error' => config('app.debug') ? $e->getMessage() : 'Please contact support'
+                        ], 500);
                     }
 
                     break;
@@ -6091,7 +6222,7 @@ class PipelineController
                 'printout_flag' => false,
             ];
 
-            GenerateBdCoverSlipJob::dispatch($requestData, auth()->id());
+            GenerateBdCoverSlipJob::dispatchSync($requestData, auth()->id());
 
             DB::commit();
 
@@ -6112,8 +6243,6 @@ class PipelineController
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
-
-            logger($e);
             return response()->json([
                 'success' => false,
                 'message' => 'An error occurred while updating lead status',
@@ -6178,12 +6307,14 @@ class PipelineController
                 'message' => $request->input('message'),
                 'customer_id' => $request->input('customer_id'),
                 'is_reply' => $request->input('is_reply', 0),
+                'include_reply_attachments' => $request->boolean('include_reply_attachments', false),
                 'conversation_id' => $request->input('conversation_id'),
                 'message_id' => $request->input('message_id'),
             ];
 
             $attached_files = [];
-            if (!$emailData['is_reply']) {
+            $shouldIncludeAttachments = !$emailData['is_reply'] || $emailData['include_reply_attachments'];
+            if ($shouldIncludeAttachments) {
                 $attached_files = DB::table('prospect_docs')->where('prospect_id', $emailData['opportunity_id'])->get([
                     's3_url',
                     'original_name',
@@ -6259,7 +6390,6 @@ class PipelineController
 
         if (isset($reinsurers)) {
             if (is_array($reinsurers)) {
-                // If it's a single associative array (one reinsurer), wrap it
                 if (array_key_exists('decline', $reinsurers)) {
                     $reinsurers = [$reinsurers];
                 }
@@ -6311,7 +6441,7 @@ class PipelineController
             ->update([
                 'stage' => $stage_cycle,
             ]);
-        // DB::commit();
+        DB::commit();
         return redirect()->route('lead.handover', ['prospect' => $leadId]);
     }
 
@@ -7650,7 +7780,6 @@ class PipelineController
         $fileName = [];
         $cedant_doc_name = [];
 
-        // Handle uploaded files
         if ($request->hasFile('document_file_email_attachment')) {
             foreach ($request->file('document_file_email_attachment') as $index => $file) {
                 if ($file->isValid()) {
@@ -7685,7 +7814,6 @@ class PipelineController
             }
         }
 
-        // Email setup
         $mainEmail = $request->reinsurer_emails[0];
         $reinsurerCCEmails = [];
         $ccEmails = array_slice($request->reinsurer_emails, 1);
@@ -7717,9 +7845,7 @@ class PipelineController
             'received_docs' => $request->received_docs_checkboxes ?? [],
         ];
 
-        // Dispatch email job
         TreatyJob::dispatch($emailData, $fileName, $cedant_doc_name, $pdfFilename, $stage, $stageType, $pdfPath);
-
 
         DB::commit();
 
@@ -8077,7 +8203,7 @@ class PipelineController
             $prospectDocs = DB::table('prospect_docs')->where([
                 'prospect_id' => $opportunityId,
             ])
-                ->select(['s3_url', 'original_name', 'file', 'mimetype'])
+                ->select(['s3_url', 'original_name', 'file', 'mimetype', 'description'])
                 ->get();
 
             $data = [
@@ -8150,7 +8276,6 @@ class PipelineController
                 ->where('opportunity_id', $validated['prospect_id'])
                 ->update([
                     'stage' => $previousStage['value'],
-                    // Keep the original category type (quotation/facultative) when reverting stages.
                     'category_type' => $pipeline->category_type,
                     'status' => $previousStage['key'],
                     'reverted_to_pipeline' => 'YES',
@@ -8244,6 +8369,63 @@ class PipelineController
             return response()->json([
                 'status' => 0,
                 'message' => 'Failed to decline reinsurer. Please try again later.'
+            ], 500);
+        }
+    }
+
+    public function resetProposalToLead(Request $request)
+    {
+        DB::beginTransaction();
+        try {
+            $validated = $request->validate([
+                'opportunity_id' => 'required|string',
+            ]);
+
+            $opportunityId = $validated['opportunity_id'];
+
+            $opportunity = DB::table('pipeline_opportunities')
+                ->where('opportunity_id', $opportunityId)
+                ->first();
+
+            if (!$opportunity) {
+                return response()->json([
+                    'status' => 0,
+                    'message' => 'Opportunity not found.'
+                ], 404);
+            }
+
+            $hasDeclinedReinsurers = DB::table('bd_fac_reinsurers')
+                ->where('opportunity_id', $opportunityId)
+                ->where('is_declined', true)
+                ->exists();
+
+            if (!$hasDeclinedReinsurers) {
+                return response()->json([
+                    'status' => 0,
+                    'message' => 'No declined reinsurers found for this opportunity.'
+                ], 422);
+            }
+
+            DB::table('pipeline_opportunities')
+                ->where('opportunity_id', $opportunityId)
+                ->update([
+                    'stage' => 1,
+                    'status' => Stage::LEAD,
+                    'stage_updated_at' => now(),
+                    'updated_at' => now(),
+                ]);
+
+            DB::commit();
+
+            return response()->json([
+                'status' => 1,
+                'message' => 'Opportunity reset to Lead stage. Declined reinsurers have been retained.'
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'status' => 0,
+                'message' => 'Failed to reset opportunity to Lead stage.'
             ], 500);
         }
     }

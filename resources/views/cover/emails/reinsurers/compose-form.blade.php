@@ -447,7 +447,6 @@
     }
 
     .reply-context-highlight {
-        background-color: #fff3cd !important;
         border-left: 4px solid #ffc107 !important;
     }
 

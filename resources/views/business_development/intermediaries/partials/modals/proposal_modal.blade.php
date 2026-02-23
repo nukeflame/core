@@ -166,7 +166,7 @@
                                 </div>
                             </div>
                             <div class="section-content" id="reinsurer-info">
-                                <div class="reinsurer-selection-panel mb-2" id="reinSelectionPlacement">
+                                {{-- <div class="reinsurer-selection-panel mb-2" id="reinSelectionPlacement">
                                     <div class="row">
                                         <div class="col-md-9">
                                             <div class="form-group">
@@ -194,7 +194,7 @@
                                             </div>
                                         </div>
                                     </div>
-                                </div>
+                                </div> --}}
                                 <div class="selected-reinsurers-section">
                                     <h6 class="mb-3">
                                         <i class="bi bi-people-fill me-1"></i>Selected Reinsurers
@@ -313,7 +313,6 @@
                     <input type="hidden" name="previous_stage" class="previous_stage" id="pdf_previous_stage" />
                 </form>
 
-                <!-- Stage Tabs -->
                 <ul class="nav nav-tabs nav-fill border-bottom" id="pdfStageTabs" role="tablist">
                     <li class="nav-item" role="presentation">
                         <button class="nav-link active" id="lead-tab" data-bs-toggle="tab"
@@ -356,7 +355,6 @@
                     </li>
                 </ul>
 
-                <!-- Stage Content -->
                 <div class="tab-content pdf-section-box customScrollBar" id="pdfStageContent">
                     <!-- Lead Stage -->
                     <div class="tab-pane fade show active" id="lead-stage" role="tabpanel"
@@ -369,7 +367,6 @@
                                 <p class="mt-2 text-muted">Loading PDFs...</p>
                             </div>
                             <div id="lead-pdf-list" class="d-none">
-                                <!-- PDF list will be populated here -->
                             </div>
                             <div class="text-center py-5 d-none" id="lead-no-pdf">
                                 <i class="bi bi-file-earmark-x text-muted" style="font-size: 3rem;"></i>
@@ -388,7 +385,6 @@
                                 <p class="mt-2 text-muted">Loading PDFs...</p>
                             </div>
                             <div id="proposal-pdf-list" class="d-none">
-                                <!-- PDF list will be populated here -->
                             </div>
                             <div class="text-center py-5 d-none" id="proposal-no-pdf">
                                 <i class="bi bi-file-earmark-x text-muted" style="font-size: 3rem;"></i>
@@ -408,7 +404,6 @@
                                 <p class="mt-2 text-muted">Loading PDFs...</p>
                             </div>
                             <div id="negotiation-pdf-list" class="d-none">
-                                <!-- PDF list will be populated here -->
                             </div>
                             <div class="text-center py-5 d-none" id="negotiation-no-pdf">
                                 <i class="bi bi-file-earmark-x text-muted" style="font-size: 3rem;"></i>
@@ -427,7 +422,6 @@
                                 <p class="mt-2 text-muted">Loading PDFs...</p>
                             </div>
                             <div id="close-won-pdf-list" class="d-none">
-                                <!-- PDF list will be populated here -->
                             </div>
                             <div class="text-center py-5 d-none" id="close-won-no-pdf">
                                 <i class="bi bi-file-earmark-x text-muted" style="font-size: 3rem;"></i>
@@ -446,7 +440,6 @@
                                 <p class="mt-2 text-muted">Loading PDFs...</p>
                             </div>
                             <div id="final-pdf-list" class="d-none">
-                                <!-- PDF list will be populated here -->
                             </div>
                             <div class="text-center py-5 d-none" id="final-no-pdf">
                                 <i class="bi bi-file-earmark-x text-muted" style="font-size: 3rem;"></i>
@@ -457,7 +450,7 @@
                 </div>
             </div>
             <div class="modal-footer bg-light">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                <button type="button" class="btn btn-light" data-bs-dismiss="modal">
                     <i class="bi bi-x-circle me-1"></i> Close
                 </button>
             </div>
@@ -1478,7 +1471,7 @@
                 $noPdfDiv.addClass('d-none');
 
                 $.ajax({
-                        url: `opportunities/${opportunityId}/pdfs`,
+                        url: `{{ url('opportunities') }}/${encodeURIComponent(opportunityId)}/pdfs`,
                         method: 'GET',
                         data: {
                             stage
@@ -1565,12 +1558,11 @@
                         <div class="pdf-item-header">
                             <h6 class="pdf-item-title">
                                 <i class="bi bi-file-earmark-pdf text-danger"></i>
-                                ${pdf.name || 'Untitled Document'}
+                                ${pdf.description || 'Untitled Document'}
                             </h6>
                             <span class="badge ${badgeClass}">${badgeText}</span>
                         </div>
                         <div class="pdf-item-meta">
-                            ${pdf.description ? `<div class="mb-1">${pdf.description}</div>` : ''}
                             <div>
                                 <i class="bi bi-calendar3 me-1"></i> ${uploadDate}
                                 ${fileSize ? `<span class="ms-3"><i class="bi bi-file-earmark me-1"></i>${fileSize}</span>` : ''}
@@ -1579,9 +1571,6 @@
                         <div class="pdf-item-actions">
                             <button class="btn btn-sm btn-primary open-pdf-btn" data-pdf-url="${pdf.url}" data-pdf-name="${pdf.name}">
                                 <i class="bi bi-box-arrow-up-right me-1"></i> Open in New Tab
-                            </button>
-                            <button class="btn btn-sm btn-outline-primary download-pdf-btn">
-                                <i class="bi bi-download me-1"></i> Download
                             </button>
                         </div>
                     </div>
@@ -1602,10 +1591,11 @@
                 const pdfUrl = $(this).data('pdf-url');
                 const filename = $(this).data('pdf-name');
                 if (pdfUrl) {
-                    // console.log(pdfUrl)
                     const link = document.createElement('a');
                     link.href = pdfUrl;
                     link.download = filename || 'document.pdf';
+                    link.target = '_blank';
+                    link.rel = 'noopener';
                     document.body.appendChild(link);
                     link.click();
                     document.body.removeChild(link);

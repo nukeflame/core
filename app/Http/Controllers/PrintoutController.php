@@ -44,6 +44,7 @@ use Illuminate\Http\Response;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Spatie\Permission\Models\Role;
 use PhpOffice\PhpWord\PhpWord;
@@ -1872,16 +1873,38 @@ class PrintoutController extends Controller
 
     public function getOppPdfData(Request $request, $opppId)
     {
-        $prospectDocs = DB::table('prospect_docs')
-            ->where('prospect_id', $opppId)
+        $opportunityId = $opppId;
+        $stage = (string) $request->input('stage', '');
+        $stageValues = $this->resolveProspectStatusesForPreview($stage);
+
+        $prospectDocsQuery = DB::table('prospect_docs')
+            ->where('prospect_id', $opppId);
+
+        if (!empty($stageValues)) {
+            $prospectDocsQuery->where(function ($query) use ($stageValues) {
+                foreach ($stageValues as $value) {
+                    $query->orWhere('prospect_status', $value);
+                }
+            });
+        }
+
+        $prospectDocs = $prospectDocsQuery
+            ->orderByDesc('created_at')
             ->get()
             ->map(function ($doc) {
+                $docUrl = $this->resolveProspectDocumentUrl($doc);
+                $docType = strtolower(trim((string) ($doc->type ?? '')));
+
+                if ($docType === '' || $docType === 'genera') {
+                    $docType = 'general';
+                }
+
                 return [
                     'id' => $doc->id,
-                    'name' => $doc->file,
-                    'url' => $doc->s3_url,
+                    'name' => $doc->original_name ?: ($doc->file ?: ($doc->description ?: 'Document')),
+                    'url' => $docUrl,
                     'mime_type' => $doc->mimetype,
-                    'type' => $doc->type,
+                    'type' => $docType,
                     'description' => $doc->description ?? '',
                     'upload_date' => $doc->created_at,
                     'file_size' => $doc->file_size ?? 0
@@ -1890,27 +1913,63 @@ class PrintoutController extends Controller
             ->values()
             ->all();
 
-        $opportunityId = $opppId;
-        $stage = $request->stage;
-        $baseData = [];
-        $allPdfs = [];
-
-        switch ($stage) {
-            case 'lead':
-                $baseData = [];
-                $allPdfs = array_merge($prospectDocs, $baseData);
-                break;
-
-            default:
-                $baseData = [];
-                $allPdfs = [];
-                break;
-        }
-
         return response()->json([
-            'pdfs' => $allPdfs,
+            'pdfs' => $prospectDocs,
             'opportunity_id' => $opportunityId,
             'stage' => $stage
         ]);
+    }
+
+    private function resolveProspectStatusesForPreview(string $stage): array
+    {
+        $normalizedStage = Str::of($stage)
+            ->trim()
+            ->lower()
+            ->replace('-', '_')
+            ->value();
+
+        if ($normalizedStage === '') {
+            return [];
+        }
+
+        $stageMap = [
+            'lead' => ['1', 1, 'lead'],
+            'proposal' => ['2', 2, 'proposal'],
+            'negotiation' => ['3', 3, 'negotiation'],
+            'final' => ['4', 4, 'final', 'final_stage'],
+            'final_stage' => ['4', 4, 'final', 'final_stage'],
+            'close_won' => ['5', 5, 'won', 'close_won', 'close-won'],
+            'won' => ['5', 5, 'won', 'close_won', 'close-won'],
+            'lost' => ['6', 6, 'lost'],
+        ];
+
+        return $stageMap[$normalizedStage] ?? [$normalizedStage];
+    }
+
+    private function resolveProspectDocumentUrl(object $doc): ?string
+    {
+        $s3Url = trim((string) ($doc->s3_url ?? ''));
+        if ($s3Url !== '') {
+            return $s3Url;
+        }
+
+        $candidatePath = trim((string) ($doc->s3_path ?? ''));
+        if ($candidatePath === '') {
+            $candidatePath = trim((string) ($doc->file ?? ''));
+        }
+
+        if ($candidatePath === '') {
+            return null;
+        }
+
+        if (preg_match('/^https?:\/\//i', $candidatePath)) {
+            return $candidatePath;
+        }
+
+        try {
+            return Storage::disk('s3')->url($candidatePath);
+        } catch (\Throwable $e) {
+            return null;
+        }
     }
 }

@@ -3,8 +3,7 @@
 namespace App\Jobs;
 
 use App\Enums\Stage;
-use App\Models\BdCoverSlipDocument;
-use App\Http\Controllers\PrintoutController;
+use App\Http\Controllers\QuotationController;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -15,6 +14,7 @@ use Illuminate\Http\Request;
 use Carbon\Carbon;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Filesystem\FilesystemAdapter;
 
 class GenerateBdCoverSlipJob implements ShouldQueue
 {
@@ -74,53 +74,23 @@ class GenerateBdCoverSlipJob implements ShouldQueue
     public function handle()
     {
         try {
-            $request = Request::create('/docs/bd-coverslip', 'POST', $this->requestData);
+            $request = Request::create(
+                '/doc/coverslip/facultative',
+                'POST',
+                $this->buildFacultativeRequestPayload()
+            );
 
-            switch ($request->current_stage) {
-                case Stage::LEAD:
-                    $reinsurers = DB::table('bd_fac_reinsurers')->where('opportunity_id', $request->opportunity_id)->get();
-                    if (count($reinsurers) > 0) {
-                        foreach ($reinsurers as $rein) {
-                            $newRequest = $request->merge(['reinsurer_id' => $rein->reinsurer_id]);
-                            $this->processRequest($newRequest);
-                        }
-                    }
-                    break;
-
-                case Stage::PROPOSAL:
-                    $this->processRequest($request);
-                    break;
-
-                case Stage::NEGOTIATION:
-                    $this->processRequest($request);
-                    break;
-
-                case Stage::FINAL_STAGE:
-                    $this->processRequest($request);
-                    break;
-
-                default:
-                    logger()->warning("Unknown stage encountered", [
-                        'stage' => $request->current_stage,
-                        'opportunity_id' => $this->requestData['opportunity_id'] ?? null
-                    ]);
-                    break;
-            }
+            $this->processRequest($request);
         } catch (\Exception $e) {
-            logger()->error("Failed to generate BD Cover Slip", [
-                'opportunity_id' => $this->requestData['opportunity_id'] ?? null,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-
             throw $e;
         }
     }
 
     private function processRequest($request): void
     {
-        $controller = new PrintoutController();
-        $response = $controller->bdCoverSlip($request);
+        /** @var QuotationController $controller */
+        $controller = app(QuotationController::class);
+        $response = $controller->quotationCoverSlip($request);
 
         $pdfContent = $response->getContent();
         $statusCode = $response->getStatusCode();
@@ -135,6 +105,40 @@ class GenerateBdCoverSlipJob implements ShouldQueue
         $this->saveDocumentRecord($s3File['s3_url'], $filename, $pdfContent);
     }
 
+    private function buildFacultativeRequestPayload(): array
+    {
+        $opportunityId = (string) ($this->requestData['opportunity_id'] ?? '');
+        $currentStage = (string) ($this->requestData['current_stage'] ?? Stage::LEAD);
+        $reinsurersData = $this->requestData['reinsurers_data'] ?? null;
+
+        if ($reinsurersData === null || $reinsurersData === '') {
+            $reinsurersData = DB::table('bd_fac_reinsurers')
+                ->where('opportunity_id', $opportunityId)
+                ->select('reinsurer_id as id', 'written_share')
+                ->get()
+                ->map(fn($rein) => [
+                    'id' => (int) $rein->id,
+                    'written_share' => (float) ($rein->written_share ?? 0),
+                ])
+                ->values()
+                ->all();
+        } elseif (is_string($reinsurersData)) {
+            $decodedReinsurers = json_decode($reinsurersData, true);
+            $reinsurersData = is_array($decodedReinsurers) ? $decodedReinsurers : [];
+        } elseif (!is_array($reinsurersData)) {
+            $reinsurersData = [];
+        }
+
+        return array_merge($this->requestData, [
+            'opportunity_id' => $opportunityId,
+            'printout_flag' => (bool) ($this->requestData['printout_flag'] ?? false),
+            'current_stage' => $currentStage,
+            'category_type' => (string) ($this->requestData['category_type'] ?? '2'),
+            'slip_type' => 'facultative',
+            'reinsurers_data' => json_encode($reinsurersData),
+        ]);
+    }
+
     /**
      * Generate unique filename
      *
@@ -143,12 +147,12 @@ class GenerateBdCoverSlipJob implements ShouldQueue
     protected function generateFilename(): string
     {
         $currentStage = $this->requestData['current_stage'];
-        $stageName = str_replace(' ', '_', strtolower($currentStage));
+        $stageName = str_replace(' ', '_', strtolower((string) $currentStage));
         $opportunityId = $this->requestData['opportunity_id'] ?? 'unknown';
         $timestamp = Carbon::now()->format('YmdHis');
 
         return sprintf(
-            'facultative-files/Fac_Cover_Slip_%s_Opp_%s_%s.pdf',
+            'doc/coverslip/facultative/Fac_Cover_Slip_%s_Opp_%s_%s.pdf',
             $stageName,
             $opportunityId,
             $timestamp
@@ -164,6 +168,7 @@ class GenerateBdCoverSlipJob implements ShouldQueue
      */
     protected function storeInS3(string $content, string $filename): array
     {
+        /** @var FilesystemAdapter $disk */
         $disk = Storage::disk('s3');
 
         $disk->put($filename, $content, [
@@ -193,7 +198,7 @@ class GenerateBdCoverSlipJob implements ShouldQueue
     protected function saveDocumentRecord(string $s3Path, string $filename, string $pdfContent): int
     {
         $stage = $this->requestData['current_stage'];
-        $documentType = 'Generated ' . Str::title($stage) . ' document';
+        $documentType = 'Cover Slip';
         $opportunityId = $this->requestData['opportunity_id'];
 
         $type = 'general';
@@ -228,13 +233,6 @@ class GenerateBdCoverSlipJob implements ShouldQueue
      */
     public function failed(\Throwable $exception)
     {
-        logger()->error("BD Cover Slip generation job failed", [
-            'opportunity_id' => $this->requestData['opportunity_id'] ?? null,
-            'error' => $exception->getMessage(),
-            'trace' => $exception->getTraceAsString(),
-            'request_data' => $this->requestData
-        ]);
-
         // Optionally notify administrators or update job status
         // Notification::route('mail', config('app.admin_email'))
         //     ->notify(new JobFailedNotification($exception, $this));

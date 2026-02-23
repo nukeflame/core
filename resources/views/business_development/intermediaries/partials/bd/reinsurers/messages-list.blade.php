@@ -1,5 +1,5 @@
 <div id="messageListForm">
-    <div class="bg-light p-3 rounded border mb-4">
+    <div class="message-filters-panel">
         <div class="row g-3 mb-2">
             <div class="col-md-12">
                 <div class="position-relative">
@@ -75,13 +75,15 @@
             <h3 class="mb-0" id="filteredMessagesCount">Select Message to Reply (<span id="filteredCount">0</span>
                 results)</h3>
         </div>
-        <div class="btn-group" role="group">
+        <div class="filtered-actions">
+            <div class="btn-group" role="group">
             <button type="button" class="btn btn-sm btn-outline-primary" id="fetchMoreBtn">
                 <i class="bx bx-download me-1"></i> Fetch More (50)
             </button>
             <button type="button" class="btn btn-sm btn-outline-secondary" id="clearFiltersBtn">
                 <i class="bx bx-x me-1"></i> Clear Filters
             </button>
+            </div>
         </div>
     </div>
 
@@ -93,23 +95,39 @@
             <p class="mt-2 text-muted">Loading messages...</p>
         </div>
     </div>
-
-    {{-- Pagination --}}
-    <nav id="paginationContainer" class="d-none">
-        <div class="d-flex justify-content-between align-items-center bg-white border rounded"
-            style="padding: 8px 16px; margin-top: 16px;">
-            <span class="text-muted fw-medium fs-13" id="paginationInfo">Page 1 of 1</span>
-            <ul class="pagination mb-0" id="paginationList">
-            </ul>
-        </div>
-    </nav>
 </div>
 
 <style>
+    .message-filters-panel {
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 0.5rem;
+        padding: 1rem;
+        margin-bottom: 1rem;
+    }
+
     #filteredMessagesCount {
         margin-bottom: 0;
         font-size: 18px !important;
         font-weight: 600;
+    }
+
+    #filteredMessagesContainer {
+        gap: 0.75rem;
+        flex-wrap: wrap;
+    }
+
+    .filtered-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-left: auto;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+    }
+
+    .filtered-actions .btn-group .btn {
+        white-space: nowrap;
     }
 
     .form-label {
@@ -122,11 +140,20 @@
         overflow-x: hidden;
         overflow-y: auto;
         padding-right: 7px;
+        padding-bottom: 16px;
+        box-sizing: border-box;
+        scroll-padding-bottom: 16px;
     }
 
     @media (max-width: 768px) {
         #messagesContainer {
             max-height: calc(100vh - 360px);
+        }
+
+        .filtered-actions {
+            width: 100%;
+            margin-left: 0;
+            justify-content: flex-start;
         }
     }
 
@@ -192,6 +219,10 @@
         transition: var(--transition-all);
         background-color: var(--color-white);
         margin: 0 0 18px;
+    }
+
+    #messagesContainer .settlement-card:last-child {
+        margin-bottom: 0;
     }
 
     .settlement-card:hover {
@@ -372,8 +403,6 @@
     <script>
         class EmailManager {
             constructor() {
-                this.currentPage = 1;
-                this.messagesPerPage = 20;
                 this.allMessages = [];
                 this.filteredMessages = [];
                 this.isConnected = false;
@@ -404,15 +433,8 @@
                 $('#emailTabs button').on('shown.bs.tab', (e) => {
                     const targetId = e.target.id;
                     if (targetId === 'replies-tab') {
-                        $("#resetMailForm").show();
-                        this.loadMessages();
+                        this.loadMessages(true);
                     }
-                });
-
-                $(document).on('click', '.page-link', (e) => {
-                    e.preventDefault();
-                    const page = $(e.target).data('page');
-                    if (page) this.changePage(page);
                 });
 
                 $('#searchTerm').on('input', this.handleSearch);
@@ -428,7 +450,7 @@
                 $('#fetchMoreBtn').on('click', () => this.fetchMoreEmails());
                 $('#clearFiltersBtn').on('click', () => this.clearFilters());
                 $('#saveDraftBtn').on('click', () => this.saveDraft());
-                $('#newEmailBtn, #clearFormBtn, #newEmailInstead').on('click', () => this.handleNewEmail());
+                $('#newEmailBtn, #newEmailInstead').on('click', () => this.handleNewEmail());
             }
 
             async checkConnection() {
@@ -534,11 +556,9 @@
 
                     this.applyFolderFilter(folderFilter);
                     this.sortMessages(this.filteredMessages, 'date', 'desc');
-                    this.currentPage = 1;
 
                     this.updateResultsInfo();
                     this.renderMessages();
-                    this.renderPagination();
 
                 } catch (error) {
                     let errorMessage = 'Failed to load emails';
@@ -785,10 +805,8 @@
 
                 this.sortMessages(this.filteredMessages, 'date', 'desc');
 
-                this.currentPage = 1;
                 this.updateResultsInfo();
                 this.renderMessages();
-                this.renderPagination();
             }
 
             handleFilterChange(e) {
@@ -816,8 +834,7 @@
             }
 
             renderMessages() {
-                const startIndex = (this.currentPage - 1) * this.messagesPerPage;
-                const currentMessages = this.filteredMessages.slice(startIndex, startIndex + this.messagesPerPage);
+                const currentMessages = this.filteredMessages;
 
                 if (currentMessages.length === 0) {
                     $('#messagesContainer').html(`
@@ -829,13 +846,11 @@
                         </button>
                     </div>
                 `);
-                    $('#paginationContainer').addClass('d-none');
                     return;
                 }
 
                 const messagesHtml = currentMessages.map(message => this.renderMessageCard(message)).join('');
                 $('#messagesContainer').html(messagesHtml);
-                $('#paginationContainer').removeClass('d-none');
             }
 
             renderMessageCard(message) {
@@ -884,55 +899,6 @@
                 `;
             }
 
-            renderPagination() {
-                const totalPages = Math.ceil(this.filteredMessages.length / this.messagesPerPage);
-
-                if (totalPages <= 1) {
-                    $('#paginationContainer').addClass('d-none');
-                    return;
-                }
-
-                $('#paginationInfo').text(`Page ${this.currentPage} of ${totalPages}`);
-
-                let paginationHtml = '';
-
-                paginationHtml += `
-                    <li class="page-item ${this.currentPage === 1 ? 'disabled' : ''}">
-                        <a class="page-link" href="#" onclick="emailManager.changePage(${this.currentPage - 1})">&laquo;</a>
-                    </li>
-                `;
-
-                for (let i = 1; i <= totalPages; i++) {
-                    if (i === 1 || i === totalPages || (i >= this.currentPage - 2 && i <= this.currentPage + 2)) {
-                        paginationHtml += `
-                            <li class="page-item ${i === this.currentPage ? 'active' : ''}">
-                                <a class="page-link" href="#" onclick="emailManager.changePage(${i})">${i}</a>
-                            </li>
-                        `;
-                    } else if (i === this.currentPage - 3 || i === this.currentPage + 3) {
-                        paginationHtml += '<li class="page-item disabled"><span class="page-link">...</span></li>';
-                    }
-                }
-
-                paginationHtml += `
-                    <li class="page-item ${this.currentPage === totalPages ? 'disabled' : ''}">
-                        <a class="page-link" href="#" onclick="emailManager.changePage(${this.currentPage + 1})">&raquo;</a>
-                    </li>
-                `;
-
-                $('#paginationList').html(paginationHtml);
-                $('#paginationContainer').removeClass('d-none');
-            }
-
-            changePage(page) {
-                const totalPages = Math.ceil(this.filteredMessages.length / this.messagesPerPage);
-                if (page >= 1 && page <= totalPages && page !== this.currentPage) {
-                    this.currentPage = page;
-                    this.renderMessages();
-                    this.renderPagination();
-                }
-            }
-
             handleReply(messageId) {
                 const message = this.allMessages.find(m => String(m.id) === String(messageId));
                 if (!message) {
@@ -941,50 +907,11 @@
                 }
 
                 try {
-                    $('#toEmail').val(message.from);
-                    $('#subject').val(message.subject.startsWith('Re:') ? message.subject : `Re: ${message.subject}`)
-                        .attr('readonly', true);
-                    $('#category').val(message.category);
-
-                    $('#toggleEmailBodyBtn').css('display', 'block').html(
-                        '<i class="bx bx-chevron-up me-1"></i>Hide Original Email');
-                    $('#message').attr('rows', 15).val('');
-
-                    $('#emailBody #originalFrom').text(`${message.fromName} <${message.from}>`);
-                    $('#emailBody #originalSent').text(message.date);
-                    $('#emailBody #originalTo').text(message.toList);
-                    $('#emailBody #originalSubject').text(message.subject);
-
-                    $('#originalContent #threadMessages').contents().find('body').html(message.bodyHtml);
-
-                    $('#isReply').val('1');
-                    $('#composeTitle').text('Reply to Message');
-                    $('#clearFormBtn').show();
-                    $('#resetMailForm').show();
-
-                    const c = $('#category').val() || 'proposal';
-                    const category = c.toUpperCase().substring(0, 3)
-                    const year = new Date().getFullYear();
-                    const random = Math.floor(Math.random() * 1000000).toString().padStart(6, '0');
-                    const reference = `${category}-${year}-${random}`;
-
-                    $('#bdComposeFormDiv #reference').val(reference);
-
-                    $('.compose_attachement').hide();
-                    $('#compose-tab').tab('show');
-
-                    const subject = message.subject || '';
-                    const preview = subject.length > 50 ? subject.substring(0, 50) + '...' : subject;
-                    // this.showToast('success', `Replying to: ${preview}`);
-
-                    $('#messageId').val(message.messageId || '');
-                    $('#conversationId').val(message.conversationId || '');
-
-                    if (window.BDEmailModal && typeof window.BDEmailModal.captureFormData === 'function') {
-                        window.BDEmailModal.captureFormData();
+                    if (window.BDEmailModal && typeof window.BDEmailModal.populateReplyForm === 'function') {
+                        window.BDEmailModal.populateReplyForm(message);
+                    } else {
+                        this.showToast('error', 'Reply form helper is not available');
                     }
-
-                    $('#attachedFilesList').find('.row').empty();
                 } catch (error) {
                     console.error('Reply setup failed:', error);
                     this.showToast('error', 'Failed to setup reply');
@@ -997,14 +924,18 @@
             }
 
             resetForm() {
-                $('#bdNotificationForm')[0].reset();
-                $('#isReply').val('0');
-                $('#messageId').val('');
-                $('#conversationId').val('');
-                $('#composeTitle').text('Compose New Email');
-                $('#clearFormBtn').hide();
-                $('#threadMessage').css('display', 'none');
-                $('.compose_attachement').show();
+                if (window.BDEmailModal && typeof window.BDEmailModal.resetForm === 'function') {
+                    window.BDEmailModal.resetForm();
+                } else {
+                    $('#bdNotificationForm')[0].reset();
+                    $('#isReply').val('0');
+                    $('#messageId').val('');
+                    $('#conversationId').val('');
+                    $('#composeTitle').text('Compose New Email');
+                    $('#emailBody').addClass('hidden');
+                    $('#toggleEmailBodyBtn').hide();
+                    $('#subject').attr('readonly', false);
+                }
             }
 
             async refreshData() {
@@ -1063,16 +994,40 @@
 
             showLoadingState() {
                 const $container = $('#messagesContainer');
-                const $spinner = $('#loadingSpinner');
-
-                if ($spinner.is(':visible')) return;
-
-                $spinner.show();
-                $container.html($('#loadingSpinner').parent().html());
+                this.setReplyHeaderLoading(true);
+                $container.html(this.getMessagesContainerLoaderHtml());
             }
 
             hideLoadingState() {
+                this.setReplyHeaderLoading(false);
                 $('#loadingSpinner').hide();
+            }
+
+            getMessagesContainerLoaderHtml() {
+                return `
+                    <div class="text-center py-5" id="loadingSpinner">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-2 text-muted mb-0">Loading messages...</p>
+                    </div>
+                `;
+            }
+
+            setReplyHeaderLoading(isLoading) {
+                const $header = $('#filteredMessagesCount');
+                if (!$header.length) return;
+
+                if (isLoading) {
+                    $header.html(`
+                        <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                        Loading messages...
+                    `);
+                    return;
+                }
+
+                const totalFiltered = Array.isArray(this.filteredMessages) ? this.filteredMessages.length : 0;
+                $header.html(`Select Message to Reply (<span id="filteredCount">${totalFiltered}</span> results)`);
             }
 
             showErrorMessage(message) {
@@ -1086,7 +1041,6 @@
                     </div>
                 `);
                 $('#loadingSpinner').hide();
-                $('#paginationContainer').addClass('d-none');
             }
 
             showToast(type, message) {
@@ -1157,11 +1111,5 @@
             setTimeout(initializeEmailSync, 500);
 
         });
-
-        window.changePage = function(page) {
-            if (window.emailManager) {
-                window.emailManager.changePage(page);
-            }
-        };
     </script>
 @endpush

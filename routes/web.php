@@ -147,6 +147,7 @@ Route::middleware(['auth', 'check.first.login'])->group(function () {
     Route::get('search-insured-names', [PipelineController::class, 'search_insured_names'])->name('search-insured-names');
     Route::get('search-lead-names', [PipelineController::class, 'search_lead_names'])->name('search-lead-names');
     Route::post('reinsurer/decline', [PipelineController::class, 'declineReinsurer'])->name('reinsurer.decline');
+    Route::post('proposal/reset-to-lead', [PipelineController::class, 'resetProposalToLead'])->name('proposal.reset_to_lead');
     Route::post('reinsurer/update-share', [PipelineController::class, 'updateReinsurerShare'])->name('reinsurer.update_share');
     Route::get('customer/contact-info', [PipelineController::class, 'getCustomerContactInfo'])->name('customer.contact_info');
 

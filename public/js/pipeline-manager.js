@@ -88,6 +88,8 @@ class PipelineManager {
                 bdEmailData: window.pipelineRoutes?.bdEmailData || "",
                 getBdTerms: window.pipelineRoutes?.getBdTerms || "",
                 declineReinsurer: window.pipelineRoutes?.declineReinsurer || "",
+                resetProposalToLead:
+                    window.pipelineRoutes?.resetProposalToLead || "",
                 getSelectedReinsurers:
                     window.pipelineRoutes?.getSelectedReinsurers || "",
             },
@@ -217,13 +219,10 @@ class PipelineManager {
             window.BDEmailModal.checkEmailConnection()
                 .then((isConnected) => {
                     this.updateMailButtonStates(isConnected);
-
-                    if (!isConnected) {
-                        console.warn("Email service is not connected");
-                    }
                 })
-                .catch((error) => {
-                    console.error("Initial connection check failed:", error);
+                .catch(() => {
+                    // Treat disconnected/unavailable email service as a non-fatal state.
+                    this.updateMailButtonStates(false);
                 });
         }
     }
@@ -723,6 +722,7 @@ class PipelineManager {
         $(".mail-btn").off("click.pipeline");
         $(".preview-pdf-btn").off("click.pipeline");
         $(".revert-pipeline").off("click.pipeline");
+        $(".reset_proposal_to_lead_btn").off("click.pipeline");
 
         $(".stage_btn_action").on("click.pipeline", (e) => {
             e.preventDefault();
@@ -747,6 +747,11 @@ class PipelineManager {
         $(".revert-pipeline").on("click.pipeline", (e) => {
             e.preventDefault();
             this.handleRevertPipeline(e.currentTarget);
+        });
+
+        $(".reset_proposal_to_lead_btn").on("click.pipeline", (e) => {
+            e.preventDefault();
+            this.handleResetProposalToLead(e.currentTarget);
         });
 
         $(".preview-pdf-btn").on("click.pipeline", (e) => {
@@ -959,6 +964,72 @@ class PipelineManager {
         }
     }
 
+    handleResetProposalToLead(button) {
+        try {
+            const buttonData = $(button).data();
+            const opportunityId = buttonData.deal_id || buttonData.opportunity_id;
+
+            if (!opportunityId) {
+                throw new Error("Opportunity ID not found");
+            }
+
+            Swal.fire({
+                title: "Reset To Lead Stage?",
+                html: `
+                    <p class="mb-2">This will move this opportunity back to <strong>Lead</strong> stage.</p>
+                    <p class="text-muted mb-0">Declined reinsurers will remain marked as declined so you can select replacements.</p>
+                `,
+                icon: "warning",
+                showCancelButton: true,
+                confirmButtonColor: "#f39c12",
+                cancelButtonColor: "#6c757d",
+                confirmButtonText: "Yes, reset to Lead",
+                cancelButtonText: "Cancel",
+                reverseButtons: true,
+                customClass: {
+                    cancelButton: "btn btn-sm btn-light me-2",
+                    confirmButton: "btn btn-warning btn-sm",
+                },
+                buttonsStyling: false,
+            }).then((result) => {
+                if (!result.isConfirmed) {
+                    return;
+                }
+
+                $.ajax({
+                    type: "POST",
+                    url: this.config.routes.resetProposalToLead,
+                    data: {
+                        opportunity_id: opportunityId,
+                    },
+                    headers: {
+                        "X-CSRF-TOKEN": $('meta[name="csrf-token"]').attr("content"),
+                    },
+                    success: (response) => {
+                        if (response?.status === 1) {
+                            toastr.success(
+                                response.message ||
+                                    "Opportunity reset to Lead stage successfully.",
+                            );
+                            this.reloadAllTables();
+                            this.loadChartData();
+                        } else {
+                            toastr.error(response?.message || "Failed to reset stage.");
+                        }
+                    },
+                    error: (xhr) => {
+                        const message =
+                            xhr?.responseJSON?.message ||
+                            "Failed to reset opportunity to Lead stage.";
+                        toastr.error(message);
+                    },
+                });
+            });
+        } catch (error) {
+            this.handleError("Error resetting proposal to lead", error);
+        }
+    }
+
     revertPipeline(dealId, insuredName) {
         $.ajax({
             type: "POST",
@@ -1053,6 +1124,7 @@ class PipelineManager {
             // ) {
             //     this.loadSelectedReinsurers(data);
             // }
+
             this.loadSelectedReinsurers(data);
             this.loadSlipDocuments(data);
             this.loadScheduleHeaders(data);
@@ -1416,6 +1488,7 @@ class PipelineManager {
                     <div>
                         <button type="button" class="btn btn-primary btn-sm contact-reinsurer-btn"
                             data-reinsurer-id="${row.id}"
+                            data-reinsurer-name="${escapedName}"
                             title="Contacts">
                             <i class="bx bx-book"></i>
                         </button>
@@ -1489,6 +1562,154 @@ class PipelineManager {
         $table.on("click", ".contact-reinsurer-btn", (e) => {
             e.preventDefault();
             e.stopPropagation();
+
+            const reinsurerData = {
+                id: $(e.currentTarget).data("reinsurer-id"),
+                reinsurerName:
+                    $(e.currentTarget).data("reinsurer-name") ||
+                    $(e.currentTarget)
+                        .closest("tr")
+                        .find("td:first .fw-medium")
+                        .text()
+                        .trim(),
+            };
+
+            this.handleContactReinsurer(
+                reinsurerData,
+                $table,
+                $(e.currentTarget),
+            );
+        });
+    }
+
+    handleContactReinsurer(reinsurerData, $table, $button) {
+        const reinsurerId = reinsurerData?.id;
+        const reinsurerName = reinsurerData?.reinsurerName || "Reinsurer";
+        const opportunityId =
+            $table.closest(".modal").find(".opportunity_id").val() ||
+            $(".opportunity_id").first().val() ||
+            this.currentDealId;
+
+        if (!reinsurerId) {
+            this.showError("Reinsurer ID not found");
+            return;
+        }
+
+        if (!opportunityId) {
+            this.showError("Opportunity ID is required to load contacts");
+            return;
+        }
+
+        if ($button.data("contact-loading")) {
+            return;
+        }
+
+        const originalHtml = $button.html();
+        $button.data("contact-loading", true);
+        $button.html('<i class="bx bx-loader bx-spin"></i>').prop("disabled", true);
+
+        $.ajax({
+            url: "/customer/contact-info",
+            method: "GET",
+            data: {
+                customer_id: reinsurerId,
+                opportunity_id: opportunityId,
+            },
+            success: (response) => {
+                if (!response?.success) {
+                    this.showError(response?.message || "Failed to fetch contacts");
+                    return;
+                }
+
+                this.populatePropContactsModal(response, reinsurerName);
+
+                const $proposalModal = $("#proposalModal");
+                if ($proposalModal.hasClass("show")) {
+                    $proposalModal.modal("hide");
+                }
+                $("#propContactsModal").modal("show");
+            },
+            error: (xhr) => {
+                const errorMessage =
+                    xhr.responseJSON?.message || "Failed to fetch reinsurer contacts";
+                this.showError(errorMessage);
+            },
+            complete: () => {
+                $button.html(originalHtml).prop("disabled", false);
+                $button.removeData("contact-loading");
+            },
+        });
+    }
+
+    populatePropContactsModal(response, customerName) {
+        const $modal = $("#propContactsModal");
+        if ($modal.length === 0) {
+            this.showError("Contacts modal is unavailable");
+            return;
+        }
+
+        const escapeHtml = (value) => this.escapeHtml(value || "");
+        $("#propContactsModalLabel").html(
+            `<i class="bx bx-building me-1"></i>${escapeHtml(customerName)} - Contact Management`,
+        );
+
+        const primaryContact = response?.primary_contact || null;
+        $("#prop-primary-contacts .prop-primary-name").val(
+            primaryContact?.contact_name || "N/A",
+        );
+        $("#prop-primary-contacts .prop-primary-email").val(
+            primaryContact?.contact_email || "N/A",
+        );
+        $("#prop-primary-contacts .prop-primary-contact_id").val(
+            primaryContact?.contact_id || "",
+        );
+
+        const $departmentContacts = $("#propDepartmentContacts");
+        $departmentContacts.empty();
+
+        const departmentContacts = Array.isArray(response?.department_contacts)
+            ? response.department_contacts
+            : [];
+
+        if (departmentContacts.length === 0) {
+            $departmentContacts.html(`
+                <div class="text-center py-4">
+                    <i class="bx bx-info-circle bx-2x text-muted mb-2 fs-15"></i>
+                    <p class="text-muted">No department contacts found.</p>
+                </div>
+            `);
+            return;
+        }
+
+        departmentContacts.forEach((contact, index) => {
+            const showLabels = index === 0;
+            const contactHtml = `
+                <div class="contact-item rounded px-3 pb-1 mb-3" data-contact-id="${escapeHtml(contact.contact_id || index)}">
+                    <div class="row align-items-center">
+                        <div class="col-md-3">
+                            ${showLabels ? '<label class="form-label fw-semibold small">Name</label>' : ""}
+                            <input type="text" class="form-control-plaintext"
+                                value="${escapeHtml(contact.contact_name || "N/A")}" readonly>
+                        </div>
+                        <div class="col-md-4">
+                            ${showLabels ? '<label class="form-label fw-semibold small">Email</label>' : ""}
+                            <input type="email" class="form-control-plaintext"
+                                value="${escapeHtml(contact.contact_email || "N/A")}" readonly>
+                        </div>
+                        <div class="col-md-2">
+                            ${showLabels ? '<label class="form-label fw-semibold small">Mobile</label>' : ""}
+                            <input type="text" class="form-control-plaintext"
+                                value="${escapeHtml(contact.contact_mobile_no || "N/A")}" readonly>
+                        </div>
+                        <div class="col-md-3">
+                            ${showLabels ? '<label class="form-label fw-semibold small">Position</label>' : ""}
+                            <input type="text" class="form-control-plaintext"
+                                value="${escapeHtml(contact.contact_position || "N/A")}" readonly>
+                        </div>
+                    </div>
+                </div>
+            `;
+            $departmentContacts.append(contactHtml);
         });
     }
 
@@ -2330,6 +2551,8 @@ class PipelineManager {
                 ? `<div class="supporting-doc-upload-line"
                                     data-field="${doc.id}"
                                     data-field_name="${escapedName}"
+                                    data-document-id="${doc.id ?? ""}"
+                                    data-document-name="${escapedName}"
                                     data-is-additional="${isAdditionalDocument ? "1" : "0"}">
                                     <button type="button" class="supporting-doc-choose-btn">Choose File</button>
                                     <span class="supporting-doc-file-name">No file chosen</span>
@@ -2370,7 +2593,10 @@ class PipelineManager {
                 <div class="col-12 fade-in" style="animation-delay: ${
                     index * 0.1
                 }s">
-                    <div class="document-field-group supporting-doc-group">
+                    <div class="document-field-group supporting-doc-group"
+                        data-document-id="${doc.id ?? ""}"
+                        data-document-name="${escapedName}"
+                        data-is-additional-document="${isAdditionalDocument ? "1" : "0"}">
                         <div class="supporting-doc-grid">
                             <div class="supporting-doc-title-col">
                                 <label class="supporting-doc-label">Document Title</label>
@@ -2436,7 +2662,10 @@ class PipelineManager {
 
         return `
             <div class="col-12 fade-in">
-                <div class="document-field-group supporting-doc-group">
+                <div class="document-field-group supporting-doc-group"
+                    data-document-id=""
+                    data-document-name="${defaultTitle}"
+                    data-is-additional-document="1">
                     <div class="supporting-doc-grid">
                         <div class="supporting-doc-title-col">
                             <label class="supporting-doc-label">Document Title</label>
@@ -2448,6 +2677,8 @@ class PipelineManager {
                             <div class="supporting-doc-upload-line"
                                 data-field="${fieldId}"
                                 data-field_name="${defaultTitle}"
+                                data-document-id=""
+                                data-document-name="${defaultTitle}"
                                 data-is-additional="1">
                                 <button type="button" class="supporting-doc-choose-btn">Choose File</button>
                                 <span class="supporting-doc-file-name">No file chosen</span>
@@ -2532,10 +2763,16 @@ class PipelineManager {
 
         $uploadArea.attr("data-field_name", normalizedTitle);
         $uploadArea.data("field_name", normalizedTitle);
+        $uploadArea.attr("data-document-name", normalizedTitle);
+        $uploadArea.data("document-name", normalizedTitle);
+        const $fieldGroup = $uploadArea.closest(".document-field-group");
+        $fieldGroup.attr("data-document-name", normalizedTitle);
+        $fieldGroup.data("document-name", normalizedTitle);
 
         if (fieldId && Array.isArray(this.uploadedFiles[fieldId])) {
             this.uploadedFiles[fieldId].forEach((file) => {
                 file.fileName = normalizedFileName;
+                file.documentTypeName = normalizedTitle;
             });
         }
     }
@@ -2552,6 +2789,17 @@ class PipelineManager {
             .trim();
 
         return titleFromInput || titleFromData || "additionalDocuments";
+    }
+
+    resolveDocumentTypeId($uploadArea, fieldId) {
+        const rawDocumentId = ($uploadArea.data("document-id") ?? fieldId)
+            .toString()
+            .trim();
+        if (!/^\d+$/.test(rawDocumentId)) {
+            return null;
+        }
+
+        return parseInt(rawDocumentId, 10);
     }
 
     initializeFileUploads() {
@@ -2697,6 +2945,12 @@ class PipelineManager {
 
         const fieldId = $uploadArea.data("field");
         const fieldName = this.resolveDocumentFieldName($uploadArea);
+        const documentTypeId = this.resolveDocumentTypeId($uploadArea, fieldId);
+        const documentTypeName = (
+            $uploadArea.data("document-name") || fieldName
+        )
+            .toString()
+            .trim();
         const maxSize =
             parseInt($uploadArea.find(".file-input").data("max-size")) ||
             DEFAULT_MAX_FILE_SIZE;
@@ -2725,6 +2979,8 @@ class PipelineManager {
             const fileWithId = Object.assign(file, {
                 fileId,
                 fileName,
+                documentTypeId,
+                documentTypeName,
             });
 
             this.uploadedFiles[fieldId].push(fileWithId);
@@ -3413,6 +3669,7 @@ class PipelineManager {
             $(".mail-btn").off(".pipeline");
             $(".preview-pdf-btn").off(".pipeline");
             $(".revert-pipeline").off(".pipeline");
+            $(".reset_proposal_to_lead_btn").off(".pipeline");
             this.$pipYearSelect?.off("change");
             $('a[data-bs-toggle="tab"]').off("shown.bs.tab");
             $(document).off("ajaxError");
@@ -3459,7 +3716,6 @@ class PipelineManager {
     }
 
     clearAllFiles() {
-        // Revoke all object URLs to prevent memory leaks
         if (this.activeFileUrls && this.activeFileUrls.size > 0) {
             this.activeFileUrls.forEach((url) => {
                 try {
@@ -3471,10 +3727,8 @@ class PipelineManager {
             this.activeFileUrls.clear();
         }
 
-        // Clear the uploaded files object
         this.uploadedFiles = {};
 
-        // Clear all file previews and reset upload areas
         $(".file-preview-container").empty();
         $(".file-input").val("");
         $(".file-count-badge")
@@ -3483,10 +3737,8 @@ class PipelineManager {
             .addClass("bg-secondary");
     }
 
-    handleSendBDNotification(button) {
+    async handleSendBDNotification(button) {
         try {
-            this.showLoading();
-
             const buttonData = $(button).data();
             this.currentDealId = buttonData.opportunity_id;
 
@@ -3498,12 +3750,100 @@ class PipelineManager {
             const currentStage = this.normalizeStageKey(
                 buttonData.current_stage,
             );
+            const selectedStage =
+                await this.promptEmailStageSelection(currentStage);
 
-            this.checkEmailConnectionBeforeLoad(opportunityId, currentStage);
+            if (!selectedStage) {
+                return;
+            }
+
+            this.showLoading();
+            this.checkEmailConnectionBeforeLoad(opportunityId, selectedStage);
         } catch (error) {
             this.handleError("Error handling BD notification", error);
             this.hideLoading();
         }
+    }
+
+    async promptEmailStageSelection(currentStage) {
+        const normalizedCurrentStage =
+            this.normalizeStageKey(currentStage) || STAGE_NAMES.LEAD;
+        const stageOptions = this.getEmailStageOptions(normalizedCurrentStage);
+        const optionEntries = Object.entries(stageOptions);
+        const optionsHtml = optionEntries
+            .map(([value, label]) => {
+                const selected = value === normalizedCurrentStage ? "selected" : "";
+                return `<option value="${value}" ${selected}>${label}</option>`;
+            })
+            .join("");
+
+        const result = await Swal.fire({
+            title: "Select Stage",
+            html: `
+                <select id="swalStageSelect" class="form-inputs" style="width:100%;">
+                    <option value="">Choose stage to send email</option>
+                    ${optionsHtml}
+                </select>
+            `,
+            showCancelButton: true,
+            confirmButtonText: "Continue",
+            cancelButtonText: "Cancel",
+            confirmButtonColor: "#3085d6",
+            didOpen: () => {
+                const $select = $("#swalStageSelect");
+                if (typeof $select.select2 === "function") {
+                    $select.select2({
+                        width: "100%",
+                        placeholder: "Choose stage to send email",
+                        dropdownParent: $(Swal.getPopup()),
+                    });
+                }
+            },
+            preConfirm: () => {
+                const value = $("#swalStageSelect").val();
+                if (!value) {
+                    Swal.showValidationMessage("Please select a stage.");
+                    return false;
+                }
+                return value;
+            },
+            willClose: () => {
+                const $select = $("#swalStageSelect");
+                if ($select.hasClass("select2-hidden-accessible")) {
+                    $select.select2("destroy");
+                }
+            },
+        });
+
+        return result.isConfirmed ? result.value : null;
+    }
+
+    getEmailStageOptions(currentStage) {
+        const stageOrder = [
+            STAGE_NAMES.LEAD,
+            STAGE_NAMES.PROPOSAL,
+            STAGE_NAMES.NEGOTIATION,
+            STAGE_NAMES.FINAL_STAGE,
+        ];
+        const stageLabels = {
+            [STAGE_NAMES.LEAD]: "Lead",
+            [STAGE_NAMES.PROPOSAL]: "Proposal",
+            [STAGE_NAMES.NEGOTIATION]: "Negotiation",
+            [STAGE_NAMES.FINAL_STAGE]: "Final Stage",
+        };
+
+        const normalizedCurrentStage =
+            this.normalizeStageKey(currentStage) || STAGE_NAMES.LEAD;
+        const currentIndex = stageOrder.indexOf(normalizedCurrentStage);
+        const availableStages =
+            currentIndex >= 0
+                ? stageOrder.slice(0, currentIndex + 1)
+                : [STAGE_NAMES.LEAD];
+
+        return availableStages.reduce((acc, stageKey) => {
+            acc[stageKey] = stageLabels[stageKey];
+            return acc;
+        }, {});
     }
 
     checkEmailConnectionBeforeLoad(opportunityId, currentStage) {
@@ -3687,6 +4027,84 @@ class PipelineManager {
             .replace(/[\s-]+/g, "_");
     }
 
+    normalizeTemplateMapKeys(templateMap) {
+        const normalized = { ...(templateMap || {}) };
+
+        if (normalized.final_stage && !normalized.final) {
+            normalized.final = normalized.final_stage;
+        }
+        if (normalized.final && !normalized.final_stage) {
+            normalized.final_stage = normalized.final;
+        }
+
+        return normalized;
+    }
+
+    mapStageToCategory(stageKey) {
+        const normalized = this.normalizeStageKey(stageKey);
+        if (normalized === STAGE_NAMES.FINAL_STAGE) {
+            return "final";
+        }
+        return normalized || STAGE_NAMES.LEAD;
+    }
+
+    getStageDisplayName(stageKey) {
+        const normalized = this.normalizeStageKey(stageKey);
+        const labels = {
+            [STAGE_NAMES.LEAD]: "Lead",
+            [STAGE_NAMES.PROPOSAL]: "Proposal",
+            [STAGE_NAMES.NEGOTIATION]: "Negotiation",
+            [STAGE_NAMES.FINAL_STAGE]: "Final Stage",
+            [STAGE_NAMES.WON]: "Won",
+            [STAGE_NAMES.LOST]: "Lost",
+        };
+
+        return labels[normalized] || this.capitalize(normalized || STAGE_NAMES.LEAD);
+    }
+
+    getAllowedCategoriesForStage(stageKey) {
+        const normalized = this.normalizeStageKey(stageKey);
+        const categoryFlow = {
+            [STAGE_NAMES.LEAD]: ["lead"],
+            [STAGE_NAMES.PROPOSAL]: ["lead", "proposal"],
+            [STAGE_NAMES.NEGOTIATION]: ["lead", "proposal", "negotiation"],
+            [STAGE_NAMES.FINAL_STAGE]: ["lead", "proposal", "negotiation", "final"],
+            [STAGE_NAMES.WON]: ["lead", "proposal", "negotiation", "final", "won"],
+            [STAGE_NAMES.LOST]: ["lead", "proposal", "negotiation", "final", "lost"],
+        };
+
+        return categoryFlow[normalized] || categoryFlow[STAGE_NAMES.LEAD];
+    }
+
+    applyCategoryStageFilter($select, stageKey) {
+        if (!$select || !$select.length) {
+            return;
+        }
+
+        if (!$select.data("allCategoryOptions")) {
+            const allOptions = [];
+            $select.find("option").each((_, option) => {
+                allOptions.push({
+                    value: option.value,
+                    text: $(option).text(),
+                });
+            });
+            $select.data("allCategoryOptions", allOptions);
+        }
+
+        const allOptions = $select.data("allCategoryOptions") || [];
+        const allowedCategories = new Set(this.getAllowedCategoriesForStage(stageKey));
+
+        $select.empty();
+        allOptions.forEach((option) => {
+            if (allowedCategories.has(option.value)) {
+                $select.append(
+                    $("<option></option>").attr("value", option.value).text(option.text),
+                );
+            }
+        });
+    }
+
     prepareBDEmailModal(opportunityId, data) {
         try {
             const $bdMailModal = $("#sendBDEmailModal");
@@ -3702,26 +4120,32 @@ class PipelineManager {
                 return;
             }
 
-            const stageTitle = data.bdEmailTitle.toLowerCase();
+            const stageTitle = this.normalizeStageKey(data.bdEmailTitle);
             const stage = this.config.stageFlow[stageTitle] || {};
-            const templateMap = data.template || {};
-            const categoryKey =
-                stage.previous || stageTitle || STAGE_NAMES.LEAD;
-            const template = templateMap[categoryKey] ||
+            const templateMap = this.normalizeTemplateMapKeys(data.template || {});
+            const selectedCategory = this.mapStageToCategory(stageTitle);
+            const template = templateMap[selectedCategory] ||
                 templateMap[stageTitle] ||
+                templateMap[stage?.previous] ||
+                templateMap[this.mapStageToCategory(stage?.previous)] ||
                 templateMap[STAGE_NAMES.LEAD] || {
                     subject: "",
                     message: "",
                 };
 
-            $bdMailModal.find(".modal-bd-title").text(`- ${data.bdEmailTitle}`);
-            $bdMailModal.find("#category").val(categoryKey).trigger("change");
+            $bdMailModal
+                .find(".modal-bd-title")
+                .text(`- ${this.getStageDisplayName(stageTitle)}`);
+
+            const $categorySelect = $bdMailModal.find("#category");
+            this.applyCategoryStageFilter($categorySelect, stageTitle);
+            $categorySelect.val(selectedCategory).trigger("change");
 
             $bdNotificationForm.find(".subject").val(template.subject);
             $bdNotificationForm.find(".message").val(template.message);
             $bdNotificationForm
                 .find(".category_templates")
-                .val(JSON.stringify(data.template));
+                .val(JSON.stringify(templateMap));
 
             $bdNotificationForm.find(".opportunity_id").val(data.opportunityId);
             $bdNotificationForm.find(".customer_id").val(data.customerId);
@@ -3815,15 +4239,25 @@ class PipelineManager {
                 }, 100);
             }
 
-            $("#sendBDEmailModal").modal("show");
+            $bdMailModal.modal("show");
 
-            $("#sendBDEmailModal").one("shown.bs.modal", function () {
+            $bdMailModal.one("shown.bs.modal", () => {
                 if (
                     typeof window.BDEmailModal !== "undefined" &&
                     typeof window.BDEmailModal.refreshConnectionStatus ===
                         "function"
                 ) {
                     window.BDEmailModal.refreshConnectionStatus();
+                }
+
+                if (
+                    typeof window.BDEmailModal !== "undefined" &&
+                    typeof window.BDEmailModal.captureInitialState === "function"
+                ) {
+                    // Capture initial modal values after all async select defaults are applied.
+                    setTimeout(() => {
+                        window.BDEmailModal.captureInitialState();
+                    }, 180);
                 }
             });
         } catch (error) {
@@ -3865,6 +4299,7 @@ class PipelineManager {
     createFileElement(file) {
         const fileUrl = file.s3_url;
         const fileName = file.original_name;
+        const fileDescription = file.description || "Unknown file";
         const mimeType = file.mimetype;
         const fileSize = file.file_size;
 
@@ -3889,7 +4324,7 @@ class PipelineManager {
 
         const $fileName = $("<h6>", {
             class: "mb-1",
-            text: fileName,
+            text: fileDescription,
         });
 
         const fileSizeText = fileSize

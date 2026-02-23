@@ -6,7 +6,6 @@ use App\Helpers\PkceHelper;
 use Illuminate\Support\Facades\Http;
 use Carbon\Carbon;
 use Exception;
-use Illuminate\Http\Client\Response;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Redis;
@@ -333,12 +332,10 @@ class OutlookService
             }
         }
 
-        // Validate client_id format (should be a GUID)
         if (!preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i', $this->config['client_id'])) {
             throw new Exception("Invalid client_id format. Must be a valid GUID.");
         }
 
-        // Validate redirect_uri format
         if (!filter_var($this->config['redirect_uri'], FILTER_VALIDATE_URL)) {
             throw new Exception("Invalid redirect_uri format. Must be a valid URL.");
         }
@@ -818,9 +815,7 @@ class OutlookService
      * @param \Illuminate\Http\Client\Response $response HTTP response
      * @param string $method HTTP method
      * @param string $url Request URL
-     * @param float $responseTime Response time in milliseconds
      * @param string $requestId Unique request identifier
-     * @return array Response data
      * @throws Exception On API errors
      */
     private function handleApiResponse($response, string $method, string $url, float $responseTime, string $requestId): array
@@ -894,7 +889,6 @@ class OutlookService
      * @param \Illuminate\Http\Client\Response $response
      * @param string $method HTTP method
      * @param string $url Request URL
-     * @param float $responseTime Response time
      * @param string $requestId Request ID
      * @throws Exception With specific error messages
      */
@@ -958,7 +952,6 @@ class OutlookService
     private function handleUnauthorizedError($response, string $requestId): void
     {
         $errorData = $this->parseErrorResponse($response->body());
-        // Clear potentially invalid token
         $this->token = null;
 
         throw new Exception("Authentication failed. Please re-authenticate with Microsoft.");
@@ -1021,7 +1014,6 @@ class OutlookService
         try {
             $errorData = json_decode($errorBody, true);
 
-            // Handle Microsoft Graph error format
             if (isset($errorData['error'])) {
                 if (is_array($errorData['error'])) {
                     return [
@@ -2878,12 +2870,10 @@ class OutlookService
 
             $updateData = [];
 
-            // Set categories
             if (!empty($categories)) {
                 $updateData['categories'] = array_unique($categories);
             }
 
-            // Set flag
             if (!empty($flagData)) {
                 $flag = [
                     'flagStatus' => $flagData['status'] ?? 'flagged'
@@ -2907,7 +2897,7 @@ class OutlookService
             }
 
             if (empty($updateData)) {
-                return true; // Nothing to update
+                return true;
             }
 
             $this->makeRequest('PATCH', "/me/messages/{$messageId}", [

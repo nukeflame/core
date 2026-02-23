@@ -31,11 +31,12 @@ class SendBDEmailRequest extends FormRequest
             'cc_email.*' => 'email',
             'bcc_email' => 'array',
             'bcc_email.*' => 'email',
-            'priority' => 'nullable|in:low,normal,high',
+            'priority' => 'nullable|in:low,normal,high,urgent',
             'opportunity_id' => 'nullable|string|max:100',
             'category' => 'nullable|string|max:100',
             'reference' => 'nullable|string|max:100',
             'is_reply' => 'nullable|boolean',
+            'include_reply_attachments' => 'nullable|boolean',
             'attachments' => 'nullable|array',
             'customer_id' => 'required',
             'attachments.*' => 'file|max:51200000', // 50 GB per file
@@ -43,7 +44,7 @@ class SendBDEmailRequest extends FormRequest
 
         if ($this->input('is_reply') === true || $this->input('is_reply') === '1') {
             $rules['message_id'] = 'required|string';
-            $rules['conversation_id'] = 'required|string';
+            $rules['conversation_id'] = 'nullable|string';
         } else {
             $rules['message_id'] = 'nullable|string';
             $rules['conversation_id'] = 'nullable|string';
@@ -61,9 +62,8 @@ class SendBDEmailRequest extends FormRequest
             'contacts.*.email' => 'Each contact must be a valid email address',
             'cc_email.*.email' => 'Each CC contact must be a valid email address',
             'bcc_email.*.email' => 'Each BCC contact must be a valid email address',
-            'priority.in' => 'Priority must be one of: low, normal, high',
+            'priority.in' => 'Priority must be one of: low, normal, high, urgent',
             'message_id.required' => 'Message ID is required when replying to an email',
-            'conversation_id.required' => 'Conversation Message ID is required when replying to an email',
             'attachments.*.max' => 'Each attachment must not exceed 4MB',
         ];
     }
@@ -77,6 +77,15 @@ class SendBDEmailRequest extends FormRequest
 
         if ($this->has('is_reply')) {
             $this->merge(['is_reply' => filter_var($this->is_reply, FILTER_VALIDATE_BOOLEAN)]);
+        }
+
+        if ($this->has('include_reply_attachments')) {
+            $this->merge([
+                'include_reply_attachments' => filter_var(
+                    $this->include_reply_attachments,
+                    FILTER_VALIDATE_BOOLEAN,
+                ),
+            ]);
         }
     }
 }
