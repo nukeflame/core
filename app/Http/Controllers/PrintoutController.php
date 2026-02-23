@@ -295,14 +295,14 @@ class PrintoutController extends Controller
 
             return $this->generatePdfDocument($data);
         } catch (ValidationException $e) {
-            logger($e);
+
             return response()->json([
                 'status' => 422,
                 'message' => 'Validation failed.',
                 'errors' => $e->errors(),
             ], 422);
         } catch (\Exception $e) {
-            logger($e);
+
             return response()->json([
                 'status' => 500,
                 'message' => 'An error occurred while generating the document.',

@@ -372,7 +372,7 @@ class CoverController extends Controller
                 ], 200);
             }
         } catch (Exception $e) {
-            logger($e);
+
             return response()->json([
                 'success' => false,
                 'message' => 'An error occurred while processing the cover registration',
@@ -1796,7 +1796,6 @@ class CoverController extends Controller
             ], 201);
         } catch (ValidationException $e) {
             DB::rollback();
-            logger($e);
 
             return response()->json([
                 'success' => false,
@@ -1805,7 +1804,6 @@ class CoverController extends Controller
             ], 422);
         } catch (BusinessRuleException $e) {
             DB::rollBack();
-            logger($e);
 
             return response()->json([
                 'success' => false,
@@ -1815,7 +1813,6 @@ class CoverController extends Controller
             ], 422);
         } catch (Exception $e) {
             DB::rollback();
-            logger($e);
 
             return response()->json([
                 'success' => false,

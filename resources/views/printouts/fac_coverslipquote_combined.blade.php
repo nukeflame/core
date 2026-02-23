@@ -1503,8 +1503,6 @@
 
                     {{-- <hr style="width: 60%; margin-left: 0; border: none; border-top: 2px solid #000;"> --}}
 
-                    {{-- {{logger($sh)}} --}}
-
 
 
                     {{-- ****** calculation for reinsurer share ********* --}}

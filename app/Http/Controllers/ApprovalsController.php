@@ -953,7 +953,6 @@ class ApprovalsController extends Controller
             ], Response::HTTP_NOT_FOUND);
         } catch (Exception $e) {
             DB::rollBack();
-            logger($e);
 
             return response()->json([
                 'status' => Response::HTTP_INTERNAL_SERVER_ERROR,

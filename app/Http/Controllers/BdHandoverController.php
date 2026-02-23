@@ -116,7 +116,7 @@ class BdHandoverController extends Controller
                 ]
             ]);
         } catch (\Exception $e) {
-            logger($e);
+
             return response()->json([
                 'status' => false,
                 'message' => 'Failed to load statistics',
@@ -413,8 +413,6 @@ class BdHandoverController extends Controller
                     'typeOfBus' => 'NEW'
                 ];
 
-                logger($p);
-
                 return response()->json([
                     'status' => true,
                     'message' => 'Cover Register information saved successfully',
@@ -422,8 +420,6 @@ class BdHandoverController extends Controller
                 ], 201);
             } catch (\Exception $e) {
                 DB::rollBack();
-
-                logger($e);
 
                 $message = 'An error occurred while processing your request';
                 return response()->json([

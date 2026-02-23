@@ -6111,8 +6111,6 @@ class PipelineController
 
                         DB::commit();
                     } catch (\Aws\S3\Exception\S3Exception $e) {
-                        logger($e);
-
                         DB::rollBack();
                         $this->cleanupS3Files($uploadedFiles);
 
@@ -6122,7 +6120,6 @@ class PipelineController
                             'error' => config('app.debug') ? $e->getMessage() : 'Storage error occurred'
                         ], 500);
                     } catch (\Exception $e) {
-                        logger($e);
                         DB::rollBack();
                         $this->cleanupS3Files($uploadedFiles);
 
@@ -6322,8 +6319,6 @@ class PipelineController
                 'message' => "{$stageTitle} updated successfully"
             ]);
         } catch (\Exception $e) {
-            logger($e);
-
             DB::rollBack();
             return response()->json([
                 'success' => false,

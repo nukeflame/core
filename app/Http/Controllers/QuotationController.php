@@ -85,11 +85,6 @@ class QuotationController extends Controller
 
             $view = 'printouts.fac_coverslipquote';
 
-            logger()->debug($request->all());
-
-
-            logger()->debug(json_encode($data, JSON_PRETTY_PRINT));
-
             $dompdf = Pdf::loadView($view, $data)
                 ->setPaper('a4', 'portrait')
                 ->setWarnings(false)
@@ -111,9 +106,6 @@ class QuotationController extends Controller
                 'errors' => $e->errors(),
             ], 422);
         } catch (\Exception $e) {
-
-            logger($e);
-
             return response()->json([
                 'status' => 500,
                 'message' => 'An error occurred while generating the document.',

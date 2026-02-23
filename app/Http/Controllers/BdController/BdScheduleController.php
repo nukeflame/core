@@ -1308,8 +1308,6 @@ class BdScheduleController extends Controller
 
                 StageDocument::where('id', $id)->update($updatePayload);
             } else {
-                logger()->debug(json_encode($resolvedPath, JSON_PRETTY_PRINT));
-
                 $createPayload = [
                     'stage' => $stageId,
                     'doc_type' => $request->doc_type,

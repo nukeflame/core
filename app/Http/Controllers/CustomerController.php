@@ -184,14 +184,14 @@ class CustomerController extends Controller
                 });
             })
             ->select([
-            'customer_id',
-            'name',
-            'tax_no',
-            'registration_no',
-            'email',
-            'website',
-            'customer_type'
-        ]);
+                'customer_id',
+                'name',
+                'tax_no',
+                'registration_no',
+                'email',
+                'website',
+                'customer_type'
+            ]);
 
         return DataTables::eloquent($customers)
             ->addColumn('debited_covers', fn($customer) => $this->getDebitedCoversCount($customer->customer_id))
@@ -345,8 +345,6 @@ class CustomerController extends Controller
             ], 422);
         }
 
-        logger()->debug($validator->validated());
-
         return response()->json([
             'success' => true,
             'status' => 201,
@@ -364,7 +362,6 @@ class CustomerController extends Controller
         //     //     'name' => $customer->partner_name,
         //     // ]);
 
-        //     // logger()->debug($validated);
 
         //     //     if ($validator->fails()) {
         //     //         return response()->json([
@@ -404,7 +401,6 @@ class CustomerController extends Controller
         //     ], 422);
         // } catch (\Exception $e) {
         //     DB::rollBack();
-        //     logger($e);
 
         //     return response()->json([
         //         'success' => false,
@@ -490,11 +486,6 @@ class CustomerController extends Controller
                 'redirect_url' => route('customer.info'),
             ], 200);
         } catch (\Throwable $e) {
-            logger()->error('Failed to update customer', [
-                'customer_id' => $customerId,
-                'error' => $e->getMessage(),
-            ]);
-
             return response()->json([
                 'success' => false,
                 'status' => 500,

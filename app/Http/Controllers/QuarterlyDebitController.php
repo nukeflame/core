@@ -1891,9 +1891,6 @@ class QuarterlyDebitController extends Controller
                 'with_brokerage' => $withBrokerage,
             ];
 
-            // logger()->debug(json_encode($creditItems, JSON_PRETTY_PRINT));
-
-
             $pdf = Pdf::loadView('printouts.accounts.treaty-credit-note', $documentData)
                 ->setPaper('a4', 'portrait')
                 ->setWarnings(false);
@@ -1908,7 +1905,7 @@ class QuarterlyDebitController extends Controller
         } catch (ValidationException $e) {
             abort(422, 'Invalid request parameters');
         } catch (Exception $e) {
-            logger($e);
+
             abort(500, 'Failed to generate credit note: ' . $e->getMessage());
         }
     }

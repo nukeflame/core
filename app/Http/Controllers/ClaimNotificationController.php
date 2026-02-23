@@ -1635,8 +1635,6 @@ class ClaimNotificationController extends Controller
 
             }
 
-            // logger()->debug(User::with('permission')->get());
-
             $processSlug = SystemActionEnums::CLAIM_INTIMATION_PROCESS;
             $processActionSlug = SystemActionEnums::VERIFY_CLAIM_INTIMATION_PROCESS;
 
