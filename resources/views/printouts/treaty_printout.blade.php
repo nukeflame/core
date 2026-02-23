@@ -548,11 +548,11 @@
         @endforeach
         </div>
         </div>
-        <div class="date_generated">
+        {{-- <div class="date_generated">
             <p style="font-size: 8.0pt; ">Generated on behalf of Acentria International on
                 {{ now()->format('F j, Y') }}.</p>
 
-        </div>
+        </div> --}}
     @endforeach
 
     <div class="footer">
@@ -924,11 +924,11 @@
 
 
 
-    <div class="date_generated">
+    {{-- <div class="date_generated">
         <p style="font-size: 8.0pt; ">Generated on behalf of Acentria International on
             {{ now()->format('F j, Y') }}.</p>
 
-    </div>
+    </div> --}}
 
 
     <div class="footer">
@@ -1132,11 +1132,11 @@
             </div>
         @endforeach
     </div>
-    <div class="date_generated">
+    {{-- <div class="date_generated">
         <p style="font-size: 8.0pt; ">Generated on behalf of Acentria International on {{ now()->format('F j, Y') }}.
         </p>
 
-    </div>
+    </div> --}}
     @endif
 
     <div class="footer">

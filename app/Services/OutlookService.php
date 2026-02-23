@@ -3074,7 +3074,7 @@ class OutlookService
             'categories' => $contact['categories'] ?? [],
             'created_date' => $contact['createdDateTime'] ?? null,
             'modified_date' => $contact['lastModifiedDateTime'] ?? null,
-            'has_photo' => false, // Will be updated if photo data is provided
+            'has_photo' => false,
             'contact_quality_score' => $this->calculateContactQualityScore($contact)
         ];
 

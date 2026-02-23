@@ -338,9 +338,9 @@ class PipelineController
 
             if ((int) $pros->stage === 2) {
                 $prospDocQuery
-                    ->where('prospect_status', 1)
-                    ->whereNotNull('file')
-                    ->where('file', '!=', '');
+                    ->where('prospect_status', Stage::LEAD)
+                    ->whereNotNull('s3_url')
+                    ->where('s3_url', '!=', '');
             }
 
             $prosp_doc = $prospDocQuery->get()->map(function ($doc) {
@@ -5745,8 +5745,32 @@ class PipelineController
             $class_code             = $request->class_code;
             $class_group_code       = $request->class_group_code;
             $total_unplaced_shares  = $request->total_unplaced_shares ?? 0;
+            $total_placed_shares    = (float) str_replace(',', '', $request->total_placed_shares ?? 0);
             $reinsurers_data        = $request->reinsurers_data;
             $selected_reinsurers    = $request->selected_reinsurers;
+            $facShareOffered        = (float) str_replace(',', '', $prospect->fac_share_offered ?? 0);
+
+            $isQuotationCategory = (int) ($prospect->category_type ?? 0) === 1;
+
+            if (
+                $stage === Stage::LEAD
+                && !$isQuotationCategory
+                && abs($total_placed_shares - $facShareOffered) > 0.009
+            ) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Total written share must match FAC share offered before sending proposal.',
+                    'errors' => [
+                        'total_placed_shares' => [
+                            sprintf(
+                                'Total written share (%.2f%%) must match FAC share offered (%.2f%%).',
+                                $total_placed_shares,
+                                $facShareOffered
+                            )
+                        ]
+                    ]
+                ], 422);
+            }
 
             $updateData = [];
             $reinsurers = json_decode($reinsurers_data, true);
@@ -5838,7 +5862,6 @@ class PipelineController
                             ])
                             ->first();
 
-                        // $clientName = $this->sanitizeFileName($prospectDetails->client_name ?? 'Unknown_Client');
                         $policyNumber = $prospectDetails->policy_number ?? 'NO_POLICY';
                         $policyType = $this->sanitizeFileName($prospectDetails->policy_type ?? 'Unknown_Type');
                         $effectiveDate = $prospectDetails->effective_date
@@ -5903,6 +5926,21 @@ class PipelineController
                                     continue;
                                 }
 
+                                $matchAttributes = [
+                                    'prospect_id' => $opportunityId,
+                                    'prospect_status' => $stage,
+                                ];
+
+                                if (!is_null($docId)) {
+                                    $matchAttributes['document_type_id'] = $docId;
+                                } else {
+                                    $matchAttributes['description'] = $docName !== '' ? $docName : trim((string) ($docType->doc_type ?? 'Document'));
+                                }
+
+                                $existingDefaultDoc = DB::table('prospect_docs')
+                                    ->where($matchAttributes)
+                                    ->first();
+
                                 $insertData = [
                                     'description' => $docName !== '' ? $docName : trim((string) ($docType->doc_type ?? 'Document')),
                                     'prospect_id' => $opportunityId,
@@ -5918,24 +5956,29 @@ class PipelineController
                                     'updated_at' => now(),
                                 ];
 
-                                if (!is_null($docId)) {
-                                    DB::table('prospect_docs')->updateOrInsert(
-                                        [
-                                            'prospect_id' => $opportunityId,
-                                            'prospect_status' => $stage,
-                                            'document_type_id' => $docId,
-                                        ],
-                                        $insertData + ['created_at' => now()]
-                                    );
+                                if (is_null($existingDefaultDoc)) {
+                                    // Skip placeholder rows that have no file metadata;
+                                    // they will be created when a real file is uploaded.
+                                    if ($resolvedFile === '') {
+                                        continue;
+                                    }
+
+                                    DB::table('prospect_docs')->insert($insertData + ['created_at' => now()]);
                                 } else {
-                                    DB::table('prospect_docs')->updateOrInsert(
-                                        [
-                                            'prospect_id' => $opportunityId,
-                                            'prospect_status' => $stage,
-                                            'description' => $insertData['description'],
-                                        ],
-                                        $insertData + ['created_at' => now()]
-                                    );
+                                    // Do not overwrite existing file metadata with null placeholders.
+                                    if ($resolvedMime === '') {
+                                        unset($insertData['mimetype']);
+                                    }
+                                    if ($resolvedFile === '') {
+                                        unset($insertData['file'], $insertData['original_name']);
+                                    }
+                                    if ($resolvedS3Path === '') {
+                                        unset($insertData['s3_path'], $insertData['s3_url'], $insertData['file_size']);
+                                    }
+
+                                    DB::table('prospect_docs')
+                                        ->where('id', $existingDefaultDoc->id)
+                                        ->update($insertData);
                                 }
                             }
                         }
@@ -6000,12 +6043,28 @@ class PipelineController
                                 $uploadedFiles[] = $s3FilePath;
 
                                 $s3Url = $this->getS3Url($s3FilePath);
+                                $rawDocumentTypeId = $request->input("facultative_document_type_ids.{$index}");
+                                $documentTypeId = is_numeric($rawDocumentTypeId) ? (int) $rawDocumentTypeId : null;
 
-                                $prospectDocId = DB::table('prospect_docs')->insertGetId([
+                                $existingDocQuery = DB::table('prospect_docs')
+                                    ->where('prospect_id', $opportunityId)
+                                    ->where('prospect_status', $stage);
+
+                                if (!is_null($documentTypeId)) {
+                                    $existingDocQuery->where('document_type_id', $documentTypeId);
+                                } else {
+                                    $existingDocQuery
+                                        ->whereNull('document_type_id')
+                                        ->where('description', $documentType);
+                                }
+
+                                $existingDoc = $existingDocQuery->first();
+
+                                $docPayload = [
                                     'description' => $documentType,
                                     'prospect_id' => $opportunityId,
                                     'prospect_status' => $stage,
-                                    'document_type_id' => $request->input("facultative_document_type_ids.{$index}"),
+                                    'document_type_id' => $documentTypeId,
                                     'mimetype' => $mimetype,
                                     'file' => $uniqueFilename,
                                     's3_path' => $s3FilePath,
@@ -6014,9 +6073,27 @@ class PipelineController
                                     'original_name' => $originalName,
                                     'bus_type' => $request->input('bus_type'),
                                     'version' => $version,
-                                    'created_at' => now(),
                                     'updated_at' => now(),
-                                ]);
+                                ];
+
+                                if ($existingDoc) {
+                                    if (
+                                        (!empty($existingDoc->s3_path) && $existingDoc->s3_path !== $s3FilePath) ||
+                                        (!empty($existingDoc->s3_url) && $existingDoc->s3_url !== $s3Url)
+                                    ) {
+                                        $this->s3Handler->deleteFromBothStorages($existingDoc->s3_url, $existingDoc->s3_path);
+                                    }
+
+                                    DB::table('prospect_docs')
+                                        ->where('id', $existingDoc->id)
+                                        ->update($docPayload);
+
+                                    $prospectDocId = (int) $existingDoc->id;
+                                } else {
+                                    $prospectDocId = DB::table('prospect_docs')->insertGetId(
+                                        $docPayload + ['created_at' => now()]
+                                    );
+                                }
 
                                 $uploadResults[] = [
                                     'doc_id' => $prospectDocId,
@@ -6034,6 +6111,8 @@ class PipelineController
 
                         DB::commit();
                     } catch (\Aws\S3\Exception\S3Exception $e) {
+                        logger($e);
+
                         DB::rollBack();
                         $this->cleanupS3Files($uploadedFiles);
 
@@ -6043,6 +6122,7 @@ class PipelineController
                             'error' => config('app.debug') ? $e->getMessage() : 'Storage error occurred'
                         ], 500);
                     } catch (\Exception $e) {
+                        logger($e);
                         DB::rollBack();
                         $this->cleanupS3Files($uploadedFiles);
 
@@ -6242,6 +6322,8 @@ class PipelineController
                 'message' => "{$stageTitle} updated successfully"
             ]);
         } catch (\Exception $e) {
+            logger($e);
+
             DB::rollBack();
             return response()->json([
                 'success' => false,
@@ -8282,20 +8364,20 @@ class PipelineController
                     'updated_at' => now()
                 ]);
 
-            $tempFiles = DB::table('prospect_docs')
-                ->where('prospect_id', $opportunityId)
-                ->get();
-
-            if ($tempFiles->count() > 0) {
-                foreach ($tempFiles as $temp) {
-                    $this->s3Handler->deleteFromBothStorages($temp->s3_url, $temp->s3_path);
-                }
-
-                DB::table('prospect_docs')->where('prospect_id', $opportunityId)->delete();
-            }
-
             switch ($previousStage['value']) {
                 case '1':
+                    $tempFiles = DB::table('prospect_docs')
+                        ->where('prospect_id', $opportunityId)
+                        ->get();
+
+                    if ($tempFiles->count() > 0) {
+                        foreach ($tempFiles as $temp) {
+                            $this->s3Handler->deleteFromBothStorages($temp->s3_url, $temp->s3_path);
+                        }
+
+                        DB::table('prospect_docs')->where('prospect_id', $opportunityId)->delete();
+                    }
+
                     DB::table('bd_fac_reinsurers')->where('opportunity_id', $opportunityId)->delete();
                     break;
 
@@ -8414,6 +8496,25 @@ class PipelineController
                     'stage_updated_at' => now(),
                     'updated_at' => now(),
                 ]);
+
+            $proposalStageValues = array_filter([
+                Stage::PROPOSAL,
+                Stage::getStageByKey(Stage::PROPOSAL),
+            ]);
+
+            $proposalStageFiles = DB::table('prospect_docs')
+                ->where('prospect_id', $opportunityId)
+                ->whereIn('prospect_status', $proposalStageValues)
+                ->get();
+
+            foreach ($proposalStageFiles as $file) {
+                $this->s3Handler->deleteFromBothStorages($file->s3_url, $file->s3_path);
+            }
+
+            DB::table('prospect_docs')
+                ->where('prospect_id', $opportunityId)
+                ->whereIn('prospect_status', $proposalStageValues)
+                ->delete();
 
             DB::commit();
 

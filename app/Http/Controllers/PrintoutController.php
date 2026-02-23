@@ -871,11 +871,11 @@ class PrintoutController extends Controller
                         }
 
                         // Add date generated
-                        $section->addText(
-                            'Generated on behalf of Acentria International on ' . date('F j, Y'),
-                            $footerFontStyle,
-                            $centerAlignment
-                        );
+                        // $section->addText(
+                        //     'Generated on behalf of Acentria International on ' . date('F j, Y'),
+                        //     $footerFontStyle,
+                        //     $centerAlignment
+                        // );
 
                         // Add page break except for the last share in non-special case
                         if ($index < count($shares) - 1 && !$isSpecialCase) {

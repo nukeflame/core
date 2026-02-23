@@ -967,7 +967,8 @@ class PipelineManager {
     handleResetProposalToLead(button) {
         try {
             const buttonData = $(button).data();
-            const opportunityId = buttonData.deal_id || buttonData.opportunity_id;
+            const opportunityId =
+                buttonData.deal_id || buttonData.opportunity_id;
 
             if (!opportunityId) {
                 throw new Error("Opportunity ID not found");
@@ -1003,7 +1004,9 @@ class PipelineManager {
                         opportunity_id: opportunityId,
                     },
                     headers: {
-                        "X-CSRF-TOKEN": $('meta[name="csrf-token"]').attr("content"),
+                        "X-CSRF-TOKEN": $('meta[name="csrf-token"]').attr(
+                            "content",
+                        ),
                     },
                     success: (response) => {
                         if (response?.status === 1) {
@@ -1014,7 +1017,9 @@ class PipelineManager {
                             this.reloadAllTables();
                             this.loadChartData();
                         } else {
-                            toastr.error(response?.message || "Failed to reset stage.");
+                            toastr.error(
+                                response?.message || "Failed to reset stage.",
+                            );
                         }
                     },
                     error: (xhr) => {
@@ -1276,6 +1281,7 @@ class PipelineManager {
                 business_type: data.typeOfBus,
             },
             success: (response) => {
+                console.log(response);
                 if (response.success && response.headers) {
                     this.renderScheduleHeaders(response.headers, data);
                 } else {
@@ -1606,7 +1612,9 @@ class PipelineManager {
 
         const originalHtml = $button.html();
         $button.data("contact-loading", true);
-        $button.html('<i class="bx bx-loader bx-spin"></i>').prop("disabled", true);
+        $button
+            .html('<i class="bx bx-loader bx-spin"></i>')
+            .prop("disabled", true);
 
         $.ajax({
             url: "/customer/contact-info",
@@ -1617,7 +1625,9 @@ class PipelineManager {
             },
             success: (response) => {
                 if (!response?.success) {
-                    this.showError(response?.message || "Failed to fetch contacts");
+                    this.showError(
+                        response?.message || "Failed to fetch contacts",
+                    );
                     return;
                 }
 
@@ -1631,7 +1641,8 @@ class PipelineManager {
             },
             error: (xhr) => {
                 const errorMessage =
-                    xhr.responseJSON?.message || "Failed to fetch reinsurer contacts";
+                    xhr.responseJSON?.message ||
+                    "Failed to fetch reinsurer contacts";
                 this.showError(errorMessage);
             },
             complete: () => {
@@ -1965,69 +1976,57 @@ class PipelineManager {
     }
 
     updatePlacedShare(totalShare) {
-        const $modal = $("#proposalModal");
-        const unPlacedShare = 100 - totalShare;
-
-        const totalPlacedShares = Number(totalShare || 0).toFixed(2);
-        const totalUnplacedShares = Number(unPlacedShare).toFixed(2);
-
-        $modal.find("#propPlacedShare").val(totalPlacedShares);
-        $modal.find("#propUnPlacedShare").val(totalUnplacedShares);
-
-        let sharesDisplay = $(".total-shares-display");
-
-        const placedNum = Number(totalPlacedShares);
-        const unplacedNum = Number(totalUnplacedShares);
-        const targetTotal = 100;
-
-        const placedValueClass =
-            placedNum === targetTotal
-                ? "text-success"
-                : placedNum > targetTotal
-                  ? "text-danger"
-                  : "text-primary";
-
-        sharesDisplay
-            .find(".placed-value")
-            .removeClass("text-success text-danger text-primary text-warning")
-            .addClass(placedValueClass)
-            .text(`${totalPlacedShares}%`);
-
-        const unplacedValueClass =
-            unplacedNum === 0
-                ? "text-success"
-                : unplacedNum < 0
-                  ? "text-danger"
-                  : "text-warning";
-
-        sharesDisplay
-            .find(".unplaced-value")
-            .removeClass("text-success text-danger text-primary text-warning")
-            .addClass(unplacedValueClass)
-            .text(`${totalUnplacedShares}%`);
-
-        let progressWidth = 0;
-        if (targetTotal > 0) {
-            progressWidth = (placedNum / targetTotal) * 100;
-            progressWidth = Math.min(progressWidth, 100);
-        }
-
-        const progressClass =
-            placedNum === targetTotal
-                ? "bg-success"
-                : placedNum > targetTotal
-                  ? "bg-danger"
-                  : "bg-primary";
-
-        sharesDisplay
-            .find(".placed-progress")
-            .removeClass("bg-success bg-danger bg-primary")
-            .addClass(progressClass)
-            .css("width", `${progressWidth}%`)
-            .attr("aria-valuenow", progressWidth)
-            .attr("aria-valuemax", 100);
-
-        $("#retainedShareValue").val(totalUnplacedShares);
+        // const $modal = $("#proposalModal");
+        // const unPlacedShare = 100 - totalShare;
+        // const totalPlacedShares = Number(totalShare || 0).toFixed(2);
+        // const totalUnplacedShares = Number(unPlacedShare).toFixed(2);
+        // $modal.find("#propPlacedShare").val(totalPlacedShares);
+        // $modal.find("#propUnPlacedShare").val(totalUnplacedShares);
+        // let sharesDisplay = $modal.find(".proposal-total-shares-display");
+        // const placedNum = Number(totalPlacedShares);
+        // const unplacedNum = Number(totalUnplacedShares);
+        // const targetTotal = 100;
+        // const placedValueClass =
+        //     placedNum === targetTotal
+        //         ? "text-success"
+        //         : placedNum > targetTotal
+        //           ? "text-danger"
+        //           : "text-primary";
+        // sharesDisplay
+        //     .find(".proposal-placed-value")
+        //     .removeClass("text-success text-danger text-primary text-warning")
+        //     .addClass(placedValueClass)
+        //     .text(`${totalPlacedShares}%`);
+        // const unplacedValueClass =
+        //     unplacedNum === 0
+        //         ? "text-success"
+        //         : unplacedNum < 0
+        //           ? "text-danger"
+        //           : "text-warning";
+        // sharesDisplay
+        //     .find(".proposal-unplaced-value")
+        //     .removeClass("text-success text-danger text-primary text-warning")
+        //     .addClass(unplacedValueClass)
+        //     .text(`${totalUnplacedShares}%`);
+        // let progressWidth = 0;
+        // if (targetTotal > 0) {
+        //     progressWidth = (placedNum / targetTotal) * 100;
+        //     progressWidth = Math.min(progressWidth, 100);
+        // }
+        // const progressClass =
+        //     placedNum === targetTotal
+        //         ? "bg-success"
+        //         : placedNum > targetTotal
+        //           ? "bg-danger"
+        //           : "bg-primary";
+        // sharesDisplay
+        //     .find(".proposal-placed-progress")
+        //     .removeClass("bg-success bg-danger bg-primary")
+        //     .addClass(progressClass)
+        //     .css("width", `${progressWidth}%`)
+        //     .attr("aria-valuenow", progressWidth)
+        //     .attr("aria-valuemax", 100);
+        // $("#retainedShareValue").val(totalUnplacedShares);
     }
 
     removeReinsurer(reinsurerId, $table) {
@@ -2333,49 +2332,157 @@ class PipelineManager {
 
         const existingDocuments = Array.isArray(res.prosp_doc)
             ? res.prosp_doc
-            : [];
+            : Array.isArray(res.prospect_dcos)
+              ? res.prospect_dcos
+              : Array.isArray(res.prospect_docs)
+                ? res.prospect_docs
+                : [];
         const hasConfiguredStageDocs =
             Array.isArray(res.docs) && res.docs.length > 0;
 
-        if (data?.modalId === "proposalModal") {
-            const leadDocuments = existingDocuments.filter((doc) => {
+        if (
+            data?.modalId === "proposalModal" ||
+            data?.modalId === "leadModal" ||
+            data?.modalId === "negotiationModal"
+        ) {
+            const prospectDocuments = existingDocuments.filter((doc) => {
                 const fileName = (doc?.file || "").toString().trim();
                 return fileName.length > 0;
             });
 
-            if (leadDocuments.length === 0) {
-                if (!hasConfiguredStageDocs) {
-                    const $container = $modal.find("#documentsContent");
-                    if ($container.length) {
-                        $container.html(
-                            '<p class="text-muted text-center my-3">No documents available for this stage.</p>',
-                        );
-                    }
+            const mergedDocs = hasConfiguredStageDocs
+                ? [...res.docs]
+                : [];
+            const mergedDocKeys = new Set();
+
+            const rememberDocKeys = (doc) => {
+                const keys = [
+                    this.normalizeDocumentKey(doc?.name),
+                    this.normalizeDocumentKey(doc?.doc_type),
+                    this.normalizeDocumentKey(doc?.file_name),
+                    this.normalizeDocumentKey(this.toPascalCase(doc?.name || "")),
+                    this.normalizeDocumentKey(this.toPascalCase(doc?.doc_type || "")),
+                ].filter(Boolean);
+
+                keys.forEach((key) => mergedDocKeys.add(key));
+            };
+
+            mergedDocs.forEach((doc) => rememberDocKeys(doc));
+
+            prospectDocuments.forEach((doc) => {
+                const docLabel = (
+                    doc?.description ||
+                    doc?.original_name ||
+                    doc?.file ||
+                    "Supporting Document"
+                )
+                    .toString()
+                    .trim();
+
+                const prospectDocKeys = [
+                    this.normalizeDocumentKey(doc?.description),
+                    this.normalizeDocumentKey(doc?.original_name),
+                    this.normalizeDocumentKey(doc?.file),
+                    this.normalizeDocumentKey(docLabel),
+                    this.normalizeDocumentKey(this.toPascalCase(docLabel)),
+                ].filter(Boolean);
+
+                const alreadyExists = prospectDocKeys.some((key) =>
+                    mergedDocKeys.has(key),
+                );
+
+                if (alreadyExists) {
                     return;
                 }
-            } else {
-                const transformedLeadDocs = leadDocuments.map((doc) => ({
-                    id: doc.id,
-                    name:
-                        doc.description ||
-                        doc.original_name ||
-                        "Supporting Document",
-                    doc_type: doc.description || "Supporting Document",
-                    file_name: `leadDoc_${doc.id}`,
-                    required: false,
+
+                const prospectDoc = {
+                    id: `prospect_doc_${doc.id}`,
+                    name: docLabel,
+                    doc_type: docLabel,
+                    file_name: `prospectDoc_${doc.id}`,
+                    mandatory: "N",
                     icon: "bx-file-blank",
-                    accepts: doc.mimetype || ".pdf,.doc,.docx,.jpg,.jpeg,.png",
-                    description: "",
+                    mimetype: doc.mimetype || ".pdf,.doc,.docx,.jpg,.jpeg,.png",
+                    description: doc?.description || "",
                     max_size: DEFAULT_MAX_FILE_SIZE,
                     multiple: false,
-                    existing_file_url: doc.s3_url || "",
-                    existing_file_name:
-                        doc.original_name || doc.file || "document",
-                }));
+                    s3_path: doc?.s3_url || "",
+                };
 
-                this.generateDocumentFields(transformedLeadDocs, $modal);
+                mergedDocs.push(prospectDoc);
+                rememberDocKeys(prospectDoc);
+            });
+
+            if (mergedDocs.length === 0) {
+                const $container = $modal.find("#documentsContent");
+                if ($container.length) {
+                    $container.html(
+                        '<p class="text-muted text-center my-3">No documents available for this stage.</p>',
+                    );
+                }
                 return;
             }
+
+            const isLeadModal = data?.modalId === "leadModal";
+            let docs = [...mergedDocs];
+            if (!isLeadModal) {
+                docs = docs.filter(
+                    (doc) =>
+                        this.normalizeDocumentKey(doc?.file_name) !==
+                        this.normalizeDocumentKey("additionalDocs"),
+                );
+            }
+            const hasAdditionalDocsField = docs.some(
+                (doc) =>
+                    this.normalizeDocumentKey(doc?.file_name) ===
+                    this.normalizeDocumentKey("additionalDocs"),
+            );
+
+            if (isLeadModal && !hasAdditionalDocsField) {
+                docs.push({
+                    name: "Additional Documents",
+                    id: Math.floor(Math.random() * 10000),
+                    file_name: "additionalDocs",
+                    doc_type: "Additional Documents",
+                    mandatory: "N",
+                    icon: "bx-folder-plus",
+                    accepts: ".pdf,.doc,.docx,.jpg,.jpeg,.png",
+                    description: "Any additional supporting documents",
+                    max_size: 5242880,
+                    multiple: true,
+                    s3_path: "",
+                });
+            }
+
+            const transformedDocs = docs.map((doc) => {
+                const existingDoc = this.findExistingDocumentForType(
+                    existingDocuments,
+                    doc,
+                );
+
+                return {
+                    id: doc.id,
+                    name: doc.name || doc.doc_type,
+                    doc_type: doc.doc_type,
+                    file_name: doc.file_name,
+                    required: doc.mandatory === "Y",
+                    icon: doc.icon ?? "bx-file-blank",
+                    accepts:
+                        doc.mimetype ??
+                        doc.accepts ??
+                        ".pdf,.doc,.docx,.jpg,.jpeg,.png",
+                    description: doc.description ?? "",
+                    max_size: doc.max_size ?? DEFAULT_MAX_FILE_SIZE,
+                    multiple: doc.multiple ?? true,
+                    existing_file_url: existingDoc?.s3_url || "",
+                    existing_file_name:
+                        existingDoc?.original_name || existingDoc?.file || "",
+                    s3_path: doc.s3_path || "",
+                };
+            });
+
+            this.generateDocumentFields(transformedDocs, $modal);
+            return;
         }
 
         if (!res.docs || !res.docs.length) {
@@ -2388,20 +2495,31 @@ class PipelineManager {
             return;
         }
 
-        let docs = res.docs;
-        docs.push({
-            name: "Additional Documents",
-            id: Math.floor(Math.random() * 10000),
-            file_name: "additionalDocs",
-            doc_type: "Additional Documents",
-            mandatory: "N",
-            icon: "bx-folder-plus",
-            accepts: ".pdf,.doc,.docx,.jpg,.jpeg,.png",
-            description: "Any additional supporting documents",
-            max_size: 5242880,
-            multiple: true,
-            s3_path: "",
-        });
+        const isLeadModal = data?.modalId === "leadModal";
+        let docs = [...res.docs];
+        docs = isLeadModal
+            ? docs
+            : docs.filter(
+                  (doc) =>
+                      this.normalizeDocumentKey(doc?.file_name) !==
+                      this.normalizeDocumentKey("additionalDocs"),
+              );
+
+        if (isLeadModal) {
+            docs.push({
+                name: "Additional Documents",
+                id: Math.floor(Math.random() * 10000),
+                file_name: "additionalDocs",
+                doc_type: "Additional Documents",
+                mandatory: "N",
+                icon: "bx-folder-plus",
+                accepts: ".pdf,.doc,.docx,.jpg,.jpeg,.png",
+                description: "Any additional supporting documents",
+                max_size: 5242880,
+                multiple: true,
+                s3_path: "",
+            });
+        }
 
         const transformedDocs = docs.map((doc) => {
             const existingDoc = this.findExistingDocumentForType(
@@ -2570,7 +2688,7 @@ class PipelineManager {
                                         name="${doc.file_name}"
                                         ${doc.required ? "required" : ""}
                                         accept="${doc.accepts}"
-                                        ${doc.multiple ? "multiple" : ""}
+                                        ${isAdditionalDocument ? "" : doc.multiple ? "multiple" : ""}
                                         data-max-size="${
                                             doc.max_size ||
                                             DEFAULT_MAX_FILE_SIZE
@@ -2657,7 +2775,6 @@ class PipelineManager {
         const defaultTitle = this.escapeHtml(
             config.defaultTitle || "Additional Documents",
         );
-        const showAddButton = config.showAddButton === true;
         const showRemoveButton = config.showRemoveButton === true;
 
         return `
@@ -2682,13 +2799,9 @@ class PipelineManager {
                                 data-is-additional="1">
                                 <button type="button" class="supporting-doc-choose-btn">Choose File</button>
                                 <span class="supporting-doc-file-name">No file chosen</span>
-                                ${
-                                    showAddButton
-                                        ? `<button type="button" class="supporting-doc-add-btn" title="Add file">
+                                <button type="button" class="supporting-doc-add-btn" title="Add file">
                                     <i class="bx bx-plus"></i>
-                                </button>`
-                                        : ""
-                                }
+                                </button>
                                 ${
                                     showRemoveButton
                                         ? `<button type="button" class="supporting-doc-row-remove-btn" title="Remove document">
@@ -2702,7 +2815,6 @@ class PipelineManager {
                                 <input type="file" class="d-none file-input"
                                     name="additionalDocs"
                                     accept="${accepts}"
-                                    multiple
                                     data-max-size="${maxSize}">
                             </div>
                         </div>
@@ -2724,7 +2836,6 @@ class PipelineManager {
             accepts: $input.attr("accept"),
             maxSize: $input.data("max-size"),
             defaultTitle: "Additional Documents",
-            showAddButton: false,
             showRemoveButton: true,
         });
 
@@ -2826,8 +2937,6 @@ class PipelineManager {
                 ".supporting-doc-row-remove-btn",
             );
             const $viewBtn = $uploadArea.find(".supporting-doc-view-trigger");
-            const isAdditionalUpload =
-                String($uploadArea.data("is-additional")) === "1";
 
             $chooseBtn.on("click.fileUpload", (e) => {
                 e.preventDefault();
@@ -2840,11 +2949,6 @@ class PipelineManager {
             $addBtn.on("click.fileUpload", (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-
-                if (isAdditionalUpload) {
-                    this.addAdditionalDocumentRow($uploadArea);
-                    return;
-                }
 
                 if ($input.length > 0 && $input[0]) {
                     $input[0].click();
@@ -2943,6 +3047,8 @@ class PipelineManager {
             return;
         }
 
+        const isAdditionalUpload =
+            String($uploadArea.data("is-additional")) === "1";
         const fieldId = $uploadArea.data("field");
         const fieldName = this.resolveDocumentFieldName($uploadArea);
         const documentTypeId = this.resolveDocumentTypeId($uploadArea, fieldId);
@@ -2959,10 +3065,18 @@ class PipelineManager {
             this.uploadedFiles[fieldId] = [];
         }
 
+        if (isAdditionalUpload) {
+            this.uploadedFiles[fieldId] = [];
+            $previewContainer.empty();
+        }
+
         let validFiles = 0;
         let rejectedFiles = 0;
+        const selectedFiles = isAdditionalUpload
+            ? [files[0]].filter(Boolean)
+            : Array.from(files);
 
-        Array.from(files).forEach((file, index) => {
+        selectedFiles.forEach((file, index) => {
             if (file.size > maxSize) {
                 this.showError(
                     `File "${
@@ -3772,7 +3886,8 @@ class PipelineManager {
         const optionEntries = Object.entries(stageOptions);
         const optionsHtml = optionEntries
             .map(([value, label]) => {
-                const selected = value === normalizedCurrentStage ? "selected" : "";
+                const selected =
+                    value === normalizedCurrentStage ? "selected" : "";
                 return `<option value="${value}" ${selected}>${label}</option>`;
             })
             .join("");
@@ -4059,7 +4174,10 @@ class PipelineManager {
             [STAGE_NAMES.LOST]: "Lost",
         };
 
-        return labels[normalized] || this.capitalize(normalized || STAGE_NAMES.LEAD);
+        return (
+            labels[normalized] ||
+            this.capitalize(normalized || STAGE_NAMES.LEAD)
+        );
     }
 
     getAllowedCategoriesForStage(stageKey) {
@@ -4068,9 +4186,26 @@ class PipelineManager {
             [STAGE_NAMES.LEAD]: ["lead"],
             [STAGE_NAMES.PROPOSAL]: ["lead", "proposal"],
             [STAGE_NAMES.NEGOTIATION]: ["lead", "proposal", "negotiation"],
-            [STAGE_NAMES.FINAL_STAGE]: ["lead", "proposal", "negotiation", "final"],
-            [STAGE_NAMES.WON]: ["lead", "proposal", "negotiation", "final", "won"],
-            [STAGE_NAMES.LOST]: ["lead", "proposal", "negotiation", "final", "lost"],
+            [STAGE_NAMES.FINAL_STAGE]: [
+                "lead",
+                "proposal",
+                "negotiation",
+                "final",
+            ],
+            [STAGE_NAMES.WON]: [
+                "lead",
+                "proposal",
+                "negotiation",
+                "final",
+                "won",
+            ],
+            [STAGE_NAMES.LOST]: [
+                "lead",
+                "proposal",
+                "negotiation",
+                "final",
+                "lost",
+            ],
         };
 
         return categoryFlow[normalized] || categoryFlow[STAGE_NAMES.LEAD];
@@ -4093,13 +4228,17 @@ class PipelineManager {
         }
 
         const allOptions = $select.data("allCategoryOptions") || [];
-        const allowedCategories = new Set(this.getAllowedCategoriesForStage(stageKey));
+        const allowedCategories = new Set(
+            this.getAllowedCategoriesForStage(stageKey),
+        );
 
         $select.empty();
         allOptions.forEach((option) => {
             if (allowedCategories.has(option.value)) {
                 $select.append(
-                    $("<option></option>").attr("value", option.value).text(option.text),
+                    $("<option></option>")
+                        .attr("value", option.value)
+                        .text(option.text),
                 );
             }
         });
@@ -4122,7 +4261,9 @@ class PipelineManager {
 
             const stageTitle = this.normalizeStageKey(data.bdEmailTitle);
             const stage = this.config.stageFlow[stageTitle] || {};
-            const templateMap = this.normalizeTemplateMapKeys(data.template || {});
+            const templateMap = this.normalizeTemplateMapKeys(
+                data.template || {},
+            );
             const selectedCategory = this.mapStageToCategory(stageTitle);
             const template = templateMap[selectedCategory] ||
                 templateMap[stageTitle] ||
@@ -4252,7 +4393,8 @@ class PipelineManager {
 
                 if (
                     typeof window.BDEmailModal !== "undefined" &&
-                    typeof window.BDEmailModal.captureInitialState === "function"
+                    typeof window.BDEmailModal.captureInitialState ===
+                        "function"
                 ) {
                     // Capture initial modal values after all async select defaults are applied.
                     setTimeout(() => {

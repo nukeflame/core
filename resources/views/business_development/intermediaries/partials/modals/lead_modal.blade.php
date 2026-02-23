@@ -1524,6 +1524,7 @@
                 breakdownEditor: null,
                 slipType: '',
                 suppressLeadModalReset: false,
+                returningFromContacts: false,
                 returningFromBreakdown: false,
                 pendingDocumentsDraft: null,
             };
@@ -2733,6 +2734,23 @@
                 const errors = [];
 
                 const slipType = $("#slipType").val() || state.slipType;
+                const $termsContainer = $("#leadModal #termsConditions");
+                const $documentsContent = $("#leadModal #documentsContent");
+                const $documentFields = $("#leadModal #documentFields");
+
+                const noHeadersMessage = ($termsContainer.text() || "")
+                    .replace(/\s+/g, " ")
+                    .trim()
+                    .toLowerCase();
+                const hasScheduleHeaderFields = $termsContainer.find(".form-group").length > 0;
+                const hasNoHeadersPlaceholder = noHeadersMessage.includes("no schedule headers configured");
+
+                const noDocumentsMessage = ($documentsContent.text() || "")
+                    .replace(/\s+/g, " ")
+                    .trim()
+                    .toLowerCase();
+                const hasSupportingDocumentFields = $documentFields.find(".document-field-group").length > 0;
+                const hasNoDocumentsPlaceholder = noDocumentsMessage.includes("no documents available for this stage");
 
                 $("#leadForm .form-inputs").each(function() {
                     if (!validateField($(this))) {
@@ -2745,19 +2763,19 @@
                     errors.push("<b>Reinsurer Selection:</b> Please add at least one reinsurer");
                 }
 
-                const totalWrittenShare = parseFloat($("#leadTotalReinsurerShare").val()) || 0;
-                if (totalWrittenShare === 0) {
-                    errors.push("<b>Total Written Share:</b> Please enter the total written share percentage");
-                }
-
-                const totalPlacedShares = calculateTotalPlacedShares();
-                const sharesDifference = Math.abs(totalWrittenShare - totalPlacedShares);
-                const TOLERANCE = 0.01;
-
                 const writtenSharePercent = parseFloat($("#reinsurerShare").val());
                 const showShareColumn = shouldShowShares(slipType);
 
                 if (showShareColumn) {
+                    const totalWrittenShare = parseFloat($("#leadTotalReinsurerShare").val()) || 0;
+                    if (totalWrittenShare === 0) {
+                        errors.push("<b>Total Written Share:</b> Please enter the total written share percentage");
+                    }
+
+                    const totalPlacedShares = calculateTotalPlacedShares();
+                    const sharesDifference = Math.abs(totalWrittenShare - totalPlacedShares);
+                    const TOLERANCE = 0.01;
+
                     if (sharesDifference > TOLERANCE) {
                         const totalUnplacedShares = totalWrittenShare - totalPlacedShares;
                         errors.push(
@@ -2766,6 +2784,17 @@
                     }
                 }
 
+                if (!hasScheduleHeaderFields || hasNoHeadersPlaceholder) {
+                    errors.push(
+                        "<b>Schedule Headers:</b> No schedule headers configured for this class/group and business type."
+                    );
+                }
+
+                if (!hasSupportingDocumentFields || hasNoDocumentsPlaceholder) {
+                    errors.push(
+                        "<b>Supporting Documents:</b> No supporting documents configured for this class/group and stage."
+                    );
+                }
 
                 if (typeof window.pipelineManager !== 'undefined' &&
                     typeof window.pipelineManager.getAllUploadedFiles === 'function') {
@@ -3094,10 +3123,12 @@
                     Object.entries(allUploadedFiles).forEach(([fieldId, filesData]) => {
                         filesData.forEach((file) => {
                             formData.append('facultative_files[]', file);
-                            formData.append('facultative_document_types[]', file.documentTypeName || file.fileName ||
+                            formData.append('facultative_document_types[]', file.documentTypeName ||
+                                file.fileName ||
                                 'additionalDocuments');
                             if (Number.isInteger(file.documentTypeId)) {
-                                formData.append('facultative_document_type_ids[]', file.documentTypeId);
+                                formData.append('facultative_document_type_ids[]', file
+                                    .documentTypeId);
                             }
                         });
                     });
@@ -3827,6 +3858,13 @@
                     return;
                 }
 
+                if (state.returningFromContacts) {
+                    state.returningFromContacts = false;
+                    state.suppressLeadModalReset = false;
+                    queueLeadModalDraftSave();
+                    return;
+                }
+
                 const slipType = $("#slipType").val();
 
                 toggleShareFields(slipType);
@@ -3861,6 +3899,7 @@
                 $("#contactsOpportunityId").val("");
 
                 if (state.suppressLeadModalReset) {
+                    state.returningFromContacts = true;
                     $("#leadModal").modal("show");
                     state.suppressLeadModalReset = false;
                 }

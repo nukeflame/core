@@ -179,7 +179,12 @@ class QuotationController extends Controller
         if ($request->has('reinsurers_data')) {
 
             $reinsurers_data = $request->reinsurers_data;
-            return json_decode($reinsurers_data, true);
+            $decodedReinsurers = json_decode($reinsurers_data, true);
+            $decodedReinsurers = is_array($decodedReinsurers) ? $decodedReinsurers : [];
+
+            return array_values(array_filter($decodedReinsurers, function ($reinsurer) {
+                return !$this->isReinsurerDeclined($reinsurer);
+            }));
         }
 
         $customerIds = $request->input('customer_id', []);
@@ -236,6 +241,12 @@ class QuotationController extends Controller
         $reinsurers = !empty($requestData['selected_reinsurers'])
             ? $requestData['selected_reinsurers']
             : ($requestData['shares'] ?? []);
+
+        $reinsurers = collect($reinsurers)
+            ->filter(function ($reinsurer) {
+                return !$this->isReinsurerDeclined($reinsurer);
+            })
+            ->values();
 
         return collect($reinsurers)->map(function ($reinsurer, $index) use ($requestData) {
             return (object) $this->createCustomerObject($requestData, $reinsurer);
@@ -303,5 +314,30 @@ class QuotationController extends Controller
         }
 
         return is_array($details) ? $details : [];
+    }
+
+    private function isReinsurerDeclined($reinsurer): bool
+    {
+        $isDeclined = is_array($reinsurer)
+            ? ($reinsurer['is_declined'] ?? null)
+            : ($reinsurer->is_declined ?? null);
+
+        if (filter_var($isDeclined, FILTER_VALIDATE_BOOLEAN)) {
+            return true;
+        }
+
+        $status = strtolower(trim((string) (is_array($reinsurer)
+            ? ($reinsurer['status'] ?? '')
+            : ($reinsurer->status ?? ''))));
+
+        if ($status === 'declined') {
+            return true;
+        }
+
+        $declineReason = trim((string) (is_array($reinsurer)
+            ? ($reinsurer['decline_reason'] ?? '')
+            : ($reinsurer->decline_reason ?? '')));
+
+        return $declineReason !== '';
     }
 }

@@ -197,8 +197,8 @@ class GenerateBdCoverSlipJob implements ShouldQueue
      */
     protected function saveDocumentRecord(string $s3Path, string $filename, string $pdfContent): int
     {
-        $stage = $this->requestData['current_stage'];
-        $documentType = 'Cover Slip';
+        $stage = (string) ($this->requestData['current_stage'] ?? Stage::LEAD);
+        $documentType = $this->resolveDocumentTypeByStage($stage);
         $opportunityId = $this->requestData['opportunity_id'];
 
         $type = 'general';
@@ -223,6 +223,27 @@ class GenerateBdCoverSlipJob implements ShouldQueue
             'created_at' => now(),
             'updated_at' => now(),
         ]);
+    }
+
+    private function resolveDocumentTypeByStage(string $stage): string
+    {
+        $normalizedStage = Str::of($stage)
+            ->trim()
+            ->lower()
+            ->replace('-', '_')
+            ->value();
+
+        $stageLabel = match ($normalizedStage) {
+            Stage::LEAD => 'Lead',
+            Stage::PROPOSAL => 'Proposal',
+            Stage::NEGOTIATION => 'Negotiation',
+            Stage::FINAL_STAGE => 'Final Stage',
+            Stage::WON => 'Won',
+            Stage::LOST => 'Lost',
+            default => Str::of($normalizedStage)->replace('_', ' ')->title()->value(),
+        };
+
+        return trim($stageLabel) !== '' ? "{$stageLabel} Cover Slip" : 'Cover Slip';
     }
 
     /**

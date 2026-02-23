@@ -142,9 +142,9 @@
                 <div class="logo">
                     <?php
                     $logoPath = public_path('/assets/images/brand-logos/main-horizontal-logo.png');
-
+                    
                     $imgSrc = '';
-
+                    
                     if (file_exists($logoPath) && is_readable($logoPath)) {
                         $imageData = file_get_contents($logoPath);
                         if ($imageData !== false) {
@@ -184,8 +184,10 @@
                                             <div>
                                                 @php
                                                     $isQuotationTitle =
-                                                        (int) ($customer->stageType ?? $stageType ?? 0) === 1;
-                                                    $titleYear = $isQuotationTitle ? ' (' . now()->format('Y') . ')' : '';
+                                                        (int) ($customer->stageType ?? ($stageType ?? 0)) === 1;
+                                                    $titleYear = $isQuotationTitle
+                                                        ? ' (' . now()->format('Y') . ')'
+                                                        : '';
                                                 @endphp
                                                 <b>{{ $customer->quote_title_intro . ' - ' . $customer->class_name . $titleYear . ' - ' . strtoupper($customer->insured_name ?? 'N/A') }}</b>
                                             </div>
@@ -712,11 +714,11 @@
         @endforeach
         </div>
         </div>
-        <div class="date_generated">
+        {{-- <div class="date_generated">
             <p style="font-size: 8.0pt; ">Generated on behalf of Acentria International on
                 {{ now()->format('F j, Y') }}.</p>
 
-        </div>
+        </div> --}}
     @endforeach
 
     <div class="footer">
@@ -729,9 +731,9 @@
             <div class="logo">
                 <?php
                 $logoPath = public_path('/assets/images/brand-logos/main-horizontal-logo.png');
-
+                
                 $imgSrc = '';
-
+                
                 if (file_exists($logoPath) && is_readable($logoPath)) {
                     $imageData = file_get_contents($logoPath);
                     if ($imageData !== false) {
@@ -1223,11 +1225,11 @@
 
 
 
-    <div class="date_generated">
+    {{-- <div class="date_generated">
         <p style="font-size: 8.0pt; ">Generated on behalf of Acentria International on
             {{ now()->format('F j, Y') }}.</p>
 
-    </div>
+    </div> --}}
 
 
     <div class="footer">
@@ -1243,9 +1245,9 @@
             <div class="logo">
                 <?php
                 $logoPath = public_path('/assets/images/brand-logos/main-horizontal-logo.png');
-
+                
                 $imgSrc = '';
-
+                
                 if (file_exists($logoPath) && is_readable($logoPath)) {
                     $imageData = file_get_contents($logoPath);
                     if ($imageData !== false) {
@@ -1692,11 +1694,11 @@
             </div>
         @endforeach
     </div>
-    <div class="date_generated">
+    {{-- <div class="date_generated">
         <p style="font-size: 8.0pt; ">Generated on behalf of Acentria International on {{ now()->format('F j, Y') }}.
         </p>
 
-    </div>
+    </div> --}}
     @endif
 
     <div class="footer">

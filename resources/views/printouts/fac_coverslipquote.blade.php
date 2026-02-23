@@ -347,12 +347,12 @@
                         </div>
                     @endif
                 </div>
-                <div class="date_generated">
+                {{-- <div class="date_generated">
                     <p style="font-size: 8.0pt; margin: 0;">Generated on behalf of Acentria International Reinsurance
                         Brokers Limited
                         on {{ now()->format('F j, Y') }}.
                     </p>
-                </div>
+                </div> --}}
             </div>
         @endforeach
     @else
@@ -579,12 +579,12 @@
                     </div>
                 </div>
             </div>
-            <div class="date_generated">
+            {{-- <div class="date_generated">
                 <p style="font-size: 8.0pt; margin: 0;">Generated on behalf of Acentria International Reinsurance Brokers
                     Limited
                     on {{ now()->format('F j, Y') }}.
                 </p>
-            </div>
+            </div> --}}
         </div>
     @endif
 

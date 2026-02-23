@@ -14,6 +14,8 @@
                 <input type="hidden" name="selected_reinsurers" class="selected_reinsurers">
                 <input type="hidden" name="slip_type" class="slip_type">
                 <input type="hidden" name="category_type" class="category_type">
+                <input type="hidden" name="fac_share_offered_expected" class="total_reinsurer_share"
+                    id="propFacShareOfferedExpected">
 
                 <div class="modal-body fac-slip-container">
                     <div class="fac-slip-header">
@@ -215,40 +217,42 @@
                                         </table>
                                     </div>
                                 </div>
-                                <div class="total-shares-display mt-3 d-block">
+                                {{-- <div class="proposal-total-shares-display mt-3 d-block">
                                     <div class="row g-3">
                                         <div class="col-md-6">
-                                            <div class="shares-card placed-shares">
-                                                <div class="shares-icon">
+                                            <div class="proposal-shares-card proposal-placed-shares">
+                                                <div class="proposal-shares-icon">
                                                     <i class="bx bx-check-circle"></i>
                                                 </div>
-                                                <div class="shares-info">
-                                                    <span class="shares-label">Placed Shares</span>
-                                                    <span class="shares-value placed-value">0.00%</span>
+                                                <div class="proposal-shares-info">
+                                                    <span class="proposal-shares-label">Placed Shares</span>
+                                                    <span
+                                                        class="proposal-shares-value proposal-placed-value">0.00%</span>
                                                 </div>
                                             </div>
                                         </div>
                                         <div class="col-md-6">
-                                            <div class="shares-card unplaced-shares">
-                                                <div class="shares-icon">
+                                            <div class="proposal-shares-card proposal-unplaced-shares">
+                                                <div class="proposal-shares-icon">
                                                     <i class="bx bx-time-five"></i>
                                                 </div>
-                                                <div class="shares-info">
-                                                    <span class="shares-label">Unplaced Shares</span>
-                                                    <span class="shares-value unplaced-value">100.00%</span>
+                                                <div class="proposal-shares-info">
+                                                    <span class="proposal-shares-label">Unplaced Shares</span>
+                                                    <span
+                                                        class="proposal-shares-value proposal-unplaced-value">100.00%</span>
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
-                                    <div class="shares-progress mt-2">
+                                    <div class="proposal-shares-progress mt-2">
                                         <div class="progress" style="height: 8px;">
-                                            <div class="progress-bar bg-success placed-progress" role="progressbar"
-                                                style="width: 0%" aria-valuenow="0" aria-valuemin="0"
-                                                aria-valuemax="100">
+                                            <div class="progress-bar bg-success proposal-placed-progress"
+                                                role="progressbar" style="width: 0%" aria-valuenow="0"
+                                                aria-valuemin="0" aria-valuemax="100">
                                             </div>
                                         </div>
                                     </div>
-                                </div>
+                                </div> --}}
                             </div>
                         </div>
 
@@ -629,7 +633,7 @@
         padding: 0.35em 0.65em;
     }
 
-    .shares-card {
+    .proposal-shares-card {
         background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
         border: 2px solid #e9ecef;
         border-radius: 12px;
@@ -641,20 +645,20 @@
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
     }
 
-    .shares-card:hover {
+    .proposal-shares-card:hover {
         transform: translateY(-2px);
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     }
 
-    .shares-card.placed-shares {
+    .proposal-shares-card.proposal-placed-shares {
         border-left: 2px solid #198754;
     }
 
-    .shares-card.unplaced-shares {
+    .proposal-shares-card.proposal-unplaced-shares {
         border-left: 2px solid #ffc107;
     }
 
-    .shares-icon {
+    .proposal-shares-icon {
         width: 20px;
         height: 20px;
         border-radius: 50%;
@@ -665,24 +669,24 @@
         flex-shrink: 0;
     }
 
-    .placed-shares .shares-icon {
+    .proposal-placed-shares .proposal-shares-icon {
         background: rgba(25, 135, 84, 0.1);
         color: #198754;
     }
 
-    .unplaced-shares .shares-icon {
+    .proposal-unplaced-shares .proposal-shares-icon {
         background: rgba(255, 193, 7, 0.1);
         color: #ffc107;
     }
 
-    .shares-info {
+    .proposal-shares-info {
         display: flex;
         flex-direction: column;
         gap: 2px;
         flex: 1;
     }
 
-    .shares-label {
+    .proposal-shares-label {
         font-size: 13px;
         color: #6c757d;
         font-weight: 500;
@@ -690,28 +694,28 @@
         letter-spacing: 1px;
     }
 
-    .shares-value {
+    .proposal-shares-value {
         font-size: 13px;
         font-weight: 700;
         line-height: 14px;
     }
 
-    .shares-progress {
+    .proposal-shares-progress {
         margin-top: 1rem;
     }
 
-    .shares-progress .progress {
+    .proposal-shares-progress .progress {
         background-color: #e9ecef;
         border-radius: 10px;
         overflow: hidden;
     }
 
-    .shares-progress .progress-bar {
+    .proposal-shares-progress .progress-bar {
         transition: width 0.6s ease;
         border-radius: 10px;
     }
 
-    .total-shares-display {
+    .proposal-total-shares-display {
         margin-top: 1.5rem;
         padding: 1rem;
         background: #f8f9fa;
@@ -719,19 +723,19 @@
         border: 1px solid #dee2e6;
     }
 
-    .shares-value.text-success {
+    .proposal-shares-value.text-success {
         color: #198754 !important;
     }
 
-    .shares-value.text-danger {
+    .proposal-shares-value.text-danger {
         color: #dc3545 !important;
     }
 
-    .shares-value.text-warning {
+    .proposal-shares-value.text-warning {
         color: #ffc107 !important;
     }
 
-    .shares-value.text-primary {
+    .proposal-shares-value.text-primary {
         color: #0d6efd !important;
     }
 
@@ -878,7 +882,8 @@
             let proposalState = {
                 reinsurers: [],
                 totalShare: 0,
-                isInitialized: false
+                isInitialized: false,
+                suppressResetOnHide: false
             };
 
             const PREVIEW_ROUTES = {
@@ -1122,16 +1127,22 @@
                     }
                 });
 
-                const writtenShareError = validateTotalWrittenShareIs100();
-                if (writtenShareError) {
-                    isFormValid = false;
-                    errors.push(writtenShareError);
-                }
+                // const writtenShareError = validateTotalWrittenShareIs100();
+                // if (writtenShareError) {
+                //     isFormValid = false;
+                //     errors.push(writtenShareError);
+                // }
 
                 const reinsurerValidation = validateReinsurerSelection();
                 if (!reinsurerValidation.isValid) {
                     isFormValid = false;
                     errors.push(`<b>Reinsurer Selection:</b> ${reinsurerValidation.message}`);
+                }
+
+                const writtenShareMatchError = validateWrittenShareMatchesFacShareOffered();
+                if (writtenShareMatchError) {
+                    isFormValid = false;
+                    errors.push(writtenShareMatchError);
                 }
 
                 const fileErrors = validateRequiredFiles();
@@ -1162,6 +1173,56 @@
                 // if (totalWrittenShare !== 100) {
                 //     return `<b>Total Written Share:</b> Must be exactly 100%. Current value is ${totalWrittenShare.toFixed(2)}%`;
                 // }
+
+                return null;
+            }
+
+            function parseShareValue(value) {
+                const parsed = parseFloat(String(value || "").replace(/,/g, "").trim());
+                return Number.isFinite(parsed) ? parsed : 0;
+            }
+
+            function getCurrentTableWrittenShareTotal() {
+                if ($.fn.DataTable.isDataTable($table)) {
+                    const rowData = $table.DataTable().rows().data().toArray();
+                    return rowData.reduce((sum, row) => sum + parseShareValue(row?.written_share), 0);
+                }
+
+                let total = 0;
+                $table.find("tbody tr").each(function() {
+                    const attrShare = $(this).attr("data-written-share");
+
+                    if (typeof attrShare !== "undefined") {
+                        total += parseShareValue(attrShare);
+                        return;
+                    }
+
+                    const cellText = $(this).find("td").eq(1).text();
+                    total += parseShareValue(cellText);
+                });
+
+                return total;
+            }
+
+            function validateWrittenShareMatchesFacShareOffered() {
+                const stage = ($("#proposalForm input[name='current_stage']").val() || "").toString().trim()
+                    .toLowerCase();
+                const categoryType = Number($("#proposalForm .category_type").val() || 0);
+                const isQuotationLeadStage = stage === "lead" && categoryType === 1;
+
+                const expectedShare = parseShareValue($("#propFacShareOfferedExpected").val());
+                const tableTotalShare = getCurrentTableWrittenShareTotal();
+                if (!isQuotationLeadStage) {
+                    const difference = Math.abs(tableTotalShare - expectedShare);
+
+                    if (difference > 0.009) {
+                        return `<b>Total Written Share:</b> Total on the table (${tableTotalShare.toFixed(2)}%) must match FAC share offered (${expectedShare.toFixed(2)}%).`;
+                    }
+                }
+
+                proposalState.totalShare = tableTotalShare;
+                $("#propPlacedShare").val(tableTotalShare.toFixed(2));
+                $("#propUnPlacedShare").val((100 - tableTotalShare).toFixed(2));
 
                 return null;
             }
@@ -1202,7 +1263,10 @@
                         filesData.forEach((file, index) => {
                             formData.append('facultative_files[]', file);
 
-                            const docType = file.fileName || 'additionalDocuments';
+                            let docType = (file.fileName || 'additionalDocuments').toString().trim();
+                            if (/^(.+)\1$/i.test(docType)) {
+                                docType = docType.slice(0, Math.floor(docType.length / 2)).trim();
+                            }
                             formData.append('facultative_document_types[]', docType);
 
                             const docTypeId = file.fileId || null;
@@ -1218,14 +1282,38 @@
                 }
 
                 if (typeof proposalState !== 'undefined') {
-                    console.log(proposalState.reinsurers)
+                    const tableTotalShare = getCurrentTableWrittenShareTotal();
+                    proposalState.totalShare = tableTotalShare;
+                    $("#propPlacedShare").val(tableTotalShare.toFixed(2));
+                    $("#propUnPlacedShare").val((100 - tableTotalShare).toFixed(2));
 
                     formData.append("reinsurers_data", JSON.stringify(proposalState.reinsurers || []));
-                    formData.append("total_placed_shares", (proposalState.totalShare || 0).toFixed(2));
-                    formData.append("total_unplaced_shares", (100 - (proposalState.totalShare || 0)).toFixed(2));
+                    formData.append("total_placed_shares", tableTotalShare.toFixed(2));
+                    formData.append("total_unplaced_shares", (100 - tableTotalShare).toFixed(2));
                 }
 
                 return formData;
+            }
+
+            function openProposalEmailModal(opportunityId, currentStage) {
+                if (!opportunityId) {
+                    toastr.warning("Opportunity ID missing. Unable to open email modal.");
+                    return;
+                }
+
+                if (typeof window.pipelineManager !== "undefined") {
+                    if (typeof window.pipelineManager.checkEmailConnectionBeforeLoad === "function") {
+                        window.pipelineManager.checkEmailConnectionBeforeLoad(opportunityId, currentStage);
+                        return;
+                    }
+
+                    if (typeof window.pipelineManager.loadBdEssentials === "function") {
+                        window.pipelineManager.loadBdEssentials(opportunityId, currentStage);
+                        return;
+                    }
+                }
+
+                toastr.warning("Email modal is not available right now.");
             }
 
             $form.on('submit', function(e) {
@@ -1266,6 +1354,11 @@
                     .html('<i class="bx bx-loader-alt bx-spin me-1"></i> Sending Proposal...')
                     .prop("disabled", true);
 
+                const opportunityId = ($("#propOpportunityId").val() ||
+                    $("#proposalForm input[name='opportunity_id']").val() || "").toString().trim();
+                const currentStage = ($("#proposalForm input[name='current_stage']").val() ||
+                    "proposal").toString().trim();
+
                 const formData = prepareFormData();
 
                 $.ajax({
@@ -1286,12 +1379,11 @@
                             Swal.fire({
                                 icon: "success",
                                 title: "Proposal Sent Successfully!",
-                                text: response.message ||
-                                    "Your proposal has been submitted",
-                                showConfirmButton: true,
-                            }).then(() => {
-                                $modal.modal("hide");
-
+                                text: "Your proposal has been submitted. Open email modal now?",
+                                showCancelButton: true,
+                                confirmButtonText: "Yes, Open Email",
+                                cancelButtonText: "No",
+                            }).then((result) => {
                                 if (typeof pipelineManager !== 'undefined' &&
                                     typeof pipelineManager.reloadAllTables ===
                                     'function') {
@@ -1302,6 +1394,15 @@
                                     typeof pipelineManager.loadChartData === 'function'
                                 ) {
                                     pipelineManager.loadChartData();
+                                }
+
+                                if (result.isConfirmed) {
+                                    $modal.one("hidden.bs.modal", function() {
+                                        openProposalEmailModal(opportunityId, currentStage || "proposal");
+                                    });
+                                    $modal.modal("hide");
+                                } else {
+                                    $modal.modal("hide");
                                 }
                             });
                         } else {
@@ -1397,6 +1498,9 @@
             });
 
             $modal.on('hidden.bs.modal', function() {
+                if (proposalState.suppressResetOnHide) {
+                    return;
+                }
                 resetProposalModal();
             });
 
@@ -1408,6 +1512,7 @@
                     proposalState.reinsurers = [];
                     proposalState.totalShare = 0;
                     proposalState.isInitialized = false; // Reset this flag
+                    proposalState.suppressResetOnHide = false;
                 }
 
                 if (typeof pipelineManager !== 'undefined' &&
@@ -1642,6 +1747,7 @@
                     success: function(response) {
                         if (response.success) {
                             populatePropContactsModal(response, cedantName);
+                            proposalState.suppressResetOnHide = true;
                             $('#proposalModal').modal('hide');
                             $('#propContactsModal').modal('show');
                         } else {
@@ -1670,13 +1776,16 @@
                 });
             });
 
-            $(document).on('click', '.contact-reinsurer-btn', function(e) {
+            $(document).on('click', '.contacts-reinsurer-btn, .contact-reinsurer-btn', function(e) {
                 e.preventDefault();
 
-                const reinsurerID = $(this).data('reinsurer-id');
-                const row = $(this).closest('tr');
-                let reinsurerName = row.find('td:first').text().trim();
-                const opportunityId = $('.opportunity_id').val();
+                const $button = $(this);
+                const reinsurerID = $button.data('reinsurer-id');
+                const row = $button.closest('tr');
+                const reinsurerName = row.find('td:first .fw-medium').text().trim() || row.find('td:first')
+                    .text()
+                    .trim();
+                const opportunityId = $('#propOpportunityId').val();
 
                 if (!reinsurerID) {
                     Swal.fire({
@@ -1687,20 +1796,33 @@
                     return;
                 }
 
-                const originalHtml = $(this).html();
-                $(this).html('<i class="bx bx-loader bx-spin"></i>');
-                $(this).prop('disabled', true);
+                if (!opportunityId) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: 'Opportunity ID is missing for this proposal.'
+                    });
+                    return;
+                }
+
+                const originalHtml = $button.html();
+                $button.html('<i class="bx bx-loader bx-spin"></i>');
+                $button.prop('disabled', true);
 
                 $.ajax({
-                    url: '/customer/contact-info',
-                    method: 'GET',
+                    url: `/reinsurers/${reinsurerID}/contacts`,
+                    method: 'POST',
                     data: {
-                        customer_id: reinsurerID,
+                        reinsurer_id: reinsurerID,
                         opportunity_id: opportunityId
                     },
                     success: function(response) {
                         if (response.success) {
-                            populatePropContactsModal(response, reinsurerName);
+                            const contactsPayload = response.data || response;
+                            const responseReinsurerName = response?.data?.reinsurer?.name ||
+                                reinsurerName;
+                            populatePropContactsModal(contactsPayload, responseReinsurerName);
+                            proposalState.suppressResetOnHide = true;
                             $('#proposalModal').modal('hide');
                             $('#propContactsModal').modal('show');
                         } else {
@@ -1712,10 +1834,13 @@
                         }
                     },
                     error: function(xhr) {
-                        let errorMessage = 'Failed to fetch reinsurer contacts';
-                        if (xhr.responseJSON && xhr.responseJSON.message) {
-                            errorMessage = xhr.responseJSON.message;
-                        }
+                        const errorMessages = {
+                            404: 'Reinsurer contacts not found',
+                            403: 'Access denied to reinsurer contacts'
+                        };
+                        const errorMessage = errorMessages[xhr.status] ||
+                            xhr.responseJSON?.message ||
+                            'Failed to fetch reinsurer contacts';
                         Swal.fire({
                             icon: 'error',
                             title: 'Error',
@@ -1723,26 +1848,27 @@
                         });
                     },
                     complete: function() {
-                        $('.contact-reinsurer-btn').html(originalHtml);
-                        $('.contact-reinsurer-btn').prop('disabled', false);
+                        $button.html(originalHtml);
+                        $button.prop('disabled', false);
                     }
                 });
             });
 
-            function populatePropContactsModal(response, customerName) {
+            function populatePropContactsModal(contactData, customerName) {
                 $('#propContactsModalLabel').html(
                     `<i class="bx bx-building me-1"></i>${customerName} - Contact Management`
                 );
 
-                if (response.primary_contact) {
+                const primaryContact = contactData?.primary_contact || null;
+                if (primaryContact) {
                     $('#prop-primary-contacts .prop-primary-name').val(
-                        response.primary_contact.contact_name || 'N/A'
+                        primaryContact.name || primaryContact.contact_name || 'N/A'
                     );
                     $('#prop-primary-contacts .prop-primary-email').val(
-                        response.primary_contact.contact_email || 'N/A'
+                        primaryContact.email || primaryContact.contact_email || 'N/A'
                     );
                     $('#prop-primary-contacts .prop-primary-contact_id').val(
-                        response.primary_contact.contact_id
+                        primaryContact.id || primaryContact.contact_id || ''
                     );
                 } else {
                     $('#prop-primary-contacts .prop-primary-name').val('N/A');
@@ -1752,8 +1878,10 @@
 
                 $('#propDepartmentContacts').empty();
 
-                if (response.department_contacts && response.department_contacts.length > 0) {
-                    response.department_contacts.forEach(function(contact, index) {
+                const departmentContacts = Array.isArray(contactData?.department_contacts) ? contactData
+                    .department_contacts : [];
+                if (departmentContacts.length > 0) {
+                    departmentContacts.forEach(function(contact, index) {
                         const contactHtml = createPropContactItemHtml(contact, index);
                         $('#propDepartmentContacts').append(contactHtml);
                     });
@@ -1769,29 +1897,34 @@
 
             function createPropContactItemHtml(contact, index) {
                 const showLabels = index === 0;
+                const contactId = contact.id || contact.contact_id || index;
+                const contactName = contact.name || contact.contact_name || 'N/A';
+                const contactEmail = contact.email || contact.contact_email || 'N/A';
+                const contactMobile = contact.mobile_no || contact.contact_mobile_no || 'N/A';
+                const contactPosition = contact.position || contact.contact_position || 'N/A';
 
                 return `
-                    <div class="contact-item rounded px-3 pb-1 mb-3" data-contact-id="${contact.contact_id || index}">
+                    <div class="contact-item rounded px-3 pb-1 mb-3" data-contact-id="${contactId}">
                         <div class="row align-items-center">
                             <div class="col-md-3">
                                 ${showLabels ? '<label class="form-label fw-semibold small">Name</label>' : ''}
                                 <input type="text" class="form-control-plaintext"
-                                    value="${contact.contact_name || 'N/A'}" readonly>
+                                    value="${contactName}" readonly>
                             </div>
                             <div class="col-md-4">
                                 ${showLabels ? '<label class="form-label fw-semibold small">Email</label>' : ''}
                                 <input type="email" class="form-control-plaintext"
-                                    value="${contact.contact_email || 'N/A'}" readonly>
+                                    value="${contactEmail}" readonly>
                             </div>
                             <div class="col-md-2">
                                 ${showLabels ? '<label class="form-label fw-semibold small">Mobile</label>' : ''}
                                 <input type="text" class="form-control-plaintext"
-                                    value="${contact.contact_mobile_no || 'N/A'}" readonly>
+                                    value="${contactMobile}" readonly>
                             </div>
                             <div class="col-md-3">
                                 ${showLabels ? '<label class="form-label fw-semibold small">Position</label>' : ''}
                                 <input type="text" class="form-control-plaintext"
-                                    value="${contact.contact_position || 'N/A'}" readonly>
+                                    value="${contactPosition}" readonly>
                             </div>
                         </div>
                     </div>
@@ -1799,6 +1932,7 @@
             }
 
             $('#propContactsModal').on('hidden.bs.modal', function() {
+                proposalState.suppressResetOnHide = false;
                 $('#proposalModal').modal('show');
             });
 
@@ -2057,7 +2191,7 @@
                             </div>
                         </td>
                         <td class="text-start">
-                            <button type="button" class="btn btn-primary btn-sm contact-reinsurer-btn"
+                            <button type="button" class="btn btn-primary btn-sm contacts-reinsurer-btn"
                                     data-reinsurer-id="${reinsurerData.id}" title="View Contacts">
                                 <i class="bx bx-book"></i>
                             </button>
@@ -2097,32 +2231,32 @@
             });
 
             function updateSharesDisplay() {
-                let totalShare = 0;
-                const dt = initializeDataTable();
+                // let totalShare = 0;
+                // const dt = initializeDataTable();
 
-                dt.rows().every(function() {
-                    const row = $(this.node());
-                    const share = parseFloat(row.attr("data-written-share")) || 0;
-                    totalShare += share;
-                });
+                // dt.rows().every(function() {
+                //     const row = $(this.node());
+                //     const share = parseFloat(row.attr("data-written-share")) || 0;
+                //     totalShare += share;
+                // });
 
-                const unplacedShare = 100 - totalShare;
-                const targetShare = 100;
-                const $sharesDisplay = $("#proposalModal .total-shares-display");
+                // const unplacedShare = 100 - totalShare;
+                // const targetShare = 100;
+                // const $sharesDisplay = $("#proposalModal .proposal-total-shares-display");
 
-                updateShareValue($sharesDisplay, totalShare, unplacedShare, targetShare);
-                updateProgressBar($sharesDisplay, totalShare, targetShare);
+                // updateShareValue($sharesDisplay, totalShare, unplacedShare, targetShare);
+                // updateProgressBar($sharesDisplay, totalShare, targetShare);
 
-                $('#propPlacedShare').val(totalShare.toFixed(2));
-                $('#propUnPlacedShare').val(unplacedShare.toFixed(2));
-                updateProposalCapacityState();
+                // $('#propPlacedShare').val(totalShare.toFixed(2));
+                // $('#propUnPlacedShare').val(unplacedShare.toFixed(2));
+                // updateProposalCapacityState();
             }
 
             function updateShareValue($sharesDisplay, totalPlaced, totalUnplaced, targetTotal) {
                 const placedValueClass = totalPlaced === targetTotal ? "text-success" :
                     totalPlaced > targetTotal ? "text-danger" : "text-primary";
 
-                $sharesDisplay.find(".placed-value")
+                $sharesDisplay.find(".proposal-placed-value")
                     .removeClass("text-success text-danger text-primary text-warning")
                     .addClass(placedValueClass)
                     .text(`${totalPlaced.toFixed(2)}%`);
@@ -2130,7 +2264,7 @@
                 const unplacedValueClass = totalUnplaced === 0 ? "text-success" :
                     totalUnplaced < 0 ? "text-danger" : "text-warning";
 
-                $sharesDisplay.find(".unplaced-value")
+                $sharesDisplay.find(".proposal-unplaced-value")
                     .removeClass("text-success text-danger text-primary text-warning")
                     .addClass(unplacedValueClass)
                     .text(`${totalUnplaced.toFixed(2)}%`);
@@ -2145,7 +2279,7 @@
                 const progressClass = totalPlaced === targetTotal ? "bg-success" :
                     totalPlaced > targetTotal ? "bg-danger" : "bg-primary";
 
-                $sharesDisplay.find(".placed-progress")
+                $sharesDisplay.find(".proposal-placed-progress")
                     .removeClass("bg-success bg-danger bg-primary")
                     .addClass(progressClass)
                     .css("width", `${progressWidth}%`)

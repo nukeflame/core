@@ -23,9 +23,9 @@
             page-break-before: always;
             font-family: inherit;
             /* font-family: 'Aptos', sans-serif;
-                                                                                                                                                                                                                                                                                                                                                    font-optical-sizing: auto;
-                                                                                                                                                                                                                                                                                                                                                    font-weight: 400;
-                                                                                                                                                                                                                                                                                                                                                    font-style: normal; */
+                                                                                                                                                                                                                                                                                                                                                            font-optical-sizing: auto;
+                                                                                                                                                                                                                                                                                                                                                            font-weight: 400;
+                                                                                                                                                                                                                                                                                                                                                            font-style: normal; */
         }
 
         .first-page {
@@ -332,13 +332,13 @@
                     </tbody>
                 </table>
             </div>
-
+            {{--
             <div class="date_generated">
                 <p style="font-size: 10.0pt; ">Generated on behalf of Acentria International on
                     {{ now()->format('F j, Y') }}.
                 </p>
 
-            </div>
+            </div> --}}
 
 
             <div class="footer">
@@ -807,11 +807,11 @@
             </div>
 
         </div>
-        <div class="date_generated">
+        {{-- <div class="date_generated">
             <p style="font-size: 10.0pt; ">Generated on behalf of Acentria International on {{ now()->format('F j, Y') }}.
             </p>
 
-        </div>
+        </div> --}}
         <div class="footer">
             <span>&copy; {{ date('Y') }} Acentriagroup. All rights reserved. | Page No: <span
                     class="page-number"></span></span>

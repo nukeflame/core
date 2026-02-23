@@ -80,7 +80,7 @@
                                                 <input type="text" class="form-inputs total_sum_insured"
                                                     name="total_sum_insured" required placeholder="0.00"
                                                     onkeyup="this.value=numberWithCommas(this.value)"
-                                                    onchange="this.value=numberWithCommas(this.value)" readonly>
+                                                    onchange="this.value=numberWithCommas(this.value)">
                                             </div>
                                         </div>
                                     </div>
@@ -95,7 +95,7 @@
                                                 <input type="text" class="form-inputs premium" name="premium"
                                                     required placeholder="0.00"
                                                     onkeyup="this.value=numberWithCommas(this.value)"
-                                                    onchange="this.value=numberWithCommas(this.value)" readonly>
+                                                    onchange="this.value=numberWithCommas(this.value)">
                                             </div>
                                         </div>
                                     </div>
@@ -188,7 +188,7 @@
                                         </table>
                                     </div>
                                 </div>
-                                <div class="total-shares-display mt-3 d-block">
+                                {{-- <div class="total-shares-display mt-3 d-block">
                                     <div class="row g-3">
                                         <div class="col-md-6">
                                             <div class="shares-card placed-shares">
@@ -221,7 +221,7 @@
                                             </div>
                                         </div>
                                     </div>
-                                </div>
+                                </div> --}}
                             </div>
                         </div>
 
@@ -358,6 +358,68 @@
                 };
             }
 
+            function validateRequiredFiles() {
+                const errors = [];
+
+                if (typeof window.pipelineManager === 'undefined' || !window.pipelineManager) {
+                    console.warn('pipelineManager is not defined. Skipping file validation.');
+                    return errors;
+                }
+
+                if (typeof window.pipelineManager.getAllUploadedFiles !== 'function') {
+                    console.warn(
+                        'pipelineManager.getAllUploadedFiles is not a function. Skipping file validation.'
+                    );
+                    return errors;
+                }
+
+                const allUploadedFiles = window.pipelineManager.getAllUploadedFiles();
+                const uploadedFileNames = extractUploadedFileNames(allUploadedFiles);
+                const missingFiles = findMissingRequiredFiles(uploadedFileNames);
+
+                if (missingFiles.length > 0) {
+                    errors.push(`<b>Required Files:</b> Please upload: ${missingFiles.join(', ')}`);
+                }
+
+                return errors;
+            }
+
+            function extractUploadedFileNames(uploadedFiles) {
+                return Object.values(uploadedFiles).flatMap(innerArray =>
+                    Object.values(innerArray).map(fileObj => fileObj.fileName)
+                );
+            }
+
+            function findMissingRequiredFiles(uploadedFileNames) {
+                const missingFiles = [];
+                const requiredFiles = $('#negotiationForm input[type="file"][required]');
+
+                requiredFiles.each(function() {
+                    const fileName = $(this).attr('name');
+                    const isFileUploaded = uploadedFileNames.some(item =>
+                        toCamelCase(item) === toCamelCase(fileName)
+                    );
+
+                    if (!isFileUploaded) {
+                        const fieldLabel = $(this)
+                            .closest(".form-group")
+                            .find("label")
+                            .first()
+                            .text()
+                            .replace("*", "")
+                            .trim();
+                        missingFiles.push(fieldLabel || fileName);
+                    }
+                });
+
+                return missingFiles;
+            }
+
+            function toCamelCase(str) {
+                return str
+                    .replace(/[^a-zA-Z0-9]+(.)/g, (_, chr) => chr.toUpperCase());
+            }
+
             function validateNegotiationForm() {
                 let isFormValid = true;
                 const errors = [];
@@ -381,34 +443,10 @@
                     errors.push(`<b>Reinsurer Selection:</b> ${reinsurerValidation.message}`);
                 }
 
-                if (typeof pipelineManager !== 'undefined' &&
-                    typeof pipelineManager.getAllUploadedFiles === 'function') {
-
-                    const allUploadedFiles = pipelineManager.getAllUploadedFiles();
-                    const fileNames = Object.values(allUploadedFiles || {}).flatMap(innerArray =>
-                        Object.values(innerArray || {}).map(fileObj => fileObj?.fileName)
-                    ).filter(Boolean);
-
-                    const requiredFiles = $form.find('input[type="file"][required]');
-                    const missingFiles = [];
-
-                    requiredFiles.each(function() {
-                        const fileName = $(this).attr('name');
-                        if (!fileNames.includes(fileName)) {
-                            const fieldLabel = $(this)
-                                .closest(".form-group")
-                                .find("label")
-                                .text()
-                                .replace("*", "")
-                                .trim();
-                            missingFiles.push(fieldLabel || fileName);
-                        }
-                    });
-
-                    if (missingFiles.length > 0) {
-                        isFormValid = false;
-                        errors.push(`<b>Required Files:</b> Please upload: ${missingFiles.join(', ')}`);
-                    }
+                const fileErrors = validateRequiredFiles();
+                if (fileErrors.length > 0) {
+                    isFormValid = false;
+                    errors.push(...fileErrors);
                 }
 
                 return {
@@ -443,19 +481,31 @@
                     }
                 });
 
-                if (typeof pipelineManager !== 'undefined' &&
-                    typeof pipelineManager.getAllUploadedFiles === 'function') {
+                if (typeof window.pipelineManager !== 'undefined' && window.pipelineManager && typeof window
+                    .pipelineManager
+                    .getAllUploadedFiles === 'function') {
+                    const allUploadedFiles = window.pipelineManager.getAllUploadedFiles();
 
-                    const allUploadedFiles = pipelineManager.getAllUploadedFiles();
-                    Object.entries(allUploadedFiles || {}).forEach(([fieldId, files]) => {
-                        if (Array.isArray(files)) {
-                            files.forEach((file) => {
-                                if (file instanceof File) {
-                                    formData.append('facultative_files[]', file);
-                                }
-                            });
-                        }
+                    Object.entries(allUploadedFiles).forEach(([fieldId, filesData]) => {
+                        filesData.forEach((file) => {
+                            formData.append('facultative_files[]', file);
+
+                            let docType = (file.fileName || 'additionalDocuments').toString().trim();
+                            if (/^(.+)\1$/i.test(docType)) {
+                                docType = docType.slice(0, Math.floor(docType.length / 2)).trim();
+                            }
+                            formData.append('facultative_document_types[]', docType);
+
+                            const docTypeId = file.fileId || null;
+                            if (docTypeId) {
+                                formData.append('facultative_document_type_ids[]', docTypeId);
+                            }
+                        });
                     });
+                } else {
+                    console.warn(
+                        'pipelineManager not available in prepareFormData(). File uploads may not be processed.'
+                    );
                 }
 
                 formData.append("reinsurers_data", JSON.stringify(negotiationState.reinsurers));
@@ -802,7 +852,8 @@
                     const $button = $(this);
 
                     if (!reinsurerName) {
-                        reinsurerName = $button.closest('tr').find('td:first .fw-medium').text().trim() || 'Reinsurer';
+                        reinsurerName = $button.closest('tr').find('td:first .fw-medium').text().trim() ||
+                            'Reinsurer';
                     }
                     const opportunityId = $('.opportunity_id').first().val();
 
