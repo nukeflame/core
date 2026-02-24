@@ -260,6 +260,10 @@ Route::group(
     ['prefix' => 'settings', 'middleware' => ['auth', 'check.first.login']],
     function () {
         Route::get('/business-development/schedule-headers', [BdScheduleController::class, 'getScheduleHeaders'])->name('bd.schedule-headers.index');
+        Route::get('/business-development/engament-details', [BdScheduleController::class, 'getEngamentDetails'])->name('bd.engament-details.index');
+        Route::get('/business-development/engament-details-data', [BdScheduleController::class, 'engamentDetailsData'])->name('bd.engament-details.data');
+        Route::post('/business-development/engament-details-store', [BdScheduleController::class, 'storeEngamentDetail'])->name('bd.engament-details.store');
+        Route::post('/business-development/engament-details-delete', [BdScheduleController::class, 'deleteEngamentDetail'])->name('bd.engament-details.delete');
         Route::get('/business-development/risk-particulars', [BdScheduleController::class, 'getRiskParticulars'])->name('bd.risk-particulars');
         Route::get('/business-development/slip-templates', [BdScheduleController::class, 'getSlipTemplates'])->name('bd-schedule-slip-template');
         Route::get('/business-development/slip-templates-data', [BdScheduleController::class, 'slipTemplateDatatable'])->name('bd.slip-template.data');

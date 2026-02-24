@@ -316,6 +316,11 @@ return [
                                     'permission' => 'app.reins_settings.view'
                                 ],
                                 [
+                                    'title' => 'Engament Details',
+                                    'route' => 'bd.engament-details.index',
+                                    'permission' => 'app.reins_settings.view'
+                                ],
+                                [
                                     'title' => 'Schedule Slip Template',
                                     'route' => 'bd-schedule-slip-template',
                                     'permission' => 'app.reins_settings.view'

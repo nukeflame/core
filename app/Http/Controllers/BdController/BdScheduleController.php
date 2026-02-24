@@ -11,6 +11,7 @@ use App\Models\Classes;
 use App\Models\ClassGroup;
 use App\Models\CustomerTypes;
 use App\Models\Bd\DocType;
+use App\Models\Bd\EngamentDetail;
 use App\Models\QuoteScheduleHeader;
 use App\Models\ReinsClass;
 use App\Models\ScheduleHeader;
@@ -188,6 +189,100 @@ class BdScheduleController extends Controller
             'type_of_sum_insured',
             'quote_schedule_columns'
         ));
+    }
+
+    public function getEngamentDetails(Request $request)
+    {
+        return view('business_development.settings.engament_details_info');
+    }
+
+    public function engamentDetailsData(Request $request)
+    {
+        $query = EngamentDetail::query();
+
+        if ($request->filled('filter_status') && Schema::hasColumn('leads_source', 'status')) {
+            $query->where('status', strtoupper((string) $request->input('filter_status')));
+        }
+
+        $rows = $query->orderBy('sort_order')->orderBy('id')->get()->map(function ($item) {
+            return [
+                'id' => $item->id,
+                'name' => (string) $item->name,
+                'description' => (string) ($item->description ?? ''),
+                'status' => strtoupper((string) ($item->status ?? 'A')),
+                'sort_order' => (int) ($item->sort_order ?? 0),
+                'created_at' => $item->created_at ? Carbon::parse($item->created_at)->format('d M Y H:i') : '-',
+                'updated_at' => $item->updated_at ? Carbon::parse($item->updated_at)->format('d M Y H:i') : '-',
+            ];
+        });
+
+        return Datatables::of($rows)->make(true);
+    }
+
+    public function storeEngamentDetail(Request $request)
+    {
+        $validated = $request->validate([
+            'id' => ['nullable', 'integer', 'min:1'],
+            'name' => ['required', 'string', 'max:100'],
+            'description' => ['nullable', 'string', 'max:500'],
+            'status' => ['nullable', Rule::in(['A', 'I'])],
+            'sort_order' => ['nullable', 'integer', 'min:0'],
+        ]);
+
+        $id = (int) ($validated['id'] ?? 0);
+        $name = trim((string) $validated['name']);
+
+        $duplicateQuery = EngamentDetail::whereRaw('LOWER(name) = ?', [mb_strtolower($name)]);
+        if ($id > 0) {
+            $duplicateQuery->where('id', '!=', $id);
+        }
+
+        if ($duplicateQuery->exists()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Engament detail name already exists.',
+            ], 422);
+        }
+
+        if ($id > 0) {
+            $record = EngamentDetail::find($id);
+            if (!$record) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Engament detail not found.',
+                ], 404);
+            }
+        } else {
+            $record = new EngamentDetail();
+        }
+
+        $record->name = $name;
+        $record->description = $validated['description'] ?? null;
+        $record->status = strtoupper((string) ($validated['status'] ?? 'A'));
+        $record->sort_order = (int) ($validated['sort_order'] ?? 0);
+        $record->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => $id > 0 ? 'Engament detail updated successfully.' : 'Engament detail created successfully.',
+        ]);
+    }
+
+    public function deleteEngamentDetail(Request $request)
+    {
+        $id = (int) $request->input('id', 0);
+        if ($id <= 0) {
+            return response()->json(['success' => false, 'message' => 'Invalid engament detail id.'], 422);
+        }
+
+        $record = EngamentDetail::find($id);
+        if (!$record) {
+            return response()->json(['success' => false, 'message' => 'Engament detail not found.'], 404);
+        }
+
+        $record->delete();
+
+        return response()->json(['success' => true, 'message' => 'Engament detail deleted successfully.']);
     }
 
     public function getRiskParticulars(Request $request)
