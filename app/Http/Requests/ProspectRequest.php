@@ -84,8 +84,9 @@ class ProspectRequest extends FormRequest
             // Engagement Details
             'engage_type' => 'required|exists:engage_types,id',
             'lead_owner' => 'required|exists:users,id',
-            'effective_date' => 'nullable|date',
-            'closing_date' => 'nullable|date|after_or_equal:effective_date',
+            'cover_dates_tba' => 'nullable|boolean',
+            'effective_date' => 'nullable|date|required_unless:cover_dates_tba,1',
+            'closing_date' => 'nullable|date|after_or_equal:effective_date|required_unless:cover_dates_tba,1',
 
             // Document Upload
             'document_name' => 'nullable|array',
@@ -161,6 +162,8 @@ class ProspectRequest extends FormRequest
             // Date validation messages
             'fac_date_offered.after' => 'Expected closure date must be in the future.',
             'closing_date.after_or_equal' => 'Closing date must be on or after the effective date.',
+            'effective_date.required_unless' => 'Cover start date is required unless marked as To Be Advised.',
+            'closing_date.required_unless' => 'Cover end date is required unless marked as To Be Advised.',
 
             // Engagement validation messages
             'engage_type.required' => 'Please select the nature of engagement.',
@@ -215,6 +218,7 @@ class ProspectRequest extends FormRequest
             'brokerage_comm_rate' => 'brokerage commission rate',
             'engage_type' => 'engagement type',
             'lead_owner' => 'prospect lead',
+            'cover_dates_tba' => 'cover dates to be advised',
             'effective_date' => 'effective date',
             'closing_date' => 'closing date',
             'fac_date_offered' => 'expected closure date',

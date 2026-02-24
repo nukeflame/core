@@ -1439,10 +1439,6 @@ class QuarterlyDebitController extends Controller
         return response()->stream($callback, 200, $headers);
     }
 
-    /**
-     * Get summary statistics for the cover transaction in real-time
-     * This endpoint provides financial totals for the summary cards
-     */
     public function getSummaryStats(Request $request): JsonResponse
     {
         try {
@@ -1456,7 +1452,6 @@ class QuarterlyDebitController extends Controller
                 ], 400);
             }
 
-            // Get debit note totals
             $debitTotals = DB::table('debit_note_items as tdi')
                 ->join('debit_notes as dn', 'tdi.debit_note_id', '=', 'dn.id')
                 ->where('dn.cover_no', $coverNo)
@@ -1469,7 +1464,6 @@ class QuarterlyDebitController extends Controller
                 ')
                 ->first();
 
-            // Get reinsurer share totals
             $reinsurerTotals = CoverRipart::where([
                 'cover_no' => $coverNo,
                 'endorsement_no' => $endorsementNo,
@@ -1486,7 +1480,6 @@ class QuarterlyDebitController extends Controller
                 ')
                 ->first();
 
-            // Get document counts
             $documentCounts = DB::table('treaty_documents')
                 ->where('cover_no', $coverNo)
                 ->where('endorsement_no', $endorsementNo)

@@ -1675,6 +1675,17 @@
                                                     placeholder="Enter bid closing date" inputLabel="Cover End  Date"
                                                     req="" />
                                             </x-OnboardingInputDiv>
+                                            <div class="col-md-12 mt-1">
+                                                <input type="hidden" name="cover_dates_tba" value="0">
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" value="1"
+                                                        id="cover_dates_tba" name="cover_dates_tba"
+                                                        {{ old('cover_dates_tba') == 1 ? 'checked' : '' }}>
+                                                    <label class="form-check-label fw-semibold" for="cover_dates_tba">
+                                                        Cover dates are To Be Advised
+                                                    </label>
+                                                </div>
+                                            </div>
 
                                         </div>
 
@@ -1822,6 +1833,19 @@
     <script>
         $(document).ready(function() {
              $('#all_form').find('input, select, button, textarea').removeAttr('required');
+
+            function toggleCoverDatesTba() {
+                const isTba = $('#cover_dates_tba').is(':checked');
+                if (isTba) {
+                    $('#effective_date, #closing_date').val('').prop('disabled', true);
+                } else {
+                    $('#effective_date, #closing_date').prop('disabled', false);
+                }
+            }
+
+            $('#cover_dates_tba').on('change', toggleCoverDatesTba);
+            toggleCoverDatesTba();
+
             const insuranceClassInput = document.getElementById('insurance_class');
 
             if (insuranceClassInput) {

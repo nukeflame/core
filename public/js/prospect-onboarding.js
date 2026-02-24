@@ -113,6 +113,10 @@ const ProspectOnboarding = {
 
     bindEngagementEvents() {
         $("#effective_date").on("change", this.calculateClosingDate.bind(this));
+        $("#cover_dates_tba").on(
+            "change",
+            this.handleCoverDatesTbaToggle.bind(this),
+        );
         $("#sales_mngt, #submitToSalesBtn").on(
             "click",
             this.handleSubmitToSales.bind(this),
@@ -163,6 +167,7 @@ const ProspectOnboarding = {
         this.initializeContactSection();
         this.initializeInsuranceSection();
         this.hideAdvancedSections();
+        this.handleCoverDatesTbaToggle();
         this.handleBusinessTypeChange();
     },
 
@@ -994,6 +999,10 @@ const ProspectOnboarding = {
      * Calculate closing date
      */
     calculateClosingDate() {
+        if ($("#cover_dates_tba").is(":checked")) {
+            return;
+        }
+
         const effectiveDate = $("#effective_date").val();
 
         if (effectiveDate) {
@@ -1004,6 +1013,17 @@ const ProspectOnboarding = {
             const closingDate = date.toISOString().split("T")[0];
             $("#closing_date").val(closingDate);
         }
+    },
+
+    handleCoverDatesTbaToggle() {
+        const isTba = $("#cover_dates_tba").is(":checked");
+
+        if (isTba) {
+            $("#effective_date, #closing_date").val("").prop("disabled", true);
+            return;
+        }
+
+        $("#effective_date, #closing_date").prop("disabled", false);
     },
 
     /**

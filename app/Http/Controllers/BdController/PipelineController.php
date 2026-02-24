@@ -1104,6 +1104,8 @@ class PipelineController
 
     public function pipeline_create_opportunity(Request $request)
     {
+        $coverDatesTba = $request->boolean('cover_dates_tba');
+
         $validator = Validator::make($request->all(), [
             'division' => 'required',
             'prod_cost' => 'nullable|numeric',
@@ -1113,8 +1115,9 @@ class PipelineController
             'postal_code' => 'nullable|string',
             'insurance_class' => 'nullable|string',
             'engage_type' => 'nullable|string',
-            'closing_date' => 'required|date|after_or_equal:effective_date',
-            'effective_date' => 'required|date',
+            'cover_dates_tba' => 'nullable|boolean',
+            'closing_date' => 'nullable|date|after_or_equal:effective_date|required_unless:cover_dates_tba,1',
+            'effective_date' => 'nullable|date|required_unless:cover_dates_tba,1',
             'lead_name' => 'required|string',
             'rating' => 'nullable|string',
             'client_type' => 'required|string',
@@ -1187,9 +1190,12 @@ class PipelineController
         $reinsCommRate = $request->filled('reins_comm_rate')
             ? str_replace(',', '', $request->reins_comm_rate)
             : 0;
-        $date = $request->effective_date;
-        $carbonDate = Carbon::parse($date);
-        $monthNumber = $carbonDate->month;
+        $effectiveDate = $coverDatesTba ? null : ($request->effective_date ?: null);
+        $closingDate = $coverDatesTba ? null : ($request->closing_date ?: null);
+        $monthNumber = null;
+        if (!empty($effectiveDate)) {
+            $monthNumber = Carbon::parse($effectiveDate)->month;
+        }
 
         $pq_status = 'W';
         if ($request->prequalification === 'Y' && !$isUpdate) {
@@ -1199,13 +1205,13 @@ class PipelineController
         }
 
         $quarter = null;
-        if ($monthNumber < 4) {
+        if ($monthNumber !== null && $monthNumber < 4) {
             $quarter = 1;
-        } else if ($monthNumber >= 4 && $monthNumber < 7) {
+        } else if ($monthNumber !== null && $monthNumber >= 4 && $monthNumber < 7) {
             $quarter = 2;
-        } else if ($monthNumber >= 7 && $monthNumber < 10) {
+        } else if ($monthNumber !== null && $monthNumber >= 7 && $monthNumber < 10) {
             $quarter = 3;
-        } else {
+        } else if ($monthNumber !== null) {
             $quarter = 4;
         }
 
@@ -1228,8 +1234,8 @@ class PipelineController
                             'postal_code' => $request->postal_code,
                             'insurance_class' => $request->insurance_class,
                             'engage_type' => $request->engage_type,
-                            'closing_date' => $request->closing_date ?: null,
-                            'effective_date' => $request->effective_date ?: null,
+                            'closing_date' => $closingDate,
+                            'effective_date' => $effectiveDate,
                             'fiscal_period' => $quarter,
                             'lead_name' => $request->lead_name,
                             'lead_owner' => $request->lead_owner,
@@ -1314,8 +1320,8 @@ class PipelineController
                         'postal_code' => $request->postal_code,
                         'insurance_class' => $request->insurance_class,
                         'engage_type' => $request->engage_type,
-                        'closing_date' => $request->closing_date ?: null,
-                        'effective_date' => $request->effective_date ?: null,
+                        'closing_date' => $closingDate,
+                        'effective_date' => $effectiveDate,
 
                         'fiscal_period' => $quarter,
                         'lead_name' => $request->lead_name,
@@ -1601,6 +1607,7 @@ class PipelineController
     public function treaty_pipeline_create_opportunity(Request $request)
     {
         $mes = '';
+        $coverDatesTba = $request->boolean('cover_dates_tba');
 
         if (is_null($request->prospect)) {
             $mes = "Prospect created successfully";
@@ -1608,9 +1615,12 @@ class PipelineController
             $mes = "Prospect updated successfully";
         }
         $nextCode = Prospects::generateNextCode();
-        $date = $request->effective_date;
-        $carbonDate = Carbon::parse($date);
-        $monthNumber = $carbonDate->month;
+        $effectiveDate = $coverDatesTba ? null : ($request->effective_date ?: null);
+        $closingDate = $coverDatesTba ? null : ($request->closing_date ?: null);
+        $monthNumber = null;
+        if (!empty($effectiveDate)) {
+            $monthNumber = Carbon::parse($effectiveDate)->month;
+        }
         $pq_status = 'W';
 
         if ($request->prequalification === 'Y' && $request->updateState != 'U') {
@@ -1621,13 +1631,13 @@ class PipelineController
 
         $quarter = null;
 
-        if ($monthNumber < 4) {
+        if ($monthNumber !== null && $monthNumber < 4) {
             $quarter = 1;
-        } else if ($monthNumber >= 4 && $monthNumber < 7) {
+        } else if ($monthNumber !== null && $monthNumber >= 4 && $monthNumber < 7) {
             $quarter = 2;
-        } else if ($monthNumber >= 7 && $monthNumber < 10) {
+        } else if ($monthNumber !== null && $monthNumber >= 7 && $monthNumber < 10) {
             $quarter = 3;
-        } else {
+        } else if ($monthNumber !== null) {
             $quarter = 4;
         }
 
@@ -1649,8 +1659,8 @@ class PipelineController
                             'postal_code' => $request->postal_code,
                             'insurance_class' => $request->insurance_class,
                             'engage_type' => $request->engage_type,
-                            'closing_date' => !empty($request->closing_date) ? $request->closing_date : 'TBA',
-                            'effective_date' => !empty($request->effective_date) ? $request->effective_date : 'TBA',
+                            'closing_date' => $closingDate,
+                            'effective_date' => $effectiveDate,
                             'fiscal_period' => $quarter,
                             'lead_name' => $request->lead_name,
                             // 'lead_handler' => $request->lead_handler,
@@ -1739,8 +1749,8 @@ class PipelineController
                         'postal_code' => $request->postal_code,
                         'insurance_class' => $request->insurance_class,
                         'engage_type' => $request->engage_type,
-                        'closing_date' => !empty($request->closing_date) ? $request->closing_date : 'TBA',
-                        'effective_date' => !empty($request->effective_date) ? $request->effective_date : 'TBA',
+                        'closing_date' => $closingDate,
+                        'effective_date' => $effectiveDate,
 
                         'fiscal_period' => $quarter,
                         'lead_name' => $request->lead_name,

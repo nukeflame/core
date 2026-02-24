@@ -47,7 +47,6 @@
 @endsection
 
 @section('content')
-    <!-- Loading Overlay -->
     <div class="loading-overlay" id="loadingOverlay">
         <div class="spinner-border text-primary" role="status">
             <span class="visually-hidden">Loading...</span>
@@ -156,10 +155,19 @@
                                 <x-OnboardingInputDiv id="lead_year_div" class="mt-2">
                                     <x-SearchableSelect name="lead_year" id="lead_year" req="required" inputLabel="Year">
                                         @php
-                                            $selectedLeadYearId = old('lead_year', $prospect->lead_year ?? $prospect->pip_year ?? '');
-                                            $selectedProspectCode = old('prospect', $prospect->opportunity_id ?? request('prospect'));
+                                            $selectedLeadYearId = old(
+                                                'lead_year',
+                                                $prospect->lead_year ?? ($prospect->pip_year ?? ''),
+                                            );
+                                            $selectedProspectCode = old(
+                                                'prospect',
+                                                $prospect->opportunity_id ?? request('prospect'),
+                                            );
                                             $prospectCodeYear = null;
-                                            if (!empty($selectedProspectCode) && preg_match('/-(\d{4})-/', $selectedProspectCode, $matches)) {
+                                            if (
+                                                !empty($selectedProspectCode) &&
+                                                preg_match('/-(\d{4})-/', $selectedProspectCode, $matches)
+                                            ) {
                                                 $prospectCodeYear = (int) $matches[1];
                                             }
                                         @endphp
@@ -403,7 +411,8 @@
                                     <input type="text" class="form-inputs fac_section" aria-label="total_sum_insured"
                                         id="total_sum_insured" name="total_sum_insured"
                                         onkeyup="this.value=numberWithCommas(this.value)"
-                                        value="{{ old('total_sum_insured', $prospect->total_sum_insured ?? '') }}" required>
+                                        value="{{ old('total_sum_insured', $prospect->total_sum_insured ?? '') }}"
+                                        required>
                                 </div>
                                 <div class="col-sm-3">
                                     <label class="form-label" for="apply_eml">Apply EML</label>
@@ -517,7 +526,8 @@
                                     <input type="text" class="form-inputs fac_section reins_comm_rate"
                                         aria-label="reins_comm_rate" id="reins_comm_rate" name="reins_comm_rate"
                                         onkeyup="this.value=numberWithCommas(this.value)"
-                                        value="{{ old('reins_comm_rate', $prospect->reins_comm_rate ?? '') }}" required disabled>
+                                        value="{{ old('reins_comm_rate', $prospect->reins_comm_rate ?? '') }}" required
+                                        disabled>
                                 </div>
                                 <div class="col-md-3 fac_section_div reins_comm_amt_div">
                                     <label class="form-label">Reinsurer Commission Amount</label>
@@ -606,15 +616,24 @@
                                 <x-OnboardingInputDiv id="date_effective_div">
                                     <x-DateInput name="effective_date" id="effective_date"
                                         placeholder="Enter cover start date" inputLabel="Cover Start Date"
-                                        req="required"
                                         value="{{ old('effective_date', $prospect->effective_date ?? '') }}" />
                                 </x-OnboardingInputDiv>
                                 <x-OnboardingInputDiv id="date_closing_div">
                                     <x-DateInput name="closing_date" id="closing_date"
                                         placeholder="Enter bid closing date" inputLabel="Cover End  Date"
-                                        req="required"
                                         value="{{ old('closing_date', $prospect->closing_date ?? '') }}" />
                                 </x-OnboardingInputDiv>
+                                <div class="col-md-12 mt-1">
+                                    <input type="hidden" name="cover_dates_tba" value="0">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" value="1"
+                                            id="cover_dates_tba" name="cover_dates_tba"
+                                            {{ old('cover_dates_tba', !empty($prospect) && empty($prospect->effective_date) && empty($prospect->closing_date) ? 1 : 0) == 1 ? 'checked' : '' }}>
+                                        <label class="form-check-label fw-semibold" for="cover_dates_tba">
+                                            Cover dates are To Be Advised
+                                        </label>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>

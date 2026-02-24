@@ -53,7 +53,6 @@ use App\Models\ReinsClass;
 use App\Models\ReinsDivision;
 use App\Models\SystemProcessAction;
 use App\Models\SystemSerials;
-use App\Models\TaxRate;
 use App\Models\TreatyType;
 use App\Models\TypeOfSumInsured;
 use App\Models\User;
@@ -70,7 +69,6 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\Response;
 use Throwable;
@@ -1004,7 +1002,6 @@ class CoverController extends Controller
                         $coverRipart->total_acceptance = $this->parseNumber($reinsurerData['share'] ?? 0);
                     }
 
-                    // Calculate net_amount for facultative business types
                     if (in_array($coverRegister->type_of_bus, ['FPR', 'FNP'])) {
                         $coverRipart->net_amount = max(
                             0,
@@ -1765,11 +1762,11 @@ class CoverController extends Controller
                     'coverNo' => $cover->cover_no,
                 ]);
 
-                $this->createTreatyDebit($debitData, $cover);
-                $this->createTreatyCredit($creditData, $cover);
+                $db2 = $this->createTreatyDebit($debitData, $cover);
+                // $this->createTreatyCredit($creditData, $cover);
             }
 
-            $this->createCustomerAccount($debitData, $cover);
+            // $this->createCustomerAccount($debitData, $cover);
 
             if (
                 $debitData['isTreaty']
@@ -1783,10 +1780,12 @@ class CoverController extends Controller
                 ]);
             }
 
-            $cover->commited = 'Y';
-            $cover->save();
+            logger()->debug(json_encode($db2, JSON_PRETTY_PRINT));
 
-            DB::commit();
+            // $cover->commited = 'Y';
+            // $cover->save();
+
+            // DB::commit();
 
             return response()->json([
                 'success' => true,

@@ -1666,15 +1666,25 @@
                                     <x-OnboardingInputDiv id="date_effective_div">
                                         <x-DateInput name="effective_date" id="effective_date"
                                             placeholder="Enter cover start date" inputLabel="Cover Start Date"
-                                            req="required"
                                             value="{{ old('effective_date', $prospProperties->effective_date) }}" />
                                     </x-OnboardingInputDiv>
 
                                     <x-OnboardingInputDiv id="date_closing_div">
                                         <x-DateInput name="closing_date" id="closing_date"
                                             placeholder="Enter bid closing date" inputLabel="Cover End Date"
-                                            req="required" value="{{ $prospProperties->closing_date }}" />
+                                            req="" value="{{ $prospProperties->closing_date }}" />
                                     </x-OnboardingInputDiv>
+                                    <div class="col-md-12 mt-1">
+                                        <input type="hidden" name="cover_dates_tba" value="0">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" value="1"
+                                                id="cover_dates_tba" name="cover_dates_tba"
+                                                {{ old('cover_dates_tba', (empty($prospProperties->effective_date) && empty($prospProperties->closing_date)) ? 1 : 0) == 1 ? 'checked' : '' }}>
+                                            <label class="form-check-label fw-semibold" for="cover_dates_tba">
+                                                Cover dates are To Be Advised
+                                            </label>
+                                        </div>
+                                    </div>
                                 </div>
                     </div>
                     <div>
@@ -1937,6 +1947,18 @@
 @push('script')
     <script>
         $(document).ready(function() {
+
+            function toggleCoverDatesTba() {
+                const isTba = $('#cover_dates_tba').is(':checked');
+                if (isTba) {
+                    $('#effective_date, #closing_date').val('').prop('disabled', true);
+                } else {
+                    $('#effective_date, #closing_date').prop('disabled', false);
+                }
+            }
+
+            $('#cover_dates_tba').on('change', toggleCoverDatesTba);
+            toggleCoverDatesTba();
 
 
             $('#tnp_section').hide();

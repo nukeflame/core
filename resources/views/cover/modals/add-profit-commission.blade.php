@@ -1507,7 +1507,8 @@
                         return true;
                     }
 
-                    this.notify('This transaction item has already been added. Each item code must be unique.', 'warning');
+                    this.notify('This transaction item has already been added. Each item code must be unique.',
+                        'warning');
                     $row.find(this.config.classes.itemCode).val('');
                     $row.find(this.config.classes.itemDescription).val('');
                     $row.find(this.config.classes.itemType).val('');
@@ -1537,7 +1538,8 @@
                                 return;
                             }
 
-                            if (optionCode === currentCode || !selectedCodes.includes(optionCode)) {
+                            if (optionCode === currentCode || !selectedCodes.includes(
+                                    optionCode)) {
                                 $option.show();
                             } else {
                                 $option.hide();
@@ -1553,7 +1555,8 @@
                                 return;
                             }
 
-                            if (optionCode === currentCode || !selectedCodes.includes(optionCode)) {
+                            if (optionCode === currentCode || !selectedCodes.includes(
+                                    optionCode)) {
                                 $option.show();
                             } else {
                                 $option.hide();
@@ -1628,7 +1631,8 @@
                 },
 
                 getRowDescriptionText: function($row) {
-                    return String($row.find(this.config.classes.itemDescription + ' option:selected').text() || '')
+                    return String($row.find(this.config.classes.itemDescription + ' option:selected').text() ||
+                            '')
                         .toUpperCase();
                 },
 
@@ -1651,8 +1655,9 @@
                 },
 
                 isFormulaDrivenItem: function($row) {
-                    return this.isCommissionItem($row) || this.isPremiumTaxItem($row) || this.isManagementExpenseItem(
-                        $row);
+                    return this.isCommissionItem($row) || this.isPremiumTaxItem($row) || this
+                        .isManagementExpenseItem(
+                            $row);
                 },
 
                 toggleAutoCalculatedAmountState: function($row) {
@@ -1671,7 +1676,8 @@
                             return;
                         }
 
-                        total += self.parseFormattedNumber($row.find(self.config.classes.itemAmount).val());
+                        total += self.parseFormattedNumber($row.find(self.config.classes.itemAmount)
+                            .val());
                     });
 
                     return total;
@@ -1687,7 +1693,8 @@
                             return;
                         }
 
-                        const lineRate = self.parseNumberOrZero($row.find(self.config.classes.itemLineRate).val());
+                        const lineRate = self.parseNumberOrZero($row.find(self.config.classes
+                            .itemLineRate).val());
                         premiumTaxTotal += grossPremium * (lineRate / 100);
                     });
 
@@ -1984,7 +1991,8 @@
                     }
 
                     const calculatedAmount = this.calculateFormulaAmountForRow($row);
-                    const resolvedAmount = Number.isFinite(calculatedAmount) && calculatedAmount > 0 ? calculatedAmount :
+                    const resolvedAmount = Number.isFinite(calculatedAmount) && calculatedAmount > 0 ?
+                        calculatedAmount :
                         0;
 
                     $amountField.val(this.formatCurrency(resolvedAmount));
@@ -2286,7 +2294,8 @@
                             timeout: 30000
                         })
                         .done(function(response) {
-                            self.handleSuccess(response);
+                            console.log(response)
+                            // self.handleSuccess(response);
                         })
                         .fail(function(xhr, status, error) {
                             self.handleError(xhr, status, error);
