@@ -936,6 +936,7 @@
 
             var CONFIG = {
                 coverNo: '{{ $cover->cover_no ?? '' }}',
+                refNo: '{{ request()->route('refNo') ?? '' }}',
                 endorsementNo: '{{ $cover->endorsement_no ?? '' }}',
                 currency: '{{ $cover->currency ?? 'KES' }}',
                 csrfToken: '{{ csrf_token() }}',
@@ -1199,7 +1200,8 @@
                 },
 
                 defaultSubject: function(recipientType) {
-                    var statementReference = CONFIG.debitNoteNo || CONFIG.endorsementNo || CONFIG.coverNo || '';
+                    var statementReference = CONFIG.debitNoteNo || CONFIG.endorsementNo || CONFIG.coverNo ||
+                        '';
                     var typeLabel = recipientType === 'cedant' ? 'Cedant' : 'Reinsurer';
                     return 'Account Statement - ' + typeLabel + ' - ' + statementReference;
                 },
@@ -1251,7 +1253,8 @@
                         this.modal.hide();
                     }
 
-                    Utils.showToast('Email draft opened. Attach the statement documents and send.', 'success');
+                    Utils.showToast('Email draft opened. Attach the statement documents and send.',
+                        'success');
                 }
             };
 
@@ -1272,6 +1275,7 @@
                             },
                             data: function(d) {
                                 d.cover_no = CONFIG.coverNo;
+                                d.ref_no = CONFIG.refNo;
                                 d.endorsement_no = CONFIG.endorsementNo;
                             },
                             error: function(xhr, error, thrown) {
@@ -1375,7 +1379,6 @@
                         },
                         drawCallback: function(settings) {
                             self.updateTotals();
-                            // Refresh summary stats after table data loads
                             if (typeof SummaryManager !== 'undefined' && SummaryManager
                                 .triggerRefresh) {
                                 SummaryManager.triggerRefresh();
@@ -1695,7 +1698,8 @@
                                         '<i class="ri-file-shield-2-line fs-18"></i> <span class="d-none d-md-inline me-2">Cover Slip</span>' +
                                         '</a>' +
                                         '<a href="javascript:void(0)" class="text-info btn-send-statement text-center d-flex align-items-center" data-id="' +
-                                        row.id + '" data-name="' + Utils.escapeHtml(row.name || '') +
+                                        row.id + '" data-name="' + Utils.escapeHtml(row.name ||
+                                            '') +
                                         '" data-email="' + Utils.escapeHtml(row.email || '') +
                                         '" title="Send Statement">' +
                                         '<i class="ri-mail-send-line fs-18"></i> <span class="d-none d-md-inline">Send Statement</span>' +
@@ -2404,8 +2408,10 @@
                                         '<i class="ri-file-shield-2-line fs-18"></i> <span class="d-none d-md-inline me-2">Cover Slip</span>' +
                                         '</a>' +
                                         '<a href="javascript:void(0)" class="text-info btn-send-cedant-statement text-center d-flex align-items-center" data-partner_no="' +
-                                        row.partner_no + '" data-name="' + Utils.escapeHtml(row.name || '') +
-                                        '" data-email="' + Utils.escapeHtml(row.email || '') +
+                                        row.partner_no + '" data-name="' + Utils.escapeHtml(
+                                            row.name || '') +
+                                        '" data-email="' + Utils.escapeHtml(row.email ||
+                                            '') +
                                         '" title="Send Statement">' +
                                         '<i class="ri-mail-send-line fs-18"></i> <span class="d-none d-md-inline">Send Statement</span>' +
                                         '</a>' +

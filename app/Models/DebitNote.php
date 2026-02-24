@@ -58,6 +58,7 @@ class DebitNote extends Model
         'cancellation_reason',
         'posted_at',
         'posted_by',
+        'type',
         'created_by',
         'updated_by',
     ];

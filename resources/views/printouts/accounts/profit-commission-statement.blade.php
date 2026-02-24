@@ -130,7 +130,7 @@
             </tr>
             <tr>
                 <td><strong>Business Class</strong></td>
-                <td>{{ $bus_class ?? ($cover->class_code ?? '-') }}</td>
+                <td>{{ $bus_class ? firstUpper($bus_class) : '-' }}</td>
             </tr>
             <tr>
                 <td><strong>Period of Cover</strong></td>
@@ -138,11 +138,11 @@
             </tr>
             <tr>
                 <td><strong>Treaty Type</strong></td>
-                <td>{{ $treat_type ?? ($cover->treaty_type ?? '-') }}</td>
+                <td>{{ $treat_type ? firstUpper($treat_type) : '-' }}</td>
             </tr>
             <tr>
                 <td><strong>Cedant Name</strong></td>
-                <td>{{ $customer->name ?? '-' }}</td>
+                <td>{{ firstUpper($customer->name) ?? '-' }}</td>
             </tr>
             <tr>
                 <td><strong>Payment Terms</strong></td>

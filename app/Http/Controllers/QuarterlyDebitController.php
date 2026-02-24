@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Company;
 use App\Models\CoverRipart;
 use App\Models\Customer;
+use App\Models\CustomerAccDet;
 use App\Models\DebitNote;
 use App\Models\PremiumPayTerm;
 use App\Services\S3AttachmentHandler;
@@ -52,8 +53,9 @@ class QuarterlyDebitController extends Controller
             $coverNo = $request->input('cover_no');
             $endorsementNo = $request->input('endorsement_no');
             $debitNoteNo = $request->input('debit_note_no');
+            $refNo = $request->input('ref_no');
 
-            if (empty($coverNo) || empty($endorsementNo)) {
+            if (empty($coverNo) || empty($endorsementNo) || empty($refNo)) {
                 return response()->json([
                     'draw' => intval($request->input('draw', 1)),
                     'recordsTotal' => 0,
@@ -69,6 +71,8 @@ class QuarterlyDebitController extends Controller
             $search = $request->input('search.value', '');
             $orderColumn = $request->input('order.0.column', 2);
             $orderDir = $request->input('order.0.dir', 'desc');
+
+            $customerAccount = CustomerAccDet::where('reference', $refNo)->firstOrFail();
 
             $columns = [
                 0 => 'tdi.id',
@@ -102,6 +106,8 @@ class QuarterlyDebitController extends Controller
                         ->on('tdi.class_group_code', '=', 'c.reinclass');
                 })
                 ->where('dn.cover_no', $coverNo)
+                ->where('dn.type', $customerAccount?->entry_type_descr)
+                ->where('dn.debit_note_no', $customerAccount?->treaty_debit_no)
                 ->where('dn.endorsement_no', $endorsementNo)
                 ->select([
                     'tdi.id',
@@ -1134,7 +1140,10 @@ class QuarterlyDebitController extends Controller
         $treatyType = DB::table('treaty_types')
             ->where('treaty_code', $cover->treaty_type ?? '')
             ->value('treaty_name');
-        $treatyType = $treatyType ?: ($cover->treaty_type ?? 'N/A');
+        $treatyType = $treatyType ?: match ($cover->treaty_type ?? null) {
+            'SURP' => 'Surplus Treaty',
+            default => ($cover->treaty_type ?? 'N/A'),
+        };
         $underwritingQuarter = $this->formatQuarterLabel($debitNote->posting_quarter) . ' - ' . $debitNote->posting_year;
         $hasNetOfTaxReinsurer = $this->hasNetOfTaxReinsurer($coverNo, $endorsementNo);
         $hasPremiumTax = $debitItems->contains(fn($item) => strtoupper((string) ($item->item_code ?? '')) === 'IT05');
@@ -1701,7 +1710,13 @@ class QuarterlyDebitController extends Controller
                 $treatyType = DB::table('treaty_types')
                     ->where('treaty_code', $cover->treaty_type ?? '')
                     ->value('treaty_name');
-                $treatyType = $treatyType ?: ($cover->treaty_type ?? 'N/A');
+
+                $treatyType = $treatyType ?: match ($cover->treaty_type ?? null) {
+                    'SURP' => 'Surplus Treaty',
+                    default => ($cover->treaty_type ?? 'N/A'),
+                };
+
+                logger($treatyType);
 
                 $underwritingQuarter = $this->formatQuarterLabel($debitNote->posting_quarter) . ' - ' . $debitNote->posting_year;
                 $ppw = PremiumPayTerm::where('pay_term_code', $cover->premium_payment_code ?? null)->first();
@@ -2065,10 +2080,12 @@ class QuarterlyDebitController extends Controller
                 ->where('class_code', $cover->class_code ?? '')
                 ->value('class_name');
             $businessClass = $businessClass ?: ($debitItems->first()->class_name ?? $cover->class_code ?? 'N/A');
-            $treatyType = DB::table('treaty_types')
-                ->where('treaty_code', $cover->treaty_type ?? '')
-                ->value('treaty_name');
-            $treatyType = $treatyType ?: ($cover->treaty_type ?? 'N/A');
+
+            $treatyType = match ($cover->treaty_type ?? null) {
+                'SURP' => 'Surplus Treaty',
+                default => ($cover->treaty_type ?? 'N/A'),
+            };
+
             $underwritingQuarter = $this->formatQuarterLabel($debitNote->posting_quarter) . ' - ' . $debitNote->posting_year;
             $hasNetOfTaxReinsurer = $this->hasNetOfTaxReinsurer($coverNo, $endorsementNo);
             $hasPremiumTax = $debitItems->contains(fn($item) => strtoupper((string) ($item->item_code ?? '')) === 'IT05');
@@ -2130,6 +2147,7 @@ class QuarterlyDebitController extends Controller
                 return $pdf->stream($filename);
             }
 
+            // logger($treatyType);
             $documentData = [
                 'reference_no' => $debitNote->debit_note_no,
                 'document_type' => $documentType,

@@ -228,7 +228,6 @@ class DebitNoteService
         CoverRegister $cover,
         $calculation
     ): DebitNote {
-
         return DebitNote::create([
             'debit_note_no' => $debitNoteNo,
             'cover_no' => $cover->cover_no,
@@ -258,6 +257,7 @@ class DebitNoteService
             'loss_participation' => $data['lossParticipation'] ?? false,
             'sliding_commission' => $data['slidingCommission'] ?? false,
             'status' => DebitNote::STATUS_DRAFT,
+            'type' => $data['entryTypeDescr'],
             'created_by' => auth()->id(),
         ]);
     }

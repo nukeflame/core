@@ -522,6 +522,10 @@
         $totalDocuments = $totalDocuments ?? 0;
         $entryTypeDescr = $profitCommissions->first()->entry_type_descr ?? 'profit-commission';
         $entryTypeDisplay = Str::title(str_replace('-', ' ', $entryTypeDescr));
+        $treatyType = match ($cover->treaty_type ?? null) {
+            'SURP' => 'Surplus Treaty',
+            default => ($cover->treaty_type ?? 'N/A'),
+        };
 
         $totalGrossPremium = $debitItems->sum('gross_premium');
         $totalCommission = $debitItems->sum('commission_amount');
@@ -585,7 +589,7 @@
             </div>
             <div class="summary-item">
                 <span class="summary-label">Treaty Type</span>
-                <span class="summary-value">{{ $cover->treaty_type ?? 'N/A' }}</span>
+                <span class="summary-value">{{ $treatyType }}</span>
             </div>
             <div class="summary-item">
                 <span class="summary-label">Underwriting Year</span>
@@ -629,7 +633,7 @@
                             data-bs-target="#debit-items-tab" type="button" role="tab" aria-controls="debit-items-tab"
                             aria-selected="true">
                             <i class="bx bx-table me-1 align-middle"></i>Debit Items
-                            <span class="badge bg-primary ms-1" id="debitItemsCount">{{ $totalDebitItems }}</span>
+                            {{-- <span class="badge bg-primary ms-1" id="debitItemsCount">{{ $totalDebitItems }}</span> --}}
                         </button>
 
                         {{-- <button class="nav-link" id="nav-credit-items-tab" data-bs-toggle="tab"
@@ -643,7 +647,7 @@
                             data-bs-target="#reinsurers-tab" type="button" role="tab" aria-controls="reinsurers-tab"
                             aria-selected="false">
                             <i class="ri-building-2-line me-1"></i> Reinsurers
-                            <span class="badge bg-info ms-1" id="reinsurersCount">{{ $totalReinsurers }}</span>
+                            {{-- <span class="badge bg-info ms-1" id="reinsurersCount">{{ $totalReinsurers }}</span> --}}
                         </button>
 
                         <button class="nav-link" id="nav-cedant-tab" data-bs-toggle="tab" data-bs-target="#cedant-tab"
@@ -975,6 +979,7 @@
 
             var CONFIG = {
                 coverNo: '{{ $cover->cover_no ?? '' }}',
+                refNo: '{{ request()->route('refNo') ?? '' }}',
                 endorsementNo: '{{ $cover->endorsement_no ?? '' }}',
                 debitNoteNo: '{{ $selectedDebitNoteNo ?? '' }}',
                 currency: '{{ $cover->currency ?? 'KES' }}',
@@ -1239,7 +1244,8 @@
                 },
 
                 defaultSubject: function(recipientType) {
-                    var statementReference = CONFIG.debitNoteNo || CONFIG.endorsementNo || CONFIG.coverNo || '';
+                    var statementReference = CONFIG.debitNoteNo || CONFIG.endorsementNo || CONFIG.coverNo ||
+                        '';
                     var typeLabel = recipientType === 'cedant' ? 'Cedant' : 'Reinsurer';
                     return 'Account Statement - ' + typeLabel + ' - ' + statementReference;
                 },
@@ -1291,7 +1297,8 @@
                         this.modal.hide();
                     }
 
-                    Utils.showToast('Email draft opened. Attach the statement documents and send.', 'success');
+                    Utils.showToast('Email draft opened. Attach the statement documents and send.',
+                        'success');
                 }
             };
 
@@ -1312,6 +1319,7 @@
                             },
                             data: function(d) {
                                 d.cover_no = CONFIG.coverNo;
+                                d.ref_no = CONFIG.refNo;
                                 d.endorsement_no = CONFIG.endorsementNo;
                                 if (CONFIG.debitNoteNo) {
                                     d.debit_note_no = CONFIG.debitNoteNo;
@@ -1416,7 +1424,7 @@
                                 $('#debitItemsCount').text((info.recordsDisplay || 0)
                                     .toLocaleString('en-US'));
                             }
-                            // Refresh summary stats after table data loads
+
                             if (typeof SummaryManager !== 'undefined' && SummaryManager
                                 .triggerRefresh) {
                                 SummaryManager.triggerRefresh();
@@ -1720,7 +1728,7 @@
                                 orderable: false,
                                 searchable: false,
                                 render: function(data, type, row) {
-                                    var noteLabel = 'Debit Note Statement';
+                                    var noteLabel = 'Note Statement';
                                     var noteType = 'debit_note';
 
                                     return '<div class="d-flex gap-2">' +
@@ -1732,7 +1740,8 @@
                                         noteLabel + '</span>' +
                                         '</a>' +
                                         '<a href="javascript:void(0)" class="text-info btn-send-statement text-center d-flex align-items-center" data-id="' +
-                                        row.id + '" data-name="' + Utils.escapeHtml(row.name || '') +
+                                        row.id + '" data-name="' + Utils.escapeHtml(row.name ||
+                                            '') +
                                         '" data-email="' + Utils.escapeHtml(row.email || '') +
                                         '" title="Send Statement">' +
                                         '<i class="ri-mail-send-line fs-18"></i> <span class="d-none d-md-inline">Send Statement</span>' +
@@ -2410,7 +2419,7 @@
                                 orderable: false,
                                 searchable: false,
                                 render: function(data, type, row) {
-                                    var noteLabel = 'Credit Note Statement';
+                                    var noteLabel = 'Note Statement';
                                     var noteType = 'credit_note';
 
                                     return '<div class="d-flex gap-2">' +
@@ -2421,8 +2430,10 @@
                                         noteLabel + '</span>' +
                                         '</a>' +
                                         '<a href="javascript:void(0)" class="text-info btn-send-cedant-statement text-center d-flex align-items-center" data-partner_no="' +
-                                        row.partner_no + '" data-name="' + Utils.escapeHtml(row.name || '') +
-                                        '" data-email="' + Utils.escapeHtml(row.email || '') +
+                                        row.partner_no + '" data-name="' + Utils.escapeHtml(
+                                            row.name || '') +
+                                        '" data-email="' + Utils.escapeHtml(row.email ||
+                                            '') +
                                         '" title="Send Statement">' +
                                         '<i class="ri-mail-send-line fs-18"></i> <span class="d-none d-md-inline">Send Statement</span>' +
                                         '</a>' +
@@ -2830,62 +2841,18 @@
                 var partnerNo = $(this).data('partner-no');
                 var noteType = $(this).data('note-type') || 'debit_note';
                 if (partnerNo) {
-                    Swal.fire({
-                        title: 'Include Broking Commission?',
-                        icon: 'question',
-                        showDenyButton: true,
-                        showCancelButton: false,
-                        confirmButtonText: 'Yes',
-                        denyButtonText: 'No',
-                        width: '450px',
-                        customClass: {
-                            actions: 'swal_actions_btn',
-                            confirmButton: 'order-2 btn-confirm',
-                            denyButton: 'order-3 btn-deny',
-                        },
-                        buttonsStyling: false
-                    }).then((result) => {
-                        var withBrokerage = null;
-                        var postingYear = $('#posting_year').val() || '';
-                        var postingQuarter = $('#posting_quarter').val() || '';
+                    var postingYear = $('#posting_year').val() || '';
+                    var postingQuarter = $('#posting_quarter').val() || '';
 
-                        if (result.isConfirmed) {
-                            withBrokerage = 1;
-                            Swal.fire({
-                                icon: 'success',
-                                showConfirmButton: false,
-                                confirmButtonText: 'OK',
-                                title: 'Generating with Brokerage...',
-                                text: '',
-                                timer: 1500,
-                                timerProgressBar: true
-                            });
-                        } else if (result.isDenied) {
-                            withBrokerage = 0;
-                            Swal.fire({
-                                icon: 'success',
-                                showConfirmButton: false,
-                                confirmButtonText: 'OK',
-                                title: 'Generating without Brokerage...',
-                                text: '',
-                                timer: 1500,
-                                timerProgressBar: true
-                            });
-                        }
+                    var url = CONFIG.routes.reinsurerCreditNoteView +
+                        '?cover_no=' + encodeURIComponent(CONFIG.coverNo) +
+                        '&endorsement_no=' + encodeURIComponent(CONFIG.endorsementNo) +
+                        '&partner_no=' + encodeURIComponent(partnerNo) +
+                        '&note_type=' + encodeURIComponent(noteType) +
+                        '&posting_year=' + encodeURIComponent(postingYear) +
+                        '&posting_quarter=' + encodeURIComponent(postingQuarter);
 
-                        if (withBrokerage !== null) {
-                            var url = CONFIG.routes.reinsurerCreditNoteView +
-                                '?cover_no=' + encodeURIComponent(CONFIG.coverNo) +
-                                '&endorsement_no=' + encodeURIComponent(CONFIG.endorsementNo) +
-                                '&partner_no=' + encodeURIComponent(partnerNo) +
-                                '&with_brokerage=' + withBrokerage +
-                                '&note_type=' + encodeURIComponent(noteType) +
-                                '&posting_year=' + encodeURIComponent(postingYear) +
-                                '&posting_quarter=' + encodeURIComponent(postingQuarter);
-
-                            window.open(url, '_blank');
-                        }
-                    });
+                    window.open(url, '_blank');
                 }
             });
 

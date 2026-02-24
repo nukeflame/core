@@ -1752,6 +1752,8 @@ class CoverController extends Controller
             }
 
             $redirectUrl = null;
+            $treatyDebit = null;
+            $treatyCredit = null;
             $message = $this->getBusinessTypeLabel($debitData['typeOfBus']) . ' Debit note generated successfully';
 
             if ($debitData['isFacultative']) {
@@ -1762,11 +1764,13 @@ class CoverController extends Controller
                     'coverNo' => $cover->cover_no,
                 ]);
 
-                $db2 = $this->createTreatyDebit($debitData, $cover);
-                // $this->createTreatyCredit($creditData, $cover);
+                $treatyDebit = $this->createTreatyDebit($debitData, $cover);
+                $treatyCredit = $this->createTreatyCredit($creditData, $cover);
             }
 
-            // $this->createCustomerAccount($debitData, $cover);
+            logger()->debug(json_encode($treatyDebit, JSON_PRETTY_PRINT));
+
+            $this->createCustomerAccount($debitData, $cover, $treatyDebit, $treatyCredit);
 
             if (
                 $debitData['isTreaty']
@@ -1780,12 +1784,10 @@ class CoverController extends Controller
                 ]);
             }
 
-            logger()->debug(json_encode($db2, JSON_PRETTY_PRINT));
+            $cover->commited = 'Y';
+            $cover->save();
 
-            // $cover->commited = 'Y';
-            // $cover->save();
-
-            // DB::commit();
+            DB::commit();
 
             return response()->json([
                 'success' => true,
@@ -1990,7 +1992,7 @@ class CoverController extends Controller
         $debit->save();
     }
 
-    private function createCustomerAccount(array &$debitData, CoverRegister $coverRegister): void
+    private function createCustomerAccount(array &$debitData, CoverRegister $coverRegister, $treatyDebit, $treatyCredit): void
     {
         if (! $debitData['drCrNo']) {
             $debitData['drCrNo'] = SystemSerials::nextSerial($debitData['docType']);
@@ -2040,6 +2042,8 @@ class CoverController extends Controller
         $custAccount->loss_participation = (bool) ($debitData['lossParticipation'] ?? false);
         $custAccount->sliding_commission = (bool) ($debitData['slidingCommission'] ?? false);
         $custAccount->allocated_amount = 0;
+        $custAccount->treaty_debit_no = $treatyDebit ? $treatyDebit?->debit_note_no : null;
+        // $custAccount->treaty_credit_no = $treatyDebit ? $treatyDebit?->debit_note_no : null;
         $custAccount->unallocated_amount = $debitData['grossAmount'] * $debitData['currencyRate'];
 
         $custAccount->save();
@@ -2886,8 +2890,6 @@ class CoverController extends Controller
                 }
             }
 
-            // begin replication from previous
-
             $this->coverRepository->replicateFromPrevious($prev_endorsement_no);
             // $this->coverPremToReinNote();
 
@@ -2895,7 +2897,6 @@ class CoverController extends Controller
 
             $redirectUrl = route('cover.CoverHome', ['endorsement_no' => $new_endorsement_no]);
 
-            // Redirect back with success message and endorsement data as a request parameter
             return redirect($redirectUrl)->with('success', 'Quarterly Figures information saved successfully');
         } catch (ValidationException $e) {
             return response()->json([
@@ -2967,7 +2968,6 @@ class CoverController extends Controller
             $totalReinsuranceTax = 0;
             $totalClaim = 0;
             $mgnt_exp_amt = 0;
-            // Premiums
 
             foreach ($premiums as $index => $premium) {
                 if ($premium != 0) {

@@ -418,7 +418,6 @@ class CoverTransactionController extends Controller
                 ->value('debit_note_no');
         }
 
-        // Fetch profit commission transactions
         $profitCommissions = CustomerAccDet::where('endorsement_no', $request->endorsementNo)
             ->where('entry_type_descr', 'profit-commission')
             ->orderBy('created_date', 'desc')
