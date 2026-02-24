@@ -810,6 +810,7 @@
                     this.$el.itemsBody
                         .on('input', c.itemAmount, function() {
                             self.formatAmountInput($(this));
+                            self.updateAllRowAmountsFromRates();
                             self.debouncedCalculate();
                         })
                         .on('blur', c.itemAmount, function() {
@@ -828,9 +829,13 @@
                     this.$el.itemsBody
                         .on('change', c.itemCode, function() {
                             self.syncFromItemCode($(this));
+                            self.updateRowAmountFromRates($(this).closest(c.itemRow));
+                            self.debouncedCalculate();
                         })
                         .on('change', c.itemDescription, function() {
                             self.syncFromDescription($(this));
+                            self.updateRowAmountFromRates($(this).closest(c.itemRow));
+                            self.debouncedCalculate();
                         })
                         .on('change', c.itemLedger, function() {
                             self.syncItemTypeFromLedger($(this));
@@ -845,7 +850,7 @@
                     });
 
                     this.$el.itemsBody.on('input change', c.itemLineRate, function() {
-                        self.updateRowAmountFromRates($(this).closest(c.itemRow));
+                        self.updateAllRowAmountsFromRates();
                         self.debouncedCalculate();
                     });
 
@@ -873,6 +878,11 @@
                     $('#wht_rate').on('input change', function() {
                         var rate = $(this).val() || 0;
                         $('#compute_withholding_tax').attr('data-rate', rate);
+                        self.debouncedCalculate();
+                    });
+
+                    this.$el.managementExpenseRate.on('input change', function() {
+                        self.updateAllRowAmountsFromRates();
                         self.debouncedCalculate();
                     });
 
@@ -1245,10 +1255,12 @@
                         const formattedAmount = self.formatCurrency(amount);
                         $newRow.find(self.config.classes.itemAmount).val(formattedAmount);
                         $newRow.find(self.config.classes.itemAmountHidden).val(amount);
+                        self.toggleAutoCalculatedAmountState($newRow);
 
                         self.state.itemIndex++;
                     });
 
+                    this.refreshAllItemCodeDropdowns();
                     this.calculateTotals();
                     this.updateSummaryVisibility();
                 },
@@ -1382,6 +1394,8 @@
                     this.filterTransactionTypeOptions($newRow, $newRow.find(this.config.classes.itemCode)
                         .val());
                     $newRow.find(this.config.classes.itemDescription).trigger('focus');
+                    this.toggleAutoCalculatedAmountState($newRow);
+                    this.refreshAllItemCodeDropdowns();
 
                     this.state.itemIndex++;
                     this.updateSummaryVisibility();
@@ -1421,6 +1435,7 @@
                         self.calculateTotals();
                         self.updateSummaryVisibility();
                         self.refreshAllClassDropdowns();
+                        self.refreshAllItemCodeDropdowns();
 
                         if (self.$el.itemsBody.find(self.config.classes.itemRow).length === 0) {
                             self.$el.noItemsRow.fadeIn(150);
@@ -1431,17 +1446,25 @@
                 syncFromItemCode: function($itemCode) {
                     const $row = $itemCode.closest(this.config.classes.itemRow);
                     const code = $itemCode.val();
+                    if (!this.ensureUniqueItemCodeOrReset($row, code)) {
+                        return;
+                    }
                     const $selectedOption = $itemCode.find('option:selected');
                     const itemType = $selectedOption.data('type') || '';
 
                     this.filterTransactionTypeOptions($row, code);
                     $row.find(this.config.classes.itemDescription).val(code);
                     this.setItemTypeAndLedger($row, code, itemType);
+                    this.toggleAutoCalculatedAmountState($row);
+                    this.refreshAllItemCodeDropdowns();
                 },
 
                 syncFromDescription: function($description) {
                     const $row = $description.closest(this.config.classes.itemRow);
                     const code = $description.val();
+                    if (!this.ensureUniqueItemCodeOrReset($row, code)) {
+                        return;
+                    }
                     const $selectedOption = $description.find('option:selected');
                     const itemType = $selectedOption.data('type') || '';
 
@@ -1449,6 +1472,94 @@
                     this.filterTransactionTypeOptions($row, code);
 
                     this.setItemTypeAndLedger($row, code, itemType);
+                    this.toggleAutoCalculatedAmountState($row);
+                    this.refreshAllItemCodeDropdowns();
+                },
+
+                getSelectedItemCodes: function($excludeRow) {
+                    const self = this;
+                    const selectedCodes = [];
+
+                    this.$el.itemsBody.find(this.config.classes.itemRow).each(function() {
+                        const $row = $(this);
+                        if ($excludeRow && $row.is($excludeRow)) {
+                            return;
+                        }
+
+                        const code = String($row.find(self.config.classes.itemCode).val() || '').trim()
+                            .toUpperCase();
+                        if (code) {
+                            selectedCodes.push(code);
+                        }
+                    });
+
+                    return selectedCodes;
+                },
+
+                ensureUniqueItemCodeOrReset: function($row, code) {
+                    const normalizedCode = String(code || '').trim().toUpperCase();
+                    if (!normalizedCode) {
+                        return true;
+                    }
+
+                    const selectedCodes = this.getSelectedItemCodes($row);
+                    if (!selectedCodes.includes(normalizedCode)) {
+                        return true;
+                    }
+
+                    this.notify('This transaction item has already been added. Each item code must be unique.', 'warning');
+                    $row.find(this.config.classes.itemCode).val('');
+                    $row.find(this.config.classes.itemDescription).val('');
+                    $row.find(this.config.classes.itemType).val('');
+                    $row.find(this.config.classes.itemLedger).val('');
+                    $row.removeClass('is-debit is-credit');
+                    this.toggleAutoCalculatedAmountState($row);
+                    return false;
+                },
+
+                refreshAllItemCodeDropdowns: function() {
+                    const self = this;
+
+                    this.$el.itemsBody.find(this.config.classes.itemRow).each(function() {
+                        const $row = $(this);
+                        const currentCode = String($row.find(self.config.classes.itemCode).val() || '')
+                            .toUpperCase();
+                        const selectedCodes = self.getSelectedItemCodes($row);
+                        const $itemCode = $row.find(self.config.classes.itemCode);
+                        const $description = $row.find(self.config.classes.itemDescription);
+
+                        $itemCode.find('option').each(function() {
+                            const $option = $(this);
+                            const optionCode = String($option.val() || '').toUpperCase();
+
+                            if (!optionCode) {
+                                $option.show();
+                                return;
+                            }
+
+                            if (optionCode === currentCode || !selectedCodes.includes(optionCode)) {
+                                $option.show();
+                            } else {
+                                $option.hide();
+                            }
+                        });
+
+                        $description.find('option').each(function() {
+                            const $option = $(this);
+                            const optionCode = String($option.val() || '').toUpperCase();
+
+                            if (!optionCode) {
+                                $option.show();
+                                return;
+                            }
+
+                            if (optionCode === currentCode || !selectedCodes.includes(optionCode)) {
+                                $option.show();
+                            } else {
+                                $option.hide();
+                            }
+                        });
+                    });
                 },
 
                 filterTransactionTypeOptions: function($row, selectedCode) {
@@ -1512,6 +1623,103 @@
                     this.refreshAllClassDropdowns();
                 },
 
+                getRowItemCode: function($row) {
+                    return String($row.find(this.config.classes.itemCode).val() || '').toUpperCase();
+                },
+
+                getRowDescriptionText: function($row) {
+                    return String($row.find(this.config.classes.itemDescription + ' option:selected').text() || '')
+                        .toUpperCase();
+                },
+
+                isCommissionItem: function($row) {
+                    const code = this.getRowItemCode($row);
+                    const description = this.getRowDescriptionText($row);
+                    return code === 'IT03' || description.includes('COMMISSION');
+                },
+
+                isPremiumTaxItem: function($row) {
+                    const code = this.getRowItemCode($row);
+                    const description = this.getRowDescriptionText($row);
+                    return code === 'IT05' || description.includes('PREMIUM TAX');
+                },
+
+                isManagementExpenseItem: function($row) {
+                    const code = this.getRowItemCode($row);
+                    const description = this.getRowDescriptionText($row);
+                    return code === 'IT32' || description.includes('MANAGEMENT');
+                },
+
+                isFormulaDrivenItem: function($row) {
+                    return this.isCommissionItem($row) || this.isPremiumTaxItem($row) || this.isManagementExpenseItem(
+                        $row);
+                },
+
+                toggleAutoCalculatedAmountState: function($row) {
+                    const $amountField = $row.find(this.config.classes.itemAmount);
+                    const isFormulaDriven = this.isFormulaDrivenItem($row);
+                    $amountField.prop('readonly', isFormulaDriven);
+                },
+
+                getGrossPremiumAmount: function() {
+                    const self = this;
+                    let total = 0;
+
+                    this.$el.itemsBody.find(this.config.classes.itemRow).each(function() {
+                        const $row = $(this);
+                        if (self.getRowItemCode($row) !== 'IT01') {
+                            return;
+                        }
+
+                        total += self.parseFormattedNumber($row.find(self.config.classes.itemAmount).val());
+                    });
+
+                    return total;
+                },
+
+                getTotalPremiumTaxAmount: function(grossPremium) {
+                    const self = this;
+                    let premiumTaxTotal = 0;
+
+                    this.$el.itemsBody.find(this.config.classes.itemRow).each(function() {
+                        const $row = $(this);
+                        if (!self.isPremiumTaxItem($row)) {
+                            return;
+                        }
+
+                        const lineRate = self.parseNumberOrZero($row.find(self.config.classes.itemLineRate).val());
+                        premiumTaxTotal += grossPremium * (lineRate / 100);
+                    });
+
+                    return premiumTaxTotal;
+                },
+
+                calculateFormulaAmountForRow: function($row) {
+                    const grossPremium = this.getGrossPremiumAmount();
+                    const lineRate = this.parseNumberOrZero($row.find(this.config.classes.itemLineRate).val());
+
+                    if (this.isPremiumTaxItem($row)) {
+                        return grossPremium * (lineRate / 100);
+                    }
+
+                    if (this.isManagementExpenseItem($row)) {
+                        const effectiveRate = lineRate > 0 ? lineRate : this.parseNumberOrZero(this.$el
+                            .managementExpenseRate.val());
+                        if (lineRate <= 0 && effectiveRate > 0) {
+                            $row.find(this.config.classes.itemLineRate).val(effectiveRate.toFixed(2));
+                        }
+                        return grossPremium * (effectiveRate / 100);
+                    }
+
+                    if (this.isCommissionItem($row)) {
+                        const premiumTaxAmount = this.getTotalPremiumTaxAmount(grossPremium);
+                        const commissionBase = Math.max(0, grossPremium - premiumTaxAmount);
+                        return commissionBase * (lineRate / 100);
+                    }
+
+                    return null;
+                },
+
                 syncItemTypeFromLedger: function($ledger) {
                     const $row = $ledger.closest(this.config.classes.itemRow);
                     const $itemTypeField = $row.find(this.config.classes.itemType);
@@ -1527,6 +1735,7 @@
                         $row.removeClass('is-debit').addClass('is-credit');
                     }
 
+                    this.toggleAutoCalculatedAmountState($row);
                     this.debouncedCalculate();
                     this.refreshAllClassDropdowns();
                 },
@@ -1758,21 +1967,27 @@
 
                     const $lineRateField = $row.find(this.config.classes.itemLineRate);
                     const $amountField = $row.find(this.config.classes.itemAmount);
+                    this.toggleAutoCalculatedAmountState($row);
+
+                    if (!this.isFormulaDrivenItem($row)) {
+                        return;
+                    }
+
                     const lineRateRaw = String($lineRateField.val() ?? '').trim();
                     const lineRate = parseFloat(lineRateRaw);
+                    const isManagementExpense = this.isManagementExpenseItem($row);
 
-                    if (!lineRateRaw || !Number.isFinite(lineRate) || lineRate <= 0) {
+                    if ((!lineRateRaw || !Number.isFinite(lineRate) || lineRate < 0) && !isManagementExpense) {
                         $amountField.val('');
                         this.syncHiddenAmount($amountField);
                         return;
                     }
 
-                    const baseRate = this.parseNumberOrZero(this.$el.profitCommissionRate.val());
-                    const calculatedAmount = lineRate * baseRate;
+                    const calculatedAmount = this.calculateFormulaAmountForRow($row);
+                    const resolvedAmount = Number.isFinite(calculatedAmount) && calculatedAmount > 0 ? calculatedAmount :
+                        0;
 
-                    console.log(baseRate)
-
-                    $amountField.val(this.formatCurrency(calculatedAmount));
+                    $amountField.val(this.formatCurrency(resolvedAmount));
                     this.syncHiddenAmount($amountField);
                 },
 

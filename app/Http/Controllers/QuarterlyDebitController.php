@@ -1654,6 +1654,7 @@ class QuarterlyDebitController extends Controller
                         'gross_amount',
                         'net_amount',
                         'commission_amount',
+                        'compute_reinsurance_tax',
                         'created_at',
                         'other_deductions'
                     ])
@@ -1678,29 +1679,12 @@ class QuarterlyDebitController extends Controller
                     ->orderBy('tdi.id', 'asc')
                     ->get();
 
-                $statementItems = collect($debitItems)->map(function ($item) {
-                    return (object) [
-                        'item_code' => $item->item_code ?? null,
-                        'item_name' => strtoupper((string) ($item->item_name ?? '')),
-                        'to_cedant' => strtoupper((string) ($item->ledger ?? '')) === 'CR'
-                            ? (float) ($item->item_amount ?? 0)
-                            : 0.0,
-                        'to_reinsurers' => strtoupper((string) ($item->ledger ?? '')) === 'DR'
-                            ? (float) ($item->item_amount ?? 0)
-                            : 0.0,
-                    ];
-                });
-
-                if (! $withBrokerage) {
-                    $statementItems = $statementItems->filter(function ($item) {
-                        $itemCode = strtoupper((string) ($item->item_code ?? ''));
-                        $itemName = strtolower((string) ($item->item_name ?? ''));
-                        $isBrokerageCode = in_array($itemCode, ['IT06', 'BROK', 'BRC', 'BROKERAGE'], true);
-                        $isBrokerageText = str_contains($itemName, 'brokerage');
-
-                        return ! ($isBrokerageCode || $isBrokerageText);
-                    })->values();
-                }
+                $statementItems = $this->prepareProfitCommissionStatementItems(
+                    collect($debitItems),
+                    false,
+                    $this->isTruthy($debitNote->compute_reinsurance_tax ?? 0),
+                    false
+                );
 
                 $basicTotalCR = (float) $statementItems->sum('to_cedant');
                 $basicTotalDR = (float) $statementItems->sum('to_reinsurers');
@@ -1968,6 +1952,7 @@ class QuarterlyDebitController extends Controller
                         'gross_amount',
                         'net_amount',
                         'commission_amount',
+                        'compute_reinsurance_tax',
                         'created_at',
                         'other_deductions'
                     ])
@@ -2101,18 +2086,12 @@ class QuarterlyDebitController extends Controller
             $company = Company::first();
 
             if ($isCreditNote) {
-                $statementItems = collect($debitItems)->map(function ($item) {
-                    return (object) [
-                        'item_code' => $item->item_code ?? null,
-                        'item_name' => strtoupper((string) ($item->item_name ?? $item->description ?? '')),
-                        'to_cedant' => strtoupper((string) ($item->ledger ?? '')) === 'CR'
-                            ? (float) ($item->item_amount ?? 0)
-                            : 0.0,
-                        'to_reinsurers' => strtoupper((string) ($item->ledger ?? '')) === 'DR'
-                            ? (float) ($item->item_amount ?? 0)
-                            : 0.0,
-                    ];
-                });
+                $statementItems = $this->prepareProfitCommissionStatementItems(
+                    collect($debitItems),
+                    false,
+                    $this->isTruthy($debitNote->compute_reinsurance_tax ?? 0),
+                    true
+                );
 
                 $basicTotalCR = (float) $statementItems->sum('to_cedant');
                 $basicTotalDR = (float) $statementItems->sum('to_reinsurers');
@@ -2222,6 +2201,81 @@ class QuarterlyDebitController extends Controller
         $premiumTaxRate = max(0, min(100, $premiumTaxRate));
 
         return (100 - $premiumTaxRate) / 100;
+    }
+
+    private function prepareProfitCommissionStatementItems(
+        \Illuminate\Support\Collection $items,
+        bool $withBrokerage,
+        bool $includeReinsuranceTax,
+        bool $reverseLedgerColumns = false
+    ): \Illuminate\Support\Collection {
+        $rows = $items->map(function ($item) use ($reverseLedgerColumns) {
+            $itemCode = strtoupper((string) ($item->item_code ?? ''));
+            $itemName = strtoupper((string) ($item->item_name ?? $item->description ?? ''));
+            $ledger = strtoupper((string) ($item->ledger ?? ''));
+            $amount = (float) ($item->item_amount ?? 0);
+            $reverse = $reverseLedgerColumns;
+
+            $toCedant = 0.0;
+            $toReinsurers = 0.0;
+            if ($reverse) {
+                $toCedant = $ledger === 'DR' ? $amount : 0.0;
+                $toReinsurers = $ledger === 'CR' ? $amount : 0.0;
+            } else {
+                $toCedant = $ledger === 'CR' ? $amount : 0.0;
+                $toReinsurers = $ledger === 'DR' ? $amount : 0.0;
+            }
+
+            return (object) [
+                'item_code' => $itemCode,
+                'item_name' => $itemName,
+                'to_cedant' => $toCedant,
+                'to_reinsurers' => $toReinsurers,
+            ];
+        });
+
+        if (! $withBrokerage) {
+            $rows = $rows->filter(function ($item) {
+                $itemCode = strtoupper((string) ($item->item_code ?? ''));
+                $itemName = strtolower((string) ($item->item_name ?? ''));
+                $isBrokerageCode = in_array($itemCode, ['IT06', 'BROK', 'BRC', 'BROKERAGE'], true);
+                $isBrokerageText = str_contains($itemName, 'brokerage');
+
+                return ! ($isBrokerageCode || $isBrokerageText);
+            });
+        }
+
+        if (! $includeReinsuranceTax) {
+            $rows = $rows->filter(function ($item) {
+                $itemCode = strtoupper((string) ($item->item_code ?? ''));
+                $itemName = strtolower((string) ($item->item_name ?? ''));
+                $isReinsuranceTaxCode = $itemCode === 'IT07';
+                $isReinsuranceTaxText = str_contains($itemName, 'reinsurance tax');
+
+                return ! ($isReinsuranceTaxCode || $isReinsuranceTaxText);
+            });
+        }
+
+        return $rows
+            ->groupBy(function ($item) {
+                $itemCode = strtoupper((string) ($item->item_code ?? ''));
+                if ($itemCode !== '') {
+                    return $itemCode;
+                }
+
+                return strtoupper((string) ($item->item_name ?? ''));
+            })
+            ->map(function ($group) {
+                $first = $group->first();
+
+                return (object) [
+                    'item_code' => $first->item_code,
+                    'item_name' => $first->item_name,
+                    'to_cedant' => (float) $group->sum('to_cedant'),
+                    'to_reinsurers' => (float) $group->sum('to_reinsurers'),
+                ];
+            })
+            ->values();
     }
 
     private function isTruthy(mixed $value): bool

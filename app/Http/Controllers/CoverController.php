@@ -1842,10 +1842,14 @@ class CoverController extends Controller
         $commissionRate = (float) ($coverRegister->comm_rate ?? 0);
         $entryTypeDescr = $this->resolveEntryTypeDescr($validatedData);
         $postingQuarter = $this->resolvePostingQuarter($validatedData, $entryTypeDescr);
+        $items = $this->deduplicateItemsByCode(
+            $validatedData['items'] ?? [],
+            $entryTypeDescr === 'profit-commission'
+        );
 
 
         $enhancedItems = $this->enhanceItemsWithDeductions(
-            $validatedData['items'] ?? [],
+            $items,
             $brokerageRate,
             $premiumTaxRate,
             $commissionRate
@@ -2190,9 +2194,13 @@ class CoverController extends Controller
         $commissionRate = (float) ($coverRegister->comm_rate ?? 0);
         $entryTypeDescr = $this->resolveEntryTypeDescr($validatedData);
         $postingQuarter = $this->resolvePostingQuarter($validatedData, $entryTypeDescr);
+        $items = $this->deduplicateItemsByCode(
+            $validatedData['items'] ?? [],
+            $entryTypeDescr === 'profit-commission'
+        );
 
         $enhancedItems = $this->enhanceItemsWithDeductions(
-            $validatedData['items'] ?? [],
+            $items,
             $brokerageRate,
             $premiumTaxRate,
             $commissionRate
@@ -2272,6 +2280,33 @@ class CoverController extends Controller
         }
 
         return null;
+    }
+
+    private function deduplicateItemsByCode(array $items, bool $enforceUnique): array
+    {
+        if (! $enforceUnique) {
+            return $items;
+        }
+
+        $uniqueItems = [];
+        $seenCodes = [];
+
+        foreach ($items as $item) {
+            $itemCode = strtoupper(trim((string) ($item['item_code'] ?? $item['description'] ?? '')));
+            if ($itemCode === '') {
+                continue;
+            }
+
+            if (isset($seenCodes[$itemCode])) {
+                continue;
+            }
+
+            $item['item_code'] = $itemCode;
+            $seenCodes[$itemCode] = true;
+            $uniqueItems[] = $item;
+        }
+
+        return $uniqueItems;
     }
 
     public function saveAttachment(Request $request)
