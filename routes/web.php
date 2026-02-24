@@ -184,6 +184,10 @@ Route::middleware(['auth', 'check.first.login'])->group(function () {
     Route::post('PQ_proposal_documents', [LeadsOnboardingController::class, 'PQ_proposal_documents'])->name('PQ_proposal_documents');
     Route::post('leads_save', [LeadsOnboardingController::class, 'save'])->name('leads.save');
     Route::get('/leads_listing', [LeadsOnboardingController::class, 'listing'])->name('leads.listing');
+    Route::post('/leads_listing/import-pipeline-opportunities', [LeadsOnboardingController::class, 'importPipelineOpportunities'])
+        ->name('leads.import.pipeline_opportunities');
+    Route::get('/leads_listing/import-pipeline-opportunities/sample', [LeadsOnboardingController::class, 'downloadPipelineOpportunitySample'])
+        ->name('leads.import.pipeline_opportunities.sample');
 
     //Prospect Repository
     Route::post('ProspectRepository', [LeadsOnboardingController::class, 'save'])->name('ProspectRepository');

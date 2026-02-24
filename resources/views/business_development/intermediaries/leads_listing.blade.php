@@ -6,6 +6,36 @@
 
 @section('content')
     <div class="container-fluid mt-3 fac-pipeline-page">
+        @if (session('success'))
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                {{ session('success') }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        @endif
+        @if (session('warning'))
+            <div class="alert alert-warning alert-dismissible fade show" role="alert">
+                {{ session('warning') }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        @endif
+        @if (session('error'))
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                {{ session('error') }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        @endif
+        @if (session('import_errors'))
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                <strong>Import Errors:</strong>
+                <ul class="mb-0 mt-1">
+                    @foreach (array_slice((array) session('import_errors'), 0, 10) as $importError)
+                        <li>{{ $importError }}</li>
+                    @endforeach
+                </ul>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        @endif
+
         <div class="d-md-flex d-block align-items-center justify-content-between my-4 page-header-breadcrumb">
             <div>
                 <h1 class="page-title fw-semibold fs-18 mb-0">Facultative Pipeline</h1>
@@ -112,7 +142,17 @@
                             Onboard New Prospect
                         </button>
                     </div>
-                    <div>
+                    <div class="d-flex gap-2">
+                        <a href="{{ route('leads.import.pipeline_opportunities.sample') }}"
+                            class="btn btn-outline-primary btn-sm">
+                            <i class="bi bi-download me-1"></i>
+                            Download Sample
+                        </a>
+                        <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal"
+                            data-bs-target="#pipelineImportModal">
+                            <i class="bi bi-upload me-1"></i>
+                            Import Opportunities
+                        </button>
                     </div>
                 </div>
             </div>
@@ -225,6 +265,38 @@
                         </table>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="pipelineImportModal" tabindex="-1" aria-labelledby="pipelineImportModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form method="POST" action="{{ route('leads.import.pipeline_opportunities') }}"
+                    enctype="multipart/form-data">
+                    @csrf
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="pipelineImportModalLabel">Import Pipeline Opportunities</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="import_file" class="form-label">Excel/CSV file</label>
+                            <input type="file" class="form-control" id="import_file" name="import_file"
+                                accept=".csv,.xls,.xlsx" required>
+                            <small class="text-muted d-block mt-2">
+                                Use the sample file format. Supported: CSV, XLS, XLSX.
+                            </small>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-success">
+                            <i class="bi bi-upload me-1"></i>Import
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>

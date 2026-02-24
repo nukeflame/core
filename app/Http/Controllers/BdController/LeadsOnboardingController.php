@@ -37,9 +37,13 @@ use App\Models\TypeOfSumInsured;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
+use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
 use Yajra\Datatables\Datatables;
 use App\Repositories\ProspectRepository;
 use App\Services\PipelineService;
@@ -498,6 +502,281 @@ class LeadsOnboardingController
             'classes',
             'priorities'
         ));
+    }
+
+    public function downloadPipelineOpportunitySample()
+    {
+        $headers = [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="pipeline_opportunities_sample.csv"',
+        ];
+
+        $columns = [
+            'opportunity_id',
+            'customer_id',
+            'cedant_name',
+            'insured_name',
+            'type_of_bus',
+            'classcode',
+            'divisions',
+            'cede_premium',
+            'comm_rate',
+            'probability',
+            'priority',
+            'status',
+            'effective_date',
+            'closing_date',
+            'expiry_date',
+            'client_category',
+            'stage',
+            'pip_year',
+            'contact_name',
+            'email',
+            'phone',
+            'telephone',
+        ];
+
+        $sampleRow = [
+            '',
+            '',
+            'ABC Insurance Ltd',
+            'ABC Manufacturing Ltd',
+            'FPR',
+            '',
+            '',
+            '2500000',
+            '10',
+            '60',
+            'high',
+            'active',
+            now()->format('Y-m-d'),
+            now()->addDays(30)->format('Y-m-d'),
+            now()->addYear()->format('Y-m-d'),
+            'N',
+            '1',
+            now()->year,
+            'John Doe',
+            'john.doe@example.com',
+            '+254700000000',
+            '',
+        ];
+
+        return response()->streamDownload(function () use ($columns, $sampleRow) {
+            $output = fopen('php://output', 'w');
+            fputcsv($output, $columns);
+            fputcsv($output, $sampleRow);
+            fclose($output);
+        }, 'pipeline_opportunities_sample.csv', $headers);
+    }
+
+    public function importPipelineOpportunities(Request $request)
+    {
+        $request->validate([
+            'import_file' => 'required|file|mimes:csv,txt,xls,xlsx',
+        ]);
+
+        $file = $request->file('import_file');
+        $created = 0;
+        $skipped = 0;
+        $errors = [];
+
+        try {
+            $spreadsheet = IOFactory::load($file->getRealPath());
+            $rows = $spreadsheet->getActiveSheet()->toArray(null, true, true, false);
+
+            if (empty($rows) || empty($rows[0])) {
+                return back()->with('error', 'The import file is empty.');
+            }
+
+            $headers = array_map(fn($h) => $this->normalizeImportHeader($h), $rows[0]);
+            $rows = array_slice($rows, 1);
+
+            DB::beginTransaction();
+
+            foreach ($rows as $index => $row) {
+                $rowNumber = $index + 2;
+
+                if (collect($row)->filter(fn($v) => trim((string) $v) !== '')->isEmpty()) {
+                    continue;
+                }
+
+                $data = [];
+                foreach ($headers as $i => $header) {
+                    if ($header === '') {
+                        continue;
+                    }
+                    $data[$header] = $row[$i] ?? null;
+                }
+
+                $payload = $this->mapPipelineOpportunityImportRow($data, $rowNumber, $errors);
+                if ($payload === null) {
+                    $skipped++;
+                    continue;
+                }
+
+                $opportunityId = (string) $payload['opportunity_id'];
+                if (PipelineOpportunity::where('opportunity_id', $opportunityId)->exists()) {
+                    $errors[] = "Row {$rowNumber}: opportunity_id '{$opportunityId}' already exists.";
+                    $skipped++;
+                    continue;
+                }
+
+                PipelineOpportunity::create($payload);
+                $created++;
+            }
+
+            DB::commit();
+        } catch (\Throwable $e) {
+            DB::rollBack();
+
+            return back()->with('error', 'Import failed: ' . $e->getMessage());
+        }
+
+        $message = "Import completed. Created: {$created}, Skipped: {$skipped}.";
+
+        if (! empty($errors)) {
+            return back()->with('warning', $message)->with('import_errors', $errors);
+        }
+
+        return back()->with('success', $message);
+    }
+
+    private function normalizeImportHeader($value): string
+    {
+        $header = trim((string) $value);
+        if ($header === '') {
+            return '';
+        }
+
+        return Str::of($header)
+            ->lower()
+            ->replace([' ', '-', '.'], '_')
+            ->replace('__', '_')
+            ->toString();
+    }
+
+    private function mapPipelineOpportunityImportRow(array $row, int $rowNumber, array &$errors): ?array
+    {
+        $insuredName = trim((string) ($row['insured_name'] ?? ''));
+        if ($insuredName === '') {
+            $errors[] = "Row {$rowNumber}: insured_name is required.";
+            return null;
+        }
+
+        $typeOfBus = strtoupper(trim((string) ($row['type_of_bus'] ?? 'FPR')));
+        if (! in_array($typeOfBus, ['FPR', 'FNP', 'TPR', 'TNP'], true)) {
+            $typeOfBus = 'FPR';
+        }
+
+        $priority = strtolower(trim((string) ($row['priority'] ?? 'medium')));
+        if (! in_array($priority, ['critical', 'high', 'medium', 'low'], true)) {
+            $priority = 'medium';
+        }
+
+        $status = strtolower(trim((string) ($row['status'] ?? 'active')));
+        $clientCategory = strtoupper(trim((string) ($row['client_category'] ?? 'N')));
+        $clientCategory = in_array($clientCategory, ['N', 'O'], true) ? $clientCategory : 'N';
+
+        $customerId = $row['customer_id'] ?? null;
+        if ($customerId === null || $customerId === '') {
+            $cedantName = trim((string) ($row['cedant_name'] ?? ''));
+            if ($cedantName !== '') {
+                $customerId = DB::table('customers')
+                    ->whereRaw('UPPER(name) = ?', [strtoupper($cedantName)])
+                    ->value('customer_id');
+            }
+        }
+
+        $createdBy = Auth::user()?->user_name ?? Auth::user()?->name ?? 'system';
+        $stage = (int) ($row['stage'] ?? 1);
+        $probability = (int) ($row['probability'] ?? 0);
+        $probability = max(0, min(100, $probability));
+
+        $opportunityId = trim((string) ($row['opportunity_id'] ?? ''));
+        if ($opportunityId === '') {
+            $opportunityId = Prospects::generateNextCode();
+        }
+
+        return [
+            'opportunity_id' => $opportunityId,
+            'customer_id' => is_numeric($customerId) ? (int) $customerId : null,
+            'insured_name' => $insuredName,
+            'client_category' => $clientCategory,
+            'contact_name' => $this->csvFieldToJsonArray($row['contact_name'] ?? null),
+            'email' => $this->csvFieldToJsonArray($row['email'] ?? null),
+            'phone' => $this->csvFieldToJsonArray($row['phone'] ?? null),
+            'telephone' => $this->csvFieldToJsonArray($row['telephone'] ?? null),
+            'type_of_bus' => $typeOfBus,
+            'classcode' => is_numeric($row['classcode'] ?? null) ? (int) $row['classcode'] : null,
+            'divisions' => trim((string) ($row['divisions'] ?? '')) ?: null,
+            'cede_premium' => $this->toDecimal($row['cede_premium'] ?? null),
+            'comm_rate' => $this->toDecimal($row['comm_rate'] ?? null),
+            'expected_premium' => $this->toDecimal($row['expected_premium'] ?? null),
+            'gross_premium' => $this->toDecimal($row['gross_premium'] ?? null),
+            'stage' => max(0, min(5, $stage)),
+            'probability' => $probability,
+            'priority' => $priority,
+            'status' => $status,
+            'effective_date' => $this->toDate($row['effective_date'] ?? null),
+            'closing_date' => $this->toDate($row['closing_date'] ?? null),
+            'expiry_date' => $this->toDate($row['expiry_date'] ?? null),
+            'expected_closure_date' => $this->toDate($row['expected_closure_date'] ?? null),
+            'fac_date_offered' => $this->toDate($row['fac_date_offered'] ?? null),
+            'quote_deadline' => $this->toDate($row['quote_deadline'] ?? null),
+            'prequalification' => strtoupper(trim((string) ($row['prequalification'] ?? 'N'))) === 'Y' ? 'Y' : 'N',
+            'lead_owner' => is_numeric($row['lead_owner'] ?? null) ? (int) $row['lead_owner'] : null,
+            'pip_year' => trim((string) ($row['pip_year'] ?? '')) ?: null,
+            'description' => trim((string) ($row['description'] ?? '')) ?: null,
+            'account_executive' => trim((string) ($row['account_executive'] ?? '')) ?: null,
+            'cr_processed' => strtoupper(trim((string) ($row['cr_processed'] ?? 'N'))) === 'Y' ? 'Y' : 'N',
+            'created_by' => $createdBy,
+            'updated_by' => $createdBy,
+        ];
+    }
+
+    private function csvFieldToJsonArray($value): ?array
+    {
+        $raw = trim((string) $value);
+        if ($raw === '') {
+            return null;
+        }
+
+        return collect(explode(',', $raw))
+            ->map(fn($v) => trim($v))
+            ->filter()
+            ->values()
+            ->all();
+    }
+
+    private function toDecimal($value): ?float
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        $clean = str_replace(',', '', (string) $value);
+        return is_numeric($clean) ? (float) $clean : null;
+    }
+
+    private function toDate($value): ?string
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        if (is_numeric($value)) {
+            try {
+                return Carbon::instance(ExcelDate::excelToDateTimeObject((float) $value))->format('Y-m-d');
+            } catch (\Throwable $e) {
+                return null;
+            }
+        }
+
+        try {
+            return Carbon::parse((string) $value)->format('Y-m-d');
+        } catch (\Throwable $e) {
+            return null;
+        }
     }
 
     /**
