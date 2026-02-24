@@ -1281,7 +1281,8 @@ class PipelineManager {
                 business_type: data.typeOfBus,
             },
             success: (response) => {
-                console.log(response);
+                console.log(`headers`, response);
+
                 if (response.success && response.headers) {
                     this.renderScheduleHeaders(response.headers, data);
                 } else {
@@ -1814,6 +1815,8 @@ class PipelineManager {
                                 ...refreshData,
                             });
                             this.loadSlipDocuments(refreshData);
+                            this.reloadAllTables();
+                            this.loadChartData();
                             $("#declineReinsurerModal").modal("hide");
                         } else {
                             toastr.error("An error occured!");
@@ -2276,7 +2279,7 @@ class PipelineManager {
             const fieldId = this.toPascalCase(header.name);
             let fieldInput = this.generateFieldInput(header, fieldId);
 
-            let hiddenInput = `<input type="hidden" id="${fieldId}Content" name="${fieldId}Content" />`;
+            let hiddenInput = `<input type="hidden" id="${fieldId}Content" data-sch_id="${header.id}" name="${fieldId}Content" />`;
 
             fieldsHtml += `
                 <div class="col-md-12">
@@ -2350,9 +2353,7 @@ class PipelineManager {
                 return fileName.length > 0;
             });
 
-            const mergedDocs = hasConfiguredStageDocs
-                ? [...res.docs]
-                : [];
+            const mergedDocs = hasConfiguredStageDocs ? [...res.docs] : [];
             const mergedDocKeys = new Set();
 
             const rememberDocKeys = (doc) => {
@@ -2360,8 +2361,12 @@ class PipelineManager {
                     this.normalizeDocumentKey(doc?.name),
                     this.normalizeDocumentKey(doc?.doc_type),
                     this.normalizeDocumentKey(doc?.file_name),
-                    this.normalizeDocumentKey(this.toPascalCase(doc?.name || "")),
-                    this.normalizeDocumentKey(this.toPascalCase(doc?.doc_type || "")),
+                    this.normalizeDocumentKey(
+                        this.toPascalCase(doc?.name || ""),
+                    ),
+                    this.normalizeDocumentKey(
+                        this.toPascalCase(doc?.doc_type || ""),
+                    ),
                 ].filter(Boolean);
 
                 keys.forEach((key) => mergedDocKeys.add(key));
@@ -3481,19 +3486,19 @@ class PipelineManager {
                     <div class="input-group">
                         <span class="input-group-text">${currency}</span>
                         <input type="number" class="${baseInputClass}" id="${fieldId}"
-                            name="schedule_headers[${fieldId}]" step="0.01" min="0"
+                            name="schedule_headers[${fieldId}]" data-sch_id="${header.id}" step="0.01" min="0"
                             placeholder="${placeholder}" ${required}>
                     </div>
                 `;
             } else if (header.name?.toLowerCase().includes("date")) {
-                return `<input type="date" class="${baseInputClass}" id="${fieldId}" name="schedule_headers[${fieldId}]" ${required}>`;
+                return `<input type="date" class="${baseInputClass}" id="${fieldId}" data-sch_id="${header.id}" name="schedule_headers[${fieldId}]" ${required}>`;
             } else if (
                 header.name?.toLowerCase().includes("percentage") ||
                 header.name?.toLowerCase().includes("rate")
             ) {
                 return `
                     <div class="input-group">
-                        <input type="number" class="${baseInputClass}" id="${fieldId}"
+                        <input type="number" class="${baseInputClass}" id="${fieldId}" data-sch_id="${header.id}"
                             name="schedule_headers[${fieldId}]" step="0.01" min="0" max="100"
                             placeholder="${placeholder}" ${required}>
                         <span class="input-group-text">%</span>
@@ -3511,17 +3516,17 @@ class PipelineManager {
                 return `<select class="form-select ${baseInputClass.replace(
                     "form-control",
                     "",
-                )}" id="${fieldId}" name="schedule_headers[${fieldId}]" ${required}>${options}</select>`;
+                )}" id="${fieldId}" data-sch_id="${header.id}" name="schedule_headers[${fieldId}]" ${required}>${options}</select>`;
             } else {
                 const isTextarea =
                     !header.input_type || header.input_type === "textarea";
 
                 if (isTextarea) {
-                    return `<textarea class="form-inputs breakdown-textarea" id="${fieldId}" name="schedule_headers[${fieldId}]" rows="4" maxlength="5000" aria-label="${header.name}" placeholder="${placeholder}" ${required} ${
+                    return `<textarea class="form-inputs breakdown-textarea" id="${fieldId}" data-sch_id="${header.id}" name="schedule_headers[${fieldId}]" rows="4" maxlength="5000" aria-label="${header.name}" placeholder="${placeholder}" ${required} ${
                         isCoverageDetails ? "" : "readonly"
                     }></textarea>`;
                 } else {
-                    return `<input type="text" class="${baseInputClass}" id="${fieldId}" name="schedule_headers[${fieldId}]" placeholder="${placeholder}" ${required}>`;
+                    return `<input type="text" class="${baseInputClass}" id="${fieldId}" name="schedule_headers[${fieldId}]" data-sch_id="${header.id}" placeholder="${placeholder}" ${required}>`;
                 }
             }
         } catch (error) {
@@ -3529,7 +3534,7 @@ class PipelineManager {
                 !header?.input_type || header?.input_type === "textarea";
 
             if (isTextarea) {
-                return `<textarea class="form-inputs breakdown-textarea" id="${fieldId}" name="schedule_headers[${fieldId}]" rows="4" maxlength="5000" aria-label="${header.name}" placeholder="${placeholder}" ${required}></textarea>`;
+                return `<textarea class="form-inputs breakdown-textarea" id="${fieldId}" name="schedule_headers[${fieldId}]" rows="4" maxlength="5000" aria-label="${header.name}" data-sch_id="${header.id}" placeholder="${placeholder}" ${required}></textarea>`;
             } else {
                 return `<input type="text" class="${baseInputClass}" id="${
                     fieldId || ""
@@ -4291,7 +4296,11 @@ class PipelineManager {
             $bdNotificationForm.find(".opportunity_id").val(data.opportunityId);
             $bdNotificationForm.find(".customer_id").val(data.customerId);
 
-            this.populateAttachedFiles(data.attachedFiles);
+            this.populateAttachedFiles(
+                data.attachedFiles,
+                "attachedFilesList",
+                stageTitle,
+            );
 
             const $contactsSelect = $bdNotificationForm.find("#toContacts");
             const $bccEmailSelect = $bdNotificationForm.find("#bccEmail");
@@ -4396,7 +4405,6 @@ class PipelineManager {
                     typeof window.BDEmailModal.captureInitialState ===
                         "function"
                 ) {
-                    // Capture initial modal values after all async select defaults are applied.
                     setTimeout(() => {
                         window.BDEmailModal.captureInitialState();
                     }, 180);
@@ -4408,7 +4416,11 @@ class PipelineManager {
         }
     }
 
-    populateAttachedFiles(filesArray, containerId = "attachedFilesList") {
+    populateAttachedFiles(
+        filesArray,
+        containerId = "attachedFilesList",
+        stageKey = null,
+    ) {
         const $container = $(`#${containerId}`);
 
         if ($container.length === 0) {
@@ -4428,20 +4440,36 @@ class PipelineManager {
             return;
         }
 
+        const normalizedStage = this.normalizeStageKey(stageKey);
+        const filteredFiles = (filesArray || []).filter((file) => {
+            if (normalizedStage === STAGE_NAMES.LEAD) {
+                return !this.isProposalCoverSlipAttachment(file);
+            }
+
+            if (normalizedStage === STAGE_NAMES.PROPOSAL) {
+                return !this.isLeadCoverSlipAttachment(file);
+            }
+
+            return true;
+        });
+
         $("#additionalFilesMessage").remove();
 
-        $.each(filesArray, (index, file) => {
-            const $fileElement = this.createFileElement(file);
+        $.each(filteredFiles, (index, file) => {
+            const $fileElement = this.createFileElement(file, stageKey);
             $rowContainer.append($fileElement);
         });
 
-        this.updateFileCount(filesArray.length);
+        this.updateFileCount(filteredFiles.length);
     }
 
-    createFileElement(file) {
+    createFileElement(file, stageKey = null) {
         const fileUrl = file.s3_url;
         const fileName = file.original_name;
-        const fileDescription = file.description || "Unknown file";
+        const fileDescription = this.resolveAttachmentDisplayName(
+            file,
+            stageKey,
+        );
         const mimeType = file.mimetype;
         const fileSize = file.file_size;
 
@@ -4483,6 +4511,68 @@ class PipelineManager {
         $col.append($link);
 
         return $col;
+    }
+
+    resolveAttachmentDisplayName(file, stageKey = null) {
+        const fallback = file?.description || file?.original_name || "Unknown file";
+        const normalizedStage = this.normalizeStageKey(stageKey);
+
+        const haystack = [
+            file?.description || "",
+            file?.original_name || "",
+            file?.file || "",
+        ]
+            .join(" ")
+            .toLowerCase();
+
+        if (normalizedStage === STAGE_NAMES.PROPOSAL) {
+            if (haystack.includes("proposal cover slip")) {
+                return "Cover Slip";
+            }
+            return fallback;
+        }
+
+        if (normalizedStage !== STAGE_NAMES.LEAD) {
+            return fallback;
+        }
+
+        if (haystack.includes("lead cover slip")) {
+            return "Cover Slip";
+        }
+
+        if (
+            haystack.includes("lead cover") ||
+            haystack.includes("cover email") ||
+            haystack.includes("cover emails")
+        ) {
+            return "Lead Cover";
+        }
+
+        return fallback;
+    }
+
+    isProposalCoverSlipAttachment(file) {
+        const haystack = [
+            file?.description || "",
+            file?.original_name || "",
+            file?.file || "",
+        ]
+            .join(" ")
+            .toLowerCase();
+
+        return haystack.includes("proposal cover slip");
+    }
+
+    isLeadCoverSlipAttachment(file) {
+        const haystack = [
+            file?.description || "",
+            file?.original_name || "",
+            file?.file || "",
+        ]
+            .join(" ")
+            .toLowerCase();
+
+        return haystack.includes("lead cover slip");
     }
 
     getFileIconAndType(mimeType, fileName) {

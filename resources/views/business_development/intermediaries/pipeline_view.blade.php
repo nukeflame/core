@@ -174,19 +174,14 @@
             </div>
         </div>
 
-        {{-- Email Modal: For sending BD notifications to reinsurers and contacts --}}
         @include('business_development.intermediaries.partials.modals.fac_email_modal')
 
-        {{-- Lead Modal: Initial stage - capture basic opportunity information --}}
         @include('business_development.intermediaries.partials.modals.lead_modal')
 
-        {{-- Proposal Modal: Second stage - select reinsurers and prepare proposals --}}
         @include('business_development.intermediaries.partials.modals.proposal_modal')
 
-        {{-- Negotiation Modal: Third stage - negotiate terms with selected reinsurers --}}
         @include('business_development.intermediaries.partials.modals.negotiation_modal')
 
-        {{-- Final Stage Modal: Complete the deal and prepare for handover --}}
         @include('business_development.intermediaries.partials.modals.final_stage_modal')
     </div>
 

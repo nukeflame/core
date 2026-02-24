@@ -188,7 +188,7 @@
                             aria-label="Schedule headers table" style="width:100%">
                             <thead>
                                 <tr>
-                                    <th style="width: 3%;">ID</th>
+                                    <th style="width: 3%;">#</th>
                                     <th>Schedule Title</th>
                                     <th>Business Type</th>
                                     <th>Class Group</th>
@@ -233,14 +233,14 @@
                                     </div>
                                     <div class="card-body">
                                         <div class="row g-3">
-                                            <div class="col-md-8">
+                                            <div class="col-md-6">
                                                 <label for="sh-name" class="form-label fw-semibold">
                                                     Name <span class="text-danger">*</span>
                                                 </label>
                                                 <input type="text" class="form-control" id="sh-name" name="name"
                                                     maxlength="100" placeholder="Enter schedule header name" required>
                                             </div>
-                                            <div class="col-md-4">
+                                            <div class="col-md-3">
                                                 <label for="sh-position" class="form-label fw-semibold">
                                                     Position <span class="text-danger">*</span>
                                                 </label>
@@ -552,7 +552,8 @@
 
                     const $select = $(selector);
                     const hasValue = $select.find('option').filter(function() {
-                        return ($(this).val() || '').toString().trim().toUpperCase() === value.toUpperCase();
+                        return ($(this).val() || '').toString().trim().toUpperCase() === value
+                            .toUpperCase();
                     }).first();
 
                     if (hasValue.length) {
@@ -560,7 +561,8 @@
                     }
 
                     const hasText = $select.find('option').filter(function() {
-                        return ($(this).text() || '').toString().trim().toUpperCase() === value.toUpperCase();
+                        return ($(this).text() || '').toString().trim().toUpperCase() === value
+                            .toUpperCase();
                     }).first();
 
                     return hasText.length ? hasText.val() : value;
@@ -574,14 +576,16 @@
 
                     const $select = $(selector);
                     const byValue = $select.find('option').filter(function() {
-                        return ($(this).val() || '').toString().trim().toUpperCase() === value.toUpperCase();
+                        return ($(this).val() || '').toString().trim().toUpperCase() === value
+                            .toUpperCase();
                     }).first();
                     if (byValue.length) {
                         return byValue.val();
                     }
 
                     const byText = $select.find('option').filter(function() {
-                        return ($(this).text() || '').toString().trim().toUpperCase() === value.toUpperCase();
+                        return ($(this).text() || '').toString().trim().toUpperCase() === value
+                            .toUpperCase();
                     }).first();
                     if (byText.length) {
                         return byText.val();
@@ -590,10 +594,49 @@
                     return value;
                 }
 
+                function initClassificationSearchDropdowns() {
+                    if (!$.fn.select2) {
+                        return;
+                    }
+
+                    const $modal = $(addModalSelector);
+                    const $dropdownParent = $modal;
+                    const selectConfigs = [{
+                            selector: classGroupSelector,
+                            placeholder: '-- Select Class Group --'
+                        },
+                        {
+                            selector: classSelector,
+                            placeholder: '-- Select Class --'
+                        }
+                    ];
+
+                    selectConfigs.forEach(function(config) {
+                        const $select = $(config.selector);
+                        if (!$select.length) return;
+
+                        if ($select.hasClass('select2-hidden-accessible')) {
+                            $select.select2('destroy');
+                        }
+
+                        $select.select2({
+                            width: '100%',
+                            dropdownParent: $dropdownParent,
+                            placeholder: config.placeholder,
+                            allowClear: true
+                        });
+                    });
+                }
+
                 const datatableColumns = [{
-                        data: 'id',
-                        name: 'id',
-                        defaultContent: '-'
+                        data: null,
+                        name: 'row_index',
+                        orderable: false,
+                        searchable: false,
+                        defaultContent: '-',
+                        render: function(data, type, row, meta) {
+                            return (meta.row + 1) + meta.settings._iDisplayStart;
+                        }
                     },
                     {
                         data: null,
@@ -712,7 +755,7 @@
                             return `
                                 <div class="action-buttons">
                                     <button type="button" class="btn btn-outline-dark btn-sm action-btn edit-schedule-header" data-row="${rowJson}"><i class="fas fa-edit me-1"></i>Edit</button>
-                                    <button type="button" class="btn btn-outline-danger btn-sm action-btn remove-schedule-header" data-id="${rowId}" data-title="${(row.schedule_title || row.name || '').toString().trim()}"><i class="fas fa-trash-alt me-1"></i>Remove</button>
+                                    <button type="button" class="btn btn-outline-danger btn-sm action-btn remove-schedule-header" data-id="${rowId}" data-source-table="${(row.source_table || 'quote_schedule_headers').toString().trim()}" data-title="${(row.schedule_title || row.name || '').toString().trim()}"><i class="fas fa-trash-alt me-1"></i>Remove</button>
                                 </div>
                             `;
                         }
@@ -741,12 +784,10 @@
                     pageLength: 25
                 });
 
-                // Filter handlers
                 $('#filter-business-type, #filter-class-group, #filter-class-name').on('change', function() {
                     dataTable.ajax.reload(null, true);
                 });
 
-                // Cascade: when class group changes, filter class name options
                 $('#filter-class-group').on('change', function() {
                     const selectedGroup = $(this).val();
                     const $className = $('#filter-class-name');
@@ -762,7 +803,6 @@
                     });
                 });
 
-                // Reset all filters
                 $('#resetFiltersBtn').on('click', function() {
                     $('#filter-business-type').val('');
                     $('#filter-class-group').val('').trigger('change');
@@ -770,12 +810,10 @@
                     dataTable.ajax.reload(null, true);
                 });
 
-                // Edit: populate modal with row data and open it
                 $(document).on('click', '.edit-schedule-header', function() {
                     let row;
                     try {
                         const rawData = $(this).data('row');
-                        // jQuery auto-parses data attributes; handle both string and object
                         if (typeof rawData === 'string') {
                             row = JSON.parse(decodeURIComponent(rawData));
                         } else {
@@ -787,18 +825,18 @@
                     }
                     if (!row || !row.id) return;
 
-                    // Reset form first
                     $(addFormSelector)[0].reset();
                     scheduleHeaderValidator.resetForm();
                     $(addFormSelector).find('.is-invalid').removeClass('is-invalid');
 
-                    // Populate fields
                     $('#sh-id').val(row.id);
                     $('#sh-source-table').val(row.source_table || 'quote_schedule_headers');
                     $('#sh-name').val(decodeHtmlEntities(row.name || row.schedule_title || ''));
+                    $('#sh-slug').val((row.slug || '').toString().trim());
                     $('#sh-position').val(row.position != null ? row.position : '');
 
-                    const busType = normalizeBusType(row.business_type || row.bus_type || row.type_of_bus || '');
+                    const busType = normalizeBusType(row.business_type || row.bus_type || row
+                        .type_of_bus || '');
                     $('#sh-business-type').val(busType);
 
                     const amtField = normalizeAmountField(row.amount_field);
@@ -820,22 +858,20 @@
                     if (!classGroupVal && classValue) {
                         classGroupVal = resolveSelectValue(
                             '#sh-class-group',
-                            classCodeToGroupMap[classValue] || classCodeToGroupMap[classValue.toUpperCase()] || ''
+                            classCodeToGroupMap[classValue] || classCodeToGroupMap[classValue
+                                .toUpperCase()] || ''
                         );
                     }
-                    $('#sh-class-group').val(classGroupVal);
+                    $('#sh-class-group').val(classGroupVal).trigger('change.select2');
 
-                    // Update dependent visibility
                     syncFacFieldRequirements();
                     syncAmountDependentFields();
 
-                    // Update modal title/buttons for edit mode
                     $('#addScheduleHeaderModalLabel').text('Edit Schedule Header');
                     $('#scheduleHeaderSubmitBtn').html(
                         '<i class="fas fa-pen me-1"></i> Update Schedule Header'
                     );
 
-                    // Load classes by group, then set selected class
                     if (classGroupVal) {
                         $.ajax({
                             url: getClassUrl,
@@ -860,12 +896,15 @@
                                     });
                                 }
                                 if (classValue && !$cls.find('option').filter(function() {
-                                        return ($(this).val() || '').toString().trim().toUpperCase() ===
+                                        return ($(this).val() || '').toString().trim()
+                                            .toUpperCase() ===
                                             classValue.toUpperCase();
                                     }).length) {
-                                    $cls.append(`<option value="${classValue}">${classValue}</option>`);
+                                    $cls.append(
+                                        `<option value="${classValue}">${classValue}</option>`
+                                    );
                                 }
-                                $cls.val(classValue);
+                                $cls.val(classValue).trigger('change.select2');
                             }
                         });
                     } else {
@@ -873,20 +912,21 @@
                         $cls.empty().append('<option value="">-- Select Class --</option>');
                         if (classValue) {
                             $cls.append(`<option value="${classValue}">${classValue}</option>`);
-                            $cls.val(classValue);
+                            $cls.val(classValue).trigger('change.select2');
                         }
                     }
 
-                    // Open the modal
                     isEditMode = true;
                     const modal = bootstrap.Modal.getOrCreateInstance(document.querySelector(
                         addModalSelector));
                     modal.show();
                 });
 
-                // Remove: SweetAlert confirmation
                 $(document).on('click', '.remove-schedule-header', function() {
                     const id = ($(this).data('id') || '').toString().trim();
+                    const sourceTable = ($(this).data('source-table') || 'quote_schedule_headers')
+                        .toString()
+                        .trim();
                     const title = ($(this).data('title') || '').toString().trim();
                     if (!id) return;
 
@@ -911,7 +951,8 @@
                             dataType: 'json',
                             data: {
                                 _token: csrfToken,
-                                id: id
+                                id: id,
+                                source_table: sourceTable
                             },
                             success: function(resp) {
                                 if (resp && resp.success) {
@@ -923,7 +964,7 @@
                                         timer: 2000,
                                         showConfirmButton: false
                                     });
-                                    dataTable.ajax.reload(null, false);
+                                    dataTable.ajax.reload(null, true);
                                     return;
                                 }
                                 Swal.fire('Error', (resp && resp.message) ||
@@ -982,15 +1023,18 @@
                                     `<option value="${item.class_code}">${label}</option>`
                                 );
                             });
+                            $class.trigger('change.select2');
                         }
                     });
                 }
 
-                // jQuery Validate for the Add Schedule Header form
                 const scheduleHeaderValidator = $(addFormSelector).validate({
                     rules: {
                         name: {
                             required: true,
+                            maxlength: 100
+                        },
+                        slug: {
                             maxlength: 100
                         },
                         position: {
@@ -1017,13 +1061,6 @@
                                 depends: function() {
                                     return ($(businessTypeSelector).val() || '').toUpperCase() ===
                                         'FAC';
-                                }
-                            }
-                        },
-                        sum_insured_type: {
-                            required: {
-                                depends: function() {
-                                    return ($(amountFieldSelector).val() || '') === 'Y';
                                 }
                             }
                         },
@@ -1057,9 +1094,6 @@
                         class: {
                             required: 'Please select a class'
                         },
-                        sum_insured_type: {
-                            required: 'Please select a sum insured type'
-                        },
                         data_determinant: {
                             required: 'Please select a data determinant'
                         }
@@ -1079,6 +1113,7 @@
                         event.preventDefault();
 
                         const $form = $(form);
+                        const isCreate = !($('#sh-id').val() || '').toString().trim();
                         const $submitBtn = $('#scheduleHeaderSubmitBtn');
                         const originalBtnHtml = $submitBtn.html();
 
@@ -1093,23 +1128,32 @@
                             data: $form.serialize(),
                             success: function(resp) {
                                 if (resp && resp.success) {
-                                    toastr.success(resp.message || 'Schedule header saved successfully.');
-                                    const modalEl = document.querySelector(addModalSelector);
-                                    const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+                                    toastr.success(resp.message ||
+                                        'Schedule header saved successfully.');
+                                    if (isCreate) {
+                                        resetScheduleHeaderAddForm();
+                                    }
+                                    const modalEl = document.querySelector(
+                                        addModalSelector);
+                                    const modal = bootstrap.Modal.getOrCreateInstance(
+                                        modalEl);
                                     modal.hide();
-                                    dataTable.ajax.reload(null, false);
+                                    dataTable.ajax.reload(null, true);
                                     return;
                                 }
 
-                                toastr.error((resp && resp.message) || 'Failed to save schedule header.');
+                                toastr.error((resp && resp.message) ||
+                                    'Failed to save schedule header.');
                             },
                             error: function(xhr) {
                                 const responseErrors = xhr?.responseJSON?.errors || {};
                                 const responseMessage = xhr?.responseJSON?.message ||
                                     'Failed to save schedule header.';
 
-                                Object.keys(responseErrors).forEach(function(fieldName) {
-                                    const $field = $form.find(`[name="${fieldName}"]`);
+                                Object.keys(responseErrors).forEach(function(
+                                    fieldName) {
+                                    const $field = $form.find(
+                                        `[name="${fieldName}"]`);
                                     if ($field.length) {
                                         $field.addClass('is-invalid');
                                     }
@@ -1118,7 +1162,8 @@
                                 toastr.error(responseMessage);
                             },
                             complete: function() {
-                                $submitBtn.prop('disabled', false).html(originalBtnHtml);
+                                $submitBtn.prop('disabled', false).html(
+                                    originalBtnHtml);
                             }
                         });
                     }
@@ -1126,23 +1171,31 @@
 
                 let isEditMode = false;
 
+                function resetScheduleHeaderAddForm() {
+                    $(addFormSelector)[0].reset();
+                    $('#sh-id').val('');
+                    $('#sh-source-table').val('quote_schedule_headers');
+                    scheduleHeaderValidator.resetForm();
+                    $(addFormSelector).find('.is-invalid').removeClass('is-invalid');
+                    $('#addScheduleHeaderModalLabel').text('Add Schedule Header');
+                    $('#scheduleHeaderSubmitBtn').html(
+                        '<i class="fas fa-check me-1"></i> Save Schedule Header'
+                    );
+                    syncFacFieldRequirements();
+                    syncAmountDependentFields();
+                    loadClassesByGroup();
+                    $(classGroupSelector).val(null).trigger('change.select2');
+                    $(classSelector).val(null).trigger('change.select2');
+                }
+
                 $(businessTypeSelector).on('change', syncFacFieldRequirements);
                 $(amountFieldSelector).on('change', syncAmountDependentFields);
                 $(classGroupSelector).on('change', loadClassesByGroup);
+                initClassificationSearchDropdowns();
                 $(addModalSelector).on('shown.bs.modal', function() {
+                    initClassificationSearchDropdowns();
                     if (!isEditMode) {
-                        $(addFormSelector)[0].reset();
-                        $('#sh-id').val('');
-                        $('#sh-source-table').val('quote_schedule_headers');
-                        scheduleHeaderValidator.resetForm();
-                        $(addFormSelector).find('.is-invalid').removeClass('is-invalid');
-                        $('#addScheduleHeaderModalLabel').text('Add Schedule Header');
-                        $('#scheduleHeaderSubmitBtn').html(
-                            '<i class="fas fa-check me-1"></i> Save Schedule Header'
-                        );
-                        syncFacFieldRequirements();
-                        syncAmountDependentFields();
-                        loadClassesByGroup();
+                        resetScheduleHeaderAddForm();
                     }
                     isEditMode = false;
                 });

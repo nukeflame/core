@@ -2467,7 +2467,7 @@
                                 title: 'Handover Successful!',
                                 html: `
                                 <p>The prospect has been successfully submitted for handover.</p>
-                                <p>Redirecting to pipeline view...</p>
+                                <p>Redirecting to BD Handovers...</p>
                             `,
                                 timer: 2000,
                                 timerProgressBar: true,
@@ -2475,7 +2475,7 @@
                                 allowOutsideClick: false,
                                 allowEscapeKey: false
                             }).then(() => {
-                                window.location.href = '/bd-handovers';
+                                window.location.href = "{{ route('pipeline.bd_handovers') }}";
                             });
                         } else {
                             Swal.fire({

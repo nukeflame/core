@@ -11,7 +11,7 @@
             <nav>
                 <ol class="breadcrumb mb-0">
                     <li class="breadcrumb-item"><a href="{{ route('dashboard.index') }}">Dashboard</a></li>
-                    <li class="breadcrumb-item"><a href="#">Pipeline</a></li>
+                    <li class="breadcrumb-item"><a href="{{ route('pipeline.bd_handovers') }}">Pipeline</a></li>
                     <li class="breadcrumb-item active" aria-current="page">BD Handovers</li>
                 </ol>
             </nav>
@@ -433,7 +433,7 @@
             bdHandoversStats: "{!! route('pipeline.bd_handovers_stats') !!}",
             clearCedantData: "{!! route('customer.clear_cedant_data') !!}",
             createCover: "{!! route('pipeline.create_cover') !!}",
-            bdApprovalAction: "{!! route('approvals.bd-approval-action') !!}",
+            bdApprovalAction: "{!! route('admin.approvals.bd-action') !!}",
             exportData: "{!! route('pipeline.bd_handovers_export') !!}",
         };
     </script>

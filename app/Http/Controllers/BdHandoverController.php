@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\Bd\PipelineOpportunity;
-use App\Models\BdHandover;
 use App\Models\CoverType;
 use App\Models\HandoverApproval;
 use App\Models\PayMethod;
@@ -31,8 +30,6 @@ class BdHandoverController extends Controller
         $this->coverRepository = $coverRepository;
         $this->coverService = $coverService;
     }
-
-
 
     public function index()
     {

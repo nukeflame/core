@@ -14,6 +14,7 @@ class QuoteScheduleHeader extends Model
     protected $fillable = [
 
         'name',
+        'skug',
         'position',
         'amount_field',
         'sum_insured_type',

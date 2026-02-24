@@ -322,16 +322,18 @@
             });
 
             function validateReinsurerSelection() {
-                if (negotiationState.reinsurers.length < VALIDATION_CONFIG.MIN_REINSURERS) {
+                const activeReinsurers = getActiveReinsurers(negotiationState.reinsurers);
+
+                if (activeReinsurers.length < VALIDATION_CONFIG.MIN_REINSURERS) {
                     return {
                         isValid: false,
                         message: 'Please add at least one reinsurer'
                     };
                 }
 
-                const missingSignedShares = negotiationState.reinsurers.filter(r => {
+                const missingSignedShares = activeReinsurers.filter(r => {
                     const signedShare = parseFloat(r.signed_share || 0);
-                    return signedShare <= 0 && r.is_declined !== true;
+                    return signedShare <= 0;
                 });
 
                 // console.log(missingSignedShares)
@@ -750,7 +752,7 @@
                         }
 
                         const otherSignedSharesTotal = negotiationState.reinsurers
-                            .filter((r, idx) => idx !== reinsurerIndex)
+                            .filter((r, idx) => idx !== reinsurerIndex && !isDeclinedReinsurer(r))
                             .reduce((sum, r) => sum + parseFloat(r.signed_share || 0), 0);
 
                         const newTotal = otherSignedSharesTotal + newSignedShare;
@@ -1002,7 +1004,9 @@
             }
 
             function updateTotalShare() {
-                negotiationState.totalShare = negotiationState.reinsurers.reduce(
+                const activeReinsurers = getActiveReinsurers(negotiationState.reinsurers);
+
+                negotiationState.totalShare = activeReinsurers.reduce(
                     (sum, r) => sum + parseFloat(r.signed_share || 0),
                     0
                 );
@@ -1326,6 +1330,7 @@
 
             function transformReinsurerData(reinsurers) {
                 return reinsurers.map((reinsurer) => {
+                    const isDeclined = isDeclinedReinsurer(reinsurer);
                     return {
                         id: reinsurer.reinsurer_id || reinsurer.id,
                         name: reinsurer.reinsurer_name || reinsurer.name,
@@ -1336,12 +1341,22 @@
                         commission: parseFloat(reinsurer.brokerage_rate || reinsurer.commission || 0)
                             .toFixed(2),
                         status: reinsurer.status || 'pending',
-                        is_declined: reinsurer.is_declined || false,
+                        is_declined: isDeclined,
                         country: reinsurer.country || '',
                         contact: reinsurer.email || reinsurer.contact || "-",
                         action: "",
                     };
                 });
+            }
+
+            function isDeclinedReinsurer(reinsurer) {
+                if (!reinsurer) return false;
+                const value = reinsurer.is_declined;
+                return value === true || value === 1 || value === '1' || value === 'true';
+            }
+
+            function getActiveReinsurers(reinsurers) {
+                return (reinsurers || []).filter((reinsurer) => !isDeclinedReinsurer(reinsurer));
             }
 
             function escapeHtml(text) {

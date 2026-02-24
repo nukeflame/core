@@ -498,6 +498,7 @@
                                 <i class="bx bx-layout me-2"></i>Editor Actions
                             </h6>
                             <div class="d-flex flex-wrap">
+                                <input type="hidden" id="schId" />
                                 <button type="button" class="template-btn" data-template="standard">
                                     Load Existing Content
                                 </button>
@@ -2750,7 +2751,8 @@
                     .trim()
                     .toLowerCase();
                 const hasSupportingDocumentFields = $documentFields.find(".document-field-group").length > 0;
-                const hasNoDocumentsPlaceholder = noDocumentsMessage.includes("no documents available for this stage");
+                const hasNoDocumentsPlaceholder = noDocumentsMessage.includes(
+                    "no documents available for this stage");
 
                 $("#leadForm .form-inputs").each(function() {
                     if (!validateField($(this))) {
@@ -3298,13 +3300,14 @@
                     $(document).on("click", "textarea.breakdown-textarea", (e) => {
                         const $textarea = $(e.currentTarget);
                         const textareaId = $textarea.attr('id');
+                        const schId = $textarea.data('sch_id');
 
                         if ((textareaId || "").toLowerCase() === "coveragedetails") {
                             return;
                         }
 
                         e.preventDefault();
-                        this.openModal($textarea, textareaId);
+                        this.openModal($textarea, textareaId, schId);
                     });
 
                     $(document).on("click", ".template-btn", (e) => {
@@ -3339,11 +3342,13 @@
                     this.modal = new bootstrap.Modal(modalElement);
                 }
 
-                openModal($textarea, textareaId) {
+                openModal($textarea, textareaId, schId) {
                     if (!this.modal) return;
 
                     this.currentTextarea = $(`#${textareaId}Content`);
                     this.textareaId = textareaId;
+
+                    $("#schId").val(schId)
 
                     const fieldLabel = $textarea.closest(".form-group")
                         .find("label").first().text().trim();
@@ -3535,6 +3540,7 @@
                         const breakdownLabel = ($("#breakdownModalLabel").text() || this.currentFieldLabel ||
                             "").trim();
                         const headerKeyword = this.resolveHeaderKeyword();
+                        const schId = $("#schId").val();
 
                         $.ajax({
                             url: "{{ route('bd.slip-template.headers') }}",
@@ -3549,6 +3555,7 @@
                                 header_keyword: headerKeyword,
                                 breakdown_label: breakdownLabel,
                                 opportunity_id: opportunityId,
+                                schedule_id: schId,
                             },
                             success: (response) => {
                                 $btn.html(origText).prop("disabled", false);

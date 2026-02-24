@@ -2,6 +2,7 @@
 
 namespace App\Repositories;
 
+use App\Models\Bd\PipelineOpportunity;
 use App\Models\BusinessType;
 use App\Models\ClaimRegister;
 use App\Models\Classes;
@@ -30,6 +31,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Schema;
 use Symfony\Component\HttpFoundation\Response;
 use Illuminate\Validation\Rule;
 use Prettus\Repository\Criteria\RequestCriteria;
@@ -142,7 +144,7 @@ class CoverRepository extends BaseRepository
             $type_of_bus = $this->getCachedBusinessType($CoverRegister->type_of_bus);
             $cusType = $this->getCustomerTypes($CoverRegister->type_of_bus);
             $reinsurers = $this->getReinsurers($cusType);
-            $schedHeaders = $this->getCachedScheduleHeaders();
+            $schedHeaders = $this->getScheduleHeadersForCover($CoverRegister);
             $verifiers = $this->getVerifiers();
             $process = $this->getCachedSystemProcess('cover_registration');
             $verifyprocessAction = $this->getCachedSystemProcessAction('verify_cover');
@@ -983,6 +985,88 @@ class CoverRepository extends BaseRepository
         return Cache::remember('schedule_headers', self::CACHE_TTL, function () {
             return ScheduleHeader::orderBy('position')->get();
         });
+    }
+
+    private function getScheduleHeadersForCover(CoverRegister $cover)
+    {
+        $prospect = $this->getProspectOpportunityForCover($cover);
+        $classCode = $prospect->classcode ?? $cover->class_code;
+        $classGroup = $prospect->class_group
+            ?? $cover->class_group_code
+            ?? ($classCode ? Classes::where('class_code', $classCode)->value('class_group_code') : null);
+        $businessTypeAliases = $this->normalizeScheduleBusinessTypes(
+            $prospect->type_of_bus ?? $cover->type_of_bus
+        );
+
+        $query = ScheduleHeader::query();
+        $hasFilter = false;
+
+        if ($classCode !== null && $classCode !== '') {
+            if (Schema::hasColumn('schedule_headers', 'class')) {
+                $query->where('class', $classCode);
+                $hasFilter = true;
+            } elseif (Schema::hasColumn('schedule_headers', 'class_code')) {
+                $query->where('class_code', $classCode);
+                $hasFilter = true;
+            }
+        }
+
+        if ($classGroup !== null && $classGroup !== '') {
+            if (Schema::hasColumn('schedule_headers', 'class_group')) {
+                $query->where('class_group', $classGroup);
+                $hasFilter = true;
+            } elseif (Schema::hasColumn('schedule_headers', 'class_group_code')) {
+                $query->where('class_group_code', $classGroup);
+                $hasFilter = true;
+            }
+        }
+
+        if (!empty($businessTypeAliases)) {
+            if (Schema::hasColumn('schedule_headers', 'business_type')) {
+                $query->whereIn('business_type', $businessTypeAliases);
+                $hasFilter = true;
+            } elseif (Schema::hasColumn('schedule_headers', 'bus_type')) {
+                $query->whereIn('bus_type', $businessTypeAliases);
+                $hasFilter = true;
+            } elseif (Schema::hasColumn('schedule_headers', 'type_of_bus')) {
+                $query->whereIn('type_of_bus', $businessTypeAliases);
+                $hasFilter = true;
+            }
+        }
+
+        if (!$hasFilter) {
+            return $this->getCachedScheduleHeaders();
+        }
+
+        return $query->orderBy('position')->get();
+    }
+
+    private function getProspectOpportunityForCover(CoverRegister $cover): ?PipelineOpportunity
+    {
+        $prospectId = trim((string) ($cover->prospect_id ?? ''));
+        if ($prospectId === '') {
+            return null;
+        }
+
+        return PipelineOpportunity::query()
+            ->where('opportunity_id', $prospectId)
+            ->orWhere(function ($query) use ($prospectId) {
+                if (is_numeric($prospectId)) {
+                    $query->where('id', (int) $prospectId);
+                }
+            })
+            ->first();
+    }
+
+    private function normalizeScheduleBusinessTypes($typeOfBus): array
+    {
+        $type = strtoupper(trim((string) $typeOfBus));
+
+        return match ($type) {
+            'FPR', 'FNP', 'FAC', 'FACULTATIVE' => ['FAC', 'FPR', 'FNP', 'FACULTATIVE'],
+            'TPR', 'TNP', 'TRT', 'TREATY' => ['TRT', 'TPR', 'TNP', 'TREATY'],
+            default => [],
+        };
     }
 
     private function getCachedWhtRates()

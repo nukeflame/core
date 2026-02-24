@@ -6393,12 +6393,30 @@ class PipelineController
             $shouldIncludeAttachments = !$emailData['is_reply'] || $emailData['include_reply_attachments'];
             if ($shouldIncludeAttachments) {
                 $attached_files = DB::table('prospect_docs')->where('prospect_id', $emailData['opportunity_id'])->get([
+                    's3_path',
                     's3_url',
                     'original_name',
                     'file',
                     'mimetype',
-                    'file_size'
+                    'file_size',
+                    'description',
                 ]);
+
+                $normalizedCategory = Str::lower((string) ($emailData['category'] ?? ''));
+
+                if ($normalizedCategory === Stage::LEAD) {
+                    $attached_files = $attached_files->reject(function ($file) {
+                        return $this->isProposalCoverSlipAttachment($file);
+                    })->values();
+                } elseif ($normalizedCategory === Stage::PROPOSAL) {
+                    $attached_files = $attached_files->reject(function ($file) {
+                        return $this->isLeadCoverSlipAttachment($file);
+                    })->values();
+                }
+
+                $attached_files = $attached_files->map(function ($file) {
+                    return $this->normalizeBdAttachmentFileName($file);
+                });
             } else {
                 $attached_files = [];
             }
@@ -6457,6 +6475,60 @@ class PipelineController
                 'message' => 'Failed to send bd notification: '
             ], 500);
         }
+    }
+
+    private function normalizeBdAttachmentFileName($file)
+    {
+        $description = Str::lower(trim((string) ($file->description ?? '')));
+        $currentFileName = trim((string) ($file->file ?? $file->original_name ?? ''));
+
+        if ($currentFileName === '' || $description === '') {
+            return $file;
+        }
+
+        $targetBaseName = null;
+
+        if (Str::contains($description, 'lead cover slip')) {
+            $targetBaseName = 'Cover Slip';
+        } elseif (Str::contains($description, 'proposal cover slip')) {
+            $targetBaseName = 'Cover Slip';
+        } elseif (Str::contains($description, ['lead cover', 'cover email', 'cover emails'])) {
+            $targetBaseName = 'Cover Emails';
+        }
+
+        if ($targetBaseName === null) {
+            return $file;
+        }
+
+        $extension = pathinfo($currentFileName, PATHINFO_EXTENSION);
+        $newFileName = $targetBaseName . ($extension !== '' ? '.' . $extension : '');
+
+        $file->file = $newFileName;
+        $file->original_name = $newFileName;
+
+        return $file;
+    }
+
+    private function isProposalCoverSlipAttachment($file): bool
+    {
+        $haystack = Str::lower(trim(implode(' ', [
+            (string) ($file->description ?? ''),
+            (string) ($file->original_name ?? ''),
+            (string) ($file->file ?? ''),
+        ])));
+
+        return Str::contains($haystack, 'proposal cover slip');
+    }
+
+    private function isLeadCoverSlipAttachment($file): bool
+    {
+        $haystack = Str::lower(trim(implode(' ', [
+            (string) ($file->description ?? ''),
+            (string) ($file->original_name ?? ''),
+            (string) ($file->file ?? ''),
+        ])));
+
+        return Str::contains($haystack, 'lead cover slip');
     }
 
     public function stageCycleNotEqualFive($leadId, $stage_cycle, $pipeline, $division, $request)
@@ -6544,8 +6616,6 @@ class PipelineController
         ];
         DB::commit();
         return redirect()->route('lead.handover', ['prospect' => $leadId]);
-        // Mail::to('mutuaian176@gmail.com')->send(new Prospectwonemail($data));
-        Mail::to('marketing@accentriagroup.com')->send(new Prospectwonemail($data));
     }
 
     public function stageCycleFacNotEqualFour($leadId, $stage_cycle_fac, $pipeline, $division, $request)
@@ -6556,7 +6626,6 @@ class PipelineController
 
         if (isset($reinsurers)) {
             if (is_array($reinsurers)) {
-                // If it's a single associative array (one reinsurer), wrap it
                 if (array_key_exists('decline', $reinsurers)) {
                     $reinsurers = [$reinsurers];
                 }
@@ -6638,7 +6707,7 @@ class PipelineController
             ->update([
                 'stage' => $stage_cycle_fac,
             ]);
-        // DB::commit();
+        DB::commit();
         return redirect()->route('lead.handover', ['prospect' => $leadId]);
     }
 
@@ -6662,9 +6731,6 @@ class PipelineController
             'phone' => $pip->phone,
             'start_date' => $pip->effective_date,
         ];
-
-        // Mail::to('mutuaian176@gmail.com')->send(new Prospectwonemail($data));
-        Mail::to('marketing@accentriagroup.com')->send(new Prospectwonemail($data));
     }
 
     public function sendEmailFacSlipPerReinsurer($opportunityID, $customer_id, $stage, $stageType, $request)
@@ -6868,7 +6934,6 @@ class PipelineController
             ];
 
 
-            // Dispatch the job
             SendQuoteJob::dispatch($data, $pdfPath, $filePath, $pdfFilename, $fileName);
         } else {
             if ($stage == 4) {
@@ -6876,17 +6941,14 @@ class PipelineController
                 $pdfFolderPath = 'uploads';
 
                 if (!file_exists($pdfFolderPath)) {
-                    @mkdir($pdfFolderPath, 0777, true); // Suppress warning if directory exists
+                    @mkdir($pdfFolderPath, 0777, true);
                 }
 
-                // Generate a unique filename for the single PDF containing all reinsurers' quotes
                 $documentType = ($stageType == 1) ? 'Quotation Slip' : 'Offer Slip';
                 $pdfFilename = $class->class_name . ' ' . $documentType . '_' . mt_rand() . '_' . time() . '.pdf';
                 $pdfPath = $pdfFolderPath . '/' . $pdfFilename;
 
-                // Collect data for all quotes, each associated with a reinsurer
                 foreach ($allQuotes as $index => $quote) {
-                    // Fetch reinsurer data for the quote
                     $reinsurer = Customer::where('customer_id', $quote->reinsurer_id)->get();
 
                     $allQuotesData[] = [
@@ -6902,7 +6964,6 @@ class PipelineController
                     ];
                 }
 
-                // Generate one PDF containing all reinsurers' quotes
                 $view_path = 'printouts.';
                 $view_name = $view_path . 'fac_coverslipquote_combined';
                 $data = [
@@ -6921,12 +6982,10 @@ class PipelineController
                     ->setOption('isPhpEnabled', true)
                     ->setOption('isRemoteEnabled', true);
 
-                // Save the single PDF file with all reinsurers' quotes
                 $pdf->render();
                 try {
                     Storage::disk('s3')->put($pdfPath, $pdf->output(), ['visibility' => 'public']);
 
-                    // Check if the PDF was saved in S3
                     if (!Storage::disk('s3')->exists($pdfPath)) {
                         return response()->json(['error' => 'Failed to save PDF to S3.'], 500);
                     }
@@ -6934,7 +6993,6 @@ class PipelineController
                     return response()->json(['error' => 'S3 upload error: ' . $e->getMessage()], 500);
                 }
 
-                // Save document record if stage is 4 (one record for the single PDF)
                 $mimetype = 'application/pdf';
                 $prospect_doc_id = DB::table('prospect_docs')->insertGetId([
                     'description' => $documentType,
@@ -6964,9 +7022,9 @@ class PipelineController
 
                 $pdfFolderPath = 'Uploads';
                 if (!file_exists($pdfFolderPath)) {
-                    @mkdir($pdfFolderPath, 0777, true); // Suppress warning if directory exists
+                    @mkdir($pdfFolderPath, 0777, true);
                 }
-                // Generate a unique filename
+
                 if ($stageType == 1) {
                     $pdfFilename = $class->class_name . ' ' . 'Quotation Slip' . '_' . mt_rand() . $quote->id . '_' . $quote->reinsurer_id . '.pdf';
                 } else {
@@ -6983,11 +7041,9 @@ class PipelineController
                 $pdf->set_option('isRemoteEnabled', true);
                 $pdf->render();
 
-                // Save the PDF file
                 try {
                     Storage::disk('s3')->put($pdfPath, $pdf->output(), ['visibility' => 'public']);
 
-                    // Check if the PDF was saved in S3
                     if (!Storage::disk('s3')->exists($pdfPath)) {
                         return response()->json(['error' => 'Failed to save PDF to S3.'], 500);
                     }
@@ -7006,21 +7062,18 @@ class PipelineController
                         $uploadedFile = $request->file('document_file_email_attachment')[$index];
                         $document_file_email_attachment_name = $request->document_name_email_attachment[$index] ?? 'unknown';
 
-                        // Generate unique file name
                         $generatedFileName = $class->class_name . ' ' . $document_file_email_attachment_name . '_' . time() . '.' . $uploadedFile->getClientOriginalExtension();
                         $generatedFilePath = $pdfFolderPath . '/' . $generatedFileName;
 
                         try {
-                            // Upload file to S3
                             Storage::disk('s3')->put($generatedFilePath, file_get_contents($uploadedFile), ['visibility' => 'public']);
 
-                            // Verify if the file was uploaded
                             if (!Storage::disk('s3')->exists($generatedFilePath)) {
                                 return response()->json(['error' => "File upload failed at index $index. File not found in S3."], 500);
                             }
 
                             $fileName[] = $generatedFileName;
-                            $filePath[] = $generatedFilePath; // Store S3 path
+                            $filePath[] = $generatedFilePath;
                         } catch (\Exception $e) {
                             return response()->json(['error' => "S3 upload error at index $index: " . $e->getMessage()], 500);
                         }
@@ -7071,38 +7124,38 @@ class PipelineController
 
                 if ($stage == 2 && $uncheckedCount > 0) {
                     $qtEmailBody = '
-                <table cellspacing="0" cellpadding="0" border="0" width="100%" style="font-family: Arial, sans-serif; font-size: 14px; color: #000;">
-                  <tr>
-                            <td>Greetings,</td>
-                        </tr>
-                    <tr>
-                        <td>We wish to offer you quotation with the given terms. We look forward to your positive feedback.</td>
-                    </tr>
-                </table>';
+                                <table cellspacing="0" cellpadding="0" border="0" width="100%" style="font-family: Arial, sans-serif; font-size: 14px; color: #000;">
+                                <tr>
+                                            <td>Greetings,</td>
+                                        </tr>
+                                    <tr>
+                                        <td>We wish to offer you quotation with the given terms. We look forward to your positive feedback.</td>
+                                    </tr>
+                                </table>';
                 } else if ($stage == 2 && $uncheckedCount == 0) {
                     $qtEmailBody = '
-                <table cellspacing="0" cellpadding="0" border="0" width="100%" style="font-family: Arial, sans-serif; font-size: 14px; color: #000;">
-                  <tr>
-                            <td>Greetings,</td>
-                        </tr>
-                    <tr>
-                        <td style="padding-bottom: 1px;">Kindly favour us with terms as per the attached supporting documents.</td>
-                    </tr>
-                    <tr>
-                        <td>We look forward to your positive feedback.</td>
-                    </tr>
-                </table>
-                ';
+                                    <table cellspacing="0" cellpadding="0" border="0" width="100%" style="font-family: Arial, sans-serif; font-size: 14px; color: #000;">
+                                    <tr>
+                                                <td>Greetings,</td>
+                                            </tr>
+                                        <tr>
+                                            <td style="padding-bottom: 1px;">Kindly favour us with terms as per the attached supporting documents.</td>
+                                        </tr>
+                                        <tr>
+                                            <td>We look forward to your positive feedback.</td>
+                                        </tr>
+                                    </table>
+                                ';
                 } else {
                     $qtEmailBody = '
-                <table cellspacing="0" cellpadding="0" border="0" width="100%" style="font-family: Arial, sans-serif; font-size: 14px; color: #000;">
-                  <tr>
-                            <td>Greetings,</td>
-                        </tr>
-                    <tr>
-                        <td>We  Confirm your support with the terms given as per the attached quotation slip.</td>
-                    </tr>
-                </table>';
+                                <table cellspacing="0" cellpadding="0" border="0" width="100%" style="font-family: Arial, sans-serif; font-size: 14px; color: #000;">
+                                <tr>
+                                            <td>Greetings,</td>
+                                        </tr>
+                                    <tr>
+                                        <td>We  Confirm your support with the terms given as per the attached quotation slip.</td>
+                                    </tr>
+                                </table>';
                 }
 
 
@@ -8017,6 +8070,7 @@ class PipelineController
                         'data_determinant' => $header->data_determinant,
                         'class' => $header->class,
                         'class_group' => $header->class_group,
+                        'slug' => $header->slug,
                         'type_of_sum_insured' => $header->type_of_sum_insured ?? null,
                     ];
                 })

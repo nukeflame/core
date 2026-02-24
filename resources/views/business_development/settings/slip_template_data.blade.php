@@ -309,6 +309,41 @@
                 var wordingEditorMaxHeight = 780;
                 var formValidator = null;
 
+                function initClassSearchDropdowns() {
+                    if (!$.fn.select2) {
+                        return;
+                    }
+
+                    var $modal = $('#slipTemplateModal');
+                    var configs = [{
+                            selector: '#st-class-group-code',
+                            placeholder: '-- Select Class Group --'
+                        },
+                        {
+                            selector: '#st-class-code',
+                            placeholder: '-- Select Class --'
+                        }
+                    ];
+
+                    configs.forEach(function(config) {
+                        var $select = $(config.selector);
+                        if (!$select.length) {
+                            return;
+                        }
+
+                        if ($select.hasClass('select2-hidden-accessible')) {
+                            $select.select2('destroy');
+                        }
+
+                        $select.select2({
+                            width: '100%',
+                            dropdownParent: $modal,
+                            placeholder: config.placeholder,
+                            allowClear: true
+                        });
+                    });
+                }
+
                 function showMessage(type, text) {
                     if (window.toastr && typeof toastr[type] === 'function') {
                         toastr[type](text);
@@ -337,6 +372,8 @@
                     $('#slipTemplateSaveBtn').text('Save');
                     isEditMode = false;
                     populateClassOptions('', '');
+                    $('#st-class-group-code').val(null).trigger('change.select2');
+                    $('#st-class-code').val(null).trigger('change.select2');
                     if (wordingQuill) {
                         wordingQuill.setContents([]);
                     }
@@ -350,6 +387,7 @@
                     $class.empty().append('<option value="">-- Select Class --</option>');
 
                     if (!groupCode) {
+                        $class.trigger('change.select2');
                         return;
                     }
 
@@ -370,6 +408,8 @@
                             label +
                             '</option>');
                     });
+
+                    $class.trigger('change.select2');
                 }
 
                 function filterScheduleHeaders(selectedGroupCode, selectedClassCode, preserveValues) {
@@ -569,6 +609,7 @@
 
                 initWordingEditor();
                 setTimeout(syncWordingScrollClass, 0);
+                initClassSearchDropdowns();
 
                 if ($.fn.validate) {
                     formValidator = $('#slipTemplateForm').validate({
@@ -750,9 +791,9 @@
                     $('#st-id').val(id);
                     $('#st-schedule-title').val(scheduleTitle);
                     $('#st-type-of-bus').val(typeOfBusValues).trigger('change');
-                    $('#st-class-group-code').val(classGroupCode);
+                    $('#st-class-group-code').val(classGroupCode).trigger('change.select2');
                     populateClassOptions(classGroupCode, classCode);
-                    $('#st-class-code').val(classCode).trigger('change');
+                    $('#st-class-code').val(classCode).trigger('change.select2').trigger('change');
                     $('#st-description').val(description);
                     setWordingContent(wording);
                     $('#st-status').val(status);
@@ -873,6 +914,7 @@
                 });
 
                 $('#slipTemplateModal').on('shown.bs.modal', function() {
+                    initClassSearchDropdowns();
                     syncWordingScrollClass();
                 });
             });

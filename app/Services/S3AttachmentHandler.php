@@ -121,15 +121,20 @@ class S3AttachmentHandler
     protected function downloadFromS3($file): ?array
     {
         try {
-            $s3Url = $file->s3_url ?? $file['s3_url'];
-            $fileName = $file->file ?? $file['file'];
-            $mimeType = $file->mimetype ?? $file['mime_type'] ?? 'application/octet-stream';
+            $s3Path = $file->s3_path ?? $file['s3_path'] ?? null;
+            $s3Url = $file->s3_url ?? $file['s3_url'] ?? null;
+            $fileName = $file->file ?? $file['file'] ?? $file->original_name ?? $file['original_name'] ?? 'attachment';
+            $mimeType = $file->mimetype ?? $file['mimetype'] ?? $file['mime_type'] ?? 'application/octet-stream';
 
-            if (filter_var($s3Url, FILTER_VALIDATE_URL)) {
-                return $this->downloadFromUrl($s3Url, $fileName, $mimeType);
-            } else {
-                return $this->downloadFromStorage($s3Url, $fileName, $mimeType);
+            if (!empty($s3Path)) {
+                return $this->downloadFromStorage($s3Path, $fileName, $mimeType);
             }
+
+            if (!empty($s3Url) && filter_var($s3Url, FILTER_VALIDATE_URL)) {
+                return $this->downloadFromUrl($s3Url, $fileName, $mimeType);
+            }
+
+            return null;
         } catch (Exception $e) {
             return null;
         }

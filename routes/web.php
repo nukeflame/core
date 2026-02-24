@@ -1,15 +1,11 @@
 <?php
 
-use App\Events\ReverbTest;
 use App\Http\Controllers\BdController\BdScheduleController;
 use App\Http\Controllers\DashboardController;
-use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\BdController\LeadsOnboardingController;
 use App\Http\Controllers\BdController\PipelineController;
 use App\Http\Controllers\BdController\TenderController;
 use App\Http\Controllers\BdHandoverController;
-use App\Http\Controllers\GoogleOAuthController;
-use App\Http\Controllers\MicrosoftWebhookController;
 use App\Http\Controllers\OutlookOAuthController;
 use App\Http\Controllers\PrintoutController;
 use App\Http\Controllers\SearchController;
@@ -252,22 +248,31 @@ Route::middleware(['auth', 'check.first.login'])->group(function () {
     Route::post('/search', [TenderController::class, 'search'])->name('search_tender_emails');
     Route::any('/doc-attachment', [PipelineController::class, 'TenderDocAttachement'])->name('tender.docs');
 
-    Route::get('/bd-handovers', [BdHandoverController::class, 'index'])
+    // Canonical BD handovers URL (kebab-case), with legacy underscore redirects.
+    Route::redirect('/bd_handovers', '/bd-handovers', 301);
+    Route::redirect('/bd_handovers/statistics', '/bd-handovers/statistics', 301);
+    Route::redirect('/bd_handovers/datatable', '/bd-handovers/datatable', 301);
+    Route::redirect('/bd_handovers/export', '/bd-handovers/export', 301);
+    Route::get('/bd_handovers/{id}', function ($id) {
+        return redirect()->route('pipeline.bd_handover_details', ['id' => $id], 301);
+    })->whereNumber('id');
+
+    Route::get('/business-development/handovers', [BdHandoverController::class, 'index'])
         ->name('pipeline.bd_handovers');
 
-    Route::get('/bd-handovers/statistics', [BdHandoverController::class, 'getStatistics'])
+    Route::get('/business-development/statistics', [BdHandoverController::class, 'getStatistics'])
         ->name('pipeline.bd_handovers_stats');
 
-    Route::get('/bd-handovers/datatable', [BdHandoverController::class, 'getDataTableData'])
+    Route::get('/business-development/datatable', [BdHandoverController::class, 'getDataTableData'])
         ->name('pipeline.bd_handovers_datatable');
 
-    Route::post('/bd-handovers/create-cover', [BdHandoverController::class, 'createCover'])
+    Route::post('/business-development/create-cover', [BdHandoverController::class, 'createCover'])
         ->name('pipeline.create_cover');
 
-    Route::get('/bd-handovers/export', [BdHandoverController::class, 'export'])
+    Route::get('/business-development/export', [BdHandoverController::class, 'export'])
         ->name('pipeline.bd_handovers_export');
 
-    Route::get('/bd-handovers/{id}', [BdHandoverController::class, 'show'])
+    Route::get('/business-development/{id}', [BdHandoverController::class, 'show'])
         ->name('pipeline.bd_handover_details');
 });
 

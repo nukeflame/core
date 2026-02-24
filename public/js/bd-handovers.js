@@ -50,7 +50,7 @@
     async function apiFetch(url, options = {}) {
         try {
             const csrfToken = document.querySelector(
-                'meta[name="csrf-token"]'
+                'meta[name="csrf-token"]',
             )?.content;
 
             const defaultOptions = {
@@ -78,7 +78,7 @@
                     errorData.message ||
                         `HTTP ${response.status}: ${response.statusText}`,
                     response.status,
-                    errorData
+                    errorData,
                 );
             }
 
@@ -141,12 +141,12 @@
             if (error.status === 401) {
                 toastr.error(
                     "Session expired. Please refresh the page.",
-                    "Authentication Error"
+                    "Authentication Error",
                 );
             } else if (error.status === 403) {
                 toastr.error(
                     "You do not have permission to view statistics.",
-                    "Permission Denied"
+                    "Permission Denied",
                 );
             } else {
                 toastr.error("Failed to load dashboard statistics", "Error");
@@ -164,7 +164,6 @@
     async function submitApprovalAction(data) {
         try {
             const response = await apiPost(ROUTES.bdApprovalAction, data);
-
             if (response.status === CONFIG.STATUS_CODES.SUCCESS) {
                 toastr.success(response.message, "Successful");
                 state.bdTable.ajax.reload(null, false);
@@ -175,14 +174,14 @@
                 handleValidationErrors(response.errors);
             } else {
                 throw new Error(
-                    response.message || "Failed to process request"
+                    response.message || "Failed to process request",
                 );
             }
         } catch (error) {
             toastr.error(
                 error.message ||
                     "An internal error occurred. Please try again.",
-                "Error"
+                "Error",
             );
         }
     }
@@ -199,7 +198,7 @@
             ) {
                 toastr.success(
                     response.message || "Action was successful",
-                    "Successful"
+                    "Successful",
                 );
 
                 setTimeout(() => {
@@ -217,7 +216,7 @@
             toastr.error(
                 error.message ||
                     "An internal error occurred. Please try again.",
-                "Error"
+                "Error",
             );
         }
     }
@@ -237,20 +236,20 @@
             });
 
             if (response.status) {
-                // Swal.fire({
-                //     title: "Success!",
-                //     text: "Cover document has been generated successfully.",
-                //     icon: "success",
-                //     timer: CONFIG.DELAYS.SUCCESS_MESSAGE,
-                //     showConfirmButton: false,
-                // });
+                Swal.fire({
+                    title: "Success!",
+                    text: "Cover document has been generated successfully.",
+                    icon: "success",
+                    timer: CONFIG.DELAYS.SUCCESS_MESSAGE,
+                    showConfirmButton: false,
+                });
 
-                // state.bdTable.ajax.reload(null, false);
-                // await loadSummaryStats(true);
+                state.bdTable.ajax.reload(null, false);
+                await loadSummaryStats(true);
                 processCoverForm(response);
             } else {
                 throw new Error(
-                    response.message || "Failed to generate cover document"
+                    response.message || "Failed to generate cover document",
                 );
             }
         } catch (error) {
@@ -276,7 +275,7 @@
     function updateSummaryCards(data) {
         animateValue("total-handovers", 0, data.total_count || 0, 1000);
         $("#total-handovers-subtitle").text(
-            `${data.this_month_count || 0} this month`
+            `${data.this_month_count || 0} this month`,
         );
 
         animateValue("pending-approval", 0, data.pending_count || 0, 1000);
@@ -295,14 +294,14 @@
 
         const formattedPremium = formatCurrency(
             data.total_premium || 0,
-            data.primary_currency || "USD"
+            data.primary_currency || "USD",
         );
         $("#total-premium").html(formattedPremium);
         $("#premium-subtitle").text(
             `Avg: ${formatCurrency(
                 data.average_premium || 0,
-                data.primary_currency || "USD"
-            )}`
+                data.primary_currency || "USD",
+            )}`,
         );
     }
 
@@ -381,7 +380,7 @@
                                 const value = context.parsed || 0;
                                 const total = context.dataset.data.reduce(
                                     (a, b) => a + b,
-                                    0
+                                    0,
                                 );
                                 const percentage = (
                                     (value / total) *
@@ -431,7 +430,7 @@
         const labels = statuses.map((s) => s.status);
         const data = statuses.map((s) => s.count);
         const colors = labels.map(
-            (label) => statusColors[label] || CONFIG.COLORS.PRIMARY
+            (label) => statusColors[label] || CONFIG.COLORS.PRIMARY,
         );
 
         state.statusChart = new Chart(canvas, {
@@ -496,12 +495,12 @@
                 <div>
                     <span class="text-muted fs-12">#${index + 1}</span>
                     <span class="cedant-name ms-2">${escapeHtml(
-                        cedant.name
+                        cedant.name,
                     )}</span>
                 </div>
                 <span class="cedant-count">${cedant.count}</span>
             </div>
-        `
+        `,
             )
             .join("");
 
@@ -535,7 +534,7 @@
         $("#total-premium").html(errorIcon);
 
         const errorHtml = `<p class="text-danger text-center py-3">${escapeHtml(
-            message
+            message,
         )}</p>`;
         $("#division-chart").html(errorHtml);
         $("#status-breakdown").html(errorHtml);
@@ -559,7 +558,7 @@
                     console.error("DataTable Error:", error, code);
                     toastr.error(
                         "Failed to load data. Please refresh the page.",
-                        "Error"
+                        "Error",
                     );
                 },
             },
@@ -622,7 +621,7 @@
             ],
             drawCallback: function () {
                 var dropdownElementList = [].slice.call(
-                    document.querySelectorAll('[data-bs-toggle="dropdown"]')
+                    document.querySelectorAll('[data-bs-toggle="dropdown"]'),
                 );
 
                 dropdownElementList.map(function (dropdownToggleEl) {
@@ -658,7 +657,7 @@
         Swal.fire({
             title: "WARNING: Clear All Covers",
             html: `You are about to permanently delete all insurance covers and related data for <strong>${escapeHtml(
-                cedantName
+                cedantName,
             )}</strong>.<br><br>
                    This action cannot be undone.<br><br>
                    Please confirm to proceed.`,
@@ -769,7 +768,7 @@
         }
 
         const modal = new bootstrap.Modal(
-            document.getElementById("rejectedCommentModal")
+            document.getElementById("rejectedCommentModal"),
         );
         modal.show();
     }
@@ -828,7 +827,7 @@
 
         return Array.from(
             { length: count },
-            (_, i) => baseColors[i % baseColors.length]
+            (_, i) => baseColors[i % baseColors.length],
         );
     }
 
@@ -930,7 +929,7 @@
         } catch (error) {
             toastr.error(
                 "Failed to initialize the page. Please refresh.",
-                "Error"
+                "Error",
             );
         }
     }

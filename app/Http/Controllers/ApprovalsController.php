@@ -1350,11 +1350,9 @@ class ApprovalsController extends Controller
                 $data = $item->data;
 
                 $actionButtons = '<div class="btn-group" role="group">';
-
                 $actionButtons .= '<button type="button" class="btn btn-sm btn-primary" onclick="openReviewModal(' . $item->id . ')" title="Full Review">
                                         <i class="bx bx-show-alt"></i>
                                     </button>';
-
                 if ($status === 'pending') {
                     $actionButtons .= '<button type="button" class="btn btn-sm btn-success approve-btn" data-id="' . $item->id . '" title="Quick Approve">
                                             <i class="bx bx-check"></i>
