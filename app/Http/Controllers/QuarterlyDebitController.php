@@ -15,6 +15,7 @@ use Exception;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
@@ -1297,38 +1298,6 @@ class QuarterlyDebitController extends Controller
         if (file_exists(storage_path('app/' . $filePath))) {
             return response()->download(storage_path('app/' . $filePath));
         }
-        //   $query = CoverRipart::where([
-        //         'cover_no' => $coverNo,
-        //         'endorsement_no' => $endorsementNo
-        //     ])->with('partner');
-
-        //     $debit = DebitNote::where([
-        //         'cover_no' => $coverNo,
-        //         'endorsement_no' => $endorsementNo
-        //     ])->first();
-
-        //     $recordsTotal = $query->count();
-        //     $recordsFiltered = $recordsTotal;
-
-        //     $reinsurers = $query
-        //         ->skip($start)
-        //         ->take($length)
-        //         ->get();
-
-        //     $data = $reinsurers->map(function ($rein) {
-        //         return [
-        //             'id' => $rein->id,
-        //             'name' => $rein->partner?->name ?? '',
-        //             'share_percentage' => $rein->share ?? 0,
-        //             'gross_premium' => $rein->total_premium ?? 0,
-        //             'commission' => $rein->commission ?? 0,
-        //             'brokerage_amount' => $rein->brokerage_comm_amt ?? 0,
-        //             'premium_tax_amount' => $rein->prem_tax ?? 0,
-        //             'wht_amount' => $rein->wht_amt ?? 0,
-        //             'ri_tax' => $rein->ri_tax ?? 0,
-        //             'net_amount' => $rein->net_amount ?? 0,
-        //             'status' => 'active'
-        //         ];
 
         abort(404, 'Document file not found');
     }
@@ -1693,7 +1662,8 @@ class QuarterlyDebitController extends Controller
                         'tdi.item_code',
                         DB::raw('COALESCE(tc.description, tdi.description) as item_name'),
                         'tdi.ledger',
-                        'tdi.amount as item_amount'
+                        'tdi.amount as item_amount',
+                        'tdi.class_group_code'
                     ])
                     ->orderBy('tdi.id', 'asc')
                     ->get();
@@ -1721,16 +1691,10 @@ class QuarterlyDebitController extends Controller
 
                 $businessClass = $this->resolveBusinessClassFromClasses($cover, collect($debitItems));
 
-                $treatyType = DB::table('treaty_types')
-                    ->where('treaty_code', $cover->treaty_type ?? '')
-                    ->value('treaty_name');
-
-                $treatyType = $treatyType ?: match ($cover->treaty_type ?? null) {
+                $treatyType = match ($cover->treaty_type ?? null) {
                     'SURP' => 'Surplus Treaty',
                     default => ($cover->treaty_type ?? 'N/A'),
                 };
-
-                logger($treatyType);
 
                 $underwritingQuarter = $this->formatQuarterLabel($debitNote->posting_quarter) . ' - ' . $debitNote->posting_year;
                 $ppw = PremiumPayTerm::where('pay_term_code', $cover->premium_payment_code ?? null)->first();
@@ -1868,6 +1832,16 @@ class QuarterlyDebitController extends Controller
             $totalNet = $totalDebit - $totalCredit;
 
             $reinsurers = collect([$reinsurer]);
+            $businessClass = $this->resolveBusinessClassFromClasses($cover, collect($creditItems));
+
+            $treatyType = DB::table('treaty_types')
+                ->where('treaty_code', $cover->treaty_type ?? '')
+                ->value('treaty_name');
+
+            $treatyType = $treatyType ?: match ($cover->treaty_type ?? null) {
+                'SURP' => 'Surplus Treaty',
+                default => ($cover->treaty_type ?? 'N/A'),
+            };
 
             $documentData = [
                 'reference_no' => $creditNote->credit_note_no,
@@ -1879,8 +1853,8 @@ class QuarterlyDebitController extends Controller
                 'credit_items' => $creditItems,
                 'reinsurers' => $reinsurers,
                 'company' => $company,
-                'treat_type' => 'Surplus Treaty',
-                'bus_class' => 'Fire',
+                'bus_class' => $businessClass,
+                'treat_type' => $treatyType,
                 'underwriting_quarter' => $underwritingQuarter,
                 'totals' => (object) [
                     'gross_premium' => (float) $totalGross * $shareFactor,
@@ -1911,7 +1885,6 @@ class QuarterlyDebitController extends Controller
         } catch (ValidationException $e) {
             abort(422, 'Invalid request parameters');
         } catch (Exception $e) {
-
             abort(500, 'Failed to generate credit note: ' . $e->getMessage());
         }
     }
@@ -2158,7 +2131,6 @@ class QuarterlyDebitController extends Controller
                 return $pdf->stream($filename);
             }
 
-            // logger($treatyType);
             $documentData = [
                 'reference_no' => $debitNote->debit_note_no,
                 'document_type' => $documentType,
@@ -2226,11 +2198,11 @@ class QuarterlyDebitController extends Controller
     }
 
     private function prepareProfitCommissionStatementItems(
-        \Illuminate\Support\Collection $items,
+        Collection $items,
         bool $withBrokerage,
         bool $includeReinsuranceTax,
         bool $reverseLedgerColumns = false
-    ): \Illuminate\Support\Collection {
+    ): Collection {
         $rows = $items->map(function ($item) use ($reverseLedgerColumns) {
             $itemCode = strtoupper((string) ($item->item_code ?? ''));
             $itemName = strtoupper((string) ($item->item_name ?? $item->description ?? ''));
@@ -2307,7 +2279,7 @@ class QuarterlyDebitController extends Controller
 
     private function resolveBusinessClassFromClasses(
         ?object $cover,
-        ?\Illuminate\Support\Collection $items = null
+        ?Collection $items = null
     ): string {
         $classCodes = collect([
             $cover->class_code ?? null,
@@ -2315,7 +2287,7 @@ class QuarterlyDebitController extends Controller
 
         if ($items) {
             $itemClassCodes = $items
-                ->pluck('class_code')
+                ->pluck('class_group_code')
                 ->filter()
                 ->map(fn($code) => strtoupper(trim((string) $code)));
 
@@ -2323,20 +2295,20 @@ class QuarterlyDebitController extends Controller
         }
 
         $classCodes = $classCodes
-            ->reject(fn($code) => $code === '' || $code === 'ALL')
+            ->reject(fn($code) => $code === '' || $code === 'ALL' || $code === 'TRT')
             ->unique()
             ->values();
 
         if ($classCodes->isNotEmpty()) {
-            $classNames = DB::table('classes')
+            $classess = DB::table('reinsclasses')
                 ->whereIn('class_code', $classCodes->all())
                 ->pluck('class_name')
                 ->filter()
                 ->unique()
-                ->values();
+                ->first();
 
-            if ($classNames->isNotEmpty()) {
-                return $classNames->implode(', ');
+            if ($classess) {
+                return $classess;
             }
         }
 

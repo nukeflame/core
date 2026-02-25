@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Enums\Stage;
 use App\Models\ApprovalSourceLink;
 use App\Models\ApprovalsTracker;
 use App\Models\Classes;
@@ -40,6 +39,7 @@ use App\Models\PolicyRenewal;
 use App\Models\SystemProcessAction;
 use App\Models\User;
 use Carbon\Carbon;
+use Exception;
 use Illuminate\Http\Response;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Auth;
@@ -50,10 +50,6 @@ use Spatie\Permission\Models\Role;
 use PhpOffice\PhpWord\PhpWord;
 use PhpOffice\PhpWord\IOFactory;
 use PhpOffice\PhpWord\SimpleType\Jc;
-use PhpOffice\PhpWord\Style\Table;
-use PhpOffice\PhpWord\Style\Cell;
-use PhpOffice\PhpWord\Style\Font;
-use PhpOffice\PhpWord\Style\Paragraph;
 use PhpOffice\PhpWord\Shared\Converter;
 
 class PrintoutController extends Controller
@@ -490,9 +486,6 @@ class PrintoutController extends Controller
                 ->where('po.opportunity_id', $request->opp_id)
                 ->get();
 
-            // dd($activities);
-
-
             $formattedActivities = $activities->map(function ($d) {
                 return [
                     'customer_id' => $d->customer_id ?? 'N/A',
@@ -928,7 +921,6 @@ class PrintoutController extends Controller
             ], 500);
         }
     }
-
 
     public function viewRenewalNotice(Request $request)
     {
