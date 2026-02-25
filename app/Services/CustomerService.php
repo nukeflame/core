@@ -49,50 +49,15 @@ class CustomerService
         DB::beginTransaction();
 
         try {
-            // Create the main customer record
             $customer = $this->createCustomerRecord($data);
-
-            // // Attach customer types
-            // $this->attachCustomerTypes($customer, $data['customerType'] ?? []);
-
-            // // Create contacts
-            // $this->createContacts($customer, $data['contacts'] ?? []);
 
             DB::commit();
 
             return $customer->load(['customerTypes', 'contacts']);
         } catch (Exception $e) {
             DB::rollBack();
-
-            logger($e);
-
             throw $e;
         }
-
-        // $customerType = is_array($data['customerType'])
-        //     ? $data['customerType']
-        //     : explode(',', $data['customerType']);
-
-        // return Customer::create([
-        //     'name' => $data['partnerName'],
-        //     'customer_type' => $customerType,
-        //     'street' => $data['street'],
-        //     'city' => $data['city'],
-        //     'postal_address' => $data['postalCode'],
-        //     'country_iso' => $data['country'],
-        //     'registration_no' => $data['incorporationNo'],
-        //     'tax_no' => $data['taxNo'],
-        //     'email' => $data['email'],
-        //     'financial_rate' => $data['financialRating'],
-        //     'agency_rate' => $data['agencyRating'],
-        //     'website' => $data['website'] ?? null,
-        //     'telephone' => $data['telephone'] ?? null,
-        //     'identity_number_type' => $data['identityType'],
-        //     'identity_number' => $data['identityNo'],
-        //     'status' => 'A',
-        //     'created_by' => Auth::user()->user_name ?? 'system',
-        //     'created_at' => Carbon::now(),
-        // ]);
     }
 
     public function createCustomerContacts(int $customerId, array $contacts): void
@@ -108,6 +73,7 @@ class CustomerService
                 'contact_position' => $contactData['position'] ?? null,
                 'contact_mobile_no' => $contactData['mobile'] ?? null,
                 'contact_email' => $contactData['email'] ?? null,
+                'department' => $contactData['department'] ?? null,
                 'is_primary' => $contactData['isPrimary'] ?? false,
                 'order' => $contactData['order'] ?? 0,
                 'created_at' => Carbon::now(),
@@ -122,14 +88,12 @@ class CustomerService
             'email' => $data['email'],
             'telephone' => $data['telephone'],
 
-            // Legal & Identification
             'incorporation_no' => $data['incorporationNo'] ?? null,
             'tax_no' => $data['taxNo'] ?? null,
             'identity_type' => $data['identityType'] ?? null,
             'identity_no' => $data['identityNo'] ?? null,
             'website' => $data['website'] ?? null,
 
-            // Dynamic Fields
             'security_rating' => $data['securityRating'] ?? null,
             'rating_agency' => $data['ratingAgency'] ?? null,
             'rating_date' => $data['ratingDate'] ?? null,
@@ -141,18 +105,15 @@ class CustomerService
             'industry_occupation' => $data['industryOccupation'] ?? null,
             'date_of_birth_incorporation' => $data['dateOfBirthIncorporation'] ?? null,
 
-            // Address Information
             'country' => $data['country'],
             'street' => $data['street'],
             'city' => $data['city'],
             'state' => $data['state'] ?? null,
             'postal_code' => $data['postalCode'],
 
-            // Financial Information
             'financial_rating' => $data['financialRating'] ?? null,
             'agency_rating' => $data['agencyRating'] ?? null,
 
-            // Metadata
             'company_id' => $this->getCurrentCompanyId(),
             'created_by' => Auth::id(),
             'updated_by' => Auth::id(),
@@ -328,7 +289,6 @@ class CustomerService
                 }
             }
 
-            // Use query builder update to avoid model-level side effects on non-existent columns.
             DB::table('customers')
                 ->where('customer_id', $customerId)
                 ->update($updateData);
@@ -341,6 +301,7 @@ class CustomerService
 
     private function upsertCustomerContacts(int $customerId, array $contacts): void
     {
+
         $existingContactIds = CustomerContact::where('customer_id', $customerId)
             ->pluck('id')
             ->map(fn($id) => (int) $id)
@@ -361,6 +322,7 @@ class CustomerService
                 'contact_position' => $contactData['position'] ?? null,
                 'contact_mobile_no' => $contactData['mobile'] ?? null,
                 'contact_email' => $contactData['email'] ?? null,
+                'department' => $contactData['department'] ?? null,
                 'is_primary' => (bool) ($contactData['isPrimary'] ?? ($index === 0)),
                 'order' => $contactData['order'] ?? $index,
             ];

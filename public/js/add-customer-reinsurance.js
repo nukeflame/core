@@ -734,7 +734,7 @@
                 merged.sections[section] = {
                     visible: configs.some((c) => c.sections[section]?.visible),
                     required: configs.some(
-                        (c) => c.sections[section]?.required
+                        (c) => c.sections[section]?.required,
                     ),
                     fields: {},
                 };
@@ -763,7 +763,7 @@
                                         ].visible = true;
                                     }
                                 }
-                            }
+                            },
                         );
                     }
                 });
@@ -774,7 +774,7 @@
                         if (config.sections[section]?.additionalFields) {
                             Object.assign(
                                 allAdditionalFields,
-                                config.sections[section].additionalFields
+                                config.sections[section].additionalFields,
                             );
                         }
                     });
@@ -783,7 +783,7 @@
                             allAdditionalFields;
                     }
                 }
-            }
+            },
         );
 
         return merged;
@@ -854,7 +854,7 @@
                     .catch((error) => {
                         console.error(
                             "Failed to initialize Form Manager:",
-                            error
+                            error,
                         );
                     });
             } catch (error) {
@@ -927,7 +927,7 @@
 
             if ($form.data("redirect-on-success") !== undefined) {
                 this.ajaxConfig.redirectOnSuccess = $form.data(
-                    "redirect-on-success"
+                    "redirect-on-success",
                 );
             }
 
@@ -959,8 +959,8 @@
                                     ", Select2=" +
                                     hasSelect2 +
                                     ", Validation=" +
-                                    hasValidation
-                            )
+                                    hasValidation,
+                            ),
                         );
                     } else {
                         setTimeout(checkDependencies, 100);
@@ -1030,7 +1030,7 @@
 
                         if (fieldName && !fieldName.startsWith("contacts[")) {
                             const $container = $element.closest(
-                                ".col-12, .col-md-6, .col-lg-4, .col-lg-3"
+                                ".col-12, .col-md-6, .col-lg-4, .col-lg-3",
                             );
                             const $label = $container.find("label").first();
 
@@ -1078,7 +1078,7 @@
                                 element.hasClass("select2-hidden-accessible")
                             ) {
                                 error.insertAfter(
-                                    element.next(".select2-container")
+                                    element.next(".select2-container"),
                                 );
                             } else {
                                 error.insertAfter(element);
@@ -1129,7 +1129,7 @@
                 this.showNotification(
                     "error",
                     `Please add at least ${minContacts} contact(s) for this entity type`,
-                    "Validation Error"
+                    "Validation Error",
                 );
 
                 // Scroll to contacts section
@@ -1137,7 +1137,7 @@
                     {
                         scrollTop: $("#section-contacts").offset().top - 100,
                     },
-                    500
+                    500,
                 );
 
                 return false;
@@ -1169,7 +1169,7 @@
                 this.showNotification(
                     "error",
                     "Please fill in all required fields for the primary contact",
-                    "Validation Error"
+                    "Validation Error",
                 );
                 return false;
             }
@@ -1179,7 +1179,7 @@
 
         setLoadingState(isLoading) {
             const $submitBtn = this.$form.find(
-                'button[type="submit"], input[type="submit"]'
+                'button[type="submit"], input[type="submit"]',
             );
             const $form = this.$form;
 
@@ -1334,7 +1334,7 @@
                     {
                         scrollTop: this.$form.offset().top - 100,
                     },
-                    500
+                    500,
                 );
             }
         },
@@ -1371,7 +1371,7 @@
                         .replace(/\./g, "][");
 
                     $field = $(
-                        `[name="${fieldName}"], [name="${convertedName}"], [name="${bracketName}"]`
+                        `[name="${fieldName}"], [name="${convertedName}"], [name="${bracketName}"]`,
                     );
 
                     // Try alternative bracket format for contacts
@@ -1387,7 +1387,7 @@
                     }
                 } else {
                     $field = $(
-                        `[name="${fieldName}"], [name="${fieldName}[]"]`
+                        `[name="${fieldName}"], [name="${fieldName}[]"]`,
                     );
                 }
 
@@ -1419,14 +1419,14 @@
                     // If first error, scroll to it
                     if (Object.keys(errors).indexOf(fieldName) === 0) {
                         const $container = $field.closest(
-                            ".col-12, .col-md-6, .col-lg-4, .col-lg-3, .contact-item"
+                            ".col-12, .col-md-6, .col-lg-4, .col-lg-3, .contact-item",
                         );
                         if ($container.length) {
                             $("html, body").animate(
                                 {
                                     scrollTop: $container.offset().top - 100,
                                 },
-                                500
+                                500,
                             );
                         }
                     }
@@ -1436,7 +1436,7 @@
             });
 
             announceToScreenReader(
-                `Form has ${Object.keys(errors).length} validation error(s)`
+                `Form has ${Object.keys(errors).length} validation error(s)`,
             );
         },
 
@@ -1493,7 +1493,7 @@
                         $(this).remove();
                     });
                 },
-                type === "error" ? 8000 : 5000
+                type === "error" ? 8000 : 5000,
             );
         },
 
@@ -1512,7 +1512,7 @@
                     e.preventDefault();
                     const $contactItem = $(this).closest(".contact-item");
                     self.removeContact($contactItem);
-                }
+                },
             );
         },
 
@@ -1524,7 +1524,7 @@
             if (currentCount >= maxContacts) {
                 if (typeof toastr !== "undefined") {
                     toastr.warning(
-                        `Maximum ${maxContacts} contacts allowed for this entity type`
+                        `Maximum ${maxContacts} contacts allowed for this entity type`,
                     );
                 }
                 return;
@@ -1675,7 +1675,7 @@
             if (currentCount <= minContacts) {
                 if (typeof toastr !== "undefined") {
                     toastr.warning(
-                        `Minimum ${minContacts} contact(s) required for this entity type`
+                        `Minimum ${minContacts} contact(s) required for this entity type`,
                     );
                 }
                 return;
@@ -1701,6 +1701,31 @@
                     ${isPrimary ? "Primary Contact" : `Contact ${index + 1}`}
                 `);
             });
+            this.syncContactCounter();
+        },
+
+        syncContactCounter() {
+            let maxIndex = -1;
+
+            $("#contactsContainer")
+                .find('input[name^="contacts["], select[name^="contacts["]')
+                .each(function () {
+                    const name = $(this).attr("name") || "";
+                    const match = name.match(/^contacts\[(\d+)\]/);
+                    if (!match) {
+                        return;
+                    }
+
+                    const index = parseInt(match[1], 10);
+                    if (!Number.isNaN(index)) {
+                        maxIndex = Math.max(maxIndex, index);
+                    }
+                });
+
+            this.contactCounter = Math.max(
+                maxIndex + 1,
+                $(".contact-item").length,
+            );
         },
 
         /**
@@ -1733,7 +1758,7 @@
                 $("#resetFormBtn").on("click", () => {
                     if (
                         confirm(
-                            "Are you sure you want to reset the form? All unsaved changes will be lost."
+                            "Are you sure you want to reset the form? All unsaved changes will be lost.",
                         )
                     ) {
                         this.$form[0].reset();
@@ -1761,7 +1786,7 @@
                     "input, select, textarea",
                     (event) => {
                         this.clearFieldValidation($(event.target));
-                    }
+                    },
                 );
             } catch (error) {
                 console.error("Failed to attach event listeners:", error);
@@ -1792,6 +1817,7 @@
 
         loadInitialState() {
             try {
+                this.syncContactCounter();
                 const selectedTypes = $("#customerType").val();
                 if (selectedTypes && selectedTypes.length > 0) {
                     this.handleTypeChange({ target: $("#customerType")[0] });
@@ -1819,7 +1845,7 @@
 
                 const mappedSlugs = selectedTypeSlugs
                     .map((x) =>
-                        Object.values(this.typeMapping).includes(x) ? x : null
+                        Object.values(this.typeMapping).includes(x) ? x : null,
                     )
                     .filter(Boolean);
 
@@ -1830,10 +1856,8 @@
                 this.applyConfiguration();
 
                 announceToScreenReader(
-                    `Form updated for ${this.currentConfig.label}`
+                    `Form updated for ${this.currentConfig.label}`,
                 );
-
-                this.showTypeChangeNotification();
             } catch (error) {
                 console.error("Error handling type change:", error);
             }
@@ -1866,8 +1890,8 @@
 
             const defaultTitle = "Essential Information";
             const $icon = $title.find("i").first().clone();
-            const partnerLabel = config?.sections?.essential?.fields
-                ?.partnerName?.label;
+            const partnerLabel =
+                config?.sections?.essential?.fields?.partnerName?.label;
 
             const nextTitle = partnerLabel || defaultTitle;
             $title.empty();
@@ -1916,7 +1940,7 @@
                     Object.keys(sectionConfig.fields).forEach((fieldName) => {
                         this.applyFieldConfig(
                             fieldName,
-                            sectionConfig.fields[fieldName]
+                            sectionConfig.fields[fieldName],
                         );
                     });
                 }
@@ -1924,7 +1948,7 @@
                 if (sectionConfig.additionalFields) {
                     this.addAdditionalFields(
                         sectionName,
-                        sectionConfig.additionalFields
+                        sectionConfig.additionalFields,
                     );
                 }
 
@@ -1937,7 +1961,7 @@
             } catch (error) {
                 console.error(
                     `Error applying section config: ${sectionName}`,
-                    error
+                    error,
                 );
             }
         },
@@ -1945,14 +1969,14 @@
         applyFieldConfig(fieldName, fieldConfig) {
             try {
                 const $field = $(
-                    `[name="${fieldName}"], [name="${fieldName}[]"]`
+                    `[name="${fieldName}"], [name="${fieldName}[]"]`,
                 );
                 if ($field.length === 0) {
                     return;
                 }
 
                 const $container = $field.closest(
-                    ".col-12, .col-md-6, .col-lg-4, .col-lg-3"
+                    ".col-12, .col-md-6, .col-lg-4, .col-lg-3",
                 );
                 const $label = $container.find("label").first();
 
@@ -1997,7 +2021,7 @@
                     let $helpText = $container.find(".form-text");
                     if ($helpText.length === 0) {
                         $helpText = $(
-                            '<small class="form-text text-muted"></small>'
+                            '<small class="form-text text-muted"></small>',
                         );
                         $field.after($helpText);
                     }
@@ -2010,7 +2034,7 @@
             } catch (error) {
                 console.error(
                     `Error applying field config: ${fieldName}`,
-                    error
+                    error,
                 );
             }
         },
@@ -2061,7 +2085,7 @@
                     if ($(`[name="${fieldName}"]`).length > 0) {
                         this.applyFieldConfig(
                             fieldName,
-                            additionalFields[fieldName]
+                            additionalFields[fieldName],
                         );
                         return;
                     }
@@ -2069,7 +2093,7 @@
                     const fieldConfig = additionalFields[fieldName];
                     const $fieldHtml = this.generateFieldHtml(
                         fieldName,
-                        fieldConfig
+                        fieldConfig,
                     );
 
                     const position = fieldConfig.position || "end";
@@ -2124,7 +2148,7 @@
                     const lowerInitial = resolvedInitialValue.toLowerCase();
                     const matched = options.find((opt) => {
                         const optionValue = String(
-                            typeof opt === "object" ? opt.value : opt
+                            typeof opt === "object" ? opt.value : opt,
                         )
                             .trim()
                             .toLowerCase();
@@ -2137,7 +2161,9 @@
 
                     if (matched) {
                         resolvedInitialValue = String(
-                            typeof matched === "object" ? matched.value : matched
+                            typeof matched === "object"
+                                ? matched.value
+                                : matched,
                         ).trim();
                     }
                 }
@@ -2145,12 +2171,15 @@
                 const optionsHtml = options
                     .map((opt) => {
                         const optionValue = String(
-                            typeof opt === "object" ? opt.value : opt
+                            typeof opt === "object" ? opt.value : opt,
                         ).trim();
                         const optionLabel = String(
-                            typeof opt === "object" ? opt.label : opt
+                            typeof opt === "object" ? opt.label : opt,
                         ).trim();
-                        const selected = optionValue === resolvedInitialValue ? "selected" : "";
+                        const selected =
+                            optionValue === resolvedInitialValue
+                                ? "selected"
+                                : "";
                         const escapedOption = this.escapeHtml(optionValue);
                         const escapedLabel = this.escapeHtml(optionLabel);
                         return `<option value="${escapedOption}" ${selected}>${escapedLabel}</option>`;
@@ -2174,8 +2203,8 @@
                     config.min === "today"
                         ? `min="${new Date().toISOString().split("T")[0]}"`
                         : config.min
-                        ? `min="${config.min}"`
-                        : "";
+                          ? `min="${config.min}"`
+                          : "";
 
                 inputHtml = `
                     <input type="date"
@@ -2247,12 +2276,12 @@
                 } else if (position.startsWith("after-")) {
                     const afterField = position.replace("after-", "");
                     let $afterField = $(`[name="${afterField}"]`).closest(
-                        ".col-12, .col-md-6, .col-lg-4, .col-lg-3"
+                        ".col-12, .col-md-6, .col-lg-4, .col-lg-3",
                     );
 
                     if ($afterField.length === 0) {
                         $afterField = $(
-                            `.dynamic-field[data-field="${afterField}"]`
+                            `.dynamic-field[data-field="${afterField}"]`,
                         );
                     }
 
@@ -2264,12 +2293,12 @@
                 } else if (position.startsWith("before-")) {
                     const beforeField = position.replace("before-", "");
                     let $beforeField = $(`[name="${beforeField}"]`).closest(
-                        ".col-12, .col-md-6, .col-lg-4, .col-lg-3"
+                        ".col-12, .col-md-6, .col-lg-4, .col-lg-3",
                     );
 
                     if ($beforeField.length === 0) {
                         $beforeField = $(
-                            `.dynamic-field[data-field="${beforeField}"]`
+                            `.dynamic-field[data-field="${beforeField}"]`,
                         );
                     }
 
@@ -2313,7 +2342,7 @@
                 if (currentCount < config.minContacts) {
                     if (typeof toastr !== "undefined") {
                         toastr.info(
-                            `This entity type requires at least ${config.minContacts} contact(s)`
+                            `This entity type requires at least ${config.minContacts} contact(s)`,
                         );
                     }
                 }
@@ -2394,12 +2423,12 @@
                 Object.keys(this.fieldStates).forEach((fieldName) => {
                     const state = this.fieldStates[fieldName];
                     const $field = $(
-                        `[name="${fieldName}"], [name="${fieldName}[]"]`
+                        `[name="${fieldName}"], [name="${fieldName}[]"]`,
                     );
 
                     if ($field.length) {
                         const $container = $field.closest(
-                            ".col-12, .col-md-6, .col-lg-4, .col-lg-3"
+                            ".col-12, .col-md-6, .col-lg-4, .col-lg-3",
                         );
                         const $label = $container.find("label").first();
 
@@ -2432,18 +2461,6 @@
             }
         },
 
-        showTypeChangeNotification() {
-            try {
-                const config = this.currentConfig;
-
-                if (typeof toastr !== "undefined") {
-                    // Notification commented out in original
-                }
-            } catch (error) {
-                console.error("Error showing notification:", error);
-            }
-        },
-
         getConfigSummary() {
             return {
                 types: this.currentTypes,
@@ -2468,7 +2485,7 @@
         getRequiredFields() {
             const required = [];
             $(
-                "input[required]:visible, select[required]:visible, textarea[required]:visible"
+                "input[required]:visible, select[required]:visible, textarea[required]:visible",
             ).each(function () {
                 const name = $(this).attr("name");
                 if (name) {
@@ -2480,7 +2497,6 @@
         submitForm() {
             if (this.isSubmitting) return;
 
-            // Validate core form fields first (Essential/Legal/Address/etc.)
             if (this.validator && !this.$form.valid()) {
                 return;
             }
@@ -2493,7 +2509,6 @@
                 $('meta[name="csrf-token"]').attr("content") ||
                 this.$form.find('input[name="_token"]').val();
 
-            // Build form payload before loading-state disables inputs.
             const formData = new FormData(this.$form[0]);
             if (!formData.get("_token") && csrfToken) {
                 formData.append("_token", csrfToken);
@@ -2503,34 +2518,7 @@
             this.setLoadingState(true);
             this.onBeforeSubmit();
 
-            // $.ajax({
-            //     url: this.ajaxConfig.url,
-            //     method: this.ajaxConfig.method,
-            //     data: formData,
-            //     dataType: this.ajaxConfig.dataType,
-            //     timeout: this.ajaxConfig.timeout,
-            //     headers: {
-            //         "X-CSRF-TOKEN": csrfToken,
-            //         "X-Requested-With": "XMLHttpRequest",
-            //         Accept: "application/json",
-            //     },
-            //     success: function (response) {
-            //         console.log("Success:", response);
-            //     },
-            //     error: function (xhr, textStatus, errorThrown) {
-            //         console.error(
-            //             "AJAX error:",
-            //             textStatus,
-            //             errorThrown,
-            //             xhr.responseText
-            //         );
-            //         self.onSubmitError(xhr, textStatus, errorThrown);
-            //     },
-            //     complete: function () {
-            //         self.isSubmitting = false;
-            //         self.setLoadingState(false);
-            //     },
-            // });
+            console.log(this.ajaxConfig.url);
 
             $.ajax({
                 url: this.ajaxConfig.url,
@@ -2546,7 +2534,8 @@
                     Accept: "application/json",
                 },
                 success: (response, textStatus, xhr) => {
-                    this.onSubmitSuccess(response, textStatus, xhr);
+                    console.log(response);
+                    // this.onSubmitSuccess(response, textStatus, xhr);
                 },
                 error: (xhr, textStatus, errorThrown) => {
                     this.onSubmitError(xhr, textStatus, errorThrown);
@@ -2582,7 +2571,7 @@
     function initializeBootstrapComponents() {
         try {
             const tooltipTriggerList = [].slice.call(
-                document.querySelectorAll('[data-bs-toggle="tooltip"]')
+                document.querySelectorAll('[data-bs-toggle="tooltip"]'),
             );
             tooltipTriggerList.forEach(function (tooltipTriggerEl) {
                 new bootstrap.Tooltip(tooltipTriggerEl, {

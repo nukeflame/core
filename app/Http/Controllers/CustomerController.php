@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Requests\StoreCustomerRequest;
 use App\Models\Classes;
 use App\Models\Country;
 use App\Models\Customer;
@@ -270,7 +269,12 @@ class CustomerController extends Controller
         $customerId = $request->integer('customer_id');
 
         if ($customerId) {
-            $data['customer'] = Customer::with('primaryContact')->findOrFail($customerId, [
+            $data['customer'] = Customer::with([
+                'primaryContact',
+                'contacts' => function ($query) {
+                    $query->orderByDesc('is_primary')->orderBy('order')->orderBy('id');
+                },
+            ])->findOrFail($customerId, [
                 'customer_id',
                 'name',
                 'tax_no',
@@ -319,6 +323,7 @@ class CustomerController extends Controller
             'agencyRating' => 'nullable|string|max:10',
             'contacts' => 'required|array|min:1',
             'contacts.*.id' => 'nullable|integer|exists:customer_contacts,id',
+            'contacts.*.department' => 'nullable|string|in:executive,underwriting,claims,sales,marketing,finance,technical,operations,legal,hr,other',
             'contacts.0.name' => 'required|string|max:255',
             'contacts.0.position' => 'required|string|max:100',
             'contacts.0.mobile' => 'required|string|max:20',
@@ -402,7 +407,12 @@ class CustomerController extends Controller
             }
         }
 
-        $data['customer'] = Customer::with('primaryContact')->findOrFail($customerId, $selectedColumns);
+        $data['customer'] = Customer::with([
+            'primaryContact',
+            'contacts' => function ($query) {
+                $query->orderByDesc('is_primary')->orderBy('order')->orderBy('id');
+            },
+        ])->findOrFail($customerId, $selectedColumns);
 
         return view('customer.customer_add_form', $data);
     }
@@ -439,10 +449,11 @@ class CustomerController extends Controller
             'agencyRating' => 'nullable|string|max:10',
             'contacts' => 'required|array|min:1',
             'contacts.*.id' => 'nullable|integer|exists:customer_contacts,id',
-            'contacts.0.name' => 'required|string|max:255',
-            'contacts.0.position' => 'required|string|max:100',
-            'contacts.0.mobile' => 'required|string|max:20',
-            'contacts.0.email' => 'required|email|max:255',
+            'contacts.*.department' => 'nullable|string|in:executive,underwriting,claims,sales,marketing,finance,technical,operations,legal,hr,other',
+            'contacts.*.name' => 'required|string|max:255',
+            'contacts.*.position' => 'required|string|max:100',
+            'contacts.*.mobile' => 'required|string|max:20',
+            'contacts.*.email' => 'required|email|max:255',
         ]);
 
         if ($validator->fails()) {
@@ -686,41 +697,5 @@ class CustomerController extends Controller
                     ->get(),
             ];
         });
-    }
-
-    private function validateCustomerData(Request $request)
-    {
-        return Validator::make($request->all(), [
-            'partnerName' => 'required|string|max:255|unique:customers,name',
-            'customerType' => 'required|array',
-            'customerType.*' => 'exists:customer_types,type_id',
-            'financialRating' => 'required|string|max:10',
-            'agencyRating' => 'required|string|max:10',
-            'email' => 'required|email|max:255|unique:customers,email',
-            'street' => 'required|string|max:255',
-            'taxNo' => 'required|string|max:255|unique:customers,tax_no',
-            'incorporationNo' => 'required|string|max:255|unique:customers,registration_no',
-            'website' => 'nullable|url|max:255',
-            'city' => 'required|string|max:100',
-            'identityType' => 'required|string|max:50',
-            'identityNo' => 'required|string|max:50',
-            'telephone' => 'nullable|string|max:20',
-            'postalCode' => 'required|string|max:20',
-            'country' => 'required|string|size:3|exists:countries,country_iso',
-            'contacts' => 'nullable|array',
-            'contacts.*.name' => 'required_with:contacts|string|max:255',
-            'contacts.*.position' => 'nullable|string|max:100',
-            'contacts.*.mobile' => 'nullable|string|max:20',
-            'contacts.*.email' => 'nullable|email|max:255',
-            'contacts.*.isPrimary' => 'nullable|boolean',
-            'contacts.*.order' => 'nullable|integer|min:0|max:100',
-        ], [
-            'partnerName.unique' => 'A customer with this name already exists.',
-            'email.unique' => 'This email address is already registered.',
-            'taxNo.unique' => 'This tax number is already registered.',
-            'incorporationNo.unique' => 'This incorporation number is already registered.',
-            'customerType.*.exists' => 'One or more selected customer types are invalid.',
-            'country.exists' => 'The selected country is invalid.',
-        ]);
     }
 }

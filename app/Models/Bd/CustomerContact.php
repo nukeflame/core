@@ -17,6 +17,7 @@ class CustomerContact extends Model
         'contact_position',
         'contact_mobile_no',
         'contact_email',
+        'department',
         'is_primary',
         'order'
     ];

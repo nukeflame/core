@@ -6,8 +6,14 @@
     @php
         $editCustomer = $customer ?? null;
         $dynamicValues = [
-            'securityRating' => old('securityRating', optional($editCustomer)->security_rating ?? optional($editCustomer)->financial_rate ?? ''),
-            'ratingAgency' => old('ratingAgency', optional($editCustomer)->rating_agency ?? optional($editCustomer)->agency_rate ?? ''),
+            'securityRating' => old(
+                'securityRating',
+                optional($editCustomer)->security_rating ?? (optional($editCustomer)->financial_rate ?? ''),
+            ),
+            'ratingAgency' => old(
+                'ratingAgency',
+                optional($editCustomer)->rating_agency ?? (optional($editCustomer)->agency_rate ?? ''),
+            ),
             'ratingDate' => old('ratingDate', optional($editCustomer)->rating_date ?? ''),
             'regulatorLicenseNo' => old('regulatorLicenseNo', optional($editCustomer)->regulator_license_no ?? ''),
             'licensingAuthority' => old('licensingAuthority', optional($editCustomer)->licensing_authority ?? ''),
@@ -15,7 +21,10 @@
             'amlDetails' => old('amlDetails', optional($editCustomer)->aml_details ?? ''),
             'insuredType' => old('insuredType', optional($editCustomer)->insured_type ?? ''),
             'industryOccupation' => old('industryOccupation', optional($editCustomer)->industry_occupation ?? ''),
-            'dateOfBirthIncorporation' => old('dateOfBirthIncorporation', optional($editCustomer)->date_of_birth_incorporation ?? ''),
+            'dateOfBirthIncorporation' => old(
+                'dateOfBirthIncorporation',
+                optional($editCustomer)->date_of_birth_incorporation ?? '',
+            ),
         ];
     @endphp
     <div class="d-md-flex d-block align-items-center justify-content-between my-4 page-header-breadcrumb">
@@ -37,16 +46,16 @@
                     <li class="breadcrumb-item">
                         <a href="{{ route('customer.info') }}">{{ __('Customers') }}</a>
                     </li>
-                    <li class="breadcrumb-item active" aria-current="page">{{ isset($customer) ? __('Edit') : __('Create') }}</li>
+                    <li class="breadcrumb-item active" aria-current="page">
+                        {{ isset($customer) ? __('Edit') : __('Create') }}</li>
                 </ol>
             </nav>
         </div>
     </div>
 
-    <form action="{{ isset($customer) ? route('customer.update', $customer->customer_id) : route('customer.store') }}" method="POST" id="customerForm"
-        data-redirect-url="{{ route('customer.info') }}"
-        data-dynamic-values='@json($dynamicValues)'
-        novalidate aria-label="{{ __('Customer creation form') }}">
+    <form action="{{ isset($customer) ? route('customer.update', $customer->customer_id) : route('customer.store') }}"
+        method="POST" id="customerForm" data-redirect-url="{{ route('customer.info') }}"
+        data-dynamic-values='@json($dynamicValues)' novalidate aria-label="{{ __('Customer creation form') }}">
         @csrf
         @if (isset($customer))
             @method('PUT')
@@ -72,7 +81,8 @@
                                 title="{{ __('Enter the official registered name of the organization') }}"></i>
                         </label>
                         <input type="text" class="form-control @error('partnerName') is-invalid @enderror"
-                            id="partnerName" name="partnerName" value="{{ old('partnerName', $editCustomer?->name ?? '') }}"
+                            id="partnerName" name="partnerName"
+                            value="{{ old('partnerName', $editCustomer?->name ?? '') }}"
                             placeholder="{{ __('e.g., ABC Insurance Ltd') }}" aria-required="true"
                             aria-describedby="partnerName-help"
                             aria-invalid="{{ $errors->has('partnerName') ? 'true' : 'false' }}" maxlength="255"
@@ -119,8 +129,9 @@
                                 <i class="bi bi-envelope"></i>
                             </span>
                             <input type="email" class="form-control @error('email') is-invalid @enderror" id="email"
-                                name="email" value="{{ old('email', $editCustomer?->email ?? '') }}" placeholder="{{ __('customer@example.com') }}"
-                                aria-required="true" autocomplete="email" inputmode="email">
+                                name="email" value="{{ old('email', $editCustomer?->email ?? '') }}"
+                                placeholder="{{ __('customer@example.com') }}" aria-required="true" autocomplete="email"
+                                inputmode="email">
                         </div>
                         @error('email')
                             <div class="invalid-feedback d-block" role="alert">{{ $message }}</div>
@@ -136,7 +147,8 @@
                                 <i class="bi bi-telephone"></i>
                             </span>
                             <input type="tel" class="form-control @error('telephone') is-invalid @enderror"
-                                id="telephone" name="telephone" value="{{ old('telephone', $editCustomer?->telephone ?? '') }}"
+                                id="telephone" name="telephone"
+                                value="{{ old('telephone', $editCustomer?->telephone ?? '') }}"
                                 placeholder="{{ __('+254 700 000000') }}" aria-required="true" autocomplete="tel"
                                 inputmode="tel">
                         </div>
@@ -173,7 +185,8 @@
                                 {{ __('Registration/Incorporation Number') }}
                             </label>
                             <input type="text" class="form-control @error('incorporationNo') is-invalid @enderror"
-                                id="incorporationNo" name="incorporationNo" value="{{ old('incorporationNo', $editCustomer?->registration_no ?? '') }}"
+                                id="incorporationNo" name="incorporationNo"
+                                value="{{ old('incorporationNo', $editCustomer?->registration_no ?? '') }}"
                                 placeholder="{{ __('e.g., PVT-XXXXXX') }}" aria-required="true" autocomplete="off">
                             @error('incorporationNo')
                                 <div class="invalid-feedback" role="alert">{{ $message }}</div>
@@ -220,7 +233,8 @@
                                 {{ __('Identity Document Number') }}
                             </label>
                             <input type="text" class="form-control @error('identityNo') is-invalid @enderror"
-                                id="identityNo" name="identityNo" value="{{ old('identityNo', $editCustomer?->identity_number ?? '') }}"
+                                id="identityNo" name="identityNo"
+                                value="{{ old('identityNo', $editCustomer?->identity_number ?? '') }}"
                                 placeholder="{{ __('Enter document number') }}" aria-required="true" autocomplete="off">
                             @error('identityNo')
                                 <div class="invalid-feedback" role="alert">{{ $message }}</div>
@@ -236,23 +250,14 @@
                                     <i class="bi bi-globe"></i>
                                 </span>
                                 <input type="text" class="form-control @error('website') is-invalid @enderror"
-                                    id="website" name="website" value="{{ old('website', $editCustomer?->website ?? '') }}"
-                                    placeholder="{{ __('www.geminiainsurance.com') }}" autocomplete="url"
-                                    inputmode="url">
+                                    id="website" name="website"
+                                    value="{{ old('website', $editCustomer?->website ?? '') }}"
+                                    placeholder="{{ __('www.acentriagroup.com') }}" autocomplete="url" inputmode="url">
                             </div>
                             @error('website')
                                 <div class="invalid-feedback d-block" role="alert">{{ $message }}</div>
                             @enderror
                         </div>
-
-                        {{--
-                            Dynamic fields will be added here by JavaScript based on entity type:
-                            - Reinsurer: securityRating, ratingAgency, ratingDate, amlDetails
-                            - Cedant: regulatorLicenseNo, licensingTerritory, amlDetails
-                            - Reinsurance Broker: regulatorLicenseNo, licensingAuthority, licensingTerritory, amlDetails
-                            - Insurance Broker: regulatorLicenseNo, licensingAuthority, licensingTerritory, amlDetails
-                            - Insured: insuredType, industryOccupation, dateOfBirthIncorporation, amlDetails
-                        --}}
                     </div>
                 </div>
             </div>
@@ -304,7 +309,8 @@
                                     {{ __('Street Address') }}
                                 </label>
                                 <input type="text" class="form-control @error('street') is-invalid @enderror"
-                                    id="street" name="street" value="{{ old('street', $editCustomer?->street ?? '') }}"
+                                    id="street" name="street"
+                                    value="{{ old('street', $editCustomer?->street ?? '') }}"
                                     placeholder="{{ __('Building name, street name, P.O. Box') }}" aria-required="true"
                                     autocomplete="street-address">
                                 @error('street')
@@ -337,8 +343,8 @@
                                     {{ __('State/Province') }}
                                 </label>
                                 <input type="text" class="form-control" id="state" name="state"
-                                    value="{{ old('state', $editCustomer?->state ?? '') }}" placeholder="{{ __('Enter state/province') }}"
-                                    autocomplete="address-level1">
+                                    value="{{ old('state', $editCustomer?->state ?? '') }}"
+                                    placeholder="{{ __('Enter state/province') }}" autocomplete="address-level1">
                             </div>
 
                             <div class="col-12 col-md-6 col-lg-4">
@@ -346,7 +352,8 @@
                                     {{ __('Postal/ZIP Code') }}
                                 </label>
                                 <input type="text" class="form-control @error('postalCode') is-invalid @enderror"
-                                    id="postalCode" name="postalCode" value="{{ old('postalCode', $editCustomer?->postal_address ?? '') }}"
+                                    id="postalCode" name="postalCode"
+                                    value="{{ old('postalCode', $editCustomer?->postal_address ?? '') }}"
                                     placeholder="{{ __('00000') }}" aria-required="true" autocomplete="postal-code">
                                 @error('postalCode')
                                     <div class="invalid-feedback" role="alert">{{ $message }}</div>
@@ -390,21 +397,37 @@
                                 id="financialRating" name="financialRating"
                                 data-placeholder="{{ __('Select rating...') }}">
                                 <option value="">{{ __('-- Select --') }}</option>
-                                <option value="AAA" {{ old('financialRating', $editCustomer?->financial_rate ?? '') == 'AAA' ? 'selected' : '' }}>AAA -
+                                <option value="AAA"
+                                    {{ old('financialRating', $editCustomer?->financial_rate ?? '') == 'AAA' ? 'selected' : '' }}>
+                                    AAA -
                                     {{ __('Excellent') }}</option>
-                                <option value="AA" {{ old('financialRating', $editCustomer?->financial_rate ?? '') == 'AA' ? 'selected' : '' }}>AA -
+                                <option value="AA"
+                                    {{ old('financialRating', $editCustomer?->financial_rate ?? '') == 'AA' ? 'selected' : '' }}>
+                                    AA -
                                     {{ __('Very Good') }}</option>
-                                <option value="A" {{ old('financialRating', $editCustomer?->financial_rate ?? '') == 'A' ? 'selected' : '' }}>A -
+                                <option value="A"
+                                    {{ old('financialRating', $editCustomer?->financial_rate ?? '') == 'A' ? 'selected' : '' }}>
+                                    A -
                                     {{ __('Good') }}</option>
-                                <option value="BBB" {{ old('financialRating', $editCustomer?->financial_rate ?? '') == 'BBB' ? 'selected' : '' }}>BBB -
+                                <option value="BBB"
+                                    {{ old('financialRating', $editCustomer?->financial_rate ?? '') == 'BBB' ? 'selected' : '' }}>
+                                    BBB -
                                     {{ __('Adequate') }}</option>
-                                <option value="BB" {{ old('financialRating', $editCustomer?->financial_rate ?? '') == 'BB' ? 'selected' : '' }}>BB -
+                                <option value="BB"
+                                    {{ old('financialRating', $editCustomer?->financial_rate ?? '') == 'BB' ? 'selected' : '' }}>
+                                    BB -
                                     {{ __('Fair') }}</option>
-                                <option value="B" {{ old('financialRating', $editCustomer?->financial_rate ?? '') == 'B' ? 'selected' : '' }}>B -
+                                <option value="B"
+                                    {{ old('financialRating', $editCustomer?->financial_rate ?? '') == 'B' ? 'selected' : '' }}>
+                                    B -
                                     {{ __('Marginal') }}</option>
-                                <option value="CCC" {{ old('financialRating', $editCustomer?->financial_rate ?? '') == 'CCC' ? 'selected' : '' }}>CCC -
+                                <option value="CCC"
+                                    {{ old('financialRating', $editCustomer?->financial_rate ?? '') == 'CCC' ? 'selected' : '' }}>
+                                    CCC -
                                     {{ __('Weak') }}</option>
-                                <option value="NR" {{ old('financialRating', $editCustomer?->financial_rate ?? '') == 'NR' ? 'selected' : '' }}>NR -
+                                <option value="NR"
+                                    {{ old('financialRating', $editCustomer?->financial_rate ?? '') == 'NR' ? 'selected' : '' }}>
+                                    NR -
                                     {{ __('Not Rated') }}</option>
                             </select>
                             @error('financialRating')
@@ -419,7 +442,8 @@
                                     title="{{ __('Rating from credit rating agencies (e.g., S&P, Moody\'s)') }}"></i>
                             </label>
                             <input type="text" class="form-control @error('agencyRating') is-invalid @enderror"
-                                id="agencyRating" name="agencyRating" value="{{ old('agencyRating', $editCustomer?->agency_rate ?? '') }}"
+                                id="agencyRating" name="agencyRating"
+                                value="{{ old('agencyRating', $editCustomer?->agency_rate ?? '') }}"
                                 placeholder="{{ __('e.g., A+, Baa2') }}">
                             @error('agencyRating')
                                 <div class="invalid-feedback" role="alert">{{ $message }}</div>
@@ -447,131 +471,186 @@
             </div>
             <div class="card-body">
                 <div id="contactsContainer" role="list">
-                    {{-- Primary Contact (Required) --}}
-                    <div class="contact-item mb-3" role="listitem" data-contact-index="0">
-                        <div class="card border-start border-primary border-4">
-                            <div class="card-header bg-light d-flex justify-content-between align-items-center">
-                                <h6 class="mb-0 contact-title">
-                                    <i class="bi bi-person-badge me-2"></i>
-                                    {{ __('Primary Contact') }}
-                                </h6>
-                                <span class="badge bg-primary">{{ __('Required') }}</span>
-                            </div>
-                            <div class="card-body">
-                                <div class="row g-3">
-                                    <div class="col-12 col-md-6 col-lg-3">
-                                        <label class="form-label required">{{ __('Full Name') }}</label>
-                                            <input type="text"
-                                            class="form-control @error('contacts.0.name') is-invalid @enderror"
-                                            name="contacts[0][name]" value="{{ old('contacts.0.name', $editCustomer?->primaryContact?->contact_name ?? '') }}"
-                                            placeholder="{{ __('John Doe') }}" required autocomplete="name">
-                                        @error('contacts.0.name')
-                                            <div class="invalid-feedback" role="alert">{{ $message }}</div>
-                                        @enderror
-                                    </div>
-                                    <div class="col-12 col-md-6 col-lg-3">
-                                        <label class="form-label required">{{ __('Position/Title') }}</label>
-                                            <input type="text"
-                                            class="form-control @error('contacts.0.position') is-invalid @enderror"
-                                            name="contacts[0][position]" value="{{ old('contacts.0.position', $editCustomer?->primaryContact?->contact_position ?? '') }}"
-                                            placeholder="{{ __('e.g., CEO, Manager') }}" required
-                                            autocomplete="organization-title">
-                                        @error('contacts.0.position')
-                                            <div class="invalid-feedback" role="alert">{{ $message }}</div>
-                                        @enderror
-                                    </div>
-                                    <div class="col-12 col-md-6 col-lg-3">
-                                        <label class="form-label required">{{ __('Mobile Number') }}</label>
-                                            <input type="tel"
-                                            class="form-control contact-phone @error('contacts.0.mobile') is-invalid @enderror"
-                                            name="contacts[0][mobile]" value="{{ old('contacts.0.mobile', $editCustomer?->primaryContact?->contact_mobile_no ?? '') }}"
-                                            placeholder="{{ __('+254 700 000000') }}" required autocomplete="tel">
-                                        @error('contacts.0.mobile')
-                                            <div class="invalid-feedback" role="alert">{{ $message }}</div>
-                                        @enderror
-                                    </div>
-                                    <div class="col-12 col-md-6 col-lg-3">
-                                        <label class="form-label required">{{ __('Email Address') }}</label>
-                                            <input type="email"
-                                            class="form-control @error('contacts.0.email') is-invalid @enderror"
-                                            name="contacts[0][email]" value="{{ old('contacts.0.email', $editCustomer?->primaryContact?->contact_email ?? '') }}"
-                                            placeholder="{{ __('john@example.com') }}" required autocomplete="email">
-                                        @error('contacts.0.email')
-                                            <div class="invalid-feedback" role="alert">{{ $message }}</div>
-                                        @enderror
-                                    </div>
-                                    <div class="col-12 col-md-6">
-                                        <label class="form-label">{{ __('Department') }}</label>
-                                        <select
-                                            class="form-select select2 @error('contacts.0.department') is-invalid @enderror"
-                                            name="contacts[0][department]">
-                                            <option value="">{{ __('-- Select --') }}</option>
-                                            <option value="executive"
-                                                {{ old('contacts.0.department') == 'executive' ? 'selected' : '' }}>
-                                                {{ __('Executive Management') }}
-                                            </option>
-                                            <option value="underwriting"
-                                                {{ old('contacts.0.department') == 'underwriting' ? 'selected' : '' }}>
-                                                {{ __('Underwriting') }}
-                                            </option>
-                                            <option value="claims"
-                                                {{ old('contacts.0.department') == 'claims' ? 'selected' : '' }}>
-                                                {{ __('Claims') }}
-                                            </option>
-                                            <option value="sales"
-                                                {{ old('contacts.0.department') == 'sales' ? 'selected' : '' }}>
-                                                {{ __('Sales') }}
-                                            </option>
-                                            <option value="marketing"
-                                                {{ old('contacts.0.department') == 'marketing' ? 'selected' : '' }}>
-                                                {{ __('Marketing') }}
-                                            </option>
-                                            <option value="finance"
-                                                {{ old('contacts.0.department') == 'finance' ? 'selected' : '' }}>
-                                                {{ __('Finance') }}
-                                            </option>
-                                            <option value="technical"
-                                                {{ old('contacts.0.department') == 'technical' ? 'selected' : '' }}>
-                                                {{ __('Technical') }}
-                                            </option>
-                                            <option value="operations"
-                                                {{ old('contacts.0.department') == 'operations' ? 'selected' : '' }}>
-                                                {{ __('Operations') }}
-                                            </option>
-                                            <option value="legal"
-                                                {{ old('contacts.0.department') == 'legal' ? 'selected' : '' }}>
-                                                {{ __('Legal') }}
-                                            </option>
-                                            <option value="hr"
-                                                {{ old('contacts.0.department') == 'hr' ? 'selected' : '' }}>
-                                                {{ __('Human Resources') }}
-                                            </option>
-                                            <option value="other"
-                                                {{ old('contacts.0.department') == 'other' ? 'selected' : '' }}>
-                                                {{ __('Other') }}
-                                            </option>
-                                        </select>
-                                        @error('contacts.0.department')
-                                            <div class="invalid-feedback" role="alert">{{ $message }}</div>
-                                        @enderror
-                                    </div>
-                                    <div class="col-12 col-md-6">
-                                        <label class="form-label">{{ __('Primary Contact') }}</label>
-                                        <select class="form-select primary-contact-select" name="contacts[0][isPrimary]">
-                                            <option value="1" selected>{{ __('Yes') }}</option>
-                                            <option value="0">{{ __('No') }}</option>
-                                        </select>
-                                        <small class="form-text text-muted">
-                                            {{ __('Main point of contact for this customer') }}
-                                        </small>
+                    @php
+                        $contactRows = [];
+
+                        if (is_array(old('contacts')) && count(old('contacts')) > 0) {
+                            $contactRows = array_values(old('contacts'));
+                        } elseif ($editCustomer && $editCustomer->relationLoaded('contacts') && $editCustomer->contacts->isNotEmpty()) {
+                            $contactRows = $editCustomer->contacts
+                                ->map(function ($contact) {
+                                    return [
+                                        'id' => $contact->id,
+                                        'name' => $contact->contact_name,
+                                        'position' => $contact->contact_position,
+                                        'mobile' => $contact->contact_mobile_no,
+                                        'email' => $contact->contact_email,
+                                        'department' => $contact->department,
+                                        'isPrimary' => $contact->is_primary ? 1 : 0,
+                                        'order' => $contact->order,
+                                    ];
+                                })
+                                ->values()
+                                ->all();
+                        } else {
+                            $contactRows = [
+                                [
+                                    'id' => $editCustomer?->primaryContact?->id ?? '',
+                                    'name' => $editCustomer?->primaryContact?->contact_name ?? '',
+                                    'position' => $editCustomer?->primaryContact?->contact_position ?? '',
+                                    'mobile' => $editCustomer?->primaryContact?->contact_mobile_no ?? '',
+                                    'email' => $editCustomer?->primaryContact?->contact_email ?? '',
+                                    'department' => '',
+                                    'isPrimary' => 1,
+                                    'order' => 0,
+                                ],
+                            ];
+                        }
+                    @endphp
+
+                    @foreach ($contactRows as $index => $contact)
+                        @php
+                            $isPrimaryRow = $index === 0;
+                            $departmentValue = old("contacts.$index.department", $contact['department'] ?? '');
+                            $isPrimaryValue = old("contacts.$index.isPrimary", $contact['isPrimary'] ?? ($isPrimaryRow ? 1 : 0));
+                        @endphp
+                        <div class="contact-item mb-3" role="listitem" data-contact-index="{{ $index }}">
+                            <div class="card border-start {{ $isPrimaryRow ? 'border-primary' : 'border-secondary' }} border-4">
+                                <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                                    <h6 class="mb-0 contact-title">
+                                        <i class="bi bi-person-badge me-2"></i>
+                                        {{ $isPrimaryRow ? __('Primary Contact') : __('Contact') . ' ' . ($index + 1) }}
+                                    </h6>
+                                    <div class="d-flex gap-2 align-items-center">
+                                        @if ($isPrimaryRow)
+                                            <span class="badge bg-primary">{{ __('Required') }}</span>
+                                        @else
+                                            <button type="button" class="btn btn-sm btn-danger remove-contact-btn"
+                                                aria-label="{{ __('Remove contact') }}">
+                                                <i class="bi bi-trash me-1"></i>{{ __('Remove') }}
+                                            </button>
+                                        @endif
                                     </div>
                                 </div>
-                                <input type="hidden" name="contacts[0][id]"
-                                    value="{{ old('contacts.0.id', $editCustomer?->primaryContact?->id ?? '') }}">
-                                <input type="hidden" name="contacts[0][order]" value="0" class="contact-order">
+                                <div class="card-body">
+                                    <div class="row g-3">
+                                        <div class="col-12 col-md-6 col-lg-3">
+                                            <label class="form-label {{ $isPrimaryRow ? 'required' : '' }}">{{ __('Full Name') }}</label>
+                                            <input type="text"
+                                                class="form-control @error("contacts.$index.name") is-invalid @enderror"
+                                                name="contacts[{{ $index }}][name]"
+                                                value="{{ old("contacts.$index.name", $contact['name'] ?? '') }}"
+                                                placeholder="{{ __('John Doe') }}" {{ $isPrimaryRow ? 'required' : '' }}
+                                                autocomplete="name">
+                                            @error("contacts.$index.name")
+                                                <div class="invalid-feedback" role="alert">{{ $message }}</div>
+                                            @enderror
+                                        </div>
+                                        <div class="col-12 col-md-6 col-lg-3">
+                                            <label class="form-label {{ $isPrimaryRow ? 'required' : '' }}">{{ __('Position/Title') }}</label>
+                                            <input type="text"
+                                                class="form-control @error("contacts.$index.position") is-invalid @enderror"
+                                                name="contacts[{{ $index }}][position]"
+                                                value="{{ old("contacts.$index.position", $contact['position'] ?? '') }}"
+                                                placeholder="{{ __('e.g., CEO, Manager') }}"
+                                                {{ $isPrimaryRow ? 'required' : '' }} autocomplete="organization-title">
+                                            @error("contacts.$index.position")
+                                                <div class="invalid-feedback" role="alert">{{ $message }}</div>
+                                            @enderror
+                                        </div>
+                                        <div class="col-12 col-md-6 col-lg-3">
+                                            <label class="form-label {{ $isPrimaryRow ? 'required' : '' }}">{{ __('Mobile Number') }}</label>
+                                            <input type="tel"
+                                                class="form-control contact-phone @error("contacts.$index.mobile") is-invalid @enderror"
+                                                name="contacts[{{ $index }}][mobile]"
+                                                value="{{ old("contacts.$index.mobile", $contact['mobile'] ?? '') }}"
+                                                placeholder="{{ __('+254 700 000000') }}"
+                                                {{ $isPrimaryRow ? 'required' : '' }} autocomplete="tel">
+                                            @error("contacts.$index.mobile")
+                                                <div class="invalid-feedback" role="alert">{{ $message }}</div>
+                                            @enderror
+                                        </div>
+                                        <div class="col-12 col-md-6 col-lg-3">
+                                            <label class="form-label {{ $isPrimaryRow ? 'required' : '' }}">{{ __('Email Address') }}</label>
+                                            <input type="email"
+                                                class="form-control @error("contacts.$index.email") is-invalid @enderror"
+                                                name="contacts[{{ $index }}][email]"
+                                                value="{{ old("contacts.$index.email", $contact['email'] ?? '') }}"
+                                                placeholder="{{ __('john@example.com') }}"
+                                                {{ $isPrimaryRow ? 'required' : '' }} autocomplete="email">
+                                            @error("contacts.$index.email")
+                                                <div class="invalid-feedback" role="alert">{{ $message }}</div>
+                                            @enderror
+                                        </div>
+                                        <div class="col-12 col-md-6">
+                                            <label class="form-label">{{ __('Department') }}</label>
+                                            <select
+                                                class="form-select select2 @error("contacts.$index.department") is-invalid @enderror"
+                                                name="contacts[{{ $index }}][department]">
+                                                <option value="">{{ __('-- Select --') }}</option>
+                                                <option value="executive" {{ $departmentValue == 'executive' ? 'selected' : '' }}>
+                                                    {{ __('Executive Management') }}
+                                                </option>
+                                                <option value="underwriting" {{ $departmentValue == 'underwriting' ? 'selected' : '' }}>
+                                                    {{ __('Underwriting') }}
+                                                </option>
+                                                <option value="claims" {{ $departmentValue == 'claims' ? 'selected' : '' }}>
+                                                    {{ __('Claims') }}
+                                                </option>
+                                                <option value="sales" {{ $departmentValue == 'sales' ? 'selected' : '' }}>
+                                                    {{ __('Sales') }}
+                                                </option>
+                                                <option value="marketing" {{ $departmentValue == 'marketing' ? 'selected' : '' }}>
+                                                    {{ __('Marketing') }}
+                                                </option>
+                                                <option value="finance" {{ $departmentValue == 'finance' ? 'selected' : '' }}>
+                                                    {{ __('Finance') }}
+                                                </option>
+                                                <option value="technical" {{ $departmentValue == 'technical' ? 'selected' : '' }}>
+                                                    {{ __('Technical') }}
+                                                </option>
+                                                <option value="operations" {{ $departmentValue == 'operations' ? 'selected' : '' }}>
+                                                    {{ __('Operations') }}
+                                                </option>
+                                                <option value="legal" {{ $departmentValue == 'legal' ? 'selected' : '' }}>
+                                                    {{ __('Legal') }}
+                                                </option>
+                                                <option value="hr" {{ $departmentValue == 'hr' ? 'selected' : '' }}>
+                                                    {{ __('Human Resources') }}
+                                                </option>
+                                                <option value="other" {{ $departmentValue == 'other' ? 'selected' : '' }}>
+                                                    {{ __('Other') }}
+                                                </option>
+                                            </select>
+                                            @error("contacts.$index.department")
+                                                <div class="invalid-feedback" role="alert">{{ $message }}</div>
+                                            @enderror
+                                        </div>
+                                        <div class="col-12 col-md-6">
+                                            <label class="form-label">{{ __('Primary Contact') }}</label>
+                                            <select class="form-select primary-contact-select"
+                                                name="contacts[{{ $index }}][isPrimary]">
+                                                <option value="1" {{ (string) $isPrimaryValue === '1' ? 'selected' : '' }}>
+                                                    {{ __('Yes') }}
+                                                </option>
+                                                <option value="0" {{ (string) $isPrimaryValue === '0' ? 'selected' : '' }}>
+                                                    {{ __('No') }}
+                                                </option>
+                                            </select>
+                                            <small class="form-text text-muted">
+                                                {{ __('Main point of contact for this customer') }}
+                                            </small>
+                                        </div>
+                                    </div>
+                                    <input type="hidden" name="contacts[{{ $index }}][id]"
+                                        value="{{ old("contacts.$index.id", $contact['id'] ?? '') }}">
+                                    <input type="hidden" name="contacts[{{ $index }}][order]"
+                                        value="{{ old("contacts.$index.order", $contact['order'] ?? $index) }}"
+                                        class="contact-order">
+                                </div>
                             </div>
                         </div>
-                    </div>
+                    @endforeach
                 </div>
                 <p class="text-muted small mb-0 mt-3">
                     <i class="bi bi-shield-check me-1"></i>
@@ -611,13 +690,11 @@
         </div>
     </form>
 
-    {{-- Screen Reader Announcements --}}
     <div role="status" aria-live="polite" aria-atomic="true" class="visually-hidden" id="formStatus"></div>
 @endsection
 
 @push('styles')
     <style>
-        /* Custom Form Styles */
         .required::after {
             content: " *";
             color: var(--bs-danger);
