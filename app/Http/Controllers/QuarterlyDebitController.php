@@ -110,9 +110,9 @@ class QuarterlyDebitController extends Controller
                 ->where('dn.debit_note_no', $customerAccount?->treaty_debit_no)
                 ->where('dn.endorsement_no', $endorsementNo)
                 ->where(function ($q) {
-                    $q->whereRaw('COALESCE(dn.compute_reinsurance_tax, 0) = 1')
+                    $q->whereRaw('dn.compute_reinsurance_tax IS TRUE')
                         ->orWhere(function ($inner) {
-                            $inner->whereRaw('COALESCE(dn.compute_reinsurance_tax, 0) = 0')
+                            $inner->whereRaw('dn.compute_reinsurance_tax IS NOT TRUE')
                                 ->whereRaw("UPPER(TRIM(COALESCE(tdi.item_code, ''))) <> 'IT07'")
                                 ->whereRaw("UPPER(TRIM(COALESCE(tc.description, tdi.description, ''))) <> 'REINSURANCE TAX'");
                         });
@@ -1475,9 +1475,9 @@ class QuarterlyDebitController extends Controller
                 ->where('dn.cover_no', $coverNo)
                 ->where('dn.endorsement_no', $endorsementNo)
                 ->where(function ($q) {
-                    $q->whereRaw('COALESCE(dn.compute_reinsurance_tax, 0) = 1')
+                    $q->whereRaw('dn.compute_reinsurance_tax IS TRUE')
                         ->orWhere(function ($inner) {
-                            $inner->whereRaw('COALESCE(dn.compute_reinsurance_tax, 0) = 0')
+                            $inner->whereRaw('dn.compute_reinsurance_tax IS NOT TRUE')
                                 ->whereRaw("UPPER(TRIM(COALESCE(tdi.item_code, ''))) <> 'IT07'")
                                 ->whereRaw("UPPER(TRIM(COALESCE(tc.description, tdi.description, ''))) <> 'REINSURANCE TAX'");
                         });
