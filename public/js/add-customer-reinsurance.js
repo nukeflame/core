@@ -64,13 +64,19 @@
                             label: "Security/Financial Rating (Optional)",
                             type: "select",
                             options: [
+                                "AAA",
+                                "AA",
                                 "A",
                                 "A-",
                                 "A+",
+                                "BBB",
+                                "BB",
                                 "B",
                                 "B-",
                                 "B+",
+                                "CCC",
                                 "C",
+                                "NR",
                                 "Not Rated",
                             ],
                             placeholder: "Select rating...",
@@ -101,7 +107,7 @@
                             helpText: "Date of the last rating assessment",
                         },
                         amlDetails: {
-                            required: true,
+                            required: false,
                             label: "AML Details",
                             type: "text",
                             placeholder: "Enter AML/KYC compliance details",
@@ -218,13 +224,13 @@
                         licensingTerritory: {
                             required: true,
                             label: "Licensing Territory",
-                            type: "text",
-                            placeholder: "Country where license is valid",
+                            type: "select",
+                            placeholder: "Select licensing territory...",
                             position: "after-regulatorLicenseNo",
                             helpText: "Country where the license is valid",
                         },
                         amlDetails: {
-                            required: true,
+                            required: false,
                             label: "AML Details",
                             type: "text",
                             placeholder: "Enter AML/KYC compliance details",
@@ -351,13 +357,13 @@
                         licensingTerritory: {
                             required: true,
                             label: "Licensing Territory",
-                            type: "text",
-                            placeholder: "Country where license is valid",
+                            type: "select",
+                            placeholder: "Select licensing territory...",
                             position: "after-licensingAuthority",
                             helpText: "Country where the license is valid",
                         },
                         amlDetails: {
-                            required: true,
+                            required: false,
                             label: "AML Details",
                             type: "text",
                             placeholder: "Enter AML/KYC compliance details",
@@ -480,13 +486,13 @@
                         licensingTerritory: {
                             required: true,
                             label: "Licensing Territory",
-                            type: "text",
-                            placeholder: "Country where license is valid",
+                            type: "select",
+                            placeholder: "Select licensing territory...",
                             position: "after-licensingAuthority",
                             helpText: "Country where the license is valid",
                         },
                         amlDetails: {
-                            required: true,
+                            required: false,
                             label: "AML Details",
                             type: "text",
                             placeholder: "Enter AML/KYC compliance details",
@@ -623,7 +629,7 @@
                                 "Date of birth for individuals or date of incorporation for corporates",
                         },
                         amlDetails: {
-                            required: true,
+                            required: false,
                             label: "AML Details",
                             type: "text",
                             placeholder: "Enter AML/KYC compliance details",
@@ -811,6 +817,7 @@
         dynamicFields: new Set(),
         contactCounter: 1,
         isSubmitting: false,
+        initialDynamicValues: {},
         ajaxConfig: {
             url: null,
             method: "POST",
@@ -834,6 +841,7 @@
 
                 this.waitForDependencies()
                     .then(() => {
+                        this.loadInitialDynamicValues();
                         this.loadTypeMapping();
                         this.cacheOriginalStates();
                         this.attachEventListeners();
@@ -852,6 +860,56 @@
             } catch (error) {
                 console.error("Initialization error:", error);
             }
+        },
+
+        loadInitialDynamicValues() {
+            try {
+                const raw = this.$form.attr("data-dynamic-values");
+                this.initialDynamicValues = raw ? JSON.parse(raw) : {};
+            } catch (error) {
+                this.initialDynamicValues = {};
+            }
+        },
+
+        getInitialDynamicValue(fieldName) {
+            const value = this.initialDynamicValues?.[fieldName];
+            if (value === undefined || value === null) {
+                return "";
+            }
+
+            let normalized = String(value).trim();
+            if (fieldName === "ratingDate") {
+                if (/^\d{4}-\d{2}-\d{2}$/.test(normalized)) {
+                    return normalized;
+                }
+
+                const dateOnly = normalized.split(" ")[0].split("T")[0];
+                if (/^\d{4}-\d{2}-\d{2}$/.test(dateOnly)) {
+                    return dateOnly;
+                }
+            }
+
+            return normalized;
+        },
+
+        escapeHtml(value) {
+            return String(value ?? "")
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#39;");
+        },
+
+        getCountryOptions() {
+            const options = [];
+            $("#country option[value!='']").each(function () {
+                options.push({
+                    value: String($(this).val() || "").trim(),
+                    label: String($(this).text() || "").trim(),
+                });
+            });
+            return options;
         },
 
         initializeAjaxConfig() {
@@ -2047,13 +2105,56 @@
             const labelClass = config.required
                 ? "form-label required"
                 : "form-label";
+            const initialValue = this.getInitialDynamicValue(fieldName);
+            const escapedValue = this.escapeHtml(initialValue);
 
             let inputHtml = "";
 
             if (fieldType === "select") {
-                const options = config.options || [];
+                let options = config.options || [];
+                if (
+                    fieldName === "licensingTerritory" &&
+                    (!Array.isArray(options) || options.length === 0)
+                ) {
+                    options = this.getCountryOptions();
+                }
+
+                let resolvedInitialValue = initialValue;
+                if (fieldName === "ratingAgency" && resolvedInitialValue) {
+                    const lowerInitial = resolvedInitialValue.toLowerCase();
+                    const matched = options.find((opt) => {
+                        const optionValue = String(
+                            typeof opt === "object" ? opt.value : opt
+                        )
+                            .trim()
+                            .toLowerCase();
+                        return (
+                            optionValue === lowerInitial ||
+                            optionValue.includes(lowerInitial) ||
+                            lowerInitial.includes(optionValue)
+                        );
+                    });
+
+                    if (matched) {
+                        resolvedInitialValue = String(
+                            typeof matched === "object" ? matched.value : matched
+                        ).trim();
+                    }
+                }
+
                 const optionsHtml = options
-                    .map((opt) => `<option value="${opt}">${opt}</option>`)
+                    .map((opt) => {
+                        const optionValue = String(
+                            typeof opt === "object" ? opt.value : opt
+                        ).trim();
+                        const optionLabel = String(
+                            typeof opt === "object" ? opt.label : opt
+                        ).trim();
+                        const selected = optionValue === resolvedInitialValue ? "selected" : "";
+                        const escapedOption = this.escapeHtml(optionValue);
+                        const escapedLabel = this.escapeHtml(optionLabel);
+                        return `<option value="${escapedOption}" ${selected}>${escapedLabel}</option>`;
+                    })
                     .join("");
 
                 inputHtml = `
@@ -2081,6 +2182,7 @@
                            class="form-control"
                            id="${fieldName}"
                            name="${fieldName}"
+                           value="${escapedValue}"
                            ${required}
                            ${ariaRequired}
                            ${minAttr}>
@@ -2091,6 +2193,7 @@
                            class="form-control"
                            id="${fieldName}"
                            name="${fieldName}"
+                           value="${escapedValue}"
                            placeholder="${config.placeholder || ""}"
                            ${required}
                            ${ariaRequired}>
@@ -2103,7 +2206,7 @@
                               placeholder="${config.placeholder || ""}"
                               rows="${config.rows || 3}"
                               ${required}
-                              ${ariaRequired}></textarea>
+                              ${ariaRequired}>${escapedValue}</textarea>
                 `;
             } else {
                 inputHtml = `
@@ -2111,6 +2214,7 @@
                            class="form-control"
                            id="${fieldName}"
                            name="${fieldName}"
+                           value="${escapedValue}"
                            placeholder="${config.placeholder || ""}"
                            ${required}
                            ${ariaRequired}>

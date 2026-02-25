@@ -8046,56 +8046,51 @@ class PipelineController
     public function getHeaders(Request $request)
     {
         try {
-            $typeOfBus = strtoupper(trim((string) $request->get('business_type', 'FPR')));
-            $classGroup = $request->get('class_group');
-            $class = $request->get('class');
-            $headerKeyword = trim((string) $request->get('header_keyword', ''));
+            $typeOfBus      = strtoupper(trim((string) $request->get('business_type', 'FPR')));
+            $classGroup     = $request->get('class_group');
+            $classCode      = $request->get('class');
+            $headerKeyword  = trim((string) $request->get('header_keyword', ''));
 
             $businessType = match ($typeOfBus) {
                 'FPR', 'FNP', 'FACULTATIVE', 'FAC' => 'FAC',
-                'TPR', 'TNP', 'TREATY', 'TRT' => 'TRT',
-                default => null,
+                'TPR', 'TNP', 'TREATY', 'TRT'      => 'TRT',
+                default                              => null,
             };
 
-            $query = QuoteScheduleHeader::query()
-                ->where('class', $class)
-                ->where('class_group', $classGroup);
+            $class = Classes::where('class_code', $classCode)->first();
 
-            if ($businessType) {
-                $query->where('business_type', $businessType);
-            }
-
-            if ($headerKeyword !== '') {
-                $query->where('name', 'like', '%' . $headerKeyword . '%');
-            }
-
-            $query->orderBy('position', 'asc');
-
-            $headers = $query->get();
+            $headers = QuoteScheduleHeader::query()
+                ->where('class', $classCode)
+                ->where('class_group', $classGroup)
+                ->when($businessType, fn($q) => $q->where('business_type', $businessType))
+                ->when($headerKeyword !== '', fn($q) => $q->where('name', 'like', "%{$headerKeyword}%"))
+                ->orderBy('position')
+                ->get();
 
             return response()->json([
-                'success' => true,
-                'headers' => collect($headers)->map(function ($header) {
-                    return [
-                        'id' => $header->id,
-                        'name' => Str::title($header->name),
-                        'business_type' => $header->business_type,
-                        'position' => $header->position,
-                        'amount_field' => $header->amount_field,
-                        'sum_insured_type' => $header->sum_insured_type,
-                        'data_determinant' => $header->data_determinant,
-                        'class' => $header->class,
-                        'class_group' => $header->class_group,
-                        'slug' => $header->slug,
-                        'type_of_sum_insured' => $header->type_of_sum_insured ?? null,
-                    ];
-                })
+                'success'    => true,
+                'class_name' => ucfirst(strtolower($class?->class_name)),
+                'headers'    => $headers->map(fn($header) => [
+                    'id'                 => $header->id,
+                    'name'               => Str::title($header->name),
+                    'business_type'      => $header->business_type,
+                    'position'           => $header->position,
+                    'amount_field'       => $header->amount_field,
+                    'sum_insured_type'   => $header->sum_insured_type,
+                    'data_determinant'   => $header->data_determinant,
+                    'class'              => $header->class,
+                    'class_group'        => $header->class_group,
+                    'slug'               => $header->slug,
+                    'type_of_sum_insured' => $header->type_of_sum_insured,
+                ]),
             ]);
         } catch (Exception $e) {
+            report($e);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch schedule headers',
-                'error' => config('app.debug') ? $e->getMessage() : 'Internal server error'
+                'error'   => config('app.debug') ? $e->getMessage() : 'Internal server error',
             ], 500);
         }
     }

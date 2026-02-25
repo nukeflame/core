@@ -85,7 +85,6 @@ class StoreCustomerRequest extends FormRequest
 
         if (in_array('reinsurer', $typeSlugs)) {
             $rules['incorporationNo'] = 'required|string|max:100';
-            $rules['amlDetails'] = 'required|string|max:1000';
         }
 
         if (in_array('cedant', $typeSlugs)) {
@@ -93,7 +92,6 @@ class StoreCustomerRequest extends FormRequest
             $rules['taxNo'] = 'required|string|max:100';
             $rules['regulatorLicenseNo'] = 'required|string|max:100';
             $rules['licensingTerritory'] = 'required|string|max:100';
-            $rules['amlDetails'] = 'required|string|max:1000';
         }
 
         if (in_array('reinsurance_broker', $typeSlugs)) {
@@ -102,7 +100,6 @@ class StoreCustomerRequest extends FormRequest
             $rules['regulatorLicenseNo'] = 'required|string|max:100';
             $rules['licensingAuthority'] = 'required|string|max:255';
             $rules['licensingTerritory'] = 'required|string|max:100';
-            $rules['amlDetails'] = 'required|string|max:1000';
             $rules['contacts'] = 'required|array|min:2|max:10';
         }
 
@@ -112,7 +109,6 @@ class StoreCustomerRequest extends FormRequest
             $rules['regulatorLicenseNo'] = 'required|string|max:100';
             $rules['licensingAuthority'] = 'required|string|max:255';
             $rules['licensingTerritory'] = 'required|string|max:100';
-            $rules['amlDetails'] = 'required|string|max:1000';
             $rules['contacts'] = 'required|array|min:2|max:10';
         }
 
@@ -122,7 +118,6 @@ class StoreCustomerRequest extends FormRequest
             $rules['insuredType'] = 'required|string|in:Individual,Corporate';
             $rules['industryOccupation'] = 'required|string|max:255';
             $rules['dateOfBirthIncorporation'] = 'required|date|before_or_equal:today';
-            $rules['amlDetails'] = 'required|string|max:1000';
         }
     }
 

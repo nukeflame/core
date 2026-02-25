@@ -5,6 +5,18 @@
 @section('content')
     @php
         $editCustomer = $customer ?? null;
+        $dynamicValues = [
+            'securityRating' => old('securityRating', optional($editCustomer)->security_rating ?? optional($editCustomer)->financial_rate ?? ''),
+            'ratingAgency' => old('ratingAgency', optional($editCustomer)->rating_agency ?? optional($editCustomer)->agency_rate ?? ''),
+            'ratingDate' => old('ratingDate', optional($editCustomer)->rating_date ?? ''),
+            'regulatorLicenseNo' => old('regulatorLicenseNo', optional($editCustomer)->regulator_license_no ?? ''),
+            'licensingAuthority' => old('licensingAuthority', optional($editCustomer)->licensing_authority ?? ''),
+            'licensingTerritory' => old('licensingTerritory', optional($editCustomer)->licensing_territory ?? ''),
+            'amlDetails' => old('amlDetails', optional($editCustomer)->aml_details ?? ''),
+            'insuredType' => old('insuredType', optional($editCustomer)->insured_type ?? ''),
+            'industryOccupation' => old('industryOccupation', optional($editCustomer)->industry_occupation ?? ''),
+            'dateOfBirthIncorporation' => old('dateOfBirthIncorporation', optional($editCustomer)->date_of_birth_incorporation ?? ''),
+        ];
     @endphp
     <div class="d-md-flex d-block align-items-center justify-content-between my-4 page-header-breadcrumb">
         <div>
@@ -32,7 +44,9 @@
     </div>
 
     <form action="{{ isset($customer) ? route('customer.update', $customer->customer_id) : route('customer.store') }}" method="POST" id="customerForm"
-        data-redirect-url="{{ route('customer.info') }}" novalidate aria-label="{{ __('Customer creation form') }}">
+        data-redirect-url="{{ route('customer.info') }}"
+        data-dynamic-values='@json($dynamicValues)'
+        novalidate aria-label="{{ __('Customer creation form') }}">
         @csrf
         @if (isset($customer))
             @method('PUT')
@@ -323,7 +337,7 @@
                                     {{ __('State/Province') }}
                                 </label>
                                 <input type="text" class="form-control" id="state" name="state"
-                                    value="{{ old('state') }}" placeholder="{{ __('Enter state/province') }}"
+                                    value="{{ old('state', $editCustomer?->state ?? '') }}" placeholder="{{ __('Enter state/province') }}"
                                     autocomplete="address-level1">
                             </div>
 
@@ -552,6 +566,8 @@
                                         </small>
                                     </div>
                                 </div>
+                                <input type="hidden" name="contacts[0][id]"
+                                    value="{{ old('contacts.0.id', $editCustomer?->primaryContact?->id ?? '') }}">
                                 <input type="hidden" name="contacts[0][order]" value="0" class="contact-order">
                             </div>
                         </div>
@@ -579,13 +595,15 @@
                             <i class="bi bi-x-circle me-1"></i>
                             {{ __('Cancel') }}
                         </a>
-                        <button type="button" class="btn btn-outline-primary" id="resetFormBtn">
-                            <i class="bi bi-arrow-clockwise me-1"></i>
-                            {{ __('Reset') }}
-                        </button>
+                        @if (!isset($customer))
+                            <button type="button" class="btn btn-outline-primary" id="resetFormBtn">
+                                <i class="bi bi-arrow-clockwise me-1"></i>
+                                {{ __('Reset') }}
+                            </button>
+                        @endif
                         <button type="submit" class="btn btn-primary" id="submitBtn">
                             <i class="bi bi-check-circle me-1"></i>
-                            {{ isset($customer) ? __('Save Customer') : __('Create Customer') }}
+                            {{ isset($customer) ? __('Update Customer') : __('Create Customer') }}
                         </button>
                     </div>
                 </div>

@@ -77,13 +77,10 @@
                                                 <span class="required-asterisk">*</span>
                                             </label>
                                             <div class="input-group mb-3">
-                                                <span class="input-group-text"
-                                                    id="propCurrencySymbol">KES</span>
-                                                <input type="text"
-                                                    class="form-control form-inputs total_sum_insured"
+                                                <span class="input-group-text" id="propCurrencySymbol">KES</span>
+                                                <input type="text" class="form-control form-inputs total_sum_insured"
                                                     name="total_sum_insured" required placeholder="0.00"
-                                                    aria-label="100% Sum Insured"
-                                                    aria-describedby="propCurrencySymbol"
+                                                    aria-label="100% Sum Insured" aria-describedby="propCurrencySymbol"
                                                     onkeyup="this.value=numberWithCommas(this.value)"
                                                     onchange="this.value=numberWithCommas(this.value)">
                                             </div>
@@ -99,8 +96,7 @@
                                                 <span class="input-group-text"
                                                     id="propPremiumCurrencySymbol">KES</span>
                                                 <input type="text" class="form-control form-inputs premium"
-                                                    name="premium" required placeholder="0.00"
-                                                    aria-label="Premium"
+                                                    name="premium" required placeholder="0.00" aria-label="Premium"
                                                     aria-describedby="propPremiumCurrencySymbol"
                                                     onkeyup="this.value=numberWithCommas(this.value)"
                                                     onchange="this.value=numberWithCommas(this.value)">
@@ -310,14 +306,18 @@
     <div class="modal-dialog modal-dialog-centered modal-xl" role="document">
         <div class="modal-content">
             <div class="modal-header bg-primary text-white">
-                <h5 class="modal-title" id="staticpreviewPdfModal">
+                <h5 class="modal-title d-flex align-items-center gap-2" id="staticpreviewPdfModal">
                     <i class="bi bi-files"></i>
                     Document Preview
                 </h5>
+                <div class="d-flex align-items-center gap-3 ms-auto me-3">
+                </div>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
                     aria-label="Close"></button>
             </div>
-            <div class="modal-body p-0">
+            <div class="pipeline-bar" id="pipelineProgress"></div>
+
+            <div class="modal-body">
                 <form id="previewPdfForm">
                     <input type="hidden" name="opportunity_id" class="opportunity_id" id="pdf_opportunity_id" />
                     <input type="hidden" name="current_stage" class="current_stage" id="pdf_current_stage" />
@@ -329,77 +329,104 @@
                         <button class="nav-link active" id="lead-tab" data-bs-toggle="tab"
                             data-bs-target="#lead-stage" type="button" role="tab" aria-controls="lead-stage"
                             aria-selected="true">
-                            <i class="bi bi-person-check me-1"></i>
-                            Lead
+                            <i class="bi bi-person-check me-1"></i>Lead
+                            <span class="tab-badge" id="badge-lead">0</span>
                         </button>
                     </li>
                     <li class="nav-item" role="presentation">
                         <button class="nav-link" id="proposal-tab" data-bs-toggle="tab"
                             data-bs-target="#proposal-stage" type="button" role="tab"
                             aria-controls="proposal-stage" aria-selected="false">
-                            <i class="bi bi-file-text me-1"></i>
-                            Proposal
+                            <i class="bi bi-file-text me-1"></i>Proposal
+                            <span class="tab-badge" id="badge-proposal">0</span>
                         </button>
                     </li>
                     <li class="nav-item" role="presentation">
                         <button class="nav-link" id="negotiation-tab" data-bs-toggle="tab"
                             data-bs-target="#negotiation-stage" type="button" role="tab"
                             aria-controls="negotiation-stage" aria-selected="false">
-                            <i class="bi bi-chat-left-dots me-1"></i>
-                            Negotiation
+                            <i class="bi bi-chat-left-dots me-1"></i>Negotiation
+                            <span class="tab-badge" id="badge-negotiation">0</span>
+                            <i class="bi bi-star-fill tab-current-star ms-1 d-none" title="Current stage"></i>
                         </button>
                     </li>
                     <li class="nav-item" role="presentation">
                         <button class="nav-link" id="close-won-tab" data-bs-toggle="tab"
                             data-bs-target="#close-won-stage" type="button" role="tab"
                             aria-controls="close-won-stage" aria-selected="false">
-                            <i class="bi bi-trophy me-1"></i>
-                            Close/Won
+                            <i class="bi bi-trophy me-1"></i>Close/Won
+                            <span class="tab-badge" id="badge-close-won">0</span>
                         </button>
                     </li>
                     <li class="nav-item" role="presentation">
                         <button class="nav-link" id="final-tab" data-bs-toggle="tab" data-bs-target="#final-stage"
                             type="button" role="tab" aria-controls="final-stage" aria-selected="false">
-                            <i class="bi bi-check-circle me-1"></i>
-                            Final
+                            <i class="bi bi-check-circle me-1"></i>Final
+                            <span class="tab-badge" id="badge-final">0</span>
                         </button>
                     </li>
                 </ul>
+
+                <div class="pdf-toolbar">
+                    <div class="search-wrap">
+                        <i class="bi bi-search"></i>
+                        <input class="search-input" id="docSearch" type="text" placeholder="Search documents…"
+                            autocomplete="off" />
+                    </div>
+                    <button type="button" class="filter-pill active" data-filter="all"><i class="bi bi-funnel"></i>
+                        All</button>
+                    {{-- <button type="button" class="filter-pill" data-filter="new">
+                        <span class="filter-dot filter-dot-new"></span> New
+                    </button>
+                    <button type="button" class="filter-pill" data-filter="review"><i
+                            class="bi bi-hourglass-split"></i> Under Review</button>
+                    <button type="button" class="filter-pill" data-filter="signed"><i
+                            class="bi bi-patch-check"></i>
+                        Signed</button> --}}
+                    <select class="sort-select" id="docSort">
+                        <option value="date_desc">Newest first</option>
+                        <option value="date_asc">Oldest first</option>
+                        <option value="name_asc">A → Z</option>
+                    </select>
+                    <span class="result-count" id="resultCount">0 documents</span>
+                </div>
 
                 <div class="tab-content pdf-section-box customScrollBar" id="pdfStageContent">
                     <!-- Lead Stage -->
                     <div class="tab-pane fade show active" id="lead-stage" role="tabpanel"
                         aria-labelledby="lead-tab">
-                        <div class="pdf-list-container p-4" style="min-height: 400px;">
-                            <div class="text-center py-5" id="lead-loading">
+                        <div class="pdf-list-container" style="min-height: 400px;">
+                            <div class="state-box" id="lead-loading">
                                 <div class="spinner-border text-primary" role="status">
                                     <span class="visually-hidden">Loading...</span>
                                 </div>
-                                <p class="mt-2 text-muted">Loading PDFs...</p>
+                                <p class="mt-2 text-muted">Loading PDFs…</p>
                             </div>
                             <div id="lead-pdf-list" class="d-none">
                             </div>
-                            <div class="text-center py-5 d-none" id="lead-no-pdf">
-                                <i class="bi bi-file-earmark-x text-muted" style="font-size: 3rem;"></i>
-                                <p class="mt-2 text-muted">No PDFs available for this stage</p>
+                            <div class="state-box d-none" id="lead-no-pdf">
+                                <i class="bi bi-file-earmark-x state-icon"></i>
+                                <p class="state-title">No documents yet</p>
+                                <p>Documents added to the Lead stage will appear here.</p>
                             </div>
                         </div>
                     </div>
 
                     <!-- Proposal Stage -->
                     <div class="tab-pane fade" id="proposal-stage" role="tabpanel" aria-labelledby="proposal-tab">
-                        <div class="pdf-list-container p-4" style="min-height: 400px;">
-                            <div class="text-center py-5" id="proposal-loading">
+                        <div class="pdf-list-container" style="min-height: 400px;">
+                            <div class="state-box" id="proposal-loading">
                                 <div class="spinner-border text-primary" role="status">
                                     <span class="visually-hidden">Loading...</span>
                                 </div>
-                                <p class="mt-2 text-muted">Loading PDFs...</p>
+                                <p class="mt-2 text-muted">Loading PDFs…</p>
                             </div>
                             <div id="proposal-pdf-list" class="d-none">
                             </div>
-                            <div class="text-center py-5 d-none" id="proposal-no-pdf">
-                                <i class="bi bi-file-earmark-x text-muted" style="font-size: 3rem;"></i>
-                                <p class="mt-2 text-muted">No PDFs available for this stage</p>
+                            <div class="state-box d-none" id="proposal-no-pdf">
+                                <i class="bi bi-file-earmark-x state-icon"></i>
+                                <p class="state-title">No documents yet</p>
+                                <p>Documents added to the Proposal stage will appear here.</p>
                             </div>
                         </div>
                     </div>
@@ -407,60 +434,69 @@
                     <!-- Negotiation Stage -->
                     <div class="tab-pane fade" id="negotiation-stage" role="tabpanel"
                         aria-labelledby="negotiation-tab">
-                        <div class="pdf-list-container p-4" style="min-height: 400px;">
-                            <div class="text-center py-5" id="negotiation-loading">
+                        <div class="pdf-list-container" style="min-height: 400px;">
+                            <div class="state-box" id="negotiation-loading">
                                 <div class="spinner-border text-primary" role="status">
                                     <span class="visually-hidden">Loading...</span>
                                 </div>
-                                <p class="mt-2 text-muted">Loading PDFs...</p>
+                                <p class="mt-2 text-muted">Loading PDFs…</p>
                             </div>
                             <div id="negotiation-pdf-list" class="d-none">
                             </div>
-                            <div class="text-center py-5 d-none" id="negotiation-no-pdf">
-                                <i class="bi bi-file-earmark-x text-muted" style="font-size: 3rem;"></i>
-                                <p class="mt-2 text-muted">No PDFs available for this stage</p>
+                            <div class="state-box d-none" id="negotiation-no-pdf">
+                                <i class="bi bi-file-earmark-x state-icon"></i>
+                                <p class="state-title">No documents yet</p>
+                                <p>Documents added to the Negotiation stage will appear here.</p>
                             </div>
                         </div>
                     </div>
 
                     <!-- Close/Won Stage -->
                     <div class="tab-pane fade" id="close-won-stage" role="tabpanel" aria-labelledby="close-won-tab">
-                        <div class="pdf-list-container p-4" style="min-height: 400px;">
-                            <div class="text-center py-5" id="close-won-loading">
+                        <div class="pdf-list-container" style="min-height: 400px;">
+                            <div class="state-box" id="close-won-loading">
                                 <div class="spinner-border text-primary" role="status">
                                     <span class="visually-hidden">Loading...</span>
                                 </div>
-                                <p class="mt-2 text-muted">Loading PDFs...</p>
+                                <p class="mt-2 text-muted">Loading PDFs…</p>
                             </div>
                             <div id="close-won-pdf-list" class="d-none">
                             </div>
-                            <div class="text-center py-5 d-none" id="close-won-no-pdf">
-                                <i class="bi bi-file-earmark-x text-muted" style="font-size: 3rem;"></i>
-                                <p class="mt-2 text-muted">No PDFs available for this stage</p>
+                            <div class="state-box d-none" id="close-won-no-pdf">
+                                <i class="bi bi-file-earmark-x state-icon"></i>
+                                <p class="state-title">No documents yet</p>
+                                <p>Documents added to the Close/Won stage will appear here.</p>
                             </div>
                         </div>
                     </div>
 
                     <!-- Final Stage -->
                     <div class="tab-pane fade" id="final-stage" role="tabpanel" aria-labelledby="final-tab">
-                        <div class="pdf-list-container p-4" style="min-height: 400px;">
-                            <div class="text-center py-5" id="final-loading">
+                        <div class="pdf-list-container" style="min-height: 400px;">
+                            <div class="state-box" id="final-loading">
                                 <div class="spinner-border text-primary" role="status">
                                     <span class="visually-hidden">Loading...</span>
                                 </div>
-                                <p class="mt-2 text-muted">Loading PDFs...</p>
+                                <p class="mt-2 text-muted">Loading PDFs…</p>
                             </div>
                             <div id="final-pdf-list" class="d-none">
                             </div>
-                            <div class="text-center py-5 d-none" id="final-no-pdf">
-                                <i class="bi bi-file-earmark-x text-muted" style="font-size: 3rem;"></i>
-                                <p class="mt-2 text-muted">No PDFs available for this stage</p>
+                            <div class="state-box d-none" id="final-no-pdf">
+                                <i class="bi bi-file-earmark-x state-icon"></i>
+                                <p class="state-title">No documents yet</p>
+                                <p>Documents added to the Final stage will appear here.</p>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
             <div class="modal-footer bg-light">
+                <span class="text-muted me-auto" style="font-size:.75rem;">
+                    <i class="bi bi-info-circle me-1"></i>Documents are read-only. Contact your admin to make changes.
+                </span>
+                {{-- <button type="button" class="btn btn-sm btn-outline-secondary" id="btnDownloadAll">
+                    <i class="bi bi-download me-1"></i>Download All
+                </button> --}}
                 <button type="button" class="btn btn-light" data-bs-dismiss="modal">
                     <i class="bi bi-x-circle me-1"></i> Close
                 </button>
@@ -746,65 +782,489 @@
         color: #0d6efd !important;
     }
 
-    .pdf-item {
-        border: 1px solid #dee2e6;
-        border-radius: 8px;
-        padding: 16px;
-        margin-bottom: 12px;
-        transition: all 0.2s ease;
-        background: white;
+    #previewPdfModal .modal-content {
+        border: none;
+        border-radius: 14px;
+        overflow: hidden;
     }
 
-    .pdf-item:hover {
-        border-color: #0d6efd;
-        box-shadow: 0 2px 8px rgba(13, 110, 253, 0.15);
-        /* transform: translateY(-2px); */
-    }
-
-    .pdf-item-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 8px;
-    }
-
-    .pdf-item-title {
+    #previewPdfModal .modal-title {
+        font-size: 1rem;
         font-weight: 600;
-        color: #212529;
-        margin: 0;
+        letter-spacing: .2px;
+    }
+
+    #previewPdfModal .modal-body {
+        padding: 0;
+        background: #f8fafc;
+    }
+
+    #previewPdfModal .modal-footer {
+        background: #f1f5f9;
+        border-top: 1px solid #e2e8f0;
+        padding: .65rem 1.25rem;
+    }
+
+    #previewPdfModal .opp-badge {
+        font-size: .68rem;
+        font-weight: 700;
+        background: rgba(255, 255, 255, .2);
+        color: #fff;
+        border: 1px solid rgba(255, 255, 255, .3);
+        border-radius: 99px;
+        padding: 2px 10px;
+        letter-spacing: .4px;
+    }
+
+    #previewPdfModal .header-meta {
+        font-size: .72rem;
+        color: rgba(255, 255, 255, .75);
+    }
+
+    #previewPdfModal .pipeline-bar {
+        display: flex;
+        align-items: flex-start;
+        background: #fff;
+        border-bottom: 1px solid #e2e8f0;
+        padding: .9rem 1.5rem .65rem;
+        overflow-x: auto;
+    }
+
+    #previewPdfModal .p-step {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        flex: 1;
+        min-width: 64px;
+        cursor: pointer;
+        position: relative;
+    }
+
+    #previewPdfModal .p-step::after {
+        content: "";
+        position: absolute;
+        top: 13px;
+        left: 50%;
+        width: 100%;
+        height: 2px;
+        background: #e2e8f0;
+        z-index: 0;
+    }
+
+    #previewPdfModal .p-step:last-child::after {
+        display: none;
+    }
+
+    #previewPdfModal .p-dot {
+        width: 26px;
+        height: 26px;
+        border-radius: 50%;
+        background: #e2e8f0;
+        color: #94a3b8;
         display: flex;
         align-items: center;
-        gap: 8px;
+        justify-content: center;
+        font-size: .72rem;
+        z-index: 1;
+        position: relative;
+        border: 2px solid transparent;
+        transition: background .2s, box-shadow .2s, border-color .2s;
     }
 
-    .pdf-item-meta {
-        font-size: 0.875rem;
-        color: #6c757d;
-        margin-bottom: 12px;
+    #previewPdfModal .p-label {
+        font-size: .63rem;
+        font-weight: 600;
+        color: #94a3b8;
+        text-transform: uppercase;
+        letter-spacing: .35px;
+        margin-top: .3rem;
+        text-align: center;
+        white-space: nowrap;
     }
 
-    .pdf-item-actions {
+    #previewPdfModal .p-count {
+        font-size: .58rem;
+        background: #e2e8f0;
+        color: #64748b;
+        border-radius: 99px;
+        padding: 0 5px;
+        margin-top: 2px;
+        line-height: 1.5;
+    }
+
+    #previewPdfModal .p-step.done .p-dot {
+        background: #dcfce7;
+        color: #16a34a;
+        border-color: #86efac;
+    }
+
+    #previewPdfModal .p-step.done::after {
+        background: linear-gradient(90deg, #86efac, #e2e8f0);
+    }
+
+    #previewPdfModal .p-step.active .p-dot {
+        background: var(--p-color);
+        color: #fff;
+        border-color: var(--p-color);
+        box-shadow: 0 0 0 4px color-mix(in srgb, var(--p-color) 18%, transparent);
+    }
+
+    #previewPdfModal .p-step.active .p-label {
+        color: var(--p-color);
+    }
+
+    #previewPdfModal .p-step.active .p-count {
+        background: var(--p-color);
+        color: #fff;
+    }
+
+    #previewPdfModal #pdfStageTabs {
+        background: #fff;
+        border-bottom: 2px solid #e2e8f0 !important;
+        padding: 0 1rem;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+    }
+
+    #previewPdfModal #pdfStageTabs .nav-link {
+        border: none;
+        border-bottom: 2px solid transparent;
+        color: #64748b;
+        font-size: .8rem;
+        font-weight: 600;
+        padding: .6rem .75rem;
+        white-space: nowrap;
+        margin-bottom: -2px;
+        border-radius: 0;
+        transition: color .15s, border-color .15s;
         display: flex;
-        gap: 8px;
+        align-items: center;
+        gap: .35rem;
     }
 
-    .badge-reinsurer {
-        background-color: #0dcaf0;
+    #previewPdfModal #pdfStageTabs .nav-link:hover {
+        color: #1e40af;
+        background: transparent;
     }
 
-    .badge-cedant {
-        background-color: #198754;
+    #previewPdfModal #pdfStageTabs .nav-link.active {
+        color: var(--tab-c, #1e40af);
+        border-bottom-color: var(--tab-c, #1e40af);
+        background: transparent;
     }
 
-    .badge-general {
-        background-color: #6c757d;
+    #previewPdfModal .tab-badge {
+        font-size: .58rem;
+        font-weight: 700;
+        background: #e2e8f0;
+        color: #64748b;
+        border-radius: 99px;
+        padding: 1px 6px;
+        line-height: 1.5;
     }
 
-    .pdf-section-box {
-        padding-top: 0px;
-        height: 80vh;
-        overflow-x: hidden;
+    #previewPdfModal .nav-link.active .tab-badge {
+        background: var(--tab-c, #1e40af);
+        color: #fff;
+    }
+
+    #previewPdfModal .tab-current-star {
+        font-size: .55rem;
+        color: #f59e0b;
+    }
+
+    #previewPdfModal .pdf-toolbar {
+        display: flex;
+        align-items: center;
+        gap: .6rem;
+        flex-wrap: wrap;
+        padding: .6rem 1rem;
+        background: #fff;
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    #previewPdfModal .search-wrap {
+        position: relative;
+        flex: 1;
+        min-width: 160px;
+        max-width: 770px;
+    }
+
+    #previewPdfModal .search-wrap .bi-search {
+        position: absolute;
+        left: .6rem;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #94a3b8;
+        font-size: .8rem;
+        pointer-events: none;
+    }
+
+    #previewPdfModal .search-input {
+        border: 1px solid #e2e8f0;
+        border-radius: 7px;
+        padding: .35rem .7rem .35rem 1.9rem;
+        font-size: .8rem;
+        width: 100%;
+        background: #f8fafc;
+        font-family: inherit;
+    }
+
+    #previewPdfModal .search-input:focus {
+        outline: none;
+        border-color: #93c5fd;
+        box-shadow: 0 0 0 3px #dbeafe;
+        background: #fff;
+    }
+
+    #previewPdfModal .filter-pill {
+        border: 1px solid #e2e8f0;
+        border-radius: 99px;
+        background: #f8fafc;
+        padding: .28rem .75rem;
+        font-size: .75rem;
+        color: #64748b;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: .3rem;
+        white-space: nowrap;
+        transition: all .12s;
+        font-family: inherit;
+    }
+
+    #previewPdfModal .filter-pill:hover,
+    #previewPdfModal .filter-pill.active {
+        border-color: #93c5fd;
+        color: #1d4ed8;
+        background: #eff6ff;
+    }
+
+    #previewPdfModal .filter-dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        display: inline-block;
+    }
+
+    #previewPdfModal .filter-dot-new {
+        background: #3b82f6;
+    }
+
+    #previewPdfModal .sort-select {
+        border: 1px solid #e2e8f0;
+        border-radius: 7px;
+        background: #f8fafc;
+        padding: .3rem .55rem;
+        font-size: .75rem;
+        color: #475569;
+        font-family: inherit;
+        cursor: pointer;
+    }
+
+    #previewPdfModal .sort-select:focus {
+        outline: none;
+        border-color: #93c5fd;
+    }
+
+    #previewPdfModal .result-count {
+        margin-left: auto;
+        font-size: .73rem;
+        color: #94a3b8;
+        white-space: nowrap;
+    }
+
+    #previewPdfModal .pdf-section-box {
+        max-height: 50vh;
         overflow-y: auto;
+    }
+
+    #previewPdfModal .pdf-section-box::-webkit-scrollbar {
+        width: 5px;
+    }
+
+    #previewPdfModal .pdf-section-box::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    #previewPdfModal .pdf-section-box::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 99px;
+    }
+
+    #previewPdfModal .pdf-card {
+        display: flex;
+        align-items: center;
+        gap: .9rem;
+        padding: .8rem 1.1rem;
+        background: #fff;
+        border-bottom: 1px solid #f1f5f9;
+        cursor: pointer;
+        transition: background .12s;
+        border-left: 3px solid transparent;
+    }
+
+    #previewPdfModal .pdf-card:hover {
+        background: #f8fafc;
+    }
+
+    #previewPdfModal .pdf-card.active {
+        background: #eff6ff;
+        border-left-color: var(--stage-c, #3b82f6);
+    }
+
+    #previewPdfModal .pdf-card:last-child {
+        border-bottom: none;
+    }
+
+    #previewPdfModal .pdf-icon-wrap {
+        width: 38px;
+        height: 46px;
+        flex-shrink: 0;
+        background: #fef2f2;
+        border-radius: 6px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+    }
+
+    #previewPdfModal .pdf-icon-wrap i {
+        font-size: 1.3rem;
+        color: #ef4444;
+    }
+
+    #previewPdfModal .pdf-ext {
+        position: absolute;
+        bottom: 3px;
+        background: #ef4444;
+        color: #fff;
+        font-size: .42rem;
+        font-weight: 800;
+        padding: 0 3px;
+        border-radius: 2px;
+        letter-spacing: .4px;
+    }
+
+    #previewPdfModal .pdf-meta {
+        flex: 1;
+        min-width: 0;
+    }
+
+    #previewPdfModal .pdf-name {
+        font-size: .85rem;
+        font-weight: 600;
+        color: #1e293b;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    #previewPdfModal .pdf-sub {
+        display: flex;
+        flex-wrap: wrap;
+        gap: .45rem;
+        margin-top: .22rem;
+    }
+
+    #previewPdfModal .pdf-sub span {
+        font-size: .7rem;
+        color: #94a3b8;
+        display: flex;
+        align-items: center;
+        gap: .2rem;
+    }
+
+    #previewPdfModal .status-pill {
+        font-size: .62rem;
+        font-weight: 700;
+        border-radius: 99px;
+        padding: 1px 7px;
+        text-transform: uppercase;
+        letter-spacing: .3px;
+    }
+
+    #previewPdfModal .s-new {
+        background: #dbeafe;
+        color: #1d4ed8;
+    }
+
+    #previewPdfModal .s-review {
+        background: #fef9c3;
+        color: #854d0e;
+    }
+
+    #previewPdfModal .s-signed {
+        background: #dcfce7;
+        color: #15803d;
+    }
+
+    #previewPdfModal .pdf-actions {
+        display: flex;
+        gap: .35rem;
+        flex-shrink: 0;
+        opacity: 0;
+        transition: opacity .12s;
+    }
+
+    #previewPdfModal .pdf-card:hover .pdf-actions,
+    #previewPdfModal .pdf-card.active .pdf-actions {
+        opacity: 1;
+    }
+
+    #previewPdfModal .act-btn {
+        width: 30px;
+        height: 30px;
+        border-radius: 7px;
+        border: 1px solid #e2e8f0;
+        background: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: .85rem;
+        color: #64748b;
+        cursor: pointer;
+        transition: all .12s;
+    }
+
+    #previewPdfModal .act-btn:hover {
+        border-color: #93c5fd;
+        color: #1e40af;
+        background: #eff6ff;
+    }
+
+    #previewPdfModal .act-btn.dl:hover {
+        border-color: #86efac;
+        color: #16a34a;
+        background: #f0fdf4;
+    }
+
+    #previewPdfModal .state-box {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 2.5rem 1rem;
+        color: #94a3b8;
+        text-align: center;
+    }
+
+    #previewPdfModal .state-box .state-icon {
+        font-size: 2.2rem;
+        margin-bottom: .6rem;
+    }
+
+    #previewPdfModal .state-box .state-title {
+        font-size: .88rem;
+        font-weight: 600;
+        color: #64748b;
+        margin-bottom: .25rem;
+    }
+
+    #previewPdfModal .state-box p {
+        font-size: .78rem;
+        margin: 0;
     }
 
     #propContactsModal .form-label {
@@ -881,10 +1341,46 @@
 @push('script')
     <script>
         $(document).ready(function() {
-            let currentStage = 'lead';
-            let pdfUrls = {};
             let bdReinsurers = [];
             let selectedReinsurers = new Set();
+            let filterStatus = 'all';
+            let pdfSearch = '';
+            let pdfSort = 'date_desc';
+            let allStageDocs = {};
+            let loadedPdfStages = {};
+            const TAB_COLORS = {
+                lead: '#3b82f6',
+                proposal: '#8b5cf6',
+                negotiation: '#f59e0b',
+                'close-won': '#10b981',
+                final: '#ef4444'
+            };
+            const PDF_STAGES = [{
+                    id: 'lead',
+                    label: 'Lead',
+                    icon: 'bi-person-check'
+                },
+                {
+                    id: 'proposal',
+                    label: 'Proposal',
+                    icon: 'bi-file-text'
+                },
+                {
+                    id: 'negotiation',
+                    label: 'Negotiation',
+                    icon: 'bi-chat-left-dots'
+                },
+                {
+                    id: 'close-won',
+                    label: 'Close/Won',
+                    icon: 'bi-trophy'
+                },
+                {
+                    id: 'final',
+                    label: 'Final',
+                    icon: 'bi-check-circle'
+                }
+            ];
 
             let proposalState = {
                 reinsurers: [],
@@ -1270,7 +1766,8 @@
                         filesData.forEach((file, index) => {
                             formData.append('facultative_files[]', file);
 
-                            let docType = (file.fileName || 'additionalDocuments').toString().trim();
+                            let docType = (file.fileName || 'additionalDocuments').toString()
+                                .trim();
                             if (/^(.+)\1$/i.test(docType)) {
                                 docType = docType.slice(0, Math.floor(docType.length / 2)).trim();
                             }
@@ -1405,7 +1902,8 @@
 
                                 if (result.isConfirmed) {
                                     $modal.one("hidden.bs.modal", function() {
-                                        openProposalEmailModal(opportunityId, currentStage || "proposal");
+                                        openProposalEmailModal(opportunityId,
+                                            currentStage || "proposal");
                                     });
                                     $modal.modal("hide");
                                 } else {
@@ -1534,37 +2032,189 @@
             }
 
             $('#previewPdfModal').on('show.bs.modal', function() {
-                const opportunityId = $('#pdf_opportunity_id').val();
+                const opportunityId = ($('#pdf_opportunity_id').val() || '').toString().trim();
+                const initialStage = getCurrentPreviewStage();
 
-                $('#lead-tab').tab('show');
+                allStageDocs = {};
+                loadedPdfStages = {};
+                filterStatus = 'all';
+                pdfSearch = '';
+                pdfSort = 'date_desc';
 
+                $('#docSearch').val('');
+                $('#docSort').val('date_desc');
+                $('.filter-pill').removeClass('active');
+                $('.filter-pill[data-filter="all"]').addClass('active');
+                $('#resultCount').text('0 documents');
+                $('#previewPdfModal .opp-badge').text(opportunityId || '--');
+                $('#previewPdfModal .tab-current-star').addClass('d-none');
+                $(`#${initialStage}-tab .tab-current-star`).removeClass('d-none');
+
+                $('#pdfStageTabs button[data-bs-toggle="tab"]').each(function() {
+                    bootstrap.Tab.getOrCreateInstance(this);
+                });
+
+                const tabEl = document.getElementById(`${initialStage}-tab`) || document.getElementById(
+                    'lead-tab');
+                if (tabEl) {
+                    bootstrap.Tab.getOrCreateInstance(tabEl).show();
+                }
+
+                renderPipeline(initialStage);
+                updateBadgesAndColors();
                 fetchPdfUrls({
-                    stage: 'lead',
+                    stage: initialStage,
                     opportunityId
                 });
             });
 
             $('#previewPdfModal').on('hidden.bs.modal', function() {
-                $('[id$="-pdf-viewer"]').attr('src', '').addClass('d-none');
+                allStageDocs = {};
+                loadedPdfStages = {};
+                filterStatus = 'all';
+                pdfSearch = '';
+                pdfSort = 'date_desc';
+
+                $('#docSearch').val('');
+                $('#docSort').val('date_desc');
+                $('.filter-pill').removeClass('active');
+                $('.filter-pill[data-filter="all"]').addClass('active');
                 $('[id$="-loading"]').removeClass('d-none');
+                $('[id$="-pdf-list"]').addClass('d-none').empty();
                 $('[id$="-no-pdf"]').addClass('d-none');
-                pdfUrls = {};
+                $('#resultCount').text('0 documents');
             });
 
             $('#pdfStageTabs button[data-bs-toggle="tab"]').on('shown.bs.tab', function(e) {
-                const stage = $(e.target).attr('id').replace('-tab', '');
-                const opportunityId = $('#pdf_opportunity_id').val();
+                const stage = ($(e.target).attr('id') || '').replace('-tab', '');
+                const opportunityId = ($('#pdf_opportunity_id').val() || '').toString().trim();
+                const currentStage = getCurrentPreviewStage();
 
-                fetchPdfUrls({
-                    stage,
-                    opportunityId
-                });
+                renderPipeline(currentStage);
+                updateBadgesAndColors();
+                if (!loadedPdfStages[stage]) {
+                    fetchPdfUrls({
+                        stage,
+                        opportunityId
+                    });
+                    return;
+                }
+                applyFilters();
             });
 
-            $('#downloadPdfBtn').on('click', function() {
-                if (pdfUrls[currentStage]) {
-                    window.open(pdfUrls[currentStage], '_blank');
+            $('#docSearch').on('input', function() {
+                pdfSearch = ($(this).val() || '').toString().toLowerCase().trim();
+                applyFilters();
+            });
+
+            $('#docSort').on('change', function() {
+                pdfSort = $(this).val() || 'date_desc';
+                applyFilters();
+            });
+
+            $(document).on('click', '#previewPdfModal .filter-pill', function() {
+                filterStatus = ($(this).data('filter') || 'all').toString();
+                $('#previewPdfModal .filter-pill').removeClass('active');
+                $(this).addClass('active');
+                applyFilters();
+            });
+
+            $(document).on('click', '#previewPdfModal .p-step', function() {
+                const tabId = $(this).data('tab');
+                const tabBtn = document.getElementById(tabId);
+                if (tabBtn) {
+                    bootstrap.Tab.getOrCreateInstance(tabBtn).show();
                 }
+            });
+
+            $(document).on('click', '#previewPdfModal .act-preview', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                const pdfUrl = $(this).data('pdf-url');
+                if (pdfUrl) {
+                    window.open(pdfUrl, '_blank');
+                }
+            });
+
+            $(document).on('click', '#previewPdfModal .act-download', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                const pdfUrl = $(this).data('pdf-url');
+                const filename = $(this).data('pdf-name');
+                if (!pdfUrl) {
+                    return;
+                }
+                const link = document.createElement('a');
+                link.href = pdfUrl;
+                link.download = filename || 'document.pdf';
+                link.target = '_blank';
+                link.rel = 'noopener';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            });
+
+            $(document).on('click', '#previewPdfModal .act-share', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                const pdfUrl = $(this).data('pdf-url');
+                if (!pdfUrl) {
+                    return;
+                }
+
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(pdfUrl).then(function() {
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Link copied',
+                            text: 'Document URL copied to clipboard',
+                            timer: 1200,
+                            showConfirmButton: false
+                        });
+                    }).catch(function() {
+                        window.open(pdfUrl, '_blank');
+                    });
+                } else {
+                    window.open(pdfUrl, '_blank');
+                }
+            });
+
+            $(document).on('click', '#previewPdfModal .pdf-card', function(e) {
+                if ($(e.target).closest('.act-btn').length) {
+                    return;
+                }
+                $('#previewPdfModal .pdf-card').removeClass('active');
+                $(this).addClass('active');
+            });
+
+            $('#btnDownloadAll').on('click', function() {
+                const currentStage = getCurrentTabStage();
+                const docs = getFilteredDocs(currentStage);
+
+                if (!docs.length) {
+                    Swal.fire({
+                        icon: 'info',
+                        title: 'No documents',
+                        text: 'There are no documents to download in this view.'
+                    });
+                    return;
+                }
+
+                docs.forEach(function(doc, idx) {
+                    if (!doc.url) {
+                        return;
+                    }
+                    setTimeout(function() {
+                        const link = document.createElement('a');
+                        link.href = doc.url;
+                        link.download = doc.filename || `document-${idx + 1}.pdf`;
+                        link.target = '_blank';
+                        link.rel = 'noopener';
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                    }, idx * 160);
+                });
             });
 
             function fetchPdfUrls(data) {
@@ -1572,9 +2222,9 @@
                 const $listContainer = $(`#${stage}-pdf-list`);
                 const $loadingDiv = $(`#${stage}-loading`);
                 const $noPdfDiv = $(`#${stage}-no-pdf`);
-                const opportunityId = data.opportunityId;
+                const opportunityId = (data.opportunityId || '').toString().trim();
 
-                if (!$listContainer.length || !$loadingDiv.length || !$noPdfDiv.length) {
+                if (!$listContainer.length || !$loadingDiv.length || !$noPdfDiv.length || !opportunityId) {
                     return;
                 }
 
@@ -1593,127 +2243,233 @@
                     .done(function(data) {
                         $loadingDiv.addClass('d-none');
 
-                        if (data.pdfs && data.pdfs.length > 0) {
-                            renderPDFList($listContainer, data.pdfs);
-                            $listContainer.removeClass('d-none');
-                        } else {
-                            $noPdfDiv.removeClass('d-none');
-                        }
+                        const pdfs = Array.isArray(data.pdfs) ? data.pdfs : [];
+                        allStageDocs[stage] = pdfs.map(function(pdf, index) {
+                            return normalizePdfRecord(pdf, stage, index);
+                        });
+                        loadedPdfStages[stage] = true;
+
+                        applyFilters();
+                        updateBadgesAndColors();
                     })
                     .fail(function(xhr, status, error) {
                         console.error('Error loading PDFs:', error);
                         $loadingDiv.addClass('d-none');
-                        $noPdfDiv.removeClass('d-none');
+                        allStageDocs[stage] = [];
+                        loadedPdfStages[stage] = true;
+                        applyFilters();
+                        updateBadgesAndColors();
                     });
             }
 
-            function renderPDFList($container, pdfs) {
-                $container.empty();
-
-                const groupedPDFs = {
-                    reinsurer: $.grep(pdfs, function(pdf) {
-                        return pdf.type === 'reinsurer';
-                    }),
-                    cedant: $.grep(pdfs, function(pdf) {
-                        return pdf.type === 'cedant';
-                    }),
-                    general: $.grep(pdfs, function(pdf) {
-                        return !pdf.type || pdf.type === 'general';
-                    })
-                };
-
-                if (groupedPDFs.reinsurer.length > 0) {
-                    $container.append(
-                        '<h6 class="mb-3 fw-600"><i class="bi bi-building me-2"></i>Reinsurer Documents</h6>');
-                    $.each(groupedPDFs.reinsurer, function(index, pdf) {
-                        $container.append(createPDFItem(pdf, 'reinsurer'));
-                    });
-                }
-
-                if (groupedPDFs.cedant.length > 0) {
-                    $container.append(
-                        '<h6 class="mb-3 mt-4 fw-600"><i class="bi bi-briefcase me-2"></i>Cedant Documents</h6>'
-                    );
-                    $.each(groupedPDFs.cedant, function(index, pdf) {
-                        $container.append(createPDFItem(pdf, 'cedant'));
-                    });
-                }
-
-                if (groupedPDFs.general.length > 0) {
-                    $container.append(
-                        '<h6 class="mb-3 mt-4 fw-700"><i class="bi bi-file-earmark-pdf me-2"></i>General Documents</h6>'
-                    );
-                    $.each(groupedPDFs.general, function(index, pdf) {
-                        $container.append(createPDFItem(pdf, 'general'));
-                    });
-                }
+            function applyFilters() {
+                let total = 0;
+                PDF_STAGES.forEach(function(stageCfg) {
+                    const docs = getFilteredDocs(stageCfg.id);
+                    total += docs.length;
+                    renderDocList(stageCfg.id, docs);
+                });
+                $('#resultCount').text(`${total} document${total === 1 ? '' : 's'}`);
+                updateHeaderMetaDate();
             }
 
-            function createPDFItem(pdf, type) {
-                const badgeClass = type === 'reinsurer' ? 'badge-reinsurer' :
-                    type === 'cedant' ? 'badge-cedant' : 'badge-general';
-                const badgeText = type.charAt(0).toUpperCase() + type.slice(1);
+            function getFilteredDocs(stage) {
+                let docs = Array.isArray(allStageDocs[stage]) ? [...allStageDocs[stage]] : [];
 
-                const uploadDate = (function() {
-                    if (!pdf.upload_date) return 'N/A';
-                    const d = new Date(pdf.upload_date);
-                    if (isNaN(d)) return 'N/A';
-                    const day = ('0' + d.getDate()).slice(-2);
-                    const month = ('0' + (d.getMonth() + 1)).slice(-2);
-                    const year = d.getFullYear();
-                    return `${day}/${month}/${year}`;
-                })();
-                const fileSize = pdf.file_size ? formatFileSize(pdf.file_size) : '';
+                if (pdfSearch) {
+                    docs = docs.filter(function(d) {
+                        return d.name.toLowerCase().includes(pdfSearch) ||
+                            d.uploadedBy.toLowerCase().includes(pdfSearch) ||
+                            d.kindLabel.toLowerCase().includes(pdfSearch);
+                    });
+                }
 
+                if (filterStatus !== 'all') {
+                    docs = docs.filter(function(d) {
+                        return d.status === filterStatus;
+                    });
+                }
+
+                if (pdfSort === 'date_asc') {
+                    docs.sort((a, b) => a.date.localeCompare(b.date));
+                } else if (pdfSort === 'name_asc') {
+                    docs.sort((a, b) => a.name.localeCompare(b.name));
+                } else {
+                    docs.sort((a, b) => b.date.localeCompare(a.date));
+                }
+
+                return docs;
+            }
+
+            function renderDocList(stageId, docs) {
+                const $loading = $(`#${stageId}-loading`);
+                const $list = $(`#${stageId}-pdf-list`);
+                const $noPdf = $(`#${stageId}-no-pdf`);
+                const color = TAB_COLORS[stageId] || '#3b82f6';
+
+                if (!$list.length) {
+                    return;
+                }
+
+                if (!loadedPdfStages[stageId]) {
+                    $loading.removeClass('d-none');
+                    $list.addClass('d-none').empty();
+                    $noPdf.addClass('d-none');
+                    return;
+                }
+
+                $loading.addClass('d-none');
+
+                if (!docs.length) {
+                    $list.addClass('d-none').empty();
+                    $noPdf.removeClass('d-none');
+                    return;
+                }
+
+                $noPdf.addClass('d-none');
+                $list.removeClass('d-none').html(docs.map(function(doc) {
+                    return createPDFItem(doc, color);
+                }).join(''));
+            }
+
+            function createPDFItem(doc, stageColor) {
                 return `
-                    <div class="pdf-item">
-                        <div class="pdf-item-header">
-                            <h6 class="pdf-item-title">
-                                <i class="bi bi-file-earmark-pdf text-danger"></i>
-                                ${pdf.description || 'Untitled Document'}
-                            </h6>
-                            <span class="badge ${badgeClass}">${badgeText}</span>
+                    <div class="pdf-card" data-id="${doc.id}" style="--stage-c:${stageColor}">
+                        <div class="pdf-icon-wrap">
+                            <i class="bi bi-file-earmark-pdf"></i>
+                            <span class="pdf-ext">PDF</span>
                         </div>
-                        <div class="pdf-item-meta">
-                            <div>
-                                <i class="bi bi-calendar3 me-1"></i> ${uploadDate}
-                                ${fileSize ? `<span class="ms-3"><i class="bi bi-file-earmark me-1"></i>${fileSize}</span>` : ''}
+                        <div class="pdf-meta">
+                            <div class="pdf-name" title="${escapeHtml(doc.name)}">${escapeHtml(doc.name)}</div>
+                            <div class="pdf-sub">
+                                <span><i class="bi bi-calendar3"></i>${formatDate(doc.date)}</span>
+                                <span><i class="bi bi-hdd"></i>${doc.size}</span>
+                                <span><i class="bi bi-tag"></i>${escapeHtml(firstUpper(doc.kindLabel))}</span>
                             </div>
                         </div>
-                        <div class="pdf-item-actions">
-                            <button class="btn btn-sm btn-primary open-pdf-btn" data-pdf-url="${pdf.url}" data-pdf-name="${pdf.name}">
-                                <i class="bi bi-box-arrow-up-right me-1"></i> Open in New Tab
-                            </button>
+                        <div class="pdf-actions">
+                            <button type="button" class="act-btn act-preview" title="Preview" data-pdf-url="${escapeHtml(doc.url)}"><i class="bi bi-eye"></i></button>
+                            <button type="button" class="act-btn dl act-download" title="Download" data-pdf-url="${escapeHtml(doc.url)}" data-pdf-name="${escapeHtml(doc.filename)}"><i class="bi bi-download"></i></button>
+                            <button type="button" class="act-btn act-share" title="Share" data-pdf-url="${escapeHtml(doc.url)}"><i class="bi bi-share"></i></button>
                         </div>
                     </div>
                 `;
             }
 
-            $(document).on('click', '.open-pdf-btn', function(e) {
-                e.preventDefault();
-                const pdfUrl = $(this).data('pdf-url');
+            function normalizePdfRecord(pdf, stage, index) {
+                const recordDate = normalizeDate(pdf.upload_date || pdf.date || new Date().toISOString());
+                const explicitStatus = (pdf.status || '').toString().toLowerCase();
+                const derivedStatus = explicitStatus === 'new' || explicitStatus === 'review' || explicitStatus ===
+                    'signed' ? explicitStatus : 'review';
+                return {
+                    id: pdf.id || `${stage}-${index}`,
+                    name: (pdf.description || pdf.name || 'Untitled Document').toString(),
+                    filename: (pdf.name || pdf.description || `document-${index + 1}.pdf`).toString(),
+                    size: pdf.file_size ? formatFileSize(Number(pdf.file_size)) : 'N/A',
+                    date: recordDate,
+                    status: derivedStatus,
+                    uploadedBy: (pdf.uploaded_by || pdf.uploadedBy || pdf.type || 'System').toString(),
+                    kindLabel: (pdf.type || 'general').toString(),
+                    url: (pdf.url || '').toString()
+                };
+            }
 
-                if (pdfUrl) {
-                    window.open(pdfUrl, '_blank');
+            function normalizeDate(input) {
+                const d = new Date(input);
+                if (Number.isNaN(d.getTime())) {
+                    return new Date().toISOString().slice(0, 10);
                 }
-            });
+                return d.toISOString().slice(0, 10);
+            }
 
-            $(document).on('click', '.download-pdf-btn', function(e) {
-                e.preventDefault();
-                const pdfUrl = $(this).data('pdf-url');
-                const filename = $(this).data('pdf-name');
-                if (pdfUrl) {
-                    const link = document.createElement('a');
-                    link.href = pdfUrl;
-                    link.download = filename || 'document.pdf';
-                    link.target = '_blank';
-                    link.rel = 'noopener';
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
+            function formatDate(dateString) {
+                const d = new Date(dateString);
+                if (Number.isNaN(d.getTime())) {
+                    return 'N/A';
                 }
-            });
+                return d.toLocaleDateString('en-GB', {
+                    day: '2-digit',
+                    month: 'short',
+                    year: 'numeric'
+                });
+            }
 
+            function stageIndex(stageId) {
+                return PDF_STAGES.findIndex(function(s) {
+                    return s.id === stageId;
+                });
+            }
+
+            function renderPipeline(currentStageId) {
+                const curIdx = stageIndex(currentStageId);
+                const html = PDF_STAGES.map(function(stage, index) {
+                    const css = index < curIdx ? 'done' : (index === curIdx ? 'active' : '');
+                    const count = Array.isArray(allStageDocs[stage.id]) ? allStageDocs[stage.id].length : 0;
+                    const dotIcon = index < curIdx ? '<i class="bi bi-check-lg"></i>' :
+                        `<i class="bi ${stage.icon}"></i>`;
+                    return `
+                        <div class="p-step ${css}" style="--p-color:${TAB_COLORS[stage.id]}" data-tab="${stage.id}-tab" title="Jump to ${stage.label}">
+                            <div class="p-dot">${dotIcon}</div>
+                            <div class="p-label">${stage.label}</div>
+                            <div class="p-count">${count} doc${count === 1 ? '' : 's'}</div>
+                        </div>
+                    `;
+                }).join('');
+                $('#pipelineProgress').html(html);
+            }
+
+            function updateBadgesAndColors() {
+                PDF_STAGES.forEach(function(stage) {
+                    const count = Array.isArray(allStageDocs[stage.id]) ? allStageDocs[stage.id].length : 0;
+                    $(`#badge-${stage.id}`).text(count);
+                    $(`#${stage.id}-tab`).css('--tab-c', TAB_COLORS[stage.id] || '#1e40af');
+                });
+                renderPipeline(getCurrentPreviewStage());
+            }
+
+            function updateHeaderMetaDate() {
+                const allDocs = Object.values(allStageDocs).flat();
+                if (!allDocs.length) {
+                    $('#previewPdfModal .header-meta').html('<i class="bi bi-clock me-1"></i>Last updated: --');
+                    return;
+                }
+                const latest = allDocs.slice().sort((a, b) => b.date.localeCompare(a.date))[0];
+                $('#previewPdfModal .header-meta').html(
+                    `<i class="bi bi-clock me-1"></i>Last updated: ${formatDate(latest.date)}`
+                );
+            }
+
+            function getCurrentTabStage() {
+                const activeTab = $('#pdfStageTabs .nav-link.active').attr('id');
+                return (activeTab || 'lead-tab').replace('-tab', '');
+            }
+
+            function getCurrentPreviewStage() {
+                const rawStage = ($('#pdf_current_stage').val() || 'lead').toString().trim().toLowerCase()
+                    .replace(/_/g, '-')
+                    .replace(/\s+/g, '-');
+                return PDF_STAGES.some(stage => stage.id === rawStage) ? rawStage : 'lead';
+            }
+
+            function escapeHtml(text) {
+                return String(text || '')
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#39;');
+            }
+
+            function firstUpper(text) {
+                if (!text) return '';
+                return String(text)
+                    .replace(/[_-]+/g, ' ')
+                    .trim()
+                    .toLowerCase()
+                    .replace(/\b\w/g, function(char) {
+                        return char.toUpperCase();
+                    });
+            }
 
             function formatFileSize(bytes) {
                 if (bytes === 0) return '0 Bytes';

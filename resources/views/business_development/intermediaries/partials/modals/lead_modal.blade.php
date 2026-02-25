@@ -77,20 +77,14 @@
                                                 <i class="bx bx-info-circle tooltip-trigger"
                                                     title="Total insured value before share allocation."></i>
                                             </label>
-                                            <div class="input-group mb-3">
+                                            <div class="input-group">
                                                 <span class="input-group-text" id="currencySymbol">KES</span>
-                                                <input type="text" class="form-control form-inputs total_sum_insured"
+                                                <input type="text"
+                                                    class="form-control form-inputs total_sum_insured"
                                                     name="total_sum_insured" required placeholder="0.00"
-                                                    aria-label="100% Sum Insured"
-                                                    aria-describedby="currencySymbol"
+                                                    aria-label="100% Sum Insured" aria-describedby="currencySymbol"
                                                     onkeyup="this.value=numberWithCommas(this.value)"
                                                     change="this.value=numberWithCommas(this.value)">
-                                            </div>
-                                            <div class="form-text mt-1">
-                                                <small class="text-muted">
-                                                    <i class="bx bx-info-circle"></i>
-                                                    Enter the full insured amount at 100% coverage.
-                                                </small>
                                             </div>
                                         </div>
                                     </div>
@@ -102,19 +96,13 @@
                                                 <i class="bx bx-info-circle tooltip-trigger"
                                                     title="Gross premium corresponding to the total sum insured."></i>
                                             </label>
-                                            <div class="input-group mb-3">
+                                            <div class="input-group">
                                                 <span class="input-group-text" id="premiumCurrencySymbol">KES</span>
                                                 <input type="text" class="form-control form-inputs premium"
-                                                    name="premium" required placeholder="0.00"
-                                                    aria-label="Premium" aria-describedby="premiumCurrencySymbol"
+                                                    name="premium" required placeholder="0.00" aria-label="Premium"
+                                                    aria-describedby="premiumCurrencySymbol"
                                                     onkeyup="this.value=numberWithCommas(this.value)"
                                                     change="this.value=numberWithCommas(this.value)">
-                                            </div>
-                                            <div class="form-text mt-1">
-                                                <small class="text-muted">
-                                                    <i class="bx bx-info-circle"></i>
-                                                    Enter the gross premium amount for this placement.
-                                                </small>
                                             </div>
                                         </div>
                                     </div>
@@ -127,23 +115,14 @@
                                                 <i class="bx bx-info-circle tooltip-trigger"
                                                     title="Commission percentage payable to reinsurer."></i>
                                             </label>
-                                            <div class="input-group mb-3">
-                                                <span class="input-group-text"
-                                                    id="brokerageRateSymbol">%</span>
-                                                <input type="text"
-                                                    class="form-control form-inputs brokerage_rate"
+                                            <div class="input-group">
+                                                <span class="input-group-text" id="brokerageRateSymbol">%</span>
+                                                <input type="text" class="form-control form-inputs brokerage_rate"
                                                     name="brokerage_rate" placeholder="0.00"
                                                     aria-label="Reinsurer Commission Rate"
                                                     aria-describedby="brokerageRateSymbol"
                                                     onkeyup="this.value=numberWithCommas(this.value)"
-                                                    change="this.value=numberWithCommas(this.value)"
-                                                    value="10">
-                                            </div>
-                                            <div class="form-text mt-1">
-                                                <small class="text-muted">
-                                                    <i class="bx bx-info-circle"></i>
-                                                    Enter the commission rate as a percentage value.
-                                                </small>
+                                                    change="this.value=numberWithCommas(this.value)" value="10">
                                             </div>
                                         </div>
                                     </div>
@@ -155,7 +134,7 @@
                                                 <i class="bx bx-info-circle tooltip-trigger"
                                                     title="Amount retained by the insured before claim recovery."></i>
                                             </label>
-                                            <div class="input-group mb-3">
+                                            <div class="input-group">
                                                 <span class="input-group-text"
                                                     id="deductibleCurrencySymbol">KES</span>
                                                 <input type="text" class="form-control form-inputs deductible"
@@ -164,12 +143,6 @@
                                                     aria-describedby="deductibleCurrencySymbol"
                                                     onkeyup="this.value=numberWithCommas(this.value)"
                                                     change="this.value=numberWithCommas(this.value)">
-                                            </div>
-                                            <div class="form-text mt-1">
-                                                <small class="text-muted">
-                                                    <i class="bx bx-info-circle"></i>
-                                                    Enter deductible or excess amount applied to each claim.
-                                                </small>
                                             </div>
                                         </div>
                                     </div>
@@ -195,7 +168,7 @@
 
                         <!-- Reinsurer Information Section -->
                         <div class="form-section">
-                            <div class="section-header">
+                            <div class="section-header mb-2">
                                 <div class="section-title">
                                     <span>
                                         <i class="bx bx-disc section-icon"></i>
@@ -221,13 +194,13 @@
                                                     Total Written Share (%)
                                                     <span class="required-asterisk">*</span>
                                                 </label>
-                                                <div class="input-group mb-3">
+                                                <div class="input-group">
                                                     <input type="number"
                                                         class="form-control form-inputs total_reinsurer_share"
-                                                        id="leadTotalReinsurerShare"
-                                                        name="total_reinsurer_share" placeholder="100.00"
-                                                        step="0.01" min="0.01" max="100" required
-                                                        value="100" aria-label="Total Written Share"
+                                                        id="leadTotalReinsurerShare" name="total_reinsurer_share"
+                                                        placeholder="100.00" step="0.01" min="0.01"
+                                                        max="100" required value="100"
+                                                        aria-label="Total Written Share"
                                                         aria-describedby="totalWrittenShareSymbol">
                                                     <span class="input-group-text"
                                                         id="totalWrittenShareSymbol">%</span>
@@ -237,15 +210,12 @@
                                         <div class="col-md-2 fac-rates">
                                             <div class="form-group">
                                                 <label class="form-label">Share (%)</label>
-                                                <div class="input-group mb-3">
-                                                    <input type="number"
-                                                        class="form-control form-inputs"
-                                                        id="reinsurerShare" placeholder="0.00"
-                                                        step="0.01" min="0.01" max="100"
-                                                        aria-label="Share"
+                                                <div class="input-group">
+                                                    <input type="number" class="form-control form-inputs"
+                                                        id="reinsurerShare" placeholder="0.00" step="0.01"
+                                                        min="0.01" max="100" aria-label="Share"
                                                         aria-describedby="reinsurerShareSymbol">
-                                                    <span class="input-group-text"
-                                                        id="reinsurerShareSymbol">%</span>
+                                                    <span class="input-group-text" id="reinsurerShareSymbol">%</span>
                                                 </div>
                                             </div>
                                         </div>
@@ -326,10 +296,12 @@
                         <div class="form-section">
                             <div class="section-header">
                                 <div class="section-title">
-                                    <span>
+                                    <div>
                                         <i class="bx bx-file section-icon"></i>
                                         Terms & Conditions
-                                    </span>
+                                    </div>
+                                    <div id="termsSubtitle" class="ms-3 fs-12 opacity-75" style="margin-left: 9px;">
+                                    </div>
                                 </div>
                             </div>
                             <div class="section-content" id="termsConditions"></div>
@@ -3768,6 +3740,7 @@
 
                 $("#documentFields").empty().hide();
                 $("#documentsSubtitle").html("");
+                $("#termsSubtitle").html("");
                 state.uploadedFiles = {};
                 state.pendingDocumentsDraft = null;
 

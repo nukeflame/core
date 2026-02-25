@@ -370,19 +370,25 @@ class PipelineManager {
             data: { pipeline_id: requestedPipelineId },
             timeout: AJAX_TIMEOUT,
             success: (response) => {
-                const activePipelineId = String(
-                    this.$pipYearSelect?.val() ?? "",
-                );
-                if (activePipelineId !== requestedPipelineId) {
-                    return;
-                }
+                try {
+                    const activePipelineId = String(
+                        this.$pipYearSelect?.val() ?? "",
+                    );
+                    if (activePipelineId !== requestedPipelineId) {
+                        return;
+                    }
 
-                if (response?.data && Array.isArray(response.data)) {
-                    this.updateChartData(response.data, response?.labels);
-                } else {
+                    if (response?.data && Array.isArray(response.data)) {
+                        this.updateChartData(response.data, response?.labels);
+                    } else {
+                        this.updateChartData(DEFAULT_CHART_DATA, CHART_LABELS);
+                    }
+                    this.hideChartLoading();
+                } catch (error) {
+                    this.handleError("Failed to render chart data", error);
                     this.updateChartData(DEFAULT_CHART_DATA, CHART_LABELS);
+                    this.showChartError();
                 }
-                this.hideChartLoading();
             },
             error: (xhr, status, error) => {
                 if (status === "abort") {
@@ -425,6 +431,7 @@ class PipelineManager {
                 labels: CHART_LABELS,
                 series: [DEFAULT_CHART_DATA],
             });
+            this.showChartError();
         }
     }
 
@@ -1271,6 +1278,15 @@ class PipelineManager {
             return;
         }
 
+        const $modal = $(`#${data.modalId}`);
+        const $termsSubtitle = $modal.find("#termsSubtitle");
+
+        if ($termsSubtitle.length > 0) {
+            $termsSubtitle.html(
+                '<small><span class="loading-spinner"></span> Loading terms...</small>',
+            );
+        }
+
         $.ajax({
             url: this.config.routes.scheduleHeaders,
             method: "POST",
@@ -1281,11 +1297,19 @@ class PipelineManager {
                 business_type: data.typeOfBus,
             },
             success: (response) => {
-                console.log(`headers`, response);
-
                 if (response.success && response.headers) {
+                    if ($termsSubtitle.length > 0) {
+                        $termsSubtitle.html(
+                            `<small>Terms for ${
+                                response.class_name || "this class"
+                            }</small>`,
+                        );
+                    }
                     this.renderScheduleHeaders(response.headers, data);
                 } else {
+                    if ($termsSubtitle.length > 0) {
+                        $termsSubtitle.html(`<small>No terms found</small>`);
+                    }
                     this.renderScheduleHeaders([], data);
                 }
             },
@@ -1296,6 +1320,9 @@ class PipelineManager {
                     error,
                 });
                 this.showError("Failed to load schedule headers");
+                if ($termsSubtitle.length > 0) {
+                    $termsSubtitle.html(`<small>Error loading terms</small>`);
+                }
             },
         });
     }
@@ -2113,6 +2140,7 @@ class PipelineManager {
             $html.val(content || "");
         }
     }
+
     loadSlipDocuments(data) {
         if (!data.dealId) {
             return;
@@ -2658,9 +2686,12 @@ class PipelineManager {
             return;
         }
 
+        let hasRenderedAdditionalAddButton = false;
         documents.forEach((doc, index) => {
             const escapedName = this.escapeHtml(doc.name);
             const isAdditionalDocument = this.isAdditionalDocument(doc);
+            const shouldShowAdditionalAddButton =
+                isAdditionalDocument && !hasRenderedAdditionalAddButton;
             const existingFileUrl = (doc.s3_path || "").toString();
             const escapedExistingFileUrl = this.escapeHtml(existingFileUrl);
             const escapedExistingFileName = this.escapeHtml(
@@ -2680,7 +2711,7 @@ class PipelineManager {
                                     <button type="button" class="supporting-doc-choose-btn">Choose File</button>
                                     <span class="supporting-doc-file-name">No file chosen</span>
                                     ${
-                                        isAdditionalDocument
+                                        shouldShowAdditionalAddButton
                                             ? `<button type="button" class="supporting-doc-add-btn" title="Add file">
                                         <i class="bx bx-plus"></i>
                                     </button>`
@@ -2742,6 +2773,9 @@ class PipelineManager {
                 </div>
             `;
             $container.append(fieldHtml);
+            if (shouldShowAdditionalAddButton) {
+                hasRenderedAdditionalAddButton = true;
+            }
         });
 
         if ($modal.find("#docCount").length) {
@@ -2780,6 +2814,7 @@ class PipelineManager {
         const defaultTitle = this.escapeHtml(
             config.defaultTitle || "Additional Documents",
         );
+        const showAddButton = config.showAddButton !== false;
         const showRemoveButton = config.showRemoveButton === true;
 
         return `
@@ -2804,9 +2839,13 @@ class PipelineManager {
                                 data-is-additional="1">
                                 <button type="button" class="supporting-doc-choose-btn">Choose File</button>
                                 <span class="supporting-doc-file-name">No file chosen</span>
-                                <button type="button" class="supporting-doc-add-btn" title="Add file">
+                                ${
+                                    showAddButton
+                                        ? `<button type="button" class="supporting-doc-add-btn" title="Add file">
                                     <i class="bx bx-plus"></i>
-                                </button>
+                                </button>`
+                                        : ""
+                                }
                                 ${
                                     showRemoveButton
                                         ? `<button type="button" class="supporting-doc-row-remove-btn" title="Remove document">
@@ -2841,6 +2880,7 @@ class PipelineManager {
             accepts: $input.attr("accept"),
             maxSize: $input.data("max-size"),
             defaultTitle: "Additional Documents",
+            showAddButton: false,
             showRemoveButton: true,
         });
 
@@ -2954,10 +2994,7 @@ class PipelineManager {
             $addBtn.on("click.fileUpload", (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-
-                if ($input.length > 0 && $input[0]) {
-                    $input[0].click();
-                }
+                this.addAdditionalDocumentRow($uploadArea);
             });
 
             $removeRowBtn.on("click.fileUpload", (e) => {
@@ -4514,7 +4551,8 @@ class PipelineManager {
     }
 
     resolveAttachmentDisplayName(file, stageKey = null) {
-        const fallback = file?.description || file?.original_name || "Unknown file";
+        const fallback =
+            file?.description || file?.original_name || "Unknown file";
         const normalizedStage = this.normalizeStageKey(stageKey);
 
         const haystack = [

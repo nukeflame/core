@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\DB;
 use App\Jobs\ClearCedantDataJob;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 use Yajra\DataTables\Facades\DataTables;
@@ -305,6 +306,10 @@ class CustomerController extends Controller
             'identityType' => 'required|string|max:50',
             'identityNo' => 'required|string|max:50',
             'website' => 'nullable|string|max:255',
+            'regulatorLicenseNo' => 'nullable|string|max:100',
+            'licensingAuthority' => 'nullable|string|max:255',
+            'licensingTerritory' => 'nullable|string|max:100',
+            'amlDetails' => 'nullable|string|max:1000',
             'country' => 'required|string|size:3|exists:countries,country_iso',
             'street' => 'required|string|max:255',
             'city' => 'required|string|max:100',
@@ -313,6 +318,7 @@ class CustomerController extends Controller
             'financialRating' => 'nullable|string|max:10',
             'agencyRating' => 'nullable|string|max:10',
             'contacts' => 'required|array|min:1',
+            'contacts.*.id' => 'nullable|integer|exists:customer_contacts,id',
             'contacts.0.name' => 'required|string|max:255',
             'contacts.0.position' => 'required|string|max:100',
             'contacts.0.mobile' => 'required|string|max:20',
@@ -350,71 +356,13 @@ class CustomerController extends Controller
             'status' => 201,
             'message' => 'Customer information saved successfully',
         ], 201);
-
-
-
-        // try {
-        //     // $validated = $request->validated();
-
-        //     // $customer = $this->customerService->createCustomer($validated);
-
-        //     // $message = __('Customer ":name" has been created successfully.', [
-        //     //     'name' => $customer->partner_name,
-        //     // ]);
-
-
-        //     //     if ($validator->fails()) {
-        //     //         return response()->json([
-        //     //             'success' => false,
-        //     //             'status' => 422,
-        //     //             'message' => 'Validation failed',
-        //     //             'errors' => $validator->errors()
-        //     //         ], 422);
-        //     //     }
-
-        //     //     DB::beginTransaction();
-
-        //     // $customer = $this->customerService->createCustomer($request->all());
-
-        //     //     if ($request->has('contacts')) {
-        //     //         $this->customerService->createCustomerContacts($customer->id, $request->input('contacts'));
-        //     //     }
-
-        //     //     DB::commit();
-
-        //     return response()->json([
-        //         'success' => true,
-        //         'status' => 201,
-        //         'message' => 'Customer information saved successfully',
-        //         // 'data' => [
-        //         //     'customer_id' => $customer->customer_id,
-        //         //     'name' => $customer->name
-        //         // ]
-        //     ], 201);
-        // } catch (ValidationException $e) {
-        //     DB::rollBack();
-        //     return response()->json([
-        //         'success' => false,
-        //         'status' => 422,
-        //         'message' => 'Validation failed',
-        //         'errors' => $e->errors()
-        //     ], 422);
-        // } catch (\Exception $e) {
-        //     DB::rollBack();
-
-        //     return response()->json([
-        //         'success' => false,
-        //         'status' => 500,
-        //         'message' => 'An error occurred while saving customer information',
-        //         'error' => config('app.debug') ? $e->getMessage() : 'Internal server error'
-        //     ], 500);
-        // }
     }
 
     public function customerEdit(int $customerId)
     {
         $data = $this->getCustomerFormData();
-        $data['customer'] = Customer::with('primaryContact')->findOrFail($customerId, [
+
+        $baseColumns = [
             'customer_id',
             'name',
             'tax_no',
@@ -431,7 +379,30 @@ class CustomerController extends Controller
             'country_iso',
             'identity_number',
             'identity_number_type'
-        ]);
+        ];
+
+        $optionalColumns = [
+            'state',
+            'security_rating',
+            'rating_agency',
+            'rating_date',
+            'regulator_license_no',
+            'licensing_authority',
+            'licensing_territory',
+            'aml_details',
+            'insured_type',
+            'industry_occupation',
+            'date_of_birth_incorporation'
+        ];
+
+        $selectedColumns = $baseColumns;
+        foreach ($optionalColumns as $column) {
+            if (Schema::hasColumn('customers', $column)) {
+                $selectedColumns[] = $column;
+            }
+        }
+
+        $data['customer'] = Customer::with('primaryContact')->findOrFail($customerId, $selectedColumns);
 
         return view('customer.customer_add_form', $data);
     }
@@ -449,6 +420,16 @@ class CustomerController extends Controller
             'identityType' => 'required|string|max:50',
             'identityNo' => 'required|string|max:50',
             'website' => 'nullable|string|max:255',
+            'securityRating' => 'nullable|string|max:50',
+            'ratingAgency' => 'nullable|string|max:100',
+            'ratingDate' => 'nullable|date',
+            'regulatorLicenseNo' => 'nullable|string|max:100',
+            'licensingAuthority' => 'nullable|string|max:255',
+            'licensingTerritory' => 'nullable|string|max:100',
+            'amlDetails' => 'nullable|string|max:1000',
+            'insuredType' => 'nullable|string|max:50',
+            'industryOccupation' => 'nullable|string|max:255',
+            'dateOfBirthIncorporation' => 'nullable|date',
             'country' => 'required|string|size:3|exists:countries,country_iso',
             'street' => 'required|string|max:255',
             'city' => 'required|string|max:100',
@@ -457,6 +438,7 @@ class CustomerController extends Controller
             'financialRating' => 'nullable|string|max:10',
             'agencyRating' => 'nullable|string|max:10',
             'contacts' => 'required|array|min:1',
+            'contacts.*.id' => 'nullable|integer|exists:customer_contacts,id',
             'contacts.0.name' => 'required|string|max:255',
             'contacts.0.position' => 'required|string|max:100',
             'contacts.0.mobile' => 'required|string|max:20',

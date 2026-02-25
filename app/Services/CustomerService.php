@@ -8,6 +8,7 @@ use App\Models\Bd\CustomerContact;
 use Exception;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Collection;
 
 class CustomerService
@@ -267,35 +268,114 @@ class CustomerService
 
     public function updateCustomer(int $customerId, array $data): Customer
     {
-        $customer = Customer::findOrFail($customerId);
+        return DB::transaction(function () use ($customerId, $data) {
+            $customer = Customer::findOrFail($customerId);
 
-        $updateData = [
-            'name' => $data['partnerName'] ?? $customer->name,
-            'street' => $data['street'] ?? $customer->street,
-            'city' => $data['city'] ?? $customer->city,
-            'postal_address' => $data['postalCode'] ?? $customer->postal_address,
-            'country_iso' => $data['country'] ?? $customer->country_iso,
-            'email' => $data['email'] ?? $customer->email,
-            'financial_rate' => $data['financialRating'] ?? $customer->financial_rate,
-            'agency_rate' => $data['agencyRating'] ?? $customer->agency_rate,
-            'website' => $data['website'] ?? $customer->website,
-            'telephone' => $data['telephone'] ?? $customer->telephone,
-            'updated_at' => Carbon::now(),
-        ];
+            $updateData = [
+                'name' => $data['partnerName'] ?? $customer->name,
+                'street' => $data['street'] ?? $customer->street,
+                'city' => $data['city'] ?? $customer->city,
+                'postal_address' => $data['postalCode'] ?? $customer->postal_address,
+                'country_iso' => $data['country'] ?? $customer->country_iso,
+                'email' => $data['email'] ?? $customer->email,
+                'financial_rate' => $data['financialRating'] ?? $customer->financial_rate,
+                'agency_rate' => $data['agencyRating'] ?? $customer->agency_rate,
+                'website' => $data['website'] ?? $customer->website,
+                'telephone' => $data['telephone'] ?? $customer->telephone,
+                'registration_no' => $data['incorporationNo'] ?? $customer->registration_no,
+                'tax_no' => $data['taxNo'] ?? $customer->tax_no,
+                'identity_number_type' => $data['identityType'] ?? $customer->identity_number_type,
+                'identity_number' => $data['identityNo'] ?? $customer->identity_number,
+                'updated_at' => Carbon::now(),
+            ];
 
-        if (isset($data['customerType'])) {
-            $customerTypes = is_array($data['customerType'])
-                ? $data['customerType']
-                : explode(',', $data['customerType']);
-            $updateData['customer_type'] = json_encode(array_values(array_map('strval', $customerTypes)));
+            if (isset($data['customerType'])) {
+                $customerTypes = is_array($data['customerType'])
+                    ? $data['customerType']
+                    : explode(',', $data['customerType']);
+                $updateData['customer_type'] = json_encode(array_values(array_map('strval', $customerTypes)));
+            }
+
+            $dynamicFieldMap = [
+                'regulatorLicenseNo' => 'regulator_license_no',
+                'licensingAuthority' => 'licensing_authority',
+                'licensingTerritory' => 'licensing_territory',
+                'amlDetails' => 'aml_details',
+            ];
+
+            foreach ($dynamicFieldMap as $inputKey => $columnName) {
+                if (array_key_exists($inputKey, $data) && Schema::hasColumn('customers', $columnName)) {
+                    $updateData[$columnName] = $data[$inputKey];
+                }
+            }
+
+            if (array_key_exists('state', $data) && Schema::hasColumn('customers', 'state')) {
+                $updateData['state'] = $data['state'];
+            }
+
+            $extendedDynamicFieldMap = [
+                'securityRating' => 'security_rating',
+                'ratingAgency' => 'rating_agency',
+                'ratingDate' => 'rating_date',
+                'insuredType' => 'insured_type',
+                'industryOccupation' => 'industry_occupation',
+                'dateOfBirthIncorporation' => 'date_of_birth_incorporation',
+            ];
+
+            foreach ($extendedDynamicFieldMap as $inputKey => $columnName) {
+                if (array_key_exists($inputKey, $data) && Schema::hasColumn('customers', $columnName)) {
+                    $updateData[$columnName] = $data[$inputKey];
+                }
+            }
+
+            // Use query builder update to avoid model-level side effects on non-existent columns.
+            DB::table('customers')
+                ->where('customer_id', $customerId)
+                ->update($updateData);
+
+            $this->upsertCustomerContacts($customerId, $data['contacts'] ?? []);
+
+            return $customer->fresh();
+        });
+    }
+
+    private function upsertCustomerContacts(int $customerId, array $contacts): void
+    {
+        $existingContactIds = CustomerContact::where('customer_id', $customerId)
+            ->pluck('id')
+            ->map(fn($id) => (int) $id)
+            ->all();
+
+        foreach ($contacts as $index => $contactData) {
+            if (
+                empty($contactData['name']) &&
+                empty($contactData['email']) &&
+                empty($contactData['mobile'])
+            ) {
+                continue;
+            }
+
+            $payload = [
+                'customer_id' => $customerId,
+                'contact_name' => $contactData['name'] ?? null,
+                'contact_position' => $contactData['position'] ?? null,
+                'contact_mobile_no' => $contactData['mobile'] ?? null,
+                'contact_email' => $contactData['email'] ?? null,
+                'is_primary' => (bool) ($contactData['isPrimary'] ?? ($index === 0)),
+                'order' => $contactData['order'] ?? $index,
+            ];
+
+            $contactId = isset($contactData['id']) ? (int) $contactData['id'] : 0;
+            $canUpdate = $contactId > 0 && in_array($contactId, $existingContactIds, true);
+
+            if ($canUpdate) {
+                CustomerContact::where('id', $contactId)
+                    ->where('customer_id', $customerId)
+                    ->update($payload);
+            } else {
+                CustomerContact::create($payload);
+            }
         }
-
-        // Use query builder update to avoid model-level side effects on non-existent columns.
-        DB::table('customers')
-            ->where('customer_id', $customerId)
-            ->update($updateData);
-
-        return $customer->fresh();
     }
 
     public function deleteCustomer(int $customerId): bool
