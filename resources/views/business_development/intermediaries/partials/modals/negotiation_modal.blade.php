@@ -75,10 +75,14 @@
                                                 <span class="sum_insured_type" style="padding-left: 6px;"></span>
                                                 <span class="required-asterisk">*</span>
                                             </label>
-                                            <div class="currency-input">
-                                                <div class="currency-symbol" id="currencySymbol">KES</div>
-                                                <input type="text" class="form-inputs total_sum_insured"
+                                            <div class="input-group mb-3">
+                                                <span class="input-group-text"
+                                                    id="negCurrencySymbol">KES</span>
+                                                <input type="text"
+                                                    class="form-control form-inputs total_sum_insured"
                                                     name="total_sum_insured" required placeholder="0.00"
+                                                    aria-label="100% Sum Insured"
+                                                    aria-describedby="negCurrencySymbol"
                                                     onkeyup="this.value=numberWithCommas(this.value)"
                                                     onchange="this.value=numberWithCommas(this.value)">
                                             </div>
@@ -90,10 +94,13 @@
                                                 Premium
                                                 <span class="required-asterisk">*</span>
                                             </label>
-                                            <div class="currency-input">
-                                                <div class="currency-symbol">KES</div>
-                                                <input type="text" class="form-inputs premium" name="premium"
-                                                    required placeholder="0.00"
+                                            <div class="input-group mb-3">
+                                                <span class="input-group-text"
+                                                    id="negPremiumCurrencySymbol">KES</span>
+                                                <input type="text" class="form-control form-inputs premium"
+                                                    name="premium" required placeholder="0.00"
+                                                    aria-label="Premium"
+                                                    aria-describedby="negPremiumCurrencySymbol"
                                                     onkeyup="this.value=numberWithCommas(this.value)"
                                                     onchange="this.value=numberWithCommas(this.value)">
                                             </div>
@@ -1114,7 +1121,7 @@
                 const fieldValue = $field.val();
                 const numericValue = parseFloat(fieldValue?.replace(/,/g, "") || 0);
 
-                if ($field.closest(".currency-input").length ||
+                if ($field.closest(".currency-input, .input-group").length ||
                     fieldName?.includes("premium") ||
                     fieldName?.includes("sum_insured")) {
 
@@ -1178,13 +1185,32 @@
                 }
             });
 
+            function isReinsurerOnlyEntry(entity) {
+                if (!entity || typeof entity !== "object") return false;
+
+                const typeHints = [
+                    entity.slug,
+                    entity.type_slug,
+                    entity.customer_type_slug,
+                    entity.type_name,
+                    entity.customer_type_name,
+                    entity.customer_type,
+                    entity.role,
+                    entity.category
+                ].filter(Boolean).join(" ").toLowerCase();
+
+                return !typeHints || typeHints.includes("reinsurer");
+            }
+
             function loadAvailableReinsurers() {
                 try {
                     const reinsurersData = $("#negReinsurersData").val();
                     const reinsurers = reinsurersData ? JSON.parse(reinsurersData) : [];
+                    const reinsurerOnly = Array.isArray(reinsurers) ? reinsurers.filter(
+                        isReinsurerOnlyEntry) : [];
 
-                    if (reinsurers.length > 0) {
-                        negotiationState.reinsurers = reinsurers;
+                    if (reinsurerOnly.length > 0) {
+                        negotiationState.reinsurers = reinsurerOnly;
                     }
 
                     initializeReinsurerTable();

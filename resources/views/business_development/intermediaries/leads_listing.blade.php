@@ -143,7 +143,7 @@
                         </button>
                     </div>
                     <div class="d-flex gap-2">
-                        <a href="{{ route('leads.import.pipeline_opportunities.sample') }}"
+                        {{-- <a href="{{ route('leads.import.pipeline_opportunities.sample') }}"
                             class="btn btn-outline-primary btn-sm">
                             <i class="bi bi-download me-1"></i>
                             Download Sample
@@ -152,7 +152,7 @@
                             data-bs-target="#pipelineImportModal">
                             <i class="bi bi-upload me-1"></i>
                             Import Opportunities
-                        </button>
+                        </button> --}}
                     </div>
                 </div>
             </div>

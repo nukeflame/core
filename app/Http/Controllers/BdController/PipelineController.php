@@ -4177,6 +4177,12 @@ class PipelineController
             ) as contacts
         ')
             ->leftJoin('customer_contacts', 'customers.customer_id', '=', 'customer_contacts.customer_id')
+            ->whereExists(function ($query) {
+                $query->select(DB::raw(1))
+                    ->from('customer_types')
+                    ->whereRaw("customer_types.type_id = ANY (SELECT json_array_elements_text(customers.customer_type)::int)")
+                    ->where('customer_types.slug', 'reinsurer');
+            })
             ->when(
                 !empty($cedantId),
                 fn($q) => $q->whereNot('customers.customer_id', $cedantId)

@@ -76,10 +76,14 @@
                                                 <span class="sum_insured_type" style="padding-left: 6px;"></span>
                                                 <span class="required-asterisk">*</span>
                                             </label>
-                                            <div class="currency-input">
-                                                <div class="currency-symbol" id="currencySymbol">KES</div>
-                                                <input type="text" class="form-inputs total_sum_insured"
+                                            <div class="input-group mb-3">
+                                                <span class="input-group-text"
+                                                    id="propCurrencySymbol">KES</span>
+                                                <input type="text"
+                                                    class="form-control form-inputs total_sum_insured"
                                                     name="total_sum_insured" required placeholder="0.00"
+                                                    aria-label="100% Sum Insured"
+                                                    aria-describedby="propCurrencySymbol"
                                                     onkeyup="this.value=numberWithCommas(this.value)"
                                                     onchange="this.value=numberWithCommas(this.value)">
                                             </div>
@@ -91,10 +95,13 @@
                                                 Premium
                                                 <span class="required-asterisk">*</span>
                                             </label>
-                                            <div class="currency-input">
-                                                <div class="currency-symbol">KES</div>
-                                                <input type="text" class="form-inputs premium" name="premium"
-                                                    required placeholder="0.00"
+                                            <div class="input-group mb-3">
+                                                <span class="input-group-text"
+                                                    id="propPremiumCurrencySymbol">KES</span>
+                                                <input type="text" class="form-control form-inputs premium"
+                                                    name="premium" required placeholder="0.00"
+                                                    aria-label="Premium"
+                                                    aria-describedby="propPremiumCurrencySymbol"
                                                     onkeyup="this.value=numberWithCommas(this.value)"
                                                     onchange="this.value=numberWithCommas(this.value)">
                                             </div>
@@ -980,7 +987,7 @@
             }
 
             function isCurrencyField($field, fieldName) {
-                return $field.closest(".currency-input").length ||
+                return $field.closest(".currency-input, .input-group").length ||
                     fieldName?.includes("premium") ||
                     fieldName?.includes("sum_insured");
             }
@@ -1936,6 +1943,23 @@
                 $('#proposalModal').modal('show');
             });
 
+            function isReinsurerOnlyEntry(entity) {
+                if (!entity || typeof entity !== "object") return false;
+
+                const typeHints = [
+                    entity.slug,
+                    entity.type_slug,
+                    entity.customer_type_slug,
+                    entity.type_name,
+                    entity.customer_type_name,
+                    entity.customer_type,
+                    entity.role,
+                    entity.category
+                ].filter(Boolean).join(" ").toLowerCase();
+
+                return !typeHints || typeHints.includes("reinsurer");
+            }
+
             $("#propAvailableReinsurers").select2({
                 placeholder: "Search and select reinsurer...",
                 allowClear: true,
@@ -1977,9 +2001,10 @@
                             };
                         }
 
-                        bdReinsurers = data.results;
+                        const reinsurerOnlyResults = data.results.filter(isReinsurerOnlyEntry);
+                        bdReinsurers = reinsurerOnlyResults;
 
-                        const results = data.results.map(function(reinsurer) {
+                        const results = reinsurerOnlyResults.map(function(reinsurer) {
                             return {
                                 id: reinsurer.id,
                                 text: reinsurer.name || 'Unknown Reinsurer',
