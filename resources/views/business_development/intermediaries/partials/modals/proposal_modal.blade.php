@@ -1287,6 +1287,7 @@
             <div class="modal-body">
 
                 <div class="mb-4" id="prop-primary-contacts">
+                    <input type="hidden" id="propContactsOpportunityId" value="">
                     <h6 class="text-uppercase fw-bold text-muted mb-3">
                         <i class="bx bx-star text-warning me-2"></i>Primary Contact
                     </h6>
@@ -1296,18 +1297,18 @@
                                 <div class="col-md-4">
                                     <label class="form-label fw-semibold">Contact Name</label>
                                     <input type="text" class="form-control-plaintext prop-primary-name"
-                                        value="" readonly>
+                                        value="">
                                 </div>
                                 <div class="col-md-8">
                                     <label class="form-label fw-semibold">Primary Email</label>
                                     <div class="input-group">
                                         <input type="email" class="form-control-plaintext prop-primary-email"
-                                            value="" readonly>
+                                            value="">
                                     </div>
                                 </div>
                             </div>
 
-                            <input type="hidden" class="prop-primary-contact_id" name="contact_id" readonly>
+                            <input type="hidden" class="prop-primary-contact_id" name="contact_id">
                         </div>
                     </div>
                 </div>
@@ -1324,7 +1325,10 @@
             </div>
             <div class="modal-footer bg-light">
                 <button type="button" class="btn btn-light" data-bs-dismiss="modal">
-                    <i class="bx bx-times me-2"></i>Close
+                    <i class="bx bx-times me-2"></i>Cancel
+                </button>
+                <button type="button" class="btn btn-success" id="submitPropContactModal">
+                    <i class="bx bx-save me-2"></i>Save Changes
                 </button>
             </div>
         </div>
@@ -2510,6 +2514,7 @@
                     success: function(response) {
                         if (response.success) {
                             populatePropContactsModal(response, cedantName);
+                            $('#propContactsOpportunityId').val(opportunityId);
                             proposalState.suppressResetOnHide = true;
                             $('#proposalModal').modal('hide');
                             $('#propContactsModal').modal('show');
@@ -2585,6 +2590,7 @@
                             const responseReinsurerName = response?.data?.reinsurer?.name ||
                                 reinsurerName;
                             populatePropContactsModal(contactsPayload, responseReinsurerName);
+                            $('#propContactsOpportunityId').val(opportunityId);
                             proposalState.suppressResetOnHide = true;
                             $('#proposalModal').modal('hide');
                             $('#propContactsModal').modal('show');
@@ -2660,42 +2666,211 @@
 
             function createPropContactItemHtml(contact, index) {
                 const showLabels = index === 0;
-                const contactId = contact.id || contact.contact_id || index;
-                const contactName = contact.name || contact.contact_name || 'N/A';
-                const contactEmail = contact.email || contact.contact_email || 'N/A';
-                const contactMobile = contact.mobile_no || contact.contact_mobile_no || 'N/A';
-                const contactPosition = contact.position || contact.contact_position || 'N/A';
+                const contactId = contact.id || contact.contact_id || '';
+                const contactName = escapeHtml(contact.name || contact.contact_name || '');
+                const contactEmail = escapeHtml(contact.email || contact.contact_email || '');
+                const isCcEmail = !!contact.cc_email;
 
                 return `
                     <div class="contact-item rounded px-3 pb-1 mb-3" data-contact-id="${contactId}">
                         <div class="row align-items-center">
                             <div class="col-md-3">
-                                ${showLabels ? '<label class="form-label fw-semibold small">Name</label>' : ''}
-                                <input type="text" class="form-control-plaintext"
-                                    value="${contactName}" readonly>
+                                ${showLabels ? '<label class="form-label fw-semibold mb-1">Contact Name</label>' : ''}
+                                <input type="text" class="form-control-plaintext prop-contact-name"
+                                    value="${contactName}" data-field="name">
                             </div>
-                            <div class="col-md-4">
-                                ${showLabels ? '<label class="form-label fw-semibold small">Email</label>' : ''}
-                                <input type="email" class="form-control-plaintext"
-                                    value="${contactEmail}" readonly>
+                            <div class="col-md-6">
+                                ${showLabels ? '<label class="form-label fw-semibold mb-1">Email</label>' : ''}
+                                <input type="email" class="form-control-plaintext prop-contact-email"
+                                    value="${contactEmail}" data-field="email">
                             </div>
                             <div class="col-md-2">
-                                ${showLabels ? '<label class="form-label fw-semibold small">Mobile</label>' : ''}
-                                <input type="text" class="form-control-plaintext"
-                                    value="${contactMobile}" readonly>
+                                ${showLabels ? '<label class="form-label fw-semibold mb-1">CC Email</label>' : ''}
+                                <div class="form-check mt-2 px-0">
+                                    <input class="form-check-input mailc-checkbox prop-mailc-checkbox" type="checkbox"
+                                        ${isCcEmail ? 'checked' : ''} data-field="cc_email">
+                                    <label class="form-check-label cc-email-indicator">
+                                        <i class="bx bx-envelope envlope-ico"></i>
+                                    </label>
+                                </div>
                             </div>
-                            <div class="col-md-3">
-                                ${showLabels ? '<label class="form-label fw-semibold small">Position</label>' : ''}
-                                <input type="text" class="form-control-plaintext"
-                                    value="${contactPosition}" readonly>
-                            </div>
+                            <div class="col-md-1"></div>
                         </div>
                     </div>
                 `;
             }
 
+            function savePropContactsModal() {
+                const {
+                    contacts,
+                    errors
+                } = collectPropContacts();
+
+                if (errors.length > 0) {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Validation Error',
+                        text: errors[0]
+                    });
+                    return;
+                }
+
+                if (contacts.length === 0) {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Validation Error',
+                        text: 'Please add at least one contact.'
+                    });
+                    return;
+                }
+
+                const $submitBtn = $('#submitPropContactModal');
+                $submitBtn.prop('disabled', true);
+                const opportunityId = $('#propContactsOpportunityId').val() || $('#propOpportunityId').val();
+
+                if (!opportunityId) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: 'Opportunity ID is missing. Please reopen the modal and try again.'
+                    });
+                    $submitBtn.prop('disabled', false);
+                    return;
+                }
+
+                $.ajax({
+                    url: "{{ route('rein.contacts.update') }}",
+                    method: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({
+                        opportunity_id: opportunityId,
+                        contacts: contacts
+                    }),
+                    success: function(response) {
+                        if (response.success) {
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Success',
+                                text: 'Contact information has been updated.'
+                            });
+                            $('#propContactsModal').modal('hide');
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        console.error('Contact update error:', error);
+                        const validationErrors = xhr.responseJSON?.errors;
+                        if (validationErrors) {
+                            const firstErrorKey = Object.keys(validationErrors)[0];
+                            const firstError = firstErrorKey ? validationErrors[firstErrorKey]?.[0] :
+                                null;
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Error',
+                                text: firstError || 'Failed to update contacts'
+                            });
+                            return;
+                        }
+
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: xhr.responseJSON?.message || 'Failed to update contacts'
+                        });
+                    },
+                    complete: function() {
+                        $submitBtn.prop('disabled', false);
+                    }
+                });
+            }
+
+            function collectPropContacts() {
+                const contacts = [];
+                const errors = [];
+
+                const isValidEmail = (email) => {
+                    if (!email) return false;
+                    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+                };
+
+                const normalizeText = (value) => {
+                    return (value || '').toString().trim();
+                };
+
+                const normalizeId = (value) => {
+                    const parsed = parseInt(value, 10);
+                    return Number.isInteger(parsed) ? parsed : null;
+                };
+
+                const primaryData = {
+                    id: normalizeId($('#prop-primary-contacts .prop-primary-contact_id').val()),
+                    name: normalizeText($('#prop-primary-contacts .prop-primary-name').val()),
+                    email: normalizeText($('#prop-primary-contacts .prop-primary-email').val()),
+                    cc_email: false,
+                    is_primary: true
+                };
+
+                if (primaryData.name.toUpperCase() === 'N/A') {
+                    primaryData.name = '';
+                }
+
+                if (primaryData.email.toUpperCase() === 'N/A') {
+                    primaryData.email = '';
+                }
+
+                if (primaryData.name || primaryData.email) {
+                    if (!primaryData.name || !primaryData.email) {
+                        errors.push('Primary contact must include both name and email.');
+                    } else if (!isValidEmail(primaryData.email)) {
+                        errors.push('Primary contact email format is invalid.');
+                    } else if (primaryData.id !== null) {
+                        contacts.push(primaryData);
+                    }
+                }
+
+                $('#propDepartmentContacts .contact-item').each(function(index) {
+                    const name = normalizeText($(this).find('.prop-contact-name').val());
+                    const email = normalizeText($(this).find('.prop-contact-email').val());
+
+                    if (!name && !email) {
+                        return;
+                    }
+
+                    const contactData = {
+                        id: normalizeId($(this).data('contact-id')),
+                        name,
+                        email,
+                        cc_email: $(this).find('.prop-mailc-checkbox').is(':checked'),
+                        is_primary: false
+                    };
+
+                    if (!contactData.name || !contactData.email) {
+                        errors.push(`Department contact ${index + 1} must include both name and email.`);
+                        return;
+                    }
+
+                    if (!isValidEmail(contactData.email)) {
+                        errors.push(`Department contact ${index + 1} email format is invalid.`);
+                        return;
+                    }
+
+                    if (contactData.id !== null) {
+                        contacts.push(contactData);
+                    }
+                });
+
+                return {
+                    contacts,
+                    errors
+                };
+            }
+
+            $(document).on('click', '#submitPropContactModal', function() {
+                savePropContactsModal();
+            });
+
             $('#propContactsModal').on('hidden.bs.modal', function() {
                 proposalState.suppressResetOnHide = false;
+                $('#propContactsOpportunityId').val('');
                 $('#proposalModal').modal('show');
             });
 

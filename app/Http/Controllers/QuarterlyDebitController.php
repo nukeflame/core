@@ -109,6 +109,14 @@ class QuarterlyDebitController extends Controller
                 ->where('dn.type', $customerAccount?->entry_type_descr)
                 ->where('dn.debit_note_no', $customerAccount?->treaty_debit_no)
                 ->where('dn.endorsement_no', $endorsementNo)
+                ->where(function ($q) {
+                    $q->whereRaw('COALESCE(dn.compute_reinsurance_tax, 0) = 1')
+                        ->orWhere(function ($inner) {
+                            $inner->whereRaw('COALESCE(dn.compute_reinsurance_tax, 0) = 0')
+                                ->whereRaw("UPPER(TRIM(COALESCE(tdi.item_code, ''))) <> 'IT07'")
+                                ->whereRaw("UPPER(TRIM(COALESCE(tc.description, tdi.description, ''))) <> 'REINSURANCE TAX'");
+                        });
+                })
                 ->select([
                     'tdi.id',
                     'tdi.item_code',
@@ -1463,8 +1471,17 @@ class QuarterlyDebitController extends Controller
 
             $debitTotals = DB::table('debit_note_items as tdi')
                 ->join('debit_notes as dn', 'tdi.debit_note_id', '=', 'dn.id')
+                ->leftJoin('treaty_item_codes as tc', 'tdi.item_code', '=', 'tc.item_code')
                 ->where('dn.cover_no', $coverNo)
                 ->where('dn.endorsement_no', $endorsementNo)
+                ->where(function ($q) {
+                    $q->whereRaw('COALESCE(dn.compute_reinsurance_tax, 0) = 1')
+                        ->orWhere(function ($inner) {
+                            $inner->whereRaw('COALESCE(dn.compute_reinsurance_tax, 0) = 0')
+                                ->whereRaw("UPPER(TRIM(COALESCE(tdi.item_code, ''))) <> 'IT07'")
+                                ->whereRaw("UPPER(TRIM(COALESCE(tc.description, tdi.description, ''))) <> 'REINSURANCE TAX'");
+                        });
+                })
                 ->selectRaw('
                     COALESCE(SUM(tdi.amount), 0) as total_gross_premium,
                     COALESCE(SUM(dn.commission_amount), 0) as total_commission,
@@ -1702,10 +1719,7 @@ class QuarterlyDebitController extends Controller
                 $yourShare = $shareFactor * 100;
                 $dueFromYou = $profitCommissionAmount * $shareFactor;
 
-                $businessClass = DB::table('classes')
-                    ->where('class_code', $cover->class_code ?? '')
-                    ->value('class_name');
-                $businessClass = $businessClass ?: ($cover->class_code ?? 'N/A');
+                $businessClass = $this->resolveBusinessClassFromClasses($cover, collect($debitItems));
 
                 $treatyType = DB::table('treaty_types')
                     ->where('treaty_code', $cover->treaty_type ?? '')
@@ -2076,10 +2090,7 @@ class QuarterlyDebitController extends Controller
             $totalCommission = $debitNote->commission_amount;
             $totalNet = $debitNote->net_amount;
             $otherDeductions = $debitNote->other_deductions;
-            $businessClass = DB::table('classes')
-                ->where('class_code', $cover->class_code ?? '')
-                ->value('class_name');
-            $businessClass = $businessClass ?: ($debitItems->first()->class_name ?? $cover->class_code ?? 'N/A');
+            $businessClass = $this->resolveBusinessClassFromClasses($cover, collect($debitItems));
 
             $treatyType = match ($cover->treaty_type ?? null) {
                 'SURP' => 'Surplus Treaty',
@@ -2292,6 +2303,55 @@ class QuarterlyDebitController extends Controller
     private function isTruthy(mixed $value): bool
     {
         return in_array(strtolower((string) $value), ['1', 'true', 'yes', 'y', 'on'], true);
+    }
+
+    private function resolveBusinessClassFromClasses(
+        ?object $cover,
+        ?\Illuminate\Support\Collection $items = null
+    ): string {
+        $classCodes = collect([
+            $cover->class_code ?? null,
+        ])->filter()->map(fn($code) => strtoupper(trim((string) $code)));
+
+        if ($items) {
+            $itemClassCodes = $items
+                ->pluck('class_code')
+                ->filter()
+                ->map(fn($code) => strtoupper(trim((string) $code)));
+
+            $classCodes = $classCodes->merge($itemClassCodes);
+        }
+
+        $classCodes = $classCodes
+            ->reject(fn($code) => $code === '' || $code === 'ALL')
+            ->unique()
+            ->values();
+
+        if ($classCodes->isNotEmpty()) {
+            $classNames = DB::table('classes')
+                ->whereIn('class_code', $classCodes->all())
+                ->pluck('class_name')
+                ->filter()
+                ->unique()
+                ->values();
+
+            if ($classNames->isNotEmpty()) {
+                return $classNames->implode(', ');
+            }
+        }
+
+        if ($items) {
+            $fallbackItemClass = $items
+                ->pluck('class_name')
+                ->filter()
+                ->first();
+
+            if (! empty($fallbackItemClass)) {
+                return (string) $fallbackItemClass;
+            }
+        }
+
+        return (string) ($cover->class_code ?? 'N/A');
     }
 
     private function normalizeQuarterCode($quarter): ?string
