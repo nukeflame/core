@@ -978,64 +978,127 @@
                                                 {{ $approval == 1 ? 'disabled' : 'required' }} />
                                         </div>
 
-                                        {{-- Excess Type --}}
-                                        <div class="form-group">
-                                            <label class="form-label">
-                                                Excess Type <span class="required-indicator">*</span>
-                                            </label>
-                                            <div class="cover-card">
-                                                <select class="form-select" name="excess_type" id="excess_type"
-                                                    {{ $approval == 1 ? 'disabled' : 'required' }}>
-                                                    <option value="">Select Excess Type</option>
-                                                    <option value="R"
-                                                        {{ old('excess_type', $handover_approval->excess_type ?? '') === 'R' ? 'selected' : '' }}>
-                                                        Rate (%)
-                                                    </option>
-                                                    <option value="A"
-                                                        {{ old('excess_type', $handover_approval->excess_type ?? '') === 'A' ? 'selected' : '' }}>
-                                                        Amount
-                                                    </option>
-                                                </select>
+                                        @php
+                                            $excessTypeOptions = ['R' => 'Rate (%)', 'A' => 'Amount'];
+                                            $rangeOptions = ['min' => 'Minimum', 'max' => 'Maximum'];
+
+                                            $toArray = function ($value) {
+                                                if (is_array($value)) {
+                                                    return array_values(array_filter($value, fn($item) => $item !== null && $item !== ''));
+                                                }
+                                                if ($value === null || $value === '') {
+                                                    return [];
+                                                }
+                                                $decoded = json_decode($value, true);
+                                                if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                                                    return array_values(array_filter($decoded, fn($item) => $item !== null && $item !== ''));
+                                                }
+                                                return [$value];
+                                            };
+
+                                            $excessTypes = old('excess_type');
+                                            $excessValues = old('excess');
+                                            $maxMinValues = old('max_min');
+                                            $rangeValues = old('range');
+
+                                            $excessTypes = $excessTypes !== null ? $toArray($excessTypes) : $toArray($handover_approval->excess_type ?? null);
+                                            $excessValues = $excessValues !== null ? $toArray($excessValues) : $toArray($handover_approval->excess ?? null);
+                                            $maxMinValues = $maxMinValues !== null ? $toArray($maxMinValues) : $toArray($handover_approval->{'max/min'} ?? null);
+                                            $rangeValues = $rangeValues !== null ? $toArray($rangeValues) : $toArray($handover_approval->range ?? null);
+
+                                            $rowCount = max(count($excessTypes), count($excessValues), count($maxMinValues), count($rangeValues), 1);
+                                            $excessRows = [];
+                                            for ($i = 0; $i < $rowCount; $i++) {
+                                                $excessRows[] = [
+                                                    'excess_type' => $excessTypes[$i] ?? '',
+                                                    'excess' => $excessValues[$i] ?? '',
+                                                    'max_min' => $maxMinValues[$i] ?? '',
+                                                    'range' => $rangeValues[$i] ?? 'max',
+                                                ];
+                                            }
+                                        @endphp
+
+                                        <div class="form-group" style="grid-column: 1 / -1;">
+                                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                                <label class="form-label mb-0">
+                                                    Excess Structure <span class="required-indicator">*</span>
+                                                </label>
+                                                @if ($approval != 1)
+                                                    <button type="button" class="btn btn-sm btn-outline-primary"
+                                                        id="addExcessRow">
+                                                        <i class="bx bx-plus"></i> Add Row
+                                                    </button>
+                                                @endif
                                             </div>
 
-                                        </div>
+                                            <div id="excessRowsContainer">
+                                                @foreach ($excessRows as $index => $row)
+                                                    <div class="row g-3 align-items-end excess-row mb-2"
+                                                        data-row-index="{{ $index }}">
+                                                        <div class="col-md-3">
+                                                            <label class="form-label">Excess Type <span
+                                                                    class="required-indicator">*</span></label>
+                                                            <select class="form-select excess-type"
+                                                                name="excess_type[]"
+                                                                {{ $approval == 1 ? 'disabled' : 'required' }}>
+                                                                <option value="">Select type</option>
+                                                                @foreach ($excessTypeOptions as $value => $label)
+                                                                    <option value="{{ $value }}"
+                                                                        {{ $row['excess_type'] === $value ? 'selected' : '' }}>
+                                                                        {{ $label }}
+                                                                    </option>
+                                                                @endforeach
+                                                            </select>
+                                                        </div>
 
-                                        {{-- Excess --}}
-                                        <div class="form-group">
-                                            <label class="form-label" id="excess_label">
-                                                Excess <span class="required-indicator">*</span>
-                                            </label>
-                                            <input type="text" class="form-control" name="excess" id="excess"
-                                                value="{{ old('excess', $handover_approval->excess ?? '') }}"
-                                                {{ $approval == 1 ? 'disabled' : 'required' }} />
-                                        </div>
+                                                        <div class="col-md-3">
+                                                            <label class="form-label excess-value-label">
+                                                                {{ $row['excess_type'] === 'R' ? 'Excess (%)' : 'Excess Amount' }}
+                                                                <span class="required-indicator">*</span>
+                                                            </label>
+                                                            <input type="text" class="form-control"
+                                                                name="excess[]" value="{{ $row['excess'] }}"
+                                                                {{ $approval == 1 ? 'disabled' : 'required' }} />
+                                                        </div>
 
-                                        {{-- Max/Min --}}
-                                        <div class="form-group">
-                                            <label class="form-label">
-                                                Max/Min<span class="required-indicator">*</span>
-                                            </label>
-                                            <div class="d-flex align-items-center gap-3">
-                                                <div class="cover-card" style="flex-direction: column!important;">
-                                                    <input type="text" name="max_min" class="form-control"
-                                                        style="flex: 1; width:130px;"
-                                                        value="{{ old('max_min', $handover_approval->{'max/min'} ?? '') }}"
-                                                        {{ $approval == 1 ? 'disabled' : 'required' }} />
-                                                </div>
-                                                <div class="radio-group">
-                                                    <div class="radio-option">
-                                                        <input type="radio" name="range" id="range_min"
-                                                            value="min" checked
-                                                            {{ $approval == 1 ? 'disabled' : 'required' }} />
-                                                        <label for="range_min">Minimum</label>
+                                                        <div class="col-md-2">
+                                                            <label class="form-label">Max/Min <span
+                                                                    class="required-indicator">*</span></label>
+                                                            <input type="text" name="max_min[]" class="form-control"
+                                                                value="{{ $row['max_min'] }}"
+                                                                {{ $approval == 1 ? 'disabled' : 'required' }} />
+                                                        </div>
+
+                                                        <div class="col-md-3">
+                                                            <label class="form-label">Range <span
+                                                                    class="required-indicator">*</span></label>
+                                                            <div class="radio-group d-flex align-items-center gap-3">
+                                                                @foreach ($rangeOptions as $value => $label)
+                                                                    <div class="radio-option">
+                                                                        <input type="radio"
+                                                                            name="range[{{ $index }}]"
+                                                                            id="range_{{ $index }}_{{ $value }}"
+                                                                            value="{{ $value }}"
+                                                                            {{ ($row['range'] ?? 'max') === $value ? 'checked' : '' }}
+                                                                            {{ $approval == 1 ? 'disabled' : 'required' }} />
+                                                                        <label
+                                                                            for="range_{{ $index }}_{{ $value }}">{{ $label }}</label>
+                                                                    </div>
+                                                                @endforeach
+                                                            </div>
+                                                        </div>
+
+                                                        @if ($approval != 1)
+                                                            <div class="col-md-1 text-end">
+                                                                <button type="button"
+                                                                    class="btn btn-sm btn-outline-danger remove-excess-row"
+                                                                    {{ $loop->count === 1 ? 'style=display:none;' : '' }}>
+                                                                    <i class="bx bx-trash"></i>
+                                                                </button>
+                                                            </div>
+                                                        @endif
                                                     </div>
-                                                    <div class="radio-option">
-                                                        <input type="radio" name="range" id="range_max"
-                                                            value="max" checked {{-- {{ ($handover_approval->range ?? '') == 'max' ? 'checked' : '' }} --}}
-                                                            {{ $approval == 1 ? 'disabled' : 'required' }} />
-                                                        <label for="range_max">Maximum</label>
-                                                    </div>
-                                                </div>
+                                                @endforeach
                                             </div>
                                         </div>
                                     </div>
@@ -2057,14 +2120,84 @@
                 });
             }
 
-            function updateExcessLabel() {
-                const excessType = $('#excess_type').val();
+            const isApprovalReadonly = {{ $approval == 1 ? 'true' : 'false' }};
+
+            function updateExcessLabelForRow($row) {
+                const excessType = $row.find('select[name="excess_type[]"]').val();
                 const label = excessType === 'R' ? 'Excess (%)' : 'Excess Amount';
-                $('#excess_label').html(label + ' <span class="required-indicator">*</span>');
+                $row.find('.excess-value-label').html(label + ' <span class="required-indicator">*</span>');
             }
 
-            $('#excess_type').on('change', updateExcessLabel);
-            updateExcessLabel();
+            function updateExcessRemoveButtons() {
+                const $buttons = $('.remove-excess-row');
+                if ($buttons.length <= 1) {
+                    $buttons.hide();
+                    return;
+                }
+                $buttons.show();
+            }
+
+            function buildExcessRow(index) {
+                const disabled = isApprovalReadonly ? 'disabled' : 'required';
+                return `
+                    <div class="row g-3 align-items-end excess-row mb-2" data-row-index="${index}">
+                        <div class="col-md-3">
+                            <label class="form-label">Excess Type <span class="required-indicator">*</span></label>
+                            <select class="form-select excess-type" name="excess_type[]" ${disabled}>
+                                <option value="">Select type</option>
+                                <option value="R">Rate (%)</option>
+                                <option value="A">Amount</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label excess-value-label">Excess Amount <span class="required-indicator">*</span></label>
+                            <input type="text" class="form-control" name="excess[]" ${disabled} />
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Max/Min <span class="required-indicator">*</span></label>
+                            <input type="text" class="form-control" name="max_min[]" ${disabled} />
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Range <span class="required-indicator">*</span></label>
+                            <div class="radio-group d-flex align-items-center gap-3">
+                                <div class="radio-option">
+                                    <input type="radio" name="range[${index}]" id="range_${index}_min" value="min" ${disabled}>
+                                    <label for="range_${index}_min">Minimum</label>
+                                </div>
+                                <div class="radio-option">
+                                    <input type="radio" name="range[${index}]" id="range_${index}_max" value="max" checked ${disabled}>
+                                    <label for="range_${index}_max">Maximum</label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-1 text-end">
+                            <button type="button" class="btn btn-sm btn-outline-danger remove-excess-row">
+                                <i class="bx bx-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }
+
+            $(document).on('change', 'select[name="excess_type[]"]', function() {
+                updateExcessLabelForRow($(this).closest('.excess-row'));
+            });
+
+            $('#addExcessRow').on('click', function() {
+                const nextIndex = $('#excessRowsContainer .excess-row').length;
+                $('#excessRowsContainer').append(buildExcessRow(nextIndex));
+                updateExcessRemoveButtons();
+            });
+
+            $(document).on('click', '.remove-excess-row', function() {
+                $(this).closest('.excess-row').remove();
+                updateExcessRemoveButtons();
+            });
+
+            $('#excessRowsContainer .excess-row').each(function() {
+                updateExcessLabelForRow($(this));
+            });
+            updateExcessRemoveButtons();
 
             $('#effective_date').on('change', function() {
                 const effectiveDate = $(this).val();
@@ -2217,59 +2350,76 @@
                     });
                 }
 
-                const excessType = $('#excess_type').val();
-                if (!excessType || excessType.trim() === '') {
+                const $excessRows = $('#excessRowsContainer .excess-row');
+                if ($excessRows.length === 0) {
                     errors.push({
                         field: 'excess_type',
-                        message: 'Excess Type is required',
-                        element: $('#excess_type')
+                        message: 'At least one Excess row is required',
+                        element: $('#excessRowsContainer')
                     });
                 }
 
-                const excess = $('#excess').val();
-                if (!excess || excess.trim() === '') {
-                    errors.push({
-                        field: 'excess',
-                        message: 'Excess value is required',
-                        element: $('#excess')
-                    });
-                } else if (isNaN(excess) || parseFloat(excess) < 0) {
-                    errors.push({
-                        field: 'excess',
-                        message: 'Excess must be a valid positive number',
-                        element: $('#excess')
-                    });
-                } else if (excessType === 'R' && parseFloat(excess) > 100) {
-                    errors.push({
-                        field: 'excess',
-                        message: 'Excess rate cannot exceed 100%',
-                        element: $('#excess')
-                    });
-                }
+                $excessRows.each(function(index) {
+                    const rowNumber = index + 1;
+                    const $row = $(this);
+                    const $excessType = $row.find('select[name="excess_type[]"]');
+                    const excessType = $excessType.val();
+                    if (!excessType || excessType.trim() === '') {
+                        errors.push({
+                            field: `excess_type.${index}`,
+                            message: `Excess Type is required in row ${rowNumber}`,
+                            element: $excessType
+                        });
+                    }
 
-                const maxMin = $('input[name="max_min"]').val();
-                if (!maxMin || maxMin.trim() === '') {
-                    errors.push({
-                        field: 'max_min',
-                        message: 'Value is required',
-                        element: $('input[name="max_min"]')
-                    });
-                } else if (isNaN(maxMin) || parseFloat(maxMin) < 0) {
-                    errors.push({
-                        field: 'max_min',
-                        message: 'Value must be a valid positive number',
-                        element: $('input[name="max_min"]')
-                    });
-                }
+                    const $excess = $row.find('input[name="excess[]"]');
+                    const excess = $excess.val();
+                    if (!excess || excess.trim() === '') {
+                        errors.push({
+                            field: `excess.${index}`,
+                            message: `Excess value is required in row ${rowNumber}`,
+                            element: $excess
+                        });
+                    } else if (isNaN(excess) || parseFloat(excess) < 0) {
+                        errors.push({
+                            field: `excess.${index}`,
+                            message: `Excess must be a valid positive number in row ${rowNumber}`,
+                            element: $excess
+                        });
+                    } else if (excessType === 'R' && parseFloat(excess) > 100) {
+                        errors.push({
+                            field: `excess.${index}`,
+                            message: `Excess rate cannot exceed 100% in row ${rowNumber}`,
+                            element: $excess
+                        });
+                    }
 
-                const range = $('input[name="range"]:checked').val();
-                if (!range) {
-                    errors.push({
-                        field: 'range',
-                        message: 'Please select either Minimum or Maximum',
-                        element: $('input[name="range"]').first()
-                    });
-                }
+                    const $maxMin = $row.find('input[name="max_min[]"]');
+                    const maxMin = $maxMin.val();
+                    if (!maxMin || maxMin.trim() === '') {
+                        errors.push({
+                            field: `max_min.${index}`,
+                            message: `Max/Min value is required in row ${rowNumber}`,
+                            element: $maxMin
+                        });
+                    } else if (isNaN(maxMin) || parseFloat(maxMin) < 0) {
+                        errors.push({
+                            field: `max_min.${index}`,
+                            message: `Max/Min must be a valid positive number in row ${rowNumber}`,
+                            element: $maxMin
+                        });
+                    }
+
+                    const $rangeInput = $row.find('input[type="radio"][name^="range["]');
+                    const range = $rangeInput.filter(':checked').val();
+                    if (!range) {
+                        errors.push({
+                            field: `range.${index}`,
+                            message: `Please select Minimum or Maximum in row ${rowNumber}`,
+                            element: $rangeInput.first()
+                        });
+                    }
+                });
 
                 const effectiveDate = $('input[name="effective_date"]').val();
                 if (!effectiveDate || effectiveDate.trim() === '') {
@@ -2491,13 +2641,33 @@
                         let errorMessage = 'An error occurred during submission';
                         let validationErrors = [];
 
+                        const resolveValidationElement = (field) => {
+                            if (!field) return $();
+
+                            if (field.includes('.')) {
+                                const [base, indexRaw] = field.split('.');
+                                const index = parseInt(indexRaw, 10);
+                                if (base === 'range' && !isNaN(index)) {
+                                    return $(`input[name="range[${index}]"]`).first();
+                                }
+                                if (!isNaN(index)) {
+                                    return $(`[name="${base}[]"]`).eq(index);
+                                }
+                            }
+
+                            if ($(`[name="${field}"]`).length) {
+                                return $(`[name="${field}"]`);
+                            }
+
+                            return $(`#${field}`);
+                        };
+
                         if (xhr.status === 422 && xhr.responseJSON?.errors) {
                             const errors = xhr.responseJSON.errors;
                             validationErrors = Object.keys(errors).map(field => ({
                                 field: field,
                                 message: errors[field][0],
-                                element: $(`[name="${field}"]`).length ? $(
-                                    `[name="${field}"]`) : $(`#${field}`)
+                                element: resolveValidationElement(field)
                             }));
 
                             displayValidationErrors(validationErrors);
@@ -2542,9 +2712,9 @@
                     }
                 });
 
-                $('input[name="range"]').on('change', function() {
-                    $('input[name="range"]').removeClass('is-invalid');
-                    $('input[name="range"]').siblings('.invalid-feedback').remove();
+                $(document).on('change', 'input[type="radio"][name^="range["]', function() {
+                    $(this).closest('.radio-group').find('input[type="radio"]').removeClass('is-invalid');
+                    $(this).closest('.radio-group').find('.invalid-feedback').remove();
                 });
 
                 $('input[type="file"]').on('change', function() {

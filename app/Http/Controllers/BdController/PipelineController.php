@@ -2485,19 +2485,40 @@ class PipelineController
 
     public function handoverSave(Request $request)
     {
+        $normalizeToArray = static function ($value): array {
+            if (is_array($value)) {
+                return array_values($value);
+            }
+            if ($value === null || $value === '') {
+                return [];
+            }
+            return [$value];
+        };
+
+        $request->merge([
+            'excess_type' => $normalizeToArray($request->input('excess_type')),
+            'excess' => $normalizeToArray($request->input('excess')),
+            'max_min' => $normalizeToArray($request->input('max_min')),
+            'range' => $normalizeToArray($request->input('range')),
+        ]);
+
         $validator = Validator::make($request->all(), [
             'prospect_id' => 'required|exists:pipeline_opportunities,opportunity_id',
             'effective_date' => 'required|date',
             'closing_date' => 'required|date|after_or_equal:effective_date',
-            'excess' => 'nullable|numeric',
-            'max_min' => 'nullable|string',
+            'excess_type' => 'required|array|min:1',
+            'excess_type.*' => 'required|string|in:R,A',
+            'excess' => 'required|array|min:1',
+            'excess.*' => 'required|numeric|min:0',
+            'max_min' => 'required|array|min:1',
+            'max_min.*' => 'required|numeric|min:0',
+            'range' => 'required|array|min:1',
+            'range.*' => 'required|string|in:min,max',
             'quote_number' => 'nullable|string|max:100',
-            'range' => 'nullable|string',
             'handler' => 'required|exists:users,id',
             'approver' => 'required|array',
             'approver.*' => 'exists:users,id',
             'client_type' => 'nullable|string',
-            'excess_type' => 'nullable|string',
             'remarks' => 'nullable|string',
             'document_name' => 'nullable|array',
             'document_name.*' => 'required_with:document_file|string|max:255',
@@ -2517,6 +2538,23 @@ class PipelineController
         try {
             $prospectId = $request->prospect_id;
             $uploadsPath = 'uploads';
+            $excessTypes = array_values((array) $request->input('excess_type', []));
+            $excessValues = array_values((array) $request->input('excess', []));
+            $maxMinValues = array_values((array) $request->input('max_min', []));
+            $rangeValues = array_values((array) $request->input('range', []));
+
+            if (
+                count($excessTypes) !== count($excessValues) ||
+                count($excessTypes) !== count($maxMinValues) ||
+                count($excessTypes) !== count($rangeValues)
+            ) {
+                return response()->json([
+                    'status' => 422,
+                    'errors' => [
+                        'excess_type' => ['Excess rows are not aligned. Please review and try again.'],
+                    ],
+                ], 422);
+            }
 
             $opportunityUpdated = DB::table('pipeline_opportunities')
                 ->where('opportunity_id', $prospectId)
@@ -2531,15 +2569,15 @@ class PipelineController
             }
 
             $handoverData = [
-                'excess' => $request->excess,
-                'max/min' => $request->max_min,
+                'excess' => json_encode($excessValues),
+                'max/min' => json_encode($maxMinValues),
                 'quote_number' => $request->quote_number,
-                'range' => $request->range,
+                'range' => json_encode($rangeValues),
                 'handler' => $request->handler,
                 'approver' => json_encode($request->approver),
                 'approval_status' => null,
                 'client_type' => $request->client_type,
-                'excess_type' => $request->excess_type,
+                'excess_type' => json_encode($excessTypes),
                 'inception_date' => $request->effective_date,
                 'remarks' => $request->remarks,
                 'created_by' => auth()->id(),
