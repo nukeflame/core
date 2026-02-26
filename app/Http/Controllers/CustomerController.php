@@ -6,6 +6,7 @@ use App\Models\Classes;
 use App\Models\Country;
 use App\Models\Customer;
 use App\Models\CoverType;
+use App\Http\Requests\StoreCustomerRequest;
 use Illuminate\Http\Request;
 use App\Models\CustomerTypes;
 use App\Models\CustomerAccDet;
@@ -263,6 +264,29 @@ class CustomerController extends Controller
             ->make(true);
     }
 
+    public function checkNameUnique(Request $request): JsonResponse
+    {
+        $name = trim((string) $request->input('partnerName', ''));
+        $customerId = $request->input('customer_id');
+
+        if ($name === '') {
+            return response()->json([
+                'valid' => true,
+            ]);
+        }
+
+        $query = Customer::query()
+            ->whereRaw('LOWER(TRIM(name)) = LOWER(?)', [$name]);
+
+        if (!empty($customerId)) {
+            $query->where('customer_id', '!=', (int) $customerId);
+        }
+
+        return response()->json([
+            'valid' => !$query->exists(),
+        ]);
+    }
+
     public function CustomerAddForm(Request $request)
     {
         $data = $this->getCustomerFormData();
@@ -297,70 +321,28 @@ class CustomerController extends Controller
         return view('customer.customer_add_form', $data);
     }
 
-    public function storeCustomer(Request $request)
+    public function storeCustomer(StoreCustomerRequest $request)
     {
-        $validator = Validator::make($request->all(), [
-            'partnerName' => 'required|string|max:255',
-            'customerType' => 'required|array|min:1',
-            'customerType.*' => 'required|exists:customer_types,type_id',
-            'email' => 'required|email|max:255',
-            'telephone' => 'required|string|max:20',
-            'incorporationNo' => 'required|string|max:255',
-            'taxNo' => 'required|string|max:255',
-            'identityType' => 'required|string|max:50',
-            'identityNo' => 'required|string|max:50',
-            'website' => 'nullable|string|max:255',
-            'regulatorLicenseNo' => 'nullable|string|max:100',
-            'licensingAuthority' => 'nullable|string|max:255',
-            'licensingTerritory' => 'nullable|string|max:100',
-            'amlDetails' => 'nullable|string|max:1000',
-            'country' => 'required|string|size:3|exists:countries,country_iso',
-            'street' => 'required|string|max:255',
-            'city' => 'required|string|max:100',
-            'state' => 'nullable|string|max:100',
-            'postalCode' => 'required|string|max:20',
-            'financialRating' => 'nullable|string|max:10',
-            'agencyRating' => 'nullable|string|max:10',
-            'contacts' => 'required|array|min:1',
-            'contacts.*.id' => 'nullable|integer|exists:customer_contacts,id',
-            'contacts.*.department' => 'nullable|string|in:executive,underwriting,claims,sales,marketing,finance,technical,operations,legal,hr,other',
-            'contacts.0.name' => 'required|string|max:255',
-            'contacts.0.position' => 'required|string|max:100',
-            'contacts.0.mobile' => 'required|string|max:20',
-            'contacts.0.email' => 'required|email|max:255',
-        ], [
-            'partnerName.required' => 'Legal/Trading Name is required.',
-            'customerType.required' => 'Entity Type is required.',
-            'email.required' => 'Primary Email Address is required.',
-            'telephone.required' => 'Primary Telephone is required.',
-            'incorporationNo.required' => 'Registration/Incorporation Number is required.',
-            'taxNo.required' => 'Tax Identification Number is required.',
-            'identityType.required' => 'Identity Document Type is required.',
-            'identityNo.required' => 'Identity Document Number is required.',
-            'country.required' => 'Country is required.',
-            'street.required' => 'Street Address is required.',
-            'city.required' => 'City/Town is required.',
-            'postalCode.required' => 'Postal/ZIP Code is required.',
-            'contacts.0.name.required' => 'Primary Contact Name is required.',
-            'contacts.0.position.required' => 'Primary Contact Position is required.',
-            'contacts.0.mobile.required' => 'Primary Contact Mobile Number is required.',
-            'contacts.0.email.required' => 'Primary Contact Email is required.',
-        ]);
+        try {
+            $customer = $this->customerService->createCustomer($request->validated());
 
-        if ($validator->fails()) {
+            return response()->json([
+                'success' => true,
+                'status' => 201,
+                'message' => 'Customer information saved successfully',
+                'data' => [
+                    'customer_id' => $customer->customer_id,
+                    'name' => $customer->name,
+                ],
+                'redirect_url' => route('customer.info'),
+            ], 201);
+        } catch (\Throwable $e) {
             return response()->json([
                 'success' => false,
-                'status' => 422,
-                'message' => 'Please fill all required fields.',
-                'errors' => $validator->errors(),
-            ], 422);
+                'status' => 500,
+                'message' => 'An error occurred while creating customer information',
+            ], 500);
         }
-
-        return response()->json([
-            'success' => true,
-            'status' => 201,
-            'message' => 'Customer information saved successfully',
-        ], 201);
     }
 
     public function customerEdit(int $customerId)
@@ -417,56 +399,10 @@ class CustomerController extends Controller
         return view('customer.customer_add_form', $data);
     }
 
-    public function customerUpdate(Request $request, int $customerId): JsonResponse
+    public function customerUpdate(StoreCustomerRequest $request, int $customerId): JsonResponse
     {
-        $validator = Validator::make($request->all(), [
-            'partnerName' => 'required|string|max:255',
-            'customerType' => 'required|array|min:1',
-            'customerType.*' => 'required|exists:customer_types,type_id',
-            'email' => 'required|email|max:255',
-            'telephone' => 'required|string|max:20',
-            'incorporationNo' => 'required|string|max:255',
-            'taxNo' => 'required|string|max:255',
-            'identityType' => 'required|string|max:50',
-            'identityNo' => 'required|string|max:50',
-            'website' => 'nullable|string|max:255',
-            'securityRating' => 'nullable|string|max:50',
-            'ratingAgency' => 'nullable|string|max:100',
-            'ratingDate' => 'nullable|date',
-            'regulatorLicenseNo' => 'nullable|string|max:100',
-            'licensingAuthority' => 'nullable|string|max:255',
-            'licensingTerritory' => 'nullable|string|max:100',
-            'amlDetails' => 'nullable|string|max:1000',
-            'insuredType' => 'nullable|string|max:50',
-            'industryOccupation' => 'nullable|string|max:255',
-            'dateOfBirthIncorporation' => 'nullable|date',
-            'country' => 'required|string|size:3|exists:countries,country_iso',
-            'street' => 'required|string|max:255',
-            'city' => 'required|string|max:100',
-            'state' => 'nullable|string|max:100',
-            'postalCode' => 'required|string|max:20',
-            'financialRating' => 'nullable|string|max:10',
-            'agencyRating' => 'nullable|string|max:10',
-            'contacts' => 'required|array|min:1',
-            'contacts.*.id' => 'nullable|integer|exists:customer_contacts,id',
-            'contacts.*.department' => 'nullable|string|in:executive,underwriting,claims,sales,marketing,finance,technical,operations,legal,hr,other',
-            'contacts.*.name' => 'required|string|max:255',
-            'contacts.*.position' => 'required|string|max:100',
-            'contacts.*.mobile' => 'required|string|max:20',
-            'contacts.*.email' => 'required|email|max:255',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'status' => 422,
-                'message' => 'Please fill all required fields.',
-                'errors' => $validator->errors(),
-            ], 422);
-        }
-
         try {
-            $customer = $this->customerService->updateCustomer($customerId, $validator->validated());
+            $customer = $this->customerService->updateCustomer($customerId, $request->validated());
 
             return response()->json([
                 'success' => true,
@@ -631,12 +567,48 @@ class CustomerController extends Controller
             return "<b class='dashes'>—</b>";
         }
 
-        $types = CustomerTypes::whereIn('type_id', (array)$customerTypes)
+        $typeIds = $this->normalizeCustomerTypeIds($customerTypes);
+        if (empty($typeIds)) {
+            return "<b class='dashes'>—</b>";
+        }
+
+        $types = CustomerTypes::whereIn('type_id', $typeIds)
             ->pluck('type_name')
             ->map(fn($name) => trim($name))
             ->toArray();
 
         return !empty($types) ? implode(', ', $types) : "<b class='dashes'>—</b>";
+    }
+
+    private function normalizeCustomerTypeIds($customerTypes): array
+    {
+        if (is_string($customerTypes)) {
+            $decoded = json_decode($customerTypes, true);
+            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                $customerTypes = $decoded;
+            } else {
+                $customerTypes = array_map('trim', explode(',', $customerTypes));
+            }
+        } elseif (!is_array($customerTypes)) {
+            $customerTypes = [$customerTypes];
+        }
+
+        return collect($customerTypes)
+            ->filter(fn($value) => $value !== null && $value !== '')
+            ->map(function ($value) {
+                if (is_string($value)) {
+                    $value = trim($value);
+                    if (preg_match('/^\d+$/', $value)) {
+                        return (int) $value;
+                    }
+                }
+
+                return is_numeric($value) ? (int) $value : null;
+            })
+            ->filter(fn($value) => $value !== null)
+            ->unique()
+            ->values()
+            ->all();
     }
 
     private function renderCustomerActions(Customer $customer): string

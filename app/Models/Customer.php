@@ -13,9 +13,10 @@ class Customer extends Model
     use HasFactory;
 
     protected $table = 'customers';
-    public $timestamps = false;
+    public $timestamps = true;
     public $primaryKey = 'customer_id';
-    public $incrementing = false;
+    public $incrementing = true;
+    protected $keyType = 'int';
     protected $guarded = [];
 
     protected $casts = [

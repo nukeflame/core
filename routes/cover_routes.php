@@ -20,6 +20,7 @@ Route::group(['prefix' => 'customer', 'middleware' => ['auth', 'check.first.logi
     Route::get('/reinsurer-info', [CustomerController::class, 'reinsurer_info'])->name('reinsurer.info');
     Route::get('/insured-info', [CustomerController::class, 'insured_info'])->name('insured.info');
     Route::get('/customer-data', [CustomerController::class, 'getCustomerData'])->name('customer.data');
+    Route::get('/check-name-unique', [CustomerController::class, 'checkNameUnique'])->name('customer.check_name_unique');
     Route::get('/cedant-data', [CustomerController::class, 'getCedantData'])->name('cedant.data');
     Route::get('/reinsurer-data', [CustomerController::class, 'getReinsurerData'])->name('reinsurer.data');
     Route::get('/insured-data', [CustomerController::class, 'getInsuredData'])->name('insured.data');

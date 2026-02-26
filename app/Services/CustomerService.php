@@ -46,18 +46,12 @@ class CustomerService
 
     public function createCustomer(array $data): Customer
     {
-        DB::beginTransaction();
-
-        try {
+        return DB::transaction(function () use ($data) {
             $customer = $this->createCustomerRecord($data);
+            $this->createCustomerContacts((int) $customer->customer_id, $data['contacts'] ?? []);
 
-            DB::commit();
-
-            return $customer->load(['customerTypes', 'contacts']);
-        } catch (Exception $e) {
-            DB::rollBack();
-            throw $e;
-        }
+            return $customer->load(['contacts', 'primaryContact']);
+        });
     }
 
     public function createCustomerContacts(int $customerId, array $contacts): void
@@ -83,42 +77,53 @@ class CustomerService
 
     protected function createCustomerRecord(array $data): Customer
     {
-        return Customer::create([
-            'partner_name' => $data['partnerName'],
-            'email' => $data['email'],
-            'telephone' => $data['telephone'],
+        $customerTypes = isset($data['customerType'])
+            ? (is_array($data['customerType']) ? $data['customerType'] : explode(',', $data['customerType']))
+            : [];
 
-            'incorporation_no' => $data['incorporationNo'] ?? null,
-            'tax_no' => $data['taxNo'] ?? null,
-            'identity_type' => $data['identityType'] ?? null,
-            'identity_no' => $data['identityNo'] ?? null,
-            'website' => $data['website'] ?? null,
-
-            'security_rating' => $data['securityRating'] ?? null,
-            'rating_agency' => $data['ratingAgency'] ?? null,
-            'rating_date' => $data['ratingDate'] ?? null,
-            'regulator_license_no' => $data['regulatorLicenseNo'] ?? null,
-            'licensing_authority' => $data['licensingAuthority'] ?? null,
-            'licensing_territory' => $data['licensingTerritory'] ?? null,
-            'aml_details' => $data['amlDetails'] ?? null,
-            'insured_type' => $data['insuredType'] ?? null,
-            'industry_occupation' => $data['industryOccupation'] ?? null,
-            'date_of_birth_incorporation' => $data['dateOfBirthIncorporation'] ?? null,
-
-            'country' => $data['country'],
+        $payload = [
+            'name' => $data['partnerName'],
             'street' => $data['street'],
             'city' => $data['city'],
-            'state' => $data['state'] ?? null,
-            'postal_code' => $data['postalCode'],
+            'postal_address' => $data['postalCode'],
+            'country_iso' => $data['country'],
+            'email' => $data['email'],
+            'financial_rate' => $data['financialRating'] ?? null,
+            'agency_rate' => $data['agencyRating'] ?? null,
+            'website' => $data['website'] ?? null,
+            'telephone' => $data['telephone'] ?? null,
+            'registration_no' => $data['incorporationNo'] ?? null,
+            'tax_no' => $data['taxNo'] ?? null,
+            'identity_number_type' => $data['identityType'] ?? null,
+            'identity_number' => $data['identityNo'] ?? null,
+            'customer_type' => json_encode(array_values(array_map('strval', $customerTypes))),
+            'status' => 'A',
+        ];
 
-            'financial_rating' => $data['financialRating'] ?? null,
-            'agency_rating' => $data['agencyRating'] ?? null,
+        $dynamicFieldMap = [
+            'regulatorLicenseNo' => 'regulator_license_no',
+            'licensingAuthority' => 'licensing_authority',
+            'licensingTerritory' => 'licensing_territory',
+            'amlDetails' => 'aml_details',
+            'securityRating' => 'security_rating',
+            'ratingAgency' => 'rating_agency',
+            'ratingDate' => 'rating_date',
+            'insuredType' => 'insured_type',
+            'industryOccupation' => 'industry_occupation',
+            'dateOfBirthIncorporation' => 'date_of_birth_incorporation',
+        ];
 
-            'company_id' => $this->getCurrentCompanyId(),
-            'created_by' => Auth::id(),
-            'updated_by' => Auth::id(),
-            'status' => 'active',
-        ]);
+        foreach ($dynamicFieldMap as $inputKey => $columnName) {
+            if (array_key_exists($inputKey, $data) && Schema::hasColumn('customers', $columnName)) {
+                $payload[$columnName] = $data[$inputKey];
+            }
+        }
+
+        if (array_key_exists('state', $data) && Schema::hasColumn('customers', 'state')) {
+            $payload['state'] = $data['state'];
+        }
+
+        return Customer::create($payload);
     }
 
     protected function getCurrentCompanyId(): ?int

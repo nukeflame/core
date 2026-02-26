@@ -158,6 +158,7 @@
                 $('#dt-current-file-wrap').addClass('d-none');
                 $('#dt-current-file-link').attr('href', '#');
                 $('#dt-selected-file-name').text('No file selected');
+                $('#dt-file-input').val('');
 
                 if (formValidator) {
                     formValidator.resetForm();
@@ -487,6 +488,10 @@
                 }
 
                 var formData = new FormData(this);
+                var selectedFile = $('#dt-file-input')[0] ? $('#dt-file-input')[0].files[0] : null;
+                if (selectedFile) {
+                    formData.set('cedant_file', selectedFile);
+                }
 
                 $('.doc-type-error').text('');
                 $('#docTypeSaveBtn').prop('disabled', true);
@@ -507,17 +512,19 @@
                         table.ajax.reload(null, false);
                     },
                     error: function(xhr) {
-                        console.log(xhr)
-                        // if (xhr.status === 422 && xhr.responseJSON && xhr.responseJSON.errors) {
-                        //     var errors = xhr.responseJSON.errors;
-                        //     Object.keys(errors).forEach(function(key) {
-                        //         var text = Array.isArray(errors[key]) ? errors[key][0] :
-                        //             errors[key];
-                        //         $('[data-error-for="' + key + '"]').text(text);
-                        //     });
-                        // } else {
-                        //     showMessage('error', 'Failed to save document type');
-                        // }
+                        if (xhr.status === 422 && xhr.responseJSON && xhr.responseJSON.errors) {
+                            var errors = xhr.responseJSON.errors;
+                            Object.keys(errors).forEach(function(key) {
+                                var text = Array.isArray(errors[key]) ? errors[key][0] : errors[key];
+                                $('[data-error-for="' + key + '"]').text(text);
+                            });
+                            return;
+                        }
+
+                        var message = (xhr.responseJSON && (xhr.responseJSON.message || xhr.responseJSON.error)) ?
+                            (xhr.responseJSON.message || xhr.responseJSON.error) :
+                            'Failed to save document type';
+                        showMessage('error', message);
                     },
                     complete: function() {
                         $('#docTypeSaveBtn').prop('disabled', false);

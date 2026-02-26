@@ -1332,8 +1332,15 @@ class BdScheduleController extends Controller
             $requestS3Path = trim((string) $request->input('s3_path', ''));
             $legacyS3UploadedFilePath = trim((string) $request->input('s3UploadedFilePath', ''));
 
-            $resolvedPath = $requestPath !== '' ? $requestPath : trim((string) optional($docType)->path);
-            $resolvedS3Path = $requestS3Path !== '' ? $requestS3Path : trim((string) optional($docType)->s3_path);
+            $docTypePath = trim((string) optional($docType)->path);
+            $docTypeS3Path = trim((string) optional($docType)->s3_path);
+
+            $resolvedPath = $requestPath !== '' ? $requestPath : $docTypePath;
+            $resolvedS3Path = $requestS3Path !== '' ? $requestS3Path : ($docTypeS3Path !== '' ? $docTypeS3Path : $docTypePath);
+
+            if ($resolvedPath === '' && $resolvedS3Path !== '') {
+                $resolvedPath = $resolvedS3Path;
+            }
 
             if ($legacyS3UploadedFilePath !== '') {
                 if ($resolvedPath === '') {
@@ -1755,6 +1762,10 @@ class BdScheduleController extends Controller
                     }
                     return redirect()->back()->with('error', 'Invalid file upload');
                 }
+
+                if ($s3UploadedFilePath === '' && !is_null($Filename)) {
+                    $s3UploadedFilePath = trim($s3UploadPath, '/') . '/' . $Filename;
+                }
             }
 
             if (isset($id)) {
@@ -1798,6 +1809,7 @@ class BdScheduleController extends Controller
 
                     $payload['mimetype'] = $mimetype;
                     $payload['file_name'] = $Filename;
+                    $payload['attachment_file'] = 'Y';
                 }
 
                 $existingDocType->update($payload);
@@ -1824,6 +1836,10 @@ class BdScheduleController extends Controller
                     $createPayload['path'] = $s3UploadedFilePath;
                 }
 
+                if (!is_null($file)) {
+                    $createPayload['attachment_file'] = 'Y';
+                }
+
                 DocType::create($createPayload);
             }
 
@@ -1843,6 +1859,7 @@ class BdScheduleController extends Controller
             if ($request->ajax() || $request->wantsJson()) {
                 return response()->json([
                     'message' => 'Failed to save document.',
+                    'error' => $e->getMessage(),
                 ], 500);
             }
 

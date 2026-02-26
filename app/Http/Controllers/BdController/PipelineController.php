@@ -8,6 +8,7 @@ use App\Jobs\TreatyJob;
 use App\Models\Bd\CustomerContact;
 use App\Models\Bd\ReinsurersDeclined;
 use App\Jobs\SendHandOverApproverEmail;
+use App\Jobs\SendBdNotificationJob;
 use App\Models\Bd\Client;
 use App\Models\Bd\Quote;
 use App\Mail\Prospectwonemail;
@@ -2580,12 +2581,17 @@ class PipelineController
                     'prospect_status' => 'final_stage',
                     'mimetype' => $mimeType,
                     'file' => $filename,
+                    's3_path' => $s3FilePath,
+                    's3_url' => Storage::disk('s3')->url($s3FilePath),
                     'type' => 'genera',
                     'updated_at' => now(),
                 ];
 
                 if ($existingDoc) {
-                    $oldFilePath = $uploadsPath . '/' . $existingDoc->file;
+                    $oldFilePath = trim((string) ($existingDoc->s3_path ?? ''));
+                    if ($oldFilePath === '' && !empty($existingDoc->file)) {
+                        $oldFilePath = $uploadsPath . '/' . $existingDoc->file;
+                    }
                     if (Storage::disk('s3')->exists($oldFilePath)) {
                         Storage::disk('s3')->delete($oldFilePath);
                     }
@@ -6282,7 +6288,17 @@ class PipelineController
                 return (bool) $reinContact->is_cc_email;
             });
 
-            $reinsuersContacts = DB::table('customer_contacts')->whereIn('customer_id', $reinsurer_ids)
+            $activeReinsurerIds = DB::table('bd_fac_reinsurers')
+                ->where('opportunity_id', $opportunityId)
+                ->whereIn('reinsurer_id', $reinsurer_ids)
+                ->where(function ($query) {
+                    $query->where('is_declined', false)
+                        ->orWhereNull('is_declined');
+                })
+                ->pluck('reinsurer_id')
+                ->toArray();
+
+            $reinsuersContacts = DB::table('customer_contacts')->whereIn('customer_id', $activeReinsurerIds)
                 ->orderBy('customer_id')
                 ->orderBy('contact_name')
                 ->get();
@@ -6305,7 +6321,7 @@ class PipelineController
             $stageTitle = Str::title($stage);
             $oppId = $opportunityId;
             $partners = DB::table('customers')
-                ->whereIn('customer_id', $reinsurer_ids)
+                ->whereIn('customer_id', $activeReinsurerIds)
                 ->get(['email', 'telephone', 'partner_number', 'name']);
             $rensuersSubject = 'Dear {recipient}';
 
@@ -6317,7 +6333,7 @@ class PipelineController
 
             GenerateBdCoverSlipJob::dispatchSync($requestData, auth()->id());
 
-            DB::commit();
+            // DB::commit();
 
             return response()->json([
                 'success' => true,
@@ -6405,10 +6421,135 @@ class PipelineController
                 'message_id' => $request->input('message_id'),
             ];
 
+            $declinedReinsurerIds = DB::table('bd_fac_reinsurers')
+                ->where('opportunity_id', $emailData['opportunity_id'])
+                ->where('is_declined', true)
+                ->pluck('reinsurer_id')
+                ->toArray();
+
+            $normalizeEmail = static function (?string $email): ?string {
+                $email = trim((string) $email);
+                return $email === '' ? null : Str::lower($email);
+            };
+
+            $declinedPartnerEmails = empty($declinedReinsurerIds)
+                ? []
+                : DB::table('customers')
+                ->whereIn('customer_id', $declinedReinsurerIds)
+                ->pluck('email')
+                ->map(fn($email) => $normalizeEmail($email))
+                ->filter()
+                ->values()
+                ->toArray();
+
+            $declinedContactEmails = empty($declinedReinsurerIds)
+                ? []
+                : DB::table('customer_contacts')
+                ->whereIn('customer_id', $declinedReinsurerIds)
+                ->pluck('contact_email')
+                ->map(fn($email) => $normalizeEmail($email))
+                ->filter()
+                ->values()
+                ->toArray();
+
+            $blockedEmails = array_values(array_unique(array_merge($declinedPartnerEmails, $declinedContactEmails)));
+
+            $filterBlockedEmails = static function (array $emails) use ($blockedEmails, $normalizeEmail): array {
+                if (empty($blockedEmails)) {
+                    return $emails;
+                }
+
+                return array_values(array_filter($emails, function ($email) use ($blockedEmails, $normalizeEmail) {
+                    $normalized = $normalizeEmail($email);
+                    return $normalized !== null && !in_array($normalized, $blockedEmails, true);
+                }));
+            };
+
+            $toEmails = [];
+            if (is_array($emailData['to_email'])) {
+                $toEmails = $emailData['to_email'];
+            } elseif (is_string($emailData['to_email']) && trim($emailData['to_email']) !== '') {
+                $toEmails = explode(',', $emailData['to_email']);
+            }
+
+            $contacts = $emailData['contacts'] ?? [];
+            $cc_email = $emailData['cc_email'] ?? [];
+            $bcc_email = $emailData['bcc_email'] ?? [];
+
+            $normalizeRecipients = static function (array $emails): array {
+                return array_values(array_filter(array_map(static function ($email) {
+                    if (!is_string($email)) {
+                        return null;
+                    }
+                    $email = trim($email);
+                    return $email === '' ? null : $email;
+                }, $emails)));
+            };
+
+            $toEmails = $normalizeRecipients($toEmails);
+            $contacts = $normalizeRecipients($contacts);
+            $cc_email = $normalizeRecipients($cc_email);
+            $bcc_email = $normalizeRecipients($bcc_email);
+
+            $toEmails = $filterBlockedEmails($toEmails);
+            $contacts = $filterBlockedEmails($contacts);
+            $cc_email = $filterBlockedEmails($cc_email);
+            $bcc_email = $filterBlockedEmails($bcc_email);
+
+            $allRecipients = array_merge($toEmails, $cc_email, $bcc_email, $contacts);
+            $allRecipients = array_map('trim', array_unique($allRecipients));
+
+            $toRecipients = array_unique(array_merge($toEmails, $contacts));
+
+
             $attached_files = [];
             $shouldIncludeAttachments = !$emailData['is_reply'] || $emailData['include_reply_attachments'];
             if ($shouldIncludeAttachments) {
-                $attached_files = DB::table('prospect_docs')->where('prospect_id', $emailData['opportunity_id'])->get([
+                $normalizedCategory = Str::lower((string) ($emailData['category'] ?? ''));
+                $attachmentsQuery = DB::table('prospect_docs')
+                    ->where('prospect_id', $emailData['opportunity_id']);
+
+                $activeOpportunityReinsurerIds = DB::table('bd_fac_reinsurers')
+                    ->where('opportunity_id', $emailData['opportunity_id'])
+                    ->where(function ($query) {
+                        $query->where('is_declined', false)
+                            ->orWhereNull('is_declined');
+                    })
+                    ->pluck('reinsurer_id')
+                    ->map(fn($id) => (int) $id)
+                    ->toArray();
+
+                $recipientReinsurerIds = $activeOpportunityReinsurerIds;
+                if (!empty($allRecipients)) {
+                    $selectedReinsurerIds = DB::table('customers')
+                        ->whereIn(DB::raw('LOWER(email)'), array_map('strtolower', $allRecipients))
+                        ->pluck('customer_id')
+                        ->map(fn($id) => (int) $id)
+                        ->toArray();
+
+                    $selectedReinsurerIds = array_values(array_unique($selectedReinsurerIds));
+                    $recipientReinsurerIds = array_values(array_intersect($activeOpportunityReinsurerIds, $selectedReinsurerIds));
+                }
+
+                switch ($normalizedCategory) {
+                    case Stage::LEAD:
+                    case Stage::PROPOSAL:
+                        if (!empty($recipientReinsurerIds)) {
+                            $attachmentsQuery->where(function ($query) use ($recipientReinsurerIds) {
+                                $query->whereNull('type')
+                                    ->orWhere(function ($q) use ($recipientReinsurerIds) {
+                                        $q->where('type', 'reinsurer')
+                                            ->whereIn('reinsurer_id', $recipientReinsurerIds);
+                                    });
+                            });
+                        }
+                        break;
+
+                    default:
+                        break;
+                }
+
+                $attached_files = $attachmentsQuery->get([
                     's3_path',
                     's3_url',
                     'original_name',
@@ -6416,19 +6557,23 @@ class PipelineController
                     'mimetype',
                     'file_size',
                     'description',
+                    'reinsurer_id',
                 ]);
 
-                $normalizedCategory = Str::lower((string) ($emailData['category'] ?? ''));
-
-                if ($normalizedCategory === Stage::LEAD) {
-                    $attached_files = $attached_files->reject(function ($file) {
-                        return $this->isProposalCoverSlipAttachment($file);
-                    })->values();
-                } elseif ($normalizedCategory === Stage::PROPOSAL) {
-                    $attached_files = $attached_files->reject(function ($file) {
-                        return $this->isLeadCoverSlipAttachment($file);
-                    })->values();
-                }
+                // switch ($normalizedCategory) {
+                //     case Stage::LEAD:
+                //         $attached_files = $attached_files->reject(function ($file) {
+                //             return $this->isProposalCoverSlipAttachment($file);
+                //         })->values();
+                //         break;
+                //     case Stage::PROPOSAL:
+                //         $attached_files = $attached_files->reject(function ($file) {
+                //             return $this->isLeadCoverSlipAttachment($file);
+                //         })->values();
+                //         break;
+                //     default:
+                //         break;
+                // }
 
                 $attached_files = $attached_files->map(function ($file) {
                     return $this->normalizeBdAttachmentFileName($file);
@@ -6437,28 +6582,25 @@ class PipelineController
                 $attached_files = [];
             }
 
+            // logger()->debug(json_encode($attached_files, JSON_PRETTY_PRINT));
 
-            $customer = Customer::where('customer_id', $request->customer_id)->first();
-
-            $toEmails = is_array($emailData['to_email'])
-                ? $emailData['to_email']
-                : explode(',', $emailData['to_email']);
-
-            $contacts = $emailData['contacts'] ?? [];
-            $cc_email = $emailData['cc_email'] ?? [];
-            $bcc_email = $emailData['bcc_email'] ?? [];
-            $allRecipients = array_merge($toEmails, $cc_email, $bcc_email, $contacts);
-            $allRecipients = array_map('trim', array_unique($allRecipients));
-
-            $toRecipients = array_merge($toEmails, $contacts);
+            if (empty($allRecipients)) {
+                DB::rollBack();
+                return response()->json([
+                    'message' => 'No valid recipients found after filtering declined reinsurers.',
+                    'errors' => [
+                        'recipients' => ['Please select at least one valid recipient email address.']
+                    ]
+                ], 422);
+            }
 
             $data = [
-                'customer' => $customer,
+                'customer_id' => (int) $request->customer_id,
                 'subject' => $emailData['subject'],
                 'message' => $emailData['message'],
-                'ccEmail' => $emailData['cc_email'],
-                'bccEmail' => $emailData['bcc_email'],
-                'contacts' => $emailData['contacts'],
+                'ccEmail' => $cc_email,
+                'bccEmail' => $bcc_email,
+                'contacts' => $contacts,
                 'priority' => $emailData['priority'],
                 'category' => $emailData['category'],
                 'reference' => $emailData['reference'],
@@ -6471,24 +6613,22 @@ class PipelineController
                 'conversationId' => $emailData['conversation_id']
             ];
 
-            $result =  $this->mailService->sendEmail($data);
+            // logger()->debug(json_encode($data['attachments'], JSON_PRETTY_PRINT));
+
+            SendBdNotificationJob::dispatch($data, (int) auth()->id())->afterCommit();
 
             DB::commit();
-            if ($result) {
-                return response()->json([
-                    'message' => 'Email sent successfully'
-                ], 200);
-            } else {
-                return response()->json([
-                    'message' => 'Error occured',
-                    'errors' => 'An error occured while sending email'
-                ], 422);
-            }
+
+            return response()->json([
+                'message' => 'Email sent successfully'
+            ], 200);
         } catch (Exception $e) {
             DB::rollBack();
+            logger($e);
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to send bd notification: '
+                'message' => 'Failed to send bd notification',
+                'error' => config('app.debug') ? $e->getMessage() : null
             ], 500);
         }
     }
@@ -6496,55 +6636,37 @@ class PipelineController
     private function normalizeBdAttachmentFileName($file)
     {
         $description = Str::lower(trim((string) ($file->description ?? '')));
-        $currentFileName = trim((string) ($file->file ?? $file->original_name ?? ''));
 
-        if ($currentFileName === '' || $description === '') {
-            return $file;
+        $stage = trim((string) ($file->prospect_status ?? $file->stage ?? ''));
+        if ($stage === '') {
+            $stage = Str::contains($description, 'proposal') ? Stage::PROPOSAL : Stage::LEAD;
         }
 
-        $targetBaseName = null;
-
-        if (Str::contains($description, 'lead cover slip')) {
-            $targetBaseName = 'Cover Slip';
-        } elseif (Str::contains($description, 'proposal cover slip')) {
-            $targetBaseName = 'Cover Slip';
-        } elseif (Str::contains($description, ['lead cover', 'cover email', 'cover emails'])) {
-            $targetBaseName = 'Cover Emails';
+        $reinsurerName = trim((string) ($file->reinsurer_name ?? ''));
+        if ($reinsurerName === '' && !empty($file->reinsurer_id)) {
+            $reinsurerName = (string) (Customer::where('customer_id', (int) $file->reinsurer_id)->value('name') ?? '');
+        }
+        if ($reinsurerName === '') {
+            $reinsurerName = 'Shared';
         }
 
-        if ($targetBaseName === null) {
-            return $file;
-        }
+        $sanitizePart = static function (string $value): string {
+            $value = preg_replace('/[^A-Za-z0-9]+/', '_', trim($value));
+            $value = trim((string) $value, '_');
+            return $value === '' ? 'UNKNOWN' : $value;
+        };
 
-        $extension = pathinfo($currentFileName, PATHINFO_EXTENSION);
-        $newFileName = $targetBaseName . ($extension !== '' ? '.' . $extension : '');
+        $newFileName = sprintf(
+            'FPS_%s_%s_%s.pdf',
+            $sanitizePart($reinsurerName),
+            $sanitizePart($stage),
+            now()->format('Ymd')
+        );
 
         $file->file = $newFileName;
-        $file->original_name = $newFileName;
+        $file->original_name = ucfirst(trim((string) ($file->description ?? '')));;
 
         return $file;
-    }
-
-    private function isProposalCoverSlipAttachment($file): bool
-    {
-        $haystack = Str::lower(trim(implode(' ', [
-            (string) ($file->description ?? ''),
-            (string) ($file->original_name ?? ''),
-            (string) ($file->file ?? ''),
-        ])));
-
-        return Str::contains($haystack, 'proposal cover slip');
-    }
-
-    private function isLeadCoverSlipAttachment($file): bool
-    {
-        $haystack = Str::lower(trim(implode(' ', [
-            (string) ($file->description ?? ''),
-            (string) ($file->original_name ?? ''),
-            (string) ($file->file ?? ''),
-        ])));
-
-        return Str::contains($haystack, 'lead cover slip');
     }
 
     public function stageCycleNotEqualFive($leadId, $stage_cycle, $pipeline, $division, $request)
@@ -6740,6 +6862,7 @@ class PipelineController
     {
         $pip = DB::table('pipeline_opportunities')
             ->where('opportunity_id', $leadId)->first();
+
         $data = [
             'name' => $pip->fullname,
             'contact' => $pip->contact_name,
@@ -7016,6 +7139,8 @@ class PipelineController
                     'prospect_status' => $stage,
                     'mimetype' => $mimetype,
                     'file' => $pdfFilename,
+                    's3_path' => $pdfPath,
+                    's3_url' => Storage::disk('s3')->url($pdfPath),
                 ]);
             }
             foreach ($allQuotes as $index => $quote) {
@@ -7490,7 +7615,6 @@ class PipelineController
                     mkdir($pdfFolderPath, 0777, true); // Create folder if it does not exist
                 }
 
-                // // Generate a unique filename
                 if ($stageType == 1) {
                     $pdfFilename = 'Quotation' . mt_rand() . $quote->id . '_' . $quote->reinsurer_id . '.pdf';
                 } else {
@@ -7842,6 +7966,8 @@ class PipelineController
 
                                 $data['file'] = $filename;
                                 $data['mimetype'] = $mimetype;
+                                $data['s3_path'] = $s3FilePath;
+                                $data['s3_url'] = Storage::disk('s3')->url($s3FilePath);
                                 $data['received_document'] = true;
                                 $savedDocuments[] = [
                                     'name' => $name,
@@ -8289,6 +8415,10 @@ class PipelineController
 
             $reinsurerIds = DB::table('bd_fac_reinsurers')
                 ->where('opportunity_id', $opportunityId)
+                ->where(function ($query) {
+                    $query->where('is_declined', false)
+                        ->orWhereNull('is_declined');
+                })
                 ->pluck('reinsurer_id')
                 ->toArray();
 

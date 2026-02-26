@@ -1114,6 +1114,33 @@
                             return false;
                         },
                     });
+
+                    const checkNameUrl = this.$form.data("check-name-url");
+                    if (checkNameUrl) {
+                        const customerId = this.$form.data("customer-id") || "";
+                        $("#partnerName").rules("add", {
+                            remote: {
+                                url: checkNameUrl,
+                                type: "GET",
+                                data: {
+                                    partnerName: function () {
+                                        return $("#partnerName").val();
+                                    },
+                                    customer_id: customerId,
+                                },
+                                dataFilter: function (response) {
+                                    try {
+                                        const parsed = JSON.parse(response);
+                                        return parsed.valid
+                                            ? "true"
+                                            : '"Legal/Trading Name already exists."';
+                                    } catch (e) {
+                                        return "false";
+                                    }
+                                },
+                            },
+                        });
+                    }
                 }
             } catch (error) {
                 console.error("Failed to initialize validator:", error);
@@ -1262,16 +1289,7 @@
             }
         },
 
-        /**
-         * Handle form submission error
-         * @param {jqXHR} xhr - The XMLHttpRequest object
-         * @param {string} textStatus - The status text
-         * @param {string} errorThrown - The error message
-         */
         onSubmitError(xhr, textStatus, errorThrown) {
-            console.error("Form submission error:", textStatus, errorThrown);
-
-            // Trigger custom event
             this.$form.trigger("customerForm:error", [
                 xhr,
                 textStatus,
@@ -1282,9 +1300,7 @@
                 "An error occurred while saving. Please try again.";
             let fieldErrors = {};
 
-            // Handle different error scenarios
             if (xhr.status === 422) {
-                // Laravel validation errors
                 const response = xhr.responseJSON;
 
                 if (response && response.errors) {
@@ -1296,18 +1312,14 @@
                     errorMessage = response.message;
                 }
             } else if (xhr.status === 419) {
-                // CSRF token mismatch
                 errorMessage =
                     "Your session has expired. Please refresh the page and try again.";
             } else if (xhr.status === 403) {
-                // Forbidden
                 errorMessage =
                     "You do not have permission to perform this action.";
             } else if (xhr.status === 404) {
-                // Not found
                 errorMessage = "The requested resource was not found.";
             } else if (xhr.status === 500) {
-                // Server error
                 errorMessage =
                     "A server error occurred. Please try again later.";
             } else if (textStatus === "timeout") {
@@ -1320,12 +1332,10 @@
                     "Unable to connect to the server. Please check your internet connection.";
             }
 
-            // Show error message
             if (this.ajaxConfig.showErrorMessage) {
                 this.showNotification("error", errorMessage, "Error");
             }
 
-            // Scroll to top if configured and there are errors
             if (
                 this.ajaxConfig.scrollToTopOnError &&
                 Object.keys(fieldErrors).length > 0
@@ -1346,7 +1356,6 @@
         },
 
         displayValidationErrors(errors) {
-            // Clear existing errors first
             this.clearValidationErrors();
 
             Object.keys(errors).forEach((fieldName) => {
@@ -1355,11 +1364,9 @@
                     ? errorMessages[0]
                     : errorMessages;
 
-                // Handle nested field names (e.g., contacts.0.name)
                 let $field;
 
                 if (fieldName.includes(".")) {
-                    // Convert dot notation to bracket notation
                     const bracketName =
                         fieldName
                             .replace(/\.(\d+)\./g, "[$1].")
@@ -1374,7 +1381,6 @@
                         `[name="${fieldName}"], [name="${convertedName}"], [name="${bracketName}"]`,
                     );
 
-                    // Try alternative bracket format for contacts
                     if (
                         $field.length === 0 &&
                         fieldName.startsWith("contacts.")
@@ -1392,18 +1398,15 @@
                 }
 
                 if ($field.length > 0) {
-                    // Remove existing client-side message for this field to avoid duplicates.
                     this.clearFieldValidation($field);
                     $field.addClass("is-invalid");
 
-                    // Handle Select2
                     if ($field.hasClass("select2-hidden-accessible")) {
                         $field
                             .next(".select2-container")
                             .addClass("is-invalid");
                     }
 
-                    // Add error message
                     const $errorDiv = $("<div>")
                         .addClass("invalid-feedback d-block server-feedback")
                         .text(errorMessage);
@@ -1416,7 +1419,6 @@
                         $field.after($errorDiv);
                     }
 
-                    // If first error, scroll to it
                     if (Object.keys(errors).indexOf(fieldName) === 0) {
                         const $container = $field.closest(
                             ".col-12, .col-md-6, .col-lg-4, .col-lg-3, .contact-item",
@@ -1486,7 +1488,6 @@
 
             $("body").append($alert);
 
-            // Auto-dismiss after timeout
             setTimeout(
                 () => {
                     $alert.fadeOut(300, function () {
@@ -1553,9 +1554,6 @@
             announceToScreenReader(`Contact ${contactIndex + 1} added`);
         },
 
-        /**
-         * Generate HTML for a contact
-         */
         generateContactHtml(index, isPrimary = false) {
             const deleteButton = !isPrimary
                 ? `
@@ -1690,9 +1688,6 @@
             announceToScreenReader("Contact removed");
         },
 
-        /**
-         * Reindex contacts after removal
-         */
         reindexContacts() {
             $(".contact-item").each(function (index) {
                 const isPrimary = index === 0;
@@ -1728,9 +1723,6 @@
             );
         },
 
-        /**
-         * Update Add Contact button state
-         */
         updateAddContactButton() {
             const config = this.currentConfig;
             const maxContacts = config?.sections?.contacts?.maxContacts || 10;
@@ -1782,7 +1774,7 @@
 
                 // Clear field-level validation error as user types/selects.
                 this.$form.on(
-                    "input change",
+                    "input change focus click",
                     "input, select, textarea",
                     (event) => {
                         this.clearFieldValidation($(event.target));
@@ -2373,12 +2365,18 @@
                         }
 
                         const rules = {};
+                        const messages = {};
                         const isRequired =
                             $element.prop("required") ||
                             $element.hasClass("required");
 
                         if (isRequired) {
                             rules.required = true;
+                            const requiredMessage =
+                                this.getRequiredMessage(fieldName);
+                            if (requiredMessage) {
+                                messages.required = requiredMessage;
+                            }
                         }
 
                         const fieldType = $element.attr("type");
@@ -2399,12 +2397,24 @@
                         if (maxlength) rules.maxlength = parseInt(maxlength);
 
                         if (Object.keys(rules).length > 0) {
-                            $element.rules("add", rules);
+                            const rulePayload =
+                                Object.keys(messages).length > 0
+                                    ? { ...rules, messages }
+                                    : rules;
+                            $element.rules("add", rulePayload);
                         }
                     });
             } catch (error) {
                 console.error("Error updating validation rules:", error);
             }
+        },
+
+        getRequiredMessage(fieldName) {
+            const messageMap = {
+                email: "Primary Email Address is required.",
+            };
+
+            return messageMap[fieldName] || null;
         },
 
         resetToDefault() {
@@ -2534,8 +2544,7 @@
                     Accept: "application/json",
                 },
                 success: (response, textStatus, xhr) => {
-                    console.log(response);
-                    // this.onSubmitSuccess(response, textStatus, xhr);
+                    this.onSubmitSuccess(response, textStatus, xhr);
                 },
                 error: (xhr, textStatus, errorThrown) => {
                     this.onSubmitError(xhr, textStatus, errorThrown);

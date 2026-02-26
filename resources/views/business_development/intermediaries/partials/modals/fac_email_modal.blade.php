@@ -262,7 +262,9 @@
 
                     this.isReply = false;
                     this.originalMessage = null;
-                    this.formData = { ...initial };
+                    this.formData = {
+                        ...initial
+                    };
 
                     $('#isReply').val('0');
                     $('#messageId').val('');
@@ -500,19 +502,6 @@
                     }
 
                     toastr.success('Draft saved successfully!');
-
-                    // Uncomment when backend endpoint is ready
-                    /*
-                    $.ajax({
-                        url: '/api/emails/draft',
-                        method: 'POST',
-                        data: formData,
-                        processData: false,
-                        contentType: false,
-                        success: (response) => toastr.success('Draft saved successfully!'),
-                        error: (xhr) => toastr.error('Failed to save draft. Please try again.')
-                    });
-                    */
                 } catch (error) {
                     console.error('Error saving draft:', error);
                     toastr.error(`Error saving draft: ${error.message}`);
@@ -552,7 +541,8 @@
                 $('#confirmPriority').text($(`${CONFIG.selectors.priority} option:selected`).text());
                 $('#confirmCategory').text($(`${CONFIG.selectors.category} option:selected`).text());
                 $('#confirmMessage').text($(CONFIG.selectors.message).val());
-                $('#confirmAttachments').text(isReply && !includeReplyAttachments ? 'None' : ($('#fileCount').text() || 'None'));
+                $('#confirmAttachments').text(isReply && !includeReplyAttachments ? 'None' : ($('#fileCount')
+                    .text() || 'None'));
 
                 $('#replyWarning').toggle(EmailState.isReply);
 
@@ -570,7 +560,6 @@
 
                     sendEmailRequest(formData, $sendBtn, $notificationBtn);
                 } catch (error) {
-                    console.error('Error sending email:', error);
                     toastr.error(`Error sending email: ${error.message}`);
                     resetButtonState($sendBtn, $notificationBtn);
                 }
@@ -592,14 +581,7 @@
                         resetForm();
                     },
                     error: (xhr) => {
-                        console.error('Email send failed:', xhr);
-                        if (xhr.status === 422 && xhr.responseJSON?.errors) {
-                            const firstField = Object.keys(xhr.responseJSON.errors)[0];
-                            const firstMessage = xhr.responseJSON.errors[firstField]?.[0];
-                            toastr.error(firstMessage || 'Validation failed. Please check the form.');
-                            return;
-                        }
-                        toastr.error(xhr.responseJSON?.message || 'Failed to send email. Please try again.');
+                        toastr.error('Failed to send email. Please try again.');
                     },
                     complete: () => {
                         setButtonLoadingState($sendBtn, $notificationBtn, false);
@@ -853,10 +835,12 @@
                     }
                     $(CONFIG.selectors.subject).val(subject).attr('readonly', true);
 
-                    if (message.category && $(CONFIG.selectors.category).find(`option[value="${message.category}"]`).length) {
+                    if (message.category && $(CONFIG.selectors.category).find(`option[value="${message.category}"]`)
+                        .length) {
                         $(CONFIG.selectors.category).val(message.category).trigger('change');
                     }
-                    if (message.priority && $(CONFIG.selectors.priority).find(`option[value="${message.priority}"]`).length) {
+                    if (message.priority && $(CONFIG.selectors.priority).find(`option[value="${message.priority}"]`)
+                        .length) {
                         $(CONFIG.selectors.priority).val(message.priority).trigger('change');
                     }
                     generateReference();

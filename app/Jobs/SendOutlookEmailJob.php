@@ -20,7 +20,7 @@ class SendOutlookEmailJob implements ShouldQueue
     public $timeout = 300;
     public $tries = 3;
     public $maxExceptions = 2;
-    public $backoff = [30, 60, 120]; // Retry after 30s, 1m, 2m
+    public $backoff = [30, 60, 120];
 
     protected array $emailData;
     protected int $userId;
@@ -77,9 +77,6 @@ class SendOutlookEmailJob implements ShouldQueue
         }
     }
 
-    /**
-     * Prepare email payload for Outlook service
-     */
     private function prepareEmailPayload(): array
     {
         $result = [
@@ -103,17 +100,11 @@ class SendOutlookEmailJob implements ShouldQueue
         return $result;
     }
 
-    /**
-     * Send a reply to existing message
-     */
     private function sendNewMessage($user, $outlookService, $emailPayload): array
     {
         return $outlookService->sendEmail($user, $emailPayload);
     }
 
-    /**
-     * Send a reply to existing message
-     */
     private function sendReply($user, $outlookService, $emailPayload): array
     {
         $replyData = [
@@ -125,9 +116,6 @@ class SendOutlookEmailJob implements ShouldQueue
         return $outlookService->sendReplyAll($user, $this->emailData['messageId'], $replyData);
     }
 
-    /**
-     * Build custom headers for email tracking
-     */
     private function buildCustomHeaders(): array
     {
         $headers = [
@@ -162,9 +150,6 @@ class SendOutlookEmailJob implements ShouldQueue
         return $headers;
     }
 
-    /**
-     * Build email body with proper HTML formatting
-     */
     private function buildEmailBody(): string
     {
         $message = $this->emailData['message'] ?? $this->emailData['replyMessage'] ?? null;

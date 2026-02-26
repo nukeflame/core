@@ -130,7 +130,7 @@
             </tr>
             <tr>
                 <td><strong>Business Class</strong></td>
-                <td>{{ $bus_class ? firstUpper($bus_class) : '-' }}</td>
+                <td>{{ firstUpper($bus_class) : '-' }}</td>
             </tr>
             <tr>
                 <td><strong>Period of Cover</strong></td>

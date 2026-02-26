@@ -102,16 +102,24 @@ class Handler extends ExceptionHandler
                 return $this->handleS3AccessDenied($request, $e);
             }
 
+            if ($e instanceof \Illuminate\Validation\ValidationException) {
+                if ($request->expectsJson()) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Please fill all required fields.',
+                        'errors' => $e->errors(),
+                    ], 422);
+                }
+
+                return null;
+            }
+
             if ($request->expectsJson()) {
                 return response()->json([
                     'message' => 'Server Error',
                     'error' => app()->environment('production') ? 'An unexpected error occurred' : $e->getMessage(),
                     'code' => $e->getCode() ?: Response::HTTP_INTERNAL_SERVER_ERROR,
                 ], Response::HTTP_INTERNAL_SERVER_ERROR);
-            }
-
-            if ($e instanceof \Illuminate\Validation\ValidationException) {
-                return;
             }
 
             return response()->view('errors.500', ['exception' => $e], Response::HTTP_INTERNAL_SERVER_ERROR);

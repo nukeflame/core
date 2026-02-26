@@ -68,6 +68,11 @@ class S3AttachmentHandler
                 $attachment = $this->downloadFromS3($file);
 
                 if ($attachment !== null) {
+                    $reinsurerId = is_array($file)
+                        ? ($file['reinsurer_id'] ?? null)
+                        : ($file->reinsurer_id ?? null);
+                    $attachment['reinsurer_id'] = $reinsurerId;
+
                     $attachments[] = $attachment;
                     $tempFiles[] = $attachment['path'];
                 }

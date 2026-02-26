@@ -21,36 +21,29 @@ class SendBDEmailRequest extends FormRequest
      */
     public function rules(): array
     {
-        $rules = [
+        return [
+            'opportunity_id' => 'required|string|max:100',
+            'customer_id' => 'required',
             'subject' => 'required|string|max:255',
             'message' => 'required|string',
-            'to_email' => 'required_without:contacts|string',
-            'contacts' => 'array',
-            'contacts.*' => 'email',
-            'cc_email' => 'array',
-            'cc_email.*' => 'email',
-            'bcc_email' => 'array',
-            'bcc_email.*' => 'email',
+            'reference' => 'required|string|max:100',
             'priority' => 'nullable|in:low,normal,high,urgent',
-            'opportunity_id' => 'nullable|string|max:100',
-            'category' => 'nullable|string|max:100',
-            'reference' => 'nullable|string|max:100',
+            'category' => 'nullable|in:lead,proposal,negotiation,won,lost,final',
+
+            // "to_email" is submitted as a comma-separated string in this form.
+            'to_email' => 'nullable|string',
+            'contacts' => 'nullable|array',
+            'contacts.*' => 'email',
+            'cc_email' => 'nullable|array',
+            'cc_email.*' => 'email',
+            'bcc_email' => 'nullable|array',
+            'bcc_email.*' => 'email',
+
             'is_reply' => 'nullable|boolean',
             'include_reply_attachments' => 'nullable|boolean',
-            'attachments' => 'nullable|array',
-            'customer_id' => 'required',
-            'attachments.*' => 'file|max:51200000', // 50 GB per file
+            'message_id' => 'required_if:is_reply,1|nullable|string',
+            'conversation_id' => 'nullable|string',
         ];
-
-        if ($this->input('is_reply') === true || $this->input('is_reply') === '1') {
-            $rules['message_id'] = 'required|string';
-            $rules['conversation_id'] = 'nullable|string';
-        } else {
-            $rules['message_id'] = 'nullable|string';
-            $rules['conversation_id'] = 'nullable|string';
-        }
-
-        return $rules;
     }
 
     public function messages()
@@ -58,14 +51,46 @@ class SendBDEmailRequest extends FormRequest
         return [
             'subject.required' => 'Email subject is required',
             'message.required' => 'Email message body is required',
-            'to_email.required_without' => 'At least one recipient (to_email or contacts) is required',
+            'opportunity_id.required' => 'Opportunity is required',
+            'customer_id.required' => 'Customer is required',
+            'reference.required' => 'Reference is required',
             'contacts.*.email' => 'Each contact must be a valid email address',
             'cc_email.*.email' => 'Each CC contact must be a valid email address',
             'bcc_email.*.email' => 'Each BCC contact must be a valid email address',
             'priority.in' => 'Priority must be one of: low, normal, high, urgent',
             'message_id.required' => 'Message ID is required when replying to an email',
-            'attachments.*.max' => 'Each attachment must not exceed 4MB',
+            'message_id.required_if' => 'Message ID is required when replying to an email',
         ];
+    }
+
+    public function withValidator($validator): void
+    {
+        $validator->after(function ($validator) {
+            $toEmails = collect(explode(',', (string) $this->input('to_email', '')))
+                ->map(static fn(string $email) => trim($email))
+                ->filter()
+                ->values()
+                ->all();
+
+            foreach ($toEmails as $email) {
+                if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                    $validator->errors()->add('to_email', "Invalid recipient email: {$email}");
+                }
+            }
+
+            $contacts = array_filter((array) $this->input('contacts', []));
+            $cc = array_filter((array) $this->input('cc_email', []));
+            $bcc = array_filter((array) $this->input('bcc_email', []));
+            $isReply = $this->boolean('is_reply');
+
+            if ($isReply && empty($toEmails)) {
+                $validator->errors()->add('to_email', 'Reply recipient is required.');
+            }
+
+            if (!$isReply && empty($toEmails) && empty($contacts) && empty($cc) && empty($bcc)) {
+                $validator->errors()->add('contacts', 'At least one recipient is required.');
+            }
+        });
     }
 
     protected function prepareForValidation()

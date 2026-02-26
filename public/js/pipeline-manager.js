@@ -4479,6 +4479,10 @@ class PipelineManager {
 
         const normalizedStage = this.normalizeStageKey(stageKey);
         const filteredFiles = (filesArray || []).filter((file) => {
+            if (this.isPlacementSlipAttachment(file)) {
+                return false;
+            }
+
             if (normalizedStage === STAGE_NAMES.LEAD) {
                 return !this.isProposalCoverSlipAttachment(file);
             }
@@ -4611,6 +4615,29 @@ class PipelineManager {
             .toLowerCase();
 
         return haystack.includes("lead cover slip");
+    }
+
+    isPlacementSlipAttachment(file) {
+        const exactNames = new Set([
+            "facultative placement slip",
+            "facultatative placement slip",
+            "quotation placement slip",
+        ]);
+
+        const candidates = [
+            file?.description || "",
+            file?.original_name || "",
+            file?.file || "",
+        ];
+
+        return candidates.some((value) => {
+            const normalized = String(value || "")
+                .toLowerCase()
+                .trim()
+                .replace(/\.[^/.]+$/, "")
+                .replace(/\s+/g, " ");
+            return exactNames.has(normalized);
+        });
     }
 
     getFileIconAndType(mimeType, fileName) {

@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
 use App\Services\S3AttachmentHandler;
+use App\Models\User;
 
 class MailService
 {
@@ -41,19 +42,11 @@ class MailService
         ];
     }
 
-    /**
-     * Get emails from Outlook service or database
-     * Maintains compatibility with original method signature
-     */
     public function getEmails(string $folder = 'inbox', int $limit = 50, bool $forceRefresh = false, ?string $search = null): Collection
     {
         return $this->storageService->getStoredEmails($folder, $limit, $search);
     }
 
-    /**
-     * Get folders from Outlook service
-     * Maintains compatibility with original method signature
-     */
     public function getFolders(): Collection
     {
         // return Cache::remember('outlook.folders', 3600, function () {
@@ -67,10 +60,6 @@ class MailService
         return collect();
     }
 
-    /**
-     * Get contacts from Outlook service
-     * Maintains compatibility with original method signature
-     */
     public function getContacts(): Collection
     {
         // return Cache::remember('outlook.contacts', 1800, function () {
@@ -86,10 +75,6 @@ class MailService
         return collect();
     }
 
-    /**
-     * Get users from Outlook service
-     * Maintains compatibility with original method signature
-     */
     public function getOnlineUsers()
     {
         return Cache::remember('outlook.users', 1800, function () {
@@ -132,133 +117,47 @@ class MailService
         return $this->storageService->getStoredEmail($id);
     }
 
-    // public function sendEmail(array $data): bool
-    // {
-    //     if (!$this->auth) {
-    //         return false;
-    //     }
-
-    //     if (empty($data['contacts']) || empty($data['subject']) || empty($data['message'])) {
-    //         return false;
-    //     }
-
-    //     try {
-    //         $recipientNames = ContactNameMappingService::getRecipientNames($data['customer'], $data['allRecipients']);
-
-    //         $attachmentsData = [];
-    //         $tempFiles = [];
-    //         if ($data['attachments'] && count($data['attachments']) > 0) {
-    //             $s3Files = collect($data['attachments'])->toArray();
-    //             $result = $this->s3Handler->prepareAttachmentsFromS3($s3Files);
-
-    //             if (!$result['success']) {
-    //                 return false;
-    //             }
-
-    //             $attachmentsData = $result['attachments'];
-    //             $tempFiles = $result['temp_files'];
-    //         }
-
-    //         $successCount = 0;
-    //         $failedCount = 0;
-
-    //         $dataPayload = [
-    //             'subject'       => $data['subject'],
-    //             'priority'      => $data['priority'] ?? 'normal',
-    //             'category'      => $data['category'],
-    //             'reference'     => $data['reference'],
-    //             'attachments'   => $attachmentsData,
-    //             'tempFiles'     => $tempFiles,
-    //             'senderName'    => $this->auth->name,
-    //             'senderEmail'   => $this->auth->email,
-    //             'cc'            => $data['ccEmail'] ?? [],
-    //             'bcc'           => $data['bccEmail'] ?? [],
-    //         ];
-
-    //         if ($data['replyToId']) {
-    //             $dataPayload['replyToId'] = $data['replyToId'];
-    //             $dataPayload['replyMessage'] = $rawMessage ?? '';
-    //             $dataPayload['messageId'] = $data['messageId'];
-    //             $dataPayload['to'] = $data['allRecipients'];
-    //             $dataPayload['conversationId'] = $data['conversationId'];
-    //             $jobId = $this->batchId . '-';
-
-    //             SendOutlookEmailJob::dispatch($dataPayload, $this->auth->id, $jobId);
-    //         }
-
-    //         foreach ($data['allRecipients'] as $index => $recipient) {
-    //             try {
-    //                 $jobId = $this->batchId . '-' . ($index + 1);
-
-    //                 if (is_array($recipient)) {
-    //                     $recipientEmail = $recipient;
-    //                 } elseif (is_string($recipient)) {
-    //                     $recipientEmail = strpos($recipient, ',') !== false
-    //                         ? explode(',', $recipient)
-    //                         : [$recipient];
-    //                 } else {
-    //                     $recipientEmail = [$recipient];
-    //                 }
-
-    //                 $recipientEmail = array_map('trim', $recipientEmail);
-
-    //                 $recipientName = $recipientNames[$recipient] ?? 'Sir/Madam';
-    //                 $personalizedMessage = $this->formatMessageForHtml($data['message'], $recipientName);
-    //                 $rawMessage = $this->formatRawMessageForHtml($data['message']);
-
-    //                 $dataPayload = [
-    //                     'subject'       => $data['subject'],
-    //                     'priority'      => $data['priority'] ?? 'normal',
-    //                     'category'      => $data['category'],
-    //                     'reference'     => $data['reference'],
-    //                     'attachments'   => $attachmentsData,
-    //                     'tempFiles'     => $tempFiles,
-    //                     'senderName'    => $this->auth->name,
-    //                     'senderEmail'   => $this->auth->email,
-    //                     'recipientName' => $recipientName,
-    //                     'to'            => $recipientEmail,
-    //                     'cc'            => $data['ccEmail'] ?? [],
-    //                     'bcc'           => $data['bccEmail'] ?? [],
-    //                 ];
-
-    //                 if (!$data['replyToId']) {
-    //                     $dataPayload['message'] = $personalizedMessage;
-    //                     SendOutlookEmailJob::dispatch($dataPayload, $this->auth->id, $jobId);
-    //                 }
-
-    //                 $successCount++;
-    //             } catch (\Exception $e) {
-    //                 $failedCount++;
-    //             }
-    //         }
-
-    //         return true;
-    //     } catch (\Exception $e) {
-
-    //         if (!empty($tempFiles)) {
-    //             $this->s3Handler->cleanupTempFiles($tempFiles);
-    //         }
-    //         return false;
-    //     }
-    // }
-
-    public function sendEmail(array $data): bool
+    public function sendEmail(array $data, ?int $userId = null): bool
     {
-        if (!$this->auth) {
+        $authUser = $this->resolveSender($userId);
+        if (!$authUser) {
             return false;
         }
 
-        if (empty($data['contacts']) || empty($data['subject']) || empty($data['message'])) {
+        if (empty($data['subject']) || empty($data['message'])) {
+            return false;
+        }
+
+        $allRecipients = $data['allRecipients'] ?? [];
+        if (empty($allRecipients)) {
+            $allRecipients = array_merge(
+                (array) ($data['toEmails'] ?? []),
+                (array) ($data['contacts'] ?? []),
+                (array) ($data['ccEmail'] ?? []),
+                (array) ($data['bccEmail'] ?? [])
+            );
+        }
+
+        $allRecipients = array_values(array_filter(array_map(static function ($recipient) {
+            if (is_string($recipient)) {
+                return trim($recipient);
+            }
+            return $recipient;
+        }, (array) $allRecipients)));
+
+        if (empty($allRecipients)) {
             return false;
         }
 
         try {
-            $recipientNames = ContactNameMappingService::getRecipientNames($data['customer'], $data['allRecipients']);
+            $recipientNames = ContactNameMappingService::getRecipientNames($data['customer'], $allRecipients);
 
             $attachmentsData = [];
             $tempFiles = [];
             if ($data['attachments'] && count($data['attachments']) > 0) {
-                $s3Files = collect($data['attachments'])->toArray();
+                $attachment = $this->renameDataAttachements($data['attachments']);
+                $s3Files = collect($attachment)->toArray();
+
                 $result = $this->s3Handler->prepareAttachmentsFromS3($s3Files);
 
                 if (!$result['success']) {
@@ -271,6 +170,7 @@ class MailService
 
             $successCount = 0;
             $failedCount = 0;
+            $recipientReinsurerMap = $this->buildRecipientReinsurerMap($allRecipients);
 
             if ($data['replyToId']) {
                 $rawMessage = $this->formatRawMessageForHtml($data['message']);
@@ -282,27 +182,26 @@ class MailService
                     'reference'     => $data['reference'],
                     'attachments'   => $attachmentsData,
                     'tempFiles'     => $tempFiles,
-                    'senderName'    => $this->auth->name,
-                    'senderEmail'   => $this->auth->email,
+                    'senderName'    => $authUser->name,
+                    'senderEmail'   => $authUser->email,
                     'cc'            => $data['ccEmail'] ?? [],
                     'bcc'           => $data['bccEmail'] ?? [],
                     'replyToId'     => $data['replyToId'],
                     'replyMessage'  => $rawMessage,
                     'messageId'     => $data['messageId'],
-                    'to'            => $data['allRecipients'],
+                    'to'            => $allRecipients,
                     'conversationId' => $data['conversationId'],
                 ];
 
                 $jobId = $this->batchId . '-reply';
-                SendOutlookEmailJob::dispatch($dataPayload, $this->auth->id, $jobId);
+                SendOutlookEmailJob::dispatch($dataPayload, $authUser->id, $jobId);
                 return true;
             }
 
-            foreach ($data['allRecipients'] as $index => $recipient) {
+            foreach ($allRecipients as $index => $recipient) {
                 try {
                     $jobId = $this->batchId . '-' . ($index + 1);
 
-                    // Normalize recipient to array format
                     if (is_array($recipient)) {
                         $recipientEmail = $recipient;
                         $recipientKey = implode(',', $recipient);
@@ -316,9 +215,14 @@ class MailService
                         $recipientKey = $recipient;
                     }
 
-                    // Get recipient name for personalization
+                    $recipientAttachments = $this->filterAttachmentsForRecipient(
+                        $attachmentsData,
+                        $recipientEmail,
+                        $recipientReinsurerMap
+                    );
+
                     $recipientName = $recipientNames[$recipientKey] ?? 'Sir/Madam';
-                    $personalizedMessage = $this->formatMessageForHtml($data['message'], $recipientName);
+                    $personalizedMessage = $this->formatMessageForHtml($data['message'], $recipientName, $authUser->name);
 
                     $dataPayload = [
                         'subject'       => $data['subject'],
@@ -326,17 +230,17 @@ class MailService
                         'priority'      => $data['priority'] ?? 'normal',
                         'category'      => $data['category'],
                         'reference'     => $data['reference'],
-                        'attachments'   => $attachmentsData,
+                        'attachments'   => $recipientAttachments,
                         'tempFiles'     => $tempFiles,
-                        'senderName'    => $this->auth->name,
-                        'senderEmail'   => $this->auth->email,
+                        'senderName'    => $authUser->name,
+                        'senderEmail'   => $authUser->email,
                         'recipientName' => $recipientName,
                         'to'            => $recipientEmail,
                         'cc'            => $data['ccEmail'] ?? [],
                         'bcc'           => $data['bccEmail'] ?? [],
                     ];
 
-                    SendOutlookEmailJob::dispatch($dataPayload, $this->auth->id, $jobId);
+                    SendOutlookEmailJob::dispatch($dataPayload, $authUser->id, $jobId);
                     $successCount++;
                 } catch (\Exception $e) {
                     $failedCount++;
@@ -352,7 +256,149 @@ class MailService
         }
     }
 
-    private function formatMessageForHtml($message, $recipientName = 'Sir/Madam')
+    private function renameDataAttachements($files)
+    {
+        return collect($files)->map(function ($file) {
+            $isArray = is_array($file);
+            $originalName = trim((string) data_get($file, 'original_name', ''));
+
+            if ($originalName === '') {
+                return $file;
+            }
+
+            $extension = pathinfo((string) data_get($file, 'file', ''), PATHINFO_EXTENSION);
+            if ($extension === '') {
+                $extension = pathinfo($originalName, PATHINFO_EXTENSION);
+            }
+            $extension = $extension !== '' ? strtolower($extension) : 'pdf';
+
+            $normalizedOriginal = Str::lower($originalName);
+            if (Str::contains($normalizedOriginal, 'facultative placement slip')) {
+                $baseName = 'Facultative Placement Slip';
+            } elseif (Str::contains($normalizedOriginal, 'quotation placement slip')) {
+                $baseName = 'Quotation Placement Slip';
+            } else {
+                $parts = preg_split('/\s*-\s*/', $originalName);
+                $baseName = trim((string) ($parts[0] ?? $originalName));
+                if ($baseName === '') {
+                    $baseName = $originalName;
+                }
+            }
+
+            $newFileName = $baseName . '.' . $extension;
+
+            if ($isArray) {
+                $file['file'] = $newFileName;
+                $file['original_name'] = $baseName;
+                return $file;
+            }
+
+            $file->file = $newFileName;
+            $file->original_name = $baseName;
+            return $file;
+        })->values()->all();
+    }
+
+    private function buildRecipientReinsurerMap(array $recipients): array
+    {
+        $emails = collect($recipients)
+            ->flatMap(function ($recipient) {
+                if (is_array($recipient)) {
+                    return $recipient;
+                }
+                return [$recipient];
+            })
+            ->filter(fn($email) => is_string($email) && trim($email) !== '')
+            ->map(fn($email) => strtolower(trim($email)))
+            ->unique()
+            ->values()
+            ->all();
+
+        if (empty($emails)) {
+            return [];
+        }
+
+        $customerEmailMap = [];
+        DB::table('customers')
+            ->whereIn(DB::raw('LOWER(email)'), $emails)
+            ->get(['email', 'customer_id'])
+            ->each(function ($row) use (&$customerEmailMap) {
+                $email = strtolower(trim((string) $row->email));
+                if ($email === '') {
+                    return;
+                }
+
+                $customerId = (int) $row->customer_id;
+                if ($customerId <= 0) {
+                    return;
+                }
+
+                $customerEmailMap[$email][] = $customerId;
+            });
+
+        $contactEmailMap = [];
+        DB::table('customer_contacts')
+            ->whereIn(DB::raw('LOWER(contact_email)'), $emails)
+            ->get(['contact_email', 'customer_id'])
+            ->each(function ($row) use (&$contactEmailMap) {
+                $email = strtolower(trim((string) $row->contact_email));
+                if ($email === '') {
+                    return;
+                }
+
+                $customerId = (int) $row->customer_id;
+                if ($customerId <= 0) {
+                    return;
+                }
+
+                $contactEmailMap[$email][] = $customerId;
+            });
+
+        $map = [];
+        foreach ($emails as $email) {
+            $ids = $contactEmailMap[$email] ?? $customerEmailMap[$email] ?? [];
+            $map[$email] = array_values(array_unique(array_map('intval', $ids)));
+        }
+
+        return $map;
+    }
+
+    private function filterAttachmentsForRecipient(array $attachments, array $recipientEmails, array $recipientReinsurerMap): array
+    {
+        $recipientIds = collect($recipientEmails)
+            ->filter(fn($email) => is_string($email) && trim($email) !== '')
+            ->map(fn($email) => strtolower(trim($email)))
+            ->flatMap(fn($email) => $recipientReinsurerMap[$email] ?? [])
+            ->map(fn($id) => (int) $id)
+            ->filter(fn($id) => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+
+        return array_values(array_filter($attachments, function ($attachment) use ($recipientIds) {
+            $attachmentReinsurerId = data_get($attachment, 'reinsurer_id');
+            if ($attachmentReinsurerId === null || $attachmentReinsurerId === '') {
+                return true;
+            }
+
+            if (empty($recipientIds)) {
+                return false;
+            }
+
+            return in_array((int) $attachmentReinsurerId, $recipientIds, true);
+        }));
+    }
+
+    private function resolveSender(?int $userId = null): ?User
+    {
+        if ($userId !== null && $userId > 0) {
+            return User::find($userId);
+        }
+
+        return $this->auth instanceof User ? $this->auth : null;
+    }
+
+    private function formatMessageForHtml($message, $recipientName = 'Sir/Madam', ?string $senderName = null)
     {
         $personalizedMessage = str_replace(
             ['{recipient_name}', '{recipient}'],
@@ -381,7 +427,8 @@ class MailService
         }
 
         if (!preg_match('/(Best regards|Sincerely|Kind regards|Yours faithfully)/i', $html)) {
-            $html .= "<p>Best regards,<br>" . auth()->user()->name . "</p>";
+            $sender = $senderName ?: ($this->auth?->name ?? 'System');
+            $html .= "<p>Best regards,<br>" . $sender . "</p>";
         }
 
         return $html;

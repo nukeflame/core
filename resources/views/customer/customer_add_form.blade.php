@@ -55,6 +55,8 @@
 
     <form action="{{ isset($customer) ? route('customer.update', $customer->customer_id) : route('customer.store') }}"
         method="POST" id="customerForm" data-redirect-url="{{ route('customer.info') }}"
+        data-check-name-url="{{ route('customer.check_name_unique') }}"
+        data-customer-id="{{ $editCustomer?->customer_id ?? '' }}"
         data-dynamic-values='@json($dynamicValues)' novalidate aria-label="{{ __('Customer creation form') }}">
         @csrf
         @if (isset($customer))

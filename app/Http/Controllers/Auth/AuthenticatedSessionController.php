@@ -9,6 +9,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
 
 class AuthenticatedSessionController extends Controller
@@ -39,13 +40,21 @@ class AuthenticatedSessionController extends Controller
         $user = $request->user();
 
         if ($user) {
-            DB::table('oauth_tokens')
-                ->where('provider', 'outlook')
-                ->where(function ($query) use ($user) {
-                    $query->where('user_id', $user->id)
-                        ->orWhere('email', $user->email);
-                })
-                ->delete();
+            try {
+                DB::table('oauth_tokens')
+                    ->where('provider', 'outlook')
+                    ->where(function ($query) use ($user) {
+                        $query->where('user_id', $user->id)
+                            ->orWhere('email', $user->email);
+                    })
+                    ->delete();
+            } catch (\Throwable $e) {
+                Log::warning('Unable to cleanup outlook tokens during logout', [
+                    'user_id' => $user->id,
+                    'email' => $user->email,
+                    'error' => $e->getMessage(),
+                ]);
+            }
         }
 
         Auth::guard('web')->logout();

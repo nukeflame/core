@@ -3,194 +3,84 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 
 class StoreCustomerRequest extends FormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     */
     public function authorize(): bool
     {
         return true;
     }
 
-    /**
-     * Get the validation rules that apply to the request.
-     */
     public function rules(): array
     {
-        $rules = [
-            'partnerName' => [
-                'sometimes',
-                'string',
-                'max:255',
-                Rule::unique('customers', 'partner_name')->whereNull('deleted_at'),
-            ],
-            'customerType' => 'sometimes|array|min:1',
-            'customerType.*' => 'required|exists:customer_types,type_id',
-            'email' => [
-                'sometimes',
-                'email:rfc,dns',
-                'max:255',
-                Rule::unique('customers', 'email')->whereNull('deleted_at'),
-            ],
-            'telephone' => 'sometimes|string|max:50',
+        $isUpdate = $this->isMethod('put') || $this->isMethod('patch') || $this->route('customerId');
+        $partnerNameRule = $isUpdate
+            ? 'required|string|max:255'
+            : 'required|string|max:255|unique:customers,name';
 
-            'incorporationNo' => 'nullable|string|max:100',
-            'taxNo' => 'nullable|string|max:100',
-            'identityType' => 'nullable|string|max:100',
-            'identityNo' => 'nullable|string|max:100',
+        return [
+            'partnerName' => $partnerNameRule,
+            'customerType' => 'required|array|min:1',
+            'customerType.*' => 'required|exists:customer_types,type_id',
+            'email' => 'required|email|max:255',
+            'telephone' => 'required|string|max:20',
+
+            'incorporationNo' => 'required|string|max:255',
+            'taxNo' => 'required|string|max:255',
+            'identityType' => 'nullable|string|max:50',
+            'identityNo' => 'nullable|string|max:50',
             'website' => 'nullable|string|max:255',
 
             'securityRating' => 'nullable|string|max:50',
             'ratingAgency' => 'nullable|string|max:100',
-            'ratingDate' => 'nullable|date|before_or_equal:today',
+            'ratingDate' => 'nullable|date',
             'regulatorLicenseNo' => 'nullable|string|max:100',
             'licensingAuthority' => 'nullable|string|max:255',
             'licensingTerritory' => 'nullable|string|max:100',
             'amlDetails' => 'nullable|string|max:1000',
-            'insuredType' => 'nullable|string|in:Individual,Corporate',
+            'insuredType' => 'nullable|string|max:50',
             'industryOccupation' => 'nullable|string|max:255',
-            'dateOfBirthIncorporation' => 'nullable|date|before_or_equal:today',
+            'dateOfBirthIncorporation' => 'nullable|date',
 
-            'country' => 'required|string|exists:countries,country_iso',
-            'street' => 'sometimes|string|max:500',
-            'city' => 'sometimes|string|max:100',
+            'country' => 'required|string|size:3|exists:countries,country_iso',
+            'street' => 'required|string|max:255',
+            'city' => 'required|string|max:100',
             'state' => 'nullable|string|max:100',
-            'postalCode' => 'sometimes|string|max:20',
+            'postalCode' => 'required|string|max:20',
 
-            'financialRating' => 'nullable|string|in:AAA,AA,A,BBB,BB,B,CCC,NR',
-            'agencyRating' => 'nullable|string|max:50',
+            'financialRating' => 'nullable|string|max:10',
+            'agencyRating' => 'nullable|string|max:10',
 
-            'contacts' => 'required|array|min:1|max:10',
-            'contacts.*.name' => 'sometimes|string|max:255',
-            'contacts.*.position' => 'sometimes|string|max:100',
-            'contacts.*.mobile' => 'sometimes|string|max:50',
-            'contacts.*.email' => 'sometimes|email:rfc|max:255',
+            'contacts' => 'required|array|min:1',
+            'contacts.*.id' => 'nullable|integer|exists:customer_contacts,id',
             'contacts.*.department' => 'nullable|string|in:executive,underwriting,claims,sales,marketing,finance,technical,operations,legal,hr,other',
+            'contacts.*.name' => 'required|string|max:255',
+            'contacts.*.position' => 'required|string|max:100',
+            'contacts.*.mobile' => 'required|string|max:20',
+            'contacts.*.email' => 'required|email|max:255',
             'contacts.*.isPrimary' => 'nullable|boolean',
             'contacts.*.order' => 'nullable|integer|min:0',
         ];
-
-        // $this->applyTypeSpecificRules($rules);
-
-        return $rules;
-    }
-
-    protected function applyTypeSpecificRules(array &$rules): void
-    {
-        $customerTypes = $this->input('customerType', []);
-        $typeSlugs = $this->getTypeSlugs($customerTypes);
-
-        if (in_array('reinsurer', $typeSlugs)) {
-            $rules['incorporationNo'] = 'required|string|max:100';
-        }
-
-        if (in_array('cedant', $typeSlugs)) {
-            $rules['incorporationNo'] = 'required|string|max:100';
-            $rules['taxNo'] = 'required|string|max:100';
-            $rules['regulatorLicenseNo'] = 'required|string|max:100';
-            $rules['licensingTerritory'] = 'required|string|max:100';
-        }
-
-        if (in_array('reinsurance_broker', $typeSlugs)) {
-            $rules['incorporationNo'] = 'required|string|max:100';
-            $rules['taxNo'] = 'required|string|max:100';
-            $rules['regulatorLicenseNo'] = 'required|string|max:100';
-            $rules['licensingAuthority'] = 'required|string|max:255';
-            $rules['licensingTerritory'] = 'required|string|max:100';
-            $rules['contacts'] = 'required|array|min:2|max:10';
-        }
-
-        if (in_array('insurance_broker', $typeSlugs)) {
-            $rules['incorporationNo'] = 'required|string|max:100';
-            $rules['taxNo'] = 'required|string|max:100';
-            $rules['regulatorLicenseNo'] = 'required|string|max:100';
-            $rules['licensingAuthority'] = 'required|string|max:255';
-            $rules['licensingTerritory'] = 'required|string|max:100';
-            $rules['contacts'] = 'required|array|min:2|max:10';
-        }
-
-        if (in_array('insured', $typeSlugs)) {
-            $rules['identityType'] = 'required|string|max:100';
-            $rules['identityNo'] = 'required|string|max:100';
-            $rules['insuredType'] = 'required|string|in:Individual,Corporate';
-            $rules['industryOccupation'] = 'required|string|max:255';
-            $rules['dateOfBirthIncorporation'] = 'required|date|before_or_equal:today';
-        }
-    }
-
-    protected function getTypeSlugs(array $typeIds): array
-    {
-        if (empty($typeIds)) {
-            return [];
-        }
-
-        $typeMapping = [
-            '1' => 'reinsurer',
-            '2' => 'cedant',
-            '3' => 'reinsurance_broker',
-            '4' => 'insured',
-            '5' => 'insurance_broker',
-        ];
-
-        $slugs = [];
-        foreach ($typeIds as $typeId) {
-            if (isset($typeMapping[$typeId])) {
-                $slugs[] = $typeMapping[$typeId];
-            }
-        }
-
-        return $slugs;
     }
 
     public function messages(): array
     {
         return [
-            'partnerName.required' => 'The legal/trading name is required.',
-            'partnerName.unique' => 'A customer with this name already exists.',
-            'partnerName.max' => 'The name cannot exceed 255 characters.',
-            'customerType.required' => 'Please select at least one entity type.',
-            'customerType.*.exists' => 'The selected entity type is invalid.',
-            'email.required' => 'The primary email address is required.',
-            'email.email' => 'Please enter a valid email address.',
-            'email.unique' => 'A customer with this email already exists.',
-            'telephone.required' => 'The primary telephone number is required.',
-
-            'incorporationNo.required' => 'The registration/incorporation number is required for this entity type.',
-            'taxNo.required' => 'The tax identification number is required for this entity type.',
-            'identityType.required' => 'The identity document type is required for this entity type.',
-            'identityNo.required' => 'The identity document number is required for this entity type.',
-            'website.url' => 'Please enter a valid website URL.',
-
-            'regulatorLicenseNo.required' => 'The regulator license number is required for this entity type.',
-            'licensingAuthority.required' => 'The licensing authority is required for this entity type.',
-            'licensingTerritory.required' => 'The licensing territory is required for this entity type.',
-            'amlDetails.required' => 'AML details are required for this entity type.',
-            'insuredType.required' => 'Please specify whether this is an Individual or Corporate insured.',
-            'industryOccupation.required' => 'The industry/occupation is required for this entity type.',
-            'dateOfBirthIncorporation.required' => 'The date of birth/incorporation is required for this entity type.',
-            'ratingDate.before_or_equal' => 'The rating date cannot be in the future.',
-            'dateOfBirthIncorporation.before_or_equal' => 'The date cannot be in the future.',
-
-            'country.required' => 'Please select the country of incorporation/citizenship.',
-            'country.exists' => 'The selected country is invalid.',
-            'street.required' => 'The street address is required.',
-            'city.required' => 'The city/town is required.',
-            'postalCode.required' => 'The postal/ZIP code is required.',
-
-            'financialRating.in' => 'The selected financial rating is invalid.',
-
-            'contacts.required' => 'At least one contact person is required.',
-            'contacts.min' => 'At least :min contact(s) are required for this entity type.',
-            'contacts.max' => 'A maximum of :max contacts are allowed.',
-            'contacts.*.name.required' => 'Contact name is required.',
-            'contacts.*.position.required' => 'Contact position is required.',
-            'contacts.*.mobile.required' => 'Contact mobile number is required.',
-            'contacts.*.email.required' => 'Contact email is required.',
-            'contacts.*.email.email' => 'Please enter a valid email address for the contact.',
-            'contacts.*.department.in' => 'The selected department is invalid.',
+            'partnerName.required' => 'Legal/Trading Name is required.',
+            'partnerName.unique' => 'Legal/Trading Already added.',
+            'customerType.required' => 'Entity Type is required.',
+            'email.required' => 'Primary Email Address is required.',
+            'telephone.required' => 'Primary Telephone is required.',
+            'incorporationNo.required' => 'Registration/Incorporation Number is required.',
+            'taxNo.required' => 'Tax Identification Number is required.',
+            'country.required' => 'Country is required.',
+            'street.required' => 'Street Address is required.',
+            'city.required' => 'City/Town is required.',
+            'postalCode.required' => 'Postal/ZIP Code is required.',
+            'contacts.*.name.required' => 'Primary Contact Name is required.',
+            'contacts.*.position.required' => 'Primary Contact Position is required.',
+            'contacts.*.mobile.required' => 'Primary Contact Mobile Number is required.',
+            'contacts.*.email.required' => 'Primary Contact Email is required.',
         ];
     }
 
@@ -282,7 +172,7 @@ class StoreCustomerRequest extends FormRequest
         if ($this->expectsJson()) {
             throw new \Illuminate\Validation\ValidationException($validator, response()->json([
                 'success' => false,
-                'message' => 'Please correct the errors below.',
+                'message' => 'Please fill all required fields.',
                 'errors' => $validator->errors(),
             ], 422));
         }
