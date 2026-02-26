@@ -186,6 +186,8 @@ Route::middleware(['auth', 'check.first.login'])->group(function () {
     Route::get('/leads_listing', [LeadsOnboardingController::class, 'listing'])->name('leads.listing');
     Route::post('/leads_listing/import-pipeline-opportunities', [LeadsOnboardingController::class, 'importPipelineOpportunities'])
         ->name('leads.import.pipeline_opportunities');
+    Route::post('/leads_listing/import-pipeline-opportunities/preview', [LeadsOnboardingController::class, 'previewPipelineOpportunitiesImport'])
+        ->name('leads.import.pipeline_opportunities.preview');
     Route::get('/leads_listing/import-pipeline-opportunities/sample', [LeadsOnboardingController::class, 'downloadPipelineOpportunitySample'])
         ->name('leads.import.pipeline_opportunities.sample');
 

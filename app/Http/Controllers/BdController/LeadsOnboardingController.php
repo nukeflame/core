@@ -22,6 +22,7 @@ use App\Models\Bd\Leads\Leads;
 use App\Models\Bd\Leads\LeadsSource;
 use App\Models\Bd\Leads\LeadStatus;
 use App\Models\Bd\PipelineOpportunity;
+use App\Models\Bd\Prospects;
 use App\Models\CoverRegister;
 use App\Models\CoverType;
 use App\Models\Currency;
@@ -42,8 +43,11 @@ use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
+use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Yajra\Datatables\Datatables;
 use App\Repositories\ProspectRepository;
 use App\Services\PipelineService;
@@ -506,67 +510,125 @@ class LeadsOnboardingController
 
     public function downloadPipelineOpportunitySample()
     {
-        $headers = [
-            'Content-Type' => 'text/csv',
-            'Content-Disposition' => 'attachment; filename="pipeline_opportunities_sample.csv"',
-        ];
-
         $columns = [
-            'opportunity_id',
-            'customer_id',
-            'cedant_name',
-            'insured_name',
-            'type_of_bus',
-            'classcode',
-            'divisions',
-            'cede_premium',
-            'comm_rate',
-            'probability',
-            'priority',
-            'status',
-            'effective_date',
-            'closing_date',
-            'expiry_date',
-            'client_category',
-            'stage',
-            'pip_year',
-            'contact_name',
-            'email',
-            'phone',
-            'telephone',
+            'Type of Business',
+            'Cedant',
+            'Lead Type',
+            'Lead Name',
+            'Year',
+            'Insured Category',
+            'Country',
+            'Branch',
+            'Contact Full Name',
+            'Email Address',
+            'Mobile',
+            'Division',
+            'Class Group',
+            'Class Name',
+            'Insured Name',
+            'Industry',
+            'Expected Closure Date',
+            'Currency',
+            '100% Sum Insured',
+            'Sum Insured Type',
+            'EML',
+            'Cedant Premium',
+            'Reinsurer Premium',
+            'Written Share(%)',
+            'Cedant Comm Rate(%)',
+            'Cedant Comm Amount',
+            'Reinsurance Commission',
+            'Brokerage',
+            'Cover start Date',
+            'Cover End Date',
+            'Prospect Lead',
         ];
 
-        $sampleRow = [
-            '',
-            '',
-            'ABC Insurance Ltd',
-            'ABC Manufacturing Ltd',
-            'FPR',
-            '',
-            '',
-            '2500000',
-            '10',
-            '60',
-            'high',
-            'active',
-            now()->format('Y-m-d'),
-            now()->addDays(30)->format('Y-m-d'),
-            now()->addYear()->format('Y-m-d'),
-            'N',
-            '1',
-            now()->year,
-            'John Doe',
-            'john.doe@example.com',
-            '+254700000000',
-            '',
-        ];
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
 
-        return response()->streamDownload(function () use ($columns, $sampleRow) {
-            $output = fopen('php://output', 'w');
-            fputcsv($output, $columns);
-            fputcsv($output, $sampleRow);
-            fclose($output);
-        }, 'pipeline_opportunities_sample.csv', $headers);
+        // Keep first two rows intentionally empty to match existing pipeline update template structure.
+        $sheet->fromArray($columns, null, 'A3');
+        $sheet->fromArray([
+            [
+                'Facultative Proportional',
+                'ABC Insurance Ltd',
+                'Insurance',
+                'John Doe',
+                (string) now()->year,
+                'New Prospect',
+                'Kenya',
+                'Head Office',
+                'John Doe',
+                'john.doe@example.com',
+                '+254700000000',
+                'General Reinsurance',
+                'Special Lines',
+                'Professional Indemnity',
+                'ABC Manufacturing Ltd',
+                'Manufacturing',
+                now()->addDays(30)->format('Y-m-d'),
+                'KES',
+                '50000000',
+                'Total Sum Insured',
+                '10000000',
+                '2500000',
+                '1500000',
+                '60',
+                '10',
+                '250000',
+                '8',
+                '2',
+                now()->format('Y-m-d'),
+                now()->addYear()->format('Y-m-d'),
+                'John Doe',
+            ],
+            [
+                'Facultative Proportional',
+                'XYZ Insurance Ltd',
+                'Insurance',
+                'Jane Doe',
+                (string) now()->year,
+                'Old Prospect',
+                'Kenya',
+                'Head Office',
+                'Jane Doe',
+                'jane.doe@example.com',
+                '+254711111111',
+                'General Reinsurance',
+                'Special Lines',
+                'Fire',
+                'XYZ Industries Ltd',
+                'Manufacturing',
+                now()->addDays(45)->format('Y-m-d'),
+                'USD',
+                '1250000',
+                'Total Sum Insured',
+                '250000',
+                '85000',
+                '60000',
+                '70',
+                '12.5',
+                '10625',
+                '10',
+                '1.5',
+                now()->addDays(10)->format('Y-m-d'),
+                now()->addYear()->addDays(10)->format('Y-m-d'),
+                'Jane Doe',
+            ],
+        ], null, 'A4');
+
+        $lastColumn = Coordinate::stringFromColumnIndex(count($columns));
+        $sheet->getStyle("A3:{$lastColumn}3")->getFont()->setBold(true);
+
+        $writer = new Xlsx($spreadsheet);
+
+        return response()->streamDownload(function () use ($writer) {
+            $writer->save('php://output');
+        }, 'pipeline_opportunities_sample.xlsx', [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Content-Disposition' => 'attachment; filename="pipeline_opportunities_sample.xlsx"',
+        ]);
     }
 
     public function importPipelineOpportunities(Request $request)
@@ -584,17 +646,30 @@ class LeadsOnboardingController
             $spreadsheet = IOFactory::load($file->getRealPath());
             $rows = $spreadsheet->getActiveSheet()->toArray(null, true, true, false);
 
-            if (empty($rows) || empty($rows[0])) {
-                return back()->with('error', 'The import file is empty.');
+            if (empty($rows)) {
+                return $this->importPipelineResponse($request, false, 'The import file is empty.');
             }
 
-            $headers = array_map(fn($h) => $this->normalizeImportHeader($h), $rows[0]);
-            $rows = array_slice($rows, 1);
+            $headerRowIndex = $this->detectImportHeaderRow($rows);
+            if ($headerRowIndex === null) {
+                return $this->importPipelineResponse($request, false, 'Import failed: unable to find a valid header row in the uploaded file.');
+            }
+
+            $headers = array_map(fn($h) => $this->normalizeImportHeader($h), $rows[$headerRowIndex]);
+            if (! $this->headersMatchTemplate($headers)) {
+                return $this->importPipelineResponse(
+                    $request,
+                    false,
+                    'Import failed: file headers do not match the required template. Please use the downloaded sample file.'
+                );
+            }
+
+            $rows = array_slice($rows, $headerRowIndex + 1);
 
             DB::beginTransaction();
 
             foreach ($rows as $index => $row) {
-                $rowNumber = $index + 2;
+                $rowNumber = $index + $headerRowIndex + 2;
 
                 if (collect($row)->filter(fn($v) => trim((string) $v) !== '')->isEmpty()) {
                     continue;
@@ -629,16 +704,104 @@ class LeadsOnboardingController
         } catch (\Throwable $e) {
             DB::rollBack();
 
-            return back()->with('error', 'Import failed: ' . $e->getMessage());
+            return $this->importPipelineResponse($request, false, 'Import failed: ' . $e->getMessage());
         }
 
         $message = "Import completed. Created: {$created}, Skipped: {$skipped}.";
 
         if (! empty($errors)) {
+            if ($request->ajax() || $request->expectsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => $message,
+                    'import_errors' => $errors,
+                    'created' => $created,
+                    'skipped' => $skipped,
+                ]);
+            }
+
             return back()->with('warning', $message)->with('import_errors', $errors);
         }
 
-        return back()->with('success', $message);
+        return $this->importPipelineResponse($request, true, $message, [
+            'created' => $created,
+            'skipped' => $skipped,
+        ]);
+    }
+
+    public function previewPipelineOpportunitiesImport(Request $request)
+    {
+        $request->validate([
+            'import_file' => 'required|file|mimes:csv,txt,xls,xlsx',
+        ]);
+
+        $file = $request->file('import_file');
+        $spreadsheet = IOFactory::load($file->getRealPath());
+        $rows = $spreadsheet->getActiveSheet()->toArray(null, true, true, false);
+
+        if (empty($rows)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'The uploaded file is empty.',
+            ], 422);
+        }
+
+        $headerRowIndex = $this->detectImportHeaderRow($rows);
+        if ($headerRowIndex === null) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unable to find a valid header row in the uploaded file.',
+            ], 422);
+        }
+
+        $rawHeaders = $rows[$headerRowIndex];
+        $normalizedHeaders = array_map(fn($h) => $this->normalizeImportHeader($h), $rawHeaders);
+        if (! $this->headersMatchTemplate($normalizedHeaders)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'File headers do not match the required template. Please use the downloaded sample file.',
+            ], 422);
+        }
+
+        $headers = collect($rawHeaders)->map(fn($h) => trim((string) $h))->filter()->values()->all();
+
+        $dataRows = array_slice($rows, $headerRowIndex + 1);
+        $nonEmptyRows = collect($dataRows)
+            ->filter(fn($row) => collect($row)->filter(fn($value) => trim((string) $value) !== '')->isNotEmpty())
+            ->values();
+
+        $previewRows = $nonEmptyRows->take(8)->map(function ($row) use ($normalizedHeaders) {
+            $mapped = [];
+            foreach ($normalizedHeaders as $i => $key) {
+                if ($key === '') {
+                    continue;
+                }
+                $mapped[$key] = $row[$i] ?? '';
+            }
+            return $mapped;
+        })->values();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Preview generated successfully.',
+            'headers' => $headers,
+            'header_keys' => collect($headers)->map(fn($h) => $this->normalizeImportHeader($h))->all(),
+            'rows' => $previewRows,
+            'total_rows' => $nonEmptyRows->count(),
+            'preview_rows' => $previewRows->count(),
+        ]);
+    }
+
+    private function importPipelineResponse(Request $request, bool $success, string $message, array $extra = [])
+    {
+        if ($request->ajax() || $request->expectsJson()) {
+            return response()->json(array_merge([
+                'success' => $success,
+                'message' => $message,
+            ], $extra), $success ? 200 : 422);
+        }
+
+        return $success ? back()->with('success', $message) : back()->with('error', $message);
     }
 
     private function normalizeImportHeader($value): string
@@ -650,36 +813,39 @@ class LeadsOnboardingController
 
         return Str::of($header)
             ->lower()
-            ->replace([' ', '-', '.'], '_')
-            ->replace('__', '_')
+            ->replace([' ', '-', '.', '(', ')', '%', '/', '\\'], '_')
+            ->replaceMatches('/_+/', '_')
+            ->trim('_')
             ->toString();
     }
 
     private function mapPipelineOpportunityImportRow(array $row, int $rowNumber, array &$errors): ?array
     {
-        $insuredName = trim((string) ($row['insured_name'] ?? ''));
+        $insuredName = trim((string) ($this->firstNonEmpty($row, ['insured_name']) ?? ''));
         if ($insuredName === '') {
             $errors[] = "Row {$rowNumber}: insured_name is required.";
             return null;
         }
 
-        $typeOfBus = strtoupper(trim((string) ($row['type_of_bus'] ?? 'FPR')));
+        $rawTypeOfBus = $this->firstNonEmpty($row, ['type_of_bus', 'type_of_business']);
+        $typeOfBus = $this->resolveTypeOfBus($rawTypeOfBus);
         if (! in_array($typeOfBus, ['FPR', 'FNP', 'TPR', 'TNP'], true)) {
             $typeOfBus = 'FPR';
         }
 
-        $priority = strtolower(trim((string) ($row['priority'] ?? 'medium')));
+        $priority = strtolower(trim((string) ($this->firstNonEmpty($row, ['priority']) ?? 'medium')));
         if (! in_array($priority, ['critical', 'high', 'medium', 'low'], true)) {
             $priority = 'medium';
         }
 
-        $status = strtolower(trim((string) ($row['status'] ?? 'active')));
-        $clientCategory = strtoupper(trim((string) ($row['client_category'] ?? 'N')));
+        $status = strtolower(trim((string) ($this->firstNonEmpty($row, ['status']) ?? 'active')));
+        $clientCategoryRaw = strtoupper(trim((string) ($this->firstNonEmpty($row, ['client_category', 'insured_category']) ?? 'N')));
+        $clientCategory = $clientCategoryRaw === 'NEW_PROSPECT' || $clientCategoryRaw === 'NEW PROSPECT' ? 'N' : $clientCategoryRaw;
         $clientCategory = in_array($clientCategory, ['N', 'O'], true) ? $clientCategory : 'N';
 
-        $customerId = $row['customer_id'] ?? null;
+        $customerId = $this->firstNonEmpty($row, ['customer_id']);
         if ($customerId === null || $customerId === '') {
-            $cedantName = trim((string) ($row['cedant_name'] ?? ''));
+            $cedantName = trim((string) ($this->firstNonEmpty($row, ['cedant_name', 'cedant']) ?? ''));
             if ($cedantName !== '') {
                 $customerId = DB::table('customers')
                     ->whereRaw('UPPER(name) = ?', [strtoupper($cedantName)])
@@ -687,12 +853,40 @@ class LeadsOnboardingController
             }
         }
 
+        $classCode = $this->firstNonEmpty($row, ['classcode']);
+        if (! is_numeric($classCode)) {
+            $className = trim((string) ($this->firstNonEmpty($row, ['class_name']) ?? ''));
+            if ($className !== '') {
+                $classCode = DB::table('classes')
+                    ->whereRaw('UPPER(class_name) = ?', [strtoupper($className)])
+                    ->value('class_code');
+            }
+        }
+
+        $division = trim((string) ($this->firstNonEmpty($row, ['divisions', 'division']) ?? ''));
+        if ($division !== '' && ! is_numeric($division)) {
+            $divisionCode = DB::table('reins_division')
+                ->whereRaw('UPPER(division_name) = ?', [strtoupper($division)])
+                ->value('division_code');
+            $division = $divisionCode ?: $division;
+        }
+
+        $leadOwner = $this->firstNonEmpty($row, ['lead_owner']);
+        if (! is_numeric($leadOwner)) {
+            $leadOwnerName = trim((string) ($this->firstNonEmpty($row, ['prospect_lead', 'lead_name']) ?? ''));
+            if ($leadOwnerName !== '') {
+                $leadOwner = DB::table('users')
+                    ->whereRaw('UPPER(name) = ?', [strtoupper($leadOwnerName)])
+                    ->value('id');
+            }
+        }
+
         $createdBy = Auth::user()?->user_name ?? Auth::user()?->name ?? 'system';
-        $stage = (int) ($row['stage'] ?? 1);
-        $probability = (int) ($row['probability'] ?? 0);
+        $stage = (int) ($this->firstNonEmpty($row, ['stage']) ?? 1);
+        $probability = (int) ($this->firstNonEmpty($row, ['probability']) ?? 0);
         $probability = max(0, min(100, $probability));
 
-        $opportunityId = trim((string) ($row['opportunity_id'] ?? ''));
+        $opportunityId = trim((string) ($this->firstNonEmpty($row, ['opportunity_id']) ?? ''));
         if ($opportunityId === '') {
             $opportunityId = Prospects::generateNextCode();
         }
@@ -702,36 +896,152 @@ class LeadsOnboardingController
             'customer_id' => is_numeric($customerId) ? (int) $customerId : null,
             'insured_name' => $insuredName,
             'client_category' => $clientCategory,
-            'contact_name' => $this->csvFieldToJsonArray($row['contact_name'] ?? null),
-            'email' => $this->csvFieldToJsonArray($row['email'] ?? null),
-            'phone' => $this->csvFieldToJsonArray($row['phone'] ?? null),
-            'telephone' => $this->csvFieldToJsonArray($row['telephone'] ?? null),
+            'contact_name' => $this->csvFieldToJsonArray($this->firstNonEmpty($row, ['contact_name', 'contact_full_name'])),
+            'email' => $this->csvFieldToJsonArray($this->firstNonEmpty($row, ['email', 'email_address'])),
+            'phone' => $this->csvFieldToJsonArray($this->firstNonEmpty($row, ['phone', 'mobile'])),
+            'telephone' => $this->csvFieldToJsonArray($this->firstNonEmpty($row, ['telephone'])),
             'type_of_bus' => $typeOfBus,
-            'classcode' => is_numeric($row['classcode'] ?? null) ? (int) $row['classcode'] : null,
-            'divisions' => trim((string) ($row['divisions'] ?? '')) ?: null,
-            'cede_premium' => $this->toDecimal($row['cede_premium'] ?? null),
-            'comm_rate' => $this->toDecimal($row['comm_rate'] ?? null),
-            'expected_premium' => $this->toDecimal($row['expected_premium'] ?? null),
-            'gross_premium' => $this->toDecimal($row['gross_premium'] ?? null),
+            'classcode' => is_numeric($classCode) ? (int) $classCode : null,
+            'divisions' => $division ?: null,
+            'cede_premium' => $this->toDecimal($this->firstNonEmpty($row, ['cede_premium', 'cedant_premium'])),
+            'comm_rate' => $this->toDecimal($this->firstNonEmpty($row, ['comm_rate', 'cedant_comm_rate'])),
+            'expected_premium' => $this->toDecimal($this->firstNonEmpty($row, ['expected_premium', 'reinsurer_premium'])),
+            'gross_premium' => $this->toDecimal($this->firstNonEmpty($row, ['gross_premium'])),
             'stage' => max(0, min(5, $stage)),
             'probability' => $probability,
             'priority' => $priority,
             'status' => $status,
-            'effective_date' => $this->toDate($row['effective_date'] ?? null),
-            'closing_date' => $this->toDate($row['closing_date'] ?? null),
-            'expiry_date' => $this->toDate($row['expiry_date'] ?? null),
-            'expected_closure_date' => $this->toDate($row['expected_closure_date'] ?? null),
-            'fac_date_offered' => $this->toDate($row['fac_date_offered'] ?? null),
-            'quote_deadline' => $this->toDate($row['quote_deadline'] ?? null),
-            'prequalification' => strtoupper(trim((string) ($row['prequalification'] ?? 'N'))) === 'Y' ? 'Y' : 'N',
-            'lead_owner' => is_numeric($row['lead_owner'] ?? null) ? (int) $row['lead_owner'] : null,
-            'pip_year' => trim((string) ($row['pip_year'] ?? '')) ?: null,
-            'description' => trim((string) ($row['description'] ?? '')) ?: null,
-            'account_executive' => trim((string) ($row['account_executive'] ?? '')) ?: null,
-            'cr_processed' => strtoupper(trim((string) ($row['cr_processed'] ?? 'N'))) === 'Y' ? 'Y' : 'N',
+            'effective_date' => $this->toDate($this->firstNonEmpty($row, ['effective_date', 'cover_start_date'])),
+            'closing_date' => $this->toDate($this->firstNonEmpty($row, ['closing_date', 'cover_end_date'])),
+            'expiry_date' => $this->toDate($this->firstNonEmpty($row, ['expiry_date', 'cover_end_date'])),
+            'expected_closure_date' => $this->toDate($this->firstNonEmpty($row, ['expected_closure_date'])),
+            'fac_date_offered' => $this->toDate($this->firstNonEmpty($row, ['fac_date_offered'])),
+            'quote_deadline' => $this->toDate($this->firstNonEmpty($row, ['quote_deadline'])),
+            'prequalification' => strtoupper(trim((string) ($this->firstNonEmpty($row, ['prequalification']) ?? 'N'))) === 'Y' ? 'Y' : 'N',
+            'lead_owner' => is_numeric($leadOwner) ? (int) $leadOwner : null,
+            'pip_year' => trim((string) ($this->firstNonEmpty($row, ['pip_year', 'year']) ?? '')) ?: null,
+            'description' => trim((string) ($this->firstNonEmpty($row, ['description']) ?? '')) ?: null,
+            'account_executive' => trim((string) ($this->firstNonEmpty($row, ['account_executive']) ?? '')) ?: null,
+            'cr_processed' => strtoupper(trim((string) ($this->firstNonEmpty($row, ['cr_processed']) ?? 'N'))) === 'Y' ? 'Y' : 'N',
             'created_by' => $createdBy,
             'updated_by' => $createdBy,
         ];
+    }
+
+    private function detectImportHeaderRow(array $rows): ?int
+    {
+        foreach ($rows as $index => $row) {
+            $normalized = collect($row)
+                ->map(fn($value) => $this->normalizeImportHeader($value))
+                ->filter()
+                ->values()
+                ->all();
+
+            if (empty($normalized)) {
+                continue;
+            }
+
+            $hasInsured = in_array('insured_name', $normalized, true);
+            $hasTypeOfBus = in_array('type_of_bus', $normalized, true) || in_array('type_of_business', $normalized, true);
+            if ($hasInsured && $hasTypeOfBus) {
+                return $index;
+            }
+        }
+
+        return null;
+    }
+
+    private function headersMatchTemplate(array $normalizedHeaders): bool
+    {
+        $actual = collect($normalizedHeaders)
+            ->filter(fn($header) => trim((string) $header) !== '')
+            ->values()
+            ->all();
+
+        $expected = $this->expectedNormalizedPipelineImportHeaders();
+
+        return $actual === $expected;
+    }
+
+    private function expectedNormalizedPipelineImportHeaders(): array
+    {
+        return [
+            'type_of_business',
+            'cedant',
+            'lead_type',
+            'lead_name',
+            'year',
+            'insured_category',
+            'country',
+            'branch',
+            'contact_full_name',
+            'email_address',
+            'mobile',
+            'division',
+            'class_group',
+            'class_name',
+            'insured_name',
+            'industry',
+            'expected_closure_date',
+            'currency',
+            '100_sum_insured',
+            'sum_insured_type',
+            'eml',
+            'cedant_premium',
+            'reinsurer_premium',
+            'written_share',
+            'cedant_comm_rate',
+            'cedant_comm_amount',
+            'reinsurance_commission',
+            'brokerage',
+            'cover_start_date',
+            'cover_end_date',
+            'prospect_lead',
+        ];
+    }
+
+    private function resolveTypeOfBus($value): string
+    {
+        $raw = strtoupper(trim((string) $value));
+        if ($raw === '') {
+            return 'FPR';
+        }
+
+        if (in_array($raw, ['FPR', 'FNP', 'TPR', 'TNP'], true)) {
+            return $raw;
+        }
+
+        $mapped = BusinessType::query()
+            ->whereRaw('UPPER(bus_type_name) = ?', [$raw])
+            ->value('bus_type_id');
+
+        if ($mapped) {
+            return strtoupper((string) $mapped);
+        }
+
+        return match ($raw) {
+            'FACULTATIVE PROPORTIONAL' => 'FPR',
+            'FACULTATIVE NON PROPORTIONAL', 'FACULTATIVE NON-PROPORTIONAL' => 'FNP',
+            'TREATY PROPORTIONAL' => 'TPR',
+            'TREATY NON PROPORTIONAL', 'TREATY NON-PROPORTIONAL' => 'TNP',
+            default => 'FPR',
+        };
+    }
+
+    private function firstNonEmpty(array $row, array $keys)
+    {
+        foreach ($keys as $key) {
+            if (! array_key_exists($key, $row)) {
+                continue;
+            }
+
+            $value = $row[$key];
+            if ($value !== null && trim((string) $value) !== '') {
+                return $value;
+            }
+        }
+
+        return null;
     }
 
     private function csvFieldToJsonArray($value): ?array

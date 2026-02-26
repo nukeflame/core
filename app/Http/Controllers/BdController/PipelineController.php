@@ -337,6 +337,25 @@ class PipelineController
             $prospDocQuery = DB::table('prospect_docs')
                 ->where('prospect_id', $pros->opportunity_id);
 
+            $activeReinsurerIds = DB::table('bd_fac_reinsurers')
+                ->where('opportunity_id', $pros->opportunity_id)
+                ->where(function ($query) {
+                    $query->where('is_declined', false)
+                        ->orWhereNull('is_declined');
+                })
+                ->pluck('reinsurer_id')
+                ->map(fn($id) => (int) $id)
+                ->toArray();
+
+            if (!empty($activeReinsurerIds)) {
+                $prospDocQuery->where(function ($query) use ($activeReinsurerIds) {
+                    $query->whereNull('reinsurer_id')
+                        ->orWhereIn('reinsurer_id', $activeReinsurerIds);
+                });
+            } else {
+                $prospDocQuery->whereNull('reinsurer_id');
+            }
+
             if ((int) $pros->stage === 2) {
                 $prospDocQuery
                     ->where('prospect_status', Stage::LEAD)
@@ -6572,6 +6591,15 @@ class PipelineController
                     ->map(fn($id) => (int) $id)
                     ->toArray();
 
+                if (!empty($activeOpportunityReinsurerIds)) {
+                    $attachmentsQuery->where(function ($query) use ($activeOpportunityReinsurerIds) {
+                        $query->whereNull('reinsurer_id')
+                            ->orWhereIn('reinsurer_id', $activeOpportunityReinsurerIds);
+                    });
+                } else {
+                    $attachmentsQuery->whereNull('reinsurer_id');
+                }
+
                 $recipientReinsurerIds = $activeOpportunityReinsurerIds;
                 if (!empty($allRecipients)) {
                     $selectedReinsurerIds = DB::table('customers')
@@ -6584,9 +6612,17 @@ class PipelineController
                     $recipientReinsurerIds = array_values(array_intersect($activeOpportunityReinsurerIds, $selectedReinsurerIds));
                 }
 
+                $resolveStageValues = static function (string $stageKey): array {
+                    return array_values(array_filter([
+                        $stageKey,
+                        Stage::getStageByKey($stageKey),
+                    ]));
+                };
+
                 switch ($normalizedCategory) {
                     case Stage::LEAD:
-                    case Stage::PROPOSAL:
+                        $attachmentsQuery->whereIn('prospect_status', $resolveStageValues(Stage::LEAD));
+
                         if (!empty($recipientReinsurerIds)) {
                             $attachmentsQuery->where(function ($query) use ($recipientReinsurerIds) {
                                 $query->whereNull('type')
@@ -6597,6 +6633,49 @@ class PipelineController
                             });
                         }
                         break;
+
+                    case Stage::PROPOSAL:
+                        $proposalStageValues = $resolveStageValues(Stage::PROPOSAL);
+                        $cedantId = (int) ($emailData['customer_id'] ?? 0);
+                        $proposalSlipTokens = [
+                            'facultative placement slip',
+                            'facultative_placement_slip',
+                            'facultative cover slip',
+                            'facultative_cover_slip',
+                            'quotation placement slip',
+                            'quotation_placement_slip',
+                            'quotation cover slip',
+                            'quotation_cover_slip',
+                            'offer slip',
+                            'cover slip',
+                        ];
+
+                        $attachmentsQuery
+                            ->whereIn('prospect_status', $proposalStageValues)
+                            ->whereNull('reinsurer_id')
+                            ->where(function ($query) use ($cedantId) {
+                                if ($cedantId > 0) {
+                                    $query->where('cedant_id', $cedantId)
+                                        ->orWhereNull('cedant_id');
+                                    return;
+                                }
+
+                                $query->whereNull('cedant_id');
+                            })
+                            ->where(function ($query) use ($proposalSlipTokens) {
+                                foreach ($proposalSlipTokens as $token) {
+                                    $likeToken = '%' . $token . '%';
+                                    $query->orWhereRaw('LOWER(COALESCE(description, \'\')) LIKE ?', [$likeToken])
+                                        ->orWhereRaw('LOWER(COALESCE(original_name, \'\')) LIKE ?', [$likeToken])
+                                        ->orWhereRaw('LOWER(COALESCE(file, \'\')) LIKE ?', [$likeToken]);
+                                }
+                            })
+                            ->orderByRaw('CASE WHEN cedant_id = ? THEN 0 WHEN cedant_id IS NULL THEN 1 ELSE 2 END', [$cedantId > 0 ? $cedantId : -1])
+                            ->orderByDesc('updated_at')
+                            ->orderByDesc('created_at')
+                            ->limit(1);
+                        break;
+
 
                     default:
                         break;
@@ -6613,29 +6692,12 @@ class PipelineController
                     'reinsurer_id',
                 ]);
 
-                // switch ($normalizedCategory) {
-                //     case Stage::LEAD:
-                //         $attached_files = $attached_files->reject(function ($file) {
-                //             return $this->isProposalCoverSlipAttachment($file);
-                //         })->values();
-                //         break;
-                //     case Stage::PROPOSAL:
-                //         $attached_files = $attached_files->reject(function ($file) {
-                //             return $this->isLeadCoverSlipAttachment($file);
-                //         })->values();
-                //         break;
-                //     default:
-                //         break;
-                // }
-
                 $attached_files = $attached_files->map(function ($file) {
                     return $this->normalizeBdAttachmentFileName($file);
                 });
             } else {
                 $attached_files = [];
             }
-
-            // logger()->debug(json_encode($attached_files, JSON_PRETTY_PRINT));
 
             if (empty($allRecipients)) {
                 DB::rollBack();
@@ -8466,19 +8528,20 @@ class PipelineController
 
             $opportunityId = $opp->opportunity_id;
 
-            $reinsurerIds = DB::table('bd_fac_reinsurers')
-                ->where('opportunity_id', $opportunityId)
-                ->where(function ($query) {
-                    $query->where('is_declined', false)
-                        ->orWhereNull('is_declined');
-                })
-                ->pluck('reinsurer_id')
-                ->toArray();
+            $cedant = DB::table('customers')
+                ->where('customer_id', (int) $opp->customer_id)
+                ->select(['customer_id', 'email', 'telephone', 'partner_number', 'name'])
+                ->first();
 
-            $partners = DB::table('customers')
-                ->whereIn('customer_id', $reinsurerIds)
-                ->select(['email', 'telephone', 'partner_number', 'name'])
-                ->get();
+            $partners = collect();
+            if ($cedant && !empty(trim((string) $cedant->email))) {
+                $partners = collect([[
+                    'email' => $cedant->email,
+                    'telephone' => $cedant->telephone,
+                    'partner_number' => $cedant->partner_number,
+                    'name' => $cedant->name,
+                ]]);
+            }
 
             $templates = DB::table('bd_email_templates')
                 ->where('is_active', true)
@@ -8492,24 +8555,35 @@ class PipelineController
                 ])
                 ->toArray();
 
-
-            $reinContacts = DB::table('bd_reinsurers_contacts')
+            $cedantContacts = DB::table('bd_cedant_contacts')
                 ->where('opportunity_id', $opportunityId)
                 ->get();
 
-            $reinContactsMap = $reinContacts->keyBy('customer_contact_id')->map(function ($reinContact) {
-                return (bool) $reinContact->is_cc_email;
+            $cedantContactsMap = $cedantContacts->keyBy('customer_contact_id')->map(function ($cedantContact) {
+                return (bool) $cedantContact->is_cc_email;
             });
 
-            $reinsuersContacts = DB::table('customer_contacts')->whereIn('customer_id', $reinsurerIds)
+            $cedantCustomerContacts = DB::table('customer_contacts')
+                ->where('customer_id', (int) $opp->customer_id)
                 ->orderBy('customer_id')
+                ->orderByDesc('is_primary')
                 ->orderBy('contact_name')
                 ->get();
 
-            $contacts = $reinsuersContacts->map(function ($contact) use ($reinContactsMap) {
+            $contacts = $cedantCustomerContacts->map(function ($contact) use ($cedantContactsMap) {
                 $ccEmail = false;
-                if ($reinContactsMap->has($contact->id)) {
-                    $ccEmail = $reinContactsMap->get($contact->id);
+                if ($cedantContactsMap->has($contact->id)) {
+                    $ccEmail = $cedantContactsMap->get($contact->id);
+                }
+
+                $isPrimaryRaw = $contact->is_primary;
+                $isPrimary = false;
+                if (is_bool($isPrimaryRaw)) {
+                    $isPrimary = $isPrimaryRaw;
+                } elseif (is_numeric($isPrimaryRaw)) {
+                    $isPrimary = (int) $isPrimaryRaw === 1;
+                } elseif (is_string($isPrimaryRaw)) {
+                    $isPrimary = in_array(strtolower(trim($isPrimaryRaw)), ['1', 'true', 't', 'y', 'yes'], true);
                 }
 
                 return [
@@ -8517,18 +8591,47 @@ class PipelineController
                     'name' => $contact->contact_name,
                     'email' => $contact->contact_email,
                     'phone' => $contact->contact_mobile_no,
-                    'isPrimary' => $contact->is_primary,
+                    'isPrimary' => $isPrimary,
                     'notSelected' => $ccEmail,
                 ];
             });
 
-            $customer = Customer::where('customer_id', $opp->customer_id)->select(['customer_id'])->first();
+            $customerId = $cedant->customer_id ?? null;
+            $activeReinsurerIds = DB::table('bd_fac_reinsurers')
+                ->where('opportunity_id', $opportunityId)
+                ->where(function ($query) {
+                    $query->where('is_declined', false)
+                        ->orWhereNull('is_declined');
+                })
+                ->pluck('reinsurer_id')
+                ->map(fn($id) => (int) $id)
+                ->toArray();
 
-            $customerId = $customer->customer_id ?? null;
-            $prospectDocs = DB::table('prospect_docs')->where([
-                'prospect_id' => $opportunityId,
-            ])
-                ->select(['s3_url', 'original_name', 'file', 'mimetype', 'description'])
+            $prospectDocsQuery = DB::table('prospect_docs')
+                ->where('prospect_id', $opportunityId);
+
+            if (!empty($activeReinsurerIds)) {
+                $prospectDocsQuery->where(function ($query) use ($activeReinsurerIds) {
+                    $query->whereNull('reinsurer_id')
+                        ->orWhereIn('reinsurer_id', $activeReinsurerIds);
+                });
+            } else {
+                $prospectDocsQuery->whereNull('reinsurer_id');
+            }
+
+            $prospectDocs = $prospectDocsQuery
+                ->select([
+                    's3_url',
+                    'original_name',
+                    'file',
+                    'mimetype',
+                    'description',
+                    'reinsurer_id',
+                    'type',
+                    'prospect_status',
+                    'created_at',
+                    'updated_at',
+                ])
                 ->get();
 
             $data = [

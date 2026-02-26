@@ -4493,15 +4493,16 @@ class PipelineManager {
 
             return true;
         });
+        const dedupedFiles = this.dedupeAttachmentsByLatestStage(filteredFiles);
 
         $("#additionalFilesMessage").remove();
 
-        $.each(filteredFiles, (index, file) => {
+        $.each(dedupedFiles, (index, file) => {
             const $fileElement = this.createFileElement(file, stageKey);
             $rowContainer.append($fileElement);
         });
 
-        this.updateFileCount(filteredFiles.length);
+        this.updateFileCount(dedupedFiles.length);
     }
 
     createFileElement(file, stageKey = null) {
@@ -4638,6 +4639,91 @@ class PipelineManager {
                 .replace(/\s+/g, " ");
             return exactNames.has(normalized);
         });
+    }
+
+    normalizeAttachmentNameKey(file) {
+        const name = (
+            file?.description ||
+            file?.original_name ||
+            file?.file ||
+            ""
+        )
+            .toString()
+            .toLowerCase()
+            .trim()
+            .replace(/\.[^/.]+$/, "")
+            .replace(/\s+/g, " ");
+
+        return name || "unknown-file";
+    }
+
+    getAttachmentStageRank(file) {
+        const rawStage = String(file?.prospect_status ?? file?.stage ?? "")
+            .trim()
+            .toLowerCase()
+            .replace(/[\s-]+/g, "_");
+
+        const stageRank = {
+            "1": 1,
+            lead: 1,
+            "2": 2,
+            proposal: 2,
+            "3": 3,
+            negotiation: 3,
+            "4": 4,
+            final: 4,
+            final_stage: 4,
+            "5": 5,
+            won: 5,
+            "6": 6,
+            lost: 6,
+        };
+
+        return stageRank[rawStage] || 0;
+    }
+
+    getAttachmentTimestamp(file) {
+        const candidate = file?.updated_at || file?.created_at || null;
+        if (!candidate) {
+            return 0;
+        }
+
+        const parsed = new Date(candidate).getTime();
+        return Number.isNaN(parsed) ? 0 : parsed;
+    }
+
+    dedupeAttachmentsByLatestStage(filesArray) {
+        const deduped = new Map();
+
+        (filesArray || []).forEach((file) => {
+            const key = this.normalizeAttachmentNameKey(file);
+            const existing = deduped.get(key);
+
+            if (!existing) {
+                deduped.set(key, file);
+                return;
+            }
+
+            const currentRank = this.getAttachmentStageRank(file);
+            const existingRank = this.getAttachmentStageRank(existing);
+
+            if (currentRank > existingRank) {
+                deduped.set(key, file);
+                return;
+            }
+
+            if (currentRank < existingRank) {
+                return;
+            }
+
+            const currentTs = this.getAttachmentTimestamp(file);
+            const existingTs = this.getAttachmentTimestamp(existing);
+            if (currentTs >= existingTs) {
+                deduped.set(key, file);
+            }
+        });
+
+        return Array.from(deduped.values());
     }
 
     getFileIconAndType(mimeType, fileName) {

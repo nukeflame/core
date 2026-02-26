@@ -287,7 +287,7 @@
                                 <i class="bx bx-file me-1"></i>Preview Slip
                             </button>
                             <div class="form-check">
-                                <input class="form-check-input email-checkbox mailc-checkbox" type="checkbox"
+                                <input class="form-check-input proposal-show-premiums-checkbox" type="checkbox"
                                     id="proposal-show-premiums-preview">
                                 <label class="form-check-label small text-muted" for="proposal-show-premiums-preview">
                                     Show Premiums on PDF

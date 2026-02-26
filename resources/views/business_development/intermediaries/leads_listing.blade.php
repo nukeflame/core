@@ -143,7 +143,7 @@
                         </button>
                     </div>
                     <div class="d-flex gap-2">
-                        {{-- <a href="{{ route('leads.import.pipeline_opportunities.sample') }}"
+                        <a href="{{ route('leads.import.pipeline_opportunities.sample') }}"
                             class="btn btn-outline-primary btn-sm">
                             <i class="bi bi-download me-1"></i>
                             Download Sample
@@ -152,7 +152,7 @@
                             data-bs-target="#pipelineImportModal">
                             <i class="bi bi-upload me-1"></i>
                             Import Opportunities
-                        </button> --}}
+                        </button>
                     </div>
                 </div>
             </div>
@@ -269,14 +269,14 @@
         </div>
     </div>
 
-    <div class="modal fade" id="pipelineImportModal" tabindex="-1" aria-labelledby="pipelineImportModalLabel"
-        aria-hidden="true">
-        <div class="modal-dialog">
+    <div class="modal effect-scale md-wrapper" id="pipelineImportModal" tabindex="-1"
+        aria-labelledby="pipelineImportModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl">
             <div class="modal-content">
-                <form method="POST" action="{{ route('leads.import.pipeline_opportunities') }}"
+                <form id="pipelineImportForm" method="POST" action="{{ route('leads.import.pipeline_opportunities') }}"
                     enctype="multipart/form-data">
                     @csrf
-                    <div class="modal-header">
+                    <div class="modal-header bg-primary text-white">
                         <h5 class="modal-title" id="pipelineImportModalLabel">Import Pipeline Opportunities</h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
@@ -289,10 +289,37 @@
                                 Use the sample file format. Supported: CSV, XLS, XLSX.
                             </small>
                         </div>
+
+                        <div class="mb-3 d-none" id="pipelineImportProgressWrap">
+                            <label class="form-label mb-1">Upload progress</label>
+                            <div class="progress" style="height: 18px;">
+                                <div id="pipelineImportProgressBar"
+                                    class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar"
+                                    style="width: 0%;" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">0%</div>
+                            </div>
+                            <small id="pipelineImportProgressText" class="text-muted d-block mt-1">Preparing
+                                upload...</small>
+                        </div>
+
+                        <div class="border rounded p-2 bg-light d-none" id="pipelineImportPreviewWrap">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <strong class="fs-14">File Preview</strong>
+                                <small class="text-muted" id="pipelineImportPreviewMeta"></small>
+                            </div>
+                            <div class="table-responsive" style="max-height: 260px;">
+                                <table class="table table-sm table-striped mb-0" id="pipelineImportPreviewTable">
+                                    <thead></thead>
+                                    <tbody></tbody>
+                                </table>
+                            </div>
+                        </div>
                     </div>
                     <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" id="pipelineImportResetBtn">
+                            <i class="bi bi-arrow-counterclockwise me-1"></i>Reset
+                        </button>
                         <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" class="btn btn-success">
+                        <button id="pipelineImportSubmitBtn" type="submit" class="btn btn-success">
                             <i class="bi bi-upload me-1"></i>Import
                         </button>
                     </div>
@@ -304,4 +331,212 @@
 
 @push('script')
     @include('business_development.intermediaries.partials.scripts')
+    <script>
+        $(document).ready(function() {
+            const $form = $('#pipelineImportForm');
+            const $fileInput = $('#import_file');
+            const $submitBtn = $('#pipelineImportSubmitBtn');
+            const $resetBtn = $('#pipelineImportResetBtn');
+            const $progressWrap = $('#pipelineImportProgressWrap');
+            const $progressBar = $('#pipelineImportProgressBar');
+            const $progressText = $('#pipelineImportProgressText');
+            const $previewWrap = $('#pipelineImportPreviewWrap');
+            const $previewMeta = $('#pipelineImportPreviewMeta');
+            const $previewHead = $('#pipelineImportPreviewTable thead');
+            const $previewBody = $('#pipelineImportPreviewTable tbody');
+            const previewUrl = "{{ route('leads.import.pipeline_opportunities.preview') }}";
+            let isUploading = false;
+
+            function resetProgress() {
+                $progressBar.css('width', '0%').attr('aria-valuenow', '0').text('0%');
+                $progressText.text('Preparing upload...');
+                $progressWrap.addClass('d-none');
+            }
+
+            function setProgress(percent, text = '') {
+                const value = Math.max(0, Math.min(100, Math.round(percent)));
+                $progressBar.css('width', value + '%').attr('aria-valuenow', value).text(value + '%');
+                if (text) {
+                    $progressText.text(text);
+                }
+            }
+
+            function clearPreview() {
+                $previewHead.empty();
+                $previewBody.empty();
+                $previewMeta.text('');
+                $previewWrap.addClass('d-none');
+            }
+
+            function resetImportForm() {
+                if (isUploading) {
+                    return;
+                }
+                $form[0].reset();
+                clearPreview();
+                resetProgress();
+            }
+
+            function renderPreview(payload) {
+                const headers = payload.headers || [];
+                const keys = payload.header_keys || [];
+                const rows = payload.rows || [];
+
+                if (!headers.length || !keys.length) {
+                    clearPreview();
+                    return;
+                }
+
+                let headHtml = '<tr>';
+                headers.forEach((header) => {
+                    headHtml += `<th>${$('<div/>').text(header).html()}</th>`;
+                });
+                headHtml += '</tr>';
+                $previewHead.html(headHtml);
+
+                const bodyHtml = rows.map((row) => {
+                    let rowHtml = '<tr>';
+                    keys.forEach((key) => {
+                        const value = row[key] ?? '';
+                        rowHtml += `<td>${$('<div/>').text(String(value)).html()}</td>`;
+                    });
+                    rowHtml += '</tr>';
+                    return rowHtml;
+                }).join('');
+
+                $previewBody.html(bodyHtml || '<tr><td colspan="' + headers.length +
+                    '" class="text-muted">No data rows found.</td></tr>');
+                $previewMeta.text(
+                    `Showing ${payload.preview_rows || rows.length} of ${payload.total_rows || rows.length} rows`
+                );
+                $previewWrap.removeClass('d-none');
+            }
+
+            $fileInput.on('change', function() {
+                const file = this.files && this.files[0] ? this.files[0] : null;
+                clearPreview();
+                resetProgress();
+
+                if (!file) {
+                    return;
+                }
+
+                const formData = new FormData();
+                formData.append('import_file', file);
+                formData.append('_token', $('meta[name="csrf-token"]').attr('content'));
+
+                $.ajax({
+                    url: previewUrl,
+                    method: 'POST',
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json'
+                    },
+                    success: function(response) {
+                        renderPreview(response);
+                    },
+                    error: function(xhr) {
+                        const message = xhr.responseJSON?.message ||
+                            'Could not preview this file.';
+                        if (typeof toastr !== 'undefined') {
+                            toastr.error(message);
+                        } else {
+                            alert(message);
+                        }
+                    }
+                });
+            });
+
+            $form.on('submit', function(e) {
+                e.preventDefault();
+
+                if (isUploading) {
+                    return;
+                }
+
+                const file = $fileInput[0]?.files?.[0];
+                if (!file) {
+                    if (typeof toastr !== 'undefined') {
+                        toastr.warning('Please select a file to import.');
+                    }
+                    return;
+                }
+
+                const formData = new FormData(this);
+                isUploading = true;
+                $submitBtn.prop('disabled', true).html(
+                    '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>Importing...'
+                );
+                $progressWrap.removeClass('d-none');
+                setProgress(0, 'Starting upload...');
+
+                $.ajax({
+                    url: $form.attr('action'),
+                    method: 'POST',
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json'
+                    },
+                    xhr: function() {
+                        const xhr = new window.XMLHttpRequest();
+                        xhr.upload.addEventListener('progress', function(event) {
+                            if (event.lengthComputable) {
+                                const percent = (event.loaded / event.total) * 100;
+                                setProgress(percent,
+                                    `Uploading ${Math.round(percent)}%...`);
+                            }
+                        });
+                        return xhr;
+                    },
+                    success: function(response) {
+                        setProgress(100, 'Upload complete. Processing finished.');
+
+                        if (typeof toastr !== 'undefined') {
+                            toastr.success(response.message ||
+                                'Import completed successfully.');
+                            if (response.import_errors && response.import_errors.length) {
+                                toastr.warning(
+                                    `Imported with ${response.import_errors.length} warning(s).`
+                                );
+                            }
+                        }
+
+                        setTimeout(function() {
+                            window.location.reload();
+                        }, 900);
+                    },
+                    error: function(xhr) {
+                        const message = xhr.responseJSON?.message ||
+                            'Import failed. Please try again.';
+                        if (typeof toastr !== 'undefined') {
+                            toastr.error(message);
+                        } else {
+                            alert(message);
+                        }
+                    },
+                    complete: function() {
+                        isUploading = false;
+                        $submitBtn.prop('disabled', false).html(
+                            '<i class="bi bi-upload me-1"></i>Import');
+                    }
+                });
+            });
+
+            $resetBtn.on('click', function() {
+                resetImportForm();
+            });
+
+            $('#pipelineImportModal').on('hidden.bs.modal', function() {
+                if (!isUploading) {
+                    resetImportForm();
+                }
+            });
+        });
+    </script>
 @endpush
