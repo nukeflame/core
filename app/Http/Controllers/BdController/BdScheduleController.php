@@ -1295,6 +1295,9 @@ class BdScheduleController extends Controller
             if ($StageDocuments && $StageDocuments->type_of_bus) {
                 $StageDocuments->type_of_bus = json_decode($StageDocuments->type_of_bus, true);
             }
+            if ($StageDocuments) {
+                $StageDocuments->category_type = $this->normalizeStageDocumentCategoryTypes($StageDocuments->category_type);
+            }
 
 
             return view(
@@ -1355,7 +1358,8 @@ class BdScheduleController extends Controller
                 'stage' => ['required', 'integer', Rule::in([0, 1, 2, 3, 4])],
                 'doc_type' => 'required',
                 'mandatory' => 'required|in:Y,N',
-                'category_type' => 'required',
+                'category_type' => 'required|array|min:1',
+                'category_type.*' => ['required', Rule::in(['1', '2'])],
                 'type_of_bus' => 'required|array|min:1',
                 'type_of_bus.*' => 'required',
             ]);
@@ -1373,12 +1377,14 @@ class BdScheduleController extends Controller
                     ->withInput();
             }
 
+            $normalizedCategoryTypes = $this->normalizeStageDocumentCategoryTypes($request->input('category_type', []));
+
             if (isset($id)) {
                 $updatePayload = [
                     'stage' => $stageId,
                     'doc_type' => $request->doc_type,
                     'mandatory' => $request->mandatory,
-                    'category_type' => $request->category_type,
+                    'category_type' => json_encode($normalizedCategoryTypes),
                     'type_of_bus' => json_encode($request->type_of_bus),
                     'path' =>  $resolvedPath,
                     's3_path' => $resolvedS3Path,
@@ -1391,7 +1397,7 @@ class BdScheduleController extends Controller
                     'stage' => $stageId,
                     'doc_type' => $request->doc_type,
                     'mandatory' => $request->mandatory,
-                    'category_type' => $request->category_type,
+                    'category_type' => json_encode($normalizedCategoryTypes),
                     'type_of_bus' => json_encode($request->type_of_bus),
                     'path' =>  $resolvedPath,
                     's3_path' => $resolvedS3Path,
@@ -1455,15 +1461,26 @@ class BdScheduleController extends Controller
                 return $doc_type ?? 'N/A';
             })
             ->editColumn('category', function ($fn) {
-                if ($fn->category_type == '1') {
-                    return '<span class="badge bg-primary-transparent text-primary">Quotation</span>';
+                $categories = $this->normalizeStageDocumentCategoryTypes($fn->category_type);
+                if (empty($categories)) {
+                    return '<span class="badge bg-secondary-transparent text-secondary">N/A</span>';
                 }
 
-                if ($fn->category_type == '2') {
-                    return '<span class="badge bg-info-transparent text-info">Facultative Offer</span>';
+                $labels = [
+                    '1' => ['label' => 'Quotation', 'class' => 'bg-primary-transparent text-primary'],
+                    '2' => ['label' => 'Facultative Offer', 'class' => 'bg-info-transparent text-info'],
+                ];
+                $badges = [];
+                foreach ($categories as $category) {
+                    if (!isset($labels[$category])) {
+                        continue;
+                    }
+                    $badges[] = '<span class="badge ' . $labels[$category]['class'] . ' me-1 mb-1">' . e($labels[$category]['label']) . '</span>';
                 }
 
-                return '<span class="badge bg-secondary-transparent text-secondary">N/A</span>';
+                return !empty($badges)
+                    ? implode(' ', $badges)
+                    : '<span class="badge bg-secondary-transparent text-secondary">N/A</span>';
             })
             ->editColumn('busines_type', function ($fn) {
                 $busTypes = json_decode($fn->type_of_bus, true);
@@ -1517,10 +1534,11 @@ class BdScheduleController extends Controller
 
                 $typeOfBus = json_decode($fn->type_of_bus, true);
                 $typeOfBus = is_array($typeOfBus) ? $typeOfBus : [];
+                $categoryTypes = $this->normalizeStageDocumentCategoryTypes($fn->category_type);
                 $stagePath = trim((string) ($fn->path ?? ''));
                 $stageS3Path = trim((string) ($fn->s3_path ?? ''));
 
-                $editBtn = '<button type="button" class="btn btn-outline-dark btn-sm action-btn update_stage_doc_type" title="Update stage document" data-id="' . $fn->id . '" data-stage="' . e($stageValue) . '" data-doc-type="' . e($fn->doc_type) . '" data-mandatory="' . e($fn->mandatory) . '" data-category-type="' . e($fn->category_type) . '" data-type-of-bus="' . e(json_encode($typeOfBus)) . '" data-path="' . e($stagePath) . '" data-s3-path="' . e($stageS3Path) . '">Edit</button>';
+                $editBtn = '<button type="button" class="btn btn-outline-dark btn-sm action-btn update_stage_doc_type" title="Update stage document" data-id="' . $fn->id . '" data-stage="' . e($stageValue) . '" data-doc-type="' . e($fn->doc_type) . '" data-mandatory="' . e($fn->mandatory) . '" data-category-types="' . e(json_encode($categoryTypes)) . '" data-type-of-bus="' . e(json_encode($typeOfBus)) . '" data-path="' . e($stagePath) . '" data-s3-path="' . e($stageS3Path) . '">Edit</button>';
                 $deleteBtn = '<button type="button" class="btn btn-outline-danger btn-sm action-btn remove_stage_doc_type" title="Delete stage document" data-id="' . $fn->id . '">Remove</button>';
                 return '<div class="action-buttons">' . $editBtn . ' ' . $deleteBtn . '</div>';
             })
@@ -1669,6 +1687,32 @@ class BdScheduleController extends Controller
             '4', 'final', 'final_stage' => 4,
             default => null,
         };
+    }
+
+    private function normalizeStageDocumentCategoryTypes($rawCategoryTypes): array
+    {
+        if (is_array($rawCategoryTypes)) {
+            $values = $rawCategoryTypes;
+        } else {
+            $raw = trim((string) $rawCategoryTypes);
+            if ($raw === '') {
+                return [];
+            }
+
+            $decoded = json_decode($raw, true);
+            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                $values = $decoded;
+            } else {
+                $values = preg_split('/\s*,\s*/', $raw, -1, PREG_SPLIT_NO_EMPTY);
+            }
+        }
+
+        return collect($values)
+            ->map(fn($v) => trim((string) $v))
+            ->filter(fn($v) => in_array($v, ['1', '2'], true))
+            ->unique()
+            ->values()
+            ->all();
     }
 
     public function bd_doc_type_info(Request $request)

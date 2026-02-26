@@ -467,15 +467,15 @@ class PipelineController
     private function buildStageDocumentsQuery(int $stageId, $category_type, $type_of_bus, $prosStage)
     {
         $typeOfBus = strtoupper(trim((string) $type_of_bus));
-        $normalizedCategoryType = is_null($category_type) || $category_type === ''
-            ? (in_array($typeOfBus, ['FPR', 'FNP'], true) ? '2' : '1')
-            : (string) $category_type;
+        $normalizedCategoryTypes = $this->normalizeStageDocumentCategoryTypes(
+            $category_type,
+            in_array($typeOfBus, ['FPR', 'FNP'], true) ? '2' : '1'
+        );
         $legacyStageKey = Stage::fromStageValue((string) $stageId);
         $allStageId = 0;
         $allStageKey = 'all';
 
         $baseQuery = DB::table('stage_documents')
-            ->where('stage_documents.category_type', $normalizedCategoryType)
             ->join('doc_types', 'stage_documents.doc_type', '=', 'doc_types.id')
             ->where(function ($query) use ($stageId, $legacyStageKey, $allStageId, $allStageKey) {
                 $query->where('stage_documents.stage', $stageId);
@@ -495,6 +495,8 @@ class PipelineController
                     ->orWhereRaw('LOWER(CAST(stage_documents.type_of_bus AS TEXT)) LIKE ?', ['%"' . $lowerTypeOfBus . '"%'])
                     ->orWhereRaw('LOWER(CAST(stage_documents.type_of_bus AS TEXT)) LIKE ?', ['%' . $lowerTypeOfBus . '%']);
             });
+
+        $this->applyStageDocumentCategoryTypeFilter($baseQuery, $normalizedCategoryTypes);
 
         switch ((int) $prosStage) {
             case 3:
@@ -2336,18 +2338,21 @@ class PipelineController
 
     private function getDocumentData($pipeid, $stage, $category, $typeOfBus)
     {
-        $docs = DB::table('stage_documents')
+        $normalizedCategoryTypes = $this->normalizeStageDocumentCategoryTypes($category, '2');
+        $docsQuery = DB::table('stage_documents')
             ->join('doc_types', 'stage_documents.doc_type', '=', 'doc_types.id')
             ->where('stage_documents.stage', $stage)
-            ->where('stage_documents.category_type', $category)
             ->whereJsonContains('type_of_bus', $typeOfBus)
             ->select(
                 'doc_types.id',
                 'doc_types.doc_type',
                 'stage_documents.mandatory',
+                'stage_documents.category_type',
                 'stage_documents.division'
-            )
-            ->get();
+            );
+
+        $this->applyStageDocumentCategoryTypeFilter($docsQuery, $normalizedCategoryTypes);
+        $docs = $docsQuery->get();
 
         return [
             'docs' => $docs,
@@ -2385,6 +2390,57 @@ class PipelineController
         }
 
         return ['contacts_det' => $contacts];
+    }
+
+    private function normalizeStageDocumentCategoryTypes($categoryType, ?string $defaultCategoryType = '2'): array
+    {
+        if (is_array($categoryType)) {
+            $values = $categoryType;
+        } else {
+            $raw = trim((string) $categoryType);
+            if ($raw === '') {
+                $values = $defaultCategoryType !== null ? [$defaultCategoryType] : [];
+            } else {
+                $decoded = json_decode($raw, true);
+                if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                    $values = $decoded;
+                } else {
+                    $values = preg_split('/\s*,\s*/', $raw, -1, PREG_SPLIT_NO_EMPTY);
+                }
+            }
+        }
+
+        return collect($values)
+            ->map(fn($v) => trim((string) $v))
+            ->filter(fn($v) => in_array($v, ['1', '2'], true))
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    private function applyStageDocumentCategoryTypeFilter($query, array $categoryTypes): void
+    {
+        if (empty($categoryTypes)) {
+            return;
+        }
+
+        $query->where(function ($categoryQuery) use ($categoryTypes) {
+            foreach ($categoryTypes as $categoryType) {
+                $categoryType = trim((string) $categoryType);
+                if ($categoryType === '') {
+                    continue;
+                }
+
+                $categoryQuery
+                    ->orWhere('stage_documents.category_type', $categoryType)
+                    ->orWhereRaw('CAST(stage_documents.category_type AS TEXT) = ?', [$categoryType])
+                    ->orWhereRaw('LOWER(CAST(stage_documents.category_type AS TEXT)) LIKE ?', ['%"' . strtolower($categoryType) . '"%'])
+                    ->orWhereRaw('LOWER(CAST(stage_documents.category_type AS TEXT)) LIKE ?', ['%[' . strtolower($categoryType) . ']%'])
+                    ->orWhereRaw('LOWER(CAST(stage_documents.category_type AS TEXT)) LIKE ?', ['%,' . strtolower($categoryType) . ',%'])
+                    ->orWhereRaw('LOWER(CAST(stage_documents.category_type AS TEXT)) LIKE ?', [strtolower($categoryType) . ',%'])
+                    ->orWhereRaw('LOWER(CAST(stage_documents.category_type AS TEXT)) LIKE ?', ['%,' . strtolower($categoryType)]);
+            }
+        });
     }
 
     private function getReferenceData()
@@ -5979,15 +6035,12 @@ class PipelineController
                                 ];
 
                                 if (is_null($existingDefaultDoc)) {
-                                    // Skip placeholder rows that have no file metadata;
-                                    // they will be created when a real file is uploaded.
                                     if ($resolvedFile === '') {
                                         continue;
                                     }
 
                                     DB::table('prospect_docs')->insert($insertData + ['created_at' => now()]);
                                 } else {
-                                    // Do not overwrite existing file metadata with null placeholders.
                                     if ($resolvedMime === '') {
                                         unset($insertData['mimetype']);
                                     }
@@ -6333,7 +6386,7 @@ class PipelineController
 
             GenerateBdCoverSlipJob::dispatchSync($requestData, auth()->id());
 
-            // DB::commit();
+            DB::commit();
 
             return response()->json([
                 'success' => true,

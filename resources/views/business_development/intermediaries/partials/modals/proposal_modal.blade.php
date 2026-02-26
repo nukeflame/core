@@ -282,10 +282,17 @@
 
                 <div class="modal-footer bg-light">
                     <div class="d-flex justify-content-between w-100">
-                        <div>
+                        <div class="d-flex gap-2">
                             <button type="button" class="btn btn-outline-secondary me-2" id="proposal-view-slip">
                                 <i class="bx bx-file me-1"></i>Preview Slip
                             </button>
+                            <div class="form-check">
+                                <input class="form-check-input email-checkbox mailc-checkbox" type="checkbox"
+                                    id="proposal-show-premiums-preview">
+                                <label class="form-check-label small text-muted" for="proposal-show-premiums-preview">
+                                    Show Premiums on PDF
+                                </label>
+                            </div>
                         </div>
                         <div>
                             <button type="button" class="btn btn-light me-2" data-bs-dismiss="modal">Cancel</button>
@@ -2023,6 +2030,8 @@
                     proposalState.isInitialized = false; // Reset this flag
                     proposalState.suppressResetOnHide = false;
                 }
+                selectedReinsurers = new Set();
+                $(".selected_reinsurers").val('');
 
                 if (typeof pipelineManager !== 'undefined' &&
                     typeof pipelineManager.clearAllFiles === 'function') {
@@ -2032,6 +2041,7 @@
                 $('#propReinsurersTable tbody').empty();
                 $('#reinsurerCount').text('0');
                 $('#totalNegReinsurerShare').val('0.00');
+                $('#proposal-show-premiums-preview').prop('checked', false);
                 toggleProposalPreviewSlipButton();
             }
 
@@ -2544,84 +2554,85 @@
                 });
             });
 
-            $(document).on('click', '.contacts-reinsurer-btn, .contact-reinsurer-btn', function(e) {
-                e.preventDefault();
+            $(document).on('click', '.contacts-reinsurer, .contacts-reinsurer-btn, .contact-reinsurer-btn',
+                function(e) {
+                    e.preventDefault();
 
-                const $button = $(this);
-                const reinsurerID = $button.data('reinsurer-id');
-                const row = $button.closest('tr');
-                const reinsurerName = row.find('td:first .fw-medium').text().trim() || row.find('td:first')
-                    .text()
-                    .trim();
-                const opportunityId = $('#propOpportunityId').val();
+                    const $button = $(this);
+                    const reinsurerID = $button.data('reinsurer-id');
+                    const row = $button.closest('tr');
+                    const reinsurerName = row.find('td:first .fw-medium').text().trim() || row.find('td:first')
+                        .text()
+                        .trim();
+                    const opportunityId = $('#propOpportunityId').val();
 
-                if (!reinsurerID) {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Error',
-                        text: 'Reinsurer ID not found'
-                    });
-                    return;
-                }
-
-                if (!opportunityId) {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Error',
-                        text: 'Opportunity ID is missing for this proposal.'
-                    });
-                    return;
-                }
-
-                const originalHtml = $button.html();
-                $button.html('<i class="bx bx-loader bx-spin"></i>');
-                $button.prop('disabled', true);
-
-                $.ajax({
-                    url: `/reinsurers/${reinsurerID}/contacts`,
-                    method: 'POST',
-                    data: {
-                        reinsurer_id: reinsurerID,
-                        opportunity_id: opportunityId
-                    },
-                    success: function(response) {
-                        if (response.success) {
-                            const contactsPayload = response.data || response;
-                            const responseReinsurerName = response?.data?.reinsurer?.name ||
-                                reinsurerName;
-                            populatePropContactsModal(contactsPayload, responseReinsurerName);
-                            $('#propContactsOpportunityId').val(opportunityId);
-                            proposalState.suppressResetOnHide = true;
-                            $('#proposalModal').modal('hide');
-                            $('#propContactsModal').modal('show');
-                        } else {
-                            Swal.fire({
-                                icon: 'error',
-                                title: 'Error',
-                                text: response.message || 'Failed to fetch contacts'
-                            });
-                        }
-                    },
-                    error: function(xhr) {
-                        const errorMessages = {
-                            404: 'Reinsurer contacts not found',
-                            403: 'Access denied to reinsurer contacts'
-                        };
-                        const errorMessage = errorMessages[xhr.status] ||
-                            xhr.responseJSON?.message ||
-                            'Failed to fetch reinsurer contacts';
+                    if (!reinsurerID) {
                         Swal.fire({
                             icon: 'error',
                             title: 'Error',
-                            text: errorMessage
+                            text: 'Reinsurer ID not found'
                         });
-                    },
-                    complete: function() {
-                        $button.html(originalHtml);
-                        $button.prop('disabled', false);
+                        return;
                     }
+
+                    if (!opportunityId) {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: 'Opportunity ID is missing for this proposal.'
+                        });
+                        return;
+                    }
+
+                    const originalHtml = $button.html();
+                    $button.html('<i class="bx bx-loader bx-spin"></i>');
+                    $button.prop('disabled', true);
+
+                    $.ajax({
+                        url: `/reinsurers/${reinsurerID}/contacts`,
+                        method: 'POST',
+                        data: {
+                            reinsurer_id: reinsurerID,
+                            opportunity_id: opportunityId
+                        },
+                        success: function(response) {
+                            if (response.success) {
+                                const contactsPayload = response.data || response;
+                                const responseReinsurerName = response?.data?.reinsurer?.name ||
+                                    reinsurerName;
+                                populatePropContactsModal(contactsPayload, responseReinsurerName);
+                                $('#propContactsOpportunityId').val(opportunityId);
+                                proposalState.suppressResetOnHide = true;
+                                $('#proposalModal').modal('hide');
+                                $('#propContactsModal').modal('show');
+                            } else {
+                                Swal.fire({
+                                    icon: 'error',
+                                    title: 'Error',
+                                    text: response.message || 'Failed to fetch contacts'
+                                });
+                            }
+                        },
+                        error: function(xhr) {
+                            const errorMessages = {
+                                404: 'Reinsurer contacts not found',
+                                403: 'Access denied to reinsurer contacts'
+                            };
+                            const errorMessage = errorMessages[xhr.status] ||
+                                xhr.responseJSON?.message ||
+                                'Failed to fetch reinsurer contacts';
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Error',
+                                text: errorMessage
+                            });
+                        },
+                        complete: function() {
+                            $button.html(originalHtml);
+                            $button.prop('disabled', false);
+                        }
+                    });
                 });
-            });
 
             function populatePropContactsModal(contactData, customerName) {
                 $('#propContactsModalLabel').html(
@@ -3147,7 +3158,7 @@
                             </div>
                         </td>
                         <td class="text-start">
-                            <button type="button" class="btn btn-primary btn-sm contacts-reinsurer-btn"
+                            <button type="button" class="btn btn-primary btn-sm contacts-reinsurer"
                                     data-reinsurer-id="${reinsurerData.id}" title="View Contacts">
                                 <i class="bx bx-book"></i>
                             </button>
@@ -3172,6 +3183,10 @@
                 }
 
                 selectedReinsurers.add(reinsurerID);
+                proposalState.reinsurers = Array.isArray(proposalState.reinsurers) ? proposalState
+                    .reinsurers : [];
+                proposalState.reinsurers.push(reinsurerData);
+                $(".selected_reinsurers").val(JSON.stringify(proposalState.reinsurers));
                 $('#reinsurerCount').text(selectedReinsurers.size);
                 toggleProposalPreviewSlipButton();
 
@@ -3259,8 +3274,7 @@
             function previewCoverSlip(printoutType = 0) {
                 const sourceForm = $form
                 const postForm = $('#proposal-quoteslip-form');
-                const hasReinsurer = (proposalState.reinsurers?.length || 0) > 0 || selectedReinsurers.size > 0;
-                if (!hasReinsurer) {
+                if ((proposalState.reinsurers?.length || 0) === 0) {
                     toastr.warning('Please add at least one reinsurer before previewing the slip.');
                     return;
                 }
@@ -3277,6 +3291,9 @@
                     if (value instanceof File) {
                         continue;
                     }
+                    if (key === 'current_stage') {
+                        continue;
+                    }
 
                     postForm.append($('<input>', {
                         type: 'hidden',
@@ -3285,10 +3302,23 @@
                     }));
                 }
 
+                // Force Cedant-oriented preview layout (same behavior as negotiation slip preview).
+                postForm.append($('<input>', {
+                    type: 'hidden',
+                    name: 'current_stage',
+                    value: 'negotiation'
+                }));
+
                 postForm.append($('<input>', {
                     type: 'hidden',
                     name: 'printout_flag',
                     value: printoutType
+                }));
+
+                postForm.append($('<input>', {
+                    type: 'hidden',
+                    name: 'show_premiums',
+                    value: $('#proposal-show-premiums-preview').is(':checked') ? '1' : '0'
                 }));
 
                 postForm.submit();
@@ -3307,6 +3337,10 @@
                 dt.row(row).remove().draw();
 
                 selectedReinsurers.delete(reinsurerID);
+                proposalState.reinsurers = (proposalState.reinsurers || []).filter((reinsurer) =>
+                    String(reinsurer.id) !== String(reinsurerID)
+                );
+                $(".selected_reinsurers").val(JSON.stringify(proposalState.reinsurers));
                 $('#reinsurerCount').text(selectedReinsurers.size);
                 toggleProposalPreviewSlipButton();
 

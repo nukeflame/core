@@ -105,14 +105,14 @@
                         </div>
                         <div class="col-xl-4">
                             <label class="form-label">category</label>
-                            <select class="form-inputs select2" name="category_type" id="category_type" required>
-                                <option value="">Select</option>
+                            <select class="form-inputs select2" name="category_type[]" id="category_type" required
+                                multiple>
                                 <option value="1"
-                                    {{ isset($StageDocuments) && (string) $StageDocuments->category_type === '1' ? 'selected' : '' }}>
+                                    {{ isset($StageDocuments) && is_array($StageDocuments->category_type ?? null) && in_array('1', $StageDocuments->category_type, true) ? 'selected' : '' }}>
                                     Quotation
                                 </option>
                                 <option value="2"
-                                    {{ isset($StageDocuments) && (string) $StageDocuments->category_type === '2' ? 'selected' : '' }}>
+                                    {{ isset($StageDocuments) && is_array($StageDocuments->category_type ?? null) && in_array('2', $StageDocuments->category_type, true) ? 'selected' : '' }}>
                                     Fac Offer
                                 </option>
                             </select>
@@ -152,7 +152,7 @@
                     mandatory: {
                         required: true
                     },
-                    category_type: {
+                    'category_type[]': {
                         required: true
                     },
                     type_of_bus: {
@@ -171,7 +171,7 @@
                     mandatory: {
                         required: "amount field is required",
                     },
-                    category_type: {
+                    'category_type[]': {
                         required: "category is required"
                     },
                     type_of_bus: {

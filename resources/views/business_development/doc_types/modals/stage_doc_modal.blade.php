@@ -62,8 +62,7 @@
                         <div class="col-md-6">
                             <label for="sd-category-type" class="form-label">Category Type <span
                                     class="text-danger">*</span></label>
-                            <select id="sd-category-type" name="category_type" class="form-select" required>
-                                <option value="">Select Category</option>
+                            <select id="sd-category-type" name="category_type[]" class="form-select" multiple required>
                                 <option value="1">Quotation</option>
                                 <option value="2">Facultative Offer</option>
                             </select>

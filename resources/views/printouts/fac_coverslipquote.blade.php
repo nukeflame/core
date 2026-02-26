@@ -475,28 +475,27 @@
                         <div class="content-cell" style="width: 100%;">
                             @php
                                 $reinsurerData = [];
+                                $totalWrittenShare = 0;
                                 $totalSignedShare = 0;
-                                $totalSumInsured = 0;
                                 $totalPremium = 0;
 
                                 foreach ($reinsurers as $reinsurer) {
+                                    $writtenShare = $reinsurer->written_share ?? 0;
                                     $signedShare = $reinsurer->signed_share ?? 0;
                                     $signedShareDecimal = $signedShare / 100;
-                                    $sumInsured = $opportunity['sum_insured'] ?? 0;
                                     $cedantPremium = $opportunity['premium'] ?? 0;
 
-                                    $reinsurerSumInsured = $sumInsured * $signedShareDecimal;
                                     $reinsurerPremium = $cedantPremium * $signedShareDecimal;
 
                                     $reinsurerData[] = [
                                         'name' => $reinsurer->customer_name ?? 'N/A',
+                                        'written_share' => $writtenShare,
                                         'signed_share' => $signedShare,
-                                        'sum_insured' => $reinsurerSumInsured,
                                         'premium' => $reinsurerPremium,
                                     ];
 
+                                    $totalWrittenShare += $writtenShare;
                                     $totalSignedShare += $signedShare;
-                                    $totalSumInsured += $reinsurerSumInsured;
                                     $totalPremium += $reinsurerPremium;
                                 }
                             @endphp
@@ -514,10 +513,10 @@
                                             Reinsurer
                                         </th>
                                         <th style="text-align: center; font-weight: 600; padding: 5px; border: none;">
-                                            Signed Share (%)
+                                            Written Share (%)
                                         </th>
-                                        <th style="text-align: right; font-weight: 600; padding: 5px; border: none;">
-                                            Total Sum Insured ({{ $currency }})
+                                        <th style="text-align: center; font-weight: 600; padding: 5px; border: none;">
+                                            Signed Share (%)
                                         </th>
                                         <th style="text-align: right; font-weight: 600; padding: 5px; border: none;">
                                             Premium ({{ $currency }})
@@ -537,10 +536,10 @@
                                                 {{ $data['name'] }}
                                             </td>
                                             <td style="text-align: center; padding: 5px; border: none;">
-                                                {{ number_format($data['signed_share'], 2) }}%
+                                                {{ number_format($data['written_share'], 2) }}%
                                             </td>
-                                            <td style="text-align: right; padding: 5px; border: none;">
-                                                {{ number_format($data['sum_insured'], 2) }}
+                                            <td style="text-align: center; padding: 5px; border: none;">
+                                                {{ number_format($data['signed_share'], 2) }}%
                                             </td>
                                             <td style="text-align: right; padding: 5px; border: none;">
                                                 {{ number_format($data['premium'], 2) }}
@@ -558,10 +557,10 @@
                                             TOTAL
                                         </td>
                                         <td style="text-align: center; padding: 5px; border: none;">
-                                            {{ number_format($totalSignedShare, 2) }}%
+                                            {{ number_format($totalWrittenShare, 2) }}%
                                         </td>
-                                        <td style="text-align: right; padding: 5px; border: none;">
-                                            {{ number_format($totalSumInsured, 2) }}
+                                        <td style="text-align: center; padding: 5px; border: none;">
+                                            {{ number_format($totalSignedShare, 2) }}%
                                         </td>
                                         <td style="text-align: right; padding: 5px; border: none;">
                                             {{ number_format($totalPremium, 2) }}

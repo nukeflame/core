@@ -158,7 +158,8 @@
                     width: '100%',
                     dropdownParent: $('#stageDocModal'),
                     placeholder: 'Select Category',
-                    allowClear: true
+                    allowClear: true,
+                    closeOnSelect: false
                 });
             }
 
@@ -242,7 +243,7 @@
                         mandatory: {
                             required: true
                         },
-                        category_type: {
+                        'category_type[]': {
                             required: true
                         },
                         'type_of_bus[]': {
@@ -259,7 +260,7 @@
                         mandatory: {
                             required: 'Mandatory is required.'
                         },
-                        category_type: {
+                        'category_type[]': {
                             required: 'Category Type is required.'
                         },
                         'type_of_bus[]': {
@@ -414,11 +415,18 @@
                 var stage = ($btn.data('stage') || '').toString();
                 var docType = ($btn.data('doc-type') || '').toString();
                 var mandatory = ($btn.data('mandatory') || '').toString();
-                var categoryType = ($btn.data('category-type') || '').toString();
+                var categoryTypesRaw = $btn.attr('data-category-types') || '[]';
+                var categoryTypes = [];
                 var path = ($btn.data('path') || '').toString();
                 var s3Path = ($btn.data('s3-path') || '').toString();
                 var typeOfBusRaw = $btn.attr('data-type-of-bus') || '[]';
                 var typeOfBus = [];
+
+                try {
+                    categoryTypes = JSON.parse(categoryTypesRaw);
+                } catch (err) {
+                    categoryTypes = [];
+                }
 
                 try {
                     typeOfBus = JSON.parse(typeOfBusRaw);
@@ -431,7 +439,7 @@
                 $('#sd-stage').val(stage).trigger('change');
                 $('#sd-doc-type').val(docType).trigger('change');
                 $('#sd-mandatory').val(mandatory).trigger('change');
-                $('#sd-category-type').val(categoryType).trigger('change');
+                $('#sd-category-type').val(categoryTypes).trigger('change');
                 $('#sd-path').val(path);
                 $('#sd-s3-path').val(s3Path);
                 $('#sd-s3-uploaded-file-path').val(s3Path);

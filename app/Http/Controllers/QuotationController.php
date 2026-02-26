@@ -35,6 +35,7 @@ class QuotationController extends Controller
                 'reinsurers_data' => 'required',
                 'category_type' => 'nullable|in:1,2',
                 'slip_type' => 'nullable|in:quotation,facultative',
+                'show_premiums' => 'sometimes|boolean',
             ]);
 
             $activity = $this->fetchOpportunityData($validated['opportunity_id']);
@@ -81,6 +82,7 @@ class QuotationController extends Controller
                 'reference_no' => $reference_no,
                 'opportunity' => $formattedActivity,
                 'updated_written_share_total' => $updated_written_share_total,
+                'show_premiums' => $request->boolean('show_premiums'),
             ];
 
             $view = 'printouts.fac_coverslipquote';
