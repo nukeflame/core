@@ -1,9 +1,4 @@
-/**
- * Claims and Statements Table Handlers
- * Handles DataTable initialization for claims and statements tabs
- * @fixed - Added proper server-side total handling and error management
- */
-
+// @pk305
 (function ($, window) {
     "use strict";
 
@@ -12,9 +7,6 @@
         initialized: false,
         config: {},
 
-        /**
-         * Initialize claims and statements tables
-         */
         init: function (config = {}) {
             if (this.initialized) {
                 console.warn("ClaimsStatements already initialized");
@@ -26,13 +18,8 @@
             this.initialized = true;
         },
 
-        /**
-         * Bind tab change events to lazy-load tables
-         */
         bindTabEvents: function () {
             const self = this;
-
-            // Listen for tab changes
             $('button[data-bs-toggle="tab"]').on("shown.bs.tab", function (e) {
                 const target = $(e.target).data("bs-target");
 
@@ -45,10 +32,6 @@
                 }
             });
         },
-
-        /**
-         * Initialize claims table with DataTable
-         */
         initClaimsTable: function () {
             const $table = $("#claimsTable");
             const self = this;
@@ -153,11 +136,9 @@
                     },
                     dom: '<"d-flex justify-content-between align-items-center mb-3"lf>t<"d-flex justify-content-between align-items-center mt-3"ip>',
 
-                    // Handle server-side totals in footer
                     footerCallback: function (row, data, start, end, display) {
                         const api = this.api();
 
-                        // Get totals from server response
                         const json = api.ajax.json();
                         if (json && json.totals) {
                             self._updateClaimsFooter(row, json.totals);
@@ -165,13 +146,11 @@
                     },
 
                     drawCallback: function (settings) {
-                        // Initialize tooltips or other plugins if needed
                         $('[data-bs-toggle="tooltip"]').tooltip();
                     },
                 });
 
                 this.bindClaimsTableEvents();
-                console.log("Claims table initialized successfully");
             } catch (error) {
                 console.error("Error initializing claims table:", error);
                 this._showTableError(
@@ -181,9 +160,6 @@
             }
         },
 
-        /**
-         * Initialize statements table with DataTable
-         */
         initStatementsTable: function () {
             const $table = $("#reinsurersTable");
             const self = this;
@@ -323,11 +299,9 @@
                     },
                     dom: '<"d-flex justify-content-between align-items-center mb-3"lf>t<"d-flex justify-content-between align-items-center mt-3"ip>',
 
-                    // Handle server-side totals in footer
                     footerCallback: function (row, data, start, end, display) {
                         const api = this.api();
 
-                        // Get totals from server response
                         const json = api.ajax.json();
                         if (json && json.totals) {
                             self._updateStatementsFooter(row, json.totals);
@@ -335,13 +309,11 @@
                     },
 
                     drawCallback: function (settings) {
-                        // Initialize tooltips or other plugins if needed
                         $('[data-bs-toggle="tooltip"]').tooltip();
                     },
                 });
 
                 this.bindStatementsTableEvents();
-                console.log("Statements table initialized successfully");
             } catch (error) {
                 console.error("Error initializing statements table:", error);
                 this._showTableError(
@@ -351,9 +323,6 @@
             }
         },
 
-        /**
-         * Update claims table footer with totals from server
-         */
         _updateClaimsFooter: function (row, totals) {
             if (!totals) return;
 
@@ -369,9 +338,6 @@
             $(row).closest("table").find("tfoot").html(footer);
         },
 
-        /**
-         * Update statements table footer with totals from server
-         */
         _updateStatementsFooter: function (row, totals) {
             if (!totals) return;
 
@@ -393,9 +359,6 @@
             $(row).closest("table").find("tfoot").html(footer);
         },
 
-        /**
-         * Formatting helpers
-         */
         _formatCurrency: function (value) {
             if (!value || isNaN(value)) return "0.00";
             return parseFloat(value).toLocaleString("en-US", {
@@ -430,9 +393,6 @@
             $table.closest(".card-body").prepend(errorHtml);
         },
 
-        /**
-         * Bind event handlers for claims table actions
-         */
         bindClaimsTableEvents: function () {
             const self = this;
 
@@ -468,7 +428,6 @@
                 },
             );
 
-            // Add dblclick support for table rows
             $(document).on("dblclick", "#claimsTable tbody tr", function () {
                 const rowData = self.tables.claims.row(this).data();
                 if (rowData && rowData.claim_no) {
@@ -477,9 +436,6 @@
             });
         },
 
-        /**
-         * Bind event handlers for statements table actions
-         */
         bindStatementsTableEvents: function () {
             const self = this;
 
@@ -515,7 +471,6 @@
                 },
             );
 
-            // Add dblclick support for table rows
             $(document).on(
                 "dblclick",
                 "#reinsurersTable tbody tr",
@@ -528,32 +483,18 @@
             );
         },
 
-        /**
-         * View claim details
-         */
         viewClaimDetails: function (claimNo) {
-            console.log("Viewing claim details for:", claimNo);
-
-            // TODO: Implement claim details modal or redirect
-            // Example implementation:
             if (this.config.claimDetailsUrl) {
                 window.location.href = this.config.claimDetailsUrl.replace(
                     ":claimNo",
                     claimNo,
                 );
             } else {
-                // Show modal with claim details
                 this._showDetailModal("claim", claimNo);
             }
         },
 
-        /**
-         * View claim documents
-         */
         viewClaimDocuments: function (claimNo) {
-            console.log("Viewing claim documents for:", claimNo);
-
-            // TODO: Implement document viewer
             if (this.config.claimDocumentsUrl) {
                 window.location.href = this.config.claimDocumentsUrl.replace(
                     ":claimNo",
@@ -564,12 +505,7 @@
             }
         },
 
-        /**
-         * Edit claim
-         */
         editClaim: function (claimNo) {
-            console.log("Editing claim:", claimNo);
-
             if (this.config.editClaimUrl) {
                 window.location.href = this.config.editClaimUrl.replace(
                     ":claimNo",
@@ -578,9 +514,6 @@
             }
         },
 
-        /**
-         * Delete claim
-         */
         deleteClaim: function (claimNo) {
             const self = this;
 
@@ -604,12 +537,7 @@
             }
         },
 
-        /**
-         * View statement details
-         */
         viewStatementDetails: function (tranNo) {
-            console.log("Viewing statement details for:", tranNo);
-
             if (this.config.statementDetailsUrl) {
                 window.location.href = this.config.statementDetailsUrl.replace(
                     ":tranNo",
@@ -619,15 +547,8 @@
                 this._showDetailModal("statement", tranNo);
             }
         },
-
-        /**
-         * Generate statement document
-         */
         generateStatement: function (tranNo) {
-            console.log("Generating statement for:", tranNo);
-
             if (this.config.generateStatementUrl) {
-                // Open in new window or download
                 window.open(
                     this.config.generateStatementUrl.replace(":tranNo", tranNo),
                     "_blank",
@@ -638,13 +559,7 @@
                 }
             }
         },
-
-        /**
-         * Edit statement
-         */
         editStatement: function (tranNo) {
-            console.log("Editing statement:", tranNo);
-
             if (this.config.editStatementUrl) {
                 window.location.href = this.config.editStatementUrl.replace(
                     ":tranNo",
@@ -652,10 +567,6 @@
                 );
             }
         },
-
-        /**
-         * Delete statement
-         */
         deleteStatement: function (tranNo) {
             const self = this;
 
@@ -678,10 +589,6 @@
                 });
             }
         },
-
-        /**
-         * Show detail modal (placeholder implementation)
-         */
         _showDetailModal: function (type, id) {
             if (typeof toastr !== "undefined") {
                 toastr.info(`${type} details for ${id} - To be implemented`);
@@ -689,10 +596,6 @@
                 alert(`${type} Details: ${id}\n(To be implemented)`);
             }
         },
-
-        /**
-         * Perform delete operation
-         */
         _performDelete: function (type, id) {
             const url =
                 type === "claim"
@@ -716,7 +619,7 @@
                     if (typeof toastr !== "undefined") {
                         toastr.success("Deleted successfully");
                     }
-                    // Reload table
+
                     if (type === "claim" && ClaimsStatements.tables.claims) {
                         ClaimsStatements.tables.claims.ajax.reload();
                     } else if (
@@ -735,21 +638,14 @@
             });
         },
 
-        /**
-         * Reload a table
-         */
         reloadTable: function (tableName) {
             if (this.tables[tableName]) {
                 this.tables[tableName].ajax.reload(null, false); // false = stay on current page
-                console.log(`Table ${tableName} reloaded`);
             } else {
                 console.warn(`Table ${tableName} not initialized`);
             }
         },
 
-        /**
-         * Destroy and reinitialize a table
-         */
         reinitTable: function (tableName) {
             if (this.tables[tableName]) {
                 this.tables[tableName].destroy();
@@ -760,16 +656,10 @@
                 } else if (tableName === "statements") {
                     this.initStatementsTable();
                 }
-
-                console.log(`Table ${tableName} reinitialized`);
             } else {
                 console.warn(`Table ${tableName} not initialized`);
             }
         },
-
-        /**
-         * Destroy all tables
-         */
         destroy: function () {
             Object.keys(this.tables).forEach((tableName) => {
                 if (this.tables[tableName]) {
@@ -778,18 +668,14 @@
             });
             this.tables = {};
             this.initialized = false;
-            console.log("ClaimsStatements destroyed");
         },
     };
 
-    // Expose to global scope
     window.ClaimsStatements = ClaimsStatements;
 
-    // Initialize when DOM is ready
     $(document).ready(function () {
         try {
             ClaimsStatements.init();
-            console.log("ClaimsStatements initialized");
         } catch (error) {
             console.error("Failed to initialize ClaimsStatements:", error);
         }

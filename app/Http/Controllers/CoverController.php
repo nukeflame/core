@@ -387,9 +387,30 @@ class CoverController extends Controller
 
             DB::commit();
 
+            $redirectUrl = route('cover.CoverHome', ['endorsement_no' => $result['endorsement_no']]);
+
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Cover Endorsement information updated successfully',
+                    'data' => [
+                        'endorsement_no' => $result['endorsement_no'],
+                        'redirectUrl' => $redirectUrl,
+                    ],
+                ], 200);
+            }
+
             return redirect()->route('cover.CoverHome', ['endorsement_no' => $result['endorsement_no']])->with('success', 'Cover Endorsement information updated successfully');
         } catch (Exception $e) {
             DB::rollback();
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'An error occurred while processing cover endorsement',
+                    'error' => config('app.debug') ? $e->getMessage() : 'Server error',
+                ], 500);
+            }
+
             throw $e;
         }
     }

@@ -1,7 +1,4 @@
-/**
- * Reinsurance Placement Management System
- * @pk305
- */
+// @pk305
 (function ($) {
     "use strict";
 
@@ -416,9 +413,6 @@
             let adjustedPremium = Utils.removeCommas(premium);
 
             if (options.net_of_tax) {
-                // Assuming net of tax means deducting WHT/Tax from premium before applying rate
-                // I need to fetch the WHT amount if possible, but for now I'll use a placeholder logic
-                // if we don't have the exact WHT amount here.
             }
 
             if (options.net_of_commission) {
@@ -2799,7 +2793,9 @@
                 const formData = new FormData();
                 formData.append(
                     "endorsement_no",
-                    this.state.endorsementNo || $form.find('[name="endorsement_no"]').val() || "",
+                    this.state.endorsementNo ||
+                        $form.find('[name="endorsement_no"]').val() ||
+                        "",
                 );
 
                 const response = await fetch(preVerifyUrl, {

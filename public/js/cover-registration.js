@@ -1,3 +1,4 @@
+// @pk305
 /**
  * Cover Registration Module
  *

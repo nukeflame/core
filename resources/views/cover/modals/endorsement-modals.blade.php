@@ -415,8 +415,8 @@
 
     /* Premium Fields - Special Styling */
     #endorse-cover-modal .premium-field {
-        background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
-        border-color: #86efac;
+        background: transparent;
+        border-color: #3634346e;
     }
 
     #endorse-cover-modal .premium-field:hover {
@@ -425,13 +425,13 @@
     }
 
     #endorse-cover-modal .premium-field label {
-        color: #166534;
+        color: #64748b;
     }
 
     #endorse-cover-modal .premium-field .form-inputs {
-        background: white;
+        background: #fafbfc;
         font-weight: 600;
-        color: #166534;
+        color: #374151;
     }
 
     /* Endorsed/New Fields - Highlighted */
@@ -450,8 +450,8 @@
     } */
 
     #endorse-cover-modal .new-value-field {
-        background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
-        border-color: #93c5fd;
+        background: transparent;
+        border-color: #3634346e;
     }
 
     #endorse-cover-modal .new-value-field:hover {
@@ -460,7 +460,7 @@
     }
 
     #endorse-cover-modal .new-value-field label {
-        color: #1e40af;
+        color: #64748b;
     }
 
     /* Input Styling */
@@ -572,11 +572,11 @@
 
     /* Premium Summary Card */
     #endorse-cover-modal .premium-summary {
-        background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+        background: transparent;
         border-radius: 12px;
         padding: 1rem;
         margin: 1rem 0;
-        border: 1px dashed #94a3b8;
+        border: 1px solid #e2e8f0;
     }
 
     /* Responsive Adjustments */
@@ -787,9 +787,8 @@
                     </div>
 
                     {{-- New/Endorsed Values Section --}}
-                    <div class="form-group mb-0">
-                        <div class="section-header"
-                            style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">
+                    <div class="form-group mb-0" id="endorsed_section_div">
+                        <div class="section-header">
                             <i class="bx bx-edit"></i>
                             <span>Endorsed / New Values</span>
                         </div>
@@ -970,9 +969,8 @@
                         {{-- Narration --}}
                         <div class="row mt-3">
                             <div class="col-12 endorse_narration_div">
-                                <div class="field-card"
-                                    style="background: linear-gradient(135deg, #fefce8 0%, #fef9c3 100%); border-color: #fde047;">
-                                    <label class="required" style="color: #854d0e; font-size: 0.9rem;">
+                                <div class="field-card">
+                                    <label class="required" style="font-size: 0.9rem;">
                                         <i class="bx bx-note me-1"></i>Endorsement Narration
                                     </label>
                                     <textarea name="endorse_narration" id="endorse_narration" class="form-inputs" rows="4"

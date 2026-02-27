@@ -1,15 +1,7 @@
-/**
- * Cover Endorsement Event Handlers
- * Updated to work with endorsement-modals.blade.php structure
- * @pk305
- */
-
+// @pk305
 (function ($, CoverEndorsement, CoverUtils) {
     "use strict";
 
-    /**
-     * Bind all event handlers
-     */
     CoverEndorsement.bindEvents = function () {
         this.bindButtonEvents();
         this.bindEndorsementTypeChange();
@@ -20,13 +12,9 @@
         this.bindModalEvents();
     };
 
-    /**
-     * Bind button click events
-     */
     CoverEndorsement.bindButtonEvents = function () {
         const self = this;
 
-        // Endorse Cover button
         $("#btn-endorse-cover, #endorse_cover").on("click", function () {
             self.resetEndorsementForm();
             self.processSections(
@@ -34,17 +22,15 @@
                 ".endorsement_section_div",
                 "disable",
             );
-            self.elements.currentSection.hide();
+            self.toggleEndorsementSections(false);
             self.elements.endorseModal.modal("show");
         });
 
-        // Renew Cover button
         $("#btn-renew-cover, #process_renew").on("click", function () {
             $("#trans_type, #form-trans-type").val("REN");
             self.elements.coverActionForm.submit();
         });
 
-        // Renewal Notice button
         $("#btn-renewal-notice, #generateRenewalNotice").on(
             "click",
             function (e) {
@@ -54,9 +40,6 @@
         );
     };
 
-    /**
-     * Bind endorsement type change event
-     */
     CoverEndorsement.bindEndorsementTypeChange = function () {
         const self = this;
         const fieldConfig = this.getFieldConfig();
@@ -64,19 +47,16 @@
         this.elements.endorseType.on("change", function () {
             const slug = $(this).val();
 
-            // Validate if validator exists
             if ($(this).data("validator")) {
                 $(this).valid();
             }
 
-            // First, disable all fields
             self.hideAllFields();
 
-            // Hide change type wrapper by default
             $("#change_type_wrapper").addClass("d-none");
 
             if (!slug) {
-                self.elements.currentSection.hide();
+                self.toggleEndorsementSections(false);
                 return;
             }
 
@@ -90,24 +70,20 @@
                 return;
             }
 
-            // Show/hide current section
             if (config.showCurrentSection) {
-                self.elements.currentSection.show();
+                self.toggleEndorsementSections(true);
             } else {
-                self.elements.currentSection.hide();
+                self.toggleEndorsementSections(false);
             }
 
-            // Show configured fields
             config.show.forEach(function (fieldName) {
                 self.showField(fieldName);
             });
 
-            // Show change type wrapper for types that need it
             if (config.show.includes("change_in_sum_insured_type")) {
                 $("#change_type_wrapper").removeClass("d-none");
             }
 
-            // Trigger change for dependent fields
             if (config.show.includes("brokerage_comm_type")) {
                 self.elements.brokerageCommType.trigger("change");
             }
@@ -116,7 +92,6 @@
                 self.elements.applyEml.trigger("change");
             }
 
-            // Reset premium fields for certain types
             if (["change-premium", "change-sum-insured"].includes(slug)) {
                 self.elements.endorsedPremium.val("");
                 self.elements.newPremium.val("0");
@@ -124,9 +99,6 @@
         });
     };
 
-    /**
-     * Hide all endorsement fields
-     */
     CoverEndorsement.hideAllFields = function () {
         const allFields = this.getAllFieldNames();
         const self = this;
@@ -140,9 +112,6 @@
         });
     };
 
-    /**
-     * Show a specific field by name
-     */
     CoverEndorsement.showField = function (fieldName) {
         this.processSections(
             "." + fieldName,
@@ -151,9 +120,6 @@
         );
     };
 
-    /**
-     * Process sections (show/hide and enable/disable)
-     */
     CoverEndorsement.processSections = function (
         sectionClass,
         sectionDivClass,
@@ -178,13 +144,9 @@
         }
     };
 
-    /**
-     * Bind calculation events for sum insured and premium
-     */
     CoverEndorsement.bindCalculationEvents = function () {
         const self = this;
 
-        // Change type dropdown
         this.elements.changeType.on("change keyup", function () {
             if ($(this).data("validator")) {
                 $(this).valid();
@@ -469,7 +431,6 @@
             });
         });
 
-        // Double-click on table row
         this.elements.endorsementTable.on("dblclick", "tbody tr", function () {
             const rowData = self.dataTable.row(this).data();
             if (rowData) {
@@ -480,7 +441,6 @@
             }
         });
 
-        // Remove endorsement
         $(document).on("click", ".remove-endorsement-table", function (e) {
             e.preventDefault();
 
@@ -528,13 +488,9 @@
         });
     };
 
-    /**
-     * Bind modal events
-     */
     CoverEndorsement.bindModalEvents = function () {
         const self = this;
 
-        // Reset form when modal is hidden
         $(".cancelCoverEndorsementForm").on("click", function () {
             self.resetEndorsementForm();
         });
@@ -544,29 +500,28 @@
         });
     };
 
-    /**
-     * Reset the endorsement form
-     */
+    CoverEndorsement.toggleEndorsementSections = function (visible) {
+        this.elements.currentSection.toggle(visible);
+        this.elements.endorsedSection.toggle(visible);
+    };
+
     CoverEndorsement.resetEndorsementForm = function () {
         this.elements.endorseForm[0].reset();
         this.hideAllFields();
-        this.elements.currentSection.hide();
+        this.toggleEndorsementSections(false);
         this.elements.endorseType.val("").trigger("change.select2");
 
-        // Hide change type wrapper
         $("#change_type_wrapper").addClass("d-none");
 
         $(".errorClass").remove();
         $(".is-invalid").removeClass("is-invalid");
     };
 
-    /**
-     * Initialize form validation
-     */
     CoverEndorsement.initFormValidation = function () {
         const self = this;
 
         this.elements.endorseForm.validate({
+            ignore: ":hidden:not(#endorse_type)",
             errorClass: "errorClass",
             rules: {
                 endorse_type: { required: true },
@@ -583,15 +538,69 @@
             },
             submitHandler: function (form) {
                 if (self.validateEndorsementInputs()) {
-                    form.submit();
+                    self.submitEndorsementAjax(form);
                 }
             },
         });
     };
 
-    /**
-     * Validate endorsement inputs
-     */
+    CoverEndorsement.submitEndorsementAjax = function (form) {
+        const self = this;
+        const $form = $(form);
+        const $submitBtn = $("#cover-endorse-save-btn");
+        const originalHtml = $submitBtn.html();
+
+        $submitBtn.prop("disabled", true).addClass("loading");
+
+        $.ajax({
+            url: $form.attr("action"),
+            type: "POST",
+            data: $form.serialize(),
+            headers: {
+                "X-Requested-With": "XMLHttpRequest",
+                Accept: "application/json",
+            },
+            success: function (response, textStatus, xhr) {
+                const redirectUrl =
+                    (response && response.data && response.data.redirectUrl) ||
+                    xhr.responseURL;
+
+                toastr.success(
+                    (response && response.message) ||
+                        "Cover Endorsement information updated successfully",
+                );
+
+                if (redirectUrl) {
+                    window.location.href = redirectUrl;
+                    return;
+                }
+
+                self.elements.endorseModal.modal("hide");
+                self.dataTable.ajax.reload();
+            },
+            error: function (xhr) {
+                if (
+                    xhr.status === 422 &&
+                    xhr.responseJSON &&
+                    xhr.responseJSON.errors
+                ) {
+                    self.showValidationErrors(xhr.responseJSON.errors);
+                } else {
+                    const message =
+                        (xhr.responseJSON && xhr.responseJSON.message) ||
+                        "Failed to submit cover endorsement";
+                    toastr.error(message);
+                }
+            },
+            complete: function () {
+                $submitBtn
+                    .prop("disabled", false)
+                    .removeClass("loading")
+                    .html(originalHtml);
+            },
+        });
+    };
+
     CoverEndorsement.validateEndorsementInputs = function () {
         const endorseType = this.elements.endorseType.val();
         const changeType = this.elements.changeType.val();
@@ -625,9 +634,6 @@
         return true;
     };
 
-    /**
-     * Show validation errors
-     */
     CoverEndorsement.showValidationErrors = function (errors) {
         if (typeof showServerSideValidationErrors === "function") {
             showServerSideValidationErrors(errors);
@@ -638,17 +644,12 @@
         }
     };
 
-    /**
-     * Initialize Portfolio handlers
-     */
     CoverEndorsement.initPortfolioHandlers = function () {
         const self = this;
 
-        // Hide portfolio fields initially
         this.elements.portfolioAddReinsurer.hide();
         $(".port_share_div").hide();
 
-        // Portfolio year change
         this.elements.portfolioYear.on("change", function () {
             const treatyYear = $(this).val() || 0;
             const coverNo = self.config.coverNo;
@@ -688,7 +689,6 @@
             });
         });
 
-        // Original endorsement change
         this.elements.origEndorsement.on("change", function () {
             const origEndorsement = $(this).val();
             const treatyYear = self.elements.portfolioYear.val();
@@ -756,7 +756,6 @@
             });
         });
 
-        // Port reinsurer change
         this.elements.portReinsurer.on("change", function () {
             const share = $("select#port_reinsurer option:selected").attr(
                 "portfolio_share",
@@ -774,7 +773,6 @@
             self.elements.portLossRate.val(portLossRate);
         });
 
-        // Port share validation
         this.elements.portShare.on("keyup", function () {
             let newShare = parseFloat($(this).val()).toFixed(2);
             const portfolioType = self.elements.portfolioType.val();
@@ -804,9 +802,6 @@
         });
     };
 
-    /**
-     * Initialize Quarterly Figures / Profit Commission handlers
-     */
     CoverEndorsement.initQuarterlyFiguresHandlers = function () {
         const self = this;
 
@@ -833,9 +828,6 @@
         });
     };
 
-    /**
-     * Render quarterly figures table
-     */
     CoverEndorsement.renderQuarterlyFigures = function (response) {
         let html = `
             <div class="mb-3" id="pc_qtr_details">
@@ -909,7 +901,6 @@
                 </tr>`;
         });
 
-        // Add final total row
         if (!totalRowAdded && prevQuarter !== null) {
             html += `
                 <tr class="total-row" style="font-weight: bold;">
@@ -955,9 +946,6 @@
         this.elements.profitCommissionForm.append(html);
     };
 
-    /**
-     * Initialize MDP Installment handlers
-     */
     CoverEndorsement.initMDPHandlers = function () {
         const self = this;
 
@@ -974,7 +962,6 @@
 
             self.elements.mdpInstallmentsSection.empty();
 
-            // Get MDP installments from config
             const mdpInstallments = self.config.mdpInsLayerwise || [];
 
             if (mdpInstallments.length > 0) {
@@ -1008,7 +995,6 @@
     };
 })(jQuery, window.CoverEndorsement, window.CoverUtils);
 
-// Global helper function for backward compatibility
 function numberWithCommas(x) {
     return window.CoverUtils ? window.CoverUtils.numberWithCommas(x) : x;
 }

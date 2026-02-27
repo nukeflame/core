@@ -1,16 +1,7 @@
-/**
- * Cover Endorsement Configuration
- * Updated to work with endorsement-modals.blade.php structure
- * @pk305
- */
-
+// @pk305
 (function (window) {
     "use strict";
 
-    /**
-     * Field configuration for each endorsement type
-     * Keys are endorsement slugs, values contain which fields to show
-     */
     const ENDORSEMENT_FIELD_CONFIG = {
         "change-brokerage-rate": {
             show: [
@@ -110,9 +101,6 @@
         },
     };
 
-    /**
-     * All possible field names for hiding
-     */
     const ALL_FIELD_NAMES = [
         "change_in_sum_insured_type",
         "current_total_sum_insured",
@@ -146,9 +134,6 @@
         "new_premium_due_date",
     ];
 
-    /**
-     * CoverEndorsement Main Object
-     */
     const CoverEndorsement = {
         config: null,
         elements: {},
@@ -158,10 +143,6 @@
             currentReinsurerPremium: 0,
         },
         dataTable: null,
-
-        /**
-         * Initialize the endorsement module
-         */
         init: function (serverConfig) {
             this.config = serverConfig;
             this.state.currentSumInsured =
@@ -181,23 +162,15 @@
             this.initQuarterlyFiguresHandlers();
             this.initMDPHandlers();
         },
-
-        /**
-         * Cache DOM elements for performance
-         */
         cacheElements: function () {
             this.elements = {
-                // Tables
                 endorsementTable: $("#endorsement-list-table"),
-
-                // Modals
                 endorseModal: $("#endorse-cover-modal"),
                 quarterlyFiguresModal: $("#quarterly-figures-modal"),
                 profitCommissionModal: $("#profit-commission-modal"),
                 portfolioModal: $("#portfolio-modal"),
                 mdpInstallmentModal: $("#mdpInstallmentModal"),
 
-                // Forms
                 endorseForm: $("#coverEndorsementForm"),
                 coverActionForm: $("#new_cover_form"),
                 renewalNoticeForm: $("#new_renewal_notice"),
@@ -206,11 +179,10 @@
                 portfolioForm: $("#PortfolioForm"),
                 mdpInstallmentForm: $("#mdpInstallmentForm"),
 
-                // Endorsement Type
                 endorseType: $("#endorse_type"),
                 currentSection: $("#current_section_div"),
+                endorsedSection: $("#endorsed_section_div"),
 
-                // Sum Insured Fields
                 endorsedSumInsured: $("#endorsed_total_sum_insured"),
                 endorsedPremium: $("#endorsed_cede_premium"),
                 newSumInsured: $("#new_total_sum_insured"),
@@ -220,12 +192,10 @@
                 currentSumInsured: $("#current_total_sum_insured"),
                 effectiveSumInsured: $("#effective_sum_insured"),
 
-                // EML Fields
                 applyEml: $("#apply_eml"),
                 emlRate: $("#eml_rate"),
                 emlAmt: $("#eml_amt"),
 
-                // Date Fields
                 premiumDueDate: $("#premium_due_date"),
                 newPremiumDueDate: $("#new_premium_due_date"),
                 extensionDays: $("#extension_days"),
@@ -235,15 +205,12 @@
                 coverTo: $("#coverto"),
                 startDate: $("#start_date"),
 
-                // Brokerage Fields
                 brokerageCommType: $("#brokerage_comm_type"),
                 brokerageCommRate: $("#brokerage_comm_rate"),
                 brokerageCommAmt: $("#brokerage_comm_amt"),
 
-                // Narration
                 endorseNarration: $("#endorse_narration"),
 
-                // Portfolio Fields
                 portfolioYear: $("#portfolio_year"),
                 origEndorsement: $("#orig_endorsement"),
                 portReinsurer: $("#port_reinsurer"),
@@ -254,19 +221,14 @@
                 portLossRate: $("#port_loss_rate"),
                 portfolioType: $("#portfolio_type"),
 
-                // Profit Commission
                 treatyYear: $("#treaty_year"),
                 profitCommissionDiv: $("#ProfitCommissionDiv"),
 
-                // MDP
                 mdpInstallment: $("#mdp-installment"),
                 mdpInstallmentsSection: $("#mdp-installments-section"),
             };
         },
 
-        /**
-         * Initialize DataTable for endorsement list
-         */
         initDataTable: function () {
             const self = this;
 
@@ -307,10 +269,6 @@
                 ],
             });
         },
-
-        /**
-         * Initialize Select2 for modals
-         */
         initSelect2Modals: function () {
             const modals = [
                 "#quarterly-figures-modal",
@@ -329,24 +287,15 @@
             });
         },
 
-        /**
-         * Get field configuration for endorsement types
-         */
         getFieldConfig: function () {
             return ENDORSEMENT_FIELD_CONFIG;
         },
 
-        /**
-         * Get all field names
-         */
         getAllFieldNames: function () {
             return ALL_FIELD_NAMES;
         },
     };
 
-    /**
-     * Utility functions
-     */
     window.CoverUtils = {
         numberWithCommas: function (x) {
             if (x === null || x === undefined || isNaN(x)) return "0.00";
