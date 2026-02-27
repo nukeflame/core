@@ -242,6 +242,11 @@ return [
                     'permission' => 'app.reins_settings.view',
                     'submenu' => [
                         [
+                            'title' => 'Budget Setup',
+                            'route' => 'settings.budgetSetup.index',
+                            'permission' => 'reports.budget_allocation.view',
+                        ],
+                        [
                             'title' => 'Facultative Settings',
                             'permission' => 'app.reins_settings.view',
                             'has_sub' => true,
@@ -354,7 +359,7 @@ return [
                             ]
                         ],
                         [
-                            'title' => 'Common Settings',
+                            'title' => 'General Settings',
                             'permission' => 'app.reins_settings.view',
                             'has_sub' => true,
                             'children' => [

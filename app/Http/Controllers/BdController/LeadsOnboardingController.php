@@ -17,7 +17,6 @@ use App\Models\Classes;
 use App\Models\ClassGroup;
 use App\Models\Country;
 use App\Models\Bd\Intermediary;
-use App\Models\Bd\Leads\ActivityAttendees;
 use App\Models\Bd\Leads\Leads;
 use App\Models\Bd\Leads\LeadsSource;
 use App\Models\Bd\Leads\LeadStatus;
@@ -39,7 +38,6 @@ use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
@@ -411,16 +409,9 @@ class LeadsOnboardingController
 
         try {
             $organic_reference = null;
-
-
-
-
             $result = $this->repository->registerCover($request);
-
             DB::commit();
-
             $status = 1;
-
             // return array('status' => 200, 'qstring' => Crypt::encrypt('pipeline=' . $pipeline->id . '&prospect=' . $nextCode));
             return null;
         } catch (Exception $e) {
@@ -429,49 +420,7 @@ class LeadsOnboardingController
             return array('status' => 400);
         }
     }
-    public function insertProspectReinProp($data)
-    {
-        // $CoverRegister = CoverRegister::where('endorsement_no', $this->_endorsement_no)->first();
-
-        // $CoverReinProp = CoverReinProp::where('endorsement_no', $this->_endorsement_no)
-        //     ->where('reinclass', $data['treaty_class'])
-        //     ->where('item_description', $data['item_description']);
-
-        // if ($CoverReinProp->count() > 0) {
-        //     $CoverReinProp = $CoverReinProp->first();
-        // } else {
-
-        //     $count = CoverReinProp::where('cover_no', $CoverRegister->cover_no)
-        //         ->where('endorsement_no', $this->_endorsement_no)
-        //         ->count();
-        //     $count = $count + 1;
-
-        //     $CoverReinProp = new CoverReinProp();
-        //     $CoverReinProp->cover_no = $CoverRegister->cover_no;
-        //     $CoverReinProp->endorsement_no = $CoverRegister->endorsement_no;
-        //     $CoverReinProp->item_no = $count;
-        //     $CoverReinProp->created_by = Auth::user()->user_name;
-        // }
-
-        // $CoverReinProp->reinclass = $data['treaty_class'];
-        // $CoverReinProp->item_description = $data['item_description'];
-        // $CoverReinProp->retention_rate = $data['retention_per'];
-        // $CoverReinProp->treaty_rate = $data['treaty_rate'];
-        // $CoverReinProp->retention_amount = $data['retention_amount'];
-        // $CoverReinProp->no_of_lines = $data['no_of_lines'];
-        // $CoverReinProp->treaty_amount = $data['treaty_amount'];
-        // $CoverReinProp->treaty_limit = $data['treaty_limit'];
-        // $CoverReinProp->port_prem_rate = 0;
-        // $CoverReinProp->port_loss_rate = 0;
-        // $CoverReinProp->profit_comm_rate = 0;
-        // $CoverReinProp->mgnt_exp_rate = 0;
-        // $CoverReinProp->deficit_yrs = 0;
-        // $CoverReinProp->estimated_income = $data['estimated_income'];
-        // $CoverReinProp->cashloss_limit = $data['cashloss_limit'];
-        // $CoverReinProp->updated_by = Auth::user()->user_name;
-
-        // $CoverReinProp->save();
-    }
+    public function insertProspectReinProp($data) {}
 
     public function listing()
     {
@@ -546,8 +495,6 @@ class LeadsOnboardingController
 
         $spreadsheet = new Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
-
-        // Keep first two rows intentionally empty to match existing pipeline update template structure.
         $sheet->fromArray($columns, null, 'A3');
         $sheet->fromArray([
             [
@@ -702,7 +649,6 @@ class LeadsOnboardingController
 
             DB::commit();
         } catch (\Throwable $e) {
-            // logger($e);
             DB::rollBack();
 
             return $this->importPipelineResponse($request, false, 'Import failed: ' . $e->getMessage());
@@ -1140,18 +1086,13 @@ class LeadsOnboardingController
         }
     }
 
-    /**
-     * Get Treaty Pipeline KPIs
-     */
     public function getTreatyKPIs()
     {
         $query = DB::table('pipeline_opportunities')
             ->whereIn('type_of_bus', ['TPR', 'TNP']);
 
-        // Total Pipeline Value
         $totalValue = $query->sum('cede_premium') ?? 0;
 
-        // Weighted Value (probability-adjusted)
         $opportunities = $query->get();
         $weightedValue = $opportunities->sum(function ($opp) {
             $probability = $opp->probability ?? 0;
@@ -1159,15 +1100,11 @@ class LeadsOnboardingController
             return ($probability / 100) * $premium;
         });
 
-        // Active Treaties Count
         $activeCount = $query->whereNotNull('status')
             ->where('status', '!=', 'closed')
             ->count();
 
-        // Average Probability
         $avgProbability = $query->avg('probability') ?? 0;
-
-        // Stage Counts
         $stageCounts = [
             'all' => $query->count(),
             'qualification' => $query->where('stage', 1)->count(),
@@ -1198,9 +1135,6 @@ class LeadsOnboardingController
     public function getLeadDetails($leadId)
     {
         try {
-            // $lead = Leads::join('pipeline_opportunities', 'leads.code', '=', 'pipeline_opportunities.opportunity_id')
-            //         ->where('leads.code',$leadId)
-            //         ->first();
             $lead = DB::table('prospect_handover')->where('prospect_id', $leadId)->first();
 
             return response()->json([
@@ -1214,76 +1148,6 @@ class LeadsOnboardingController
             ], 404);
         }
     }
-
-    // public function leads_get(Request $request)
-    // {
-    //     $currentYear = Carbon::now()->format('Y');
-
-    //     $data = DB::table('pipeline_opportunities')
-    //         // ->where('prequalification', '=', 'N')
-    //         // ->where('pip_year', '>=', $currentYear)
-    //         // ->where('stage', '<', '1')
-    //         ->whereIn('type_of_bus', ['FNP', 'FPR'])
-    //         // ->orderBy('created_at', 'desc')
-    //         ->get();
-
-
-
-    //     return Datatables::of($data)
-    //         // ->editColumn('client_type', function ($lead) {
-    //         //     if ($lead->client_type == 'C') {
-    //         //         return "CORPORATE";
-    //         //     } else {
-    //         //         return "INDIVIDUAL";
-    //         //     }
-    //         // })
-    //         ->editColumn('client_category', function ($lead) {
-    //             if ((string) $lead->client_category === 'O') {
-    //                 return 'Organic growth';
-    //             } else {
-    //                 return "New";
-    //             }
-    //         })
-    //         // ->editColumn('insurance_class', function ($lead) {
-    //         //     $class = DB::table('reinsclasses')->where('class_code', $lead->insurance_class)->first();
-    //         //    // dd($class);
-    //         //     return $class;
-
-    //         // })
-    //         ->editColumn('name', function ($lead) {
-    //             $div = DB::table('customers')
-    //                 ->where('customer_id', (int) $lead->customer_id)
-    //                 ->first();
-    //             return $div ? $div->name : 'N/A'; // Return customer name or 'N/A' if not found
-    //         })
-
-    //         ->editColumn('class', function ($lead) {
-    //             $div = DB::table('classes')
-    //                 ->where('class_code', (int) $lead->classcode)
-    //                 ->first();
-    //             return $div ? $div->class_name : 'N/A'; // Return customer name or 'N/A' if not found
-    //         })
-
-    //         ->editColumn('divisions', function ($lead) {
-    //             $div = DB::table('reins_division')->where('division_code', $lead->divisions)->first();
-    //             return $div ? $div->division_name : 'N/A';
-    //         })
-    //         ->addColumn('action', function ($lead) use ($request) {
-
-    //             $url = route('leads.onboarding', ['prospect' => $lead->opportunity_id]);
-    //             $handover = route('lead.handover', ['prospect' => $lead->opportunity_id]);
-    //             $btn_handover = '<a href="' . $handover . '"><button class="btn btn-outline-success"><i class="fa fa-arrow->right"></i>handover</button></a>';
-    //             $btn_edit = '<a href="' . $url . '"><span class="btn btn-info btn-sm rounded-pill"><i class="bx bx-edit"></i>  Edit prospect</span></a>';
-    //             $btn_submited = '<span class="btn btn-dark btn-sm rounded-pill">Submitted To sales</span></a>';
-    //             if (is_null($lead->pipeline_id)) {
-    //                 return $btn_edit;
-    //             } else {
-    //                 return $btn_submited;
-    //             }
-    //         })
-    //         ->rawColumns(['action'])
-    //         ->make(true);
-    // }
 
     public function leads_get(Request $request)
     {
@@ -1393,16 +1257,6 @@ class LeadsOnboardingController
                     'name' => $ae ? $ae->name : null
                 ];
             })
-            // ->addColumn('territory', function ($lead) {
-            //     // $territory = DB::table('territories')
-            //     //     ->where('territory_id', $lead->territory_id ?? 0)
-            //     //     ->first();
-
-            //     // return [
-            //     //     'name' => $territory ? $territory->name : null
-            //     // ];
-            //     return '-';
-            // })
             ->addColumn('urgency_class', function ($lead) {
                 if (empty($lead->effective_date)) {
                     return null;
@@ -1514,11 +1368,9 @@ class LeadsOnboardingController
 
     public function treaty_leads_get(Request $request)
     {
-        // Base query
         $query = DB::table('pipeline_opportunities')
             ->whereIn('type_of_bus', ['TPR', 'TNP']);
 
-        // Apply stage filter if provided
         if ($request->filled('stage') && $request->stage !== 'all') {
             $stageMap = [
                 'qualification' => 1,
@@ -1549,7 +1401,6 @@ class LeadsOnboardingController
             $query->where('priority', $request->priority);
         }
 
-        // Apply search filter if provided
         if ($request->filled('global_search') || $request->filled('search_query')) {
             $searchTerm = trim((string) ($request->global_search ?? $request->search_query));
             $query->where(function ($q) use ($searchTerm) {
@@ -1641,9 +1492,6 @@ class LeadsOnboardingController
             ->make(true);
     }
 
-    /**
-     * Get Treaty KPIs via API endpoint
-     */
     public function getTreatyKPIsApi(Request $request)
     {
         $kpis = $this->getTreatyKPIs();
@@ -1737,8 +1585,8 @@ class LeadsOnboardingController
                 }
                 if ($lead->pq_status == 'C' && $lead->prequalification === 'Y') {
                     $btnProcess = '<button class="btn btn-info btn-sm" >
-           <span class="text-blue"><i class="fa fa-thumbs-down"></i> Closed PQ</span>
-       </button>';
+                        <span class="text-blue"><i class="fa fa-thumbs-down"></i> Closed PQ</span>
+                    </button>';
 
                     return $btnProcess;
                 }
@@ -1792,13 +1640,12 @@ class LeadsOnboardingController
                     'file' => $Filename,
                 ]);
             }
-            // update client to have finished proposal
+
             DB::table('pipeline_opportunities')->where('opportunity_id', "=", $request->prospectId)->where('pq_status', "=", 'W')->update([
                 'pq_status' => 'C',
                 'pq_comments' => $request->pqcomment,
             ]);
 
-            //  process and send email to client
             $data = [
                 'Email' => env('MAIL_FROM_ADDRESS'),
                 'details' => $request->pqcomment,
@@ -1811,7 +1658,7 @@ class LeadsOnboardingController
                 'Location' => 'West Park Towers, 9th Floor, Mpesi Lane, Muthithi Rd',
             ];
 
-            sendPQClientEmail::dispatch($data, $attachments);
+            // sendPQClientEmail::dispatch($data, $attachments);
 
             return redirect()->route('leads.listing')->with('success', 'Proposal submited successfully!');
         } else {
@@ -1849,8 +1696,6 @@ class LeadsOnboardingController
 
     public function edit_lead(Request $request, $code)
     {
-
-        // Validate the form data
         $validator = Validator::make($request->all(), [
             'first_name' => 'required',
             'second_name' => 'required',
@@ -1862,7 +1707,6 @@ class LeadsOnboardingController
             'email' => 'required',
             'phone_number' => 'required',
             'lead_owner' => 'required',
-            // Add other validation rules for your other form fields
         ]);
 
         if ($validator->fails()) {
@@ -1875,7 +1719,6 @@ class LeadsOnboardingController
 
         try {
 
-            // Update the lead record in the database using the 'update' function
             Leads::where('code', $code)->update([
                 'first_name' => $request->first_name,
                 'second_name' => $request->second_name,
@@ -1921,11 +1764,11 @@ class LeadsOnboardingController
                 ]
             );
             foreach ($attendeeEmails as $email) {
-                ActivityAttendees::create([
-                    'activity_id' => $activity,
-                    'attendee_email' => $email,
-                    'created_at' => Carbon::today(),
-                ]);
+                // ActivityAttendees::create([
+                //     'activity_id' => $activity,
+                //     'attendee_email' => $email,
+                //     'created_at' => Carbon::today(),
+                // ]);
             }
 
             DB::commit();
@@ -1987,12 +1830,9 @@ class LeadsOnboardingController
         ORDER BY cr.cover_no, cr.created_at DESC
     ";
 
-        // Execute the query with the type_of_bus array values
         $results = DB::select($rawQuery, $type_of_bus);
-
-        // Optionally convert the result to a collection of models
         $query = collect($results);
-        // dd($query);
+
         return datatables::of($query)
 
             ->editColumn('cover_no', function ($fn) {
@@ -2007,7 +1847,6 @@ class LeadsOnboardingController
             ->editColumn('class_desc', function ($fn) {
                 if ($fn->type_of_bus == 'FPR' || $fn->type_of_bus == 'FNP') {
                     $class_desc = Classes::where('class_code', $fn->class_code)->first();
-                    // $class_desc=$class_desc->class_name;
                     if ($class_desc) {
                         $class_desc = 'FACULTATIVE - ' . $class_desc->class_name;
                     } else {

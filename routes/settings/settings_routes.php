@@ -5,6 +5,7 @@ use App\Http\Controllers\GeneralSettingsController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Settings\SystemProcessController;
 use App\Http\Controllers\Settings\SettingsController;
+use App\Http\Controllers\BudgetSetupController;
 use App\Http\Controllers\SettingsFinanceController;
 use Illuminate\Support\Facades\Route;
 
@@ -54,7 +55,22 @@ Route::group(['prefix' => 'settings', 'middleware' => ['auth']], function () {
     Route::post('finance/taxRate-store', [SettingsFinanceController::class, 'taxRateAddData'])->name('taxRate.store');
     Route::post('finance/taxRate-edit', [SettingsFinanceController::class, 'taxRateEditData'])->name('taxRate.edit');
 
-   
+
+
+    // Budget Setup
+    Route::get('budget-setup', [BudgetSetupController::class, 'index'])->name('settings.budgetSetup.index');
+    Route::get('budget-setup/data', [BudgetSetupController::class, 'data'])->name('settings.budgetSetup.data');
+    Route::post('budget-setup/store', [BudgetSetupController::class, 'store'])->name('settings.budgetSetup.store');
+    Route::post('budget-setup/update', [BudgetSetupController::class, 'update'])->name('settings.budgetSetup.update');
+    Route::post('budget-setup/destroy', [BudgetSetupController::class, 'destroy'])->name('settings.budgetSetup.destroy');
+    Route::post('budget-setup/copy', [BudgetSetupController::class, 'copyFromFiscalYear'])->name('settings.budgetSetup.copy');
+
+    // User Budget Setup
+    Route::get('budget-setup/users', [BudgetSetupController::class, 'userSetupIndex'])->name('settings.budgetSetup.users');
+    Route::get('budget-setup/users/data', [BudgetSetupController::class, 'userSetupData'])->name('settings.budgetSetup.users.data');
+    Route::get('budget-setup/users/{id}/show', [BudgetSetupController::class, 'userSetupShow'])->name('settings.budgetSetup.users.show');
+    Route::post('budget-setup/users/store', [BudgetSetupController::class, 'userSetupStore'])->name('settings.budgetSetup.users.store');
+    Route::post('budget-setup/users/update', [BudgetSetupController::class, 'userSetupUpdate'])->name('settings.budgetSetup.users.update');
 
     //settings cover
     require_once('settings_cover_routes.php');
@@ -62,4 +78,3 @@ Route::group(['prefix' => 'settings', 'middleware' => ['auth']], function () {
     // permissions
     require_once('system_access.php');
 });
-
