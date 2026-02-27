@@ -15,12 +15,18 @@ class BdFacReinsurer extends Model
         'opportunity_id',
         'reinsurer_id',
         'written_share',
+        'updated_written_share',
+        'signed_share',
+        'updated_signed_share',
         'is_declined',
         'decline_reason'
     ];
 
     protected $casts = [
         'written_share' => 'decimal:2',
+        'updated_written_share' => 'decimal:2',
+        'signed_share' => 'decimal:2',
+        'updated_signed_share' => 'decimal:2',
         'is_declined' => 'boolean'
     ];
 }

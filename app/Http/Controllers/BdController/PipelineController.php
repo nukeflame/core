@@ -1344,7 +1344,6 @@ class PipelineController
                         'engage_type' => $request->engage_type,
                         'closing_date' => $closingDate,
                         'effective_date' => $effectiveDate,
-
                         'fiscal_period' => $quarter,
                         'lead_name' => $request->lead_name,
                         'lead_owner' => $request->lead_owner,
@@ -1425,13 +1424,6 @@ class PipelineController
             ];
         } catch (Exception $e) {
             DB::rollback();
-            Log::error('pipeline_create_opportunity failed', [
-                'prospect' => $request->prospect,
-                'is_update' => $isUpdate ?? null,
-                'error' => $e->getMessage(),
-                'line' => $e->getLine(),
-            ]);
-
             return [
                 'status' => 0,
                 'message' => 'An error occurred.',
@@ -8921,7 +8913,7 @@ class PipelineController
         try {
             $validated = $request->validate([
                 'reinsurer_id' => 'required|integer',
-                'opportunity_id' => 'required|integer',
+                'opportunity_id' => 'required|string',
                 'written_share' => 'required|numeric|min:0.01|max:100'
             ]);
 

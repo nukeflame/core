@@ -264,7 +264,7 @@
                                 </td>
                             </tr>
                         @endforeach
-                        {{-- <tr style="border-top: 2px solid #181212;">
+                        <tr style="border-top: 2px solid #181212;">
                             <td class="no-border align-left" style="font-weight: bold; width: 32.5%;">TOTAL</td>
                             <td class="no-border" style="width: 32.5%;">&nbsp;</td>
                             <td class="no-border align-right" style="font-weight: bold; width: 17.5%; text-align: right;">
@@ -273,7 +273,7 @@
                             <td class="no-border align-right" style="font-weight: bold; width: 17.5%; text-align: right;">
                                 {{ number_format(abs($reinsurerTotals->total_credits), 2) }}
                             </td>
-                        </tr> --}}
+                        </tr>
                     </tbody>
                 </table>
 

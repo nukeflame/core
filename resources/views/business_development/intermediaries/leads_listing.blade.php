@@ -6,36 +6,6 @@
 
 @section('content')
     <div class="container-fluid mt-3 fac-pipeline-page">
-        @if (session('success'))
-            <div class="alert alert-success alert-dismissible fade show" role="alert">
-                {{ session('success') }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            </div>
-        @endif
-        @if (session('warning'))
-            <div class="alert alert-warning alert-dismissible fade show" role="alert">
-                {{ session('warning') }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            </div>
-        @endif
-        @if (session('error'))
-            <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                {{ session('error') }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            </div>
-        @endif
-        @if (session('import_errors'))
-            <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                <strong>Import Errors:</strong>
-                <ul class="mb-0 mt-1">
-                    @foreach (array_slice((array) session('import_errors'), 0, 10) as $importError)
-                        <li>{{ $importError }}</li>
-                    @endforeach
-                </ul>
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            </div>
-        @endif
-
         <div class="d-md-flex d-block align-items-center justify-content-between my-4 page-header-breadcrumb">
             <div>
                 <h1 class="page-title fw-semibold fs-18 mb-0">Facultative Pipeline</h1>
@@ -239,6 +209,11 @@
                                                 id="resetFiltersBtn">
                                                 <i class="bi bi-reset me-1"></i>Reset
                                             </button>
+                                            <button type="button" class="btn btn-danger d-none" style="width: 57%"
+                                                id="deleteSelectedOpportunitiesBtn">
+                                                <i class="bi bi-trash me-1"></i>
+                                                Delete Selected (<span id="selectedOpportunitiesCount">0</span>)
+                                            </button>
                                         </div>
                                     </div>
                                 </div>
@@ -248,6 +223,10 @@
                         <table class="table text-nowrap table-striped table-hover" id="opportunities_table">
                             <thead>
                                 <tr>
+                                    <th style="width: 40px;">
+                                        <input type="checkbox" id="selectAllOpportunities"
+                                            aria-label="Select all opportunities">
+                                    </th>
                                     <th>Opportunity ID</th>
                                     <th>Client Category</th>
                                     <th>Priority</th>
@@ -276,7 +255,8 @@
                 <form id="pipelineImportForm" method="POST" action="{{ route('leads.import.pipeline_opportunities') }}"
                     enctype="multipart/form-data">
                     @csrf
-                    <div class="modal-header bg-primary text-white">
+                    <div class="modal-header text-white"
+                        style="background: linear-gradient(135deg,#f91520 0%,#4d4f51 100%">
                         <h5 class="modal-title" id="pipelineImportModalLabel">Import Pipeline Opportunities</h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
@@ -301,7 +281,8 @@
                                 upload...</small>
                         </div>
 
-                        <div class="border rounded p-2 bg-light d-none" id="pipelineImportPreviewWrap">
+                        <div class="border rounded p-2 bg-light d-none" id="pipelineImportPreviewWrap"
+                            style="max-height: 800px">
                             <div class="d-flex justify-content-between align-items-center mb-2">
                                 <strong class="fs-14">File Preview</strong>
                                 <small class="text-muted" id="pipelineImportPreviewMeta"></small>

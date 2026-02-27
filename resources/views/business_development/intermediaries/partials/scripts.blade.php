@@ -4,6 +4,33 @@
             return;
         }
 
+        const selectedOpportunityIds = new Set();
+        const $bulkDeleteBtn = $('#deleteSelectedOpportunitiesBtn');
+        const $selectedCount = $('#selectedOpportunitiesCount');
+        const $selectAll = $('#selectAllOpportunities');
+
+        function updateSelectionUi() {
+            const selectedCount = selectedOpportunityIds.size;
+            if ($selectedCount.length) {
+                $selectedCount.text(selectedCount);
+            }
+            if ($bulkDeleteBtn.length) {
+                $bulkDeleteBtn.toggleClass('d-none', selectedCount === 0);
+            }
+
+            const $rowCheckboxes = $('#opportunities_table .opportunity-select');
+            if (!$rowCheckboxes.length || !$selectAll.length) {
+                return;
+            }
+
+            const allChecked = $rowCheckboxes.length > 0 && $rowCheckboxes.filter(':checked').length ===
+                $rowCheckboxes.length;
+            const anyChecked = $rowCheckboxes.filter(':checked').length > 0;
+
+            $selectAll.prop('checked', allChecked);
+            $selectAll.prop('indeterminate', anyChecked && !allChecked);
+        }
+
         const table = $('#opportunities_table').DataTable({
             responsive: true,
             processing: true,
@@ -32,6 +59,25 @@
                 }
             },
             columns: [{
+                    data: null,
+                    name: 'select',
+                    title: '',
+                    orderable: false,
+                    searchable: false,
+                    className: 'text-center',
+                    render: function(data, type, row) {
+                        const opportunityId = $('<div/>').html(row.opportunity_id || '').text()
+                            .trim();
+                        if (type !== 'display') {
+                            return opportunityId;
+                        }
+
+                        const isChecked = selectedOpportunityIds.has(opportunityId) ?
+                            'checked' : '';
+                        return `<input type="checkbox" class="opportunity-select" value="${opportunityId}" ${isChecked} aria-label="Select opportunity ${opportunityId}">`;
+                    }
+                },
+                {
                     data: 'opportunity_id',
                     name: 'opportunity_id',
                     title: 'Opportunity ID',
@@ -174,11 +220,15 @@
                         moment(data.effective_date) :
                         new Date(data.effective_date);
 
-                    if (effectiveDate && (typeof moment !== 'undefined' ? effectiveDate.isValid() : !isNaN(
-                            effectiveDate.getTime()))) {
-                        const now = typeof moment !== 'undefined' ? moment().startOf('day') : new Date();
-                        const effective = typeof moment !== 'undefined' ? effectiveDate.startOf('day') :
-                            new Date(effectiveDate.getFullYear(), effectiveDate.getMonth(), effectiveDate
+                    if (effectiveDate && (typeof moment !== 'undefined' ? effectiveDate.isValid() :
+                            !isNaN(
+                                effectiveDate.getTime()))) {
+                        const now = typeof moment !== 'undefined' ? moment().startOf('day') :
+                            new Date();
+                        const effective = typeof moment !== 'undefined' ? effectiveDate.startOf(
+                                'day') :
+                            new Date(effectiveDate.getFullYear(), effectiveDate.getMonth(),
+                                effectiveDate
                                 .getDate());
                         const daysToEffective = typeof moment !== 'undefined' ?
                             effective.diff(now, 'days') :
@@ -197,7 +247,8 @@
                     }
                 }
 
-                $(row).attr('data-id', data.opportunity_id);
+                const rowOpportunityId = $('<div/>').html(data.opportunity_id || '').text().trim();
+                $(row).attr('data-id', rowOpportunityId);
                 $(row).addClass('table-row-hover');
 
                 // if (data.urgency_class) {
@@ -209,6 +260,7 @@
                 if (typeof $.fn.tooltip !== 'undefined') {
                     $('[data-bs-toggle="tooltip"]').tooltip();
                 }
+                updateSelectionUi();
             },
             language: {
                 processing: "Loading opportunities...",
@@ -283,6 +335,93 @@
             e.preventDefault();
             const data = $(this).data();
             sendOpportunityToSales(data.prospect_id)
+        });
+
+        $(document).on('change', '.opportunity-select', function() {
+            const opportunityId = $(this).val();
+            if (!opportunityId) {
+                return;
+            }
+
+            if ($(this).is(':checked')) {
+                selectedOpportunityIds.add(opportunityId);
+            } else {
+                selectedOpportunityIds.delete(opportunityId);
+            }
+
+            updateSelectionUi();
+        });
+
+        $selectAll.on('change', function() {
+            const shouldSelect = $(this).is(':checked');
+            $('#opportunities_table .opportunity-select').each(function() {
+                const opportunityId = $(this).val();
+                if (!opportunityId) {
+                    return;
+                }
+
+                $(this).prop('checked', shouldSelect);
+                if (shouldSelect) {
+                    selectedOpportunityIds.add(opportunityId);
+                } else {
+                    selectedOpportunityIds.delete(opportunityId);
+                }
+            });
+
+            updateSelectionUi();
+        });
+
+        $bulkDeleteBtn.on('click', function() {
+            const ids = Array.from(selectedOpportunityIds);
+            if (!ids.length) {
+                return;
+            }
+
+            Swal.fire({
+                title: 'Delete selected opportunities?',
+                html: `You are about to delete <strong>${ids.length}</strong> opportunit${ids.length > 1 ? 'ies' : 'y'}. This action can be undone.`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Yes, delete',
+                cancelButtonText: 'Cancel',
+                confirmButtonColor: '#dc3545'
+            }).then(function(result) {
+                if (!result.isConfirmed) {
+                    return;
+                }
+
+                $.ajax({
+                    type: 'POST',
+                    url: "{{ route('leads.bulk_delete') }}",
+                    data: {
+                        opportunity_ids: ids
+                    },
+                    headers: {
+                        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                    },
+                    success: function(response) {
+                        selectedOpportunityIds.clear();
+                        $selectAll.prop('checked', false).prop('indeterminate',
+                            false);
+                        updateSelectionUi();
+                        table.ajax.reload(null, true);
+
+                        if (typeof toastr !== 'undefined') {
+                            toastr.success(response.message ||
+                                'Selected opportunities deleted successfully.');
+                        }
+                    },
+                    error: function(xhr) {
+                        const message = xhr.responseJSON?.message ||
+                            'Failed to delete selected opportunities.';
+                        Swal.fire({
+                            title: 'Error',
+                            text: message,
+                            icon: 'error'
+                        });
+                    }
+                });
+            });
         });
     });
 

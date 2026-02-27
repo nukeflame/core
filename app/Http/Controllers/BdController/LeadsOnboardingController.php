@@ -702,6 +702,7 @@ class LeadsOnboardingController
 
             DB::commit();
         } catch (\Throwable $e) {
+            // logger($e);
             DB::rollBack();
 
             return $this->importPipelineResponse($request, false, 'Import failed: ' . $e->getMessage());
@@ -905,26 +906,76 @@ class LeadsOnboardingController
             'divisions' => $division ?: null,
             'cede_premium' => $this->toDecimal($this->firstNonEmpty($row, ['cede_premium', 'cedant_premium'])),
             'comm_rate' => $this->toDecimal($this->firstNonEmpty($row, ['comm_rate', 'cedant_comm_rate'])),
-            'expected_premium' => $this->toDecimal($this->firstNonEmpty($row, ['expected_premium', 'reinsurer_premium'])),
-            'gross_premium' => $this->toDecimal($this->firstNonEmpty($row, ['gross_premium'])),
-            'stage' => max(0, min(5, $stage)),
+            'premium' => $this->toDecimal($this->firstNonEmpty($row, ['expected_premium', 'reinsurer_premium'])),
+            // 'gross_premium' => $this->toDecimal($this->firstNonEmpty($row, ['gross_premium'])),
+            'stage' => 0, //max(03, min(5, $stage)),
+            'status' => 'lead', //$status
             'probability' => $probability,
             'priority' => $priority,
-            'status' => $status,
             'effective_date' => $this->toDate($this->firstNonEmpty($row, ['effective_date', 'cover_start_date'])),
             'closing_date' => $this->toDate($this->firstNonEmpty($row, ['closing_date', 'cover_end_date'])),
-            'expiry_date' => $this->toDate($this->firstNonEmpty($row, ['expiry_date', 'cover_end_date'])),
-            'expected_closure_date' => $this->toDate($this->firstNonEmpty($row, ['expected_closure_date'])),
+            // 'expiry_date' => $this->toDate($this->firstNonEmpty($row, ['expiry_date', 'cover_end_date'])),
+            // 'expected_closure_date' => $this->toDate($this->firstNonEmpty($row, ['expected_closure_date'])),
             'fac_date_offered' => $this->toDate($this->firstNonEmpty($row, ['fac_date_offered'])),
-            'quote_deadline' => $this->toDate($this->firstNonEmpty($row, ['quote_deadline'])),
+            // 'quote_deadline' => $this->toDate($this->firstNonEmpty($row, ['quote_deadline'])),
             'prequalification' => strtoupper(trim((string) ($this->firstNonEmpty($row, ['prequalification']) ?? 'N'))) === 'Y' ? 'Y' : 'N',
             'lead_owner' => is_numeric($leadOwner) ? (int) $leadOwner : null,
             'pip_year' => trim((string) ($this->firstNonEmpty($row, ['pip_year', 'year']) ?? '')) ?: null,
             'description' => trim((string) ($this->firstNonEmpty($row, ['description']) ?? '')) ?: null,
-            'account_executive' => trim((string) ($this->firstNonEmpty($row, ['account_executive']) ?? '')) ?: null,
-            'cr_processed' => strtoupper(trim((string) ($this->firstNonEmpty($row, ['cr_processed']) ?? 'N'))) === 'Y' ? 'Y' : 'N',
-            'created_by' => $createdBy,
-            'updated_by' => $createdBy,
+            // 'account_executive' => trim((string) ($this->firstNonEmpty($row, ['account_executive']) ?? '')) ?: null,
+            // 'cr_processed' => strtoupper(trim((string) ($this->firstNonEmpty($row, ['cr_processed']) ?? 'N'))) === 'Y' ? 'Y' : 'N',
+            // 'created_by' => $createdBy,
+            // 'updated_by' => $createdBy,
+            'fiscal_period' => 1,
+            'production_cost' => null,
+            'prod_currency' => null,
+            'postal_address' => null,
+            'postal_code' => null,
+            'insurance_class' => null,
+            'engage_type' => null,
+            'lead_name' =>  'John Doe',
+            'rating' => null,
+            'client_type' => "REINSURANCE",
+            'industry' => "Insurance",
+            'fullname' => 'John Doe',
+            'contact_position' => null,
+            'country_code' => 'KEN',
+            'town' =>  null,
+            'alternate_contact' => null,
+            'alternate_phone' => null,
+            'alternate_position' =>  null,
+            'alternate_email' => null,
+            'branchcode' =>  "101",
+            'broker_flag' => null,
+            'brokercode' => null,
+            'pay_method' => null,
+            'no_of_installments' =>  null,
+            'currency_code' => 'KES',
+            'today_currency' => 1,
+            'premium_payment_term' => null,
+            'class_group' =>  null,
+            'sum_insured_type' => 'FLS',
+            'total_sum_insured' => 100000000,
+            'apply_eml' => "N",
+            'eml_rate' =>  null,
+            'eml_amt' =>  null,
+            'effective_sum_insured' => 100000000,
+            'risk_details' => 'tba',
+            'reins_comm_rate' => "32.50",
+            'rein_premium' => $this->toDecimal($this->firstNonEmpty($row, ['cede_premium', 'cedant_premium'])),
+            'fac_share_offered' => "100",
+            'comm_rate' => null,
+            'comm_amt' => null,
+            'reins_comm_type' => "R",
+            'reins_comm_amt' => null,
+            'brokerage_comm_type' => "R",
+            'brokerage_comm_amt' => null,
+            'brokerage_comm_rate' => null,
+            'vat_charged' => null,
+            'limit_per_reinclass' =>  null,
+            'layer_no' => null,
+            'nonprop_reinclass' => null,
+            'nonprop_reinclass_desc' =>  null,
         ];
     }
 
@@ -1411,6 +1462,54 @@ class LeadsOnboardingController
 
             ->rawColumns(['action', 'priority_badge', 'status_badge', 'opportunity_id', 'insured_name'])
             ->make(true);
+    }
+
+    public function bulkDeleteLeads(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'opportunity_ids' => 'required|array|min:1',
+            'opportunity_ids.*' => 'required|string',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'status' => 0,
+                'message' => $validator->errors()->first(),
+            ], 422);
+        }
+
+        $opportunityIds = collect($request->input('opportunity_ids', []))
+            ->map(fn($id) => trim((string) $id))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        if (empty($opportunityIds)) {
+            return response()->json([
+                'status' => 0,
+                'message' => 'No valid opportunity IDs were provided.',
+            ], 422);
+        }
+
+        try {
+            $deletedCount = PipelineOpportunity::whereIn('opportunity_id', $opportunityIds)
+                ->whereIn('type_of_bus', ['FNP', 'FPR'])
+                ->forceDelete();
+
+            return response()->json([
+                'status' => 1,
+                'message' => $deletedCount . ' opportunit' . ($deletedCount === 1 ? 'y' : 'ies') . ' deleted successfully.',
+                'deleted_count' => $deletedCount,
+            ]);
+        } catch (\Throwable $e) {
+            report($e);
+
+            return response()->json([
+                'status' => 0,
+                'message' => 'Failed to delete selected opportunities. Please try again.',
+            ], 500);
+        }
     }
 
     public function treaty_leads_get(Request $request)

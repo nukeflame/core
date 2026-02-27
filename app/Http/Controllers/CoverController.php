@@ -4817,7 +4817,11 @@ class CoverController extends Controller
 
         // Fallback to prospect data when cover-level reinsurers do not exist yet.
         if ($reinsurers->isEmpty() && empty($filters['partner_no']) && empty($filters['tran_no'])) {
-            $prospectReinsurers = BdFacReinsurer::where('opportunity_id', $cover->prospect_id)->get();
+            $prospectReinsurers = BdFacReinsurer::where('opportunity_id', $cover->prospect_id)
+                ->where(function ($query) {
+                    $query->whereNull('is_declined')->orWhere('is_declined', false);
+                })
+                ->get();
 
             return [
                 'reinsurers' => $prospectReinsurers->map(function ($reinsurer) use ($cover) {

@@ -197,7 +197,7 @@
                         <td class="no-border" style="width: 2%;">&nbsp;</td>
                     </tr>
                 @endforeach
-                {{-- <tr style="border-top: 2px solid #181212;">
+                <tr style="border-top: 2px solid #181212;">
                     <td class="no-border align-left" style="font-weight: bold; width: 43%;">TOTAL</td>
                     <td class="no-border" style="width: 20%;">&nbsp;</td>
                     <td class="no-border align-right" style="font-weight: bold; width: 17.5%; text-align: right;">
@@ -207,7 +207,7 @@
                         {{ number_format(abs($totals->total_credits), 2) }}
                     </td>
                     <td class="no-border">&nbsp;</td>
-                </tr> --}}
+                </tr>
             </tbody>
         </table>
 

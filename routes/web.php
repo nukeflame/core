@@ -190,6 +190,8 @@ Route::middleware(['auth', 'check.first.login'])->group(function () {
         ->name('leads.import.pipeline_opportunities.preview');
     Route::get('/leads_listing/import-pipeline-opportunities/sample', [LeadsOnboardingController::class, 'downloadPipelineOpportunitySample'])
         ->name('leads.import.pipeline_opportunities.sample');
+    Route::post('/leads_listing/bulk-delete', [LeadsOnboardingController::class, 'bulkDeleteLeads'])
+        ->name('leads.bulk_delete');
 
     //Prospect Repository
     Route::post('ProspectRepository', [LeadsOnboardingController::class, 'save'])->name('ProspectRepository');
