@@ -554,10 +554,9 @@
         </div>
 
         <div class="card-body mx-0 cover-info-wrapper" style="background-color:var(--cover-bg);border-radius:0.375rem;">
-            <a href="{{ route('cover.transactions.index', ['coverNo' => $cover->cover_no ?? '']) }}"
-                class="btn btn-outline-dark btn-sm text-start me-2">
+            <button type="button" class="btn btn-outline-dark btn-sm text-start me-2">
                 <i class="ri-exchange-line me-2"></i>Transactions
-            </a>
+            </button>
         </div>
     </div>
 
