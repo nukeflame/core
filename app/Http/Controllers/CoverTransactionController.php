@@ -17,6 +17,7 @@ use App\Models\TaxRate;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class CoverTransactionController extends Controller
 {
@@ -390,113 +391,119 @@ class CoverTransactionController extends Controller
 
     public function profitCommission(Request $request, $coverNo, $refNo)
     {
-        $cover = CoverRegister::where('endorsement_no', $request->endorsementNo)->firstOrFail();
-        $customer = Customer::with('primaryContact')->where('customer_id', $cover->customer_id)->first();
-        $decodedRefNo = urldecode((string) $refNo);
+        try {
+            $cover = CoverRegister::where('endorsement_no', $request->endorsementNo)->firstOrFail();
+            $customer = Customer::with('primaryContact')->where('customer_id', $cover->customer_id)->first();
+            $decodedRefNo = urldecode((string) $refNo);
 
-        $selectedTransaction = CustomerAccDet::where('cover_no', $cover->cover_no)
-            ->where('endorsement_no', $request->endorsementNo)
-            ->where('entry_type_descr', 'profit-commission')
-            ->where('reference', $decodedRefNo)
-            ->orderByDesc('created_at')
-            ->first();
+            $selectedTransaction = CustomerAccDet::where('cover_no', $cover->cover_no)
+                ->where('endorsement_no', $request->endorsementNo)
+                ->where('entry_type_descr', 'profit-commission')
+                ->where('reference', $decodedRefNo)
+                ->orderByDesc('created_at')
+                ->first();
 
-        $currentQuarter = $selectedTransaction?->quarter;
-        $currentYear = $selectedTransaction?->account_year;
-        $currentQuarterDisplay = ($currentQuarter && $currentYear)
-            ? strtoupper((string) $currentQuarter) . ' - ' . $currentYear
-            : ('Q' . now()->quarter . ' - ' . now()->year);
+            $currentQuarter = $selectedTransaction?->quarter;
+            $currentYear = $selectedTransaction?->account_year;
+            $currentQuarterDisplay = ($currentQuarter && $currentYear)
+                ? strtoupper((string) $currentQuarter) . ' - ' . $currentYear
+                : ('Q' . now()->quarter . ' - ' . now()->year);
 
-        $selectedDebitNoteNo = null;
-        if ($currentQuarter && $currentYear) {
-            $selectedDebitNoteNo = DebitNote::where('cover_no', $cover->cover_no)
+            $selectedDebitNoteNo = null;
+            if ($currentQuarter && $currentYear) {
+                $selectedDebitNoteNo = DebitNote::where('cover_no', $cover->cover_no)
+                    ->where('endorsement_no', $cover->endorsement_no)
+                    ->where('posting_quarter', strtoupper((string) $currentQuarter))
+                    ->where('posting_year', (int) $currentYear)
+                    ->orderByDesc('posting_date')
+                    ->orderByDesc('id')
+                    ->value('debit_note_no');
+            }
+
+            $profitCommissions = CustomerAccDet::where('endorsement_no', $request->endorsementNo)
+                ->where('entry_type_descr', 'profit-commission')
+                ->orderBy('created_date', 'desc')
+                ->get();
+
+            $transactions = CoverDebit::where('endorsement_no', $request->endorsementNo)
+                ->orderBy('installment', 'asc')
+                ->get();
+
+            $lastInstallment = $transactions->max('installment') ?? 0;
+            $nextInstallment = $lastInstallment + 1;
+
+            $totalDebited = $transactions->sum('gross');
+            $remainingAmount = ($cover->gross_premium ?? 0) - $totalDebited;
+
+            $endorsementNarration = $this->getEndorsementNarration($cover);
+            $actionable = $cover->status !== 'CANCELLED'
+                && $cover->status !== 'EXPIRED'
+                && $remainingAmount > 0;
+
+            $documents = TreatyDocument::where([
+                'cover_no' => $cover->cover_no,
+                'endorsement_no' => $cover->endorsement_no,
+            ])->get();
+
+            $isTransaction = $transactions->count() > 0;
+            $totalDocuments = $documents->count();
+            $totalDebitItems = 0;
+            if (!empty($selectedDebitNoteNo)) {
+                $totalDebitItems = (int) DB::table('debit_note_items as tdi')
+                    ->join('debit_notes as dn', 'tdi.debit_note_id', '=', 'dn.id')
+                    ->where('dn.cover_no', $cover->cover_no)
+                    ->where('dn.endorsement_no', $cover->endorsement_no)
+                    ->where('dn.debit_note_no', $selectedDebitNoteNo)
+                    ->count('tdi.id');
+            }
+
+            $totalReinsurers = CoverRipart::where([
+                'cover_no' => $cover->cover_no,
+                'endorsement_no' =>  $cover->endorsement_no
+            ])->count();
+            $cedantTreatyCapacity = (float) CoverReinProp::where('cover_no', $cover->cover_no)
                 ->where('endorsement_no', $cover->endorsement_no)
-                ->where('posting_quarter', strtoupper((string) $currentQuarter))
-                ->where('posting_year', (int) $currentYear)
-                ->orderByDesc('posting_date')
-                ->orderByDesc('id')
-                ->value('debit_note_no');
+                ->sum('treaty_amount');
+
+            if ($cedantTreatyCapacity <= 0) {
+                $cedantTreatyCapacity = (float) ($cover->effective_sum_insured ?? $cover->total_sum_insured ?? $cover->sum_insured ?? $cover->treaty_capacity ?? 0);
+            }
+
+            $cedantGrossPremium = (float) CoverRipart::where([
+                'cover_no' => $cover->cover_no,
+                'endorsement_no' => $cover->endorsement_no,
+            ])->sum('total_premium');
+            $cedantClaimAmount = (float) CoverRipart::where([
+                'cover_no' => $cover->cover_no,
+                'endorsement_no' => $cover->endorsement_no,
+            ])->sum('claim_amt');
+            $cedantIsCoverNote = $cedantClaimAmount > $cedantGrossPremium;
+
+            return view('cover.transactions.cover_transaction_profit_commission', [
+                'endorsementNo' => $request->endorsementNo,
+                'cover' => $cover,
+                'customer' => $customer,
+                'transactions' => $transactions,
+                'profitCommissions' => $profitCommissions,
+                'endorsementNarration' => $endorsementNarration,
+                'actionable' => $actionable,
+                'isTransaction' => $isTransaction,
+                'nextInstallment' => $nextInstallment,
+                'remainingAmount' => $remainingAmount,
+                'totalDebited' => $totalDebited,
+                'totalDocuments' => $totalDocuments,
+                'totalDebitItems' => $totalDebitItems,
+                'totalReinsurers' => $totalReinsurers,
+                'cedantTreatyCapacity' => $cedantTreatyCapacity,
+                'cedantIsCoverNote' => $cedantIsCoverNote,
+                'currentQuarterDisplay' => $currentQuarterDisplay,
+                'selectedDebitNoteNo' => $selectedDebitNoteNo,
+            ]);
+        } catch (\Throwable $e) {
+            logger($e);
+
+            return redirect()->back()->with('error', 'Unable to load profit commission details. Please try again.');
         }
-
-        $profitCommissions = CustomerAccDet::where('endorsement_no', $request->endorsementNo)
-            ->where('entry_type_descr', 'profit-commission')
-            ->orderBy('created_date', 'desc')
-            ->get();
-
-        $transactions = CoverDebit::where('endorsement_no', $request->endorsementNo)
-            ->orderBy('installment', 'asc')
-            ->get();
-
-        $lastInstallment = $transactions->max('installment') ?? 0;
-        $nextInstallment = $lastInstallment + 1;
-
-        $totalDebited = $transactions->sum('gross');
-        $remainingAmount = ($cover->gross_premium ?? 0) - $totalDebited;
-
-        $endorsementNarration = $this->getEndorsementNarration($cover);
-        $actionable = $cover->status !== 'CANCELLED'
-            && $cover->status !== 'EXPIRED'
-            && $remainingAmount > 0;
-
-        $documents = TreatyDocument::where([
-            'cover_no' => $cover->cover_no,
-            'endorsement_no' => $cover->endorsement_no,
-        ])->get();
-
-        $isTransaction = $transactions->count() > 0;
-        $totalDocuments = $documents->count();
-        $totalDebitItems = 0;
-        if (!empty($selectedDebitNoteNo)) {
-            $totalDebitItems = (int) DB::table('debit_note_items as tdi')
-                ->join('debit_notes as dn', 'tdi.debit_note_id', '=', 'dn.id')
-                ->where('dn.cover_no', $cover->cover_no)
-                ->where('dn.endorsement_no', $cover->endorsement_no)
-                ->where('dn.debit_note_no', $selectedDebitNoteNo)
-                ->count('tdi.id');
-        }
-
-        $totalReinsurers = CoverRipart::where([
-            'cover_no' => $cover->cover_no,
-            'endorsement_no' =>  $cover->endorsement_no
-        ])->count();
-        $cedantTreatyCapacity = (float) CoverReinProp::where('cover_no', $cover->cover_no)
-            ->where('endorsement_no', $cover->endorsement_no)
-            ->sum('treaty_amount');
-
-        if ($cedantTreatyCapacity <= 0) {
-            $cedantTreatyCapacity = (float) ($cover->effective_sum_insured ?? $cover->total_sum_insured ?? $cover->sum_insured ?? $cover->treaty_capacity ?? 0);
-        }
-
-        $cedantGrossPremium = (float) CoverRipart::where([
-            'cover_no' => $cover->cover_no,
-            'endorsement_no' => $cover->endorsement_no,
-        ])->sum('total_premium');
-        $cedantClaimAmount = (float) CoverRipart::where([
-            'cover_no' => $cover->cover_no,
-            'endorsement_no' => $cover->endorsement_no,
-        ])->sum('claim_amt');
-        $cedantIsCoverNote = $cedantClaimAmount > $cedantGrossPremium;
-
-        return view('cover.transactions.cover_transaction_profit_commission', [
-            'endorsementNo' => $request->endorsementNo,
-            'cover' => $cover,
-            'customer' => $customer,
-            'transactions' => $transactions,
-            'profitCommissions' => $profitCommissions,
-            'endorsementNarration' => $endorsementNarration,
-            'actionable' => $actionable,
-            'isTransaction' => $isTransaction,
-            'nextInstallment' => $nextInstallment,
-            'remainingAmount' => $remainingAmount,
-            'totalDebited' => $totalDebited,
-            'totalDocuments' => $totalDocuments,
-            'totalDebitItems' => $totalDebitItems,
-            'totalReinsurers' => $totalReinsurers,
-            'cedantTreatyCapacity' => $cedantTreatyCapacity,
-            'cedantIsCoverNote' => $cedantIsCoverNote,
-            'currentQuarterDisplay' => $currentQuarterDisplay,
-            'selectedDebitNoteNo' => $selectedDebitNoteNo,
-        ]);
     }
 
     private function getEndorsementNarration($cover): array

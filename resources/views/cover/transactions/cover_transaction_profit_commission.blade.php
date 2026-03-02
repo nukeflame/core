@@ -524,7 +524,7 @@
         $entryTypeDisplay = Str::title(str_replace('-', ' ', $entryTypeDescr));
         $treatyType = match ($cover->treaty_type ?? null) {
             'SURP' => 'Surplus Treaty',
-            default => ($cover->treaty_type ?? 'N/A'),
+            default => $cover->treaty_type ?? 'N/A',
         };
 
         $totalGrossPremium = $debitItems->sum('gross_premium');
@@ -554,7 +554,22 @@
         </div>
     </div>
 
-    <div class="financial-grid">
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white border-0 pt-3">
+            <h6 class="mb-0 fw-semibold">
+                <i class="bi bi-lightning-charge-fill"></i> Quick Actions
+            </h6>
+        </div>
+
+        <div class="card-body mx-0 cover-info-wrapper" style="background-color:var(--cover-bg);border-radius:0.375rem;">
+            <a href="{{ route('cover.transactions.index', ['coverNo' => $cover->cover_no ?? '']) }}"
+                class="btn btn-outline-dark btn-sm text-start me-2">
+                <i class="ri-exchange-line me-2"></i>Transactions
+            </a>
+        </div>
+    </div>
+
+    {{-- <div class="financial-grid">
         <div class="financial-card debits">
             <div class="financial-label">Total Gross Premium</div>
             <div class="financial-value" id="summaryGrossPremium">
@@ -579,7 +594,7 @@
                 {{ $formatCurrency($totalProfitCommission, $cover->currency ?? 'KES') }}
             </div>
         </div>
-    </div>
+    </div> --}}
 
     <div class="summary-card mb-4">
         <div class="summary-grid">

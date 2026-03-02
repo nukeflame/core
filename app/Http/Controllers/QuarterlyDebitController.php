@@ -1736,7 +1736,9 @@ class QuarterlyDebitController extends Controller
                 return $pdf->stream($filename);
             }
 
-            $creditNote = DB::table('credit_notes')
+            // Prefer the credit note generated for the requested reinsurer.
+            // Fallback to legacy records that may not have reinsurer_id populated.
+            $creditNoteBaseQuery = DB::table('credit_notes')
                 ->where('cover_no', $coverNo)
                 ->where('endorsement_no', $endorsementNo)
                 ->when(!empty($postingYear), function ($query) use ($postingYear) {
@@ -1744,23 +1746,36 @@ class QuarterlyDebitController extends Controller
                 })
                 ->when(!empty($postingQuarter), function ($query) use ($postingQuarter) {
                     $query->where('posting_quarter', $postingQuarter);
-                })
+                });
+
+            $creditNoteSelect = [
+                'id',
+                'credit_note_no',
+                'cover_no',
+                'type_of_bus',
+                'posting_year',
+                'posting_quarter',
+                'posting_date',
+                'gross_amount',
+                'net_amount',
+                'commission_amount',
+                'created_at',
+            ];
+
+            $creditNote = (clone $creditNoteBaseQuery)
+                ->where('reinsurer_id', $partnerNo)
                 ->orderByDesc('posting_date')
                 ->orderByDesc('id')
-                ->select([
-                    'id',
-                    'credit_note_no',
-                    'cover_no',
-                    'type_of_bus',
-                    'posting_year',
-                    'posting_quarter',
-                    'posting_date',
-                    'gross_amount',
-                    'net_amount',
-                    'commission_amount',
-                    'created_at',
-                ])
+                ->select($creditNoteSelect)
                 ->first();
+
+            if (! $creditNote) {
+                $creditNote = (clone $creditNoteBaseQuery)
+                    ->orderByDesc('posting_date')
+                    ->orderByDesc('id')
+                    ->select($creditNoteSelect)
+                    ->first();
+            }
 
             if (! $creditNote) {
                 abort(404, 'Credit note not found for this cover and endorsement');

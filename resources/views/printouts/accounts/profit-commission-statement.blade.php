@@ -130,7 +130,7 @@
             </tr>
             <tr>
                 <td><strong>Business Class</strong></td>
-                <td>{{ firstUpper($bus_class) : '-' }}</td>
+                <td>{{ !empty($bus_class) ? firstUpper($bus_class) : '-' }}</td>
             </tr>
             <tr>
                 <td><strong>Period of Cover</strong></td>
@@ -142,7 +142,7 @@
             </tr>
             <tr>
                 <td><strong>Cedant Name</strong></td>
-                <td>{{ firstUpper($customer->name) ?? '-' }}</td>
+                <td>{{ !empty(optional($customer)->name) ? firstUpper(optional($customer)->name) : '-' }}</td>
             </tr>
             <tr>
                 <td><strong>Payment Terms</strong></td>

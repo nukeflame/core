@@ -2294,8 +2294,7 @@
                             timeout: 30000
                         })
                         .done(function(response) {
-                            console.log(response)
-                            // self.handleSuccess(response);
+                            self.handleSuccess(response);
                         })
                         .fail(function(xhr, status, error) {
                             self.handleError(xhr, status, error);
