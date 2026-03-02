@@ -337,6 +337,7 @@ class CustomerController extends Controller
                 'redirect_url' => route('customer.info'),
             ], 201);
         } catch (\Throwable $e) {
+            logger($e);
             return response()->json([
                 'success' => false,
                 'status' => 500,
