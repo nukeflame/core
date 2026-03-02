@@ -125,6 +125,8 @@ class RoleController extends Controller
             })
             ->with(['permissions' => function ($query) {
                 $query->select('id', 'name');
+            }, 'departments' => function ($query) {
+                $query->select('company_department.id', 'company_department.department_code', 'company_department.department_name');
             }])
             ->get()
             ->map(function ($role) {
@@ -134,7 +136,13 @@ class RoleController extends Controller
 
         return DataTables::of($roles)
             ->addColumn('departments', function ($fn) {
-                return 30;
+                return $fn->departments->map(function ($department) {
+                    return [
+                        'id' => $department->id,
+                        'department_code' => $department->department_code,
+                        'department_name' => $department->department_name,
+                    ];
+                })->values()->toJson();
             })
             ->addColumn('status', function ($data) {
                 return $data->is_active ? "<span class=''>Supported</span>" : "<span class=''>Non-applicable <i class='bx bx-error text-warning'></i></span>";
@@ -150,7 +158,7 @@ class RoleController extends Controller
             })
             ->addColumn('action', function ($data) {
                 $btn = "";
-                $btn .= "<button class='btn btn-light btn-actions btn-sm me-2 edit-role' data-id='{$data->id}'><i class='bi bi-eye'></i> View Departments</button>";
+                $btn .= "<button class='btn btn-light btn-actions btn-sm me-2 view-role-departments' data-id='{$data->id}'><i class='bi bi-eye'></i> View Departments</button>";
                 $btn .= "<button class='btn btn-light btn-actions btn-sm me-2 edit-role' data-id='{$data->id}'><i class='bx bx-pencil'></i> Edit</button>";
                 if ($data->slug != 'super_admin') {
                     $btn .= " <button class='btn btn-outline-danger btn-actions btn-sm remove-role' data-id='{$data->id}'><i class='bx bx-trash'></i> Remove</button>";
@@ -159,7 +167,7 @@ class RoleController extends Controller
                 return $btn;
             })
             ->rawColumns(['action', 'permissions', 'status'])
-            ->make('true');
+            ->make(true);
     }
 
     public function assignPermissionRole(Request $request)
@@ -231,35 +239,61 @@ class RoleController extends Controller
 
     public function destroy(Request $request)
     {
-        // try {
-        //     if (!auth()->check()) {
-        //         return response()->json(['message' => 'Unauthenticated'], 401);
-        //     }
+        $validator = Validator::make($request->all(), [
+            'role_id' => 'required|integer|exists:roles,id',
+        ]);
 
-        //     $currentUser = User::find(auth()->id());
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'errors' => $validator->errors(),
+                'message' => 'Invalid role data.',
+            ], 422);
+        }
 
-        //     // if (!$currentUser->hasRole(['admin', 'super_admin']) && !$currentUser->can(['users.manage.view'])) {
-        //     //     return response()->json(['message' => 'Unauthorized access'], 403);
-        //     // }
+        try {
+            $role = Role::with(['users'])->findOrFail((int) $request->role_id);
 
-        //     $user = User::where(['email' => $request->emeail])->firstOrFail();
+            if ($role->slug === 'super_admin') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Super admin role cannot be deleted.',
+                ], 403);
+            }
 
-        //     if ($currentUser->id === $user->id) {
-        //         return response()->json(['message' => 'Cannot delete your own admin account'], 403);
-        //     }
+            if ($role->users()->count() > 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Cannot delete role with assigned users.',
+                ], 422);
+            }
 
-        //     if ($user->hasRole('super_admin') && !$currentUser->hasRole('super_admin')) {
-        //         return response()->json(['message' => 'Cannot delete super admin accounts'], 403);
-        //     }
+            DB::beginTransaction();
+            $role->permissions()->detach();
+            $role->departments()->detach();
+            $role->delete();
+            DB::commit();
 
-        //     $userName = $user->name;
-        //     $user->delete();
-
-        //     return response()->json(['message' => 'User deleted successfully'], 200);
-        // } catch (ModelNotFoundException $e) {
-        //     return response()->json(['message' => 'User not found'], 404);
-        // } catch (\Exception $e) {
-        //     return response()->json(['message' => 'Failed to delete user', 'error' => $e->getMessage()], 500);
-        // }
+            return response()->json([
+                'success' => true,
+                'message' => 'Role deleted successfully.',
+            ]);
+        } catch (ModelNotFoundException $e) {
+            if (DB::transactionLevel() > 0) {
+                DB::rollBack();
+            }
+            return response()->json([
+                'success' => false,
+                'message' => 'Role not found.',
+            ], 404);
+        } catch (\Throwable $e) {
+            if (DB::transactionLevel() > 0) {
+                DB::rollBack();
+            }
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to delete role: ' . $e->getMessage(),
+            ], 500);
+        }
     }
 }

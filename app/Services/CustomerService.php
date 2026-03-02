@@ -13,6 +13,8 @@ use Illuminate\Support\Collection;
 
 class CustomerService
 {
+    private const CUSTOMER_CITY_MAX_LENGTH = 100;
+
     public function getCoversByBusinessType(array $typeOfBus): Collection
     {
         $placeholders = implode(',', array_fill(0, count($typeOfBus), '?'));
@@ -80,11 +82,15 @@ class CustomerService
         $customerTypes = isset($data['customerType'])
             ? (is_array($data['customerType']) ? $data['customerType'] : explode(',', $data['customerType']))
             : [];
+        $normalizedAddress = $this->normalizeAddressFields(
+            (string) ($data['street'] ?? ''),
+            (string) ($data['city'] ?? '')
+        );
 
         $payload = [
             'name' => $data['partnerName'],
-            'street' => $data['street'],
-            'city' => $data['city'],
+            'street' => $normalizedAddress['street'],
+            'city' => $normalizedAddress['city'],
             'postal_address' => $data['postalCode'],
             'country_iso' => $data['country'],
             'email' => $data['email'],
@@ -236,11 +242,15 @@ class CustomerService
     {
         return DB::transaction(function () use ($customerId, $data) {
             $customer = Customer::findOrFail($customerId);
+            $normalizedAddress = $this->normalizeAddressFields(
+                (string) ($data['street'] ?? $customer->street ?? ''),
+                (string) ($data['city'] ?? $customer->city ?? '')
+            );
 
             $updateData = [
                 'name' => $data['partnerName'] ?? $customer->name,
-                'street' => $data['street'] ?? $customer->street,
-                'city' => $data['city'] ?? $customer->city,
+                'street' => $normalizedAddress['street'],
+                'city' => $normalizedAddress['city'],
                 'postal_address' => $data['postalCode'] ?? $customer->postal_address,
                 'country_iso' => $data['country'] ?? $customer->country_iso,
                 'email' => $data['email'] ?? $customer->email,
@@ -302,6 +312,44 @@ class CustomerService
 
             return $customer->fresh();
         });
+    }
+
+    private function normalizeAddressFields(string $street, string $city): array
+    {
+        $street = trim($street);
+        $city = trim($city);
+
+        if ($city !== '' && mb_strlen($city) <= self::CUSTOMER_CITY_MAX_LENGTH) {
+            return [
+                'street' => $street,
+                'city' => $city,
+            ];
+        }
+
+        $parts = collect(explode(',', $city))
+            ->map(fn($part) => trim($part))
+            ->filter()
+            ->values();
+
+        if ($parts->isNotEmpty()) {
+            $candidateCity = (string) $parts->last();
+            $prefixAddress = $parts->slice(0, -1)->implode(', ');
+
+            if ($prefixAddress !== '') {
+                $street = trim($street . ', ' . $prefixAddress, ', ');
+            }
+
+            $city = $candidateCity;
+        }
+
+        if (mb_strlen($city) > self::CUSTOMER_CITY_MAX_LENGTH) {
+            $city = mb_substr($city, 0, self::CUSTOMER_CITY_MAX_LENGTH);
+        }
+
+        return [
+            'street' => $street,
+            'city' => $city,
+        ];
     }
 
     private function upsertCustomerContacts(int $customerId, array $contacts): void

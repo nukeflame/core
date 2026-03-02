@@ -8,6 +8,7 @@ use App\Models\AllowedEmailDomain;
 use App\Models\Department;
 use App\Models\Role;
 use App\Models\User;
+use App\Services\PasswordService;
 use App\Services\UserService;
 use Carbon\Carbon;
 use Exception;
@@ -23,10 +24,12 @@ use Yajra\DataTables\Facades\DataTables;
 class UserController extends Controller
 {
     protected $userService;
+    protected PasswordService $passwordService;
 
-    public function __construct(UserService $userService)
+    public function __construct(UserService $userService, PasswordService $passwordService)
     {
         $this->userService = $userService;
+        $this->passwordService = $passwordService;
     }
 
     public function index()
@@ -298,7 +301,8 @@ class UserController extends Controller
             }
 
             $validator = Validator::make($request->all(), [
-                'email' => 'required|email|exists:users,email'
+                'user_id' => 'nullable|integer|exists:users,id|required_without:email',
+                'email' => 'nullable|email|required_without:user_id'
             ]);
 
             if ($validator->fails()) {
@@ -330,7 +334,16 @@ class UserController extends Controller
             //     ], 403);
             // }
 
-            $userToDelete = User::with('roles')->where('email', $request->email)->first();
+            $userToDelete = null;
+            if ($request->filled('user_id')) {
+                $userToDelete = User::with('roles')->find($request->integer('user_id'));
+            }
+
+            if (!$userToDelete && $request->filled('email')) {
+                $userToDelete = User::with('roles')
+                    ->whereRaw('LOWER(email) = ?', [Str::lower($request->email)])
+                    ->first();
+            }
 
             if (!$userToDelete) {
                 return response()->json([
@@ -426,7 +439,7 @@ class UserController extends Controller
 
     private function deleteUser(User $userToDelete): void
     {
-        $deleted = $userToDelete->forceDelete();
+        $deleted = $userToDelete->delete();
 
         if (!$deleted) {
             throw new \Exception('Failed to delete user from database');
@@ -442,14 +455,94 @@ class UserController extends Controller
         ], 200);
     }
 
+    public function update(Request $request, $id): JsonResponse
+    {
+        DB::beginTransaction();
+
+        try {
+            $user = User::findOrFail($id);
+
+            $validator = Validator::make($request->all(), [
+                'username' => 'required|string|min:3|max:20|unique:users,user_name,' . $user->id,
+                'email' => 'required|email|unique:users,email,' . $user->id,
+                'first_name' => 'required|string|max:50',
+                'last_name' => 'required|string|max:50',
+                'phone_number' => 'nullable|string|max:20',
+                'department_id' => 'required|exists:company_department,department_code',
+                'role_id' => 'required|exists:roles,id',
+                'is_staff' => 'nullable|boolean',
+            ], [
+                'username.required' => 'Username is required',
+                'username.alpha_num' => 'Username must contain only letters and numbers',
+                'username.min' => 'Username must be at least 3 characters',
+                'username.max' => 'Username cannot exceed 20 characters',
+                'username.unique' => 'This username is already taken',
+                'email.required' => 'Email address is required',
+                'email.email' => 'Please enter a valid email address',
+                'email.unique' => 'This email address is already registered',
+                'first_name.required' => 'First name is required',
+                'last_name.required' => 'Last name is required',
+                'department_id.required' => 'Please select a department',
+                'department_id.exists' => 'Selected department does not exist',
+                'role_id.required' => 'Please select a role',
+                'role_id.exists' => 'Selected role does not exist',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            $user->fill([
+                'name' => Str::title($request->first_name . ' ' . $request->last_name),
+                'user_name' => Str::lower($request->username),
+                'email' => Str::lower($request->email),
+                'first_name' => Str::title($request->first_name),
+                'last_name' => Str::title($request->last_name),
+                'phone_number' => $request->phone_number,
+                'department_id' => $request->department_id,
+                'role_id' => $request->role_id,
+                'is_staff' => $request->boolean('is_staff', false),
+            ]);
+            $user->save();
+
+            $role = Role::find($request->role_id);
+            if ($role && method_exists($user, 'syncRoles')) {
+                $user->syncRoles([$role]);
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'User updated successfully.'
+            ]);
+        } catch (ModelNotFoundException $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'User not found'
+            ], 404);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update user: ' . $e->getMessage(),
+                'error' => config('app.debug') ? $e->getMessage() : 'Internal server error'
+            ], 500);
+        }
+    }
+
     public function edit($id): JsonResponse
     {
         try {
-            $user = User::with(['department', 'roles'])->findOrFail($id);
+            $user = User::with(['roles'])->findOrFail($id);
 
             $userData = [
                 'id' => $user->id,
-                'username' => $user->username,
+                'username' => $user->user_name,
                 'email' => $user->email,
                 'first_name' => $user->first_name,
                 'last_name' => $user->last_name,
@@ -466,6 +559,115 @@ class UserController extends Controller
                 'success' => false,
                 'message' => 'User not found'
             ], 404);
+        }
+    }
+
+    public function changeStatus(Request $request, int $id): JsonResponse
+    {
+        try {
+            $user = User::findOrFail($id);
+
+            if ((int) auth()->id() === (int) $user->id) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'You cannot change your own status.'
+                ], 403);
+            }
+
+            $user->status = $user->status === 'A' ? 'I' : 'A';
+            $user->save();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'User status updated successfully.',
+                'status' => $user->status
+            ]);
+        } catch (ModelNotFoundException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'User not found'
+            ], 404);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update user status: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function resetPassword(Request $request, int $id): JsonResponse
+    {
+        try {
+            $user = User::findOrFail($id);
+
+            $temporaryPassword = $this->passwordService->generateTemporaryPassword();
+
+            if (empty($temporaryPassword)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Failed to generate temporary password.'
+                ], 500);
+            }
+
+            $user->password = Hash::make($temporaryPassword);
+            $user->requires_password_reset = true;
+            $user->password_changed_at = null;
+            $user->password_expires_at = now()->addDay();
+            $user->save();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Password reset successfully.',
+                'temporary_password' => $temporaryPassword
+            ]);
+        } catch (ModelNotFoundException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'User not found'
+            ], 404);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to reset password: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function changeDepartment(Request $request, int $id): JsonResponse
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'department_id' => 'required|string|exists:company_department,department_code',
+            ], [
+                'department_id.required' => 'Please select a department',
+                'department_id.exists' => 'Selected department does not exist',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            $user = User::findOrFail($id);
+            $user->department_id = $request->department_id;
+            $user->save();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Department updated successfully.'
+            ]);
+        } catch (ModelNotFoundException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'User not found'
+            ], 404);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to change department: ' . $e->getMessage(),
+            ], 500);
         }
     }
 }

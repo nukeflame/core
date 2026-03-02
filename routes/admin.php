@@ -14,6 +14,10 @@ Route::group(['prefix' => 'admin', 'middleware' => ['auth', 'check.first.login']
     Route::get('users', [UserController::class, 'index'])->name('admin.users');
     Route::get('users/data', [UserController::class, 'getUserData'])->name('admin.users.data');
     Route::post('users/store', [UserController::class, 'store'])->name('admin.users.store');
+    Route::put('users/{id}', [UserController::class, 'update'])->name('admin.users.update');
+    Route::post('users/{id}/status', [UserController::class, 'changeStatus'])->name('admin.users.status');
+    Route::post('users/{id}/reset-password', [UserController::class, 'resetPassword'])->name('admin.users.reset-password');
+    Route::post('users/{id}/department', [UserController::class, 'changeDepartment'])->name('admin.users.department');
     // ->middleware('permission:manage-users');
     Route::delete('changePassword', [ProfileController::class, 'destroy'])->name('changePassword');
     Route::post('user/destroy', [UserController::class, 'destroy'])->name('admin.user.destroy');

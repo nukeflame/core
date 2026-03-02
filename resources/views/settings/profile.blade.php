@@ -24,7 +24,7 @@
 
         .card-title-icon {
             margin-right: 0.75rem;
-            color: #0d6efd;
+            color: var(--primary-color, #f91520);
         }
 
         .progress {
@@ -35,13 +35,22 @@
             width: 40px;
             height: 40px;
             border-radius: 50%;
-            background-color: #0d6efd;
+            background-color: var(--primary-color, #f91520);
             color: white;
             display: flex;
             align-items: center;
             justify-content: center;
             font-weight: 600;
             font-size: 1rem;
+        }
+
+        .main-profile-cover {
+            background-image: none !important;
+            background-color: var(--primary-color, #f91520) !important;
+        }
+
+        .main-profile-cover::before {
+            background-color: rgba(0, 0, 0, 0.18) !important;
         }
     </style>
 
@@ -63,7 +72,7 @@
             <div class="card custom-card overflow-hidden">
                 <div class="card-body p-0">
                     <div class="d-sm-flex align-items-top p-4 border-bottom border-block-end-dashed main-profile-cover"
-                        style="background-image: none; background-color: #131313;">
+                        style="background-image: none;">
                         <div>
                             <span class="avatar avatar-xxl avatar-rounded online me-3 profile-avatar">
                                 <img src="{{ asset('user-avator.png') }}" alt="img" width="5rem" height="5rem"

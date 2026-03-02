@@ -3,6 +3,31 @@
 ])
 
 @section('content')
+    <style>
+        #roles-table th:first-child,
+        #roles-table td:first-child {
+            width: 42px;
+            min-width: 42px;
+            text-align: center;
+            vertical-align: middle;
+            padding-left: 8px;
+            padding-right: 8px;
+        }
+
+        #roles-table td:first-child .form-check {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 0;
+            min-height: 22px;
+        }
+
+        #roles-table td:first-child .form-check-input {
+            margin: 0;
+            float: none;
+        }
+    </style>
+
     <div class="d-md-flex d-block align-items-center justify-content-between my-4 page-header-breadcrumb">
         <h1 class="page-title fw-semibold fs-18 mb-0">Roles</h1>
         <div class="ms-md-1 ms-0">
@@ -369,10 +394,10 @@
                 columnDefs: [{
                     targets: 0,
                     orderable: false,
-                    className: 'select-checkbox',
+                    className: 'select-checkbox text-center align-middle',
                     render: function(data, type, row, meta) {
                         let isDisabled = row.slug == 'super_admin' ? 'disabled' : '';
-                        return '<div class="form-check form-check-md d-flex align-items-center">' +
+                        return '<div class="form-check form-check-md d-flex align-items-center justify-content-center mb-0">' +
                             '<input class="form-check-input form-checked-dark checkbox-md" type="checkbox" value="' +
                             row.id + '" id="checkbox-md-' + row.id + '" ' + isDisabled + '>' +
                             '<label class="form-check-label" for="checkbox-md-' + row.id +
@@ -385,7 +410,7 @@
                         defaultContent: '',
                         searchable: false,
                         orderable: false,
-                        class: 'highlight-zero'
+                        class: 'highlight-zero text-center align-middle'
                     },
                     {
                         data: 'name',
@@ -403,6 +428,11 @@
                     {
                         data: 'departments',
                         searchable: false,
+                        render: function(data) {
+                            const departments = parseDepartments(data);
+                            if (!departments.length) return '--';
+                            return departments.map(d => d.department_name).join(', ');
+                        }
                     },
                     {
                         data: 'status',
@@ -600,7 +630,7 @@
 
                 pagePermissions.forEach(permission => {
                     const isChecked = selectedRows.length > 0 && selectedRows.some(row => {
-                        const perms = JSON.parse(row.permissions) ?? [];
+                        const perms = parseArrayValue(row.permissions);
                         return perms.some(perm => perm.name === permission.name);
                     })
 
@@ -746,8 +776,7 @@
                     selectedRows = selectedRows.filter(row => row.id !== rowData.id);
                 }
                 if (selectedRows.length > 0) {
-                    const selectedDepartments = typeof selectedRows[0]?.departments !== "undefined" ? JSON
-                        .parse(selectedRows[0]?.departments) : []
+                    const selectedDepartments = parseDepartments(selectedRows[0]?.departments);
 
                     const v = selectedDepartments?.map((x) => x.department_code);
                     $('#departmentModal #department_id').val(v);
@@ -777,6 +806,25 @@
                 $('#departmentModal').find('#roleId').val(selectedRole[0].id);
                 $('#departmentModal').find('#userId').val("{{ auth()->id() ?? '' }}");
                 $('#departmentModal').find('#roleName').val(selectedRole[0].name);
+            });
+
+            $roleTable.on('click', '.view-role-departments', function(e) {
+                e.preventDefault();
+                const rowData = $roleTable.row($(this).closest('tr')).data();
+                if (!rowData) {
+                    toastr.error('Role data not found');
+                    return;
+                }
+
+                const selectedDepartments = parseDepartments(rowData.departments);
+                const codes = selectedDepartments.map(d => d.department_code);
+
+                selectedRows = [rowData];
+                $('#departmentModal').find('#roleId').val(rowData.id);
+                $('#departmentModal').find('#userId').val("{{ auth()->id() ?? '' }}");
+                $('#departmentModal').find('#roleName').val(rowData.name);
+                $('#departmentModal #department_id').val(codes).trigger('change');
+                $('#departmentModal').modal('show');
             });
 
             $('#selectAllPermissions').on('change', function() {
@@ -943,13 +991,13 @@
 
             $roleTable.on('click', '.remove-role', function(e) {
                 e.preventDefault();
-                // const $button = $(this);
-                // const roleData = $button.data('role');
+                const $button = $(this);
+                const roleId = $button.data('id');
 
-                // if (!roleData || !roleData.id) {
-                //     toastr.error('Invalid role data');
-                //     return;
-                // }
+                if (!roleId) {
+                    toastr.error('Invalid role data');
+                    return;
+                }
 
                 Swal.fire({
                     title: 'Remove Role',
@@ -961,49 +1009,62 @@
                     confirmButtonColor: '#dc3545',
                     focusCancel: true
                 }).then((result) => {
-                    // if (result.isConfirmed) {
-                    //     $button.prop('disabled', true).html(
-                    //         '<i class="bx bx-loader-alt bx-spin"></i>');
+                    if (result.isConfirmed) {
+                        $button.prop('disabled', true).html(
+                            '<i class="bx bx-loader-alt bx-spin"></i>');
 
-                    //     $.ajax({
-                    //         url: "{!! route('admin.roles.destroy') !!}",
-                    //         method: 'POST',
-                    //         data: {
-                    //             _token: "{{ csrf_token() }}",
-                    //             role_id: roleData.id
-                    //         },
-                    //         success: function(response) {
-                    //             if (response.success) {
-                    //                 toastr.success('Role deleted successfully');
-                    //                 $roleTable.DataTable().ajax.reload(null,
-                    //                     false); // Maintain pagination position
-                    //             } else {
-                    //                 toastr.error(response.message ||
-                    //                     'Failed to delete role');
-                    //             }
-                    //         },
-                    //         error: function(xhr) {
-                    //             if (xhr.status === 422 && xhr.responseJSON && xhr
-                    //                 .responseJSON.errors) {
-                    //                 const errors = xhr.responseJSON.errors;
-                    //                 Object.values(errors).forEach(error => {
-                    //                     toastr.error(error[0]);
-                    //                 });
-                    //             } else {
-                    //                 toastr.error(
-                    //                     'An error occurred while deleting the role');
-                    //                 console.error('Role deletion error:', xhr);
-                    //             }
-                    //         },
-                    //         complete: function() {
-                    //             // Restore button state
-                    //             $button.prop('disabled', false).html(
-                    //                 '<i class="fas fa-trash"></i>');
-                    //         }
-                    //     });
-                    // }
+                        $.ajax({
+                            url: "{!! route('admin.roles.destroy') !!}",
+                            method: 'POST',
+                            data: {
+                                _token: "{{ csrf_token() }}",
+                                role_id: roleId
+                            },
+                            success: function(response) {
+                                if (response.success) {
+                                    toastr.success(response.message || 'Role deleted successfully');
+                                    $roleTable.ajax.reload(null, false);
+                                } else {
+                                    toastr.error(response.message || 'Failed to delete role');
+                                }
+                            },
+                            error: function(xhr) {
+                                if (xhr.status === 422 && xhr.responseJSON && xhr
+                                    .responseJSON.errors) {
+                                    const errors = xhr.responseJSON.errors;
+                                    Object.values(errors).forEach(error => {
+                                        toastr.error(error[0]);
+                                    });
+                                } else {
+                                    toastr.error(xhr.responseJSON?.message ||
+                                        'An error occurred while deleting the role');
+                                }
+                            },
+                            complete: function() {
+                                $button.prop('disabled', false).html(
+                                    '<i class="bx bx-trash"></i>');
+                            }
+                        });
+                    }
                 });
             });
+
+            function parseDepartments(value) {
+                return parseArrayValue(value);
+            }
+
+            function parseArrayValue(value) {
+                if (!value) return [];
+                if (Array.isArray(value)) return value;
+                if (typeof value === 'string') {
+                    try {
+                        return JSON.parse(value);
+                    } catch (e) {
+                        return [];
+                    }
+                }
+                return [];
+            }
 
             renderPage();
         });

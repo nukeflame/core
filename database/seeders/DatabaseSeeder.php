@@ -13,6 +13,9 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         $this->call([
+            ThemeSeeder::class,
+            SystemProcessSeeder::class,
+            SystemProcessActionSeeder::class,
             DocTypeSeeder::class,
             SlipTemplateSeeder::class,
             DebitNoteReferenceSeeder::class

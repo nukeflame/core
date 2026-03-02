@@ -23,7 +23,7 @@ class StoreCustomerRequest extends FormRequest
             'customerType' => 'required|array|min:1',
             'customerType.*' => 'required|exists:customer_types,type_id',
             'email' => 'required|email|max:255',
-            'telephone' => 'required|string|max:20',
+            'telephone' => 'required|string|max:100',
 
             'incorporationNo' => 'required|string|max:255',
             'taxNo' => 'required|string|max:255',
@@ -43,13 +43,13 @@ class StoreCustomerRequest extends FormRequest
             'dateOfBirthIncorporation' => 'nullable|date',
 
             'country' => 'required|string|size:3|exists:countries,country_iso',
-            'street' => 'required|string|max:255',
+            'street' => 'required|string|max:100',
             'city' => 'required|string|max:100',
             'state' => 'nullable|string|max:100',
             'postalCode' => 'required|string|max:20',
 
-            'financialRating' => 'nullable|string|max:10',
-            'agencyRating' => 'nullable|string|max:10',
+            'financialRating' => 'nullable|string|max:100',
+            'agencyRating' => 'nullable|string|max:100',
 
             'contacts' => 'required|array|min:1',
             'contacts.*.id' => 'nullable|integer|exists:customer_contacts,id',

@@ -294,6 +294,9 @@
                 userData: '{!! route('admin.users.data') !!}',
                 userStore: '{{ route('admin.users.store') }}',
                 userDestroy: '{{ route('admin.user.destroy') }}',
+                userStatus: '{{ url('admin/users') }}',
+                userResetPassword: '{{ url('admin/users') }}',
+                userDepartment: '{{ url('admin/users') }}',
                 usernameCheck: '{{ route('admin.username.check') }}',
                 emailDomainCheck: '{{ route('admin.email.domain.check') }}',
                 rolesByDepartment: '{{ route('admin.roles.by.department') }}',
@@ -301,6 +304,7 @@
             };
 
             const CSRF_TOKEN = '{{ csrf_token() }}';
+            const DEPARTMENT_OPTIONS = @json(($departments ?? collect())->pluck('department_name', 'department_code')->toArray());
 
             let selectedRows = [];
             let currentUserId = null;
@@ -430,27 +434,13 @@
                     const email = $(this).data('email');
                     const userId = $(this).data('user-id');
 
-                    if (email) {
-                        handleUserRemoval(email, $(this));
+                    if (userId || email) {
+                        handleUserRemoval(userId, email, $(this));
                     } else {
-                        toastr.error('User email not found');
+                        toastr.error('User data not found');
                     }
                 });
 
-                $(document).on('click', '[onclick*="changeStatus"]', function(e) {
-                    console.log('Change status clicked');
-                    // Your existing changeStatus function will handle this
-                });
-
-                $(document).on('click', '[onclick*="resetPassword"]', function(e) {
-                    console.log('Reset password clicked');
-                    // Your existing resetPassword function will handle this
-                });
-
-                $(document).on('click', '[onclick*="changeDepartment"]', function(e) {
-                    console.log('Change department clicked');
-                    // Your existing changeDepartment function will handle this
-                });
             }
 
             function bindModalEvents() {
@@ -765,8 +755,7 @@
                     type: 'GET',
                     dataType: 'json',
                     success: function(data) {
-                        console.log('User data loaded:', data);
-                        // populateEditForm(data, userId);
+                        populateEditForm(data, userId);
                     },
                     error: function(xhr) {
                         console.error('Error loading user data:', xhr);
@@ -854,15 +843,15 @@
                 });
             }
 
-            function handleUserRemoval(email, $button) {
-                if (!email) {
+            function handleUserRemoval(userId, email, $button) {
+                if (!userId && !email) {
                     toastr.error('Invalid user data');
                     return;
                 }
-                showDeleteConfirmation(email, $button);
+                showDeleteConfirmation(userId, email, $button);
             }
 
-            function showDeleteConfirmation(email, $button) {
+            function showDeleteConfirmation(userId, email, $button) {
                 Swal.fire({
                     title: 'Remove User',
                     text: 'Are you sure you want to delete this user?',
@@ -874,12 +863,12 @@
                     focusCancel: true
                 }).then((result) => {
                     if (result.isConfirmed) {
-                        executeUserDeletion(email, $button);
+                        executeUserDeletion(userId, email, $button);
                     }
                 });
             }
 
-            function executeUserDeletion(email, $button) {
+            function executeUserDeletion(userId, email, $button) {
                 setDeleteButtonLoading($button, true);
 
                 $.ajax({
@@ -887,6 +876,7 @@
                     method: 'POST',
                     data: {
                         _token: CSRF_TOKEN,
+                        user_id: userId,
                         email: email
                     },
                     success: function(response) {
@@ -1021,6 +1011,118 @@
                     toastr.error(`${context} failed. Please try again.`);
                 }
             }
+
+            function postUserAction(url, data = {}) {
+                return $.ajax({
+                    url: url,
+                    method: 'POST',
+                    data: {
+                        _token: CSRF_TOKEN,
+                        ...data
+                    }
+                });
+            }
+
+            window.changeStatus = function(userId) {
+                Swal.fire({
+                    title: 'Change User Status',
+                    text: 'This will toggle active/inactive status.',
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonText: 'Proceed',
+                    cancelButtonText: 'Cancel'
+                }).then((result) => {
+                    if (!result.isConfirmed) return;
+
+                    postUserAction(`${ROUTES.userStatus}/${userId}/status`)
+                        .done(function(response) {
+                            toastr.success(response.message || 'Status updated');
+                            $userTable.ajax.reload(null, false);
+                        })
+                        .fail(function(xhr) {
+                            handleAjaxError(xhr, 'Change status');
+                        });
+                });
+            };
+
+            window.resetPassword = function(userId) {
+                Swal.fire({
+                    title: 'Reset Password',
+                    text: 'Generate a new temporary password for this user?',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonText: 'Reset',
+                    cancelButtonText: 'Cancel'
+                }).then((result) => {
+                    if (!result.isConfirmed) return;
+
+                    postUserAction(`${ROUTES.userResetPassword}/${userId}/reset-password`)
+                        .done(function(response) {
+                            const tempPassword = response.temporary_password || '';
+                            Swal.fire({
+                                title: 'Password Reset',
+                                html: `<p class="mb-2">Temporary password:</p><code>${tempPassword}</code>`,
+                                icon: 'success'
+                            });
+                            $userTable.ajax.reload(null, false);
+                        })
+                        .fail(function(xhr) {
+                            handleAjaxError(xhr, 'Reset password');
+                        });
+                });
+            };
+
+            window.changeDepartment = function(userId) {
+                Swal.fire({
+                    title: 'Change Department',
+                    html: '<select id="swal_department_id" class="form-control" style="width:100%"></select>',
+                    showCancelButton: true,
+                    confirmButtonText: 'Update',
+                    cancelButtonText: 'Cancel',
+                    didOpen: () => {
+                        const $departmentSelect = $('#swal_department_id');
+                        $departmentSelect.append('<option value="">Select department</option>');
+
+                        $.each(DEPARTMENT_OPTIONS, function(code, name) {
+                            $departmentSelect.append(new Option(name, code, false, false));
+                        });
+
+                        $departmentSelect.select2({
+                            width: '100%',
+                            dropdownParent: $('.swal2-popup')
+                        });
+                    },
+                    willClose: () => {
+                        const $departmentSelect = $('#swal_department_id');
+                        if ($departmentSelect.hasClass('select2-hidden-accessible')) {
+                            $departmentSelect.select2('destroy');
+                        }
+                    },
+                    preConfirm: () => {
+                        const selectedDepartment = $('#swal_department_id').val();
+                        if (!selectedDepartment) {
+                            Swal.showValidationMessage('Please select a department');
+                            return false;
+                        }
+                        return selectedDepartment;
+                    }
+                }).then((result) => {
+                    if (!result.isConfirmed || !result.value) {
+                        return;
+                    }
+
+                    postUserAction(`${ROUTES.userDepartment}/${userId}/department`, {
+                            department_id: result.value
+                        })
+                        .done(function(response) {
+                            toastr.success(response.message || 'Department updated');
+                            $userTable.ajax.reload(null, false);
+                        })
+                        .fail(function(xhr) {
+                            handleAjaxError(xhr, 'Change department');
+                        });
+                });
+            };
         });
     </script>
 @endpush
