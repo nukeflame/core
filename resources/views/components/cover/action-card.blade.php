@@ -268,7 +268,19 @@
                             'noopener=yes',
                             'noreferrer=yes'
                         ].join(',');
-                        window.open(slipUrl, 'facultative_coverslip_window', popupFeatures);
+                        const previewWindow = window.open(
+                            'about:blank',
+                            'facultative_coverslip_window',
+                            popupFeatures
+                        );
+
+                        if (!previewWindow) {
+                            this.showAlert('Popup blocked', 'Please allow popups for this site.', 'warning');
+                            return;
+                        }
+
+                        previewWindow.location.href = slipUrl;
+                        previewWindow.focus();
                         return;
                     }
 

@@ -1367,7 +1367,7 @@
                             }
                         ],
                         order: [
-                            [3, 'desc']
+                            [1, 'asc']
                         ],
                         pageLength: CONFIG.dataTables.pageLength,
                         lengthMenu: CONFIG.dataTables.lengthMenu,

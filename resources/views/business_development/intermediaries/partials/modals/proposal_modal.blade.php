@@ -1344,7 +1344,7 @@
 
 <form id="proposal-quoteslip-form" method="POST" action="{{ route('quote.quotationCoverSlip.facultative') }}"
     data-quotation-action="{{ route('quote.quotationCoverSlip.quotation') }}"
-    data-facultative-action="{{ route('quote.quotationCoverSlip.facultative') }}" target="_blank"
+    data-facultative-action="{{ route('quote.quotationCoverSlip.facultative') }}" target="slipPreviewWindow"
     style="display: none;">
     @csrf
 </form>
@@ -3321,6 +3321,20 @@
                     value: $('#proposal-show-premiums-preview').is(':checked') ? '1' : '0'
                 }));
 
+                const previewTarget = "slipPreviewWindow";
+                const previewWindow = window.open(
+                    "",
+                    previewTarget,
+                    "width=1200,height=900,resizable=yes,scrollbars=yes,menubar=yes,toolbar=yes,location=yes,status=yes"
+                );
+
+                if (!previewWindow) {
+                    toastr.error('Unable to open preview window. Please allow popups for this site.');
+                    return;
+                }
+
+                postForm.attr("target", previewTarget);
+                previewWindow.focus();
                 postForm.submit();
             }
 

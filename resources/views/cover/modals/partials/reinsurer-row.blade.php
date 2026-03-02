@@ -15,8 +15,7 @@
 <div id="{{ $rowId }}" data-treaty-counter="{{ $treatyCounterValue }}" data-counter="{{ $counterValue }}"
     class="reinsurer-section mb-3 p-3 border rounded position-relative bg-light">
 
-    <button type="button"
-        class="btn btn-sm btn-outline-danger position-absolute top-0 end-0 m-2 remove-reinsurer-btn"
+    <button type="button" class="btn btn-sm btn-outline-danger position-absolute top-0 end-0 m-2 remove-reinsurer-btn"
         data-treaty-counter="{{ $treatyCounterValue }}" data-counter="{{ $counterValue }}" title="Remove Reinsurer">
         <i class="bx bx-trash"></i>
     </button>
@@ -54,7 +53,8 @@
             </div>
             <small class="form-text text-muted">
                 Can't find the reinsurer?
-                <a href="{{ route('customer.form') }}" target="_blank" rel="noopener noreferrer" class="text-info">Add new reinsurer</a>
+                <a href="{{ route('customer.form') }}" target="_blank" rel="noopener noreferrer" class="text-info">Add
+                    new reinsurer</a>
             </small>
         </div>
 
@@ -224,7 +224,7 @@
                                     data-counter="{{ $counterValue }}" value="1">
                                 <label class="form-check-label"
                                     for="net_of_premium-{{ $treatyCounterValue }}-{{ $counterValue }}">
-                                    Net Premium &amp; Reinsurance Tax
+                                    Net of Tax
                                 </label>
                             </div>
                             <div class="form-check form-check-lg custom-checkbox">
@@ -235,7 +235,7 @@
                                     data-counter="{{ $counterValue }}" value="1">
                                 <label class="form-check-label"
                                     for="net_withholding_tax-{{ $treatyCounterValue }}-{{ $counterValue }}">
-                                    Net of Withholding Tax
+                                    Gross of Tax
                                 </label>
                             </div>
                         </div>

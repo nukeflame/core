@@ -307,8 +307,15 @@ class AmountCalculator
             return 0.0;
         }
 
-        $grossAmount = $this->getLastDebitItem($context, $type)['share_amount'] ?? 0;
-        return $this->percentage($grossAmount, $context->config->brokerageRate);
+        $baseAmount = $this->getLastDebitItem($context, $type)['share_amount'] ?? 0;
+
+        // When brokerage basis is Net of Tax, apply brokerage on the net base.
+        if ($context->config->commissionMode === 'net' && $baseAmount > self::EPSILON) {
+            $netFactor = (100 - $context->config->premiumLevy) / 100;
+            $baseAmount = $baseAmount * $netFactor;
+        }
+
+        return $this->percentage($baseAmount, $context->config->brokerageRate);
     }
 
     protected function calculateCreditAmount(array $item, float $shareAmount, CalculationContext $context, string $type): float
@@ -363,7 +370,9 @@ class AmountCalculator
 
     protected function determineTaxBase(CalculationContext $context): float
     {
-        if ($context->config->commissionMode === 'net') {
+        // For cedant, net-of-tax should only affect commission computation.
+        // Keep cedant tax base on gross so other figures remain unchanged.
+        if ($context->config->isReinsurer && $context->config->commissionMode === 'net') {
             return $context->amounts->gross()
                 - $context->amounts->credit()
                 - $context->amounts->brokerage();
@@ -490,7 +499,7 @@ class AmountCalculator
 
     protected function hasValidShare($reinsurer): bool
     {
-        return ((float) ($reinsurer->share ?? 0)) > self::EPSILON;
+        return $this->getReinsurerShare($reinsurer) > self::EPSILON;
     }
 
     protected function setLastDebitItem(CalculationContext $context, string $type, array $item): void
@@ -514,8 +523,15 @@ class AmountCalculator
 
     protected function getReinsurerShare($reinsurer): float
     {
-        $compulsoryAcceptance = (float) ($reinsurer->compulsory_acceptance ?? 0);
-        return $compulsoryAcceptance > self::EPSILON ? $compulsoryAcceptance : (float) ($reinsurer->share ?? 0);
+        $isTreatyAcceptanceBased = $reinsurer->optional_acceptance !== null
+            || $reinsurer->compulsory_acceptance !== null
+            || $reinsurer->total_acceptance !== null;
+
+        if ($isTreatyAcceptanceBased) {
+            return (float) ($reinsurer->optional_acceptance ?? 0);
+        }
+
+        return (float) ($reinsurer->share ?? 0);
     }
 
     protected function loadReinsurers(?CoverRegister $cover): Collection
@@ -724,7 +740,8 @@ class ResultBuilder
             'endorsement_no' => $reinsurer->endorsement_no ?? '',
             'partner_code' => $reinsurer->partner_no,
             'reinsurer_name' => $reinsurer->partner?->name ?? '',
-            'share' => $context->sharePercentage,
+            'share' => (float) ($reinsurer->share ?? 0),
+            'calculation_share' => $context->sharePercentage,
             'commission_mode' => $context->config->commissionMode,
             'gross_amount' => $context->amounts->gross(),
             'credit_amount' => $context->amounts->credit(),

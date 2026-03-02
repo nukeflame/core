@@ -3551,20 +3551,8 @@
             $(document).on("change", ".reinsurer-calc-option", function () {
                 const tc = $(this).data("treaty-counter");
                 const c = $(this).data("counter");
-                const $checkbox = $(this);
-                const optionKey =
-                    self.reinsurerManager.getCalcOptionKey($checkbox);
-
-                if (optionKey) {
-                    self.reinsurerManager.syncCalcOptionAcrossTreaty(
-                        tc,
-                        optionKey,
-                        $checkbox.is(":checked"),
-                    );
-                } else {
-                    self.commissionManager.calculate(tc, c);
-                    self.brokerageManager.calculate(tc, c);
-                }
+                self.commissionManager.calculate(tc, c);
+                self.brokerageManager.calculate(tc, c);
             });
 
             $(document).on("change", ".apply-fronting", function () {
