@@ -11,10 +11,29 @@ class ScheduleHeader extends Model
     use HasFactory;
 
     protected $table = 'schedule_headers';
-    public $timestamps = true;
-    public $primaryKey = 'id';
+    protected $primaryKey = 'id';
+    protected $keyType = 'int';
     public $incrementing = false;
-    protected $guarded = [];
+    public $timestamps = true;
+
+    protected $fillable = [
+        'name',
+        'position',
+        'amount_field',
+        'sum_insured_type',
+        'data_determinant',
+        'class',
+        'class_group',
+        'business_type',
+        'opportunity_id',
+        'schedule_header_id'
+    ];
+
+    protected $casts = [
+        'id' => 'integer',
+        'position' => 'integer',
+        'schedule_header_id' => 'integer',
+    ];
 
     /**
      * Get all of the schedules for the ScheduleHeader

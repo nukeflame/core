@@ -86,6 +86,8 @@ Route::group(['prefix' => 'cover', 'middleware' => ['auth', 'check.first.login']
     Route::get('/debits_datatable', [CoverController::class, 'debits_datatable'])->name('cover.debits_datatable');
     Route::get('/approvals_datatable', [CoverController::class, 'approvals_datatable'])->name('cover.approvals_datatable');
     Route::post('/add_schedule', [CoverRiskController::class, 'add_schedule'])->name('cover.add_schedule');
+    Route::get('/available-schedule-items', [CoverRiskController::class, 'available_schedule_items'])->name('cover.available_schedule_items');
+    Route::get('/get_schedule', [CoverRiskController::class, 'get_schedule'])->name('cover.get_schedule');
     Route::put('/amend_schedule', [CoverRiskController::class, 'amend_schedule'])->name('cover.amend_schedule');
     Route::post('/delete_schedule', [CoverRiskController::class, 'delete_schedule'])->name('cover.delete_schedule');
     Route::post('/add_attachment', [CoverController::class, 'saveAttachment'])->name('cover.save_attachment');

@@ -55,11 +55,11 @@
                     data-bs-target="#addAttachemntModal">
                     <i class="ri-file-text-line me-2"></i>Add File &amp; Supporting Docs
                 </button>
-
+                {{--
                 <button type="button" class="btn btn-outline-dark btn-sm text-start me-2" data-bs-toggle="modal"
                     data-bs-target="#addClauseModal">
                     <i class="ri-file-text-line me-2"></i>Add Policy Clauses
-                </button>
+                </button> --}}
 
                 {{-- <button type="button" class="btn btn-outline-dark btn-sm text-start me-2" data-bs-toggle="modal"
                     data-bs-target="#addAttachmentModal">
@@ -254,6 +254,23 @@
                     };
 
                     const message = messages[type] || 'Generate document?';
+
+                    if (type === 'slip') {
+                        const slipUrl = '/doc/coverslip/facultative';
+                        const popupFeatures = [
+                            'popup=yes',
+                            'width=1280',
+                            'height=900',
+                            'left=120',
+                            'top=80',
+                            'resizable=yes',
+                            'scrollbars=yes',
+                            'noopener=yes',
+                            'noreferrer=yes'
+                        ].join(',');
+                        window.open(slipUrl, 'facultative_coverslip_window', popupFeatures);
+                        return;
+                    }
 
                     if (type === 'debit') {
                         $('#treatyDebitModal').modal('show');

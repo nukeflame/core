@@ -15,13 +15,11 @@
 <div id="{{ $rowId }}" data-treaty-counter="{{ $treatyCounterValue }}" data-counter="{{ $counterValue }}"
     class="reinsurer-section mb-3 p-3 border rounded position-relative bg-light">
 
-    @if ($isTemplate || $counter > 0)
-        <button type="button"
-            class="btn btn-sm btn-outline-danger position-absolute top-0 end-0 m-2 remove-reinsurer-btn"
-            data-treaty-counter="{{ $treatyCounterValue }}" data-counter="{{ $counterValue }}" title="Remove Reinsurer">
-            <i class="bx bx-trash"></i>
-        </button>
-    @endif
+    <button type="button"
+        class="btn btn-sm btn-outline-danger position-absolute top-0 end-0 m-2 remove-reinsurer-btn"
+        data-treaty-counter="{{ $treatyCounterValue }}" data-counter="{{ $counterValue }}" title="Remove Reinsurer">
+        <i class="bx bx-trash"></i>
+    </button>
 
     <h6 class="mb-3 text-primary fs-14">
         <i class="bx bx-building me-1"></i>

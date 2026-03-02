@@ -491,7 +491,9 @@ const CoverRegistration = (function () {
 
         if (!bustype) {
             const treatySelect = $("#treatytype");
-            treatySelect.empty().append('<option value="">Select Treaty Type</option>');
+            treatySelect
+                .empty()
+                .append('<option value="">Select Treaty Type</option>');
             treatySelect.trigger("change");
             return;
         }
@@ -758,7 +760,7 @@ const CoverRegistration = (function () {
                 state.isSubmitting = false;
 
                 if (response.success) {
-                    // console.log(response);
+                    console.log(response);
                     const successText =
                         config.trans_type === "EDIT"
                             ? "Cover updated successfully"
@@ -1902,9 +1904,7 @@ const CoverRegistration = (function () {
             $(".prem_type_treaty")
                 .empty()
                 .append(
-                    $("<option>")
-                        .text("-- Select Treaty --")
-                        .attr("value", ""),
+                    $("<option>").text("-- Select Treaty --").attr("value", ""),
                 )
                 .val("")
                 .trigger("change.select2");
@@ -1914,9 +1914,7 @@ const CoverRegistration = (function () {
         // Update treaty dropdown for ALL commission sections across ALL sections
         $(`.prem_type_treaty`)
             .empty()
-            .append(
-                $("<option>").text(treatyTypeTxt).attr("value", treatyType),
-            )
+            .append($("<option>").text(treatyTypeTxt).attr("value", treatyType))
             .val(treatyType)
             .trigger("change.select2");
 

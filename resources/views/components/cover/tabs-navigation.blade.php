@@ -41,10 +41,10 @@
                     <i class="bx bx-file me-1 align-middle"></i>File & Support Docs
                 </button>
 
-                <button class="nav-link" id="nav-clauses-tab" data-bs-toggle="tab" data-bs-target="#clauses-tab"
+                {{-- <button class="nav-link" id="nav-clauses-tab" data-bs-toggle="tab" data-bs-target="#clauses-tab"
                     type="button" role="tab" aria-selected="false" tabindex="-1">
                     <i class="bx bx-medal me-1 align-middle"></i>Policy Clauses
-                </button>
+                </button> --}}
             @endif
 
             @if (in_array($cover->type_of_bus, ['TPR', 'TNP']))

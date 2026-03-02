@@ -30,6 +30,7 @@
         REINSURER_ROW_TEMPLATE: "#reinsurer-row-template",
 
         MODAL: "#addReinsurerModal",
+        SCHEDULE_MODAL: "#addScheduleModal",
         FORM: "#reinsurerForm",
         SAVE_BUTTON: "#partner-save-btn",
 
@@ -2215,6 +2216,9 @@
                 endorsementNo: $app.data("endorsement-no"),
                 typeOfBus: $app.data("type-of-bus"),
                 coverNo: $app.data("cover-no"),
+                scheduleItemContentById: {},
+                suppressScheduleAutofillOnce: false,
+                scheduleBreakdownQuill: null,
             };
         },
 
@@ -2252,12 +2256,13 @@
                 schedules: {
                     selector: SELECTORS.SCHEDULES_TABLE,
                     options: {
+                        order: [[2, "asc"]],
                         ajax: baseAjaxConfig(SELECTORS.SCHEDULES_TABLE),
                         columns: [
                             { data: "id", render: (d, t, r, m) => m.row + 1 },
                             { data: "title" },
-                            { data: "details", className: "clamp-text" },
                             { data: "schedule_position" },
+                            { data: "description" },
                             {
                                 data: "action",
                                 searchable: false,
@@ -2595,7 +2600,8 @@
 
             // Edit actions
             $(document).on("click", ".edit-schedule", function () {
-                self._populateScheduleForm($(this).data());
+                const scheduleId = $(this).data("id");
+                self._loadScheduleForEdit(scheduleId);
             });
 
             $(document).on("click", ".edit-reinsurer", function () {
@@ -2665,6 +2671,68 @@
                     self._reEscalateApproval(approvalId);
                 },
             );
+
+            $(SELECTORS.SCHEDULE_MODAL).on("show.bs.modal", () => {
+                const $modal = $(SELECTORS.SCHEDULE_MODAL);
+                const mode = $modal.data("mode") || "create";
+
+                if (mode === "create") {
+                    this._resetScheduleFormForCreate();
+                }
+            });
+
+            $(SELECTORS.SCHEDULE_MODAL).on("hidden.bs.modal", () => {
+                $(SELECTORS.SCHEDULE_MODAL).data("mode", "create");
+            });
+
+            $(document).on("change", "#sched-header", function () {
+                const selectedId = String($(this).val() || "");
+                if (!selectedId) {
+                    return;
+                }
+
+                if (self.state.suppressScheduleAutofillOnce) {
+                    self.state.suppressScheduleAutofillOnce = false;
+                    return;
+                }
+
+                const $selected = $(this).find("option:selected");
+                $("#title").val($selected.data("name") || "");
+
+                const selectedPosition = $selected.data("position");
+                if (selectedPosition !== undefined && selectedPosition !== "") {
+                    $("#schedule_position").val(selectedPosition);
+                }
+
+                self._applySelectedScheduleContent(selectedId);
+            });
+
+            $(document).on("click", "#schedule_details_preview", () => {
+                const selectedId = String($("#sched-header").val() || "");
+                if (!selectedId) {
+                    toastr.warning("Select a schedule item first");
+                    return;
+                }
+                this._openScheduleBreakdownEditor();
+            });
+
+            $(document).on("click", "#loadExistingScheduleContentBtn", () => {
+                this._loadExistingScheduleBreakdown();
+            });
+
+            $(document).on("click", "#clearScheduleBreakdownBtn", () => {
+                if (this.state.scheduleBreakdownQuill) {
+                    this.state.scheduleBreakdownQuill.setContents([]);
+                }
+            });
+
+            $(document).on("click", "#previewScheduleBreakdownBtn", () => {
+                this._previewScheduleBreakdown();
+            });
+
+            $(document).on("click", "#saveScheduleBreakdownBtn", () => {
+                this._saveScheduleBreakdownEditor();
+            });
         },
 
         _reEscalateApproval(approvalId) {
@@ -2725,6 +2793,11 @@
         },
 
         async _handleFormSubmit(formName, form) {
+            if (formName === "schedules") {
+                this._submitScheduleFormAjax(form);
+                return;
+            }
+
             if (
                 formName === "reinsurer" &&
                 window.ReinsurerPlacement?.formSubmissionManager
@@ -2781,6 +2854,54 @@
                 .catch(() => toastr.error("An error occurred"));
         },
 
+        _submitScheduleFormAjax(form) {
+            const $form = $(form);
+            const method = $form.find('[name="_method"]').val() || "POST";
+            const url =
+                method === "POST"
+                    ? $form.data("post-url") || $form.attr("action")
+                    : $form.data("put-url") || $form.attr("action");
+
+            if (!url) {
+                toastr.error("Schedule form URL not configured");
+                return;
+            }
+
+            const formData = new FormData(form);
+            $("#schedule-save-btn").prop("disabled", true);
+
+            $.ajax({
+                url: url,
+                type: "POST",
+                headers: { "X-CSRF-Token": Utils.getCsrfToken() },
+                data: formData,
+                processData: false,
+                contentType: false,
+                success: (response) => {
+                    if (response.status === 201) {
+                        toastr.success("Submitted successfully");
+                        $("#addScheduleModal").modal("hide");
+                        this.tables?.schedules?.ajax?.reload(null, false);
+                    } else if (response.status === 422) {
+                        this._showValidationErrors(response.errors || response.message);
+                    } else {
+                        toastr.error(response.message || "Failed to save");
+                    }
+                },
+                error: (xhr) => {
+                    if (xhr.status === 422 && xhr.responseJSON?.errors) {
+                        this._showValidationErrors(xhr.responseJSON.errors);
+                        return;
+                    }
+
+                    toastr.error(xhr.responseJSON?.message || "An error occurred");
+                },
+                complete: () => {
+                    $("#schedule-save-btn").prop("disabled", false);
+                },
+            });
+        },
+
         async _runPreVerificationChecks(form) {
             const $form = $(form);
             const preVerifyUrl = $form.data("pre-verify-url");
@@ -2826,8 +2947,259 @@
             $form.find('[name="_method"]').val("PUT");
             $form.find("#title").val(data.title);
             $form.find("#id").val(data.id);
-            $form.find("#schedule_id").val(data.schedule_id);
-            $("#schedule_description").html(data.details);
+            const selectedHeaderId = data.header || data.schedule_id;
+            $form.find("#schedule_id").val(selectedHeaderId || "");
+            $("#schedule_position").val(data.schedule_position || "");
+            $("#schedule_item_description").val(data.description || "");
+            this._setScheduleDetails(data.details || "");
+            this.state.suppressScheduleAutofillOnce = true;
+
+            this._loadAvailableScheduleItems({
+                includeHeaderId: selectedHeaderId,
+                selectedHeaderId: selectedHeaderId,
+            });
+        },
+
+        _loadScheduleForEdit(scheduleId) {
+            const $form = this.$el.forms.schedules;
+            if (!$form.length) return;
+
+            const fetchUrl = $form.data("fetch-url");
+            if (!fetchUrl) {
+                toastr.error("Schedule fetch URL not configured");
+                return;
+            }
+
+            const endorsementNo =
+                this.state.endorsementNo ||
+                $form.find('[name="endorsement_no"]').val() ||
+                "";
+
+            if (!scheduleId || !endorsementNo) {
+                toastr.error("Schedule reference missing");
+                return;
+            }
+
+            const params = new URLSearchParams({
+                id: String(scheduleId),
+                endorsement_no: endorsementNo,
+            });
+
+            fetch(`${fetchUrl}?${params.toString()}`, {
+                method: "GET",
+                headers: { "X-CSRF-Token": Utils.getCsrfToken() },
+            })
+                .then((res) => res.json())
+                .then((response) => {
+                    if (response.status !== 200 || !response.data) {
+                        toastr.error(response.message || "Failed to load schedule");
+                        return;
+                    }
+
+                    this._populateScheduleForm(response.data);
+                    $(SELECTORS.SCHEDULE_MODAL).data("mode", "edit").modal("show");
+                })
+                .catch(() => toastr.error("Failed to load schedule"));
+        },
+
+        _resetScheduleFormForCreate() {
+            const $form = this.$el.forms.schedules;
+            if (!$form.length) return;
+
+            $form[0].reset();
+            $form.find('[name="_method"]').val("POST");
+            $form.find("#id").val("");
+            $form.find("#schedule_id").val("");
+            $form.find("#title").val("");
+            $("#schedule_position").val("");
+            $("#schedule_item_description").val("");
+            this._setScheduleDetails("");
+            $("#scheduleDynamicFields").empty();
+
+            this._loadAvailableScheduleItems();
+        },
+
+        _loadAvailableScheduleItems({
+            includeHeaderId = null,
+            selectedHeaderId = null,
+        } = {}) {
+            const normalizeItemKey = (value) =>
+                String(value || "")
+                    .toLowerCase()
+                    .replace(/[^a-z0-9]+/g, "");
+            const excludedItemKeys = new Set([
+                "suminsured",
+                "premium",
+                "deductibleexcess",
+            ]);
+
+            const $form = this.$el.forms.schedules;
+            if (!$form.length) return;
+
+            const endpoint = $form.data("schedule-items-url");
+            if (!endpoint) return;
+
+            const endorsementNo =
+                this.state.endorsementNo ||
+                $form.find('[name="endorsement_no"]').val() ||
+                "";
+
+            if (!endorsementNo) return;
+
+            const params = new URLSearchParams({ endorsement_no: endorsementNo });
+            if (includeHeaderId) {
+                params.set("include_header_id", String(includeHeaderId));
+            }
+
+            fetch(`${endpoint}?${params.toString()}`, {
+                method: "GET",
+                headers: { "X-CSRF-Token": Utils.getCsrfToken() },
+            })
+                .then((res) => res.json())
+                .then((response) => {
+                    const items = Array.isArray(response?.data)
+                        ? response.data
+                        : [];
+                    const filteredItems = items.filter((item) => {
+                        return !excludedItemKeys.has(
+                            normalizeItemKey(item?.name),
+                        );
+                    });
+
+                    this.state.scheduleItemContentById = {};
+
+                    const $select = $("#sched-header");
+                    $select.empty().append(
+                        '<option value="">--Select Schedule items--</option>',
+                    );
+
+                    filteredItems.forEach((item) => {
+                        const key = String(item.id);
+                        this.state.scheduleItemContentById[key] = String(
+                            item.content || "",
+                        );
+
+                        $select.append(
+                            $("<option>", {
+                                value: item.id,
+                                text: item.name,
+                                "data-name": item.name,
+                                "data-position": item.position ?? "",
+                            }),
+                        );
+                    });
+
+                    if (selectedHeaderId) {
+                        $select.val(String(selectedHeaderId));
+                    }
+
+                    $select.trigger("change");
+                })
+                .catch(() => {
+                    toastr.error("Failed to load schedule items");
+                });
+        },
+
+        _applySelectedScheduleContent(selectedId) {
+            const html =
+                this.state.scheduleItemContentById[String(selectedId)] || "";
+            this._setScheduleDetails(html);
+        },
+
+        _setScheduleDetails(htmlContent) {
+            const html = String(htmlContent || "");
+            const plainText = $("<div>").html(html).text();
+
+            $("#hidden_schedule_description").val(html);
+            $("#schedule_details_preview").val(plainText);
+        },
+
+        _openScheduleBreakdownEditor() {
+            const selectedId = String($("#sched-header").val() || "");
+            if (!selectedId) {
+                toastr.warning("Select a schedule item first");
+                return;
+            }
+
+            this._initScheduleBreakdownEditor();
+
+            const $selected = $("#sched-header").find("option:selected");
+            const label = ($selected.data("name") || $selected.text() || "Breakdown")
+                .toString()
+                .trim();
+            $("#scheduleBreakdownModalLabel").html(
+                `<i class="bx bx-edit-alt me-1"></i> ${label}`,
+            );
+
+            const currentHtml = $("#hidden_schedule_description").val() || "";
+            if (this.state.scheduleBreakdownQuill) {
+                this.state.scheduleBreakdownQuill.clipboard.dangerouslyPasteHTML(
+                    currentHtml || "",
+                );
+            }
+            $("#scheduleBreakdownModal").modal("show");
+        },
+
+        _saveScheduleBreakdownEditor() {
+            let editedHtml = "";
+            if (this.state.scheduleBreakdownQuill) {
+                editedHtml = this.state.scheduleBreakdownQuill.root.innerHTML || "";
+            } else {
+                editedHtml = $("#schedule_breakdown_editor").html() || "";
+            }
+            this._setScheduleDetails(editedHtml);
+            $("#scheduleBreakdownModal").modal("hide");
+        },
+
+        _initScheduleBreakdownEditor() {
+            if (this.state.scheduleBreakdownQuill || typeof Quill === "undefined") {
+                return;
+            }
+
+            this.state.scheduleBreakdownQuill = new Quill("#schedule_breakdown_editor", {
+                theme: "snow",
+                modules: {
+                    toolbar: "#schedule_breakdown_toolbar",
+                },
+                placeholder: "Write schedule breakdown details here...",
+            });
+        },
+
+        _loadExistingScheduleBreakdown() {
+            const selectedId = String($("#sched-header").val() || "");
+            const existing =
+                this.state.scheduleItemContentById[selectedId] ||
+                $("#hidden_schedule_description").val() ||
+                "";
+
+            this._initScheduleBreakdownEditor();
+            if (this.state.scheduleBreakdownQuill) {
+                this.state.scheduleBreakdownQuill.clipboard.dangerouslyPasteHTML(
+                    existing,
+                );
+            }
+        },
+
+        _previewScheduleBreakdown() {
+            const html = this.state.scheduleBreakdownQuill
+                ? this.state.scheduleBreakdownQuill.root.innerHTML || ""
+                : $("#hidden_schedule_description").val() || "";
+
+            const previewWindow = window.open("", "_blank", "noopener,noreferrer");
+            if (!previewWindow) {
+                toastr.error("Unable to open preview window");
+                return;
+            }
+
+            previewWindow.document.write(`
+                <html>
+                    <head><title>Breakdown Preview</title></head>
+                    <body style="font-family: Arial, sans-serif; padding: 20px;">
+                        ${html}
+                    </body>
+                </html>
+            `);
+            previewWindow.document.close();
         },
 
         _populateEditReinsurerForm(data) {
@@ -2914,7 +3286,19 @@
                 .then((response) => {
                     if (response.status === 201) {
                         toastr.success("Removed successfully");
-                        setTimeout(() => location.reload(), 1500);
+                        const tableKey = {
+                            schedule: "schedules",
+                            attachment: "attachments",
+                            clause: "clauses",
+                            reinsurer: "reinsurers",
+                        }[type];
+
+                        const table = tableKey ? this.tables?.[tableKey] : null;
+                        if (table?.ajax?.reload) {
+                            table.ajax.reload(null, false);
+                        } else {
+                            location.reload();
+                        }
                     } else {
                         toastr.error(response.message || "Failed to remove");
                     }
@@ -3032,11 +3416,9 @@
         },
 
         _initServices() {
-            // Core services
             this.calculationService = new CalculationService(this.coverData);
             this.validationService = new ValidationService(this.coverData);
 
-            // Managers
             this.brokerageManager = new BrokerageManager(
                 this.calculationService,
             );
@@ -3063,15 +3445,11 @@
                 this.validationService,
                 this.coverData,
             );
-
-            // PlacementManager is a standalone object exposed globally
-            // It accesses managers via window.ReinsurerPlacement
         },
 
         _bindEvents() {
             const self = this;
 
-            // Treaty events
             $(document).on("click", "#add-treaty-reinsurer", (e) => {
                 e.preventDefault();
                 this.treatyManager.addSection();
@@ -3082,7 +3460,6 @@
                 self.treatyManager.removeSection($(this).data("counter"));
             });
 
-            // Reinsurer events
             $(document).on("click", ".add-reinsurer-btn", function (e) {
                 e.preventDefault();
                 const treatyCounter = $(this).data("treaty-counter");
@@ -3109,7 +3486,6 @@
                 e.preventDefault();
                 const $btn = $(this);
 
-                // Clear stale validation messages when removing a reinsurer row.
                 self.validationService.reset();
                 $(SELECTORS.VALIDATION_LIST).empty();
                 $(SELECTORS.VALIDATION_MESSAGES).hide();
@@ -3126,7 +3502,6 @@
                 );
             });
 
-            // Share input events (debounced)
             const handleShareInput = Utils.debounce(function () {
                 const $el = $(this);
                 const tc = $el.data("treaty-counter");
@@ -3144,7 +3519,6 @@
                 handleShareInput,
             );
 
-            // Commission events
             $(document).on(
                 "input",
                 ".reinsurer-premium, .reinsurer-comm-rate",
@@ -3156,7 +3530,6 @@
                 },
             );
 
-            // Brokerage events
             $(document).on("change", ".brokerage-comm-type", function () {
                 self.brokerageManager.handleTypeChange(
                     $(this).data("treaty-counter"),
@@ -3194,7 +3567,6 @@
                 }
             });
 
-            // Retro/fronting events
             $(document).on("change", ".apply-fronting", function () {
                 self.retroFeeManager.handleToggle(
                     $(this).data("treaty-counter"),

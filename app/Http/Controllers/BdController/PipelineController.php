@@ -11,7 +11,6 @@ use App\Jobs\SendHandOverApproverEmail;
 use App\Jobs\SendBdNotificationJob;
 use App\Models\Bd\Client;
 use App\Models\Bd\Quote;
-use App\Mail\Prospectwonemail;
 use App\Models\Bd\Gender;
 use App\Models\Bd\Occupation;
 use App\Models\Bd\PipelineOpportunity;
@@ -45,7 +44,6 @@ use Illuminate\Http\Request;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Validator;
 use Yajra\Datatables\Datatables;
 use App\Models\CustomerTypes;
@@ -78,6 +76,8 @@ use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Str;
+
+
 
 class PipelineController
 {
@@ -2956,7 +2956,6 @@ class PipelineController
 
             DB::commit();
 
-            //  check if CRM continue else if CR redirect to send email to client
             if (count(DB::table('users')->where('id', "=", Auth::user()->id)->where('user_group_id', "=", DB::table('user_groups')->where('group_name', "=", 'underwriter')->first()->id)->get()) > 0) {
                 $status = 201;
                 return response()->json([
@@ -2997,7 +2996,6 @@ class PipelineController
             $to_year = $request->input('to_year');
             $isExport = $request->has('export') && $request->input('export') === 'true';
 
-            // Validate year input
             if (($from_year && !is_numeric($from_year)) || ($to_year && !is_numeric($to_year))) {
                 return response()->json(['error' => 'Invalid year provided'], 400);
             }
@@ -5826,17 +5824,97 @@ class PipelineController
                 $title = $request->breakdown_title;
                 $content = $request->breakdown_content;
                 $short_content = Str::limit($content, 930);
+                $rawScheduleHeaderIds = $request->input('schedule_header_ids', []);
+                $normalizedScheduleHeaderIds = collect();
+
+                if (is_array($rawScheduleHeaderIds)) {
+                    $normalizedScheduleHeaderIds = collect($rawScheduleHeaderIds);
+                } elseif (is_string($rawScheduleHeaderIds)) {
+                    $decoded = json_decode($rawScheduleHeaderIds, true);
+
+                    if (json_last_error() === JSON_ERROR_NONE) {
+                        if (is_array($decoded)) {
+                            $normalizedScheduleHeaderIds = collect($decoded);
+                        } elseif (is_string($decoded)) {
+                            $normalizedScheduleHeaderIds = collect(explode(',', $decoded));
+                        }
+                    } else {
+                        $normalizedScheduleHeaderIds = collect(explode(',', $rawScheduleHeaderIds));
+                    }
+                } elseif (!is_null($rawScheduleHeaderIds)) {
+                    $normalizedScheduleHeaderIds = collect([$rawScheduleHeaderIds]);
+                }
+
+                $normalizedScheduleHeaderIds = $normalizedScheduleHeaderIds
+                    ->map(function ($id) {
+                        $cleanId = trim((string) $id, " \t\n\r\0\x0B\"'[]");
+                        return is_numeric($cleanId) ? (int) $cleanId : null;
+                    })
+                    ->filter(fn($id) => !is_null($id) && $id > 0)
+                    ->unique()
+                    ->values();
+
+                $currentScheduleId = (int) $request->input('current_schedule_id', 0);
+                if ($currentScheduleId <= 0 && $normalizedScheduleHeaderIds->isNotEmpty()) {
+                    $currentScheduleId = (int) $normalizedScheduleHeaderIds->first();
+                }
+
+                if ($currentScheduleId > 0) {
+                    $scheduleExists = DB::table('quote_schedule_headers')
+                        ->where('id', $currentScheduleId)
+                        ->exists();
+
+                    if (!$scheduleExists) {
+                        return response()->json([
+                            'success' => false,
+                            'message' => 'Selected schedule header was not found.',
+                            'errors' => [
+                                'current_schedule_id' => ['Invalid schedule header selected.']
+                            ]
+                        ], 422);
+                    }
+                } else {
+                    $currentScheduleId = null;
+                }
 
                 $data = [
-                    'title'          => $title,
+                    'title'           => $title,
                     'content'        => $content,
                     'short_content'  => $short_content,
                     'created_by'     => auth()->id(),
                     'created_at'     => now(),
                     'updated_by'     => auth()->id(),
                     'updated_at'     => now(),
-                    'opportunity_id' => $prospect->opportunity_id,
+                    'schedule_header_id' => $currentScheduleId,
+                    'opportunity_id'     => $prospect->opportunity_id,
                 ];
+
+                if ($normalizedScheduleHeaderIds->isNotEmpty()) {
+                    foreach ($normalizedScheduleHeaderIds as $schId) {
+                        if (!$schId) {
+                            continue;
+                        }
+                        $schedule = DB::table('quote_schedule_headers')
+                            ->where('id', $schId)
+                            ->select(['name', 'position'])
+                            ->first();
+
+                        if ($schedule) {
+                            DB::table('schedule_headers')->updateOrInsert(
+                                [
+                                    'id' => (int) $schId,
+                                ],
+                                [
+                                    'name' => $schedule->name,
+                                    'position' => $schedule->position,
+                                    'schedule_header_id' => (int) $schId,
+                                    'opportunity_id' => $prospect->opportunity_id,
+                                    'updated_at' => now()
+                                ]
+                            );
+                        }
+                    }
+                }
 
                 $termsUpdated = DB::table('bd_terms_conditions')->updateOrInsert(
                     [
@@ -6454,6 +6532,7 @@ class PipelineController
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
+
             return response()->json([
                 'success' => false,
                 'message' => 'An error occurred while updating lead status',
@@ -6757,8 +6836,6 @@ class PipelineController
                 'messageId' => $emailData['message_id'],
                 'conversationId' => $emailData['conversation_id']
             ];
-
-            // logger()->debug(json_encode($data['attachments'], JSON_PRETTY_PRINT));
 
             SendBdNotificationJob::dispatch($data, (int) auth()->id())->afterCommit();
 
@@ -7794,14 +7871,11 @@ class PipelineController
                     $pdfFolderPath = 'uploads';
 
                     foreach ($request->document_file_email_attachment as $index => $file) {
-
                         $uploadedFile = $request->file('document_file_email_attachment')[$index];
-
                         $document_file_email_attachment_name = $request->document_name_email_attachment[$index] ?? 'unknown';
 
                         $generatedFileName = $document_file_email_attachment_name . '_' . time() . '.' . $uploadedFile->getClientOriginalExtension();
                         $generatedFilePath = $pdfFolderPath . '/' . $generatedFileName;
-
 
                         try {
                             $uploadedFile->move($pdfFolderPath, $generatedFileName);
@@ -7817,7 +7891,6 @@ class PipelineController
                         }
                     }
                 }
-
 
                 // if ($request->hasFile('document_file_email_attachment')) {
                 $cedant_doc_present = false;
@@ -8055,20 +8128,17 @@ class PipelineController
         $uploadsPath = 'uploads/cedant_docs';
         $leadId = $request->prospect_id;
         $stage_cycle = $request->prospect_status;
-        $stage = 5; // From your context (stage_id == 5)
-        $stageType = 2; // From your context (category_type == 2)
-
+        $stage = 5;
+        $stageType = 2;
 
         DB::beginTransaction();
 
-        // Fetch existing documents
         $existingDocs = DB::table('prospect_docs')
             ->where('prospect_id', $leadId)
             ->where('prospect_status', $stage_cycle)
             ->get()
             ->keyBy('description');
 
-        // Save documents to prospect_docs
         $receivedDocuments = $request->received_docs_checkboxes ?? [];
         $missingDocuments = $request->missing_docs ?? [];
         $savedDocuments = [];
@@ -8125,12 +8195,10 @@ class PipelineController
                         }
 
                         if (isset($existingDocs[$name])) {
-                            // Update existing document
                             DB::table('prospect_docs')
                                 ->where('id', $existingDocs[$name]->id)
                                 ->update($data);
                         } else {
-                            // Create new document
                             $data['created_at'] = now();
                             DB::table('prospect_docs')->insert($data);
                         }
@@ -8147,7 +8215,6 @@ class PipelineController
                 ]);
         }
 
-        // Email sending logic
         $customer = Customer::where('customer_id', $reinsurer_id)->first();
         $contact_person = CustomerContact::where('customer_id', $reinsurer_id)->value('contact_name') ?? 'Valued Customer';
         $company = Company::first();

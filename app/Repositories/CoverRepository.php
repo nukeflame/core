@@ -44,6 +44,7 @@ use App\Models\CustomerAccDet;
 use App\Models\EndorsementType;
 use App\Models\PayMethod;
 use App\Models\PremiumPayTerm;
+use App\Models\QuoteScheduleHeader;
 use App\Models\ReinclassPremtype;
 use App\Models\ReinsClass;
 use App\Models\SlipTemplate;
@@ -574,6 +575,9 @@ class CoverRepository extends BaseRepository
             $CoverRegister->save();
 
             $this->createBusinessTypeRecords($data, $type_of_bus, $cover_no, $endorsement_no, $CoverRegister);
+            if ($data->trans_type === self::TRANSACTION_NEW) {
+                $this->syncProspectTermsToCoverRisk($CoverRegister, $data->prospect_id ?? null);
+            }
 
             if ($this->isTreatyBusiness($type_of_bus)) {
                 $this->createSlipWording($cover_no, $endorsement_no, $type_of_bus);
@@ -595,10 +599,156 @@ class CoverRepository extends BaseRepository
                 'prospect_id' => $CoverRegister->prospect_id,
             ];
         } catch (\Exception $e) {
+            logger($e);
             DB::rollBack();
 
             throw $e;
         }
+    }
+
+    private function syncProspectTermsToCoverRisk(CoverRegister $cover, $prospectRef): void
+    {
+        $terms = $this->loadProspectTerms($prospectRef, $cover->prospect_id);
+        if ($terms->isEmpty()) {
+            return;
+        }
+
+        $headers = $this->getScheduleHeadersForTerms($cover);
+        if ($headers->isEmpty()) {
+            return;
+        }
+
+        $headersByScheduleId = $headers
+            ->filter(fn($row) => !is_null($row->schedule_header_id))
+            ->keyBy(fn($row) => (string) $row->schedule_header_id);
+        $headersById = $headers->keyBy(fn($row) => (string) $row->id);
+
+        $existingSchedules = CoverRisk::withTrashed()
+            ->where('endorsement_no', $cover->endorsement_no)
+            ->get()
+            ->keyBy(fn($row) => (string) $row->header);
+
+        $nextId = (int) CoverRisk::withTrashed()
+            ->where('endorsement_no', $cover->endorsement_no)
+            ->max('id');
+
+        foreach ($terms as $term) {
+            $content = trim((string) ($term->content ?? ''));
+            if ($content === '') {
+                continue;
+            }
+
+            $termScheduleHeaderId = (int) ($term->schedule_header_id ?? 0);
+            $header = null;
+
+            if ($termScheduleHeaderId > 0) {
+                $header = $headersByScheduleId->get((string) $termScheduleHeaderId)
+                    ?? $headersById->get((string) $termScheduleHeaderId);
+            }
+
+            if (!$header) {
+                $titleKey = $this->resolveTermsCanonicalKey((string) ($term->title ?? ''));
+                $header = $headers->first(function ($headerItem) use ($titleKey) {
+                    $headerKey = $this->resolveTermsCanonicalKey((string) ($headerItem->name ?? ''));
+                    return $headerKey === $titleKey;
+                });
+            }
+
+            if (!$header) {
+                continue;
+            }
+
+            $schedule = $existingSchedules->get((string) $header->id);
+            $details = $this->normalizeTermsContent($content);
+            $username = Auth::user()->user_name ?? 'system';
+
+            if ($schedule) {
+                $schedule->title = $header->name;
+                $schedule->details = $details;
+                $schedule->schedule_position = (int) ($header->position ?? 0);
+                $schedule->updated_by = $username;
+                if (method_exists($schedule, 'trashed') && $schedule->trashed()) {
+                    $schedule->restore();
+                }
+                $schedule->save();
+                continue;
+            }
+
+            logger()->debug(json_encode(['header' => $header], JSON_PRETTY_PRINT));
+
+            $nextId++;
+            $created = CoverRisk::create([
+                'cover_no' => $cover->cover_no,
+                'endorsement_no' => $cover->endorsement_no,
+                'id' => $nextId,
+                'header' => $header->id,
+                'title' => $header->name,
+                'schedule_position' => (int) ($header->position ?? 0),
+                'details' => $details,
+                'created_by' => $username,
+                'updated_by' => $username,
+            ]);
+
+            $existingSchedules->put((string) $header->id, $created);
+        }
+    }
+
+    private function loadProspectTerms(...$prospectRefs)
+    {
+        $cleanRefs = collect($prospectRefs)
+            ->map(fn($ref) => trim((string) $ref))
+            ->filter()
+            ->unique()
+            ->values();
+
+        foreach ($cleanRefs as $reference) {
+            $terms = DB::table('bd_terms_conditions')
+                ->where('opportunity_id', $reference)
+                ->select(['title', 'content', 'schedule_header_id'])
+                ->get();
+
+            if ($terms->isNotEmpty()) {
+                return $terms;
+            }
+        }
+
+        return collect();
+    }
+
+    private function getScheduleHeadersForTerms(CoverRegister $cover)
+    {
+        $query = ScheduleHeader::query();
+
+        $query->where('opportunity_id', $cover->prospect_id);
+
+        $headers = $query->orderBy('position')->get();
+
+        if ($headers->isEmpty()) {
+            return $this->getCachedScheduleHeaders();
+        }
+
+        return $headers;
+    }
+
+    private function resolveTermsCanonicalKey(string $rawTitle): string
+    {
+        $normalized = strtolower((string) preg_replace('/[^a-z0-9]+/', '', $rawTitle));
+        return $normalized;
+    }
+
+    private function normalizeTermsContent(string $content): string
+    {
+        $trimmed = trim($content);
+        if ($trimmed === '') {
+            return '';
+        }
+
+        $containsHtml = $trimmed !== strip_tags($trimmed);
+        if ($containsHtml) {
+            return $trimmed;
+        }
+
+        return nl2br(htmlspecialchars($trimmed, ENT_QUOTES, 'UTF-8'));
     }
 
     public function replicateFromPrevious($prev_endorsement_no, $request = null)

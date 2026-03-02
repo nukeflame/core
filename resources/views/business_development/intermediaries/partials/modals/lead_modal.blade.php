@@ -1,6 +1,6 @@
 <!-- Lead Stage Modal -->
-<div id="leadModal" class="modal fade effect-scale md-wrapper" tabindex="-1" data-bs-backdrop="static"
-    data-bs-keyboard="false" aria-labelledby="staticPropoalStageLabel" aria-hidden="true" role="dialog" aria-hidden="true">
+<div id="leadModal" class="modal effect-scale md-wrapper" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false"
+    aria-labelledby="staticPropoalStageLabel" aria-hidden="true" role="dialog" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-xl" role="document" style="max-width: 60%;">
         <div class="modal-content">
             <form id="leadForm" action="{{ route('update.opp.status') }}" novalidate>
@@ -16,6 +16,7 @@
                 <input type="hidden" class="cedant_id" id="lead_cedant_id" name="cedant_id" />
                 <input type="hidden" class="slip_type" id="slipType" name="slip_type" />
                 <input type="hidden" class="category_type" id="leadCategoryType" name="category_type" />
+                <input type="hidden" class="schedule_eader_ids" id="scheduleHeaderIds" name="schedule_eader_ids" />
 
                 <div class="modal-body fac-slip-container">
                     <div class="fac-slip-header">
@@ -350,7 +351,7 @@
 </div>
 
 <!-- Update Category Modal -->
-<div class="modal fade effect-scale md-wrapper" id="updateCategoryTypeModal" data-bs-backdrop="static"
+<div class="modal effect-scale md-wrapper" id="updateCategoryTypeModal" data-bs-backdrop="static"
     data-bs-keyboard="false" aria-labelledby="staticUpdateCategoryTypeModalLabel" aria-hidden="true" role="dialog">
     <div class="modal-dialog modal-dialog-centered modal-md" role="document">
         <div class="modal-content">
@@ -401,7 +402,7 @@
 </div>
 
 <!-- Contacts Modal -->
-<div class="modal fade effect-scale md-wrapper" id="contactsModal" tabindex="-1" data-bs-backdrop="static"
+<div class="modal effect-scale md-wrapper" id="contactsModal" tabindex="-1" data-bs-backdrop="static"
     aria-labelledby="contactsModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-xl">
         <div class="modal-content">
@@ -464,7 +465,7 @@
 </div>
 
 <!-- Breakdown Text Editor -->
-<div class="modal fade breakdown-modal effect-scale md-wrapper" id="breakdownModal" tabindex="-1"
+<div class="modal breakdown-modal effect-scale md-wrapper" id="breakdownModal" tabindex="-1"
     data-bs-backdrop="static" data-bs-keyboard="false" aria-labelledby="breakdownModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-xl" style="max-width: 85%; width: 85%;">
         <div class="modal-content">
@@ -3627,6 +3628,31 @@
                         return;
                     }
 
+                    const rawScheduleHeaderIds = $("#scheduleHeaderIds").val() || '';
+                    let scheduleHeaderIds = [];
+
+                    if (Array.isArray(rawScheduleHeaderIds)) {
+                        scheduleHeaderIds = rawScheduleHeaderIds;
+                    } else if (typeof rawScheduleHeaderIds === "string" && rawScheduleHeaderIds.trim() !== "") {
+                        const trimmedIds = rawScheduleHeaderIds.trim();
+
+                        try {
+                            const parsedIds = JSON.parse(trimmedIds);
+                            if (Array.isArray(parsedIds)) {
+                                scheduleHeaderIds = parsedIds;
+                            } else if (typeof parsedIds === "string") {
+                                scheduleHeaderIds = parsedIds.split(",");
+                            }
+                        } catch (e) {
+                            scheduleHeaderIds = trimmedIds.split(",");
+                        }
+                    }
+
+                    scheduleHeaderIds = scheduleHeaderIds
+                        .map((id) => Number(String(id).replace(/["'\[\]\s]/g, "")))
+                        .filter((id) => Number.isInteger(id) && id > 0);
+                    const currentSchId = $("#schId").val() || '';
+
                     const html = this.quill.root.innerHTML;
 
                     const saveBtn = $("#saveBreakdownBtn");
@@ -3641,6 +3667,8 @@
                     formData.append("_update", true);
                     const leadOppId = $("#leadOpportunityId").val() ||
                         $("#leadForm input[name='opportunity_id']").val() || "";
+                    formData.append("schedule_header_ids", JSON.stringify(scheduleHeaderIds));
+                    formData.append("current_schedule_id", currentSchId);
 
                     if (!leadOppId) {
                         toastr.error("Opportunity ID not found. Re-open the lead modal and try again.");

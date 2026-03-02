@@ -18,16 +18,6 @@ class CoverRisk extends Model
     public $incrementing = false;
     protected $guarded = [];
 
-    protected $casts = [
-        // 'sum_insured' => 'float',
-        // 'premium' => 'float',
-    ];
-
-    /**
-     * Get the scheduler_header that owns the CoverRisk
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
-     */
     public function schedule_header(): BelongsTo
     {
         return $this->belongsTo(ScheduleHeader::class, 'header', 'id');

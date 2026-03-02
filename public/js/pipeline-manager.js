@@ -2213,6 +2213,11 @@ class PipelineManager {
             ($modal.find("#reinsurerCount").first().text() || "0").toString(),
             10,
         );
+
+        $modal
+            .find("#scheduleHeaderIds")
+            .val(JSON.stringify(headers.map((h) => h.id).join(",")));
+
         const hasSelectedReinsurers = Number.isFinite(reinsurerCount)
             ? reinsurerCount > 0
             : false;
@@ -4665,18 +4670,18 @@ class PipelineManager {
             .replace(/[\s-]+/g, "_");
 
         const stageRank = {
-            "1": 1,
+            1: 1,
             lead: 1,
-            "2": 2,
+            2: 2,
             proposal: 2,
-            "3": 3,
+            3: 3,
             negotiation: 3,
-            "4": 4,
+            4: 4,
             final: 4,
             final_stage: 4,
-            "5": 5,
+            5: 5,
             won: 5,
-            "6": 6,
+            6: 6,
             lost: 6,
         };
 

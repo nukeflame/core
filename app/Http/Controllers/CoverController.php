@@ -1315,25 +1315,24 @@ class CoverController extends Controller
     public function schedules_datatable(Request $request)
     {
         $endorsement_no = $request->get('endorsement_no');
-        $query = CoverRisk::query()->with('schedule_header')->where('endorsement_no', $endorsement_no);
+        $query = CoverRisk::query()
+            ->with('schedule_header')
+            ->where('endorsement_no', $endorsement_no)
+            ->orderBy('schedule_position', 'asc')
+            ->orderBy('id', 'asc');
         $actionable = static::coverDebitedCommited($endorsement_no);
 
         return datatables::of($query)
-            ->addColumn('details', function ($data) {
-                // $truncated = Str::limit($data->details, 170);
-                return '---';
-            })
             ->addColumn('action', function ($data) use ($actionable) {
-                $result = json_decode($data);
                 $btn = '';
                 if ($actionable) {
-                    $btn .= "<button class='btn btn-outline-dark btn-sm btn-sm-action edit-schedule me-2' data-title='{$result->title}' data-sum_insured='{$result->sum_insured}' data-header='{$result?->schedule_header?->name}' data-details='{$result?->details}' data-schedule_id='{$result?->schedule_header?->id}' data-id='{$data?->id}' data-bs-toggle='modal' data-bs-target='#schedulesModal'>Edit <i class='bx bx-edit'></i></button>";
-                    $btn .= "<button class='btn btn-outline-danger btn-sm btn-sm-action remove-schedule' data-name='{$data?->schedule_header?->name}' data-id='{$data->id}'>Remove <i class='bx bx-trash'></i></button>";
+                    $btn .= "<button class='btn btn-outline-dark btn-sm btn-sm-action edit-schedule me-2' data-id='{$data->id}' data-title='" . e($data->title) . "' data-schedule_id='{$data->header}' data-details='" . e($data->details) . "'>Edit <i class='bx bx-edit'></i></button>";
+                    $btn .= "<button class='btn btn-outline-danger btn-sm btn-sm-action remove-schedule' data-id='{$data->id}' data-title='" . e($data->title) . "'>Remove <i class='bx bx-trash'></i></button>";
                 }
 
                 return $btn;
             })
-            ->rawColumns(['details', 'action'])
+            ->rawColumns(['action'])
             ->make(true);
     }
 
