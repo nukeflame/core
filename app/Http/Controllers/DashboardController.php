@@ -2,14 +2,13 @@
 
 namespace App\Http\Controllers;
 
-use App\Enums\PermissionsLevel;
 use App\Models\CoverDebit;
 use App\Models\CoverRegister;
 use App\Models\Todo;
 use App\Services\DashboardService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
+use Nukeflame\Webmatics\Analyzer;
 use Yajra\DataTables\Facades\DataTables;
 
 class DashboardController extends Controller
@@ -23,35 +22,32 @@ class DashboardController extends Controller
 
     public function index(Request $request)
     {
-        // Check if cookie exists for report sidebar
+        $webmaticsSample = (new Analyzer)->greet(Auth::user()?->name ?? 'User');
+
+        logger()->debug(['Dashboard' => $webmaticsSample]);
+
         if ($request->cookie('show_report_sidebar')) {
             return (new AnalyticsController)->analytics();
         }
 
-        // Get current year and period
         $year = now()->year;
         $period = $request->get('period', 'ytd');
 
-        // Get dashboard metrics using the service
         $metrics = $this->dashboardService->getMetricsForPeriod($period, $year);
         $businessMix = $this->dashboardService->getBusinessMix($year);
         $coverCounts = $this->dashboardService->getCoverCounts($year, now()->month);
         $recentActivity = $this->dashboardService->getRecentActivity(5);
         $avgCommRate = $this->dashboardService->getAverageCommissionRate($year);
 
-        // Get todos
         $todos = Todo::where('user_id', Auth::id())->get();
 
         return view('dashboard', [
-            // Legacy format for backward compatibility
             'totalCovers'        => $coverCounts['total'],
             'totalFacCovers'     => $coverCounts['fac'],
             'totalTPRCovers'     => $coverCounts['tpr'],
             'totalTNPCovers'     => $coverCounts['tnp'],
             'totalDebitedCovers' => $coverCounts['debited'],
             'todos'              => $todos,
-
-            // New comprehensive data
             'metrics'            => $metrics,
             'businessMix'        => $businessMix,
             'coverCounts'        => $coverCounts,
@@ -62,9 +58,7 @@ class DashboardController extends Controller
         ]);
     }
 
-    /**
-     * AJAX endpoint for period-based data refresh
-     */
+
     public function getMetrics(Request $request)
     {
         $period = $request->get('period', 'ytd');

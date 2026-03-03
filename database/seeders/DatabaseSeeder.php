@@ -14,8 +14,6 @@ class DatabaseSeeder extends Seeder
     {
         $this->call([
             ThemeSeeder::class,
-            SystemProcessSeeder::class,
-            SystemProcessActionSeeder::class,
             DocTypeSeeder::class,
             SlipTemplateSeeder::class,
             DebitNoteReferenceSeeder::class

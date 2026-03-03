@@ -453,7 +453,7 @@
         });
     </script>
 @endpush
-{{-- 
+{{--
 
 @extends('layouts.app', ['pageTitle' => 'Portfolio Intelligence - ' . $company->company_name])
 

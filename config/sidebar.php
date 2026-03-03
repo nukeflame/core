@@ -158,12 +158,12 @@ return [
                         ],
                     ]
                 ],
-                [
-                    'title' => 'Budget Allocation',
-                    'route' => 'admin.budget_allocation',
-                    'icon' => 'bx bx-calculator',
-                    'permission' => 'reports.budget_allocation.view',
-                ],
+                // [
+                //     'title' => 'Budget Allocation',
+                //     'route' => 'admin.budget_allocation',
+                //     'icon' => 'bx bx-calculator',
+                //     'permission' => 'reports.budget_allocation.view',
+                // ],
             ]
         ],
         // [
