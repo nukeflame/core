@@ -8,7 +8,7 @@ use App\Models\Todo;
 use App\Services\DashboardService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Nukeflame\Webmatics\Analyzer;
+// use Nukeflame\Webmatics\Analyzer;
 use Yajra\DataTables\Facades\DataTables;
 
 class DashboardController extends Controller
@@ -22,7 +22,7 @@ class DashboardController extends Controller
 
     public function index(Request $request)
     {
-        $webmaticsSample = (new Analyzer)->greet(Auth::user()?->name ?? 'User');
+        // $webmaticsSample = (new Analyzer)->greet(Auth::user()?->name ?? 'User');
 
         if ($request->cookie('show_report_sidebar')) {
             return (new AnalyticsController)->analytics();

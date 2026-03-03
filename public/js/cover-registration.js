@@ -2973,8 +2973,11 @@ const CoverRegistration = (function () {
                     toastr.info("No data found for this Prospect ID");
                 }
             },
-            errorCallback: function () {
-                toastr.error("Failed to load prospect data");
+            errorCallback: function (xhr) {
+                const message =
+                    xhr?.responseJSON?.message ||
+                    "Failed to load prospect data";
+                toastr.error(message);
             },
         });
     }
