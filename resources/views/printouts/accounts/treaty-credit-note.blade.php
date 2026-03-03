@@ -92,7 +92,7 @@
             $displaySharePercent = $shareFactor * 100;
             $shareSumInsured = $reinsurer->sum_insured ?? ($cover->total_sum_insured ?? 0) * $shareFactor;
             $balanceDueLabel =
-                ($document_type ?? 'Credit Note') === 'Cover Note' ? 'BALANCE DUE TO YOU' : 'BALANCE DUE FROM YOU';
+                ($document_type ?? 'Credit Note') === 'Cover Note' ? 'BALANCE DUE FROM YOU' : 'BALANCE DUE TO YOU';
         @endphp
 
         <div class="reinsurer-page {{ $index === 0 ? 'first-page' : '' }}">

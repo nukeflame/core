@@ -110,7 +110,6 @@ class CoverRepository extends BaseRepository
         try {
             $this->pushCriteria(app(RequestCriteria::class));
         } catch (RepositoryException $e) {
-            logger()->error('Failed to push criteria: ' . $e->getMessage());
         }
     }
 
@@ -599,7 +598,6 @@ class CoverRepository extends BaseRepository
                 'prospect_id' => $CoverRegister->prospect_id,
             ];
         } catch (\Exception $e) {
-            logger($e);
             DB::rollBack();
 
             throw $e;
@@ -673,8 +671,6 @@ class CoverRepository extends BaseRepository
                 $schedule->save();
                 continue;
             }
-
-            logger()->debug(json_encode(['header' => $header], JSON_PRETTY_PRINT));
 
             $nextId++;
             $created = CoverRisk::create([
@@ -1024,14 +1020,6 @@ class CoverRepository extends BaseRepository
             return ['endorsement_no' => $this->_endorsement_no];
         } catch (\Exception $e) {
             DB::rollBack();
-
-            logger()->error('Error in saveCoverEndorsement', [
-                'cover_no' => $request->cover_no ?? null,
-                'endorsement_no' => $request->endorsement_no ?? null,
-                'message' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-
             throw $e;
         }
     }
@@ -1067,7 +1055,6 @@ class CoverRepository extends BaseRepository
                 ])->delete();
             }
 
-            // Delete the cover register itself
             CoverRegister::where([
                 'cover_no' => $coverNo,
                 'endorsement_no' => $endorsementNo
@@ -1077,13 +1064,6 @@ class CoverRepository extends BaseRepository
             return true;
         } catch (\Exception $e) {
             DB::rollBack();
-
-            logger()->error('Error deleting cover data', [
-                'cover_no' => $coverNo,
-                'endorsement_no' => $endorsementNo,
-                'message' => $e->getMessage()
-            ]);
-
             return false;
         }
     }
@@ -1282,7 +1262,15 @@ class CoverRepository extends BaseRepository
                 $join->on(
                     'customer_types.type_id',
                     '=',
-                    DB::raw("ANY (SELECT json_array_elements_text(customers.customer_type)::int)")
+                    DB::raw(
+                        "ANY (
+                            CASE
+                                WHEN jsonb_typeof(customers.customer_type::jsonb) = 'array'
+                                    THEN ARRAY(SELECT jsonb_array_elements_text(customers.customer_type::jsonb)::int)
+                                ELSE ARRAY[NULLIF(regexp_replace(customers.customer_type::text, '[^0-9]', '', 'g'), '')::int]
+                            END
+                        )"
+                    )
                 );
             })
             ->select('customers.customer_id', 'customers.name')

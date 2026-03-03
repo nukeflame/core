@@ -427,15 +427,22 @@ class ApprovalsController extends Controller
             ->where('endorsement_no', $request->endorsement_no)
             ->firstOrFail();
 
-        $existingApproval = ApprovalSourceLink::where('source_table', 'cover_register')
+        $selectedApproverId = (int) $request->input('approver');
+
+        $pendingApprovals = ApprovalSourceLink::where('source_table', 'cover_register')
             ->where('source_column_name', 'endorsement_no')
             ->where('source_column_data', $cover->endorsement_no)
             ->whereHas('approval', function ($query) {
                 $query->where('status', self::STATUS_PENDING);
             })
-            ->exists();
+            ->with(['approval:id,approver,status'])
+            ->get();
 
-        if ($existingApproval) {
+        $alreadyPendingForSelectedApprover = $pendingApprovals->contains(function ($sourceLink) use ($selectedApproverId) {
+            return (int) optional($sourceLink->approval)->approver === $selectedApproverId;
+        });
+
+        if ($alreadyPendingForSelectedApprover) {
             throw new Exception('This cover is already pending approval');
         }
 

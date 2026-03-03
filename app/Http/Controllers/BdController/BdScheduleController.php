@@ -30,6 +30,7 @@ use Yajra\Datatables\Datatables;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
+use Illuminate\Database\QueryException;
 
 class BdScheduleController extends Controller
 {
@@ -280,7 +281,28 @@ class BdScheduleController extends Controller
             return response()->json(['success' => false, 'message' => 'Engament detail not found.'], 404);
         }
 
-        $record->delete();
+        $usageCount = 0;
+        if (Schema::hasTable('pipeline_opportunities') && Schema::hasColumn('pipeline_opportunities', 'nature_of_engagement')) {
+            $usageCount = DB::table('pipeline_opportunities')
+                ->where('nature_of_engagement', $id)
+                ->count();
+        }
+
+        if ($usageCount > 0) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This engament detail is in use and cannot be deleted. Set it to inactive instead.',
+            ], 422);
+        }
+
+        try {
+            $record->delete();
+        } catch (QueryException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unable to delete engament detail because it is linked to other records.',
+            ], 422);
+        }
 
         return response()->json(['success' => true, 'message' => 'Engament detail deleted successfully.']);
     }

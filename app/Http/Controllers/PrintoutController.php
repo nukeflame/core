@@ -1296,33 +1296,58 @@ class PrintoutController extends Controller
     public function reinCreditNotes(Request $request)
     {
         try {
-            $endorsement_no = $request->endorsement_no;
-            $includeCommission = $request->include_broking_commission;
-            $company = Company::first();
+            $request->validate([
+                'endorsement_no' => 'required|string',
+                'partner_no' => 'nullable',
+                'include_broking_commission' => 'nullable|string',
+            ]);
 
-            $partner_no = $request->partner_no;
-            if ($partner_no === null) {
-                $cover = CoverRegister::where('endorsement_no', $endorsement_no)->first();
-                $reinsurers = CoverRipart::where('endorsement_no', $cover->endorsement_no)
-                    ->join('customers', 'coverripart.partner_no', '=', 'customers.customer_id')
-                    ->select('coverripart.*', 'customers.name as partner_name', 'customers.postal_address as partner_postal_address', 'customers.city as partner_city', 'customers.telephone as partner_telephone', 'customers.street as partner_street', 'customers.country_iso as partner_scountry_iso')
-                    ->get();
-                $credits = ReinNote::where('endorsement_no', $cover->endorsement_no)->get();
-            } else {
-                $cover = CoverRegister::where('endorsement_no', $endorsement_no)->first();
-                $reinsurers = CoverRipart::where('endorsement_no', $cover->endorsement_no)->where('partner_no', $partner_no)
-                    ->join('customers', 'coverripart.partner_no', '=', 'customers.customer_id')
-                    ->select('coverripart.*', 'customers.name as partner_name', 'customers.postal_address as partner_postal_address', 'customers.city as partner_city', 'customers.telephone as partner_telephone', 'customers.street as partner_street', 'customers.country_iso as partner_scountry_iso')
-                    ->get();
-                $credits = ReinNote::where('endorsement_no', $cover->endorsement_no)->where('partner_no', $partner_no)->get();
+            $endorsement_no = (string) $request->endorsement_no;
+            $includeCommission = Str::lower((string) ($request->include_broking_commission ?? 'yes'));
+            $company = Company::first();
+            $cover = CoverRegister::where('endorsement_no', $endorsement_no)->first();
+            if (!$cover) {
+                return response()->json([
+                    'status' => Response::HTTP_NOT_FOUND,
+                    'message' => 'Cover not found for the provided endorsement number.',
+                ], Response::HTTP_NOT_FOUND);
             }
 
+            $partner_no = trim((string) $request->partner_no) !== '' ? $request->partner_no : null;
+            $reinsurersQuery = CoverRipart::where('endorsement_no', $cover->endorsement_no)
+                ->join('customers', 'coverripart.partner_no', '=', 'customers.customer_id')
+                ->select(
+                    'coverripart.*',
+                    'customers.name as partner_name',
+                    'customers.postal_address as partner_postal_address',
+                    'customers.city as partner_city',
+                    'customers.telephone as partner_telephone',
+                    'customers.street as partner_street',
+                    'customers.country_iso as partner_country_iso'
+                );
+
+            $creditsQuery = ReinNote::where('endorsement_no', $cover->endorsement_no);
+
+            if (!is_null($partner_no)) {
+                $reinsurersQuery->where('coverripart.partner_no', $partner_no);
+                $creditsQuery->where('partner_no', $partner_no);
+            }
+
+            $reinsurers = $reinsurersQuery->get();
+            $credits = $creditsQuery->get();
+
+            if ($reinsurers->isEmpty()) {
+                return response()->json([
+                    'status' => Response::HTTP_NOT_FOUND,
+                    'message' => 'No reinsurer records found for the provided parameters.',
+                ], Response::HTTP_NOT_FOUND);
+            }
 
             if ($cover->class_code == 'TRT') {
                 $class_name = 'TREATY';
             } else {
                 $class = Classes::where('class_code', $cover->class_code)->first();
-                $class_name = $class->class_name;
+                $class_name = $class?->class_name ?? $cover->class_code;
             }
             $treaty_type = TreatyType::where('treaty_code', $cover->treaty_type)->first();
 
@@ -1335,10 +1360,16 @@ class PrintoutController extends Controller
 
             $installmentAmts = CoverInstallments::where('endorsement_no', $cover->endorsement_no)
                 ->where('dr_cr', 'CR')
+                ->when(!is_null($partner_no), function ($query) use ($partner_no) {
+                    $query->where('partner_no', $partner_no);
+                })
                 ->orderBy('installment_no', 'ASC')->get();
 
             $ppw = PremiumPayTerm::where('pay_term_code', $cover->premium_payment_code)->first();
             $debit = CoverDebit::where('endorsement_no', $cover->endorsement_no)->first();
+            if (!$debit) {
+                $debit = (object) ['created_at' => $cover->created_at];
+            }
             $coverpremiums = CoverPremium::join('treaty_types', 'cover_premiums.treaty', '=', 'treaty_types.treaty_code')
                 ->where('cover_premiums.endorsement_no', $cover->endorsement_no)
                 ->orderBy('cover_premiums.premium_type_order_position', 'asc')
@@ -1371,9 +1402,15 @@ class PrintoutController extends Controller
 
             $balance = $finalTotalCR - $finalTotalDR;
             $total_cr = ReinNote::where('endorsement_no', $endorsement_no)
+                ->when(!is_null($partner_no), function ($query) use ($partner_no) {
+                    $query->where('partner_no', $partner_no);
+                })
                 ->where('dr_cr', 'CR')
                 ->sum('gross') ?? 0;
             $total_dr = ReinNote::where('endorsement_no', $endorsement_no)
+                ->when(!is_null($partner_no), function ($query) use ($partner_no) {
+                    $query->where('partner_no', $partner_no);
+                })
                 ->where('dr_cr', 'DR')
                 ->where('entry_type_descr', '!=', 'BRC')
                 ->sum('gross') ?? 0;
@@ -1416,10 +1453,17 @@ class PrintoutController extends Controller
 
                 case 'TNP':
                     if ($cover->transaction_type == 'MDP') {
-                        $mdpInstallment = CoverInstallments::where('endorsement_no', $coverpremiums[0]->orig_endorsement_no)
-                            ->where('dr_cr', 'DR')
-                            ->where('installment_no', $coverpremiums[0]->installment_no)
-                            ->first();
+                        $firstPremium = $coverpremiums->first();
+                        $mdpInstallment = null;
+                        if ($firstPremium) {
+                            $mdpInstallment = CoverInstallments::where('endorsement_no', $firstPremium->orig_endorsement_no)
+                                ->where('dr_cr', 'DR')
+                                ->where('installment_no', $firstPremium->installment_no)
+                                ->when(!is_null($partner_no), function ($query) use ($partner_no) {
+                                    $query->where('partner_no', $partner_no);
+                                })
+                                ->first();
+                        }
                         $other_data = [
                             'mdpInstallment' => $mdpInstallment,
                         ];

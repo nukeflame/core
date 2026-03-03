@@ -24,8 +24,6 @@ class DashboardController extends Controller
     {
         $webmaticsSample = (new Analyzer)->greet(Auth::user()?->name ?? 'User');
 
-        logger()->debug(['Dashboard' => $webmaticsSample]);
-
         if ($request->cookie('show_report_sidebar')) {
             return (new AnalyticsController)->analytics();
         }

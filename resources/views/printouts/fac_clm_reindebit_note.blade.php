@@ -294,7 +294,7 @@
                             </tr>
                             <tr>
                                 <td align="left">
-                                    {{-- @stampImageOrEmpty('app/private/stamp.png') --}}
+                                    {{-- @stampImageOrEmpty('app/private/sample-sign.png') --}}
                                 </td>
                                 <td align="left">&nbsp;
                                 <td>

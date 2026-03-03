@@ -264,10 +264,6 @@ class Sequence extends Model
             //     'created_at' => now(),
             // ]);
         } catch (\Exception $e) {
-            logger()->error('Failed to log sequence history', [
-                'sequence' => $sequence->sequence_name,
-                'error' => $e->getMessage(),
-            ]);
         }
     }
 

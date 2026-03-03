@@ -107,7 +107,7 @@
             <div class="col-12">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
-                        <button type="button" class="btn btn-primary btn-sm" onclick="onboardProspect()">
+                        <button type="button" class="btn btn-primary btn-sm" id="onboardProspectBtn">
                             <i class="bi bi-person-plus-fill me-1"></i>
                             Onboard New Prospect
                         </button>
@@ -314,6 +314,11 @@
     @include('business_development.intermediaries.partials.scripts')
     <script>
         $(document).ready(function() {
+            $('#onboardProspectBtn').on('click', function(e) {
+                e.preventDefault();
+                onboardProspect();
+            });
+
             const $form = $('#pipelineImportForm');
             const $fileInput = $('#import_file');
             const $submitBtn = $('#pipelineImportSubmitBtn');

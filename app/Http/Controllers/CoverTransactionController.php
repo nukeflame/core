@@ -500,8 +500,6 @@ class CoverTransactionController extends Controller
                 'selectedDebitNoteNo' => $selectedDebitNoteNo,
             ]);
         } catch (\Throwable $e) {
-            logger($e);
-
             return redirect()->back()->with('error', 'Unable to load profit commission details. Please try again.');
         }
     }

@@ -62,7 +62,6 @@ class EmailStorageService
             //         'bcc_recipients' => $this->parseJsonRecipients($email->bcc_recipients ?? null),
             //     ];
             // });
-            // logger()->debug(json_encode($query['emails'][0]['body_preview'], JSON_PRETTY_PRINT));
 
             return $emails;
         } catch (\Exception $e) {

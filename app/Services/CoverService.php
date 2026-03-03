@@ -102,13 +102,6 @@ class CoverService
         }
 
         foreach ($data['installment_date'] as $index => $date) {
-            logger([$index => $date]);
-            // $this->coverRepository->saveInstallment($cover->id, [
-            //     'installment_no' => $data['installment_no'][$index],
-            //     'installment_date' => $date,
-            //     'installment_amt' => $this->parseAmount($data['installment_amt'][$index]),
-            //     'status' => 'PENDING',
-            // ]);
         }
     }
 

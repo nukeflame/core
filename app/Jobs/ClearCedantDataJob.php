@@ -232,12 +232,6 @@ class ClearCedantDataJob implements ShouldQueue
      */
     public function failed(\Throwable $exception): void
     {
-        logger()->critical("Cedant data clearance job failed permanently", [
-            'customer_id' => $this->customerId,
-            'error' => $exception->getMessage(),
-            'attempts' => $this->attempts()
-        ]);
-
         // Optionally notify administrators
         // Notification::route('mail', config('app.admin_email'))
         //     ->notify(new JobFailedNotification($this, $exception));

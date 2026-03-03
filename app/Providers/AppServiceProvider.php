@@ -35,13 +35,11 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        if (app()->runningInConsole() && !app()->runningUnitTests()) {
-            return;
+        if (app()->runningInConsole()) {
+            $this->commands([
+                FetchOutlookEmails::class,
+            ]);
         }
-
-        $this->commands([
-            FetchOutlookEmails::class,
-        ]);
 
         // observe for changes in this models
         Permission::observe(PermissionObserver::class);
@@ -51,10 +49,12 @@ class AppServiceProvider extends ServiceProvider
 
         Blade::directive('stampImageOrEmpty', function ($path) {
             return "<?php
-            \$filePath = storage_path($path);
+            \$resolvedPath = trim((string) {$path}, \"\\\"' \");
+            \$filePath = storage_path(\$resolvedPath);
             if (file_exists(\$filePath)) {
                 \$base64Image = base64_encode(file_get_contents(\$filePath));
-                echo '<img src=\"data:image/png;base64,' . \$base64Image . '\" style=\"width: 100px; height: auto;\">';
+                \$mimeType = mime_content_type(\$filePath) ?: 'image/png';
+                echo '<img src=\"data:' . \$mimeType . ';base64,' . \$base64Image . '\" style=\"width: 100px; height: auto;\">';
             } else {
                 echo '<img src=\"\" style=\"width: 100px; height: auto;\">';
             }
@@ -63,6 +63,10 @@ class AppServiceProvider extends ServiceProvider
 
         // workaround when using ngrok http 8000
         // URL::forceScheme('https');
+
+        if (app()->runningInConsole() && !app()->runningUnitTests()) {
+            return;
+        }
 
         View::composer('*', function ($view) {
             $user = Auth::user();

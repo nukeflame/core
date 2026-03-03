@@ -242,7 +242,15 @@ class PipelineController
             case 'customer':
                 $customers = DB::table('customers')
                     ->join('customer_types', function ($join) {
-                        $join->on('customer_types.type_id', '=', DB::raw("ANY (SELECT json_array_elements_text(customers.customer_type)::int)"));
+                        $join->on('customer_types.type_id', '=', DB::raw(
+                            "ANY (
+                                CASE
+                                    WHEN jsonb_typeof(customers.customer_type::jsonb) = 'array'
+                                        THEN ARRAY(SELECT jsonb_array_elements_text(customers.customer_type::jsonb)::int)
+                                    ELSE ARRAY[NULLIF(regexp_replace(customers.customer_type::text, '[^0-9]', '', 'g'), '')::int]
+                                END
+                            )"
+                        ));
                     })
                     ->whereIn('customer_types.slug', ['reinsurer', 'cedant'])
                     ->distinct('name')
@@ -954,7 +962,15 @@ class PipelineController
 
             $customers = DB::table('customers')
                 ->join('customer_types', function ($join) {
-                    $join->on('customer_types.type_id', '=', DB::raw("ANY (SELECT json_array_elements_text(customers.customer_type)::int)"));
+                    $join->on('customer_types.type_id', '=', DB::raw(
+                        "ANY (
+                            CASE
+                                WHEN jsonb_typeof(customers.customer_type::jsonb) = 'array'
+                                    THEN ARRAY(SELECT jsonb_array_elements_text(customers.customer_type::jsonb)::int)
+                                ELSE ARRAY[NULLIF(regexp_replace(customers.customer_type::text, '[^0-9]', '', 'g'), '')::int]
+                            END
+                        )"
+                    ));
                 })
                 ->select(
                     DB::raw('CAST(customers.customer_id AS INT) as customer_id'),
@@ -2300,7 +2316,15 @@ class PipelineController
     {
         $customers = DB::table('customers')
             ->join('customer_types', function ($join) {
-                $join->on('customer_types.type_id', '=', DB::raw("ANY (SELECT json_array_elements_text(customers.customer_type)::int)"));
+                $join->on('customer_types.type_id', '=', DB::raw(
+                    "ANY (
+                        CASE
+                            WHEN jsonb_typeof(customers.customer_type::jsonb) = 'array'
+                                THEN ARRAY(SELECT jsonb_array_elements_text(customers.customer_type::jsonb)::int)
+                            ELSE ARRAY[NULLIF(regexp_replace(customers.customer_type::text, '[^0-9]', '', 'g'), '')::int]
+                        END
+                    )"
+                ));
             })
             ->select(
                 DB::raw('CAST(customers.customer_id AS INT) as customer_id'),
@@ -2313,7 +2337,15 @@ class PipelineController
         // Get insured customers
         $insured = DB::table('customers')
             ->join('customer_types', function ($join) {
-                $join->on('customer_types.type_id', '=', DB::raw("ANY (SELECT json_array_elements_text(customers.customer_type)::int)"));
+                $join->on('customer_types.type_id', '=', DB::raw(
+                    "ANY (
+                        CASE
+                            WHEN jsonb_typeof(customers.customer_type::jsonb) = 'array'
+                                THEN ARRAY(SELECT jsonb_array_elements_text(customers.customer_type::jsonb)::int)
+                            ELSE ARRAY[NULLIF(regexp_replace(customers.customer_type::text, '[^0-9]', '', 'g'), '')::int]
+                        END
+                    )"
+                ));
             })
             ->select(
                 DB::raw('CAST(customers.customer_id AS INT) as customer_id'),
@@ -4289,7 +4321,15 @@ class PipelineController
             ->whereExists(function ($query) {
                 $query->select(DB::raw(1))
                     ->from('customer_types')
-                    ->whereRaw("customer_types.type_id = ANY (SELECT json_array_elements_text(customers.customer_type)::int)")
+                    ->whereRaw(
+                        "customer_types.type_id = ANY (
+                            CASE
+                                WHEN jsonb_typeof(customers.customer_type::jsonb) = 'array'
+                                    THEN ARRAY(SELECT jsonb_array_elements_text(customers.customer_type::jsonb)::int)
+                                ELSE ARRAY[NULLIF(regexp_replace(customers.customer_type::text, '[^0-9]', '', 'g'), '')::int]
+                            END
+                        )"
+                    )
                     ->where('customer_types.slug', 'reinsurer');
             })
             ->when(
@@ -6846,7 +6886,7 @@ class PipelineController
             ], 200);
         } catch (Exception $e) {
             DB::rollBack();
-            logger($e);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to send bd notification',
@@ -8625,19 +8665,148 @@ class PipelineController
 
             $opportunityId = $opp->opportunity_id;
 
+            $currentStage = Str::of((string) $request->input('current_stage', 'lead'))
+                ->trim()
+                ->lower()
+                ->replace([' ', '-'], '_')
+                ->value();
+
+            $isLeadStage = $currentStage === Stage::LEAD;
+
             $cedant = DB::table('customers')
                 ->where('customer_id', (int) $opp->customer_id)
                 ->select(['customer_id', 'email', 'telephone', 'partner_number', 'name'])
                 ->first();
 
+            $activeReinsurerIds = DB::table('bd_fac_reinsurers')
+                ->where('opportunity_id', $opportunityId)
+                ->where(function ($query) {
+                    $query->where('is_declined', false)
+                        ->orWhereNull('is_declined');
+                })
+                ->pluck('reinsurer_id')
+                ->map(fn($id) => (int) $id)
+                ->filter(fn($id) => $id > 0)
+                ->unique()
+                ->values()
+                ->toArray();
+
             $partners = collect();
-            if ($cedant && !empty(trim((string) $cedant->email))) {
-                $partners = collect([[
-                    'email' => $cedant->email,
-                    'telephone' => $cedant->telephone,
-                    'partner_number' => $cedant->partner_number,
-                    'name' => $cedant->name,
-                ]]);
+            $contacts = collect();
+
+            if ($isLeadStage) {
+                $reinsurers = empty($activeReinsurerIds)
+                    ? collect()
+                    : DB::table('customers')
+                    ->whereIn('customer_id', $activeReinsurerIds)
+                    ->select(['customer_id', 'email', 'telephone', 'partner_number', 'name'])
+                    ->get();
+
+                $partners = $reinsurers
+                    ->filter(fn($reinsurer) => !empty(trim((string) $reinsurer->email)))
+                    ->map(fn($reinsurer) => [
+                        'email' => $reinsurer->email,
+                        'telephone' => $reinsurer->telephone,
+                        'partner_number' => $reinsurer->partner_number,
+                        'name' => $reinsurer->name,
+                    ])
+                    ->values();
+
+                $reinsurerContacts = DB::table('bd_reinsurers_contacts')
+                    ->where('opportunity_id', $opportunityId)
+                    ->get();
+
+                $reinsurerContactsMap = $reinsurerContacts
+                    ->keyBy('customer_contact_id')
+                    ->map(fn($reinContact) => (bool) $reinContact->is_cc_email);
+
+                $reinsurerCustomerContacts = empty($activeReinsurerIds)
+                    ? collect()
+                    : DB::table('customer_contacts')
+                    ->whereIn('customer_id', $activeReinsurerIds)
+                    ->orderBy('customer_id')
+                    ->orderByDesc('is_primary')
+                    ->orderBy('contact_name')
+                    ->get();
+
+                $contacts = $reinsurerCustomerContacts
+                    ->filter(fn($contact) => !empty(trim((string) $contact->contact_email)))
+                    ->map(function ($contact) use ($reinsurerContactsMap) {
+                        $ccEmail = false;
+                        if ($reinsurerContactsMap->has($contact->id)) {
+                            $ccEmail = $reinsurerContactsMap->get($contact->id);
+                        }
+
+                        $isPrimaryRaw = $contact->is_primary;
+                        $isPrimary = false;
+                        if (is_bool($isPrimaryRaw)) {
+                            $isPrimary = $isPrimaryRaw;
+                        } elseif (is_numeric($isPrimaryRaw)) {
+                            $isPrimary = (int) $isPrimaryRaw === 1;
+                        } elseif (is_string($isPrimaryRaw)) {
+                            $isPrimary = in_array(strtolower(trim($isPrimaryRaw)), ['1', 'true', 't', 'y', 'yes'], true);
+                        }
+
+                        return [
+                            'id' => $contact->id,
+                            'name' => $contact->contact_name,
+                            'email' => $contact->contact_email,
+                            'phone' => $contact->contact_mobile_no,
+                            'isPrimary' => $isPrimary,
+                            'notSelected' => $ccEmail,
+                        ];
+                    })
+                    ->values();
+            } else {
+                if ($cedant && !empty(trim((string) $cedant->email))) {
+                    $partners = collect([[
+                        'email' => $cedant->email,
+                        'telephone' => $cedant->telephone,
+                        'partner_number' => $cedant->partner_number,
+                        'name' => $cedant->name,
+                    ]]);
+                }
+
+                $cedantContacts = DB::table('bd_cedant_contacts')
+                    ->where('opportunity_id', $opportunityId)
+                    ->get();
+
+                $cedantContactsMap = $cedantContacts->keyBy('customer_contact_id')->map(function ($cedantContact) {
+                    return (bool) $cedantContact->is_cc_email;
+                });
+
+                $cedantCustomerContacts = DB::table('customer_contacts')
+                    ->where('customer_id', (int) $opp->customer_id)
+                    ->orderBy('customer_id')
+                    ->orderByDesc('is_primary')
+                    ->orderBy('contact_name')
+                    ->get();
+
+                $contacts = $cedantCustomerContacts->map(function ($contact) use ($cedantContactsMap) {
+                    $ccEmail = false;
+                    if ($cedantContactsMap->has($contact->id)) {
+                        $ccEmail = $cedantContactsMap->get($contact->id);
+                    }
+
+                    $isPrimaryRaw = $contact->is_primary;
+                    $isPrimary = false;
+                    if (is_bool($isPrimaryRaw)) {
+                        $isPrimary = $isPrimaryRaw;
+                    } elseif (is_numeric($isPrimaryRaw)) {
+                        $isPrimary = (int) $isPrimaryRaw === 1;
+                    } elseif (is_string($isPrimaryRaw)) {
+                        $isPrimary = in_array(strtolower(trim($isPrimaryRaw)), ['1', 'true', 't', 'y', 'yes'], true);
+                    }
+
+                    return [
+                        'id' => $contact->id,
+                        'name' => $contact->contact_name,
+                        'email' => $contact->contact_email,
+                        'phone' => $contact->contact_mobile_no,
+                        'isPrimary' => $isPrimary,
+                        'notSelected' => $ccEmail,
+                    ];
+                });
             }
 
             $templates = DB::table('bd_email_templates')
@@ -8652,57 +8821,9 @@ class PipelineController
                 ])
                 ->toArray();
 
-            $cedantContacts = DB::table('bd_cedant_contacts')
-                ->where('opportunity_id', $opportunityId)
-                ->get();
-
-            $cedantContactsMap = $cedantContacts->keyBy('customer_contact_id')->map(function ($cedantContact) {
-                return (bool) $cedantContact->is_cc_email;
-            });
-
-            $cedantCustomerContacts = DB::table('customer_contacts')
-                ->where('customer_id', (int) $opp->customer_id)
-                ->orderBy('customer_id')
-                ->orderByDesc('is_primary')
-                ->orderBy('contact_name')
-                ->get();
-
-            $contacts = $cedantCustomerContacts->map(function ($contact) use ($cedantContactsMap) {
-                $ccEmail = false;
-                if ($cedantContactsMap->has($contact->id)) {
-                    $ccEmail = $cedantContactsMap->get($contact->id);
-                }
-
-                $isPrimaryRaw = $contact->is_primary;
-                $isPrimary = false;
-                if (is_bool($isPrimaryRaw)) {
-                    $isPrimary = $isPrimaryRaw;
-                } elseif (is_numeric($isPrimaryRaw)) {
-                    $isPrimary = (int) $isPrimaryRaw === 1;
-                } elseif (is_string($isPrimaryRaw)) {
-                    $isPrimary = in_array(strtolower(trim($isPrimaryRaw)), ['1', 'true', 't', 'y', 'yes'], true);
-                }
-
-                return [
-                    'id' => $contact->id,
-                    'name' => $contact->contact_name,
-                    'email' => $contact->contact_email,
-                    'phone' => $contact->contact_mobile_no,
-                    'isPrimary' => $isPrimary,
-                    'notSelected' => $ccEmail,
-                ];
-            });
-
-            $customerId = $cedant->customer_id ?? null;
-            $activeReinsurerIds = DB::table('bd_fac_reinsurers')
-                ->where('opportunity_id', $opportunityId)
-                ->where(function ($query) {
-                    $query->where('is_declined', false)
-                        ->orWhereNull('is_declined');
-                })
-                ->pluck('reinsurer_id')
-                ->map(fn($id) => (int) $id)
-                ->toArray();
+            $customerId = $isLeadStage
+                ? (empty($activeReinsurerIds) ? null : (int) $activeReinsurerIds[0])
+                : ($cedant->customer_id ?? null);
 
             $prospectDocsQuery = DB::table('prospect_docs')
                 ->where('prospect_id', $opportunityId);

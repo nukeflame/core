@@ -64,133 +64,145 @@ class LeadsOnboardingController
 
     public function index(Request $request)
     {
-        try {
-            $currentYear = now()->year;
-            $endYear = $currentYear + 10;
-            $years = range($currentYear, $endYear);
-            $prospectCode = $request->prospect;
+        $currentYear = now()->year;
+        $endYear = $currentYear + 10;
+        $years = range($currentYear, $endYear);
+        $prospectCode = $request->prospect;
 
-            $customer_types = CustomerTypes::select('type_id', 'type_name')->get();
-            $salutations = Salutation::all();
-            $sources = LeadsSource::all();
-            $statuses = LeadStatus::whereIn('id', [2, 4, 5])->get();
-            $engage_types = $sources;
-            $industries = Occupation::all();
-            $divisions = DB::table('divisions')->get();
-            $clients = Client::select('full_name', 'global_customer_id', 'client_type', 'salutation_code', 'occupation_code')->get();
-            $prospProperties = DB::table('pipeline_opportunities')
-                ->where('opportunity_id', $prospectCode)
-                ->first();
-            $prospect = $prospProperties;
-            $users = User::all();
+        $customer_types = CustomerTypes::select('type_id', 'type_name')->get();
+        $salutations = Salutation::all();
+        $sources = LeadsSource::all();
+        $statuses = LeadStatus::whereIn('id', [2, 4, 5])->get();
+        $engage_types = $sources;
+        $industries = Occupation::all();
+        $divisions = DB::table('divisions')->get();
+        $clients = Client::select('full_name', 'global_customer_id', 'client_type', 'salutation_code', 'occupation_code')->get();
+        $prospProperties = DB::table('pipeline_opportunities')
+            ->where('opportunity_id', $prospectCode)
+            ->first();
+        $prospect = $prospProperties;
+        $users = User::all();
 
-            $currencies = Currency::all();
-            $leadsources = DB::table('leadsources')->get();
-            $countries = Country::all();
-            $underwriters = DB::table('companies')->get();
-            $branches = Branch::where('status', 'A')->get(['branch_code', 'branch_name', 'status']);
-            $treatytypes = TreatyType::where('status', 'A')->get();
-            $types_of_bus = BusinessType::get(['bus_type_id', 'bus_type_name']);
-            $brokers = Broker::where('status', 'A')->get(['broker_code', 'broker_name', 'status']);
-            $classes = Classes::where('status', 'A')->get(['class_code', 'class_name', 'status']);
-            $types_of_sum_insured = TypeOfSumInsured::where('status', 'A')->get(['sum_insured_code', 'sum_insured_name', 'status']);
-            $classGroups = ClassGroup::get(['group_code', 'group_name']);
-            $paymethods = PayMethod::all();
-            $premium_pay_terms = PremiumPayTerm::all();
-            $covertypes = CoverType::all();
-            $reinsdivisions = ReinsDivision::where('status', 'A')->get();
-            $reinsclasses = ReinsClass::where('status', 'A')->get();
-            $pipeYear = Pipeline::whereBetween('year', [$currentYear - 4, $currentYear])
-                ->orderBy('year', 'asc')
-                ->get();
+        $currencies = Currency::all();
+        $leadsources = DB::table('leadsources')->get();
+        $countries = Country::all();
+        $underwriters = DB::table('companies')->get();
+        $branches = Branch::where('status', 'A')->get(['branch_code', 'branch_name', 'status']);
+        $treatytypes = TreatyType::where('status', 'A')->get();
+        $types_of_bus = BusinessType::get(['bus_type_id', 'bus_type_name']);
+        $brokers = Broker::where('status', 'A')->get(['broker_code', 'broker_name', 'status']);
+        $classes = Classes::where('status', 'A')->get(['class_code', 'class_name', 'status']);
+        $types_of_sum_insured = TypeOfSumInsured::where('status', 'A')->get(['sum_insured_code', 'sum_insured_name', 'status']);
+        $classGroups = ClassGroup::get(['group_code', 'group_name']);
+        $paymethods = PayMethod::all();
+        $premium_pay_terms = PremiumPayTerm::all();
+        $covertypes = CoverType::all();
+        $reinsdivisions = ReinsDivision::where('status', 'A')->get();
+        $reinsclasses = ReinsClass::where('status', 'A')->get();
+        $pipeYear = Pipeline::whereBetween('year', [$currentYear - 4, $currentYear])
+            ->orderBy('year', 'asc')
+            ->get();
 
-            $contactDetails = DB::table('pipeline_opportunities')
-                ->select('contact_name', 'phone', 'email', 'telephone')
-                ->where('opportunity_id', $prospectCode)
-                ->first();
+        $contactDetails = DB::table('pipeline_opportunities')
+            ->select('contact_name', 'phone', 'email', 'telephone')
+            ->where('opportunity_id', $prospectCode)
+            ->first();
 
-            $contactNames = json_decode($contactDetails?->contact_name ?? '[]', true) ?: [];
-            $emails = json_decode($contactDetails?->email ?? '[]', true) ?: [];
-            $phones = json_decode($contactDetails?->phone ?? '[]', true) ?: [];
-            $telephones = json_decode($contactDetails?->telephone ?? '[]', true) ?: [];
+        $contactNames = json_decode($contactDetails?->contact_name ?? '[]', true) ?: [];
+        $emails = json_decode($contactDetails?->email ?? '[]', true) ?: [];
+        $phones = json_decode($contactDetails?->phone ?? '[]', true) ?: [];
+        $telephones = json_decode($contactDetails?->telephone ?? '[]', true) ?: [];
 
-            $count = max(count($contactNames), count($emails), count($phones), count($telephones));
-            $contacts = [];
-            for ($i = 0; $i < $count; $i++) {
-                $contacts[] = [
-                    'contact_name' => $contactNames[$i] ?? '',
-                    'email' => $emails[$i] ?? '',
-                    'phone' => $phones[$i] ?? '',
-                    'telephone' => $telephones[$i] ?? '',
-                ];
-            }
-
-            $customers = DB::table('customers')
-                ->join('customer_types', function ($join) {
-                    $join->on('customer_types.type_id', '=', DB::raw("ANY (SELECT json_array_elements_text(customers.customer_type)::int)"));
-                })
-                ->select(
-                    DB::raw('CAST(customers.customer_id AS INT) as customer_id'),
-                    'customers.name'
-                )
-                ->whereIn('customer_types.slug', ['reinsurer', 'cedant'])
-                ->distinct('name')
-                ->get();
-
-            $insured = DB::table('customers')
-                ->join('customer_types', function ($join) {
-                    $join->on('customer_types.type_id', '=', DB::raw("ANY (SELECT json_array_elements_text(customers.customer_type)::int)"));
-                })
-                ->select(
-                    DB::raw('CAST(customers.customer_id AS INT) as customer_id'),
-                    'customers.name'
-                )
-                ->where('customer_types.code', 'INSURED')
-                ->get();
-
-            $commonVariables = [
-                'insured' => $insured,
-                'types_of_bus' => $types_of_bus,
-                'branches' => $branches,
-                'brokers' => $brokers,
-                'classGroups' => $classGroups,
-                'class' => $classes,
-                'paymethods' => $paymethods,
-                'premium_pay_terms' => $premium_pay_terms,
-                'currencies' => $currencies,
-                'covertypes' => $covertypes,
-                'types_of_sum_insured' => $types_of_sum_insured,
-                'reinsdivisions' => $reinsdivisions,
-                'reinsclasses' => $reinsclasses,
-                'treatytypes' => $treatytypes,
-                'customers' => $customers,
-                'contacts_det' => $contacts,
+        $count = max(count($contactNames), count($emails), count($phones), count($telephones));
+        $contacts = [];
+        for ($i = 0; $i < $count; $i++) {
+            $contacts[] = [
+                'contact_name' => $contactNames[$i] ?? '',
+                'email' => $emails[$i] ?? '',
+                'phone' => $phones[$i] ?? '',
+                'telephone' => $telephones[$i] ?? '',
             ];
-
-            $otherVariabales = [
-                'countries' => $countries,
-                'prospProperties' => $prospProperties,
-                'underwriters' => $underwriters,
-                'prospect' => $prospect,
-                'engage_types' => $engage_types,
-                'divisions' => $divisions,
-                'leadsources' => $leadsources,
-                'currencies' => $currencies,
-                'statuses' => $statuses,
-                'salutations' => $salutations,
-                'sources' => $sources,
-                'industries' => $industries,
-                'users' => $users,
-                'clients' => $clients,
-                'years' => $years,
-                'customer_types' => $customer_types,
-                'pipeYear' => $pipeYear,
-            ];
-
-            return view('business_development.intermediaries.leads_onboarding', array_merge($commonVariables, $otherVariabales));
-        } catch (\Throwable $e) {
-            return back()->withInput()->with('error', 'Failed to load onboarding form. Please try again.');
         }
+
+        $customers = DB::table('customers')
+            ->join('customer_types', function ($join) {
+                $join->on('customer_types.type_id', '=', DB::raw(
+                    "ANY (
+                        CASE
+                            WHEN jsonb_typeof(customers.customer_type::jsonb) = 'array'
+                                THEN ARRAY(SELECT jsonb_array_elements_text(customers.customer_type::jsonb)::int)
+                            ELSE ARRAY[NULLIF(regexp_replace(customers.customer_type::text, '[^0-9]', '', 'g'), '')::int]
+                        END
+                    )"
+                ));
+            })
+            ->select(
+                DB::raw('CAST(customers.customer_id AS INT) as customer_id'),
+                'customers.name'
+            )
+            ->whereIn('customer_types.slug', ['reinsurer', 'cedant'])
+            ->distinct('name')
+            ->get();
+
+        $insured = DB::table('customers')
+            ->join('customer_types', function ($join) {
+                $join->on('customer_types.type_id', '=', DB::raw(
+                    "ANY (
+                        CASE
+                            WHEN jsonb_typeof(customers.customer_type::jsonb) = 'array'
+                                THEN ARRAY(SELECT jsonb_array_elements_text(customers.customer_type::jsonb)::int)
+                            ELSE ARRAY[NULLIF(regexp_replace(customers.customer_type::text, '[^0-9]', '', 'g'), '')::int]
+                        END
+                    )"
+                ));
+            })
+            ->select(
+                DB::raw('CAST(customers.customer_id AS INT) as customer_id'),
+                'customers.name'
+            )
+            ->where('customer_types.code', 'INSURED')
+            ->get();
+
+        $commonVariables = [
+            'insured' => $insured,
+            'types_of_bus' => $types_of_bus,
+            'branches' => $branches,
+            'brokers' => $brokers,
+            'classGroups' => $classGroups,
+            'class' => $classes,
+            'paymethods' => $paymethods,
+            'premium_pay_terms' => $premium_pay_terms,
+            'currencies' => $currencies,
+            'covertypes' => $covertypes,
+            'types_of_sum_insured' => $types_of_sum_insured,
+            'reinsdivisions' => $reinsdivisions,
+            'reinsclasses' => $reinsclasses,
+            'treatytypes' => $treatytypes,
+            'customers' => $customers,
+            'contacts_det' => $contacts,
+        ];
+
+        $otherVariabales = [
+            'countries' => $countries,
+            'prospProperties' => $prospProperties,
+            'underwriters' => $underwriters,
+            'prospect' => $prospect,
+            'engage_types' => $engage_types,
+            'divisions' => $divisions,
+            'leadsources' => $leadsources,
+            'currencies' => $currencies,
+            'statuses' => $statuses,
+            'salutations' => $salutations,
+            'sources' => $sources,
+            'industries' => $industries,
+            'users' => $users,
+            'clients' => $clients,
+            'years' => $years,
+            'customer_types' => $customer_types,
+            'pipeYear' => $pipeYear,
+        ];
+
+        return view('business_development.intermediaries.leads_onboarding', array_merge($commonVariables, $otherVariabales));
     }
 
     public function treaty_index(Request $request)
@@ -256,7 +268,15 @@ class LeadsOnboardingController
 
         $customers = DB::table('customers')
             ->join('customer_types', function ($join) {
-                $join->on('customer_types.type_id', '=', DB::raw("ANY (SELECT json_array_elements_text(customers.customer_type)::int)"));
+                $join->on('customer_types.type_id', '=', DB::raw(
+                    "ANY (
+                        CASE
+                            WHEN jsonb_typeof(customers.customer_type::jsonb) = 'array'
+                                THEN ARRAY(SELECT jsonb_array_elements_text(customers.customer_type::jsonb)::int)
+                            ELSE ARRAY[NULLIF(regexp_replace(customers.customer_type::text, '[^0-9]', '', 'g'), '')::int]
+                        END
+                    )"
+                ));
             })
             ->select(
                 DB::raw('CAST(customers.customer_id AS INT) as customer_id'),
@@ -268,7 +288,15 @@ class LeadsOnboardingController
 
         $insured = DB::table('customers')
             ->join('customer_types', function ($join) {
-                $join->on('customer_types.type_id', '=', DB::raw("ANY (SELECT json_array_elements_text(customers.customer_type)::int)"));
+                $join->on('customer_types.type_id', '=', DB::raw(
+                    "ANY (
+                        CASE
+                            WHEN jsonb_typeof(customers.customer_type::jsonb) = 'array'
+                                THEN ARRAY(SELECT jsonb_array_elements_text(customers.customer_type::jsonb)::int)
+                            ELSE ARRAY[NULLIF(regexp_replace(customers.customer_type::text, '[^0-9]', '', 'g'), '')::int]
+                        END
+                    )"
+                ));
             })
             ->select(
                 DB::raw('CAST(customers.customer_id AS INT) as customer_id'),

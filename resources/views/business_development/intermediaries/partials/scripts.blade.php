@@ -482,7 +482,6 @@
             console.error('No opportunity ID provided');
             return;
         }
-        console.log('Update pipeline:', id);
     }
 
     function onboardProspect() {

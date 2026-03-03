@@ -816,11 +816,11 @@
         <input type="hidden" name="customer_id" value="{{ $customer->customer_id ?? '' }}">
     </form>
 
-    {{ html()->form('POST', '/cover/cover-form')->id('new_cover_form')->open() }}
-    <input type="text" name="customer_id" id="customer_id" value="{{ $customer->customer_id }} " hidden>
-    <input type="text" name="trans_type" id="trans_type" hidden>
-    {{ csrf_field() }}
-    {{ html()->form()->close() }}
+    <form action="/cover/cover-form" method="POST" id="new_cover_form">
+        <input type="hidden" name="customer_id" id="customer_id" value="{{ $customer->customer_id }}">
+        <input type="hidden" name="trans_type" id="trans_type">
+        @csrf
+    </form>
 
     <div class="row-cols-12 mx-0">
         <div class="card mb-2 custom-card border col">
@@ -841,28 +841,28 @@
                         tabindex="0">
                         <div class="card">
                             <div class="card-body py-3 px-2">
-                                {{ html()->form('POST', route('endorsements_list'))->id('form_cover_datatable')->open() }}
-                                <input type="text" name="cover_no" id="cov_cover_no" hidden>
-                                <input type="text" name="customer_id" id="customer_id"
-                                    value="{{ $customer->customer_id }} " hidden>
-                                <table id="coverlist-table"
-                                    class="table table-striped text-nowrap table-hover table-responsive"
-                                    style="width: 100%">
-                                    <thead>
-                                        <tr>
-                                            <th scope="col">Cover No.</th>
-                                            <th scope="col">Cover Type</th>
-                                            <th scope="col">Class Description</th>
-                                            <th scope="col">Expiry</th>
-                                            <th scope="col">Created At</th>
-                                            <th scope="col">Status</th>
-                                            <th scope="col">Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody></tbody>
-                                </table>
-                                {{ csrf_field() }}
-                                {{ html()->form()->close() }}
+                                <form action="{{ route('endorsements_list') }}" method="POST" id="form_cover_datatable">
+                                    <input type="text" name="cover_no" id="cov_cover_no" hidden>
+                                    <input type="text" name="customer_id" id="customer_id"
+                                        value="{{ $customer->customer_id }} " hidden>
+                                    <table id="coverlist-table"
+                                        class="table table-striped text-nowrap table-hover table-responsive"
+                                        style="width: 100%">
+                                        <thead>
+                                            <tr>
+                                                <th scope="col">Cover No.</th>
+                                                <th scope="col">Cover Type</th>
+                                                <th scope="col">Class Description</th>
+                                                <th scope="col">Expiry</th>
+                                                <th scope="col">Created At</th>
+                                                <th scope="col">Status</th>
+                                                <th scope="col">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody></tbody>
+                                    </table>
+                                    {{ csrf_field() }}
+                                </form>
                             </div>
                         </div>
                     </div>
@@ -870,30 +870,30 @@
                         tabindex="0">
                         <div class="card">
                             <div class="card-body py-3 px-2">
-                                {{ html()->form('POST', '/claim/claim.detail')->id('form_claim_datatable')->open() }}
-                                <input type="text" name="claim_no" id="clm_claim_no" hidden>
-                                <input type="text" name="customer_id" id="customer_id"
-                                    value="{{ $customer->customer_id }} " hidden>
-                                <table id="claimlist-table"
-                                    class="table table-striped text-nowrap table-hover table-responsive"
-                                    style="width: 100%!important;">
-                                    <thead>
-                                        <tr>
-                                            <th scope="col">Claim No.</th>
-                                            <th scope="col">Cover No.</th>
-                                            <th scope="col">Endorsement No.</th>
-                                            <th scope="col">Bus Type</th>
-                                            <th scope="col">Class</th>
-                                            <th scope="col">Created At</th>
-                                            <th scope="col">Status</th>
-                                            <th scope="col">Actions</th>
+                                <form action="/claim/claim.detail" method="POST" id="form_claim_datatable">
+                                    <input type="text" name="claim_no" id="clm_claim_no" hidden>
+                                    <input type="text" name="customer_id" id="customer_id"
+                                        value="{{ $customer->customer_id }} " hidden>
+                                    <table id="claimlist-table"
+                                        class="table table-striped text-nowrap table-hover table-responsive"
+                                        style="width: 100%!important;">
+                                        <thead>
+                                            <tr>
+                                                <th scope="col">Claim No.</th>
+                                                <th scope="col">Cover No.</th>
+                                                <th scope="col">Endorsement No.</th>
+                                                <th scope="col">Bus Type</th>
+                                                <th scope="col">Class</th>
+                                                <th scope="col">Created At</th>
+                                                <th scope="col">Status</th>
+                                                <th scope="col">Actions</th>
 
-                                        </tr>
-                                    </thead>
-                                    <tbody></tbody>
-                                </table>
-                                {{ csrf_field() }}
-                                {{ html()->form()->close() }}
+                                            </tr>
+                                        </thead>
+                                        <tbody></tbody>
+                                    </table>
+                                    {{ csrf_field() }}
+                                </form>
                             </div>
                         </div>
                     </div>
@@ -901,28 +901,28 @@
                         tabindex="0">
                         <div class="card">
                             <div class="card-body py-3 px-2">
-                                {{ html()->form('POST', '/cover/statement')->id('form_statement_datatable')->open() }}
-                                <input type="text" name="cover_no" id="st_cover_no" hidden>
-                                <input type="text" name="customer_id" id="customer_id"
-                                    value="{{ $customer->customer_id }} " hidden>
-                                <table id="statement-table"
-                                    class="table table-striped text-nowrap table-hover table-responsive"
-                                    style="width: 100%">
-                                    <thead>
-                                        <tr>
-                                            <th scope="col">Doc Type</th>
-                                            <th scope="col">Cover No.</th>
-                                            <th scope="col">Endorsement No.</th>
-                                            <th scope="col">Reference</th>
-                                            <th scope="col">Entry Type</th>
-                                            <th scope="col">Net Amount</th>
-                                            <th scope="col">Date Created</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody></tbody>
-                                </table>
-                                {{ csrf_field() }}
-                                {{ html()->form()->close() }}
+                                <form action="/cover/statement" method="POST" id="form_statement_datatable">
+                                    <input type="text" name="cover_no" id="st_cover_no" hidden>
+                                    <input type="text" name="customer_id" id="customer_id"
+                                        value="{{ $customer->customer_id }} " hidden>
+                                    <table id="statement-table"
+                                        class="table table-striped text-nowrap table-hover table-responsive"
+                                        style="width: 100%">
+                                        <thead>
+                                            <tr>
+                                                <th scope="col">Doc Type</th>
+                                                <th scope="col">Cover No.</th>
+                                                <th scope="col">Endorsement No.</th>
+                                                <th scope="col">Reference</th>
+                                                <th scope="col">Entry Type</th>
+                                                <th scope="col">Net Amount</th>
+                                                <th scope="col">Date Created</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody></tbody>
+                                    </table>
+                                    {{ csrf_field() }}
+                                </form>
                             </div>
                         </div>
                     </div>

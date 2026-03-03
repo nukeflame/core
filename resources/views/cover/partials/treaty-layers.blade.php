@@ -313,52 +313,6 @@
     @endif
 @endif
 
-{{-- Layer Information Card --}}
-<div class="card bg-light mt-3">
-    <div class="card-body">
-        <h6 class="card-title">
-            <i class="bx bx-info-circle me-2"></i>Layer Configuration Guide
-        </h6>
-        <div class="row">
-            <div class="col-md-6">
-                <p class="mb-2"><strong>Burning Cost Method:</strong></p>
-                <ul class="small mb-0">
-                    <li>Based on historical loss experience</li>
-                    <li>Requires minimum and maximum rates</li>
-                    <li>Includes annual adjustment factors</li>
-                    <li>Rate adjusts based on actual losses</li>
-                </ul>
-            </div>
-            <div class="col-md-6">
-                <p class="mb-2"><strong>Flat Rate Method:</strong></p>
-                <ul class="small mb-0">
-                    <li>Fixed percentage rate</li>
-                    <li>Simpler pricing structure</li>
-                    <li>Rate doesn't adjust with losses</li>
-                    <li>More predictable premiums</li>
-                </ul>
-            </div>
-        </div>
-        <hr>
-        <div class="row mt-2">
-            <div class="col-md-6">
-                <p class="mb-2"><strong>Reinstatement Types:</strong></p>
-                <ul class="small mb-0">
-                    <li><strong>NOR:</strong> Number of times limit can be reinstated</li>
-                    <li><strong>AAL:</strong> Total aggregate limit for the year</li>
-                </ul>
-            </div>
-            <div class="col-md-6">
-                <p class="mb-2"><strong>Key Terms:</strong></p>
-                <ul class="small mb-0">
-                    <li><strong>Limit:</strong> Maximum coverage amount</li>
-                    <li><strong>Deductible:</strong> Retention before treaty applies</li>
-                    <li><strong>EGNPI:</strong> Estimated Gross Net Premium Income</li>
-                </ul>
-            </div>
-        </div>
-    </div>
-</div>
 
 <style>
     .layer-sections {

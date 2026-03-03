@@ -311,7 +311,7 @@
                             data: null,
                             orderable: false,
                             searchable: false,
-                            render: function(row) {
+                            render: function(data, type, row) {
                                 const encoded = encodeURIComponent(JSON.stringify(row));
                                 return `<div class="d-flex gap-2">
                                     <button type="button" class="btn btn-sm btn-outline-primary edit-engament" data-row="${encoded}">Edit</button>
@@ -371,8 +371,8 @@
                 });
 
                 $(document).on('click', '.delete-engament', function() {
-                    const id = $(this).data('id');
-                    if (!id) return;
+                    const id = Number($(this).data('id'));
+                    if (!Number.isFinite(id) || id <= 0) return;
 
                     const runDelete = function() {
                         $.ajax({
@@ -384,10 +384,12 @@
                             },
                             success: function(resp) {
                                 dataTable.ajax.reload(null, false);
-                                showToast('success', resp.message || 'Deleted successfully.');
+                                showToast('success', resp.message ||
+                                    'Deleted successfully.');
                             },
                             error: function(xhr) {
-                                const message = xhr.responseJSON && xhr.responseJSON.message ?
+                                const message = xhr.responseJSON && xhr.responseJSON
+                                    .message ?
                                     xhr.responseJSON
                                     .message : 'Failed to delete engament detail.';
                                 showToast('error', message);
