@@ -1,0 +1,36 @@
+{
+    "name": "nukeflame/core",
+    "description": "Core business services for reinsurance packages",
+    "type": "library",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "nukeflame"
+        }
+    ],
+    "require": {
+        "php": "^8.1",
+        "illuminate/support": "^10.0|^11.0|^12.0"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^11.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Nukeflame\\Core\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Nukeflame\\Core\\Tests\\": "tests/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Nukeflame\\Core\\ReCoreServiceProvider"
+            ]
+        }
+    },
+    "minimum-stability": "stable"
+}
