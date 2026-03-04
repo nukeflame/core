@@ -128,10 +128,12 @@
                         data-bs-target="#addPortfolioModal">
                         <i class="bi bi-briefcase me-1"></i>Portfolio
                     </button>
-                    <button type="button" class="btn btn-dark btn-sm text-center w-10 me-1" data-bs-toggle="modal"
-                        data-bs-target="#adjustCommissionModal">
-                        <i class="bi bi-arrow-repeat me-1"></i>Adjust Commission
-                    </button>
+                    {{-- @if ($cover->type_of_bus === 'TPR')
+                        <button type="button" class="btn btn-dark btn-sm text-center w-10 me-1"
+                            data-bs-toggle="modal" data-bs-target="#adjustCommissionModal">
+                            <i class="bi bi-arrow-repeat me-1"></i>Adjust Commission
+                        </button>
+                    @endif --}}
                 @else
                     <button class="btn btn-dark btn-sm me-2" data-bs-toggle="modal" data-bs-target="#treatyDebitModal">
                         <i class="bi bi-cash-stack me-1"></i>Generate Debit

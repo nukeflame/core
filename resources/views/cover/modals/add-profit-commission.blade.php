@@ -349,10 +349,10 @@
 
                 <div class="modal-footer">
                     <button type="button" class="btn btn-outline-light btn-sm" data-bs-dismiss="modal">
-                        <i class="fas fa-times me-1"></i> Cancel
+                        Close
                     </button>
                     <button type="submit" id="debit-save-btn" class="btn btn-primary btn-sm">
-                        <i class="fas fa-check me-1"></i> Profit Comission
+                        <i class="bi bi-check me-1"></i>Profit Comission
                     </button>
                 </div>
             </form>

@@ -113,6 +113,26 @@ class CoverRepository extends BaseRepository
         }
     }
 
+    /**
+     * Backward-compatible endorsement generator used by legacy controller flows
+     * (QTR, PC, MDP, POT, etc.) that still call generateEndorseNo().
+     */
+    public function generateEndorseNo($type_of_bus, $trans_type): object
+    {
+        $serial = (CoverRegister::where('type_of_bus', $type_of_bus)
+            ->where('transaction_type', $trans_type)
+            ->where('account_year', $this->_year)
+            ->withTrashed()
+            ->max('cover_serial_no') ?? 0) + 1;
+
+        $serial = str_pad((string) $serial, 6, '0', STR_PAD_LEFT);
+
+        return (object) [
+            'endorsement_no' => 'C' . $trans_type . $serial . $this->_year,
+            'serial_no' => $serial,
+        ];
+    }
+
     public function processCoverHome(Request $request)
     {
         try {

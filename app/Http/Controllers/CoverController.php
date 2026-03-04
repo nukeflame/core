@@ -70,6 +70,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
+use Nukeflame\Webmatics\Validation\StorePropPortfolioValidator;
 use Symfony\Component\HttpFoundation\Response;
 use Throwable;
 use Yajra\DataTables\Facades\DataTables;
@@ -2705,7 +2706,6 @@ class CoverController extends Controller
         $debitted = CoverDebit::where('endorsement_no', $endorsement)->count();
 
         $actionable = true;
-        // if TNP| TPR inital cover commited
         if ($cover->commited == 'Y' || $debitted > 0) {
             $actionable = false;
         }
@@ -2721,7 +2721,18 @@ class CoverController extends Controller
             $type_of_bus = $request->type_of_bus;
             $prev_endorsement_no = $request->endorsement_no;
 
-            $endorsement = $this->coverRepository->generateEndorseNo($type_of_bus, $trans_type);
+            $endorse_serial_no = (CoverRegister::where('type_of_bus', $type_of_bus)
+                ->where('transaction_type', $trans_type)
+                ->where('account_year', $this->_year)
+                ->withTrashed()
+                ->max('cover_serial_no') ?? 0) + 1;
+
+            $endorse_serial_no = str_pad($endorse_serial_no, 6, '0', STR_PAD_LEFT);
+
+            $endorsement = (object) [
+                'endorsement_no' => 'C' . $trans_type . $endorse_serial_no . $this->_year,
+                'serial_no' => $endorse_serial_no,
+            ];
             $new_endorsement_no = $endorsement->endorsement_no;
             $this->_endorsement_no = $new_endorsement_no;
             $cover_serial_no = $endorsement->serial_no;
@@ -2961,7 +2972,18 @@ class CoverController extends Controller
             $type_of_bus = $request->type_of_bus;
             $prev_endorsement_no = $request->endorsement_no;
 
-            $endorsement = $this->coverRepository->generateEndorseNo($type_of_bus, $trans_type);
+            $endorse_serial_no = (CoverRegister::where('type_of_bus', $type_of_bus)
+                ->where('transaction_type', $trans_type)
+                ->where('account_year', $this->_year)
+                ->withTrashed()
+                ->max('cover_serial_no') ?? 0) + 1;
+
+            $endorse_serial_no = str_pad($endorse_serial_no, 6, '0', STR_PAD_LEFT);
+
+            $endorsement = (object) [
+                'endorsement_no' => 'C' . $trans_type . $endorse_serial_no . $this->_year,
+                'serial_no' => $endorse_serial_no,
+            ];
             $new_endorsement_no = $endorsement->endorsement_no;
             $this->_endorsement_no = $new_endorsement_no;
             $cover_serial_no = $endorsement->serial_no;
@@ -4004,8 +4026,14 @@ class CoverController extends Controller
 
     public function StorePropPortfolio(Request $request)
     {
-        DB::beginTransaction();
         try {
+            DB::beginTransaction();
+            $currentYear = (int) date('Y');
+            $request->validate(
+                StorePropPortfolioValidator::rules($currentYear),
+                StorePropPortfolioValidator::messages()
+            );
+
             $trans_type = 'POT';
             $type_of_bus = $request->type_of_bus;
             $prev_endorsement_no = $request->orig_endorsement;
@@ -4013,6 +4041,8 @@ class CoverController extends Controller
             $port_reinsurer = $request->port_reinsurer;
             $port_reinsurer_share = $request->port_share;
             $total_port_amt = str_replace(',', '', $request->port_amt);
+
+            logger()->debug(json_encode($request->all(), JSON_PRETTY_PRINT));
 
             $endorsement = $this->coverRepository->generateEndorseNo($type_of_bus, $trans_type);
             if ($portfolio_type == 'IN') {
@@ -4024,19 +4054,24 @@ class CoverController extends Controller
                 $premium_desc = 'PREMIUM PORTFOLIO ENTRY - OUT';
                 $loss_desc = 'LOSS PORTFOLIO ENTRY - OUT';
             }
+
             $new_endorsement_no = $endorsement->endorsement_no;
-            // dd($new_endorsement_no);
             $this->_endorsement_no = $new_endorsement_no;
             $cover_serial_no = $endorsement->serial_no;
 
             $prevCover = CoverRegister::where('endorsement_no', $prev_endorsement_no)->first();
-            $port_share = $prevCover->share_offered;
-            $port_amt = ($port_share / 100) * $total_port_amt;
-            $port_prm_rate = $request->port_prm_rate;
-            $port_prm_amt = ($port_prm_rate / 100) * $port_amt;
+            $port_prem_rate = $request->port_prem_rate;
             $port_loss_rate = $request->port_loss_rate;
-            $port_loss_amt = ($port_loss_rate / 100) * $port_amt;
-            $treaty_year = $request->portfolio_year;
+
+            $premium_portfolio_amount = str_replace(',', '', (string) $request->port_premium_amt);
+            $loss_portfolio_amount = str_replace(',', '', (string) $request->port_outstanding_loss_amt);
+
+            $premium_portfolio_amount = $premium_portfolio_amount !== '' ? (float) $premium_portfolio_amount : $total_port_amt;
+            $loss_portfolio_amount = $loss_portfolio_amount !== '' ? (float) $loss_portfolio_amount : $total_port_amt;
+
+            $port_prem_amt = ($port_prem_rate / 100) * $premium_portfolio_amount;
+            $port_loss_amt = ($port_loss_rate / 100) * $loss_portfolio_amount;
+            $treaty_year = $request->posting_year;
 
             $prem_tax_rate = $prevCover->prem_tax_rate;
             $ri_tax_rate = $prevCover->ri_tax_rate;
@@ -4057,7 +4092,7 @@ class CoverController extends Controller
             $cover->dola = Carbon::now();
             $cover->created_by = Auth::user()->user_name;
             $cover->updated_by = Auth::user()->user_name;
-            $cover->save();
+            // $cover->save();
 
             $totalPrem = 0;
             $totalPremiumTax = 0;
@@ -4065,8 +4100,9 @@ class CoverController extends Controller
             $totalReinsuranceTax = 0;
             $totalClaim = 0;
             $mgnt_exp_amt = 0;
+
             // Premiums
-            if ($port_prm_amt != 0) {
+            if ($port_prem_amt != 0) {
                 CoverPremium::create([
                     'cover_no' => $request->cover_no,
                     'endorsement_no' => $new_endorsement_no,
@@ -4080,12 +4116,12 @@ class CoverController extends Controller
                     'premium_type_description' => $premium_desc,
                     'type_of_bus' => $type_of_bus,
                     'class_code' => 'ALL',
-                    'basic_amount' => str_replace(',', '', $port_amt),
+                    'basic_amount' => str_replace(',', '', $premium_portfolio_amount),
                     'apply_rate_flag' => 'Y',
                     'treaty' => 'ALL',
-                    'rate' => $port_prm_rate,
+                    'rate' => $port_prem_rate,
                     'dr_cr' => 'DR',
-                    'final_amount' => (float) str_replace(',', '', $port_prm_amt),
+                    'final_amount' => (float) str_replace(',', '', $port_prem_amt),
                     'created_by' => Auth::user()->user_name,
                     'updated_by' => Auth::user()->user_name,
                 ]);
@@ -4105,7 +4141,7 @@ class CoverController extends Controller
                     'premium_type_description' => $loss_desc,
                     'type_of_bus' => $type_of_bus,
                     'class_code' => 'ALL',
-                    'basic_amount' => str_replace(',', '', $port_amt),
+                    'basic_amount' => str_replace(',', '', $loss_portfolio_amount),
                     'apply_rate_flag' => 'Y',
                     'treaty' => 'ALL',
                     'rate' => $port_loss_rate,
@@ -4116,103 +4152,103 @@ class CoverController extends Controller
                 ]);
             }
 
-            if ($portfolio_type == 'OUT') {
-                $reinsurers = CoverRipart::where('endorsement_no', $prevCover->endorsement_no)->where('partner_no', $request->port_reinsurer)->get();
+            logger()->debug(json_encode($cover, JSON_PRETTY_PRINT));
 
-                foreach ($reinsurers as $ripart) {
-                    $tran_no = (int) CoverRipart::withTrashed()->max('tran_no') + 1;
+            // if ($portfolio_type == 'OUT') {
+            //     $reinsurers = CoverRipart::where('endorsement_no', $prevCover->endorsement_no)->where('partner_no', $request->port_reinsurer)->get();
 
-                    $data = $ripart->getAttributes();
-                    $data['tran_no'] = $tran_no;
-                    $data['endorsement_no'] = $this->_endorsement_no;
-                    $data['period_year'] = $this->_year;
-                    $data['period_month'] = $this->_month;
-                    $data['total_sum_insured'] = 0;
-                    $data['total_premium'] = $port_prm_amt;
-                    $data['total_commission'] = 0;
-                    $data['sum_insured'] = 0;
-                    $data['premium'] = $port_prm_amt * ($port_reinsurer_share / 100);
-                    $data['comm_rate'] = 0;
-                    $data['commission'] = 0;
-                    $data['wht_rate'] = 0;
-                    $data['wht_amt'] = 0;
-                    $data['written_lines'] = 0;
-                    $data['prem_tax_rate'] = 0;
-                    $data['prem_tax'] = 0;
-                    $data['ri_tax_rate'] = 0;
-                    $data['ri_tax'] = 0;
-                    $data['total_claim_amt'] = $port_loss_amt;
-                    $data['claim_amt'] = $port_loss_amt * ($port_reinsurer_share / 100);
-                    $data['total_mdp_amt'] = 0;
-                    $data['mdp_amt'] = 0;
-                    $data['created_by'] = Auth::user()->user_name;
-                    $data['updated_by'] = Auth::user()->user_name;
-                    $data['created_at'] = Carbon::now();
-                    $data['updated_at'] = Carbon::now();
+            //     foreach ($reinsurers as $ripart) {
+            //         $tran_no = (int) CoverRipart::withTrashed()->max('tran_no') + 1;
 
-                    CoverRipart::create($data);
-                }
-            }
-            if ($portfolio_type == 'IN') {
-                $CoverRegister = CoverRegister::where('endorsement_no', $new_endorsement_no)->first();
-                $reinsurer = Customer::where('customer_id', $port_reinsurer)->first();
-                $tran_no = (int) CoverRipart::withTrashed()->max('tran_no') + 1;
+            //         $data = $ripart->getAttributes();
+            //         $data['tran_no'] = $tran_no;
+            //         $data['endorsement_no'] = $this->_endorsement_no;
+            //         $data['period_year'] = $this->_year;
+            //         $data['period_month'] = $this->_month;
+            //         $data['total_sum_insured'] = 0;
+            //         $data['total_premium'] = $port_prem_amt;
+            //         $data['total_commission'] = 0;
+            //         $data['sum_insured'] = 0;
+            //         $data['premium'] = $port_prem_amt * ($port_reinsurer_share / 100);
+            //         $data['comm_rate'] = 0;
+            //         $data['commission'] = 0;
+            //         $data['wht_rate'] = 0;
+            //         $data['wht_amt'] = 0;
+            //         $data['written_lines'] = 0;
+            //         $data['prem_tax_rate'] = 0;
+            //         $data['prem_tax'] = 0;
+            //         $data['ri_tax_rate'] = 0;
+            //         $data['ri_tax'] = 0;
+            //         $data['total_claim_amt'] = $port_loss_amt;
+            //         $data['claim_amt'] = $port_loss_amt * ($port_reinsurer_share / 100);
+            //         $data['total_mdp_amt'] = 0;
+            //         $data['mdp_amt'] = 0;
+            //         $data['created_by'] = Auth::user()->user_name;
+            //         $data['updated_by'] = Auth::user()->user_name;
+            //         $data['created_at'] = Carbon::now();
+            //         $data['updated_at'] = Carbon::now();
 
-                $coverRipart = new CoverRipart;
+            //         CoverRipart::create($data);
+            //     }
+            // }
+            // if ($portfolio_type == 'IN') {
+            //     $CoverRegister = CoverRegister::where('endorsement_no', $new_endorsement_no)->first();
+            //     $reinsurer = Customer::where('customer_id', $port_reinsurer)->first();
+            //     $tran_no = (int) CoverRipart::withTrashed()->max('tran_no') + 1;
 
-                // Assign values from the request to the model attributes
-                $coverRipart->cover_no = $CoverRegister->cover_no;
-                $coverRipart->endorsement_no = $CoverRegister->endorsement_no;
-                $coverRipart->tran_no = $tran_no;
-                $coverRipart->period_year = $this->_year;
-                $coverRipart->period_month = $this->_month;
-                $coverRipart->partner_no = $reinsurer->customer_id;
-                $coverRipart->share = $port_reinsurer_share;
-                $coverRipart->written_lines = $port_reinsurer_share;
-                $coverRipart->comm_rate = 0;
-                $coverRipart->wht_rate = 0;
-                $wht_amt = 0;
-                $coverRipart->total_sum_insured = 0;
-                $coverRipart->total_premium = $port_prm_amt;
-                $coverRipart->total_commission = 0;
-                $coverRipart->wht_amt = 0;
-                $coverRipart->sum_insured = 0;
-                $coverRipart->premium = $port_prm_amt * ($port_reinsurer_share / 100);
-                $coverRipart->commission = 0;
-                $coverRipart->treaty_code = 'ALL';
-                $coverRipart->total_claim_amt = $port_loss_amt;
-                $coverRipart->claim_amt = $port_loss_amt * ($port_reinsurer_share / 100);
-                $coverRipart->total_mdp_amt = 0;
-                $coverRipart->mdp_amt = 0;
-                $coverRipart->prem_tax_rate = 0;
-                $coverRipart->prem_tax = 0;
-                $coverRipart->ri_tax_rate = 0;
-                $coverRipart->ri_tax = 0;
-                $coverRipart->created_by = Auth::user()->user_name;
-                $coverRipart->updated_by = Auth::user()->user_name;
+            //     $coverRipart = new CoverRipart;
 
-                $coverRipart->save();
-            }
-            $this->coverPremToReinNote();
+            //     // Assign values from the request to the model attributes
+            //     $coverRipart->cover_no = $CoverRegister->cover_no;
+            //     $coverRipart->endorsement_no = $CoverRegister->endorsement_no;
+            //     $coverRipart->tran_no = $tran_no;
+            //     $coverRipart->period_year = $this->_year;
+            //     $coverRipart->period_month = $this->_month;
+            //     $coverRipart->partner_no = $reinsurer->customer_id;
+            //     $coverRipart->share = $port_reinsurer_share;
+            //     $coverRipart->written_lines = $port_reinsurer_share;
+            //     $coverRipart->comm_rate = 0;
+            //     $coverRipart->wht_rate = 0;
+            //     $wht_amt = 0;
+            //     $coverRipart->total_sum_insured = 0;
+            //     $coverRipart->total_premium = $port_prem_amt;
+            //     $coverRipart->total_commission = 0;
+            //     $coverRipart->wht_amt = 0;
+            //     $coverRipart->sum_insured = 0;
+            //     $coverRipart->premium = $port_prem_amt * ($port_reinsurer_share / 100);
+            //     $coverRipart->commission = 0;
+            //     $coverRipart->treaty_code = 'ALL';
+            //     $coverRipart->total_claim_amt = $port_loss_amt;
+            //     $coverRipart->claim_amt = $port_loss_amt * ($port_reinsurer_share / 100);
+            //     $coverRipart->total_mdp_amt = 0;
+            //     $coverRipart->mdp_amt = 0;
+            //     $coverRipart->prem_tax_rate = 0;
+            //     $coverRipart->prem_tax = 0;
+            //     $coverRipart->ri_tax_rate = 0;
+            //     $coverRipart->ri_tax = 0;
+            //     $coverRipart->created_by = Auth::user()->user_name;
+            //     $coverRipart->updated_by = Auth::user()->user_name;
 
-            DB::commit();
+            //     $coverRipart->save();
+            // }
+            // $this->coverPremToReinNote();
 
-            $redirectUrl = route('cover.CoverHome', ['endorsement_no' => $new_endorsement_no]);
+            // DB::commit();
 
-            // Redirect back with success message and endorsement data as a request parameter
-            return redirect($redirectUrl)->with('success', 'Profit Commission information saved successfully');
+            // $redirectUrl = route('cover.CoverHome', ['endorsement_no' => $new_endorsement_no]);
+            // return redirect($redirectUrl)->with('success', 'Profit Commission information saved successfully');
+            return null;
         } catch (ValidationException $e) {
+            logger($e);
             DB::rollBack();
-            dd($e);
-
             return response()->json([
                 'status' => Response::HTTP_UNPROCESSABLE_ENTITY,
                 'errors' => $e->errors(),
             ], 422);
         } catch (Throwable $e) {
-            DB::rollBack();
-            dd($e);
+            logger($e);
 
+            DB::rollBack();
             return response()->json([
                 'status' => $e->getCode(),
                 'message' => $e->getMessage(),

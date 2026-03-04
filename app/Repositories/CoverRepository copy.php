@@ -883,17 +883,16 @@ class CoverRepository extends BaseRepository
                     }
                 }
 
-                //Code to insert premtype commisssion in a loop
                 $prem_type_reinclass = $request->prem_type_reinclass;
                 $prem_type_treaty = $request->prem_type_treaty;
                 $prem_type_code = $request->prem_type_code;
                 $prem_type_comm_rate = $request->prem_type_comm_rate;
-                // Loop through one of the arrays (assuming they all have the same length)
+
                 foreach ($prem_type_reinclass as $index => $reinclass) {
                     $premtype_reinclass = ReinclassPremtype::where('reinclass', $reinclass)
                         ->where('premtype_code', $prem_type_code[$index])
                         ->first();
-                    // Create a new instance of YourModel
+
                     $CoverPremtype = new CoverPremtype();
                     $CoverPremtype->cover_no = $cover_no;
                     $CoverPremtype->endorsement_no = $endorsement_no;
@@ -921,7 +920,7 @@ class CoverRepository extends BaseRepository
                 $reinstatement_type = $request->reinstatement_type;
                 $reinstatement_value = $request->reinstatement_value;
                 $item_no = 1;
-                // Loop through one of the arrays (assuming they all have the same length)
+
                 foreach ($indemnity_limits as $index => $indemnity_limit) {
 
                     if ($index > 0 && $layer_no[$index - 1] == $layer_no[$index]) {

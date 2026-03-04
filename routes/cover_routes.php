@@ -120,7 +120,7 @@ Route::group(['prefix' => 'cover', 'middleware' => ['auth', 'check.first.login']
 
     Route::post('/process_cover_endorsement', [CoverController::class, 'processCoverEndorsement'])->name('cover.process_cover_endorsement');
 
-    Route::post('/save_portfolio', [CoverController::class, 'StorePropPortfolio'])->name('cover.save_portfolio');
+    Route::post('/save-portfolio', [CoverController::class, 'StorePropPortfolio'])->name('cover.save_portfolio');
     Route::get('/get_treaty_year_cover', [CoverController::class, 'getTreatyCover'])->name('cover.get_treaty_year_cover');
     Route::get('/get_reinsurers_orig_endorsement', [CoverController::class, 'getReinsurersOrigEndorsement'])->name('cover.get_reinsurers_orig_endorsement');
 
