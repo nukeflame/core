@@ -70,11 +70,12 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
-use Nukeflame\Core\Services\StorePropPortfolioService;
 use Symfony\Component\HttpFoundation\Response;
 use Throwable;
 use Yajra\DataTables\Facades\DataTables;
 use App\Services\DebitNoteService;
+use App\Services\StorePropPortfolioService;
+
 
 class CoverController extends Controller
 {
@@ -584,7 +585,10 @@ class CoverController extends Controller
     {
         $customer_id = $request->customer_id;
         $cover_no = $request->cover_no;
-        $query = CoverRegister::query()->where('customer_id', $customer_id)->where('cover_no', $cover_no);
+        $query = CoverRegister::query()
+            ->where('customer_id', $customer_id)
+            ->where('cover_no', $cover_no)
+            ->whereIn('transaction_type', ['NEW', 'REN']);
 
         return datatables::of($query)
             ->editColumn('id_no', function ($fn) {
@@ -597,10 +601,10 @@ class CoverController extends Controller
                 $trans_type = '';
                 switch ($fn->transaction_type) {
                     case 'REN':
-                        $trans_type = 'RENEWAL';
+                        $trans_type = 'Renewal (REN)';
                         break;
                     case 'NEW':
-                        $trans_type = 'NEW';
+                        $trans_type = 'New';
                         break;
                     case 'EXT':
                         $trans_type = 'ENDORSEMENT';
@@ -1569,7 +1573,7 @@ class CoverController extends Controller
             $coverApproved = false;
         }
 
-        return Datatables::of($results)
+        return datatables::of($results)
             ->editColumn('approver', function ($data) {
                 $approver = User::where('id', $data->approver)->first('name');
 
@@ -2036,28 +2040,34 @@ class CoverController extends Controller
         $debit->save();
     }
 
-    private function createCustomerAccount(array &$debitData, CoverRegister $coverRegister, $treatyDebit, $treatyCredit): void
+    private function createCustomerAccount(array &$debitData, CoverRegister $coverRegister, $treatyDebit, $treatyCredit, $ref = ''): void
     {
-        if (! $debitData['drCrNo']) {
+        $isPortfolio = ($debitData['entry_type_descr'] ?? null) === 'portfolio';
+        $debitData['sourceCode'] = 'TRT';
+        $debitData['reference'] = $this->generateDebitReference($debitData, $coverRegister, $isPortfolio ? $ref : '');
+
+        if (! $isPortfolio && empty($debitData['drCrNo'])) {
             $debitData['drCrNo'] = SystemSerials::nextSerial($debitData['docType']);
         }
 
-        $debitData['sourceCode'] = $debitData['isTreaty'] ? 'TRT' : 'FAC';
-        $debitData['reference'] = $this->generateDebitReference($debitData, $coverRegister);
-        $postingDate = !empty($debitData['postingDate']) ? Carbon::parse($debitData['postingDate']) : Carbon::now();
+        $now = Carbon::now();
+        $postingDate = ! empty($debitData['postingDate']) ? Carbon::parse($debitData['postingDate']) : $now;
         $postingYear = (int) ($debitData['postingYear'] ?? $postingDate->year);
         $postingMonth = (int) $postingDate->month;
+        $currencyRate = (float) ($debitData['currencyRate'] ?? $debitData['today_currency'] ?? 0);
+        $grossAmount = (float) ($debitData['grossAmount'] ?? 0);
+        $netAmount = (float) ($debitData['netAmount'] ?? 0);
 
         $custAccount = new CustomerAccDet;
         $custAccount->branch = $coverRegister->branch_code;
         $custAccount->customer_id = $coverRegister->customer_id;
         $custAccount->source_code = $debitData['sourceCode'];
-        $custAccount->doc_type = $debitData['docType'];
-        $custAccount->entry_type_descr = $debitData['entryTypeDescr'];
+        $custAccount->doc_type = $isPortfolio ? 'DRN' : $debitData['docType'];
+        $custAccount->entry_type_descr = $isPortfolio ? $debitData['entry_type_descr'] : $debitData['entryTypeDescr'];
         $custAccount->reference = $debitData['reference'];
-        $custAccount->account_year = $postingYear;
+        $custAccount->account_year = $isPortfolio ? (int) ($debitData['posting_year'] ?? $postingYear) : $postingYear;
         $custAccount->account_month = $postingMonth;
-        $custAccount->quarter = ! empty($debitData['postingQuarter']) ? $debitData['postingQuarter'] : null;
+        $custAccount->quarter = $isPortfolio ? null : (! empty($debitData['postingQuarter']) ? $debitData['postingQuarter'] : null);
         $custAccount->line_no = 1;
         $custAccount->cheque_no = ' ';
         $custAccount->cheque_date = null;
@@ -2065,37 +2075,38 @@ class CoverController extends Controller
         $custAccount->endorsement_no = $coverRegister->endorsement_no;
         $custAccount->insured = $coverRegister->insured_name;
         $custAccount->class = $coverRegister->class_code;
-        $custAccount->currency_code = $debitData['currencyCode'] ?? $coverRegister->currency_code;
-        $custAccount->currency_rate = $debitData['currencyRate'];
+        $custAccount->currency_code = $isPortfolio
+            ? ($debitData['currency_code'] ?? $coverRegister->currency_code)
+            : ($debitData['currencyCode'] ?? $coverRegister->currency_code);
+        $custAccount->currency_rate = $currencyRate;
         $custAccount->created_by = Auth::user()->user_name;
-        $custAccount->created_date = Carbon::now();
-        $custAccount->created_at = Carbon::now();
-        $custAccount->created_time = Carbon::now();
+        $custAccount->created_date = $now;
+        $custAccount->created_at = $now;
+        $custAccount->created_time = $now;
         $custAccount->updated_by = Auth::user()->user_name;
-        $custAccount->updated_datetime = Carbon::now();
-        $custAccount->dr_cr = $debitData['drCr'];
-        $custAccount->foreign_basic_amount = $debitData['grossAmount'];
-        $custAccount->local_basic_amount = $debitData['grossAmount'] * $debitData['currencyRate'];
+        $custAccount->updated_datetime = $now;
+        $custAccount->dr_cr = $isPortfolio ? 'D' : $debitData['drCr'];
+        $custAccount->foreign_basic_amount = $isPortfolio ? 0 : $grossAmount;
+        $custAccount->local_basic_amount = $isPortfolio ? 0 : ($grossAmount * $currencyRate);
         $custAccount->foreign_taxes_amount = 0;
         $custAccount->local_taxes_amount = 0;
-        $custAccount->foreign_nett_amount = $debitData['netAmount'];
-        $custAccount->local_nett_amount = $debitData['netAmount'] * $debitData['currencyRate'];
-        $custAccount->premium_levy = (float) ($debitData['premiumLevy'] ?? 0);
-        $custAccount->reinsurance_levy = (float) ($debitData['reinsuranceLevy'] ?? 0);
-        $custAccount->withholding_tax = (float) ($debitData['withholdingTax'] ?? 0);
-        $custAccount->loss_participation = (bool) ($debitData['lossParticipation'] ?? false);
-        $custAccount->sliding_commission = (bool) ($debitData['slidingCommission'] ?? false);
+        $custAccount->foreign_nett_amount = $isPortfolio ? 0 : $netAmount;
+        $custAccount->local_nett_amount = $isPortfolio ? 0 : ($netAmount * $currencyRate);
+        $custAccount->premium_levy = (float) ($isPortfolio ? ($debitData['premium_tax'] ?? 0) : ($debitData['premiumLevy'] ?? 0));
+        $custAccount->reinsurance_levy = (float) ($isPortfolio ? ($debitData['reinsurance_tax'] ?? 0) : ($debitData['reinsuranceLevy'] ?? 0));
+        $custAccount->withholding_tax = (float) ($isPortfolio ? ($debitData['withholding_tax'] ?? 0) : ($debitData['withholdingTax'] ?? 0));
+        $custAccount->loss_participation = (bool) ($isPortfolio ? ($debitData['port_outstanding_loss_amt'] ?? false) : ($debitData['lossParticipation'] ?? false));
+        $custAccount->sliding_commission = (bool) ($isPortfolio ? ($debitData['sliding_commission'] ?? false) : ($debitData['slidingCommission'] ?? false));
         $custAccount->allocated_amount = 0;
-        $custAccount->treaty_debit_no = $treatyDebit ? $treatyDebit?->debit_note_no : null;
-        // $custAccount->treaty_credit_no = $treatyDebit ? $treatyDebit?->debit_note_no : null;
-        $custAccount->unallocated_amount = $debitData['grossAmount'] * $debitData['currencyRate'];
-
+        $custAccount->treaty_debit_no = $isPortfolio ? null : ($treatyDebit ? $treatyDebit?->debit_note_no : null);
+        $custAccount->unallocated_amount = $isPortfolio ? 0 : ($grossAmount * $currencyRate);
         $custAccount->save();
     }
 
-    private function generateDebitReference(array $debitData, CoverRegister $coverRegister): string
+    private function generateDebitReference(array $debitData, CoverRegister $coverRegister, $ref = ''): string
     {
-        $quarter = ! empty($debitData['postingQuarter']) ? $debitData['postingQuarter'] : '';
+        $quarter = ! empty($debitData['postingQuarter']) ? $debitData['postingQuarter'] : $ref;
+
         $year = $debitData['postingYear'] ?? $this->_year;
         $prefix = $this->getDebitReferencePrefix($coverRegister->treaty_type);
         $classCode = $coverRegister->type_of_bus;
@@ -2309,6 +2320,7 @@ class CoverController extends Controller
 
         return match ($entryType) {
             'profit-commission' => 'profit-commission',
+            'portfolio' => 'portfolio',
             default => 'quarterly-figures',
         };
     }
@@ -4053,104 +4065,81 @@ class CoverController extends Controller
             $ri_tax_rate = $result['computed']['ri_tax_rate'];
             $profit_comm_rate = $result['computed']['profit_comm_rate'];
 
-            // $validatedData = array_merge($request->toArray(), [
-            //     'cover_no' => $cover->cover_no,
-            //     'endorsement_no' => $cover->endorsement_no,
-            //     'installment' => 1,
-            //     'entry_type_descr' => 'quarterly-figures',
-            //     'posting_year' => (int) $request->posting_year,
-            //     'posting_date' => $request->posting_date,
-            //     'posting_quarter' => 'Q' . Carbon::parse($request->posting_date)->quarter,
-            //     'amount' => $port_prem_amt - $port_loss_amt,
-            //     'brokerage_rate' => $profit_comm_rate,
-            //     'premium_levy' => $prem_tax_rate,
-            //     'reinsurance_levy' => $ri_tax_rate,
-            //     'show_cedant' => $request->boolean('show_cedant'),
-            //     'show_reinsurer' => $request->boolean('show_reinsurer'),
-            //     'items' => [
-            //         [
-            //             'item_code' => 'IT01',
-            //             'description' => $premium_desc,
-            //             'class_group' => $cover->class_code,
-            //             'class_name' => $cover->class_code,
-            //             'line_rate' => 100,
-            //             'ledger' => 'DR',
-            //             'amount' => $port_prem_amt,
-            //         ],
-            //         [
-            //             'item_code' => 'IT02',
-            //             'description' => $loss_desc,
-            //             'class_group' => $cover->class_code,
-            //             'class_name' => $cover->class_code,
-            //             'line_rate' => 100,
-            //             'ledger' => 'CR',
-            //             'amount' => $port_loss_amt,
-            //         ],
-            //     ],
-            // ]);
+            $validatedData = array_merge($request->toArray(), [
+                'isTreaty' => true,
+                'drCr' => 'DRN',
+                'cover_no' => $cover->cover_no,
+                'endorsement_no' => $cover->endorsement_no,
+                'installment' => 1,
+                'entry_type_descr' => 'portfolio',
+                'posting_year' => (int) $result['postingYear'],
+                'posting_date' => $request->posting_date,
+                'posting_quarter' => 'Q' . $result['postingQuarter'],
+                'amount' => $port_prem_amt - $port_loss_amt,
+                'brokerage_rate' => $profit_comm_rate,
+                'premium_tax' => $prem_tax_rate,
+                'reinsurance_tax' => $ri_tax_rate,
+                'show_cedant' => $request->boolean('show_cedant'),
+                'show_reinsurer' => $request->boolean('show_reinsurer'),
+                'items' => [
+                    [
+                        'item_code' => 'IT01',
+                        'description' => $premium_desc,
+                        'class_group' => $cover->class_code,
+                        'class_name' => $cover->class_code,
+                        'line_rate' => 100,
+                        'ledger' => 'DR',
+                        'amount' => $port_prem_amt,
+                    ],
+                    [
+                        'item_code' => 'IT02',
+                        'description' => $loss_desc,
+                        'class_group' => $cover->class_code,
+                        'class_name' => $cover->class_code,
+                        'line_rate' => 100,
+                        'ledger' => 'CR',
+                        'amount' => $port_loss_amt,
+                    ],
+                ],
+            ]);
 
+            $entryTypeDescr = $this->resolveEntryTypeDescr($validatedData);
+            $postingYear = (int) ($validatedData['posting_year'] ?? Carbon::now()->year);
+            $postingQuarter = $this->resolvePostingQuarter($validatedData, $entryTypeDescr);
 
-            logger()->debug($prevCover);
+            $existingQuarterQuery = CustomerAccDet::where('endorsement_no', $validatedData['endorsement_no'])
+                ->where('account_year', $postingYear)
+                ->where('entry_type_descr', $entryTypeDescr);
 
-            // $entryTypeDescr = $this->resolveEntryTypeDescr($validatedData);
-            // $postingYear = (int) ($validatedData['posting_year'] ?? Carbon::now()->year);
-            // $postingQuarter = $this->resolvePostingQuarter($validatedData, $entryTypeDescr);
+            if ($existingQuarterQuery->exists()) {
+                $entryTypeLabel = ucwords(str_replace('-', ' ', $entryTypeDescr));
+                $postingPeriod = $entryTypeDescr === 'quarterly-figures' && ! empty($postingQuarter)
+                    ? "{$postingQuarter} {$postingYear}"
+                    : (string) $postingYear;
+                throw new BusinessRuleException("{$entryTypeLabel} for {$postingPeriod} has already been generated for this endorsement.");
+            }
 
-            // $existingQuarterQuery = CustomerAccDet::where('endorsement_no', $validatedData['endorsement_no'])
-            //     ->where('account_year', $postingYear)
-            //     ->where('entry_type_descr', $entryTypeDescr);
+            $treatyDebit = null;
+            $treatyCredit = null;
+            $this->createCustomerAccount($validatedData, $cover, $treatyDebit, $treatyCredit, 'POT');
 
-            // if ($entryTypeDescr === 'quarterly-figures' && ! empty($postingQuarter)) {
-            //     $existingQuarterQuery->where('quarter', $postingQuarter);
-            // }
+            DB::commit();
 
-            // if ($existingQuarterQuery->exists()) {
-            //     $entryTypeLabel = ucwords(str_replace('-', ' ', $entryTypeDescr));
-            //     $postingPeriod = $entryTypeDescr === 'quarterly-figures' && ! empty($postingQuarter)
-            //         ? "{$postingQuarter} {$postingYear}"
-            //         : (string) $postingYear;
-            //     throw new BusinessRuleException("{$entryTypeLabel} for {$postingPeriod} has already been generated for this endorsement.");
-            // }
-
-            // $debitData = $this->prepareDebitData($validatedData, $cover);
-            // $creditData = $this->prepareCreditData($validatedData, $cover);
-
-            // if ($debitData['isTreaty']) {
-            //     $this->validateBusinessRules($cover, $validatedData);
-            // }
-
-            // $redirectUrl = null;
-            // $treatyDebit = null;
-            // $treatyCredit = null;
-            // $message = $this->getBusinessTypeLabel($debitData['typeOfBus']) . ' Debit note generated successfully';
-
-            // if ($debitData['isFacultative']) {
-            //     $this->createCoverDebit($debitData, $cover);
-            // } elseif ($debitData['isTreaty']) {
-            //     $redirectUrl = route('cover.transactions.index', [
-            //         'coverNo' => $cover->cover_no,
-            //     ]);
-
-            //     $treatyDebit = $this->createTreatyDebit($debitData, $cover);
-            //     $treatyCredit = $this->createTreatyCredit($creditData, $cover);
-            // }
-
-            // $this->createCustomerAccount($debitData, $cover, $treatyDebit, $treatyCredit);
-
-            // $cover->commited = 'Y';
-            // $cover->save();
-
-            return [];
-
-            // DB::commit();
-
-            // return response()->json([
-            //     'success' => true,
-            //     'status' => Response::HTTP_CREATED,
-            //     'redirectUrl' => $redirectUrl,
-            //     'message' => $message,
-            //     'endorsement_no' => $cover->endorsement_no,
-            // ], Response::HTTP_CREATED);
+            return response()->json([
+                'success' => true,
+                'status' => Response::HTTP_CREATED,
+                'message' => 'Portfolio transaction generated successfully',
+                'endorsement_no' => $cover->endorsement_no,
+                'computed' => [
+                    'premium_desc' => $premium_desc,
+                    'loss_desc' => $loss_desc,
+                    'port_prem_amt' => $port_prem_amt,
+                    'port_loss_amt' => $port_loss_amt,
+                    'prem_tax_rate' => $prem_tax_rate,
+                    'ri_tax_rate' => $ri_tax_rate,
+                    'profit_comm_rate' => $profit_comm_rate,
+                ],
+            ], Response::HTTP_CREATED);
         } catch (ValidationException $e) {
             logger($e);
             DB::rollBack();

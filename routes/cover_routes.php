@@ -165,6 +165,7 @@ Route::group(['prefix' => 'cover', 'middleware' => ['auth', 'check.first.login']
     Route::prefix('treaty/{coverNo}')->name('cover.')->group(function () {
         Route::get('transactions', [CoverTransactionController::class, 'index'])->name('transactions.index');
         Route::get('transactions/{refNo}/quarterly-figures', [CoverTransactionController::class, 'quarterlyFigures'])->name('transactions.quarterly-figures');
+        Route::get('transactions/{refNo}/portfolio', [CoverTransactionController::class, 'portfolio'])->name('transactions.portfolio');
         Route::get('transactions/{refNo}/profit-commission', [CoverTransactionController::class, 'profitCommission'])->name('transactions.profit-commission');
         Route::delete('transactions/{refNo}', [CoverTransactionController::class, 'destroyTransaction'])->name('transactions.destroy');
     });

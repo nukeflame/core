@@ -14,7 +14,8 @@
                     id="treatyClasses" />
 
                 <div class="modal-header">
-                    <h5 class="modal-title" id="createQuarterlyFiguresModalLabel">Quarterly Figures</h5>
+                    <h6 class="modal-title" id="createQuarterlyFiguresModalLabel"><i class="bi bi-calculator me-1"></i>
+                        Quarterly Figures</h6>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
                         aria-label="Close"></button>
                 </div>
@@ -312,10 +313,10 @@
 
                 <div class="modal-footer">
                     <button type="button" class="btn btn-outline-light btn-sm" data-bs-dismiss="modal">
-                        <i class="fas fa-times me-1"></i> Cancel
+                        Cancel
                     </button>
                     <button type="submit" id="debit-save-btn" class="btn btn-primary btn-sm">
-                        <i class="fas fa-check me-1"></i> Quarterly Figures
+                        <i class="bi bi-check me-1"></i> Submit Quarterly Figures
                     </button>
                 </div>
             </form>

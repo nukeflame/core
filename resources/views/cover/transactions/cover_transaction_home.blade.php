@@ -294,11 +294,16 @@
                                                     if (
                                                         in_array($entryType, [
                                                             'quarterly-figures',
-                                                            'portfolio',
                                                             'adjust-commission',
                                                         ])
                                                     ) {
                                                         $viewUrl = route('cover.transactions.quarterly-figures', [
+                                                            'coverNo' => $cover->cover_no,
+                                                            'refNo' => $account->reference,
+                                                            'endorsementNo' => $account->endorsement_no,
+                                                        ]);
+                                                    } elseif ($entryType === 'portfolio') {
+                                                        $viewUrl = route('cover.transactions.portfolio', [
                                                             'coverNo' => $cover->cover_no,
                                                             'refNo' => $account->reference,
                                                             'endorsementNo' => $account->endorsement_no,
@@ -311,7 +316,7 @@
                                                         ]);
                                                     }
                                                     $entryTypeBadgeClass = match ($entryType) {
-                                                        'quarterly-figures' => 'bg-primary',
+                                                        'quarterly-figures' => 'bg-light text-dark',
                                                         'profit-commission' => 'bg-success',
                                                         'portfolio' => 'bg-dark',
                                                         'adjust-commission' => 'bg-warning text-dark',
@@ -470,19 +475,47 @@
                 order: [
                     [10, 'desc']
                 ],
-                columns: [
-                    { name: 'row_no', orderable: false, searchable: false },
-                    { name: 'reference' },
-                    { name: 'treaty' },
-                    { name: 'type' },
-                    { name: 'title' },
-                    { name: 'endorsement' },
-                    { name: 'posting_quarter' },
-                    { name: 'currency' },
-                    { name: 'amount', className: 'amount-cell' },
-                    { name: 'period' },
-                    { name: 'created_at' },
-                    { name: 'actions', orderable: false, searchable: false }
+                columns: [{
+                        name: 'row_no',
+                        orderable: false,
+                        searchable: false
+                    },
+                    {
+                        name: 'reference'
+                    },
+                    {
+                        name: 'treaty'
+                    },
+                    {
+                        name: 'type'
+                    },
+                    {
+                        name: 'title'
+                    },
+                    {
+                        name: 'endorsement'
+                    },
+                    {
+                        name: 'posting_quarter'
+                    },
+                    {
+                        name: 'currency'
+                    },
+                    {
+                        name: 'amount',
+                        className: 'amount-cell'
+                    },
+                    {
+                        name: 'period'
+                    },
+                    {
+                        name: 'created_at'
+                    },
+                    {
+                        name: 'actions',
+                        orderable: false,
+                        searchable: false
+                    }
                 ],
                 language: {
                     processing: '<div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div>',
@@ -503,7 +536,9 @@
                         return parseFloat(String(text).replace(/[^0-9.-]/g, '')) || 0;
                     };
 
-                    var pageTotal = api.column(8, { page: 'current' }).data().reduce(function(sum, value) {
+                    var pageTotal = api.column(8, {
+                        page: 'current'
+                    }).data().reduce(function(sum, value) {
                         return sum + parseAmount(value);
                     }, 0);
 
@@ -539,7 +574,7 @@
                 }
             });
 
-                $(document).on('click', '.js-copy-reference', function() {
+            $(document).on('click', '.js-copy-reference', function() {
                 var reference = $(this).data('reference');
                 if (!reference) return;
 
@@ -564,70 +599,72 @@
                 }
 
                 notify('Clipboard API not available on this browser', 'warning');
-                });
+            });
 
-                $(document).on('click', '.js-delete-transaction', function(e) {
-                    e.preventDefault();
-                    e.stopPropagation();
+            $(document).on('click', '.js-delete-transaction', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
 
-                    var $btn = $(this);
-                    var deleteUrl = $btn.data('delete-url');
-                    var endorsementNo = $btn.data('endorsement-no');
-                    var entryType = $btn.data('entry-type');
-                    var $row = $btn.closest('tr');
+                var $btn = $(this);
+                var deleteUrl = $btn.data('delete-url');
+                var endorsementNo = $btn.data('endorsement-no');
+                var entryType = $btn.data('entry-type');
+                var $row = $btn.closest('tr');
 
-                    var doDelete = function() {
-                        $.ajax({
-                                url: deleteUrl,
-                                method: 'DELETE',
-                                headers: {
-                                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                                    'Accept': 'application/json'
-                                },
-                                data: {
-                                    endorsement_no: endorsementNo,
-                                    entry_type_descr: entryType
-                                }
-                            })
-                            .done(function(response) {
-                                if (table) {
-                                    table.row($row).remove().draw(false);
-                                } else {
-                                    $row.remove();
-                                }
+                var doDelete = function() {
+                    $.ajax({
+                            url: deleteUrl,
+                            method: 'DELETE',
+                            headers: {
+                                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                                'Accept': 'application/json'
+                            },
+                            data: {
+                                endorsement_no: endorsementNo,
+                                entry_type_descr: entryType
+                            }
+                        })
+                        .done(function(response) {
+                            if (table) {
+                                table.row($row).remove().draw(false);
+                            } else {
+                                $row.remove();
+                            }
 
-                                if (typeof toastr !== 'undefined') {
-                                    toastr.success(response.message || 'Transaction deleted successfully');
-                                }
-                            })
-                            .fail(function(xhr) {
-                                var message = xhr.responseJSON?.message || 'Failed to delete transaction';
-                                if (typeof toastr !== 'undefined') {
-                                    toastr.error(message);
-                                } else {
-                                    alert(message);
-                                }
-                            });
-                    };
-
-                    if (typeof Swal !== 'undefined') {
-                        Swal.fire({
-                            title: 'Delete transaction?',
-                            text: 'This action will remove the selected transaction record.',
-                            icon: 'warning',
-                            showCancelButton: true,
-                            confirmButtonColor: '#dc3545',
-                            confirmButtonText: 'Yes, delete it',
-                            cancelButtonText: 'Cancel'
-                        }).then(function(result) {
-                            if (result.isConfirmed) {
-                                doDelete();
+                            if (typeof toastr !== 'undefined') {
+                                toastr.success(response.message ||
+                                    'Transaction deleted successfully');
+                            }
+                        })
+                        .fail(function(xhr) {
+                            var message = xhr.responseJSON?.message ||
+                                'Failed to delete transaction';
+                            if (typeof toastr !== 'undefined') {
+                                toastr.error(message);
+                            } else {
+                                alert(message);
                             }
                         });
-                    } else if (confirm('Delete this transaction?')) {
-                        doDelete();
-                    }
-                });
+                };
+
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        title: 'Delete transaction?',
+                        text: 'This action will remove the selected transaction record.',
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonColor: '#dc3545',
+                        confirmButtonText: 'Yes, delete it',
+                        cancelButtonText: 'Cancel'
+                    }).then(function(result) {
+                        if (result.isConfirmed) {
+                            doDelete();
+                        }
+                    });
+                } else if (confirm('Delete this transaction?')) {
+                    doDelete();
+                }
             });
-        </script>
-    @endpush
+        });
+    </script>
+@endpush

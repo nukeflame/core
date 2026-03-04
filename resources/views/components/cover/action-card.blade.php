@@ -24,6 +24,8 @@
         'A' => ['badge' => 'bg-success', 'text' => 'Approved'],
     ];
 
+    logger($cover->verified);
+
     $currentStatus = $statusConfig[$cover->verified] ?? ['badge' => 'bg-secondary', 'text' => 'Unknown'];
 @endphp
 

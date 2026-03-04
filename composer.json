@@ -20,6 +20,7 @@
         "laravel/passport": "^11.0",
         "laravel/reverb": "^1.4",
         "laravel/sanctum": "^3.3",
+        "nukeflame/webmatics": "1.0.0",
         "laravel/tinker": "^2.8",
         "league/flysystem-aws-s3-v3": "^3.0",
         "league/oauth2-client": "^2.8",
@@ -38,7 +39,6 @@
         "thenetworg/oauth2-azure": "^2.2",
         "webklex/laravel-imap": "^6.2",
         "yajra/laravel-datatables-oracle": "^10.11",
-        "nukeflame/webmatics": "1.0.0",
         "nukeflame/core": "1.0.0"
     },
     "require-dev": {

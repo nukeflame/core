@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "2260c44362f641c53a90340ecd337045",
+    "content-hash": "8bbc66eef548a89af0385abdc6307332",
     "packages": [
         {
             "name": "aws/aws-crt-php",
@@ -5695,44 +5695,17 @@
         },
         {
             "name": "nukeflame/core",
-            "version": "dev-main",
+            "version": "v1.0.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/nukeflame/core.git",
+                "reference": "3e047c75d4d2dd1f666056b5ff8660dc24641aa2"
+            },
             "dist": {
-                "type": "path",
-                "url": "packages/nukeflame/core",
-                "reference": "4266f3ec47da0fedf730e4f3c6abe091b18c2e28"
-            },
-            "require": {
-                "illuminate/database": "^10.0|^11.0|^12.0",
-                "illuminate/http": "^10.0|^11.0|^12.0",
-                "illuminate/support": "^10.0|^11.0|^12.0",
-                "php": "^8.1"
-            },
-            "type": "library",
-            "autoload": {
-                "psr-4": {
-                    "Nukeflame\\Core\\": "src/"
-                }
-            },
-            "license": [
-                "MIT"
-            ],
-            "authors": [
-                {
-                    "name": "nukeflame"
-                }
-            ],
-            "description": "Core business services for Nukeflame packages",
-            "transport-options": {
-                "relative": true
-            }
-        },
-        {
-            "name": "nukeflame/webmatics",
-            "version": "dev-main",
-            "dist": {
-                "type": "path",
-                "url": "packages/nukeflame/webmatics",
-                "reference": "60c5fd8d02bc08dc1b1ce273314f13a2f3a5f30b"
+                "type": "zip",
+                "url": "https://api.github.com/repos/nukeflame/core/zipball/3e047c75d4d2dd1f666056b5ff8660dc24641aa2",
+                "reference": "3e047c75d4d2dd1f666056b5ff8660dc24641aa2",
+                "shasum": ""
             },
             "require": {
                 "illuminate/support": "^10.0|^11.0|^12.0",
@@ -5745,20 +5718,58 @@
             "extra": {
                 "laravel": {
                     "providers": [
-                        "Nukeflame\\Webmatics\\AnalyzerServiceProvider"
+                        "Nukeflame\\Core\\ReCoreServiceProvider"
                     ]
                 }
             },
             "autoload": {
                 "psr-4": {
+                    "Nukeflame\\Core\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "nukeflame"
+                }
+            ],
+            "description": "Core business services for reinsurance packages",
+            "support": {
+                "issues": "https://github.com/nukeflame/core/issues",
+                "source": "https://github.com/nukeflame/core/tree/v1.0.0"
+            },
+            "time": "2026-03-04T09:47:03+00:00"
+        },
+        {
+            "name": "nukeflame/webmatics",
+            "version": "v1.0.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/nukeflame/webmatics.git",
+                "reference": "15bdca3387236e99d66ad5dedd9133a7dd2e97ff"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/nukeflame/webmatics/zipball/15bdca3387236e99d66ad5dedd9133a7dd2e97ff",
+                "reference": "15bdca3387236e99d66ad5dedd9133a7dd2e97ff",
+                "shasum": ""
+            },
+            "require": {
+                "php": "^8.1"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^11.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
                     "Nukeflame\\Webmatics\\": "src/"
                 }
             },
-            "autoload-dev": {
-                "psr-4": {
-                    "Nukeflame\\Webmatics\\Tests\\": "tests/"
-                }
-            },
+            "notification-url": "https://packagist.org/downloads/",
             "license": [
                 "MIT"
             ],
@@ -5768,9 +5779,11 @@
                 }
             ],
             "description": "Web analyzer and optimizer",
-            "transport-options": {
-                "relative": true
-            }
+            "support": {
+                "issues": "https://github.com/nukeflame/webmatics/issues",
+                "source": "https://github.com/nukeflame/webmatics/tree/v1.0.0"
+            },
+            "time": "2026-03-03T07:43:19+00:00"
         },
         {
             "name": "nunomaduro/termwind",
@@ -14617,10 +14630,7 @@
     ],
     "aliases": [],
     "minimum-stability": "stable",
-    "stability-flags": {
-        "nukeflame/core": 20,
-        "nukeflame/webmatics": 20
-    },
+    "stability-flags": {},
     "prefer-stable": true,
     "prefer-lowest": false,
     "platform": {

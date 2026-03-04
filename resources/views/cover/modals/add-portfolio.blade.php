@@ -209,7 +209,7 @@
                     <button type="button" class="btn btn-outline-light btn-sm" data-bs-dismiss="modal">
                         Close
                     </button>
-                    <button type="submit" id="debit-save-btn" class="btn btn-primary btn-sm">
+                    <button type="submit" id="portfolio-save-btn" class="btn btn-primary btn-sm">
                         <i class="bi bi-check me-1"></i> Submit Portfolio
                     </button>
                 </div>
@@ -232,6 +232,7 @@
 
             const modalId = '#addPortfolioModal';
             const formId = '#addPortfolioForm';
+            const $modal = $(modalId);
             const $form = $(formId);
             if (!$form.length) return;
 
@@ -245,7 +246,7 @@
             const $premiumBase = $('#port_premium_amt');
             const $lossBase = $('#port_outstanding_loss_amt');
             const $legacyAmount = $('#port_amt');
-            const $saveBtn = $('#debit-save-btn');
+            const $saveBtn = $('#portfolio-save-btn');
 
             const $premiumTransfer = $('#port_premium_transfer_amt');
             const $lossTransfer = $('#port_loss_transfer_amt');
@@ -380,6 +381,39 @@
                     saveBtnDefaultHtml);
             }
 
+            function resetPortfolioForm() {
+                if ($form.length && $form[0]) {
+                    $form[0].reset();
+                }
+
+                clearServerErrors();
+
+                if ($form.data('validator')) {
+                    $form.validate().resetForm();
+                }
+
+                $form.find('.is-invalid, .is-valid').removeClass('is-invalid is-valid');
+
+                $form.find('[data-default]').each(function() {
+                    const $field = $(this);
+                    const defaultValue = $field.data('default');
+                    if (defaultValue !== undefined) {
+                        $field.val(defaultValue);
+                    }
+                });
+
+                syncAmountInput($premiumBase);
+                syncAmountInput($lossBase);
+                compute();
+                resetDependentDropdowns();
+
+                if ($('#comments-count').length) {
+                    $('#comments-count').text(0);
+                }
+
+                $form.find('select').trigger('change');
+            }
+
             function submitPortfolioAjax() {
                 clearServerErrors();
                 setSavingState(true);
@@ -398,11 +432,14 @@
                         'Accept': 'application/json'
                     },
                     success: function(response) {
-                        console.log(response)
-                        // const successMessage = response && response.message ? response.message :
-                        //     'Portfolio saved successfully.';
-                        // notify(successMessage, 'success');
-                        // window.location.reload();
+                        const successMessage = response && response.message ? response.message :
+                            'Portfolio saved successfully.';
+                        notify(successMessage, 'success');
+                        resetPortfolioForm();
+                        const modalInstance = bootstrap.Modal.getInstance($modal[0]);
+                        if (modalInstance) {
+                            modalInstance.hide();
+                        }
                     },
                     error: function(xhr) {
                         if (xhr.status === 422) {
@@ -675,7 +712,7 @@
                 });
             }
 
-            $(modalId).on('shown.bs.modal', function() {
+            $modal.on('shown.bs.modal', function() {
                 $('select', this).each(function() {
                     if ($.fn.select2 && !$(this).hasClass('select2-hidden-accessible')) {
                         $(this).select2({
@@ -684,6 +721,10 @@
                         });
                     }
                 });
+            });
+
+            $modal.on('hidden.bs.modal', function() {
+                resetPortfolioForm();
             });
 
             $portfolioType.on('change', function() {
