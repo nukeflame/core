@@ -10,19 +10,19 @@ class ReCoreServiceProvider extends ServiceProvider
     {
         $this->app->singleton(ReCore::class, fn() => new ReCore());
 
-        $configFile = __DIR__ . '/../config/webmatics.php';
+        $configFile = __DIR__ . '/../config/core.php';
         if (is_file($configFile)) {
-            $this->mergeConfigFrom($configFile, 'webmatics');
+            $this->mergeConfigFrom($configFile, 'core');
         }
     }
 
     public function boot(): void
     {
-        $configFile = __DIR__ . '/../config/webmatics.php';
+        $configFile = __DIR__ . '/../config/core.php';
         if (is_file($configFile)) {
             $this->publishes([
-                $configFile => config_path('webmatics.php'),
-            ], 'webmatics-config');
+                $configFile => config_path('core.php'),
+            ], 'core-config');
         }
 
         $migrationPath = __DIR__ . '/../database/migrations';
@@ -37,7 +37,7 @@ class ReCoreServiceProvider extends ServiceProvider
 
         $viewsPath = __DIR__ . '/../resources/views';
         if (is_dir($viewsPath)) {
-            $this->loadViewsFrom($viewsPath, 'webmatics');
+            $this->loadViewsFrom($viewsPath, 'core');
         }
     }
 }
