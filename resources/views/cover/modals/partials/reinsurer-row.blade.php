@@ -227,7 +227,7 @@
                                     Net of Tax
                                 </label>
                             </div>
-                            <div class="form-check form-check-lg custom-checkbox">
+                            {{-- <div class="form-check form-check-lg custom-checkbox">
                                 <input class="form-check-input reinsurer-calc-option" type="checkbox"
                                     name="treaty[{{ $treatyCounterValue }}][reinsurers][{{ $counterValue }}][net_withholding_tax]"
                                     id="net_withholding_tax-{{ $treatyCounterValue }}-{{ $counterValue }}"
@@ -237,7 +237,7 @@
                                     for="net_withholding_tax-{{ $treatyCounterValue }}-{{ $counterValue }}">
                                     Gross of Tax
                                 </label>
-                            </div>
+                            </div> --}}
                         </div>
                     </div>
                 </div>

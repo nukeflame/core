@@ -835,6 +835,7 @@
                                             <th scope="col">Comment</th>
                                             <th scope="col">Approver Comment</th>
                                             <th scope="col">Status</th>
+                                            <th scope="col">Approval Time</th>
                                             <th scope="col">Action</th>
                                         </tr>
                                     </thead>
@@ -2096,6 +2097,11 @@
                                 // render: function(data) {
                                 //     return Utils.getStatusBadge(data);
                                 // },
+                                defaultContent: '-'
+                            },
+                            {
+                                data: 'approval_time',
+                                name: 'approval_time',
                                 defaultContent: '-'
                             },
                             {

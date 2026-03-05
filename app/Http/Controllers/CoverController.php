@@ -1595,6 +1595,13 @@ class CoverController extends Controller
 
                 return $btn;
             })
+            ->addColumn('approval_time', function ($data) {
+                if (empty($data->approved_at)) {
+                    return '-';
+                }
+
+                return Carbon::parse($data->approved_at)->format('d M Y, H:i');
+            })
             ->addColumn('action', function ($data) use ($actionable, $coverApproved) {
                 $btn = '';
                 if ($actionable) {
@@ -1794,6 +1801,67 @@ class CoverController extends Controller
                 throw new Exception("Cover register not found for endorsement: {$validatedData['endorsement_no']}");
             }
 
+            if (in_array($entryTypeDescr, ['quarterly-figures', 'profit-commission'], true)) {
+                $previousEndorsementNo = (string) $cover->endorsement_no;
+                $typeOfBus = (string) ($validatedData['type_of_bus'] ?? $cover->type_of_bus);
+                $transType = $entryTypeDescr === 'profit-commission' ? 'PC' : 'QTR';
+                $endorsement = $this->coverRepository->generateEndorseNo($typeOfBus, $transType);
+                $newEndorsementNo = (string) ($endorsement->endorsement_no ?? $endorsement['endorsement_no'] ?? '');
+                $coverSerialNo = (string) ($endorsement->serial_no ?? $endorsement['serial_no'] ?? '');
+
+                if ($newEndorsementNo === '') {
+                    throw ValidationException::withMessages([
+                        'type_of_bus' => ['Unable to generate endorsement number.'],
+                    ]);
+                }
+
+                $baseCover = CoverRegister::where('cover_no', $cover->cover_no)
+                    ->whereIn('transaction_type', ['NEW', 'REN'])
+                    ->orderByDesc('dola')
+                    ->first();
+
+                $quarterName = '';
+                if ($entryTypeDescr === 'quarterly-figures') {
+                    $quarterName = match (strtoupper((string) $postingQuarter)) {
+                        'Q1' => 'FIRST QUARTER',
+                        'Q2' => 'SECOND QUARTER',
+                        'Q3' => 'THIRD QUARTER',
+                        'Q4' => 'FOURTH QUARTER',
+                        default => '',
+                    };
+                }
+
+                $newCover = $cover->replicate(['id']);
+                if ($coverSerialNo !== '') {
+                    $newCover->cover_serial_no = $coverSerialNo;
+                }
+                $newCover->endorsement_no = $newEndorsementNo;
+                $newCover->orig_endorsement_no = $baseCover?->endorsement_no ?: ($cover->orig_endorsement_no ?: $cover->endorsement_no);
+                $newCover->transaction_type = $transType;
+                $newCover->cover_title = $entryTypeDescr === 'profit-commission'
+                    ? 'PROFIT COMMISSION STATEMENT'
+                    : 'TREATY PROPORTIONAL ACCOUNT ' . trim($quarterName) . '-' . $postingYear;
+                $newCover->verified = 'A';
+                $newCover->status = 'A';
+                $newCover->commited = 'A';
+                $newCover->account_year = $this->_year;
+                $newCover->account_month = $this->_month;
+                $newCover->dola = Carbon::now();
+                $newCover->created_by = Auth::user()->user_name;
+                $newCover->updated_by = Auth::user()->user_name;
+                $newCover->save();
+
+                $this->replicateReinsurersForGeneratedEndorsement(
+                    $previousEndorsementNo,
+                    $newEndorsementNo,
+                    (string) $newCover->cover_no
+                );
+
+                $this->_endorsement_no = $newEndorsementNo;
+                $validatedData['endorsement_no'] = $newEndorsementNo;
+                $cover = $newCover;
+            }
+
             $debitData = $this->prepareDebitData($validatedData, $cover);
             $creditData = $this->prepareCreditData($validatedData, $cover);
 
@@ -1831,9 +1899,6 @@ class CoverController extends Controller
                     'endorsementNo' => $cover->endorsement_no,
                 ]);
             }
-
-            $cover->commited = 'Y';
-            $cover->save();
 
             DB::commit();
 
@@ -2040,6 +2105,56 @@ class CoverController extends Controller
         $debit->save();
     }
 
+    private function replicateReinsurersForGeneratedEndorsement(
+        string $sourceEndorsementNo,
+        string $targetEndorsementNo,
+        string $coverNo
+    ): void {
+        if ($sourceEndorsementNo === '' || $targetEndorsementNo === '' || $sourceEndorsementNo === $targetEndorsementNo) {
+            return;
+        }
+
+        $targetHasReinsurers = DB::table('coverripart')
+            ->where('endorsement_no', $targetEndorsementNo)
+            ->exists();
+
+        if ($targetHasReinsurers) {
+            return;
+        }
+
+        $sourceRows = DB::table('coverripart')
+            ->where('endorsement_no', $sourceEndorsementNo)
+            ->whereNull('deleted_at')
+            ->get();
+
+        if ($sourceRows->isEmpty()) {
+            return;
+        }
+
+        DB::transaction(function () use ($sourceRows, $targetEndorsementNo, $coverNo) {
+            // `coverripart_pkey` is enforced on `tran_no` in production, so each cloned row
+            // must be assigned a fresh transaction number before insert.
+            DB::statement('LOCK TABLE coverripart IN EXCLUSIVE MODE');
+
+            $now = Carbon::now();
+            $nextTranNo = (int) DB::table('coverripart')->max('tran_no');
+            $newRows = [];
+
+            foreach ($sourceRows as $row) {
+                $data = (array) $row;
+                $data['endorsement_no'] = $targetEndorsementNo;
+                $data['cover_no'] = $coverNo;
+                $data['deleted_at'] = null;
+                $data['updated_at'] = $now;
+                $data['created_at'] = $data['created_at'] ?? $now;
+                $data['tran_no'] = ++$nextTranNo;
+                $newRows[] = $data;
+            }
+
+            DB::table('coverripart')->insert($newRows);
+        });
+    }
+
     private function createCustomerAccount(array &$debitData, CoverRegister $coverRegister, $treatyDebit, $treatyCredit, $ref = ''): void
     {
         $isPortfolio = ($debitData['entry_type_descr'] ?? null) === 'portfolio';
@@ -2106,14 +2221,16 @@ class CoverController extends Controller
     private function generateDebitReference(array $debitData, CoverRegister $coverRegister, $ref = ''): string
     {
         $quarter = ! empty($debitData['postingQuarter']) ? $debitData['postingQuarter'] : $ref;
+        $entryTypeDescr = strtolower((string) ($debitData['entryTypeDescr'] ?? $debitData['entry_type_descr'] ?? ''));
 
         $year = $debitData['postingYear'] ?? $this->_year;
+        $entryPrefix = $entryTypeDescr === 'profit-commission' ? 'PC' : '';
         $prefix = $this->getDebitReferencePrefix($coverRegister->treaty_type);
         $classCode = $coverRegister->type_of_bus;
 
         $random = random_int(1000, 9999);
 
-        return strtoupper("{$quarter}{$prefix}{$year}{$classCode}{$random}");
+        return strtoupper("{$quarter}{$entryPrefix}{$prefix}{$year}{$classCode}{$random}");
     }
 
     private function getDebitReferencePrefix(?string $treatyType): string

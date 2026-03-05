@@ -352,7 +352,7 @@
                         Close
                     </button>
                     <button type="submit" id="debit-save-btn" class="btn btn-primary btn-sm">
-                        <i class="bi bi-check me-1"></i>Profit Comission
+                        <i class="bi bi-check me-1"></i>Submit Profit Comission
                     </button>
                 </div>
             </form>
@@ -2317,6 +2317,16 @@
                 handleSuccess: function(response) {
                     if (response.success) {
                         this.notify(response.message || 'Debit note generated successfully', 'success');
+                        const isProfitCommission = String(this.$el.form.find('input[name="entry_type_descr"]')
+                            .val() || '').toLowerCase() === 'profit-commission';
+
+                        if (isProfitCommission) {
+                            this.resetForm();
+                            this.$el.modal.modal('hide');
+                            this.refreshParent();
+                            return;
+                        }
+
                         if (response.redirect_url || response.redirectUrl) {
                             const url = response.redirect_url || response.redirectUrl;
                             setTimeout(function() {
@@ -2413,7 +2423,7 @@
                     } else {
                         $btn.prop('disabled', false)
                             .html($btn.data('original-html') ||
-                                '<i class="fas fa-check me-1"></i> Submit Profit Comission');
+                                '<i class="bi bi-check me-1"></i> Submit Profit Comission');
                     }
                 },
 

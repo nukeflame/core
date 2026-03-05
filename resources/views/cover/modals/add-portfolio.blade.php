@@ -440,6 +440,7 @@
                         if (modalInstance) {
                             modalInstance.hide();
                         }
+                        refreshParent();
                     },
                     error: function(xhr) {
                         if (xhr.status === 422) {
@@ -460,6 +461,16 @@
                         syncAmountInput($lossBase);
                     }
                 });
+            }
+
+            function refreshParent() {
+                if (typeof window.refreshData === 'function') {
+                    window.refreshData();
+                } else if (typeof window.refreshCoverData === 'function') {
+                    window.refreshCoverData();
+                } else {
+                    window.location.reload();
+                }
             }
 
             function initValidation() {

@@ -127,6 +127,28 @@ class CoverTransactionController extends Controller
 
                 // Hard delete customer transaction records themselves.
                 $deletedTransactions = $baseQuery->delete();
+                $deletedEndorsement = 0;
+
+                if ($endorsementNoTx !== '') {
+                    $hasRemainingTransactions = DB::table('customeracc_det')
+                        ->where('endorsement_no', $endorsementNoTx)
+                        ->exists();
+
+                    if (! $hasRemainingTransactions) {
+                        $endorsementRecord = DB::table('cover_register')
+                            ->where('endorsement_no', $endorsementNoTx)
+                            ->first(['id', 'transaction_type']);
+
+                        $isGeneratedTransactionEndorsement = $endorsementRecord
+                            && in_array(strtoupper((string) $endorsementRecord->transaction_type), ['QTR', 'POT'], true);
+
+                        if ($isGeneratedTransactionEndorsement) {
+                            $deletedEndorsement = DB::table('cover_register')
+                                ->where('id', $endorsementRecord->id)
+                                ->delete();
+                        }
+                    }
+                }
 
                 return [
                     'transactions' => $deletedTransactions,
@@ -135,6 +157,7 @@ class CoverTransactionController extends Controller
                     'credit_notes' => $deletedCreditNotes,
                     'credit_note_items' => $deletedCreditItems,
                     'documents' => $deletedDocuments,
+                    'cover_endorsement' => $deletedEndorsement,
                     'skipped_periods' => 0,
                 ];
             });
@@ -185,6 +208,17 @@ class CoverTransactionController extends Controller
             ->paginate(25)
             ->withQueryString();
 
+        $accountEndorsements = collect($accounts->items())
+            ->pluck('endorsement_no')
+            ->filter()
+            ->unique()
+            ->values();
+
+        $coverTitlesByEndorsement = $accountEndorsements->isEmpty()
+            ? collect()
+            : CoverRegister::whereIn('endorsement_no', $accountEndorsements->all())
+                ->pluck('cover_title', 'endorsement_no');
+
         $statsQuery = CustomerAccDet::where('cover_no', $coverNo);
 
         $stats = [
@@ -227,6 +261,7 @@ class CoverTransactionController extends Controller
             'nextInstallment' => $nextInstallment,
             'installmentAmount' => $installmentAmount,
             'accounts' => $accounts,
+            'coverTitlesByEndorsement' => $coverTitlesByEndorsement,
             'stats' => $stats,
             'itemCodes' => $itemCodes,
             'classGroups' => $classGroups,

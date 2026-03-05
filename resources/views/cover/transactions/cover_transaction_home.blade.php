@@ -112,8 +112,15 @@
 @endpush
 
 @section('content')
+    @php
+        $backEndorsementNo = $cover->orig_endorsement_no ?: $cover->endorsement_no;
+        $backToCoverUrl = route('cover.CoverHome', ['endorsement_no' => $backEndorsementNo]) . '#reinsurers-tab';
+    @endphp
     <div class="d-md-flex d-block align-items-center justify-content-between my-4 page-header-breadcrumb">
-        <h1 class="page-title fw-semibold fs-18 mb-0">Treaty Transaction Details</h1>
+        <div>
+            <h1 class="page-title fw-semibold fs-18 mb-0">Treaty Transactions</h1>
+            <p class="text-muted mb-0 fs-12">View and manage transaction activity for this treaty cover.</p>
+        </div>
         <div class="ms-md-1 ms-0">
             <nav>
                 <ol class="breadcrumb mb-0">
@@ -129,7 +136,10 @@
 
     <div class="row row-cols-12 mx-0 mb-2">
         @if ($actionable)
-            <x-cover.action-card :isCoverStatus="false" :cover="$cover" :endorsementNarration="$endorsementNarration" :isTransaction="$isTransaction" />
+            <x-cover.action-card :isCoverStatus="false" :cover="$cover" :endorsementNarration="$endorsementNarration" :isTransaction="$isTransaction" :transactionsUrl="route('cover.transactions.index', ['coverNo' => $cover->cover_no])"
+                :backToCoverUrl="route('cover.CoverHome', [
+                    'endorsement_no' => $cover->orig_endorsement_no ?: $cover->endorsement_no,
+                ]) . '#reinsurers-tab'" />
         @endif
     </div>
 
@@ -292,10 +302,7 @@
                                                     $entryType = $account->entry_type_descr ?? '';
                                                     $viewUrl = '';
                                                     if (
-                                                        in_array($entryType, [
-                                                            'quarterly-figures',
-                                                            'adjust-commission',
-                                                        ])
+                                                        in_array($entryType, ['quarterly-figures', 'adjust-commission'])
                                                     ) {
                                                         $viewUrl = route('cover.transactions.quarterly-figures', [
                                                             'coverNo' => $cover->cover_no,
@@ -322,7 +329,13 @@
                                                         'adjust-commission' => 'bg-warning text-dark',
                                                         default => 'bg-light text-dark',
                                                     };
-                                                    $entryTypeLabel = Str::title(str_replace('-', ' ', $entryType));
+                                                    $rowCoverTitle = (string) ($coverTitlesByEndorsement[$account->endorsement_no] ?? $cover->cover_title ?? '');
+                                                    $entryTypeLabel = match ($entryType) {
+                                                        'portfolio' => Str::contains(Str::upper($rowCoverTitle), 'PORTFOLIO OUT')
+                                                            ? 'Portfolio Out'
+                                                            : 'Portfolio In',
+                                                        default => Str::title(str_replace('-', ' ', $entryType)),
+                                                    };
                                                 @endphp
                                                 <tr class="{{ $viewUrl ? 'account-row-clickable' : '' }}"
                                                     @if ($viewUrl) data-view-url="{{ $viewUrl }}" @endif>
@@ -344,7 +357,7 @@
                                                     </td>
                                                     <td>
                                                         <span class="text-dark capitalize">
-                                                            {{ Str::title($cover->cover_title) }}
+                                                            {{ Str::title($rowCoverTitle) }}
                                                         </span>
                                                     </td>
                                                     <td>
@@ -475,46 +488,14 @@
                 order: [
                     [10, 'desc']
                 ],
-                columns: [{
-                        name: 'row_no',
+                columnDefs: [{
+                        targets: [0, 11],
                         orderable: false,
                         searchable: false
                     },
                     {
-                        name: 'reference'
-                    },
-                    {
-                        name: 'treaty'
-                    },
-                    {
-                        name: 'type'
-                    },
-                    {
-                        name: 'title'
-                    },
-                    {
-                        name: 'endorsement'
-                    },
-                    {
-                        name: 'posting_quarter'
-                    },
-                    {
-                        name: 'currency'
-                    },
-                    {
-                        name: 'amount',
+                        targets: [8],
                         className: 'amount-cell'
-                    },
-                    {
-                        name: 'period'
-                    },
-                    {
-                        name: 'created_at'
-                    },
-                    {
-                        name: 'actions',
-                        orderable: false,
-                        searchable: false
                     }
                 ],
                 language: {
@@ -625,16 +606,14 @@
                             }
                         })
                         .done(function(response) {
-                            if (table) {
-                                table.row($row).remove().draw(false);
-                            } else {
-                                $row.remove();
-                            }
-
                             if (typeof toastr !== 'undefined') {
                                 toastr.success(response.message ||
                                     'Transaction deleted successfully');
                             }
+
+                            setTimeout(function() {
+                                window.location.reload();
+                            }, 300);
                         })
                         .fail(function(xhr) {
                             var message = xhr.responseJSON?.message ||
@@ -650,7 +629,7 @@
                 if (typeof Swal !== 'undefined') {
                     Swal.fire({
                         title: 'Delete transaction?',
-                        text: 'This action will remove the selected transaction record.',
+                        text: 'This action will remove the selected transaction record and related generated endorsement.',
                         icon: 'warning',
                         showCancelButton: true,
                         confirmButtonColor: '#dc3545',

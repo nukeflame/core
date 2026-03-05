@@ -17,7 +17,9 @@
 
         <div class="row row-cols-12 mx-0">
             @if ($actionable)
-                <x-cover.action-card :cover="$coverReg" :endorsementNarration="$endorsementNarration" :pendingApproverId="$pendingApproverId ?? null" />
+                <x-cover.action-card :cover="$coverReg" :endorsementNarration="$endorsementNarration" :pendingApproverId="$pendingApproverId ?? null"
+                    :transactionsUrl="route('cover.transactions.index', ['coverNo' => $coverReg->cover_no])"
+                    :backToCoverUrl="route('cover.CoverHome', ['endorsement_no' => ($coverReg->orig_endorsement_no ?: $coverReg->endorsement_no)]) . '#reinsurers-tab'" />
             @endif
 
             <x-cover.summary-card :cover="$coverReg" :customer="$customer" :typeOfBus="$type_of_bus" :summaryData="$summaryData"

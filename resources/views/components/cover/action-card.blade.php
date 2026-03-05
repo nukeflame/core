@@ -4,6 +4,8 @@
     'pendingApproverId' => null,
     'isTransaction' => false,
     'isCoverStatus' => true,
+    'transactionsUrl' => null,
+    'backToCoverUrl' => null,
 ])
 
 @php
@@ -14,8 +16,8 @@
 
     $isFacultative = in_array($cover->type_of_bus, ['FPR', 'FNP']);
     $isTreaty = in_array($cover->type_of_bus, ['TNP', 'TPR']);
-    $isNewOrRenewal = in_array($cover->transaction_type, ['NEW', 'REN']);
-    $isNewRenewalOrExtension = in_array($cover->transaction_type, ['NEW', 'REN', 'EXT']);
+    $isNewOrRenewal = in_array($cover->transaction_type, ['NEW', 'REN', 'POT']);
+    $isNewRenewalOrExtension = in_array($cover->transaction_type, ['NEW', 'REN', 'EXT', 'POT']);
 
     $statusConfig = [
         null => ['badge' => 'bg-danger', 'text' => 'Pending'],
@@ -23,8 +25,6 @@
         'P' => ['badge' => 'bg-warning', 'text' => 'Awaiting Verification'],
         'A' => ['badge' => 'bg-success', 'text' => 'Approved'],
     ];
-
-    logger($cover->verified);
 
     $currentStatus = $statusConfig[$cover->verified] ?? ['badge' => 'bg-secondary', 'text' => 'Unknown'];
 @endphp

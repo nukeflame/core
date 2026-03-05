@@ -13,9 +13,10 @@
                     id="treatyClasses" />
 
                 <div class="modal-header">
-                    <h5 class="modal-title" id="staticDebitLabel">Generate Debit Note</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
-                        aria-label="Close"></button>
+                    <h6 class="modal-title" id="staticDebitLabel"><i class="bi bi-calculator me-1"></i> Generate Debit
+                        Note</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                            aria-label="Close"></button>
                 </div>
 
                 <div class="modal-body">
@@ -358,10 +359,10 @@
 
                 <div class="modal-footer">
                     <button type="button" class="btn btn-outline-light btn-sm" data-bs-dismiss="modal">
-                        <i class="fas fa-times me-1"></i> Cancel
+                        Cancel
                     </button>
                     <button type="submit" id="debit-save-btn" class="btn btn-primary btn-sm">
-                        <i class="fas fa-check me-1"></i> Generate Debit Note
+                        <i class="bi bi-check me-1"></i> Generate Debit Note
                     </button>
                 </div>
             </form>

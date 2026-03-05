@@ -639,7 +639,7 @@
                             data-bs-target="#debit-items-tab" type="button" role="tab" aria-controls="debit-items-tab"
                             aria-selected="true">
                             <i class="bx bx-table me-1 align-middle"></i>Debit Items
-                            <span class="badge bg-primary ms-1" id="debitItemsCount">{{ $totalDebitItems }}</span>
+                            {{-- <span class="badge bg-primary ms-1" id="debitItemsCount">{{ $totalDebitItems }}</span> --}}
                         </button>
 
                         {{-- <button class="nav-link" id="nav-credit-items-tab" data-bs-toggle="tab"
@@ -649,17 +649,18 @@
                             <span class="badge bg-danger ms-1" id="creditItemsCount">0</span>
                         </button> --}}
 
-                        <button class="nav-link" id="nav-reinsurers-tab" data-bs-toggle="tab"
-                            data-bs-target="#reinsurers-tab" type="button" role="tab" aria-controls="reinsurers-tab"
-                            aria-selected="false">
-                            <i class="ri-building-2-line me-1"></i> Reinsurers
-                            <span class="badge bg-info ms-1" id="reinsurersCount">{{ $totalReinsurers }}</span>
-                        </button>
-
                         <button class="nav-link" id="nav-cedant-tab" data-bs-toggle="tab" data-bs-target="#cedant-tab"
                             type="button" role="tab" aria-controls="cedant-tab" aria-selected="false">
                             <i class="bx bx-briefcase me-1"></i> Cedant
                         </button>
+
+                        <button class="nav-link" id="nav-reinsurers-tab" data-bs-toggle="tab"
+                            data-bs-target="#reinsurers-tab" type="button" role="tab" aria-controls="reinsurers-tab"
+                            aria-selected="false">
+                            <i class="ri-building-2-line me-1"></i> Reinsurers
+                            {{-- <span class="badge bg-info ms-1" id="reinsurersCount">{{ $totalReinsurers }}</span> --}}
+                        </button>
+
 
                         <button class="nav-link" id="nav-approvals-tab" data-bs-toggle="tab" data-bs-target="#approvals-tab"
                             type="button" role="tab" aria-controls="approvals-tab" aria-selected="false">
@@ -670,7 +671,7 @@
                         <button class="nav-link" id="nav-docs-tab" data-bs-toggle="tab" data-bs-target="#docs-tab"
                             type="button" role="tab" aria-controls="docs-tab" aria-selected="false">
                             <i class="ri-printer-line me-1 align-middle"></i>Print-outs
-                            <span class="badge bg-success ms-1" id="documentsCount">{{ $totalDocuments }}</span>
+                            {{-- <span class="badge bg-success ms-1" id="documentsCount">{{ $totalDocuments }}</span> --}}
                         </button>
                     </div>
                 </nav>
@@ -791,6 +792,7 @@
                                             <th scope="col">Comment</th>
                                             <th scope="col">Approver Comment</th>
                                             <th scope="col">Status</th>
+                                            <th scope="col">Approval Time</th>
                                             <th scope="col">Action</th>
                                         </tr>
                                     </thead>
@@ -2066,6 +2068,11 @@
                                 // render: function(data) {
                                 //     return Utils.getStatusBadge(data);
                                 // },
+                                defaultContent: '-'
+                            },
+                            {
+                                data: 'approval_time',
+                                name: 'approval_time',
                                 defaultContent: '-'
                             },
                             {

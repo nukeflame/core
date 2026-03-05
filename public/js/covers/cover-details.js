@@ -2408,6 +2408,7 @@
                             { data: "comment" },
                             { data: "approver_comment" },
                             { data: "status" },
+                            { data: "approval_time" },
                             {
                                 data: "action",
                                 searchable: false,
