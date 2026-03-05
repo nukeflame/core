@@ -649,16 +649,16 @@
                             <span class="badge bg-danger ms-1" id="creditItemsCount">0</span>
                         </button> --}}
 
+                        <button class="nav-link" id="nav-cedant-tab" data-bs-toggle="tab" data-bs-target="#cedant-tab"
+                            type="button" role="tab" aria-controls="cedant-tab" aria-selected="false">
+                            <i class="bx bx-briefcase me-1"></i> Cedant
+                        </button>
+
                         <button class="nav-link" id="nav-reinsurers-tab" data-bs-toggle="tab"
                             data-bs-target="#reinsurers-tab" type="button" role="tab" aria-controls="reinsurers-tab"
                             aria-selected="false">
                             <i class="ri-building-2-line me-1"></i> Reinsurers
-                            <span class="badge bg-info ms-1" id="reinsurersCount">{{ $totalReinsurers }}</span>
-                        </button>
-
-                        <button class="nav-link" id="nav-cedant-tab" data-bs-toggle="tab" data-bs-target="#cedant-tab"
-                            type="button" role="tab" aria-controls="cedant-tab" aria-selected="false">
-                            <i class="bx bx-briefcase me-1"></i> Cedant
+                            {{-- <span class="badge bg-info ms-1" id="reinsurersCount">{{ $totalReinsurers }}</span> --}}
                         </button>
 
                         <button class="nav-link" id="nav-approvals-tab" data-bs-toggle="tab" data-bs-target="#approvals-tab"
@@ -670,7 +670,7 @@
                         <button class="nav-link" id="nav-docs-tab" data-bs-toggle="tab" data-bs-target="#docs-tab"
                             type="button" role="tab" aria-controls="docs-tab" aria-selected="false">
                             <i class="ri-printer-line me-1 align-middle"></i>Print-outs
-                            <span class="badge bg-success ms-1" id="documentsCount">{{ $totalDocuments }}</span>
+                            {{-- <span class="badge bg-success ms-1" id="documentsCount">{{ $totalDocuments }}</span> --}}
                         </button>
                     </div>
                 </nav>
