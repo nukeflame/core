@@ -74,7 +74,7 @@ use Symfony\Component\HttpFoundation\Response;
 use Throwable;
 use Yajra\DataTables\Facades\DataTables;
 use App\Services\DebitNoteService;
-use App\Services\StorePropPortfolioService;
+use Nukeflame\Core\Services\StorePropPortfolioService;
 
 
 class CoverController extends Controller
