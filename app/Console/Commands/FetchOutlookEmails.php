@@ -2,7 +2,7 @@
 
 namespace App\Console\Commands;
 
-use App\Services\OutlookService;
+use Nukeflame\Core\Services\OutlookService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;

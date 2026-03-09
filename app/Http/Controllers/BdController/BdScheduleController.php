@@ -17,7 +17,7 @@ use App\Models\ReinsClass;
 use App\Models\ScheduleHeader;
 use App\Models\SlipTemplate;
 use App\Models\Bd\StageDocument;
-use App\Services\S3AttachmentHandler;
+use Nukeflame\Core\Services\S3AttachmentHandler;
 use App\Models\TypeOfSumInsured;
 use Exception;
 use Illuminate\Http\Request;

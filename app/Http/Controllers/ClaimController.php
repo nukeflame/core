@@ -35,7 +35,7 @@ use App\Models\Company;
 use App\Models\CoverDebit;
 use Illuminate\Support\Facades\DB;
 use App\Models\SystemProcessAction;
-use App\Services\MailService;
+use Nukeflame\Core\Services\MailService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Session;

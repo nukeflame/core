@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Support\Facades\DB;
-use App\Services\OutlookService;
+use Nukeflame\Core\Services\OutlookService;
 
 class User extends Authenticatable
 {

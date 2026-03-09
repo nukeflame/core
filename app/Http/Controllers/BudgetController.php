@@ -11,7 +11,7 @@ use App\Models\Company;
 use App\Models\FiscalYear;
 use App\Models\PerformanceRecord;
 use App\Models\User;
-use App\Services\BudgetService;
+use Nukeflame\Core\Services\BudgetService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;

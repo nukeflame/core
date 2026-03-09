@@ -2,10 +2,10 @@
 
 namespace App\Jobs;
 
-// use App\Services\ClaimNotificationService;
+// use Nukeflame\Core\Services\ClaimNotificationService;
 
 use App\Models\ClaimNtfRegister;
-use App\Services\ClaimNotificationService;
+use Nukeflame\Core\Services\ClaimNotificationService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;

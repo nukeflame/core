@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Repositories\ProductionReportRepository;
-use App\Services\ReportGeneratorService;
+use Nukeflame\Core\Services\ReportGeneratorService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 

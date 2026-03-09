@@ -3,7 +3,7 @@
 namespace App\Jobs;
 
 use App\Models\User;
-use App\Services\OutlookService;
+use Nukeflame\Core\Services\OutlookService;
 use Exception;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -11,7 +11,7 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\DB;
-use App\Services\S3AttachmentHandler;
+use Nukeflame\Core\Services\S3AttachmentHandler;
 
 class SendOutlookEmailJob implements ShouldQueue
 {
@@ -27,18 +27,19 @@ class SendOutlookEmailJob implements ShouldQueue
     protected ?string $jobId;
     protected ?int $emailLogId;
     protected $emailRecordId;
-    protected $s3Handler;
+    protected ?S3AttachmentHandler $s3Handler = null;
 
     public function __construct(array $emailData, int $userId, ?string $jobId = null)
     {
         $this->emailData = $emailData;
         $this->userId = $userId;
         $this->jobId = $jobId;
-        $this->s3Handler = new S3AttachmentHandler();
     }
 
     public function handle(OutlookService $outlookService): void
     {
+        $this->s3Handler = app(S3AttachmentHandler::class);
+
         try {
             $user = User::findOrFail($this->userId);
             $payload = $this->prepareEmailPayload();
@@ -70,7 +71,7 @@ class SendOutlookEmailJob implements ShouldQueue
             // $this->updateEmailLog('failed', ['error' => $e->getMessage()]);
 
             if (!empty($this->emailData['tempFiles'])) {
-                $this->s3Handler->cleanupTempFiles($this->emailData['tempFiles']);
+                $this->s3Handler?->cleanupTempFiles($this->emailData['tempFiles']);
             }
 
             throw $e;

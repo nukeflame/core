@@ -19,7 +19,7 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 use Yajra\DataTables\Facades\DataTables;
-use App\Services\CustomerService;
+use Nukeflame\Core\Services\CustomerService;
 
 class CustomerController extends Controller
 {

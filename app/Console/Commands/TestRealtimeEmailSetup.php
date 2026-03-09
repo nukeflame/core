@@ -5,7 +5,7 @@ namespace App\Console\Commands;
 use App\Models\EmailSyncState;
 use App\Models\GraphSubscription;
 use App\Models\User;
-use App\Services\OutlookService;
+use Nukeflame\Core\Services\OutlookService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;

@@ -5,7 +5,7 @@ namespace App\Http\Controllers;
 use App\Jobs\SyncUserEmails;
 use App\Models\EmailSyncState;
 use App\Models\GraphSubscription;
-use App\Services\OutlookService;
+use Nukeflame\Core\Services\OutlookService;
 use Exception;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -18,11 +18,11 @@ use Illuminate\Support\Str;
 
 class OutlookOAuthController extends Controller
 {
-    private $outlookService;
+    private OutlookService $outlookService;
 
-    public function __construct()
+    public function __construct(OutlookService $outlookService)
     {
-        $this->outlookService = new OutlookService();
+        $this->outlookService = $outlookService;
     }
 
     public function callback(Request $request)

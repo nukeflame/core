@@ -5,7 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\CoverDebit;
 use App\Models\CoverRegister;
 use App\Models\Todo;
-use App\Services\DashboardService;
+use Nukeflame\Core\ReCore;
+use Nukeflame\Core\Services\DashboardService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 // use Nukeflame\Webmatics\Analyzer;
@@ -14,10 +15,12 @@ use Yajra\DataTables\Facades\DataTables;
 class DashboardController extends Controller
 {
     protected DashboardService $dashboardService;
+    protected ReCore $core;
 
-    public function __construct(DashboardService $dashboardService)
+    public function __construct(DashboardService $dashboardService, ReCore $core)
     {
         $this->dashboardService = $dashboardService;
+        $this->core = $core;
     }
 
     public function index(Request $request)
@@ -53,6 +56,7 @@ class DashboardController extends Controller
             'avgCommRate'        => $avgCommRate,
             'currentPeriod'      => $period,
             'currentYear'        => $year,
+            'core_licence'       => $this->core->licence(Auth::user()?->email ?? 'guest'),
         ]);
     }
 

@@ -48,7 +48,7 @@ use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Yajra\Datatables\Datatables;
 use App\Repositories\ProspectRepository;
-use App\Services\PipelineService;
+use Nukeflame\Core\Services\PipelineService;
 use Exception;
 
 class LeadsOnboardingController

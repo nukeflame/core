@@ -7,7 +7,7 @@ use App\Models\CoverType;
 use App\Models\HandoverApproval;
 use App\Models\PayMethod;
 use App\Repositories\CoverRepository;
-use App\Services\CoverService;
+use Nukeflame\Core\Services\CoverService;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;

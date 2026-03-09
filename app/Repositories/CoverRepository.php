@@ -50,7 +50,7 @@ use App\Models\ReinsClass;
 use App\Models\SlipTemplate;
 use App\Models\TreatyItemCode;
 use App\Models\TreatyType;
-use App\Services\SequenceService;
+use Nukeflame\Core\Services\SequenceService;
 use Illuminate\Validation\ValidationException;
 
 class CoverRepository extends BaseRepository

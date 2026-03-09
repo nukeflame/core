@@ -8,7 +8,7 @@ use App\Models\Customer;
 use App\Models\CustomerAccDet;
 use App\Models\DebitNote;
 use App\Models\PremiumPayTerm;
-use App\Services\S3AttachmentHandler;
+use Nukeflame\Core\Services\S3AttachmentHandler;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Exception;

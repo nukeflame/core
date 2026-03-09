@@ -70,8 +70,8 @@ use App\Exports\Bd\ReinsurersDeclinedExport;
 use App\Http\Requests\SendBDEmailRequest;
 use App\Jobs\GenerateBdCoverSlipJob;
 use App\Models\BdFacReinsurer;
-use App\Services\MailService;
-use App\Services\S3AttachmentHandler;
+use Nukeflame\Core\Services\MailService;
+use Nukeflame\Core\Services\S3AttachmentHandler;
 use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\QueryException;
@@ -83,12 +83,12 @@ use Illuminate\Support\Str;
 class PipelineController
 {
     protected $mailService;
-    protected $s3Handler;
+    protected S3AttachmentHandler $s3Handler;
 
-    public function __construct(MailService $mailService)
+    public function __construct(MailService $mailService, S3AttachmentHandler $s3Handler)
     {
         $this->mailService = $mailService;
-        $this->s3Handler = new S3AttachmentHandler();
+        $this->s3Handler = $s3Handler;
     }
 
     private function getS3Url(string $path): string

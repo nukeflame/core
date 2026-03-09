@@ -3,7 +3,7 @@
 namespace App\Jobs;
 
 use App\Models\Email;
-use App\Services\OutlookService;
+use Nukeflame\Core\Services\OutlookService;
 use Exception;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;

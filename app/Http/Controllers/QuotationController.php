@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Company;
 use App\Models\Customer;
-use App\Services\SequenceService;
+use Nukeflame\Core\Services\SequenceService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use Barryvdh\DomPDF\Facade\Pdf;

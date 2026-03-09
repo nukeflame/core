@@ -3,7 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Helpers\PkceHelper;
-use App\Services\AzureGraphService;
+use Nukeflame\Core\Services\AzureGraphService;
 use Illuminate\Console\Command;
 
 class WorkingAuthenticateOutlook extends Command

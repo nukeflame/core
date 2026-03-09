@@ -2,7 +2,7 @@
 
 namespace App\Jobs;
 
-use App\Services\OutlookService;
+use Nukeflame\Core\Services\OutlookService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
