@@ -389,7 +389,7 @@ class FirstOutlookServiceMain
                         'user' => $this->auth->email ?? 'unknown'
                     ]);
 
-                    $this->revokeAuthentication();
+                    // $this->revokeAuthentication();
                 }
 
                 return false;
@@ -899,17 +899,6 @@ class FirstOutlookServiceMain
         }
     }
 
-    /**
-     * Handle API response and convert to array
-     *
-     * @param \Illuminate\Http\Client\Response $response HTTP response
-     * @param string $method HTTP method
-     * @param string $url Request URL
-     * @param float $responseTime Response time in milliseconds
-     * @param string $requestId Unique request identifier
-     * @return array Response data
-     * @throws Exception On API errors
-     */
     private function handleApiResponse($response, string $method, string $url, float $responseTime, string $requestId): array
     {
         $statusCode = $response->status();
@@ -983,16 +972,6 @@ class FirstOutlookServiceMain
         }
     }
 
-    /**
-     * Handle specific HTTP error status codes
-     *
-     * @param \Illuminate\Http\Client\Response $response
-     * @param string $method HTTP method
-     * @param string $url Request URL
-     * @param float $responseTime Response time
-     * @param string $requestId Request ID
-     * @throws Exception With specific error messages
-     */
     private function handleSpecificErrorCodes($response, string $method, string $url, float $responseTime, string $requestId): void
     {
         $statusCode = $response->status();
@@ -1380,84 +1359,84 @@ class FirstOutlookServiceMain
      * @param array $emailData Email configuration and content
      * @return array Result with draft message ID
      */
-    public function createDraftMessage(array $emailData): array
+    public function createDraftMessage(array $emailData)
     {
-        try {
-            // Build message structure
-            $message = [
-                'subject' => $emailData['subject'],
-                'body' => [
-                    'contentType' => $emailData['bodyType'] ?? 'HTML',
-                    'content' => $emailData['body'] ?? ''
-                ],
-                'toRecipients' => $this->formatRecipients($emailData['to']),
-                'importance' => $this->mapPriorityToImportance($emailData['priority'] ?? 'normal')
-            ];
+        // try {
+        //     // Build message structure
+        //     $message = [
+        //         'subject' => $emailData['subject'],
+        //         'body' => [
+        //             'contentType' => $emailData['bodyType'] ?? 'HTML',
+        //             'content' => $emailData['body'] ?? ''
+        //         ],
+        //         'toRecipients' => $this->formatRecipients($emailData['to']),
+        //         'importance' => $this->mapPriorityToImportance($emailData['priority'] ?? 'normal')
+        //     ];
 
-            // Add optional recipients
-            if (!empty($emailData['cc'])) {
-                $message['ccRecipients'] = $this->formatRecipients($emailData['cc']);
-            }
+        //     // Add optional recipients
+        //     if (!empty($emailData['cc'])) {
+        //         $message['ccRecipients'] = $this->formatRecipients($emailData['cc']);
+        //     }
 
-            if (!empty($emailData['bcc'])) {
-                $message['bccRecipients'] = $this->formatRecipients($emailData['bcc']);
-            }
+        //     if (!empty($emailData['bcc'])) {
+        //         $message['bccRecipients'] = $this->formatRecipients($emailData['bcc']);
+        //     }
 
-            // Add reply-to if specified
-            if (!empty($emailData['replyTo'])) {
-                $message['replyTo'] = $this->formatRecipients($emailData['replyTo']);
-            }
+        //     // Add reply-to if specified
+        //     if (!empty($emailData['replyTo'])) {
+        //         $message['replyTo'] = $this->formatRecipients($emailData['replyTo']);
+        //     }
 
-            // Add attachments
-            if (!empty($emailData['attachments'])) {
-                $message['attachments'] = $this->formatAttachments($emailData['attachments']);
-            }
+        //     // Add attachments
+        //     if (!empty($emailData['attachments'])) {
+        //         $message['attachments'] = $this->formatAttachments($emailData['attachments']);
+        //     }
 
-            // Add custom headers
-            if (!empty($emailData['customHeaders'])) {
-                $message['internetMessageHeaders'] = $this->formatCustomHeaders($emailData['customHeaders']);
-            }
+        //     // Add custom headers
+        //     if (!empty($emailData['customHeaders'])) {
+        //         $message['internetMessageHeaders'] = $this->formatCustomHeaders($emailData['customHeaders']);
+        //     }
 
-            // Add categories/flags
-            if (!empty($emailData['categories'])) {
-                $message['categories'] = $emailData['categories'];
-            }
+        //     // Add categories/flags
+        //     if (!empty($emailData['categories'])) {
+        //         $message['categories'] = $emailData['categories'];
+        //     }
 
-            // Add sensitivity
-            if (!empty($emailData['sensitivity'])) {
-                $message['sensitivity'] = $emailData['sensitivity']; // normal, personal, private, confidential
-            }
+        //     // Add sensitivity
+        //     if (!empty($emailData['sensitivity'])) {
+        //         $message['sensitivity'] = $emailData['sensitivity']; // normal, personal, private, confidential
+        //     }
 
-            // Create draft via API
-            $response = $this->makeRequest('POST', '/me/messages', ['json' => $message]);
+        //     // Create draft via API
+        //     $response = $this->makeRequest('POST', '/me/messages', ['json' => $message]);
 
-            Log::info('Draft message created successfully', [
-                'message_id' => $response['id'],
-                'subject' => $emailData['subject'],
-                'user' => $this->auth->email ?? 'unknown'
-            ]);
+        //     Log::info('Draft message created successfully', [
+        //         'message_id' => $response['id'],
+        //         'subject' => $emailData['subject'],
+        //         'user' => $this->auth->email ?? 'unknown'
+        //     ]);
 
-            return [
-                'success' => true,
-                'message_id' => $response['id'],
-                'conversation_id' => $response['conversationId'] ?? null,
-                'subject' => $response['subject'] ?? $emailData['subject'],
-                'created_at' => $response['createdDateTime'] ?? now()->toISOString()
-            ];
-        } catch (Exception $e) {
-            Log::error('Failed to create draft message', [
-                'error' => $e->getMessage(),
-                'subject' => $emailData['subject'] ?? 'N/A',
-                'user' => $this->auth->email ?? 'unknown'
-            ]);
+        //     return [
+        //         'success' => true,
+        //         'message_id' => $response['id'],
+        //         'conversation_id' => $response['conversationId'] ?? null,
+        //         'subject' => $response['subject'] ?? $emailData['subject'],
+        //         'created_at' => $response['createdDateTime'] ?? now()->toISOString()
+        //     ];
+        // } catch (Exception $e) {
+        //     Log::error('Failed to create draft message', [
+        //         'error' => $e->getMessage(),
+        //         'subject' => $emailData['subject'] ?? 'N/A',
+        //         'user' => $this->auth->email ?? 'unknown'
+        //     ]);
 
-            return [
-                'success' => false,
-                'error' => $e->getMessage(),
-                'message_id' => null,
-                'error_code' => $this->getErrorCode($e)
-            ];
-        }
+        //     return [
+        //         'success' => false,
+        //         'error' => $e->getMessage(),
+        //         'message_id' => null,
+        //         'error_code' => $this->getErrorCode($e)
+        //     ];
+        // }
     }
 
     /**
@@ -2155,7 +2134,7 @@ class FirstOutlookServiceMain
             }
 
             // Build reply message
-            $replyMessage = $this->buildReplyMessage($replyData, $originalMessage, 'reply');
+            // $replyMessage = $this->buildReplyMessage($replyData, $originalMessage, 'reply');
 
             Log::info('Sending reply', [
                 'original_message_id' => $originalMessageId,
@@ -2167,9 +2146,9 @@ class FirstOutlookServiceMain
             $startTime = microtime(true);
 
             // Send reply using Microsoft Graph
-            $this->makeRequest('POST', "/me/messages/{$originalMessageId}/reply", [
-                'json' => $replyMessage
-            ]);
+            // $this->makeRequest('POST', "/me/messages/{$originalMessageId}/reply", [
+            //     'json' => $replyMessage
+            // ]);
 
             $responseTime = round((microtime(true) - $startTime) * 1000, 2);
 
@@ -2210,93 +2189,84 @@ class FirstOutlookServiceMain
         }
     }
 
-    /**
-     * Send a reply to all recipients of an existing message
-     * Enhanced version with recipient analysis
-     *
-     * @param mixed $auth Authenticated user object
-     * @param string $originalMessageId Original message ID to reply to
-     * @param array $replyData Reply content and options
-     * @return array Result with success status and recipient details
-     */
-    public function sendReplyAll($auth, string $originalMessageId, array $replyData): array
+    public function sendReplyAll($auth, string $originalMessageId, array $replyData)
     {
-        try {
-            $this->auth = $auth;
-            $originalMessage = $this->getMessageDetails($originalMessageId);
+        // try {
+        //     $this->auth = $auth;
+        //     $originalMessage = $this->getMessageDetails($originalMessageId);
 
-            if (empty($originalMessage)) {
-                throw new Exception('Original message not found');
-            }
+        //     if (empty($originalMessage)) {
+        //         throw new Exception('Original message not found');
+        //     }
 
-            // Validate reply permissions
-            $canReply = $this->canReplyToMessage($originalMessageId);
-            if (!$canReply['can_reply']) {
-                throw new Exception($canReply['reason']);
-            }
+        //     // Validate reply permissions
+        //     $canReply = $this->canReplyToMessage($originalMessageId);
+        //     if (!$canReply['can_reply']) {
+        //         throw new Exception($canReply['reason']);
+        //     }
 
-            // Get recipient preview for logging
-            $recipientPreview = $this->getReplyRecipientsPreview($originalMessageId, 'replyAll');
+        //     // Get recipient preview for logging
+        //     $recipientPreview = $this->getReplyRecipientsPreview($originalMessageId, 'replyAll');
 
-            // Build reply message
-            $replyMessage = $this->buildReplyMessage($replyData, $originalMessage, 'replyAll');
+        //     // Build reply message
+        //     $replyMessage = $this->buildReplyMessage($replyData, $originalMessage, 'replyAll');
 
-            Log::info('Sending reply all', [
-                'original_message_id' => $originalMessageId,
-                'conversation_id' => $originalMessage['conversationId'],
-                'recipient_count' => $recipientPreview['recipient_count'] ?? 0,
-                'original_subject' => $originalMessage['subject'],
-                'user' => $auth->email
-            ]);
+        //     Log::info('Sending reply all', [
+        //         'original_message_id' => $originalMessageId,
+        //         'conversation_id' => $originalMessage['conversationId'],
+        //         'recipient_count' => $recipientPreview['recipient_count'] ?? 0,
+        //         'original_subject' => $originalMessage['subject'],
+        //         'user' => $auth->email
+        //     ]);
 
-            $startTime = microtime(true);
+        //     $startTime = microtime(true);
 
-            // Send reply all using Microsoft Graph
-            $this->makeRequest('POST', "/me/messages/{$originalMessageId}/replyAll", [
-                'json' => $replyMessage
-            ]);
+        //     // Send reply all using Microsoft Graph
+        //     $this->makeRequest('POST', "/me/messages/{$originalMessageId}/replyAll", [
+        //         'json' => $replyMessage
+        //     ]);
 
-            $responseTime = round((microtime(true) - $startTime) * 1000, 2);
+        //     $responseTime = round((microtime(true) - $startTime) * 1000, 2);
 
-            // Get updated conversation details
-            $conversationMessages = $this->getConversationMessages($originalMessage['conversationId']);
+        //     // Get updated conversation details
+        //     $conversationMessages = $this->getConversationMessages($originalMessage['conversationId']);
 
-            Log::info('Reply all sent successfully', [
-                'original_message_id' => $originalMessageId,
-                'conversation_id' => $originalMessage['conversationId'],
-                'recipient_count' => $recipientPreview['recipient_count'] ?? 0,
-                'response_time_ms' => $responseTime,
-                'user' => $auth->email
-            ]);
+        //     Log::info('Reply all sent successfully', [
+        //         'original_message_id' => $originalMessageId,
+        //         'conversation_id' => $originalMessage['conversationId'],
+        //         'recipient_count' => $recipientPreview['recipient_count'] ?? 0,
+        //         'response_time_ms' => $responseTime,
+        //         'user' => $auth->email
+        //     ]);
 
-            return [
-                'success' => true,
-                'original_message_id' => $originalMessageId,
-                'conversation_id' => $originalMessage['conversationId'],
-                'replied_to' => [
-                    'sender' => $originalMessage['from']['emailAddress']['address'] ?? 'Unknown',
-                    'to_recipients' => array_map(fn($r) => $r['emailAddress']['address'], $originalMessage['toRecipients'] ?? []),
-                    'cc_recipients' => array_map(fn($r) => $r['emailAddress']['address'], $originalMessage['ccRecipients'] ?? [])
-                ],
-                'recipient_count' => $recipientPreview['recipient_count'] ?? 0,
-                'conversation_message_count' => $conversationMessages['count'] ?? 0,
-                'response_time_ms' => $responseTime,
-                'message' => 'Reply all sent successfully'
-            ];
-        } catch (Exception $e) {
-            Log::error('Failed to send reply all', [
-                'original_message_id' => $originalMessageId,
-                'error' => $e->getMessage(),
-                'user' => $auth->email ?? 'unknown'
-            ]);
+        //     return [
+        //         'success' => true,
+        //         'original_message_id' => $originalMessageId,
+        //         'conversation_id' => $originalMessage['conversationId'],
+        //         'replied_to' => [
+        //             'sender' => $originalMessage['from']['emailAddress']['address'] ?? 'Unknown',
+        //             'to_recipients' => array_map(fn($r) => $r['emailAddress']['address'], $originalMessage['toRecipients'] ?? []),
+        //             'cc_recipients' => array_map(fn($r) => $r['emailAddress']['address'], $originalMessage['ccRecipients'] ?? [])
+        //         ],
+        //         'recipient_count' => $recipientPreview['recipient_count'] ?? 0,
+        //         'conversation_message_count' => $conversationMessages['count'] ?? 0,
+        //         'response_time_ms' => $responseTime,
+        //         'message' => 'Reply all sent successfully'
+        //     ];
+        // } catch (Exception $e) {
+        //     Log::error('Failed to send reply all', [
+        //         'original_message_id' => $originalMessageId,
+        //         'error' => $e->getMessage(),
+        //         'user' => $auth->email ?? 'unknown'
+        //     ]);
 
-            return [
-                'success' => false,
-                'error' => $e->getMessage(),
-                'original_message_id' => $originalMessageId,
-                'error_code' => $this->getErrorCode($e)
-            ];
-        }
+        //     return [
+        //         'success' => false,
+        //         'error' => $e->getMessage(),
+        //         'original_message_id' => $originalMessageId,
+        //         'error_code' => $this->getErrorCode($e)
+        //     ];
+        // }
     }
 
     /**
@@ -2496,146 +2466,146 @@ class FirstOutlookServiceMain
         }
     }
 
-    /**
-     * Forward a message to new recipients
-     * New method not previously implemented
-     *
-     * @param mixed $auth Authenticated user object
-     * @param string $originalMessageId Original message ID to forward
-     * @param array $forwardData Forward content and recipients
-     * @return array Result with success status and details
-     */
-    public function forwardMessage($auth, string $originalMessageId, array $forwardData): array
-    {
-        try {
-            $this->auth = $auth;
+    // /**
+    //  * Forward a message to new recipients
+    //  * New method not previously implemented
+    //  *
+    //  * @param mixed $auth Authenticated user object
+    //  * @param string $originalMessageId Original message ID to forward
+    //  * @param array $forwardData Forward content and recipients
+    //  * @return array Result with success status and details
+    //  */
+    // public function forwardMessage($auth, string $originalMessageId, array $forwardData): array
+    // {
+    //     try {
+    //         $this->auth = $auth;
 
-            if (empty($forwardData['to'])) {
-                throw new Exception('Forward recipients are required');
-            }
+    //         if (empty($forwardData['to'])) {
+    //             throw new Exception('Forward recipients are required');
+    //         }
 
-            $originalMessage = $this->getMessageDetails($originalMessageId);
-            if (empty($originalMessage)) {
-                throw new Exception('Original message not found');
-            }
+    //         $originalMessage = $this->getMessageDetails($originalMessageId);
+    //         if (empty($originalMessage)) {
+    //             throw new Exception('Original message not found');
+    //         }
 
-            // Validate forward permissions
-            $canForward = $this->canForwardMessage($originalMessageId);
-            if (!$canForward['can_forward']) {
-                throw new Exception($canForward['reason']);
-            }
+    //         // Validate forward permissions
+    //         $canForward = $this->canForwardMessage($originalMessageId);
+    //         if (!$canForward['can_forward']) {
+    //             throw new Exception($canForward['reason']);
+    //         }
 
-            // Build forward message
-            $forwardMessage = [
-                'message' => [
-                    'toRecipients' => $this->formatRecipients($forwardData['to']),
-                    'body' => [
-                        'contentType' => $forwardData['bodyType'] ?? 'html',
-                        'content' => $forwardData['body'] ?? ''
-                    ]
-                ]
-            ];
+    //         // Build forward message
+    //         $forwardMessage = [
+    //             'message' => [
+    //                 'toRecipients' => $this->formatRecipients($forwardData['to']),
+    //                 'body' => [
+    //                     'contentType' => $forwardData['bodyType'] ?? 'html',
+    //                     'content' => $forwardData['body'] ?? ''
+    //                 ]
+    //             ]
+    //         ];
 
-            // Add optional recipients
-            if (!empty($forwardData['cc'])) {
-                $forwardMessage['message']['ccRecipients'] = $this->formatRecipients($forwardData['cc']);
-            }
+    //         // Add optional recipients
+    //         if (!empty($forwardData['cc'])) {
+    //             $forwardMessage['message']['ccRecipients'] = $this->formatRecipients($forwardData['cc']);
+    //         }
 
-            if (!empty($forwardData['bcc'])) {
-                $forwardMessage['message']['bccRecipients'] = $this->formatRecipients($forwardData['bcc']);
-            }
+    //         if (!empty($forwardData['bcc'])) {
+    //             $forwardMessage['message']['bccRecipients'] = $this->formatRecipients($forwardData['bcc']);
+    //         }
 
-            // Add comment if provided
-            if (!empty($forwardData['comment'])) {
-                $forwardMessage['comment'] = $forwardData['comment'];
-            }
+    //         // Add comment if provided
+    //         if (!empty($forwardData['comment'])) {
+    //             $forwardMessage['comment'] = $forwardData['comment'];
+    //         }
 
-            Log::info('Forwarding message', [
-                'original_message_id' => $originalMessageId,
-                'to_count' => count($forwardData['to']),
-                'cc_count' => count($forwardData['cc'] ?? []),
-                'has_comment' => !empty($forwardData['comment']),
-                'user' => $auth->email
-            ]);
+    //         Log::info('Forwarding message', [
+    //             'original_message_id' => $originalMessageId,
+    //             'to_count' => count($forwardData['to']),
+    //             'cc_count' => count($forwardData['cc'] ?? []),
+    //             'has_comment' => !empty($forwardData['comment']),
+    //             'user' => $auth->email
+    //         ]);
 
-            $startTime = microtime(true);
+    //         $startTime = microtime(true);
 
-            // Forward using Microsoft Graph
-            $this->makeRequest('POST', "/me/messages/{$originalMessageId}/forward", [
-                'json' => $forwardMessage
-            ]);
+    //         // Forward using Microsoft Graph
+    //         $this->makeRequest('POST', "/me/messages/{$originalMessageId}/forward", [
+    //             'json' => $forwardMessage
+    //         ]);
 
-            $responseTime = round((microtime(true) - $startTime) * 1000, 2);
+    //         $responseTime = round((microtime(true) - $startTime) * 1000, 2);
 
-            Log::info('Message forwarded successfully', [
-                'original_message_id' => $originalMessageId,
-                'to_count' => count($forwardData['to']),
-                'response_time_ms' => $responseTime,
-                'user' => $auth->email
-            ]);
+    //         Log::info('Message forwarded successfully', [
+    //             'original_message_id' => $originalMessageId,
+    //             'to_count' => count($forwardData['to']),
+    //             'response_time_ms' => $responseTime,
+    //             'user' => $auth->email
+    //         ]);
 
-            return [
-                'success' => true,
-                'original_message_id' => $originalMessageId,
-                'forwarded_to' => [
-                    'to_recipients' => array_map(fn($r) => is_string($r) ? $r : $r['email'], $forwardData['to']),
-                    'cc_recipients' => array_map(fn($r) => is_string($r) ? $r : $r['email'], $forwardData['cc'] ?? [])
-                ],
-                'recipient_count' => count($forwardData['to']) + count($forwardData['cc'] ?? []),
-                'response_time_ms' => $responseTime,
-                'message' => 'Message forwarded successfully'
-            ];
-        } catch (Exception $e) {
-            Log::error('Failed to forward message', [
-                'original_message_id' => $originalMessageId,
-                'error' => $e->getMessage(),
-                'user' => $auth->email ?? 'unknown'
-            ]);
+    //         return [
+    //             'success' => true,
+    //             'original_message_id' => $originalMessageId,
+    //             'forwarded_to' => [
+    //                 'to_recipients' => array_map(fn($r) => is_string($r) ? $r : $r['email'], $forwardData['to']),
+    //                 'cc_recipients' => array_map(fn($r) => is_string($r) ? $r : $r['email'], $forwardData['cc'] ?? [])
+    //             ],
+    //             'recipient_count' => count($forwardData['to']) + count($forwardData['cc'] ?? []),
+    //             'response_time_ms' => $responseTime,
+    //             'message' => 'Message forwarded successfully'
+    //         ];
+    //     } catch (Exception $e) {
+    //         Log::error('Failed to forward message', [
+    //             'original_message_id' => $originalMessageId,
+    //             'error' => $e->getMessage(),
+    //             'user' => $auth->email ?? 'unknown'
+    //         ]);
 
-            return [
-                'success' => false,
-                'error' => $e->getMessage(),
-                'original_message_id' => $originalMessageId,
-                'error_code' => $this->getErrorCode($e)
-            ];
-        }
-    }
+    //         return [
+    //             'success' => false,
+    //             'error' => $e->getMessage(),
+    //             'original_message_id' => $originalMessageId,
+    //             'error_code' => $this->getErrorCode($e)
+    //         ];
+    //     }
+    // }
 
-    /**
-     * Build reply message structure
-     * New helper method for consistent reply building
-     */
-    private function buildReplyMessage(array $replyData, array $originalMessage, string $replyType): array
-    {
-        $message = [
-            'body' => [
-                'contentType' => $replyData['bodyType'] ?? 'html',
-                'content' => $replyData['body'] ?? ''
-            ]
-        ];
+    // /**
+    //  * Build reply message structure
+    //  * New helper method for consistent reply building
+    //  */
+    // private function buildReplyMessage(array $replyData, array $originalMessage, string $replyType): array
+    // {
+    //     $message = [
+    //         'body' => [
+    //             'contentType' => $replyData['bodyType'] ?? 'html',
+    //             'content' => $replyData['body'] ?? ''
+    //         ]
+    //     ];
 
-        // Add attachments if provided
-        if (!empty($replyData['attachments'])) {
-            $message['attachments'] = $this->formatAttachments($replyData['attachments']);
-        }
+    //     // Add attachments if provided
+    //     if (!empty($replyData['attachments'])) {
+    //         $message['attachments'] = $this->formatAttachments($replyData['attachments']);
+    //     }
 
-        // Add custom headers if provided
-        if (!empty($replyData['customHeaders'])) {
-            $message['internetMessageHeaders'] = $this->formatCustomHeaders($replyData['customHeaders']);
-        }
+    //     // Add custom headers if provided
+    //     if (!empty($replyData['customHeaders'])) {
+    //         $message['internetMessageHeaders'] = $this->formatCustomHeaders($replyData['customHeaders']);
+    //     }
 
-        // Add importance if provided
-        if (!empty($replyData['priority'])) {
-            $message['importance'] = $this->mapPriorityToImportance($replyData['priority']);
-        }
+    //     // Add importance if provided
+    //     if (!empty($replyData['priority'])) {
+    //         $message['importance'] = $this->mapPriorityToImportance($replyData['priority']);
+    //     }
 
-        // Add categories if provided
-        if (!empty($replyData['categories'])) {
-            $message['categories'] = $replyData['categories'];
-        }
+    //     // Add categories if provided
+    //     if (!empty($replyData['categories'])) {
+    //         $message['categories'] = $replyData['categories'];
+    //     }
 
-        return ['message' => $message];
-    }
+    //     return ['message' => $message];
+    // }
 
     /**
      * Calculate reply recipients based on reply type
@@ -2984,19 +2954,11 @@ class FirstOutlookServiceMain
             // Security analysis
             $securityAnalysis = $this->analyzeAttachmentSecurity($processedAttachments);
 
-            Log::info('Message attachments retrieved', [
-                'message_id' => $messageId,
-                'attachment_count' => count($processedAttachments),
-                'total_size' => $this->formatBytes($totalSize),
-                'has_security_concerns' => $securityAnalysis['has_concerns'],
-                'user' => $this->auth->email ?? 'unknown'
-            ]);
-
             return [
                 'attachments' => $processedAttachments,
                 'count' => count($processedAttachments),
                 'total_size' => $totalSize,
-                'total_size_formatted' => $this->formatBytes($totalSize),
+                // 'total_size_formatted' => $this->formatBytes($totalSize),
                 'security_analysis' => $securityAnalysis
             ];
         } catch (Exception $e) {
@@ -3036,7 +2998,7 @@ class FirstOutlookServiceMain
             Log::info('Starting attachment download', [
                 'message_id' => $messageId,
                 'attachment_id' => $attachmentId,
-                'max_size' => $this->formatBytes($maxSize),
+                // 'max_size' => $this->formatBytes($maxSize),
                 'user' => $this->auth->email ?? 'unknown'
             ]);
 
@@ -3059,7 +3021,7 @@ class FirstOutlookServiceMain
                 Log::info('Attachment downloaded successfully', [
                     'message_id' => $messageId,
                     'attachment_id' => $attachmentId,
-                    'size' => $this->formatBytes(strlen($content)),
+                    // 'size' => $this->formatBytes(strlen($content)),
                     'download_time_ms' => $downloadTime,
                     'user' => $this->auth->email ?? 'unknown'
                 ]);
@@ -3069,7 +3031,7 @@ class FirstOutlookServiceMain
                     'name' => $attachment['name'],
                     'contentType' => $attachment['contentType'],
                     'size' => $attachment['size'],
-                    'size_formatted' => $this->formatBytes($attachment['size']),
+                    // 'size_formatted' => $this->formatBytes($attachment['size']),
                     'content' => $content,
                     'download_time_ms' => $downloadTime,
                     'security_info' => $this->getAttachmentSecurityInfo($attachment),
@@ -3515,7 +3477,7 @@ class FirstOutlookServiceMain
             'name' => $attachment['name'],
             'contentType' => $attachment['contentType'],
             'size' => $attachment['size'] ?? 0,
-            'size_formatted' => $this->formatBytes($attachment['size'] ?? 0),
+            // 'size_formatted' => $this->formatBytes($attachment['size'] ?? 0),
             'isInline' => $attachment['isInline'] ?? false,
             'lastModified' => $attachment['lastModifiedDateTime'] ?? null,
             'contentId' => $attachment['contentId'] ?? null,
@@ -4382,10 +4344,10 @@ class FirstOutlookServiceMain
                 $hierarchy['org_depth'] = count($managerChain['chain']);
             }
 
-            // Get direct reports
-            if ($includeDirectReports) {
-                $hierarchy['direct_reports'] = $this->getUserDirectReports($userId);
-            }
+            // // Get direct reports
+            // if ($includeDirectReports) {
+            //     $hierarchy['direct_reports'] = $this->getUserDirectReports($userId);
+            // }
 
             // Get peers (same manager)
             if ($includePeers && $hierarchy['manager']) {
@@ -4632,14 +4594,14 @@ class FirstOutlookServiceMain
             }
 
             // Get Teams memberships if requested
-            if ($includeTeams) {
-                try {
-                    $teams = $this->getUserTeams();
-                    $memberships['teams'] = $teams;
-                } catch (Exception $e) {
-                    Log::warning('Failed to get Teams memberships', ['error' => $e->getMessage()]);
-                }
-            }
+            // if ($includeTeams) {
+            //     try {
+            //         // $teams = $this->getUserTeams();
+            //         $memberships['teams'] = $teams;
+            //     } catch (Exception $e) {
+            //         Log::warning('Failed to get Teams memberships', ['error' => $e->getMessage()]);
+            //     }
+            // }
 
             // Generate summary statistics
             $memberships['summary'] = $this->generateGroupMembershipSummary($memberships);
@@ -4647,25 +4609,12 @@ class FirstOutlookServiceMain
             // Add insights
             $memberships['insights'] = $this->generateGroupInsights($memberships);
 
-            Log::info('Group memberships retrieved', [
-                'user_id' => $userId,
-                'total_groups' => $memberships['summary']['total_groups'],
-                'teams_count' => $memberships['summary']['teams_count'],
-                'admin_roles' => $memberships['summary']['admin_roles'],
-                'user' => $this->auth->email ?? 'unknown'
-            ]);
-
             return [
                 'success' => true,
                 'memberships' => $memberships,
                 'retrieved_at' => now()->toISOString()
             ];
         } catch (Exception $e) {
-            Log::error('Failed to get user group memberships', [
-                'user_id' => $userId,
-                'error' => $e->getMessage(),
-                'user' => $this->auth->email ?? 'unknown'
-            ]);
 
             return [
                 'success' => false,
@@ -4822,30 +4771,30 @@ class FirstOutlookServiceMain
             }
 
             // Get recent sign-in logs if requested (requires admin permissions)
-            if ($includeSignInLogs) {
-                try {
-                    $signInLogs = $this->getSignInLogs([
-                        'limit' => 10,
-                        'filter' => "userId eq '{$userId}'"
-                    ]);
-                    $securityInfo['signin_summary'] = $this->summarizeSignInLogs($signInLogs);
-                } catch (Exception $e) {
-                    Log::info('Sign-in logs not accessible', ['error' => $e->getMessage()]);
-                }
-            }
+            // if ($includeSignInLogs) {
+            //     try {
+            //         $signInLogs = $this->getSignInLogs([
+            //             'limit' => 10,
+            //             'filter' => "userId eq '{$userId}'"
+            //         ]);
+            //         $securityInfo['signin_summary'] = $this->summarizeSignInLogs($signInLogs);
+            //     } catch (Exception $e) {
+            //         Log::info('Sign-in logs not accessible', ['error' => $e->getMessage()]);
+            //     }
+            // }
 
-            // Get risk events if requested (requires admin permissions)
-            if ($includeRiskEvents) {
-                try {
-                    $riskEvents = $this->getIdentityRiskEvents([
-                        'limit' => 20,
-                        'filter' => "userId eq '{$userId}'"
-                    ]);
-                    $securityInfo['risk_events'] = $riskEvents;
-                } catch (Exception $e) {
-                    Log::info('Risk events not accessible', ['error' => $e->getMessage()]);
-                }
-            }
+            // // Get risk events if requested (requires admin permissions)
+            // if ($includeRiskEvents) {
+            //     try {
+            //         $riskEvents = $this->getIdentityRiskEvents([
+            //             'limit' => 20,
+            //             'filter' => "userId eq '{$userId}'"
+            //         ]);
+            //         $securityInfo['risk_events'] = $riskEvents;
+            //     } catch (Exception $e) {
+            //         Log::info('Risk events not accessible', ['error' => $e->getMessage()]);
+            //     }
+            // }
 
             // Generate security summary
             $securityInfo['security_summary'] = $this->generateSecuritySummary($securityInfo);
@@ -8259,195 +8208,195 @@ class FirstOutlookServiceMain
         }
     }
 
-    // SECTION 9: FILES & ONEDRIVE METHODS
-    public function getOneDriveItems(array $options = []): array
-    { /* Implementation */
-    }
-    public function uploadFileToOneDrive(string $filename, string $content, string $path = ''): array
-    { /* Implementation */
-    }
-    public function getSharePointSites(array $options = []): array
-    { /* Implementation */
-    }
+    // // SECTION 9: FILES & ONEDRIVE METHODS
+    // public function getOneDriveItems(array $options = []): array
+    // { /* Implementation */
+    // }
+    // public function uploadFileToOneDrive(string $filename, string $content, string $path = ''): array
+    // { /* Implementation */
+    // }
+    // public function getSharePointSites(array $options = []): array
+    // { /* Implementation */
+    // }
 
-    // SECTION 10: TEAMS METHODS
-    public function getUserTeams(): array
-    { /* Implementation */
-    }
-    public function getTeamChannels(string $teamId): array
-    { /* Implementation */
-    }
-    public function sendTeamsMessage(string $teamId, string $channelId, string $message): array
-    { /* Implementation */
-    }
-    public function getUserChats(): array
-    { /* Implementation */
-    }
-    public function getChatMessages(string $chatId, array $options = []): array
-    { /* Implementation */
-    }
-    public function sendChatMessage(string $chatId, string $message): array
-    { /* Implementation */
-    }
+    // // SECTION 10: TEAMS METHODS
+    // public function getUserTeams(): array
+    // { /* Implementation */
+    // }
+    // public function getTeamChannels(string $teamId): array
+    // { /* Implementation */
+    // }
+    // public function sendTeamsMessage(string $teamId, string $channelId, string $message): array
+    // { /* Implementation */
+    // }
+    // public function getUserChats(): array
+    // { /* Implementation */
+    // }
+    // public function getChatMessages(string $chatId, array $options = []): array
+    // { /* Implementation */
+    // }
+    // public function sendChatMessage(string $chatId, string $message): array
+    // { /* Implementation */
+    // }
 
-    // SECTION 11: TASKS & PRODUCTIVITY
-    public function getTasks(array $options = []): array
-    { /* Implementation */
-    }
-    public function createTask(string $title, array $options = []): array
-    { /* Implementation */
-    }
-    public function getOneNoteNotebooks(): array
-    { /* Implementation */
-    }
-    public function getOneNotePages(array $options = []): array
-    { /* Implementation */
-    }
-    public function createOneNotePage(string $title, string $content, string $notebookId = null): array
-    { /* Implementation */
-    }
+    // // SECTION 11: TASKS & PRODUCTIVITY
+    // public function getTasks(array $options = []): array
+    // { /* Implementation */
+    // }
+    // public function createTask(string $title, array $options = []): array
+    // { /* Implementation */
+    // }
+    // public function getOneNoteNotebooks(): array
+    // { /* Implementation */
+    // }
+    // public function getOneNotePages(array $options = []): array
+    // { /* Implementation */
+    // }
+    // public function createOneNotePage(string $title, string $content, string $notebookId = null): array
+    // { /* Implementation */
+    // }
 
-    // SECTION 12: PRESENCE & MEETINGS
-    public function getUserPresenceStub(string $userId = 'me'): array
-    { /* Implementation */
-    }
-    public function setUserPresenceStub(string $availability, string $activity = null): array
-    { /* Implementation */
-    }
-    public function getOnlineMeetings(): array
-    { /* Implementation */
-    }
-    public function createOnlineMeeting(array $meetingData): array
-    { /* Implementation */
-    }
+    // // SECTION 12: PRESENCE & MEETINGS
+    // public function getUserPresenceStub(string $userId = 'me'): array
+    // { /* Implementation */
+    // }
+    // public function setUserPresenceStub(string $availability, string $activity = null): array
+    // { /* Implementation */
+    // }
+    // public function getOnlineMeetings(): array
+    // { /* Implementation */
+    // }
+    // public function createOnlineMeeting(array $meetingData): array
+    // { /* Implementation */
+    // }
 
-    // SECTION 13: SECURITY & COMPLIANCE
-    public function getSecurityAlerts(array $options = []): array
-    { /* Implementation */
-    }
-    public function getAuditLogs(array $options = []): array
-    { /* Implementation */
-    }
-    public function getSignInLogs(array $options = []): array
-    { /* Implementation */
-    }
-    public function getIdentityRiskEvents(array $options = []): array
-    { /* Implementation */
-    }
-    public function getRiskyUsers(array $options = []): array
-    { /* Implementation */
-    }
-    public function getThreatIndicators(array $options = []): array
-    { /* Implementation */
-    }
-    public function getConditionalAccessPolicies(): array
-    { /* Implementation */
-    }
-    public function getUserAuthenticationMethods(): array
-    { /* Implementation */
-    }
+    // // SECTION 13: SECURITY & COMPLIANCE
+    // public function getSecurityAlerts(array $options = []): array
+    // { /* Implementation */
+    // }
+    // public function getAuditLogs(array $options = []): array
+    // { /* Implementation */
+    // }
+    // public function getSignInLogs(array $options = []): array
+    // { /* Implementation */
+    // }
+    // public function getIdentityRiskEvents(array $options = []): array
+    // { /* Implementation */
+    // }
+    // public function getRiskyUsers(array $options = []): array
+    // { /* Implementation */
+    // }
+    // public function getThreatIndicators(array $options = []): array
+    // { /* Implementation */
+    // }
+    // public function getConditionalAccessPolicies(): array
+    // { /* Implementation */
+    // }
+    // public function getUserAuthenticationMethods(): array
+    // { /* Implementation */
+    // }
 
-    // SECTION 14: ORGANIZATION & DIRECTORY
-    public function getOrganization(): array
-    { /* Implementation */
-    }
-    public function getApplications(array $options = []): array
-    { /* Implementation */
-    }
-    public function getDevices(array $options = []): array
-    { /* Implementation */
-    }
+    // // SECTION 14: ORGANIZATION & DIRECTORY
+    // public function getOrganization(): array
+    // { /* Implementation */
+    // }
+    // public function getApplications(array $options = []): array
+    // { /* Implementation */
+    // }
+    // public function getDevices(array $options = []): array
+    // { /* Implementation */
+    // }
 
-    // SECTION 15: ANALYTICS & REPORTING
-    public function getUsageReports(string $reportType, array $options = []): array
-    { /* Implementation */
-    }
-    public function getUsageStats(): array
-    { /* Implementation */
-    }
+    // // SECTION 15: ANALYTICS & REPORTING
+    // public function getUsageReports(string $reportType, array $options = []): array
+    // { /* Implementation */
+    // }
+    // public function getUsageStats(): array
+    // { /* Implementation */
+    // }
 
-    // SECTION 16: BUSINESS APPLICATIONS
-    public function getBookingsBusinesses(): array
-    { /* Implementation */
-    }
-    public function getBookingsAppointments(string $businessId, array $options = []): array
-    { /* Implementation */
-    }
-    public function createBookingsAppointment(string $businessId, array $appointmentData): array
-    { /* Implementation */
-    }
-    public function getPlaces(string $placeType = 'room'): array
-    { /* Implementation */
-    }
-    public function getPrinters(): array
-    { /* Implementation */
-    }
-    public function getPrintJobs(array $options = []): array
-    { /* Implementation */
-    }
+    // // SECTION 16: BUSINESS APPLICATIONS
+    // public function getBookingsBusinesses(): array
+    // { /* Implementation */
+    // }
+    // public function getBookingsAppointments(string $businessId, array $options = []): array
+    // { /* Implementation */
+    // }
+    // public function createBookingsAppointment(string $businessId, array $appointmentData): array
+    // { /* Implementation */
+    // }
+    // public function getPlaces(string $placeType = 'room'): array
+    // { /* Implementation */
+    // }
+    // public function getPrinters(): array
+    // { /* Implementation */
+    // }
+    // public function getPrintJobs(array $options = []): array
+    // { /* Implementation */
+    // }
 
-    // SECTION 17: SEARCH & COMPREHENSIVE FEATURES
-    public function searchMicrosoft365(string $query, array $options = []): array
-    { /* Implementation */
-    }
-    public function getUserActivitySummary(): array
-    { /* Implementation */
-    }
-    public function testAllPermissions(): array
-    { /* Implementation */
-    }
-    public function testConnection(): array
-    { /* Implementation */
-    }
+    // // SECTION 17: SEARCH & COMPREHENSIVE FEATURES
+    // public function searchMicrosoft365(string $query, array $options = []): array
+    // { /* Implementation */
+    // }
+    // public function getUserActivitySummary(): array
+    // { /* Implementation */
+    // }
+    // public function testAllPermissions(): array
+    // { /* Implementation */
+    // }
+    // public function testConnection(): array
+    // { /* Implementation */
+    // }
 
-    // SECTION 18: UTILITY & HELPER METHODS
-    public function setAuth($user): self
-    {
-        $this->auth = $user;
-        return $this;
-    }
-    public function getAuth()
-    {
-        return $this->auth;
-    }
-    public function getTokenInfo(): ?array
-    { /* Implementation */
-    }
-    public function revokeAuthentication(): bool
-    { /* Implementation */
-    }
-    public function formatBytes(int $bytes): string
-    { /* Implementation */
-    }
+    // // SECTION 18: UTILITY & HELPER METHODS
+    // public function setAuth($user): self
+    // {
+    //     $this->auth = $user;
+    //     return $this;
+    // }
+    // public function getAuth()
+    // {
+    //     return $this->auth;
+    // }
+    // public function getTokenInfo(): ?array
+    // { /* Implementation */
+    // }
+    // public function revokeAuthentication(): bool
+    // { /* Implementation */
+    // }
+    // public function formatBytes(int $bytes): string
+    // { /* Implementation */
+    // }
 
-    // Private helper methods
-    private function formatRecipients(array $recipients): array
-    { /* Implementation */
-    }
-    private function formatAttachments(array $attachments): array
-    { /* Implementation */
-    }
-    private function mapPriorityToImportance(string $priority): string
-    { /* Implementation */
-    }
-    private function processEmailsBulk(array $rawEmails): array
-    { /* Implementation */
-    }
-    private function saveEmailsToDatabase(array $emails, string $folder): array
-    { /* Implementation */
-    }
-    private function getDefaultSelectFields(bool $fetchBody = false): array
-    { /* Implementation */
-    }
-    private function buildOptimizedEmailsUrl(string $folder, int $limit, string $select, array $options): string
-    { /* Implementation */
-    }
-    private function extractRecipients(array $recipients): array
-    { /* Implementation */
-    }
-    private function extractBodyContent(?array $body): ?string
-    { /* Implementation */
-    }
+    // // Private helper methods
+    // private function formatRecipients(array $recipients): array
+    // { /* Implementation */
+    // }
+    // private function formatAttachments(array $attachments): array
+    // { /* Implementation */
+    // }
+    // private function mapPriorityToImportance(string $priority): string
+    // { /* Implementation */
+    // }
+    // private function processEmailsBulk(array $rawEmails): array
+    // { /* Implementation */
+    // }
+    // private function saveEmailsToDatabase(array $emails, string $folder): array
+    // { /* Implementation */
+    // }
+    // private function getDefaultSelectFields(bool $fetchBody = false): array
+    // { /* Implementation */
+    // }
+    // private function buildOptimizedEmailsUrl(string $folder, int $limit, string $select, array $options): string
+    // { /* Implementation */
+    // }
+    // private function extractRecipients(array $recipients): array
+    // { /* Implementation */
+    // }
+    // private function extractBodyContent(?array $body): ?string
+    // { /* Implementation */
+    // }
 
 
 
