@@ -1960,7 +1960,7 @@ class QuarterlyDebitController extends Controller
             $totalNet = $totalDebit - $totalCredit;
 
             $reinsurers = collect([$reinsurer]);
-            $businessClass = $this->resolveBusinessClassFromClasses($cover, collect($creditItems));
+            $businessClass =  $this->resolveBusinessClassFromClasses($cover, collect($creditItems));
 
             $treatyType = DB::table('treaty_types')
                 ->where('treaty_code', $cover->treaty_type ?? '')
@@ -2567,6 +2567,10 @@ class QuarterlyDebitController extends Controller
         ?object $cover,
         ?Collection $items = null
     ): string {
+
+        logger()->debug(json_encode($cover, JSON_PRETTY_PRINT));
+
+
         $classCodes = collect([
             $cover->class_code ?? null,
         ])->filter()->map(fn($code) => strtoupper(trim((string) $code)));

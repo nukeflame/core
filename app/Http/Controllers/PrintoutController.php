@@ -86,12 +86,10 @@ class PrintoutController extends Controller
             }
             $ppw = PremiumPayTerm::where('pay_term_code', $cover->premium_payment_code)->first();
             $debit = CoverDebit::where('endorsement_no', $cover->endorsement_no)->first();
+            $isDraftSlip = false;
 
             if ($pre_debit !== 'Y' && is_null($debit) && in_array($cover->type_of_bus, ['FPR', 'FNP'])) {
-                return response()->json([
-                    'status' => Response::HTTP_INTERNAL_SERVER_ERROR,
-                    'message' => 'This transaction not yet debited',
-                ], Response::HTTP_INTERNAL_SERVER_ERROR);
+                $isDraftSlip = true;
             }
 
             if ($wordingModel->exists()) {
@@ -160,7 +158,8 @@ class PrintoutController extends Controller
                 'approver' => $approver,
                 'position' => $position,
                 'has_partner' => $has_partner,
-                'is_cover_note' => $is_cover_note
+                'is_cover_note' => $is_cover_note,
+                'is_draft_slip' => $isDraftSlip,
             ];
 
             $dompdf = Pdf::loadView($view_name, $data)->setPaper('a4', 'portrait')->setWarnings(false);

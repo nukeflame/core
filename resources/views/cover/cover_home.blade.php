@@ -17,9 +17,10 @@
 
         <div class="row row-cols-12 mx-0">
             @if ($actionable)
-                <x-cover.action-card :cover="$coverReg" :endorsementNarration="$endorsementNarration" :pendingApproverId="$pendingApproverId ?? null"
-                    :transactionsUrl="route('cover.transactions.index', ['coverNo' => $coverReg->cover_no])"
-                    :backToCoverUrl="route('cover.CoverHome', ['endorsement_no' => ($coverReg->orig_endorsement_no ?: $coverReg->endorsement_no)]) . '#reinsurers-tab'" />
+                <x-cover.action-card :cover="$coverReg" :endorsementNarration="$endorsementNarration" :pendingApproverId="$pendingApproverId ?? null" :transactionsUrl="route('cover.transactions.index', ['coverNo' => $coverReg->cover_no])"
+                    :backToCoverUrl="route('cover.CoverHome', [
+                        'endorsement_no' => $coverReg->orig_endorsement_no ?: $coverReg->endorsement_no,
+                    ]) . '#reinsurers-tab'" />
             @endif
 
             <x-cover.summary-card :cover="$coverReg" :customer="$customer" :typeOfBus="$type_of_bus" :summaryData="$summaryData"
@@ -45,6 +46,12 @@
 
                             <div class="tab-pane fade" id="clauses-tab" role="tabpanel" aria-labelledby="nav-clauses-tab">
                                 @include('cover.tabs.clauses', ['cover' => $coverReg])
+                            </div>
+                        @endif
+
+                        @if (in_array($coverReg->type_of_bus, ['FPR', 'FNP']))
+                            <div class="tab-pane fade" id="debits-tab" role="tabpanel" aria-labelledby="nav-debits-tab">
+                                @include('cover.tabs.debits', ['cover' => $coverReg])
                             </div>
                         @endif
 
@@ -77,12 +84,6 @@
                         <div class="tab-pane fade" id="approvals-tab" role="tabpanel" aria-labelledby="nav-approvals-tab">
                             @include('cover.tabs.approvals', ['cover' => $coverReg])
                         </div>
-
-                        @if (in_array($coverReg->type_of_bus, ['FPR', 'FNP']))
-                            <div class="tab-pane fade" id="debits-tab" role="tabpanel" aria-labelledby="nav-debits-tab">
-                                @include('cover.tabs.debits', ['cover' => $coverReg])
-                            </div>
-                        @endif
 
                         <div class="tab-pane fade" id="docs-tab" role="tabpanel" aria-labelledby="nav-docs-tab">
                             @include('cover.tabs.documents', ['cover' => $coverReg])

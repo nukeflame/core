@@ -1509,7 +1509,10 @@ class CoverController extends Controller
     public function attachments_datatable(Request $request)
     {
         $endorsement_no = $request->get('endorsement_no');
-        $query = CoverAttachment::query()->where('endorsement_no', $endorsement_no);
+        $query = CoverAttachment::query()
+            ->where('endorsement_no', $endorsement_no)
+            ->orderBy('updated_at', 'desc')
+            ->orderBy('id', 'asc');
         $actionable = static::coverDebitedCommited($endorsement_no);
 
         return datatables::of($query)
@@ -1517,14 +1520,13 @@ class CoverController extends Controller
                 $btn = '';
                 if ($actionable) {
                     $btn .= " <button class='btn btn-outline-dark btn-sm view-attachment' data-id='{$data->id}' data-mime='{$data->mime_type}' data-base64='{$data->file_base64}'
-                        data-bs-target='#attachment-document-modal' data-bs-toggle='modal'>View <i class='bx bx-send'></i></button>";
-                    $btn .= " <button class='btn btn-outline-dark btn-sm edit-attachment' data-title='{$data->title}' data-id='{$data->id}'
-                        data-bs-toggle='modal' data-bs-target='#attachments-modal'>Edit</button>";
-                    $btn .= " <button class='btn btn-outline-danger btn-sm remove-attachment' data-title='{$data->title}' data-id='{$data->id}'>Remove</button>";
+                        data-bs-target='#attachment-document-modal' data-bs-toggle='modal'>View</button>";
+                    $btn .= " <button class='btn btn-outline-danger btn-sm remove-attachment' data-title='" . e($data->title) . "' data-id='{$data->id}'>Remove</button>";
                 }
 
                 return $btn;
             })
+            ->rawColumns(['action'])
             ->make(true);
     }
 
@@ -1536,7 +1538,6 @@ class CoverController extends Controller
 
         return datatables::of($query)
             ->addColumn('clause_wording', function ($data) {
-                // $truncated = Str::limit($data->clause_wording, 300);
                 return '---';
             })
             ->addColumn('action', function ($data) use ($actionable) {

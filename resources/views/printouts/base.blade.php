@@ -371,10 +371,29 @@
         .no-header .header {
             display: none;
         }
+
+        .draft-watermark {
+            position: fixed;
+            top: 40%;
+            left: 0;
+            width: 100%;
+            text-align: center;
+            transform: rotate(-32deg);
+            font-size: 200px;
+            font-weight: 700;
+            color: #b22222;
+            opacity: 0.14;
+            z-index: 0;
+            letter-spacing: 10px;
+        }
     </style>
 </head>
 
 <body class="pdf_wrapper">
+    @if (!empty($is_draft_slip))
+        <div class="draft-watermark">DRAFT</div>
+    @endif
+
     @if (!isset($disableAutoHeader) || !$disableAutoHeader)
         <header class="logo-header">
             <div class="row-table">

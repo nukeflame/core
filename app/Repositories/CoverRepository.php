@@ -6,7 +6,6 @@ use App\Models\Bd\PipelineOpportunity;
 use App\Models\BusinessType;
 use App\Models\ClaimRegister;
 use App\Models\Classes;
-use App\Models\ClassGroup;
 use App\Models\ClauseParam;
 use App\Models\CoverAttachment;
 use App\Models\CoverClass;
@@ -32,8 +31,10 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\Response;
 use Illuminate\Validation\Rule;
+use Illuminate\Support\Str;
 use Prettus\Repository\Criteria\RequestCriteria;
 use Prettus\Repository\Exceptions\RepositoryException;
 use App\Models\CoverInstallments;
@@ -44,13 +45,13 @@ use App\Models\CustomerAccDet;
 use App\Models\EndorsementType;
 use App\Models\PayMethod;
 use App\Models\PremiumPayTerm;
-use App\Models\QuoteScheduleHeader;
 use App\Models\ReinclassPremtype;
 use App\Models\ReinsClass;
 use App\Models\SlipTemplate;
 use App\Models\TreatyItemCode;
 use App\Models\TreatyType;
 use App\Services\SequenceService;
+use Illuminate\Validation\ValidationException;
 
 class CoverRepository extends BaseRepository
 {
@@ -403,7 +404,6 @@ class CoverRepository extends BaseRepository
                 'net_withholding_tax' => $request->net_withholding_tax ?? 0,
             ];
 
-            // Checkbox calculation basis is shared across reinsurers in this endorsement.
             CoverRipart::where('endorsement_no', $request->endorsement_no)->update(array_merge(
                 $checkboxValues,
                 [
@@ -437,8 +437,6 @@ class CoverRepository extends BaseRepository
                 'updated_at' => now()
             ]);
 
-            // Avoid refresh() on composite-key models (coverripart) because
-            // Eloquent's default refresh key resolution expects scalar keys.
             $coverRipart = CoverRipart::where('tran_no', $request->tran_no)
                 ->where('endorsement_no', $request->endorsement_no)
                 ->where('partner_no', $request->reinsurer)
@@ -597,6 +595,7 @@ class CoverRepository extends BaseRepository
             $this->syncTreatyCapacityToCoverRegister($CoverRegister);
             if ($data->trans_type === self::TRANSACTION_NEW) {
                 $this->syncProspectTermsToCoverRisk($CoverRegister, $data->prospect_id ?? null);
+                $this->syncProspectDocumentsToCoverAttachments($CoverRegister, $data->prospect_id ?? null);
             }
 
             if ($this->isTreatyBusiness($type_of_bus)) {
@@ -708,6 +707,136 @@ class CoverRepository extends BaseRepository
 
             $existingSchedules->put((string) $header->id, $created);
         }
+    }
+
+    private function syncProspectDocumentsToCoverAttachments(CoverRegister $cover, $prospectRef): void
+    {
+        $prospectRefs = $this->resolveProspectReferencesForDocuments($cover, $prospectRef);
+        if ($prospectRefs->isEmpty()) {
+            return;
+        }
+
+        $existingTitles = CoverAttachment::withTrashed()
+            ->where('endorsement_no', $cover->endorsement_no)
+            ->pluck('title')
+            ->map(fn($title) => Str::lower(trim((string) $title)))
+            ->filter()
+            ->unique()
+            ->values();
+
+        $nextAttachmentId = (int) CoverAttachment::withTrashed()->max('id');
+        $username = Auth::user()->user_name ?? 'system';
+
+        $prospectDocs = DB::table('prospect_docs')
+            ->whereIn('prospect_id', $prospectRefs->all())
+            ->orderByDesc('updated_at')
+            ->orderByDesc('created_at')
+            ->get([
+                'id',
+                'description',
+                'file',
+                'original_name',
+                'mimetype',
+                's3_path',
+                's3_url',
+            ]);
+
+        foreach ($prospectDocs as $doc) {
+            $title = trim((string) ($doc->description ?? ''));
+            if ($title === '') {
+                $title = trim((string) ($doc->original_name ?? $doc->file ?? 'Supporting Document'));
+            }
+
+            $titleKey = Str::lower($title);
+            if ($titleKey !== '' && $existingTitles->contains($titleKey)) {
+                continue;
+            }
+
+            $binary = $this->readProspectDocumentContent($doc);
+            if (is_null($binary)) {
+                continue;
+            }
+
+            $nextAttachmentId++;
+
+            CoverAttachment::create([
+                'id' => $nextAttachmentId,
+                'cover_no' => $cover->cover_no,
+                'endorsement_no' => $cover->endorsement_no,
+                'title' => $title,
+                'description' => $title,
+                'file' => trim((string) ($doc->file ?? $doc->original_name ?? ("prospect_doc_{$doc->id}"))),
+                'file_base64' => base64_encode($binary),
+                'mime_type' => trim((string) ($doc->mimetype ?? 'application/octet-stream')),
+                'created_by' => $username,
+                'updated_by' => $username,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+            if ($titleKey !== '') {
+                $existingTitles->push($titleKey);
+            }
+        }
+    }
+
+    private function resolveProspectReferencesForDocuments(CoverRegister $cover, $prospectRef)
+    {
+        $prospect = $this->getProspectOpportunityForCover($cover);
+
+        return collect([
+            $prospectRef,
+            $cover->prospect_id,
+            $prospect?->opportunity_id,
+            $prospect?->id,
+        ])
+            ->map(fn($value) => trim((string) $value))
+            ->filter()
+            ->unique()
+            ->values();
+    }
+
+    private function readProspectDocumentContent(object $doc): ?string
+    {
+        $s3Path = $this->normalizeProspectDocumentS3Path(
+            trim((string) ($doc->s3_path ?? '')),
+            trim((string) ($doc->s3_url ?? ''))
+        );
+
+        if ($s3Path !== null) {
+            try {
+                if (Storage::disk('s3')->exists($s3Path)) {
+                    return Storage::disk('s3')->get($s3Path);
+                }
+            } catch (\Throwable $e) {
+            }
+        }
+
+        return null;
+    }
+
+    private function normalizeProspectDocumentS3Path(string $s3Path, string $s3Url): ?string
+    {
+        if ($s3Path !== '') {
+            return $s3Path;
+        }
+
+        if ($s3Url === '') {
+            return null;
+        }
+
+        $urlPath = (string) parse_url($s3Url, PHP_URL_PATH);
+        $urlPath = trim($urlPath, '/');
+        if ($urlPath === '') {
+            return null;
+        }
+
+        $bucket = trim((string) config('filesystems.disks.s3.bucket'));
+        if ($bucket !== '' && Str::startsWith($urlPath, $bucket . '/')) {
+            $urlPath = substr($urlPath, strlen($bucket) + 1);
+        }
+
+        return $urlPath !== '' ? $urlPath : null;
     }
 
     private function loadProspectTerms(...$prospectRefs)
@@ -1503,7 +1632,7 @@ class CoverRepository extends BaseRepository
 
         $total_premium = $premiumTotals['premium'];
         $total_commission = $premiumTotals['commission'];
-        $total_sum_insured = $premiumTotals['totalDr']; // Assuming SUM is included
+        $total_sum_insured = $premiumTotals['totalDr'];
 
         $share = (float) $request->share;
         $sum_insured = max(0, ceil($total_sum_insured * $share / 100));

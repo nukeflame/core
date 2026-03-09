@@ -294,6 +294,7 @@
                     </tr>
                 </tbody>
             </table>
+            <div style="page-break-before: always;"></div>
             <table style="width: 100%;">
                 <tr>
                     <td class="uppercase">Please sign a copy of this reinsurance slip and return to
@@ -641,9 +642,7 @@
                                 </div>
                             @endforeach
                         </div>
-                        @if (!$loop->last)
-                            <div style="page-break-before: always;margin-top:0px;"></div>
-                        @endif
+                        <div style="page-break-before: always;"></div>
                         <table style="width: 100%; margin-top: 12mm;">
                             <tr>
                                 <td class="uppercase">Please sign a copy of this reinsurance slip and return to

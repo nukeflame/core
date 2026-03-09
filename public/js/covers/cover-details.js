@@ -2276,8 +2276,22 @@
                     options: {
                         ajax: baseAjaxConfig(SELECTORS.ATTACHMENTS_TABLE),
                         columns: [
-                            { data: "id" },
+                            { data: "id", render: (d, t, r, m) => m.row + 1 },
                             { data: "title" },
+                            { data: "file", defaultContent: "-" },
+                            { data: "mime_type", defaultContent: "-" },
+                            { data: "updated_by", defaultContent: "-" },
+                            {
+                                data: "updated_at",
+                                defaultContent: "-",
+                                render: (data) => {
+                                    if (!data) return "-";
+                                    const dt = new Date(data);
+                                    return Number.isNaN(dt.getTime())
+                                        ? data
+                                        : dt.toLocaleString();
+                                },
+                            },
                             { data: "action", searchable: false },
                         ],
                     },
@@ -2594,6 +2608,14 @@
                     });
                 }
             });
+
+            $(document).on("click", "#attachments-save-btn", function (e) {
+                e.preventDefault();
+                const $form = $(SELECTORS.ATTACHMENTS_FORM);
+                if ($form.length) {
+                    $form.trigger("submit");
+                }
+            });
         },
 
         _bindTableEvents() {
@@ -2646,6 +2668,64 @@
                     return;
                 }
                 self._populateEditReinsurerForm($(this).data());
+            });
+
+            $(document).on("click", ".edit-attachment", function () {
+                const id = $(this).data("id");
+                const title = $(this).data("title") || "";
+
+                const $form = $(SELECTORS.ATTACHMENTS_FORM);
+                if (!$form.length) return;
+
+                $form[0].reset();
+                $form.find("#attachments_id").val(id || "");
+                $form.find("#title").val(title);
+                $form.find('[name="_method"]').val("PUT");
+
+                $("#attachments-modal").modal("show");
+            });
+
+            $(document).on("click", ".view-attachment", function () {
+                const base64Data = $(this).data("base64");
+                const mimeType =
+                    $(this).data("mime") || "application/octet-stream";
+                self._renderAttachmentPreview(base64Data, mimeType);
+            });
+
+            $("#attachments-modal").on("show.bs.modal", function (event) {
+                if (
+                    $(event.relatedTarget).length &&
+                    $(event.relatedTarget).hasClass("edit-attachment")
+                ) {
+                    return;
+                }
+
+                const $form = $(SELECTORS.ATTACHMENTS_FORM);
+                if ($form.length) {
+                    $form[0].reset();
+                    $form.find("#attachments_id").val("");
+                    $form.find('[name="_method"]').val("POST");
+                }
+            });
+
+            $(document).on(
+                "click",
+                "#attachment-preview-close-btn, #attachment-preview-close-footer-btn",
+                function () {
+                    const modalEl = document.getElementById(
+                        "attachment-document-modal",
+                    );
+                    if (!modalEl || typeof bootstrap === "undefined") return;
+
+                    const modal =
+                        bootstrap.Modal.getInstance(modalEl) ||
+                        new bootstrap.Modal(modalEl);
+                    modal.hide();
+                },
+            );
+
+            $("#attachment-document-modal").on("hidden.bs.modal", function () {
+                $("#attachment-document-modal #preview-container").empty();
             });
 
             // Remove actions
@@ -2841,6 +2921,11 @@
                 .then((data) => {
                     if (data.status === 201) {
                         toastr.success(`Sumitted successfully`);
+                        if (formName === "attachments") {
+                            $("#attachments-modal").modal("hide");
+                            this.tables?.attachments?.ajax?.reload(null, false);
+                            return;
+                        }
                         if (data.redirectUrl) {
                             window.location.href = data.redirectUrl;
                         } else {
@@ -3338,6 +3423,26 @@
                     parsedData.partner_no ||
                     parsedReinsurer.customer_id,
             };
+        },
+
+        _renderAttachmentPreview(base64Data, mimeType) {
+            let element = "";
+
+            if (!base64Data) {
+                element =
+                    '<div class="alert alert-warning mb-0">Attachment preview is not available.</div>';
+            } else if ((mimeType || "").startsWith("image/")) {
+                element = `<img src="data:${mimeType};base64,${base64Data}" class="img-fluid" alt="Attachment image" />`;
+            } else if (
+                mimeType === "application/pdf" ||
+                (mimeType || "").startsWith("text/")
+            ) {
+                element = `<iframe src="data:${mimeType};base64,${base64Data}" width="100%" height="800"></iframe>`;
+            } else {
+                element = `<a href="data:${mimeType};base64,${base64Data}" download="document" class="btn btn-outline-primary">Download Attachment</a>`;
+            }
+
+            $("#attachment-document-modal #preview-container").html(element);
         },
 
         _showValidationErrors(errors) {

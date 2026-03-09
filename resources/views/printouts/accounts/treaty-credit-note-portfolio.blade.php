@@ -57,11 +57,13 @@
             $shareFactor = $sharePercent > 1 ? $sharePercent / 100 : $sharePercent;
             $shareFactor = max(0, $shareFactor);
 
-            // credit_note_items are already calculated; render values as stored.
-            $reinsurerCreditItems = collect($credit_items)->map(function ($item) {
+            $reinsurerCreditItems = collect($credit_items)->map(function ($item) use ($shareFactor) {
                 $itemClone = clone $item;
-                $itemClone->item_amount = (float) ($item->item_amount ?? 0);
-                $itemClone->original_amount = (float) ($item->original_amount ?? $itemClone->item_amount);
+                $baseItemAmount = (float) ($item->item_amount ?? 0);
+                $itemClone->item_amount = $baseItemAmount * $shareFactor;
+                $itemClone->original_amount = (float) ($item->original_amount ?? $baseItemAmount);
+                $baseLineRate = (float) ($item->line_rate ?? 0);
+                $itemClone->line_rate = $baseLineRate > 0 ? $baseLineRate * $shareFactor : 0;
 
                 return $itemClone;
             });
@@ -79,7 +81,7 @@
                 });
             }
             $portfolioDirection = $filteredCreditItems->contains(function ($item) {
-                $itemText = strtoupper((string) ($item->item_name ?? $item->description ?? ''));
+                $itemText = strtoupper((string) ($item->item_name ?? ($item->description ?? '')));
                 return str_contains($itemText, 'PORTFOLIO ENTRY - OUT');
             })
                 ? 'OUT'
@@ -195,7 +197,7 @@
                                 <tr>
                                     <td class="pt-4 courier-9"><strong>Business Class</strong></td>
                                     <td class="pt-4 courier-9">
-                                        {{ firstUpper($bus_class ?? ($cover->class_code ?? 'N/A')) }}</td>
+                                        {{ firstUpper($bus_class ?? 'N/A') }}</td>
                                 </tr>
                                 <tr>
                                     <td class="pt-4 courier-9"><strong>Treaty Type</strong></td>

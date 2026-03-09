@@ -626,9 +626,6 @@
                 }
             }
 
-            /**
-             * Toggle email body visibility
-             */
             function toggleEmailBody() {
                 const emailBody = document.getElementById('emailBody');
                 if (emailBody.classList.contains('hidden')) {
@@ -642,9 +639,6 @@
                 }
             }
 
-            /**
-             * Insert email template
-             */
             function insertTemplate() {
                 const templates = {
                     acknowledgment: "Thank you for your message. We have received your request and will respond within 24 hours.",
@@ -665,9 +659,6 @@
                 }
             }
 
-            /**
-             * Save draft
-             */
             function saveDraft() {
                 try {
                     if (!confirm('Save current email as draft?')) {
@@ -677,38 +668,16 @@
                     const formData = new FormData(document.getElementById('emailForm'));
                     formData.append('save_as_draft', '1');
 
-                    // Add reply context if available
                     if (replyState.isReply && replyState.originalMessage) {
                         formData.append('reply_context', JSON.stringify(replyState.originalMessage));
                     }
 
                     toastr.success('Draft saved successfully!');
-
-                    //  TODO: Implement actual API call
-                    //{{-- $.ajax({
-                    //     url: '{{ route('emails.draft') }}',
-                    //     method: 'POST',
-                    //     data: formData,
-                    //     processData: false,
-                    //     contentType: false,
-                    //     success: function(response) {
-                    //         console.log('Draft saved:', response);
-                    //         toastr.success('Draft saved successfully!');
-                    //     },
-                    //     error: function(xhr, status, error) {
-                    //         console.error('Draft save failed:', error);
-                    //         toastr.error('Failed to save draft. Please try again.');
-                    //     }
-                    // --}}});
-
                 } catch (error) {
                     toastr.error('Error saving draft: ' + error.message);
                 }
             }
 
-            /**
-             * Handle email form submission
-             */
             function handleEmailSubmit(e) {
                 e.preventDefault();
                 try {
@@ -729,9 +698,6 @@
                 }
             }
 
-            /**
-             * Confirm and send email after user confirmation
-             */
             function confirmAndSendEmail() {
                 try {
                     const formData = new FormData(document.getElementById('emailForm'));
@@ -873,7 +839,6 @@
                 $('#emailBody').addClass('hidden');
 
                 $('.claimReinEmailForm #message').val(@json($defaultMessage ?? ''));
-                // $('.claimReinEmailForm #subject').val(@json(is_array($claimSubject ?? '') ? implode(' ', $claimSubject) : $claimSubject ?? ''));
                 $('.claimReinEmailForm #toEmail').val('{{ $reinserEmail ?? '' }}');
 
                 $('#priority').val('normal').trigger('change');
@@ -883,9 +848,6 @@
                 $('.invalid-feedback').text('');
             }
 
-            /**
-             * Validate form fields
-             */
             function validateForm() {
                 let isValid = true;
 
@@ -910,17 +872,11 @@
                 return isValid;
             }
 
-            /**
-             * Check if email is valid
-             */
             function isValidEmail(email) {
                 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
                 return emailRegex.test(email);
             }
 
-            /**
-             * Track form changes
-             */
             function trackFormChanges() {
                 replyState.formData = {
                     isReply: $('#replyToId').val() ? true : false,
@@ -934,9 +890,6 @@
                 };
             }
 
-            /**
-             * Capture initial form state
-             */
             function captureFormState() {
                 replyState.formData = {};
                 trackFormChanges();
@@ -1024,7 +977,6 @@
 
             function updateToEmailField() {
                 const toEmails = $('.claimReinEmailForm #contacts').val() || [];
-                // $('.claimReinEmailForm #toEmail').val(toEmails.join(', '));
             }
 
             function validateEmailSelection() {

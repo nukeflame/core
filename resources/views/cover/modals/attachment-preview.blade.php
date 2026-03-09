@@ -1,12 +1,14 @@
-    <div class="modal effect-scale md-wrapper" id="addAttachemntModal" data-bs-backdrop="static" data-bs-keyboard="false"
+    <div class="modal effect-scale md-wrapper" id="attachments-modal" data-bs-backdrop="static" data-bs-keyboard="false"
         aria-labelledby="staticAttachemntLabel" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
-                <form id="attachmentsForm">
+                <form id="attachmentsForm" data-post-url="{{ route('cover.save_attachment') }}"
+                    data-put-url="{{ route('cover.amend_attachment') }}">
                     @csrf
                     @method('POST')
-                    <input type="hidden" name="endorsement_no" value="{{ $coverReg->endorsement_no }}" />
-                    <input type="hidden" name="id" id="attachments_id" value="{{ $coverReg->endorsement_no }}" />
+                    <input type="hidden" name="cover_no" value="{{ $cover->cover_no }}" />
+                    <input type="hidden" name="endorsement_no" value="{{ $cover->endorsement_no }}" />
+                    <input type="hidden" name="id" id="attachments_id" value="" />
                     <div class="modal-header">
                         <h5 class="modal-title dc-modal-title" id="staticAttachemntLabel">File & Supporting
                             Docs
@@ -18,16 +20,8 @@
                         <div class="row">
                             <div class="mb-3">
                                 <label class="form-label fs-14" for="title">Title</label>
-                                <div class="card-md">
-                                    <select class="form-inputs select2" id="title" name="title">
-                                        <option>--Select title--</option>
-                                        <option value="Policy Schedule">Policy Schedule</option>
-                                        <option value="Closings">Closings</option>
-                                        <option value="Insured Items">Insured Items</option>
-                                        <option value="Survey Report">Survey Report</option>
-                                    </select>
-                                </div>
-                                {{-- <input type="text" class="form-control" id="title" name="title" required /> --}}
+                                <input type="text" class="form-control" id="title" name="title" required
+                                    maxlength="100" />
                             </div>
                             <div class="mb-3">
                                 <label class="form-label fs-14" for="file">File</label>
@@ -43,6 +37,26 @@
                             class="btn btn-outline-dark btn-sm btn-wave waves-effect waves-light">Submit</button>
                     </div>
                 </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal effect-scale md-wrapper" id="attachment-document-modal" aria-labelledby="attachmentPreviewLabel"
+        aria-hidden="true">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h6 class="modal-title" id="attachmentPreviewLabel">Attachment Preview</h6>
+                    <button type="button" id="attachment-preview-close-btn" class="btn-close" data-bs-dismiss="modal"
+                        aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="preview-container"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" id="attachment-preview-close-footer-btn" class="btn btn-outline-secondary btn-sm"
+                        data-bs-dismiss="modal">Close</button>
+                </div>
             </div>
         </div>
     </div>

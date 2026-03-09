@@ -6463,6 +6463,8 @@ class PipelineController
                         }
                     }
 
+                    $this->syncStageDocumentsToProspectDocs($request, $prospect, $opportunityId, (string) $stage);
+
                     break;
 
                 case Stage::FINAL_STAGE:
@@ -6601,6 +6603,231 @@ class PipelineController
                 'message' => 'An error occurred while updating lead status',
                 'error' => config('app.debug') ? $e->getMessage() : 'Internal server error'
             ], 500);
+        }
+    }
+
+    private function syncStageDocumentsToProspectDocs(Request $request, object $prospect, string $opportunityId, string $stage): void
+    {
+        $policyNumber = trim((string) ($prospect->opportunity_id ?? $opportunityId));
+        $policyType = $this->sanitizeFileName((string) ($prospect->type_of_bus ?? 'Unknown_Type'));
+        $effectiveDate = !empty($prospect->effective_date)
+            ? Carbon::parse($prospect->effective_date)->format('Ymd')
+            : Carbon::now()->format('Ymd');
+
+        $defaultDocs = $request->input('facultative_default_docs', []);
+        if (is_array($defaultDocs) && !empty($defaultDocs)) {
+            $defaultDocTypeIds = collect($defaultDocs)
+                ->pluck('id')
+                ->filter(fn($id) => is_numeric($id))
+                ->map(fn($id) => (int) $id)
+                ->unique()
+                ->values()
+                ->all();
+
+            $docTypeLookup = [];
+            if (!empty($defaultDocTypeIds)) {
+                $docTypeLookup = DB::table('doc_types')
+                    ->whereIn('id', $defaultDocTypeIds)
+                    ->get(['id', 'doc_type', 'file_name', 'mimetype', 's3_path', 'path'])
+                    ->keyBy('id')
+                    ->all();
+            }
+
+            foreach ($defaultDocs as $doc) {
+                $rawDocId = data_get($doc, 'id');
+                $docId = is_numeric($rawDocId) ? (int) $rawDocId : null;
+                $docName = trim((string) data_get($doc, 'name', ''));
+                $docType = !is_null($docId) ? ($docTypeLookup[$docId] ?? null) : null;
+
+                $resolvedS3Path = trim((string) ($docType->s3_path ?? $docType->path ?? ''));
+                $resolvedFile = trim((string) ($docType->file_name ?? ''));
+                $resolvedMime = trim((string) ($docType->mimetype ?? ''));
+
+                if ($resolvedS3Path === '' && $resolvedFile !== '') {
+                    $resolvedS3Path = $resolvedFile;
+                }
+
+                if ($resolvedFile === '' && $resolvedS3Path !== '') {
+                    $resolvedFile = basename($resolvedS3Path);
+                }
+
+                $resolvedS3Url = null;
+                $resolvedFileSize = null;
+                if ($resolvedS3Path !== '') {
+                    $resolvedS3Url = $this->getS3Url($resolvedS3Path);
+                    try {
+                        if (Storage::disk('s3')->exists($resolvedS3Path)) {
+                            $resolvedFileSize = Storage::disk('s3')->size($resolvedS3Path);
+                        }
+                    } catch (\Throwable $e) {
+                        $resolvedFileSize = null;
+                    }
+                }
+
+                if (is_null($docId) && $docName === '') {
+                    continue;
+                }
+
+                $matchAttributes = [
+                    'prospect_id' => $opportunityId,
+                    'prospect_status' => $stage,
+                ];
+
+                if (!is_null($docId)) {
+                    $matchAttributes['document_type_id'] = $docId;
+                } else {
+                    $matchAttributes['description'] = $docName !== '' ? $docName : trim((string) ($docType->doc_type ?? 'Document'));
+                }
+
+                $existingDefaultDoc = DB::table('prospect_docs')
+                    ->where($matchAttributes)
+                    ->first();
+
+                $insertData = [
+                    'description' => $docName !== '' ? $docName : trim((string) ($docType->doc_type ?? 'Document')),
+                    'prospect_id' => $opportunityId,
+                    'prospect_status' => $stage,
+                    'document_type_id' => $docId,
+                    'mimetype' => $resolvedMime !== '' ? $resolvedMime : null,
+                    'file' => $resolvedFile !== '' ? $resolvedFile : null,
+                    's3_path' => $resolvedS3Path !== '' ? $resolvedS3Path : null,
+                    's3_url' => $resolvedS3Url,
+                    'file_size' => $resolvedFileSize,
+                    'original_name' => $resolvedFile !== '' ? basename($resolvedFile) : null,
+                    'bus_type' => $request->input('bus_type'),
+                    'updated_at' => now(),
+                ];
+
+                if (is_null($existingDefaultDoc)) {
+                    if ($resolvedFile === '') {
+                        continue;
+                    }
+
+                    DB::table('prospect_docs')->insert($insertData + ['created_at' => now()]);
+                } else {
+                    if ($resolvedMime === '') {
+                        unset($insertData['mimetype']);
+                    }
+                    if ($resolvedFile === '') {
+                        unset($insertData['file'], $insertData['original_name']);
+                    }
+                    if ($resolvedS3Path === '') {
+                        unset($insertData['s3_path'], $insertData['s3_url'], $insertData['file_size']);
+                    }
+
+                    DB::table('prospect_docs')
+                        ->where('id', $existingDefaultDoc->id)
+                        ->update($insertData);
+                }
+            }
+        }
+
+        if (!$request->hasFile('facultative_files')) {
+            return;
+        }
+
+        $version = 1;
+
+        foreach ($request->file('facultative_files') as $index => $file) {
+            if (!$file->isValid()) {
+                continue;
+            }
+
+            $mimetype = $file->getClientMimeType();
+            $originalExtension = $file->getClientOriginalExtension();
+            $fileSize = $file->getSize();
+            $originalName = $file->getClientOriginalName();
+
+            $documentTypeInput = (string) $request->input("facultative_document_types.{$index}", 'Unknown');
+            $documentType = trim($documentTypeInput) !== '' ? trim($documentTypeInput) : 'Unknown';
+            $documentTypeFileToken = $this->sanitizeFileName($documentType);
+
+            $uniqueFilename = sprintf(
+                '%s_%s_%s_%s_v%s.%s',
+                $policyNumber,
+                $policyType,
+                $effectiveDate,
+                $documentTypeFileToken,
+                str_pad($version, 3, '0', STR_PAD_LEFT),
+                $originalExtension
+            );
+
+            $uploadsPath = sprintf(
+                'facultative-files/%s/%s/%s',
+                $policyNumber,
+                $effectiveDate,
+                date('Y/m/d')
+            );
+            $s3FilePath = $uploadsPath . '/' . $uniqueFilename;
+
+            $fileContents = file_get_contents($file->getRealPath());
+            if ($fileContents === false) {
+                throw new \RuntimeException("Failed to read uploaded file: {$originalName}");
+            }
+
+            $uploaded = Storage::disk('s3')->put(
+                $s3FilePath,
+                $fileContents,
+                [
+                    'visibility' => 'public',
+                    'ContentType' => $mimetype,
+                ]
+            );
+
+            if (!$uploaded || !Storage::disk('s3')->exists($s3FilePath)) {
+                throw new \RuntimeException("Failed to upload or verify file: {$originalName}");
+            }
+
+            $s3Url = $this->getS3Url($s3FilePath);
+            $rawDocumentTypeId = $request->input("facultative_document_type_ids.{$index}");
+            $documentTypeId = is_numeric($rawDocumentTypeId) ? (int) $rawDocumentTypeId : null;
+
+            $existingDocQuery = DB::table('prospect_docs')
+                ->where('prospect_id', $opportunityId)
+                ->where('prospect_status', $stage);
+
+            if (!is_null($documentTypeId)) {
+                $existingDocQuery->where('document_type_id', $documentTypeId);
+            } else {
+                $existingDocQuery
+                    ->whereNull('document_type_id')
+                    ->where('description', $documentType);
+            }
+
+            $existingDoc = $existingDocQuery->first();
+
+            $docPayload = [
+                'description' => $documentType,
+                'prospect_id' => $opportunityId,
+                'prospect_status' => $stage,
+                'document_type_id' => $documentTypeId,
+                'mimetype' => $mimetype,
+                'file' => $uniqueFilename,
+                's3_path' => $s3FilePath,
+                's3_url' => $s3Url,
+                'file_size' => $fileSize,
+                'original_name' => $originalName,
+                'bus_type' => $request->input('bus_type'),
+                'version' => $version,
+                'updated_at' => now(),
+            ];
+
+            if ($existingDoc) {
+                if (
+                    (!empty($existingDoc->s3_path) && $existingDoc->s3_path !== $s3FilePath) ||
+                    (!empty($existingDoc->s3_url) && $existingDoc->s3_url !== $s3Url)
+                ) {
+                    $this->s3Handler->deleteFromBothStorages($existingDoc->s3_url, $existingDoc->s3_path);
+                }
+
+                DB::table('prospect_docs')
+                    ->where('id', $existingDoc->id)
+                    ->update($docPayload);
+            } else {
+                DB::table('prospect_docs')->insert($docPayload + ['created_at' => now()]);
+            }
+
+            $version++;
         }
     }
 

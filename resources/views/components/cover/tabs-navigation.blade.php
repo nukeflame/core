@@ -54,6 +54,15 @@
                 </button>
             @endif
 
+
+            @if (in_array($cover->type_of_bus, ['FPR', 'FNP']))
+                <button class="nav-link" id="nav-debits-tab" data-bs-toggle="tab" data-bs-target="#debits-tab"
+                    type="button" role="tab" aria-selected="false" tabindex="-1">
+                    <i class="bx bx-credit-card me-1 align-middle"></i>Cedant
+                </button>
+            @endif
+
+
             <button class="nav-link @if (in_array($cover->type_of_bus, ['TPR', 'TNP'])) active @endif" id="nav-reinsurers-tab"
                 data-bs-toggle="tab" data-bs-target="#reinsurers-tab" type="button" role="tab"
                 aria-selected="@if (in_array($cover->type_of_bus, ['TPR', 'TNP'])) true @else false @endif"
@@ -82,13 +91,6 @@
                 type="button" role="tab" aria-selected="false" tabindex="-1">
                 <i class="bx bx-check me-1 align-middle"></i>Approvals
             </button>
-
-            @if (in_array($cover->type_of_bus, ['FPR', 'FNP']))
-                <button class="nav-link" id="nav-debits-tab" data-bs-toggle="tab" data-bs-target="#debits-tab"
-                    type="button" role="tab" aria-selected="false" tabindex="-1">
-                    <i class="bx bx-credit-card me-1 align-middle"></i>Cedant
-                </button>
-            @endif
 
             <button class="nav-link" id="nav-docs-tab" data-bs-toggle="tab" data-bs-target="#docs-tab"
                 type="button" role="tab" aria-selected="false" tabindex="-1">

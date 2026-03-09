@@ -38,7 +38,7 @@
         $portfolioDirection = strtoupper((string) ($portfolio_direction ?? ''));
         $isPortfolioOut = !empty($reverse_portfolio_columns);
         $portfolioHeading = in_array($portfolioDirection, ['IN', 'OUT'], true)
-            ? ('TREATY PROPORTIONAL ACCOUNT - PORTFOLIO ' . $portfolioDirection)
+            ? 'TREATY PROPORTIONAL ACCOUNT - PORTFOLIO ' . $portfolioDirection
             : strtoupper((string) ($cover->cover_title ?? ''));
     @endphp
     <div style="width:100%; margin-top: 0px; padding:0px; font-size: 9pt; font-family: 'Aptos';" class="debit-reinsurer-page">
@@ -97,16 +97,6 @@
                                 </div>
                                 <div class="info-box text-left">
                                     {!! $cover->currency_code !!}
-                                </div>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td>
-                                <div class="info-box uppercase">
-                                    <strong>Posting No:</strong>
-                                </div>
-                                <div class="info-box text-left">
-                                    {{ $posting_no ?? '-' }}
                                 </div>
                             </td>
                         </tr>

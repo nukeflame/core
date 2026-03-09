@@ -54,7 +54,7 @@
                 </button>
 
                 <button type="button" class="btn btn-outline-dark btn-sm text-start me-2" data-bs-toggle="modal"
-                    data-bs-target="#addAttachemntModal">
+                    data-bs-target="#attachments-modal">
                     <i class="ri-file-text-line me-2"></i>Add File &amp; Supporting Docs
                 </button>
                 {{--
@@ -209,6 +209,9 @@
 
             const CoverActions = {
                 csrfToken: document.querySelector('meta[name="csrf-token"]')?.content,
+                coverNo: @json($cover->cover_no),
+                coverslipBaseUrl: @json(route('docs.coverslip')),
+                reinsurersFetchUrl: @json(route('cover.reinsurers.fetch')),
 
                 init() {
                     if (!this.csrfToken) {
@@ -253,7 +256,7 @@
                     window.location.href = `/cover/${endorsementNo}/edit`;
                 },
 
-                generateDocument(endorsementNo, type, isPreview = false) {
+                async generateDocument(endorsementNo, type, isPreview = false) {
                     const messages = {
                         'slip': 'Generate placement slip for this cover?',
                         'debit': 'Generate debit note for this cover?',
@@ -265,31 +268,34 @@
                     const message = messages[type] || 'Generate document?';
 
                     if (type === 'slip') {
-                        const slipUrl = '/doc/coverslip/facultative';
-                        const popupFeatures = [
-                            'popup=yes',
-                            'width=1280',
-                            'height=900',
-                            'left=120',
-                            'top=80',
-                            'resizable=yes',
-                            'scrollbars=yes',
-                            'noopener=yes',
-                            'noreferrer=yes'
-                        ].join(',');
-                        const previewWindow = window.open(
-                            'about:blank',
-                            'facultative_coverslip_window',
-                            popupFeatures
-                        );
-
-                        if (!previewWindow) {
-                            this.showAlert('Popup blocked', 'Please allow popups for this site.', 'warning');
+                        const slipType = await this.chooseSlipType();
+                        if (!slipType) {
                             return;
                         }
 
-                        previewWindow.location.href = slipUrl;
-                        previewWindow.focus();
+                        if (slipType === 'cedant') {
+                            this.openSlipInNewTab(endorsementNo);
+                            return;
+                        }
+
+                        const reinsurers = await this.fetchReinsurersForSlip(endorsementNo);
+                        if (!reinsurers.length) {
+                            this.showAlert('No Reinsurers Found', 'Add reinsurers before generating a reinsurer slip.',
+                                'warning');
+                            return;
+                        }
+
+                        if (reinsurers.length === 1) {
+                            this.openSlipInNewTab(endorsementNo, reinsurers[0].partner_no);
+                            return;
+                        }
+
+                        const selectedPartnerNo = await this.chooseReinsurer(reinsurers);
+                        if (!selectedPartnerNo) {
+                            return;
+                        }
+
+                        this.openSlipInNewTab(endorsementNo, selectedPartnerNo);
                         return;
                     }
 
@@ -303,6 +309,177 @@
                     //     const url = `/covers/${endorsementNo}/generate-${type}`;
                     //     window.open(url, '_blank');
                     // }
+                },
+
+                openSlipInNewTab(endorsementNo, partnerNo = null) {
+                    const slipUrl = new URL(this.coverslipBaseUrl, window.location.origin);
+                    slipUrl.searchParams.set('endorsement_no', endorsementNo);
+                    if (partnerNo) {
+                        slipUrl.searchParams.set('partner_no', partnerNo);
+                    }
+
+                    const newWindow = window.open(slipUrl.toString(), '_blank', 'noopener,noreferrer');
+                    if (!newWindow) {
+                        console.warn('Slip window blocked by browser popup settings.');
+                        return;
+                    }
+                    newWindow.focus();
+                },
+
+                async chooseSlipType() {
+                    if (typeof Swal !== 'undefined') {
+                        let selectedValue = null;
+                        const result = await Swal.fire({
+                            title: 'Generate Slip',
+                            html: `
+                                <div class="text-start">
+                                    <div class="form-check mb-2">
+                                        <input class="form-check-input" type="radio" name="slip_recipient_type" id="slipRecipientCedant" value="cedant">
+                                        <label class="form-check-label" for="slipRecipientCedant">Cedant</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="slip_recipient_type" id="slipRecipientReinsurer" value="reinsurer">
+                                        <label class="form-check-label" for="slipRecipientReinsurer">Reinsurer</label>
+                                    </div>
+                                    <div id="slipTypeError" class="invalid-feedback d-block mt-2" style="display:none;"></div>
+                                </div>
+                            `,
+                            confirmButtonText: 'Continue',
+                            showCancelButton: true,
+                            preConfirm: () => {
+                                selectedValue = $('input[name="slip_recipient_type"]:checked').val() || null;
+                                const $error = $('#slipTypeError');
+
+                                if (!selectedValue) {
+                                    $error.text('Please choose one option.').show();
+                                    return false;
+                                }
+
+                                $error.text('').hide();
+                                return true;
+                            }
+                        });
+                        return result.isConfirmed ? selectedValue : null;
+                    }
+
+                    return window.confirm('Generate Cedant slip? Click Cancel to choose Reinsurer slip.') ? 'cedant' :
+                        'reinsurer';
+                },
+
+                async chooseReinsurer(reinsurers) {
+                    if (typeof Swal !== 'undefined') {
+                        const optionsHtml = reinsurers
+                            .map((reinsurer) => {
+                                const partnerNo = String(reinsurer.partner_no);
+                                const name = reinsurer.reinsurer_name || `Reinsurer ${partnerNo}`;
+                                return `<option value="${partnerNo}">${name}</option>`;
+                            })
+                            .join('');
+
+                        let selectedPartnerNo = null;
+                        const result = await Swal.fire({
+                            title: 'Select Reinsurer',
+                            html: `
+                                <div class="text-start">
+                                    <select id="swalReinsurerSelect" class="form-control" style="width:100%">
+                                        <option value="">Select reinsurer</option>
+                                        ${optionsHtml}
+                                    </select>
+                                    <div id="swalReinsurerError" class="invalid-feedback d-block mt-2" style="display:none;"></div>
+                                </div>
+                            `,
+                            showCancelButton: true,
+                            confirmButtonText: 'Generate',
+                            didOpen: () => {
+                                if ($.fn.select2) {
+                                    $('#swalReinsurerSelect').select2({
+                                        width: '100%',
+                                        placeholder: 'Select reinsurer',
+                                        allowClear: true,
+                                        dropdownParent: $('.swal2-container')
+                                    });
+                                }
+                            },
+                            preConfirm: () => {
+                                selectedPartnerNo = $('#swalReinsurerSelect').val() || null;
+                                const $error = $('#swalReinsurerError');
+
+                                if (!selectedPartnerNo) {
+                                    $error.text('Please select a reinsurer.').show();
+                                    return false;
+                                }
+
+                                $error.text('').hide();
+                                return true;
+                            },
+                            willClose: () => {
+                                if ($.fn.select2 && $('#swalReinsurerSelect').data('select2')) {
+                                    $('#swalReinsurerSelect').select2('destroy');
+                                }
+                            }
+                        });
+
+                        return result.isConfirmed ? selectedPartnerNo : null;
+                    }
+
+                    const list = reinsurers
+                        .map((reinsurer, index) =>
+                            `${index + 1}. ${reinsurer.reinsurer_name || reinsurer.partner_no} (${reinsurer.partner_no})`
+                        )
+                        .join('\n');
+                    const selected = window.prompt(`Select Reinsurer by number:\n${list}`);
+                    const selectedIndex = Number(selected) - 1;
+                    if (Number.isNaN(selectedIndex) || !reinsurers[selectedIndex]) {
+                        return null;
+                    }
+                    return String(reinsurers[selectedIndex].partner_no);
+                },
+
+                async fetchReinsurersForSlip(endorsementNo) {
+                    if (!this.coverNo || !endorsementNo) {
+                        return [];
+                    }
+
+                    try {
+                        const requestUrl = new URL(this.reinsurersFetchUrl, window.location.origin);
+                        requestUrl.searchParams.set('cover_no', this.coverNo);
+                        requestUrl.searchParams.set('endorsement_no', endorsementNo);
+
+                        const response = await fetch(requestUrl.toString(), {
+                            method: 'GET',
+                            headers: {
+                                'Accept': 'application/json',
+                                'X-Requested-With': 'XMLHttpRequest'
+                            }
+                        });
+
+                        const payload = await response.json();
+                        if (!response.ok || !payload?.success) {
+                            return [];
+                        }
+
+                        const rawReinsurers = payload?.data?.reinsurers ?? [];
+                        const treaties = payload?.data?.treaties ?? [];
+                        const treatyReinsurers = treaties.flatMap((treaty) => treaty?.reinsurers ?? []);
+                        const combined = [...rawReinsurers, ...treatyReinsurers];
+
+                        const unique = new Map();
+                        combined.forEach((item) => {
+                            const partnerNo = item?.partner_no ?? item?.reinsurer_id;
+                            if (!partnerNo || unique.has(String(partnerNo))) {
+                                return;
+                            }
+                            unique.set(String(partnerNo), {
+                                partner_no: String(partnerNo),
+                                reinsurer_name: item?.reinsurer_name || `Reinsurer ${partnerNo}`
+                            });
+                        });
+
+                        return Array.from(unique.values());
+                    } catch (error) {
+                        console.error('Failed to fetch reinsurers for slip generation:', error);
+                        return [];
+                    }
                 },
 
                 async apiRequest(url, data = {}) {

@@ -89,11 +89,6 @@
                                     <select class="form-inputs select2" id="processCategory" name="category" required>
                                         <option value="">Select Category</option>
                                         <option value="system_maintenance">System Maintenance</option>
-                                        {{-- <option value="data_management">Data Management</option>
-                                    <option value="security">Security</option>
-                                    <option value="monitoring">Monitoring</option>
-                                    <option value="integration">Integration</option>
-                                    <option value="reporting">Reporting</option> --}}
                                         <option value="user_backup">Sytem Backup</option>
                                         <option value="cover_registration">Cover Registration</option>
                                         <option value="gl_batch_process">GL Batch Process</option>
@@ -160,18 +155,6 @@
                             <textarea class="form-inputs" id="processDescription" name="description" rows="3"
                                 placeholder="Provide a detailed description of the system process"></textarea>
                         </div>
-                        {{-- <div class="mb-3">
-                            <label for="processParameters" class="form-label">Additional Parameters</label>
-                            <div id="parametersContainer">
-                                <div class="input-group mb-2">
-                                    <input type="text" class="form-control color-blk" name="parameters[keys][]"
-                                        placeholder="Parameter Key">
-                                    <input type="text" class="form-control color-blk" name="parameters[values][]"
-                                        placeholder="Parameter Value">
-                                    <button type="button" class="btn btn-success" id="addParameterBtn">+</button>
-                                </div>
-                            </div>
-                        </div> --}}
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-outline-light border-0 btn-sm"
