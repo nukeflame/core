@@ -4,10 +4,10 @@ namespace Nukeflame\Core;
 
 class ReCore
 {
-    public function greet(string $name): string
+    public function licence(string $owner, string $product = 'nukeflame-core'): string
     {
-        // logger()->debug('core package initialized');
+        $payload = strtoupper(trim($owner)) . '|' . strtoupper(trim($product)) . '|' . date('Ymd');
 
-        return "Hello, {$name}!";
+        return hash('sha256', $payload);
     }
 }

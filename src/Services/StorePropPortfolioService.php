@@ -81,25 +81,25 @@ class StorePropPortfolioService
             $coverTitle = 'PORTFOLIO OUT STATEMENT';
         }
 
-        $cover = $prevCover->replicate(['id']);
-        if ($coverSerialNo !== '') {
-            $cover->cover_serial_no = $coverSerialNo;
-        }
-        $cover->endorsement_no = $newEndorsementNo;
-        $cover->orig_endorsement_no = $prevCover->orig_endorsement_no ?: $previousEndorsementNo;
-        $cover->transaction_type = $transType;
-        $cover->cover_title = $coverTitle;
-        $cover->currency_code = $validated['currency_code'];
-        $cover->currency_rate = $this->parseNumber($validated['today_currency']);
-        $cover->verified = 'A';
-        $cover->status = 'A';
-        $cover->commited = 'Y';
-        $cover->account_year = $accountYear;
-        $cover->account_month = $accountMonth;
-        $cover->dola = Carbon::now();
-        $cover->created_by = $username;
-        $cover->updated_by = $username;
-        $cover->save();
+        // $cover = $prevCover->replicate(['id']);
+        // if ($coverSerialNo !== '') {
+        //     $cover->cover_serial_no = $coverSerialNo;
+        // }
+        // $cover->endorsement_no = $newEndorsementNo;
+        // $cover->orig_endorsement_no = $prevCover->orig_endorsement_no ?: $previousEndorsementNo;
+        // $cover->transaction_type = $transType;
+        // $cover->cover_title = $coverTitle;
+        // $cover->currency_code = $validated['currency_code'];
+        // $cover->currency_rate = $this->parseNumber($validated['today_currency']);
+        // $cover->verified = 'A';
+        // $cover->status = 'A';
+        // $cover->commited = 'Y';
+        // $cover->account_year = $accountYear;
+        // $cover->account_month = $accountMonth;
+        // $cover->dola = Carbon::now();
+        // $cover->created_by = $username;
+        // $cover->updated_by = $username;
+        // $cover->save();
 
         $postingQuarter = Carbon::parse($validated['posting_date'])->quarter;
         $postingYear = Carbon::parse($validated['posting_year'])->year;
@@ -142,7 +142,7 @@ class StorePropPortfolioService
         return [
             'validatedData' => $validated,
             'newEndorsementNo' => $newEndorsementNo,
-            'cover' => $cover,
+            'cover' => $prevCover,
             'prevCover' => $prevCover,
             'computed' => [
                 'premium_desc' => $premiumDesc,
