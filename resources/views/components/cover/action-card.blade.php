@@ -140,6 +140,11 @@
                     <button class="btn btn-dark btn-sm me-2" data-bs-toggle="modal" data-bs-target="#treatyDebitModal">
                         <i class="bi bi-cash-stack me-1"></i>Generate Debit
                     </button>
+                    {{--
+                    <a href="{{ route('cover.transactions.index', ['coverNo' => $cover->cover_no ?? '']) }}"
+                        class="btn btn-outline-dark btn-sm text-start me-2">
+                        <i class="ri-arrow-left me-2"></i>Go To Transactions
+                    </a> --}}
                 @endif
 
                 {{-- <button type="button" class="btn btn-secondary btn-sm me-2 text-center w-10" data-action="preview-slip"

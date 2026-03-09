@@ -41,12 +41,14 @@ use App\Models\CurrencyRate;
 use App\Models\Customer;
 use App\Models\CustomerAccDet;
 use App\Models\DebitNote;
+use App\Models\DebitNoteItem;
 use App\Models\EndorsementNarration;
 use App\Models\EndorsementType;
 use App\Models\PayMethod;
 use App\Models\PolicyRenewal;
 use App\Models\PolicyRenewalDocument;
 use App\Models\PremiumPayTerm;
+use App\Models\CreditNoteItem;
 use App\Models\ReinclassPremtype;
 use App\Models\ReinNote;
 use App\Models\ReinsClass;
@@ -74,6 +76,7 @@ use Symfony\Component\HttpFoundation\Response;
 use Throwable;
 use Yajra\DataTables\Facades\DataTables;
 use App\Services\DebitNoteService;
+use Illuminate\Support\Str;
 use Nukeflame\Core\Services\StorePropPortfolioService;
 
 
@@ -1801,66 +1804,76 @@ class CoverController extends Controller
                 throw new Exception("Cover register not found for endorsement: {$validatedData['endorsement_no']}");
             }
 
-            if (in_array($entryTypeDescr, ['quarterly-figures', 'profit-commission'], true)) {
-                $previousEndorsementNo = (string) $cover->endorsement_no;
-                $typeOfBus = (string) ($validatedData['type_of_bus'] ?? $cover->type_of_bus);
-                $transType = $entryTypeDescr === 'profit-commission' ? 'PC' : 'QTR';
-                $endorsement = $this->coverRepository->generateEndorseNo($typeOfBus, $transType);
-                $newEndorsementNo = (string) ($endorsement->endorsement_no ?? $endorsement['endorsement_no'] ?? '');
-                $coverSerialNo = (string) ($endorsement->serial_no ?? $endorsement['serial_no'] ?? '');
+            // if (in_array($entryTypeDescr, ['quarterly-figures', 'profit-commission'], true)) {
+            //     $baseCover = CoverRegister::where('cover_no', $cover->cover_no)
+            //         ->whereIn('transaction_type', ['NEW', 'REN'])
+            //         ->orderByDesc('dola')
+            //         ->first();
 
-                if ($newEndorsementNo === '') {
-                    throw ValidationException::withMessages([
-                        'type_of_bus' => ['Unable to generate endorsement number.'],
-                    ]);
-                }
+            //     $isFirstQuarterFigures = $entryTypeDescr === 'quarterly-figures'
+            //         && strtoupper((string) $postingQuarter) === 'Q1';
 
-                $baseCover = CoverRegister::where('cover_no', $cover->cover_no)
-                    ->whereIn('transaction_type', ['NEW', 'REN'])
-                    ->orderByDesc('dola')
-                    ->first();
+            //     if ($isFirstQuarterFigures) {
+            //         $cover = $baseCover ?: $cover;
+            //         $this->_endorsement_no = (string) $cover->endorsement_no;
+            //         $validatedData['endorsement_no'] = (string) $cover->endorsement_no;
+            //     } else {
+            //         $previousEndorsementNo = (string) $cover->endorsement_no;
+            //         $typeOfBus = (string) ($validatedData['type_of_bus'] ?? $cover->type_of_bus);
+            //         $transType = $entryTypeDescr === 'profit-commission' ? 'PC' : 'QTR';
+            //         $endorsement = $this->coverRepository->generateEndorseNo($typeOfBus, $transType);
+            //         $newEndorsementNo = (string) ($endorsement->endorsement_no ?? $endorsement['endorsement_no'] ?? '');
+            //         $coverSerialNo = (string) ($endorsement->serial_no ?? $endorsement['serial_no'] ?? '');
 
-                $quarterName = '';
-                if ($entryTypeDescr === 'quarterly-figures') {
-                    $quarterName = match (strtoupper((string) $postingQuarter)) {
-                        'Q1' => 'FIRST QUARTER',
-                        'Q2' => 'SECOND QUARTER',
-                        'Q3' => 'THIRD QUARTER',
-                        'Q4' => 'FOURTH QUARTER',
-                        default => '',
-                    };
-                }
+            //         if ($newEndorsementNo === '') {
+            //             throw ValidationException::withMessages([
+            //                 'type_of_bus' => ['Unable to generate endorsement number.'],
+            //             ]);
+            //         }
 
-                $newCover = $cover->replicate(['id']);
-                if ($coverSerialNo !== '') {
-                    $newCover->cover_serial_no = $coverSerialNo;
-                }
-                $newCover->endorsement_no = $newEndorsementNo;
-                $newCover->orig_endorsement_no = $baseCover?->endorsement_no ?: ($cover->orig_endorsement_no ?: $cover->endorsement_no);
-                $newCover->transaction_type = $transType;
-                $newCover->cover_title = $entryTypeDescr === 'profit-commission'
-                    ? 'PROFIT COMMISSION STATEMENT'
-                    : 'TREATY PROPORTIONAL ACCOUNT ' . trim($quarterName) . '-' . $postingYear;
-                $newCover->verified = 'A';
-                $newCover->status = 'A';
-                $newCover->commited = 'A';
-                $newCover->account_year = $this->_year;
-                $newCover->account_month = $this->_month;
-                $newCover->dola = Carbon::now();
-                $newCover->created_by = Auth::user()->user_name;
-                $newCover->updated_by = Auth::user()->user_name;
-                $newCover->save();
+            //         $quarterName = '';
+            //         if ($entryTypeDescr === 'quarterly-figures') {
+            //             $quarterName = match (strtoupper((string) $postingQuarter)) {
+            //                 'Q1' => 'FIRST QUARTER',
+            //                 'Q2' => 'SECOND QUARTER',
+            //                 'Q3' => 'THIRD QUARTER',
+            //                 'Q4' => 'FOURTH QUARTER',
+            //                 default => '',
+            //             };
+            //         }
 
-                $this->replicateReinsurersForGeneratedEndorsement(
-                    $previousEndorsementNo,
-                    $newEndorsementNo,
-                    (string) $newCover->cover_no
-                );
+            //         $newCover = $cover->replicate(['id']);
+            //         if ($coverSerialNo !== '') {
+            //             $newCover->cover_serial_no = $coverSerialNo;
+            //         }
+            //         $newCover->endorsement_no = $newEndorsementNo;
+            //         $newCover->orig_endorsement_no = $baseCover?->endorsement_no ?: ($cover->orig_endorsement_no ?: $cover->endorsement_no);
+            //         $newCover->transaction_type = $transType;
+            //         $newCover->cover_title = $entryTypeDescr === 'profit-commission'
+            //             ? 'PROFIT COMMISSION STATEMENT'
+            //             : 'TREATY PROPORTIONAL ACCOUNT ' . trim($quarterName) . '-' . $postingYear;
+            //         $newCover->verified = 'A';
+            //         $newCover->status = 'A';
+            //         $newCover->commited = 'A';
+            //         $newCover->account_year = $this->_year;
+            //         $newCover->account_month = $this->_month;
+            //         $newCover->dola = Carbon::now();
+            //         $newCover->created_by = Auth::user()->user_name;
+            //         $newCover->updated_by = Auth::user()->user_name;
+            //         $newCover->save();
 
-                $this->_endorsement_no = $newEndorsementNo;
-                $validatedData['endorsement_no'] = $newEndorsementNo;
-                $cover = $newCover;
-            }
+            //         $this->replicateReinsurersForGeneratedEndorsement(
+            //             $previousEndorsementNo,
+            //             $newEndorsementNo,
+            //             (string) $newCover->cover_no,
+            //             (string) ($newCover->orig_endorsement_no ?? '')
+            //         );
+
+            //         $this->_endorsement_no = $newEndorsementNo;
+            //         $validatedData['endorsement_no'] = $newEndorsementNo;
+            //         $cover = $newCover;
+            //     }
+            // }
 
             $debitData = $this->prepareDebitData($validatedData, $cover);
             $creditData = $this->prepareCreditData($validatedData, $cover);
@@ -2005,6 +2018,10 @@ class CoverController extends Controller
             'computeReinsuranceTax' => $validatedData['compute_reinsurance_tax'] ?? false,
             'computeWithholdingTax' => $validatedData['compute_withholding_tax'] ?? false,
             'premiumPayTerms' => '',
+            'port_prem_rate' => (float) ($validatedData['port_prem_rate'] ?? 0),
+            'port_loss_rate' => (float) ($validatedData['port_loss_rate'] ?? 0),
+            'profit_comm_rate' => (float) ($validatedData['profit_comm_rate'] ?? 0),
+            'mgnt_exp_rate' => (float) ($validatedData['mgnt_exp_rate'] ?? 0),
         ];
     }
 
@@ -2108,7 +2125,8 @@ class CoverController extends Controller
     private function replicateReinsurersForGeneratedEndorsement(
         string $sourceEndorsementNo,
         string $targetEndorsementNo,
-        string $coverNo
+        string $coverNo,
+        string $fallbackEndorsementNo = ''
     ): void {
         if ($sourceEndorsementNo === '' || $targetEndorsementNo === '' || $sourceEndorsementNo === $targetEndorsementNo) {
             return;
@@ -2122,18 +2140,31 @@ class CoverController extends Controller
             return;
         }
 
-        $sourceRows = DB::table('coverripart')
-            ->where('endorsement_no', $sourceEndorsementNo)
-            ->whereNull('deleted_at')
-            ->get();
+        $candidateEndorsements = collect([$sourceEndorsementNo, $fallbackEndorsementNo])
+            ->map(fn($endorsementNo) => trim((string) $endorsementNo))
+            ->filter(fn($endorsementNo) => $endorsementNo !== '')
+            ->unique()
+            ->values();
+
+        $sourceRows = collect();
+        foreach ($candidateEndorsements as $candidateEndorsementNo) {
+            $candidateRows = DB::table('coverripart')
+                ->where('endorsement_no', $candidateEndorsementNo)
+                ->where('cover_no', $coverNo)
+                ->whereNull('deleted_at')
+                ->get();
+
+            if ($candidateRows->isNotEmpty()) {
+                $sourceRows = $candidateRows;
+                break;
+            }
+        }
 
         if ($sourceRows->isEmpty()) {
             return;
         }
 
         DB::transaction(function () use ($sourceRows, $targetEndorsementNo, $coverNo) {
-            // `coverripart_pkey` is enforced on `tran_no` in production, so each cloned row
-            // must be assigned a fresh transaction number before insert.
             DB::statement('LOCK TABLE coverripart IN EXCLUSIVE MODE');
 
             $now = Carbon::now();
@@ -2142,6 +2173,7 @@ class CoverController extends Controller
 
             foreach ($sourceRows as $row) {
                 $data = (array) $row;
+                unset($data['id']);
                 $data['endorsement_no'] = $targetEndorsementNo;
                 $data['cover_no'] = $coverNo;
                 $data['deleted_at'] = null;
@@ -2157,7 +2189,8 @@ class CoverController extends Controller
 
     private function createCustomerAccount(array &$debitData, CoverRegister $coverRegister, $treatyDebit, $treatyCredit, $ref = ''): void
     {
-        $isPortfolio = ($debitData['entry_type_descr'] ?? null) === 'portfolio';
+        $entryTypeDescr = strtolower((string) ($debitData['entryTypeDescr'] ?? $debitData['entry_type_descr'] ?? ''));
+        $isPortfolio = $entryTypeDescr === 'portfolio';
         $debitData['sourceCode'] = 'TRT';
         $debitData['reference'] = $this->generateDebitReference($debitData, $coverRegister, $isPortfolio ? $ref : '');
 
@@ -2172,15 +2205,17 @@ class CoverController extends Controller
         $currencyRate = (float) ($debitData['currencyRate'] ?? $debitData['today_currency'] ?? 0);
         $grossAmount = (float) ($debitData['grossAmount'] ?? 0);
         $netAmount = (float) ($debitData['netAmount'] ?? 0);
+        $localGrossAmount = $grossAmount * $currencyRate;
+        $localNetAmount = $netAmount * $currencyRate;
 
         $custAccount = new CustomerAccDet;
         $custAccount->branch = $coverRegister->branch_code;
         $custAccount->customer_id = $coverRegister->customer_id;
         $custAccount->source_code = $debitData['sourceCode'];
         $custAccount->doc_type = $isPortfolio ? 'DRN' : $debitData['docType'];
-        $custAccount->entry_type_descr = $isPortfolio ? $debitData['entry_type_descr'] : $debitData['entryTypeDescr'];
+        $custAccount->entry_type_descr = $isPortfolio ? $debitData['entryTypeDescr'] : $debitData['entryTypeDescr'];
         $custAccount->reference = $debitData['reference'];
-        $custAccount->account_year = $isPortfolio ? (int) ($debitData['posting_year'] ?? $postingYear) : $postingYear;
+        $custAccount->account_year = $isPortfolio ? (int) ($debitData['postingYear'] ?? $postingYear) : $postingYear;
         $custAccount->account_month = $postingMonth;
         $custAccount->quarter = $isPortfolio ? null : (! empty($debitData['postingQuarter']) ? $debitData['postingQuarter'] : null);
         $custAccount->line_no = 1;
@@ -2194,6 +2229,7 @@ class CoverController extends Controller
             ? ($debitData['currency_code'] ?? $coverRegister->currency_code)
             : ($debitData['currencyCode'] ?? $coverRegister->currency_code);
         $custAccount->currency_rate = $currencyRate;
+        $custAccount->posting_date = $postingDate;
         $custAccount->created_by = Auth::user()->user_name;
         $custAccount->created_date = $now;
         $custAccount->created_at = $now;
@@ -2201,27 +2237,54 @@ class CoverController extends Controller
         $custAccount->updated_by = Auth::user()->user_name;
         $custAccount->updated_datetime = $now;
         $custAccount->dr_cr = $isPortfolio ? 'D' : $debitData['drCr'];
-        $custAccount->foreign_basic_amount = $isPortfolio ? 0 : $grossAmount;
-        $custAccount->local_basic_amount = $isPortfolio ? 0 : ($grossAmount * $currencyRate);
+        $custAccount->foreign_basic_amount = $grossAmount;
+        $custAccount->local_basic_amount = $localGrossAmount;
         $custAccount->foreign_taxes_amount = 0;
         $custAccount->local_taxes_amount = 0;
-        $custAccount->foreign_nett_amount = $isPortfolio ? 0 : $netAmount;
-        $custAccount->local_nett_amount = $isPortfolio ? 0 : ($netAmount * $currencyRate);
+        $custAccount->foreign_nett_amount = $netAmount;
+        $custAccount->local_nett_amount = $localNetAmount;
         $custAccount->premium_levy = (float) ($isPortfolio ? ($debitData['premium_tax'] ?? 0) : ($debitData['premiumLevy'] ?? 0));
         $custAccount->reinsurance_levy = (float) ($isPortfolio ? ($debitData['reinsurance_tax'] ?? 0) : ($debitData['reinsuranceLevy'] ?? 0));
         $custAccount->withholding_tax = (float) ($isPortfolio ? ($debitData['withholding_tax'] ?? 0) : ($debitData['withholdingTax'] ?? 0));
-        $custAccount->loss_participation = (bool) ($isPortfolio ? ($debitData['port_outstanding_loss_amt'] ?? false) : ($debitData['lossParticipation'] ?? false));
+        $custAccount->loss_participation = (bool) ($debitData['lossParticipation'] ?? false);
         $custAccount->sliding_commission = (bool) ($isPortfolio ? ($debitData['sliding_commission'] ?? false) : ($debitData['slidingCommission'] ?? false));
         $custAccount->allocated_amount = 0;
         $custAccount->treaty_debit_no = $isPortfolio ? null : ($treatyDebit ? $treatyDebit?->debit_note_no : null);
-        $custAccount->unallocated_amount = $isPortfolio ? 0 : ($grossAmount * $currencyRate);
+        $custAccount->unallocated_amount = $localGrossAmount;
+
+        if ($isPortfolio || $entryTypeDescr === 'profit-commission') {
+            $custAccount->port_prem_rate = (float) ($debitData['port_prem_rate'] ?? 0);
+            $custAccount->port_loss_rate = (float) ($debitData['port_loss_rate'] ?? 0);
+            $custAccount->profit_comm_rate = (float) ($debitData['profit_comm_rate'] ?? 0);
+            $custAccount->mgnt_exp_rate = (float) ($debitData['mgnt_exp_rate'] ?? 0);
+            $custAccount->comments = $debitData['comments'] ?? null;
+            $custAccount->show_cedant = (bool) ($debitData['showCedant'] ?? false);
+            $custAccount->show_reinsurer = (bool) ($debitData['showReinsurer'] ?? false);
+            $custAccount->compute_premium_tax = (bool) ($debitData['computePremiumTax'] ?? false);
+            $custAccount->compute_reinsurance_tax = (bool) ($debitData['computeReinsuranceTax'] ?? false);
+            $custAccount->compute_withholding_tax = (bool) ($debitData['computeWithholdingTax'] ?? false);
+        }
+
+        if ($isPortfolio) {
+            $portfolioType = strtoupper((string) ($debitData['portfolio_type'] ?? 'IN'));
+            if (! in_array($portfolioType, ['IN', 'OUT'], true)) {
+                $portfolioType = 'IN';
+            }
+            $custAccount->portfolio_type = $portfolioType;
+            $custAccount->port_premium_amt = (float) ($debitData['port_premium_amt'] ?? 0);
+            $custAccount->port_outstanding_loss_amt = (float) ($debitData['port_outstanding_loss_amt'] ?? 0);
+            $custAccount->port_prem_amt = (float) ($debitData['port_prem_amt'] ?? 0);
+            $custAccount->port_loss_amt = (float) ($debitData['port_loss_amt'] ?? 0);
+        }
         $custAccount->save();
     }
 
     private function generateDebitReference(array $debitData, CoverRegister $coverRegister, $ref = ''): string
     {
-        $quarter = ! empty($debitData['postingQuarter']) ? $debitData['postingQuarter'] : $ref;
         $entryTypeDescr = strtolower((string) ($debitData['entryTypeDescr'] ?? $debitData['entry_type_descr'] ?? ''));
+        $periodPrefix = $entryTypeDescr === 'portfolio'
+            ? 'PT'
+            : (! empty($debitData['postingQuarter']) ? $debitData['postingQuarter'] : $ref);
 
         $year = $debitData['postingYear'] ?? $this->_year;
         $entryPrefix = $entryTypeDescr === 'profit-commission' ? 'PC' : '';
@@ -2230,7 +2293,7 @@ class CoverController extends Controller
 
         $random = random_int(1000, 9999);
 
-        return strtoupper("{$quarter}{$entryPrefix}{$prefix}{$year}{$classCode}{$random}");
+        return strtoupper("{$periodPrefix}{$entryPrefix}{$prefix}{$year}{$classCode}{$random}");
     }
 
     private function getDebitReferencePrefix(?string $treatyType): string
@@ -2417,6 +2480,10 @@ class CoverController extends Controller
             'computeReinsuranceTax' => $validatedData['compute_reinsurance_tax'] ?? false,
             'computeWithholdingTax' => $validatedData['compute_withholding_tax'] ?? false,
             'premiumPayTerms' => '',
+            'port_prem_rate' => (float) ($validatedData['port_prem_rate'] ?? 0),
+            'port_loss_rate' => (float) ($validatedData['port_loss_rate'] ?? 0),
+            'profit_comm_rate' => (float) ($validatedData['profit_comm_rate'] ?? 0),
+            'mgnt_exp_rate' => (float) ($validatedData['mgnt_exp_rate'] ?? 0),
         ];
     }
 
@@ -3551,24 +3618,23 @@ class CoverController extends Controller
             ->get();
 
         if ($quarterlyData->isEmpty()) {
-            [$previousQuarter, $previousYear] = $this->getPreviousQuarterAndYear($quarter, (int) $postingYear);
-            $previousItems = $this->getQuarterlyTransactionItems($coverNo, $previousQuarter, $previousYear);
+            $prefill = $this->findPreviousQuarterItems($coverNo, $quarter, (int) $postingYear, $entryTypeDescr);
 
-            if (!empty($previousItems)) {
+            if ($prefill !== null) {
                 return response()->json([
                     'success' => true,
                     'has_data' => false,
                     'prefill_from_previous' => true,
-                    'source_quarter' => $previousQuarter,
-                    'source_year' => $previousYear,
+                    'source_quarter' => $prefill['quarter'],
+                    'source_year' => $prefill['year'],
                     'data' => [
                         'posting_year' => $postingYear,
                         'posting_quarter' => $quarter,
-                        'items' => $previousItems,
+                        'items' => $prefill['items'],
                         'meta' => $defaultMeta,
                         'total_amount' => 0,
                     ],
-                    'message' => "No data found for {$quarter}. Prefilled from {$previousQuarter} {$previousYear}."
+                    'message' => "No data found for {$quarter}. Prefilled from {$prefill['quarter']} {$prefill['year']}."
                 ]);
             }
 
@@ -3589,10 +3655,11 @@ class CoverController extends Controller
         $debitNotes = DebitNote::where('cover_no', $coverNo)
             ->where('posting_quarter', $quarter)
             ->where('posting_year', $postingYear)
+            ->where('type', $entryTypeDescr)
             ->with('items')
             ->get();
 
-        $items = $this->getQuarterlyTransactionItems($coverNo, $quarter, (int) $postingYear);
+        $items = $this->getQuarterlyTransactionItems($coverNo, $quarter, (int) $postingYear, $entryTypeDescr);
 
         $firstRecord = $quarterlyData->first();
         $firstDebitNote = $debitNotes->first();
@@ -3695,11 +3762,12 @@ class CoverController extends Controller
         };
     }
 
-    private function getQuarterlyTransactionItems(string $coverNo, string $quarter, int $postingYear): array
+    private function getQuarterlyTransactionItems(string $coverNo, string $quarter, int $postingYear, string $entryTypeDescr = 'quarterly-figures'): array
     {
         $debitNotes = DebitNote::where('cover_no', $coverNo)
             ->where('posting_quarter', $quarter)
             ->where('posting_year', $postingYear)
+            ->where('type', $entryTypeDescr)
             ->with('items')
             ->get();
 
@@ -3724,12 +3792,35 @@ class CoverController extends Controller
         return $items;
     }
 
+    private function findPreviousQuarterItems(string $coverNo, string $quarter, int $year, string $entryTypeDescr): ?array
+    {
+        $searchQuarter = strtoupper($quarter);
+        $searchYear = $year;
+
+        // Prevent deep scans while still covering multiple historical quarters.
+        for ($i = 0; $i < 8; $i++) {
+            [$searchQuarter, $searchYear] = $this->getPreviousQuarterAndYear($searchQuarter, $searchYear);
+            $items = $this->getQuarterlyTransactionItems($coverNo, $searchQuarter, $searchYear, $entryTypeDescr);
+
+            if (! empty($items)) {
+                return [
+                    'quarter' => $searchQuarter,
+                    'year' => $searchYear,
+                    'items' => $items,
+                ];
+            }
+        }
+
+        return null;
+    }
+
     private function getPreviousQuarterAndYear(string $quarter, int $year): array
     {
         return match (strtoupper($quarter)) {
             'Q1' => ['Q4', $year - 1],
             'Q2' => ['Q1', $year],
-            'Q3' => ['Q2', $year],
+            // Business rule for line-item prefill: H2 mirrors H1
+            'Q3' => ['Q1', $year],
             'Q4' => ['Q3', $year],
             default => ['Q1', $year],
         };
@@ -4159,8 +4250,8 @@ class CoverController extends Controller
 
     public function StorePropPortfolio(Request $request)
     {
+        DB::beginTransaction();
         try {
-            DB::beginTransaction();
             $currentYear = (int) date('Y');
             $result = $this->storePropPortfolioService->execute(
                 $request,
@@ -4174,10 +4265,32 @@ class CoverController extends Controller
             $this->_endorsement_no = $result['newEndorsementNo'];
             $cover = $result['cover'];
             $prevCover = $result['prevCover'];
-            $premium_desc = $result['computed']['premium_desc'];
-            $loss_desc = $result['computed']['loss_desc'];
-            $port_prem_amt = $result['computed']['port_prem_amt'];
-            $port_loss_amt = $result['computed']['port_loss_amt'];
+
+            $this->replicateReinsurersForGeneratedEndorsement(
+                (string) ($prevCover->endorsement_no ?? ''),
+                (string) ($cover->endorsement_no ?? ''),
+                (string) ($cover->cover_no ?? '')
+            );
+
+            $portfolioType = strtoupper((string) ($request->portfolio_type ?? 'IN'));
+            if (! in_array($portfolioType, ['IN', 'OUT'], true)) {
+                $portfolioType = 'IN';
+            }
+            $premiumRate = (float) $this->parseNumber($request->port_prem_rate);
+            $lossRate = (float) $this->parseNumber($request->port_loss_rate);
+            $grossPremiums = (float) $this->parseNumber($request->port_premium_amt);
+            $outstandingLosses = (float) $this->parseNumber($request->port_outstanding_loss_amt);
+            $commissionRate = (float) ($prevCover->comm_rate ?? 0);
+            $premiumTaxRate = (float) ($prevCover->prem_tax_rate ?? 0);
+            $commissionAmount = $grossPremiums * ($commissionRate / 100);
+            $premiumTaxAmount = $grossPremiums * ($premiumTaxRate / 100);
+            $netPremiums = max(0, $grossPremiums - $commissionAmount - $premiumTaxAmount);
+            $port_prem_amt = $netPremiums * ($premiumRate / 100);
+            $port_loss_amt = $outstandingLosses * ($lossRate / 100);
+
+            $premium_desc = $portfolioType === 'OUT' ? 'PREMIUM PORTFOLIO ENTRY - OUT' : 'PREMIUM PORTFOLIO ENTRY - IN';
+            $loss_desc = $portfolioType === 'OUT' ? 'LOSS PORTFOLIO ENTRY - OUT' : 'LOSS PORTFOLIO ENTRY - IN';
+            $portfolioClassCode = 'TRT';
             $prem_tax_rate = $result['computed']['prem_tax_rate'];
             $ri_tax_rate = $result['computed']['ri_tax_rate'];
             $profit_comm_rate = $result['computed']['profit_comm_rate'];
@@ -4192,18 +4305,18 @@ class CoverController extends Controller
                 'posting_year' => (int) $result['postingYear'],
                 'posting_date' => $request->posting_date,
                 'posting_quarter' => 'Q' . $result['postingQuarter'],
-                'amount' => $port_prem_amt - $port_loss_amt,
+                'amount' => $port_prem_amt + $port_loss_amt,
                 'brokerage_rate' => $profit_comm_rate,
                 'premium_tax' => $prem_tax_rate,
                 'reinsurance_tax' => $ri_tax_rate,
-                'show_cedant' => $request->boolean('show_cedant'),
-                'show_reinsurer' => $request->boolean('show_reinsurer'),
+                'show_cedant' => $request->has('show_cedant') ? $request->boolean('show_cedant') : true,
+                'show_reinsurer' => $request->has('show_reinsurer') ? $request->boolean('show_reinsurer') : true,
                 'items' => [
                     [
                         'item_code' => 'IT01',
                         'description' => $premium_desc,
-                        'class_group' => $cover->class_code,
-                        'class_name' => $cover->class_code,
+                        'class_group' => $portfolioClassCode,
+                        'class_name' => $portfolioClassCode,
                         'line_rate' => 100,
                         'ledger' => 'DR',
                         'amount' => $port_prem_amt,
@@ -4211,24 +4324,74 @@ class CoverController extends Controller
                     [
                         'item_code' => 'IT02',
                         'description' => $loss_desc,
-                        'class_group' => $cover->class_code,
-                        'class_name' => $cover->class_code,
+                        'class_group' => $portfolioClassCode,
+                        'class_name' => $portfolioClassCode,
                         'line_rate' => 100,
-                        'ledger' => 'CR',
+                        'ledger' => 'DR',
                         'amount' => $port_loss_amt,
                     ],
                 ],
             ]);
 
+            // logger()->debug(json_encode($validatedData, JSON_PRETTY_PRINT));
+
             $entryTypeDescr = $this->resolveEntryTypeDescr($validatedData);
             $postingYear = (int) ($validatedData['posting_year'] ?? Carbon::now()->year);
             $postingQuarter = $this->resolvePostingQuarter($validatedData, $entryTypeDescr);
+            $existingEntries = DB::table('customeracc_det as cad')
+                ->leftJoin('cover_register as cr', 'cr.endorsement_no', '=', 'cad.endorsement_no')
+                ->where('cad.endorsement_no', $validatedData['endorsement_no'])
+                ->where('cad.account_year', $postingYear)
+                ->where('cad.entry_type_descr', $entryTypeDescr)
+                ->whereNull('cad.deleted_at')
+                ->select('cad.reference', 'cad.portfolio_type', 'cr.cover_title')
+                ->get();
 
-            $existingQuarterQuery = CustomerAccDet::where('endorsement_no', $validatedData['endorsement_no'])
-                ->where('account_year', $postingYear)
-                ->where('entry_type_descr', $entryTypeDescr);
+            if ($entryTypeDescr === 'portfolio' && $existingEntries->isNotEmpty()) {
+                $existingPortfolioTypes = $existingEntries
+                    ->map(function ($row) {
+                        $portfolioType = Str::upper((string) ($row->portfolio_type ?? ''));
+                        if (in_array($portfolioType, ['IN', 'OUT'], true)) {
+                            return $portfolioType;
+                        }
 
-            if ($existingQuarterQuery->exists()) {
+                        $coverTitle = Str::upper((string) ($row->cover_title ?? ''));
+                        if (Str::contains($coverTitle, 'PORTFOLIO OUT')) {
+                            return 'OUT';
+                        }
+
+                        if (Str::contains($coverTitle, 'PORTFOLIO IN')) {
+                            return 'IN';
+                        }
+
+                        return 'IN';
+                    })
+                    ->filter()
+                    ->unique()
+                    ->values();
+
+                $hasPortfolioIn = $existingPortfolioTypes->contains('IN');
+                $hasPortfolioOut = $existingPortfolioTypes->contains('OUT');
+
+                if ($hasPortfolioIn && $hasPortfolioOut) {
+                    throw new BusinessRuleException(
+                        "Portfolio IN and Portfolio OUT for {$postingYear} have already been generated for this endorsement."
+                    );
+                }
+
+                $requestedPortfolioType = strtoupper((string) ($request->portfolio_type ?? 'IN'));
+                if (! in_array($requestedPortfolioType, ['IN', 'OUT'], true)) {
+                    $requestedPortfolioType = 'IN';
+                }
+                $requestedAlreadyExists = ($requestedPortfolioType === 'IN' && $hasPortfolioIn)
+                    || ($requestedPortfolioType === 'OUT' && $hasPortfolioOut);
+
+                if ($requestedAlreadyExists) {
+                    throw new BusinessRuleException(
+                        "Portfolio {$requestedPortfolioType} for {$postingYear} has already been generated for this endorsement."
+                    );
+                }
+            } elseif ($existingEntries->isNotEmpty()) {
                 $entryTypeLabel = ucwords(str_replace('-', ' ', $entryTypeDescr));
                 $postingPeriod = $entryTypeDescr === 'quarterly-figures' && ! empty($postingQuarter)
                     ? "{$postingQuarter} {$postingYear}"
@@ -4236,9 +4399,64 @@ class CoverController extends Controller
                 throw new BusinessRuleException("{$entryTypeLabel} for {$postingPeriod} has already been generated for this endorsement.");
             }
 
-            $treatyDebit = null;
-            $treatyCredit = null;
-            $this->createCustomerAccount($validatedData, $cover, $treatyDebit, $treatyCredit, 'POT');
+            $debitData = [
+                'typeOfBus' => $validatedData['type_of_bus'],
+                'isTreaty' => in_array($validatedData['type_of_bus'], ['TPR', 'TNP']),
+                'isFacultative' => in_array($validatedData['type_of_bus'], ['FPR', 'FNP']),
+                'isProportional' => in_array($validatedData['type_of_bus'], ['TPR', 'FPR']),
+                'coverNo' => $cover->cover_no,
+                'endorsementNo' => $cover->endorsement_no,
+                'installment' => 1,
+                'grossAmount' => $validatedData['amount'],
+                'netAmount' => $validatedData['amount'],
+                'docType' => 'DRN',
+                'drCr' => 'D',
+                'drCrNo' => null,
+                'sourceCode' => null,
+                'reference' => null,
+                'currencyCode' => $validatedData['currency_code'] ?? $cover->currency_code,
+                'currencyRate' => (float) ($validatedData['today_currency'] ?? ($cover->currency_rate ?? 1)),
+                'entryTypeDescr' => 'portfolio',
+                'postingYear' => $validatedData['posting_year'],
+                'postingQuarter' => $validatedData['posting_quarter'],
+                'postingDate' => $validatedData['posting_date'],
+                'brokerageRate' => 0,
+                'comments' => $validatedData['comments'] ?? '',
+                'items' => $validatedData['items'],
+                'premiumLevy' => 0,
+                'reinsuranceLevy' => 0,
+                'withholdingTax' => 0,
+                'lossParticipation' => false,
+                'slidingCommission' => false,
+                'showCedant' => $validatedData['show_cedant'] ?? true,
+                'showReinsurer' => $validatedData['show_reinsurer'] ?? true,
+                'reinsurerPosting' => 'NET',
+                'computePremiumTax' => false,
+                'computeReinsuranceTax' => false,
+                'computeWithholdingTax' => false,
+                'premiumPayTerms' => '',
+                'portfolio_type' => $portfolioType,
+                'port_prem_rate' => $premiumRate,
+                'port_premium_amt' => $grossPremiums,
+                'port_loss_rate' => $lossRate,
+                'port_outstanding_loss_amt' => $outstandingLosses,
+                'port_prem_amt' => $port_prem_amt,
+                'port_loss_amt' => $port_loss_amt,
+            ];
+
+            $creditData = $debitData;
+            $creditData['docType'] = 'CRN';
+            $creditData['drCr'] = 'C';
+
+            $treatyDebit = [];
+            $treatyCredit = [];
+            if ($debitData['isTreaty']) {
+                $treatyDebit = $this->createTreatyDebit($debitData, $cover);
+                $treatyCredit = $this->createTreatyCredit($creditData, $cover);
+                $this->synchronizePortfolioGeneratedItems($treatyDebit, $treatyCredit, $validatedData['items'] ?? []);
+            }
+
+            $this->createCustomerAccount($debitData, $cover, $treatyDebit, $treatyCredit, 'POT');
 
             DB::commit();
 
@@ -4250,7 +4468,16 @@ class CoverController extends Controller
                 'computed' => [
                     'premium_desc' => $premium_desc,
                     'loss_desc' => $loss_desc,
+                    'gross_premiums' => $grossPremiums,
+                    'commission_rate' => $commissionRate,
+                    'commission_amount' => $commissionAmount,
+                    'premium_tax_rate' => $premiumTaxRate,
+                    'premium_tax_amount' => $premiumTaxAmount,
+                    'net_premiums' => $netPremiums,
+                    'premium_transfer_rate' => $premiumRate,
                     'port_prem_amt' => $port_prem_amt,
+                    'outstanding_losses' => $outstandingLosses,
+                    'loss_transfer_rate' => $lossRate,
                     'port_loss_amt' => $port_loss_amt,
                     'prem_tax_rate' => $prem_tax_rate,
                     'ri_tax_rate' => $ri_tax_rate,
@@ -4280,6 +4507,144 @@ class CoverController extends Controller
                 'message' => $e->getMessage(),
             ]);
         }
+    }
+
+    private function synchronizePortfolioGeneratedItems($treatyDebit, $treatyCredit, array $items): void
+    {
+        $normalizedItems = $this->normalizePortfolioItemsForNoteTables($items);
+        if (empty($normalizedItems)) {
+            return;
+        }
+
+        if ($treatyDebit && ! empty($treatyDebit->id)) {
+            $this->replaceDebitNoteItems((int) $treatyDebit->id, $normalizedItems);
+        }
+
+        foreach (collect($treatyCredit)->filter()->values() as $creditNote) {
+            if (! empty($creditNote->id)) {
+                $this->replaceCreditNoteItems((int) $creditNote->id, $normalizedItems);
+            }
+        }
+    }
+
+    private function normalizePortfolioItemsForNoteTables(array $items): array
+    {
+        return collect($items)
+            ->map(function ($item) {
+                $amount = (float) ($item['amount'] ?? 0);
+                if ($amount <= 0) {
+                    return null;
+                }
+
+                return [
+                    'item_code' => strtoupper((string) ($item['item_code'] ?? '')),
+                    'description' => (string) ($item['description'] ?? ''),
+                    'class_group_code' => (string) ($item['class_group'] ?? $item['class_group_code'] ?? ''),
+                    'class_code' => (string) ($item['class_name'] ?? $item['class_code'] ?? ''),
+                    'line_rate' => (float) ($item['line_rate'] ?? 0),
+                    'ledger' => strtoupper((string) ($item['ledger'] ?? 'DR')),
+                    'amount' => $amount,
+                ];
+            })
+            ->filter()
+            ->values()
+            ->all();
+    }
+
+    private function replaceDebitNoteItems(int $debitNoteId, array $items): void
+    {
+        DebitNoteItem::where('debit_note_id', $debitNoteId)->delete();
+
+        $now = now();
+        $noteType = DB::table('debit_notes')->where('id', $debitNoteId)->value('type');
+        $rows = [];
+        foreach ($items as $index => $item) {
+            $lineNo = $index + 1;
+            $rows[] = [
+                'debit_note_id' => $debitNoteId,
+                'line_no' => $lineNo,
+                'item_no' => 'DN-ITM-' . date('Y') . '-' . str_pad((string) $lineNo, 4, '0', STR_PAD_LEFT),
+                'item_code' => $item['item_code'],
+                'description' => $item['description'],
+                'class_group_code' => $item['class_group_code'] !== '' ? $item['class_group_code'] : null,
+                'class_code' => $item['class_code'] !== '' ? $item['class_code'] : null,
+                'line_rate' => $item['line_rate'],
+                'ledger' => $item['ledger'],
+                'type' => $noteType,
+                'amount' => $item['amount'],
+                'net_amount' => $item['amount'],
+                'original_amount' => $item['amount'],
+                'original_line_rate' => $item['line_rate'],
+                'status' => DebitNote::STATUS_POSTED,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ];
+        }
+
+        if (! empty($rows)) {
+            DebitNoteItem::insert($rows);
+        }
+
+        $totalDebits = (float) collect($items)->where('ledger', 'DR')->sum('amount');
+        $totalCredits = (float) collect($items)->where('ledger', 'CR')->sum('amount');
+        DB::table('debit_notes')
+            ->where('id', $debitNoteId)
+            ->update([
+                'gross_amount' => $totalDebits,
+                'commission_amount' => 0,
+                'brokerage_amount' => 0,
+                'other_deductions' => $totalCredits,
+                'net_amount' => $totalDebits - $totalCredits,
+                'updated_at' => $now,
+            ]);
+    }
+
+    private function replaceCreditNoteItems(int $creditNoteId, array $items): void
+    {
+        CreditNoteItem::where('credit_note_id', $creditNoteId)->delete();
+
+        $now = now();
+        $noteType = DB::table('credit_notes')->where('id', $creditNoteId)->value('type');
+        $rows = [];
+        foreach ($items as $index => $item) {
+            $lineNo = $index + 1;
+            $rows[] = [
+                'credit_note_id' => $creditNoteId,
+                'line_no' => $lineNo,
+                'item_no' => 'CN-ITM-' . date('Y') . '-' . str_pad((string) $lineNo, 4, '0', STR_PAD_LEFT),
+                'item_code' => $item['item_code'],
+                'description' => $item['description'],
+                'class_group_code' => $item['class_group_code'] !== '' ? $item['class_group_code'] : null,
+                'class_code' => $item['class_code'] !== '' ? $item['class_code'] : null,
+                'line_rate' => $item['line_rate'],
+                'ledger' => $item['ledger'],
+                'type' => $noteType,
+                'amount' => $item['amount'],
+                'net_amount' => $item['amount'],
+                'original_amount' => $item['amount'],
+                'original_line_rate' => $item['line_rate'],
+                'status' => 'DRAFT',
+                'created_at' => $now,
+                'updated_at' => $now,
+            ];
+        }
+
+        if (! empty($rows)) {
+            CreditNoteItem::insert($rows);
+        }
+
+        $totalDebits = (float) collect($items)->where('ledger', 'DR')->sum('amount');
+        $totalCredits = (float) collect($items)->where('ledger', 'CR')->sum('amount');
+        DB::table('credit_notes')
+            ->where('id', $creditNoteId)
+            ->update([
+                'gross_amount' => $totalDebits,
+                'commission_amount' => 0,
+                'brokerage_amount' => 0,
+                'other_deductions' => $totalCredits,
+                'net_amount' => $totalDebits - $totalCredits,
+                'updated_at' => $now,
+            ]);
     }
 
     public function getTreatyCover(Request $request)

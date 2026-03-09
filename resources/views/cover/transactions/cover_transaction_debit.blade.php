@@ -554,9 +554,10 @@
         </div>
 
         <div class="card-body mx-0 cover-info-wrapper" style="background-color:var(--cover-bg);border-radius:0.375rem;">
-            <button type="button" class="btn btn-outline-dark btn-sm text-start me-2">
-                <i class="ri-exchange-line me-2"></i>Transactions
-            </button>
+            <a href="{{ route('cover.transactions.index', ['coverNo' => $cover->cover_no ?? '']) }}"
+                class="btn btn-outline-dark btn-sm text-start me-2">
+                <i class="ri-arrow-left me-2"></i>Go To Transactions
+            </a>
         </div>
     </div>
 
@@ -689,10 +690,10 @@
                                                 <th width="4%">#</th>
                                                 <th width="12%">Item Number</th>
                                                 <th width="12%">Transaction Type</th>
+                                                <th width="10%">Class</th>
                                                 <th width="10%">Date</th>
                                                 <th width="10%">Quarter</th>
                                                 <th width="10%">Treaty Type</th>
-                                                <th width="10%">Class</th>
                                                 <th width="10%">Commission %</th>
                                                 <th width="10%">Gross Amount</th>
                                                 <th width="7%">Status</th>
@@ -1321,6 +1322,18 @@
                                 defaultContent: '-'
                             },
                             {
+                                data: 'class_name',
+                                name: 'class_name',
+                                render: function(data, type, row) {
+                                    return '<span class="fw-medium">' + Utils.escapeHtml(row
+                                            .group_name || '-') +
+                                        '</span><br>' +
+                                        '<small class="text-muted">' + Utils.escapeHtml(
+                                            data || '') + '</small>';
+                                },
+                                defaultContent: '-'
+                            },
+                            {
                                 data: 'posting_date',
                                 name: 'posting_date',
                                 render: function(data) {
@@ -1343,18 +1356,7 @@
                                 },
                                 defaultContent: '-'
                             },
-                            {
-                                data: 'class_name',
-                                name: 'class_name',
-                                render: function(data, type, row) {
-                                    return '<span class="fw-medium">' + Utils.escapeHtml(row
-                                            .group_name || '-') +
-                                        '</span><br>' +
-                                        '<small class="text-muted">' + Utils.escapeHtml(
-                                            data || '') + '</small>';
-                                },
-                                defaultContent: '-'
-                            },
+
                             {
                                 data: 'line_rate',
                                 name: 'commission_rate',
@@ -2327,7 +2329,7 @@
                         email: '{{ $customer->email ?? '' }}',
                         phone: '{{ $customer->phone ?? ($customer->telephone ?? '') }}',
                         treaty_period: '{{ $cover && $cover->cover_from && $cover->cover_to ? \Carbon\Carbon::parse($cover->cover_from)->format('d M Y') . ' - ' . \Carbon\Carbon::parse($cover->cover_to)->format('d M Y') : '' }}',
-                        treaty_capacity: {{ $cedantTreatyCapacity ?? ($cover->effective_sum_insured ?? ($cover->total_sum_insured ?? ($cover->sum_insured ?? ($cover->treaty_capacity ?? 0)))) }},
+                        treaty_capacity: {{ $cover->treaty_capacity ?? 0 }},
                         partner_no: '{{ $customer->customer_id ?? '' }}',
                         is_cover_note: {{ !empty($cedantIsCoverNote) ? 'true' : 'false' }},
                     }];

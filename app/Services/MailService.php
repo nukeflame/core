@@ -194,7 +194,9 @@ class MailService
                 ];
 
                 $jobId = $this->batchId . '-reply';
+
                 SendOutlookEmailJob::dispatch($dataPayload, $authUser->id, $jobId);
+
                 return true;
             }
 

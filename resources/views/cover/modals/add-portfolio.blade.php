@@ -355,13 +355,58 @@
                 $form.find('.is-invalid').removeClass('is-invalid');
             }
 
+            function getPossibleFieldNames(field) {
+                if (!field) return [];
+
+                const names = [field];
+
+                if (field.includes('.')) {
+                    const bracketName = field
+                        .split('.')
+                        .map(function(part, index) {
+                            return index === 0 ? part : `[${part}]`;
+                        })
+                        .join('');
+                    names.push(bracketName);
+                }
+
+                if (field.includes('->')) {
+                    names.push(field.replace(/->/g, '.'));
+                }
+
+                return [...new Set(names)];
+            }
+
+            function getFirstValidationErrorMessage(errors) {
+                if (!errors || typeof errors !== 'object') return '';
+                const firstField = Object.keys(errors)[0];
+                if (!firstField) return '';
+
+                const firstMessage = errors[firstField];
+                if (Array.isArray(firstMessage)) {
+                    return firstMessage[0] || '';
+                }
+
+                return String(firstMessage || '');
+            }
+
             function markServerErrors(errors) {
                 if (!errors) return;
                 Object.keys(errors).forEach(function(field) {
                     const messages = errors[field];
                     const message = Array.isArray(messages) ? messages[0] : messages;
-                    const $field = $form.find(`[name="${field}"]`);
-                    if (!$field.length) return;
+                    const possibleNames = getPossibleFieldNames(field);
+                    let $field = $();
+
+                    possibleNames.forEach(function(name) {
+                        if ($field.length) return;
+                        $field = $form.find(`[name="${name}"]`);
+                    });
+
+                    if (!$field.length) {
+                        $field = $form.find(`#${field}, [name="${field}"]`).first();
+                    }
+                    if (!$field.length || !message) return;
 
                     $field.addClass('is-invalid');
                     const $feedback = $('<div class="invalid-feedback server-error"></div>').text(message);
@@ -414,7 +459,7 @@
                 $form.find('select').trigger('change');
             }
 
-            function submitPortfolioAjax() {
+            function submitPortfolio() {
                 clearServerErrors();
                 setSavingState(true);
 
@@ -446,7 +491,9 @@
                         if (xhr.status === 422) {
                             const response = xhr.responseJSON || {};
                             markServerErrors(response.errors || {});
-                            notify('Please correct the highlighted fields.', 'error');
+                            const firstMessage = getFirstValidationErrorMessage(response.errors || {});
+                            notify(firstMessage || response.message || 'Please correct the highlighted fields.',
+                                'error');
                             return;
                         }
 
@@ -477,7 +524,7 @@
                 if (!$.fn.validate) {
                     $form.on('submit', function(e) {
                         e.preventDefault();
-                        submitPortfolioAjax();
+                        submitPortfolio();
                     });
                     return;
                 }
@@ -583,7 +630,7 @@
                         error.insertAfter(element);
                     },
                     submitHandler: function() {
-                        submitPortfolioAjax();
+                        submitPortfolio();
                     }
                 });
             }

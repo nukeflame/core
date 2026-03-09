@@ -20,6 +20,7 @@ class CreditNote extends Model
         'cover_no',
         'endorsement_no',
         'type_of_bus',
+        'type',
         'installment_no',
         'posting_year',
         'posting_quarter',

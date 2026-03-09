@@ -22,6 +22,7 @@ class CreditNoteItem extends Model
         'class_code',
         'line_rate',
         'ledger',
+        'type',
         'amount',
         'original_amount',
         'original_line_rate',

@@ -115,6 +115,11 @@
     @php
         $backEndorsementNo = $cover->orig_endorsement_no ?: $cover->endorsement_no;
         $backToCoverUrl = route('cover.CoverHome', ['endorsement_no' => $backEndorsementNo]) . '#reinsurers-tab';
+        $treatyBusinessType = match ($cover->type_of_bus ?? null) {
+            'TPR' => 'Proportional',
+            'TNP' => 'Non-Proportional',
+            default => 'N/A',
+        };
     @endphp
     <div class="d-md-flex d-block align-items-center justify-content-between my-4 page-header-breadcrumb">
         <div>
@@ -141,6 +146,28 @@
                     'endorsement_no' => $cover->orig_endorsement_no ?: $cover->endorsement_no,
                 ]) . '#reinsurers-tab'" />
         @endif
+    </div>
+
+    <div class="card mb-2 border">
+        <div class="card-body py-2">
+            <div class="d-flex flex-wrap align-items-center gap-3">
+                <div>
+                    <span class="text-muted fs-12 d-block">Cover No</span>
+                    <span class="fw-semibold">{{ $cover->cover_no ?? 'N/A' }}</span>
+                </div>
+                <div>
+                    <span class="text-muted fs-12 d-block">Treaty Type</span>
+                    <span class="fw-semibold">{{ $cover->treaty_type ?? 'N/A' }}</span>
+                </div>
+                <div>
+                    <span class="text-muted fs-12 d-block">Treaty Classification</span>
+                    <span
+                        class="badge {{ $treatyBusinessType === 'Non-Proportional' ? 'bg-warning' : ($treatyBusinessType === 'Proportional' ? 'bg-primary' : 'bg-secondary') }}">
+                        {{ $treatyBusinessType }}
+                    </span>
+                </div>
+            </div>
+        </div>
     </div>
 
     <div class="row mb-0">
@@ -263,190 +290,21 @@
                                                 <th width="12%">Title</th>
                                                 <th width="8%">Endorsement</th>
                                                 <th width="10%">Posting Quarter</th>
-                                                {{-- <th>Insured</th> --}}
-                                                <!-- <th>Status</th> -->
                                                 <th width="6%">Currency</th>
-                                                <th width="10%">Amount</th>
-                                                <!-- <th>Amount Paid</th> -->
-                                                <!-- <th>Outstanding</th> -->
+                                                <th width="10%">Exchange Rate</th>
                                                 <th width="8%">Period</th>
                                                 <th width="10%">Created At</th>
                                                 <th width="8%">Actions</th>
                                             </tr>
                                         </thead>
-                                        <tbody>
-                                            @forelse($accounts as $account)
-                                                @php
-                                                    $foreignNettAmount = $account->foreign_nett_amount ?? 0;
-                                                    $unallocatedAmount = $account->unallocated_amount ?? 0;
-
-                                                    $amountPaid = $foreignNettAmount - $unallocatedAmount;
-                                                    $outstandingAmount = $unallocatedAmount;
-
-                                                    $amountPaid = max(0, $amountPaid);
-
-                                                    $isFullyPaid = $account->status === 'paid';
-                                                    $isPartiallyPaid = $account->status === 'partial';
-
-                                                    if ($isFullyPaid) {
-                                                        $statusClass = 'badge-paid';
-                                                        $statusText = 'Paid';
-                                                    } elseif ($isPartiallyPaid) {
-                                                        $statusClass = 'badge-partial';
-                                                        $statusText = 'Partial';
-                                                    } else {
-                                                        $statusClass = 'badge-unpaid';
-                                                        $statusText = 'Not Paid';
-                                                    }
-
-                                                    $entryType = $account->entry_type_descr ?? '';
-                                                    $viewUrl = '';
-                                                    if (
-                                                        in_array($entryType, ['quarterly-figures', 'adjust-commission'])
-                                                    ) {
-                                                        $viewUrl = route('cover.transactions.quarterly-figures', [
-                                                            'coverNo' => $cover->cover_no,
-                                                            'refNo' => $account->reference,
-                                                            'endorsementNo' => $account->endorsement_no,
-                                                        ]);
-                                                    } elseif ($entryType === 'portfolio') {
-                                                        $viewUrl = route('cover.transactions.portfolio', [
-                                                            'coverNo' => $cover->cover_no,
-                                                            'refNo' => $account->reference,
-                                                            'endorsementNo' => $account->endorsement_no,
-                                                        ]);
-                                                    } elseif ($entryType === 'profit-commission') {
-                                                        $viewUrl = route('cover.transactions.profit-commission', [
-                                                            'coverNo' => $cover->cover_no,
-                                                            'refNo' => $account->reference,
-                                                            'endorsementNo' => $account->endorsement_no,
-                                                        ]);
-                                                    }
-                                                    $entryTypeBadgeClass = match ($entryType) {
-                                                        'quarterly-figures' => 'bg-light text-dark',
-                                                        'profit-commission' => 'bg-success',
-                                                        'portfolio' => 'bg-dark',
-                                                        'adjust-commission' => 'bg-warning text-dark',
-                                                        default => 'bg-light text-dark',
-                                                    };
-                                                    $rowCoverTitle = (string) ($coverTitlesByEndorsement[$account->endorsement_no] ?? $cover->cover_title ?? '');
-                                                    $entryTypeLabel = match ($entryType) {
-                                                        'portfolio' => Str::contains(Str::upper($rowCoverTitle), 'PORTFOLIO OUT')
-                                                            ? 'Portfolio Out'
-                                                            : 'Portfolio In',
-                                                        default => Str::title(str_replace('-', ' ', $entryType)),
-                                                    };
-                                                @endphp
-                                                <tr class="{{ $viewUrl ? 'account-row-clickable' : '' }}"
-                                                    @if ($viewUrl) data-view-url="{{ $viewUrl }}" @endif>
-                                                    <td class="text-center">{{ $loop->iteration }}</td>
-                                                    <td>
-                                                        <span class="fw-medium text-primary">
-                                                            {{ $account->reference ?? '-' }}
-                                                        </span>
-                                                    </td>
-                                                    <td>
-                                                        <span class="fw-medium text-dark">
-                                                            {{ $account->treaty_name ?? ($account->treaty_type ?? 'SURPLUS') }}
-                                                        </span>
-                                                    </td>
-                                                    <td>
-                                                        <span class="badge {{ $entryTypeBadgeClass }} px-3">
-                                                            {{ $entryTypeLabel }}
-                                                        </span>
-                                                    </td>
-                                                    <td>
-                                                        <span class="text-dark capitalize">
-                                                            {{ Str::title($rowCoverTitle) }}
-                                                        </span>
-                                                    </td>
-                                                    <td>
-                                                        <div class="fw-medium">
-                                                            <div class="text-dark">{{ $account->endorsement_no ?? '-' }}
-                                                            </div>
-                                                        </div>
-                                                    </td>
-                                                    <td>
-                                                        <span class="text-dark px-3">
-                                                            @php
-                                                                $quarterMap = [
-                                                                    'Q1' => 'First Quarter (Q1)',
-                                                                    'Q2' => 'Second Quarter (Q2)',
-                                                                    'Q3' => 'Third Quarter (Q3)',
-                                                                    'Q4' => 'Fourth Quarter (Q4)',
-                                                                ];
-                                                                echo $quarterMap[$account->quarter] ??
-                                                                    ($account->quarter ?? '-');
-                                                            @endphp
-                                                        </span>
-                                                    </td>
-                                                    <td>
-                                                        <span
-                                                            class="badge bg-secondary">{{ $account->currency_code ?? 'KES' }}</span>
-                                                    </td>
-                                                    <td class="amount-cell">
-                                                        {{ number_format($foreignNettAmount, 2) }}
-                                                    </td>
-                                                    <td>
-                                                        <span class="badge bg-info text-dark">
-                                                            {{ str_pad($account->account_month ?? 1, 2, '0', STR_PAD_LEFT) }}/{{ $account->account_year ?? date('Y') }}
-                                                        </span>
-                                                    </td>
-                                                    <td>
-                                                        {{ $account->created_at ? \Carbon\Carbon::parse($account->created_at)->format('jS M Y, H:i') : '-' }}
-                                                    </td>
-                                                    <td>
-                                                        @if ($viewUrl)
-                                                            <div class="btn-group btn-group-sm" role="group">
-                                                                <a href="{{ $viewUrl }}"
-                                                                    class="btn btn-outline-primary"
-                                                                    title="View {{ $entryTypeLabel }}">
-                                                                    <i class="bx bx-show"></i>
-                                                                </a>
-                                                                <a href="{{ $viewUrl }}" target="_blank"
-                                                                    rel="noopener noreferrer"
-                                                                    class="btn btn-outline-secondary"
-                                                                    title="Open in New Tab">
-                                                                    <i class="bx bx-link-external"></i>
-                                                                </a>
-
-                                                                <button type="button"
-                                                                    class="btn btn-outline-danger js-delete-transaction"
-                                                                    title="Delete Transaction"
-                                                                    data-delete-url="{{ route('cover.transactions.destroy', ['coverNo' => $cover->cover_no, 'refNo' => $account->reference]) }}"
-                                                                    data-endorsement-no="{{ $account->endorsement_no }}"
-                                                                    data-entry-type="{{ $entryType }}">
-                                                                    <i class="bx bx-trash"></i>
-                                                                </button>
-                                                            </div>
-                                                        @endif
-                                                    </td>
-                                                </tr>
-                                            @empty
-                                                <tr>
-                                                    <td colspan="12" class="text-center py-4">
-                                                        <div class="text-muted">
-                                                            <i class="bx bx-inbox fs-1 d-block mb-3"></i>
-                                                            <p class="mb-0">No transaction records found</p>
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            @endforelse
-                                        </tbody>
-                                        @if ($accounts->isNotEmpty())
-                                            <tfoot class="table-light">
-                                                @php
-                                                    $totalForeignNett = $accounts->sum('foreign_nett_amount') ?? 0;
-                                                    $totalUnallocated = $accounts->sum('unallocated_amount') ?? 0;
-                                                    $totalAmountPaid = $totalForeignNett - $totalUnallocated;
-                                                @endphp
-                                                <tr>
-                                                    <th colspan="8" class="text-end">Page Totals:</th>
-                                                    <th>{{ number_format($totalForeignNett, 2) }}</th>
-                                                    <th colspan="3"></th>
-                                                </tr>
-                                            </tfoot>
-                                        @endif
+                                        <tbody></tbody>
+                                        <tfoot class="table-light">
+                                            <tr>
+                                                <th colspan="8" class="text-end">Page Totals:</th>
+                                                <th>0.00</th>
+                                                <th colspan="3"></th>
+                                            </tr>
+                                        </tfoot>
                                     </table>
                                 </div>
                             </div>
@@ -473,12 +331,42 @@
 @push('script')
     <script>
         $(document).ready(function() {
-            var $tbody = $('#customerAccountsTable tbody');
-            var hasData = $tbody.find('tr').length > 0 &&
-                $tbody.find('tr td[colspan="12"]').length === 0;
+            var transactionDataRaw = @json($accountsDataTable);
+            var transactionData = Array.isArray(transactionDataRaw) ? transactionDataRaw : Object.values(
+                transactionDataRaw || {});
+            var hasData = transactionData.length > 0;
+            var $tableEl = $('#customerAccountsTable');
+
+            function updateDeleteButtonsState(apiInstance) {
+                var dt = apiInstance || ($.fn.DataTable.isDataTable($tableEl) ? $tableEl.DataTable() : null);
+                if (!dt) {
+                    return;
+                }
+
+                var filteredRows = dt.rows({
+                    search: 'applied'
+                });
+                var visibleDataRows = (filteredRows.data && typeof filteredRows.data === 'function') ?
+                    filteredRows.data().length :
+                    0;
+
+                $tableEl.find('.js-delete-transaction').each(function() {
+                    var $btn = $(this);
+                    if (visibleDataRows <= 1) {
+                        $btn.addClass('d-none').prop('disabled', true);
+                    } else {
+                        $btn.removeClass('d-none').prop('disabled', false);
+                    }
+                });
+            }
+
+            function escapeHtml(value) {
+                return $('<div>').text(value ?? '').html();
+            }
 
             var table = $('#customerAccountsTable').DataTable({
                 processing: true,
+                data: transactionData,
                 pageLength: 25,
                 lengthMenu: [
                     [10, 25, 50, 100, -1],
@@ -488,16 +376,127 @@
                 order: [
                     [10, 'desc']
                 ],
-                columnDefs: [{
-                        targets: [0, 11],
-                        orderable: false,
-                        searchable: false
+                columns: [{
+                        data: null,
+                        render: function(data, type, row, meta) {
+                            return meta.row + meta.settings._iDisplayStart + 1;
+                        }
                     },
                     {
-                        targets: [8],
-                        className: 'amount-cell'
+                        data: 'reference',
+                        render: function(data) {
+                            return '<span class="fw-medium text-primary">' + escapeHtml(data) +
+                                '</span>';
+                        }
+                    },
+                    {
+                        data: 'treaty_name',
+                        render: function(data) {
+                            return '<span class="fw-medium text-dark">' + escapeHtml(data) +
+                                '</span>';
+                        }
+                    },
+                    {
+                        data: null,
+                        render: function(data, type, row) {
+                            return '<span class="badge ' + escapeHtml(row.entry_type_badge_class) +
+                                ' px-3">' + escapeHtml(row.entry_type_label) + '</span>';
+                        }
+                    },
+                    {
+                        data: 'cover_title',
+                        render: function(data) {
+                            return '<span class="text-dark capitalize">' + escapeHtml(data) +
+                                '</span>';
+                        }
+                    },
+                    {
+                        data: 'endorsement_no',
+                        render: function(data) {
+                            return '<div class="fw-medium"><div class="text-dark">' + escapeHtml(
+                                    data) +
+                                '</div></div>';
+                        }
+                    },
+                    {
+                        data: 'quarter',
+                        render: function(data) {
+                            return '<span class="text-dark px-3">' + escapeHtml(data) + '</span>';
+                        }
+                    },
+                    {
+                        data: 'currency_code',
+                        render: function(data) {
+                            return '<span class="badge bg-secondary">' + escapeHtml(data) +
+                                '</span>';
+                        }
+                    },
+                    {
+                        data: 'exchange_rate',
+                        render: function(data, type) {
+                            if (type === 'sort' || type === 'type') {
+                                return Number(data || 0);
+                            }
+                            return Number(data || 0).toLocaleString('en-US', {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2
+                            });
+                        }
+                    },
+                    {
+                        data: 'period',
+                        render: function(data) {
+                            return '<span class="badge bg-info text-dark">' + escapeHtml(data) +
+                                '</span>';
+                        }
+                    },
+                    {
+                        data: 'created_at',
+                        render: function(data, type, row) {
+                            if (type === 'sort' || type === 'type') {
+                                return row.created_at_sort || 0;
+                            }
+                            return escapeHtml(data);
+                        }
+                    },
+                    {
+                        data: null,
+                        orderable: false,
+                        searchable: false,
+                        render: function(data, type, row) {
+                            if (!row.view_url) {
+                                return '';
+                            }
+
+                            var actions = '<div class="btn-group btn-group-sm" role="group">' +
+                                '<a href="' + escapeHtml(row.view_url) +
+                                '" class="btn btn-outline-primary" title="View ' + escapeHtml(row
+                                    .entry_type_label) +
+                                '"><i class="bx bx-show"></i></a>' +
+                                '<a href="' + escapeHtml(row.view_url) +
+                                '" target="_blank" rel="noopener noreferrer" class="btn btn-outline-secondary" title="Open in New Tab">' +
+                                '<i class="bx bx-link-external"></i></a>';
+
+                            if (row.can_delete) {
+                                actions +=
+                                    '<button type="button" class="btn btn-outline-danger js-delete-transaction" title="Delete Transaction"' +
+                                    ' data-delete-url="' + escapeHtml(row.delete_url) + '"' +
+                                    ' data-endorsement-no="' + escapeHtml(row.endorsement_no) +
+                                    '"' +
+                                    ' data-entry-type="' + escapeHtml(row.entry_type) + '">' +
+                                    '<i class="bx bx-trash"></i></button>';
+                            }
+
+                            actions += '</div>';
+                            return actions;
+                        }
                     }
                 ],
+                columnDefs: [{
+                    targets: [0],
+                    orderable: false,
+                    searchable: false
+                }],
                 language: {
                     processing: '<div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div>',
                     emptyTable: 'No transaction records available',
@@ -507,20 +506,11 @@
                 searching: hasData,
                 info: hasData,
                 footerCallback: function() {
-                    if (!hasData) return;
-
                     var api = this.api();
-                    var parseAmount = function(value) {
-                        if (typeof value === 'number') return value;
-                        if (!value) return 0;
-                        var text = $('<div>').html(value).text();
-                        return parseFloat(String(text).replace(/[^0-9.-]/g, '')) || 0;
-                    };
-
                     var pageTotal = api.column(8, {
                         page: 'current'
                     }).data().reduce(function(sum, value) {
-                        return sum + parseAmount(value);
+                        return sum + (parseFloat(value) || 0);
                     }, 0);
 
                     var footerCell = api.column(8).footer();
@@ -530,8 +520,17 @@
                             maximumFractionDigits: 2
                         });
                     }
+
+                    updateDeleteButtonsState(api);
+                },
+                createdRow: function(row, data) {
+                    if (data.view_url) {
+                        $(row).addClass('account-row-clickable').attr('data-view-url', data.view_url);
+                    }
                 }
             });
+
+            updateDeleteButtonsState(table);
 
             $('#btnApplyFilter').on('click', function() {
                 var params = $('#filterForm').serialize();
@@ -586,37 +585,33 @@
                 e.preventDefault();
                 e.stopPropagation();
 
-                var $btn = $(this);
-                var deleteUrl = $btn.data('delete-url');
-                var endorsementNo = $btn.data('endorsement-no');
-                var entryType = $btn.data('entry-type');
-                var $row = $btn.closest('tr');
+                const $btn = $(this);
+                const deleteUrl = $btn.data('delete-url');
+                const endorsementNo = $btn.data('endorsement-no');
+                const entryType = $btn.data('entry-type');
 
-                var doDelete = function() {
+                const doDelete = function() {
                     $.ajax({
                             url: deleteUrl,
                             method: 'DELETE',
                             headers: {
                                 'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                                'Accept': 'application/json'
+                                'Accept': 'application/json',
                             },
                             data: {
                                 endorsement_no: endorsementNo,
-                                entry_type_descr: entryType
-                            }
+                                entry_type_descr: entryType,
+                            },
                         })
                         .done(function(response) {
                             if (typeof toastr !== 'undefined') {
                                 toastr.success(response.message ||
                                     'Transaction deleted successfully');
                             }
-
-                            setTimeout(function() {
-                                window.location.reload();
-                            }, 300);
+                            setTimeout(() => window.location.reload(), 300);
                         })
                         .fail(function(xhr) {
-                            var message = xhr.responseJSON?.message ||
+                            const message = xhr.responseJSON?.message ||
                                 'Failed to delete transaction';
                             if (typeof toastr !== 'undefined') {
                                 toastr.error(message);
@@ -634,11 +629,9 @@
                         showCancelButton: true,
                         confirmButtonColor: '#dc3545',
                         confirmButtonText: 'Yes, delete it',
-                        cancelButtonText: 'Cancel'
+                        cancelButtonText: 'Cancel',
                     }).then(function(result) {
-                        if (result.isConfirmed) {
-                            doDelete();
-                        }
+                        if (result.isConfirmed) doDelete();
                     });
                 } else if (confirm('Delete this transaction?')) {
                     doDelete();

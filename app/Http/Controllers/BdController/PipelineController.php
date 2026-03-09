@@ -75,6 +75,7 @@ use App\Services\S3AttachmentHandler;
 use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\QueryException;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 
 
@@ -6545,10 +6546,32 @@ class PipelineController
                 ->get(['email', 'telephone', 'partner_number', 'name']);
             $rensuersSubject = 'Dear {recipient}';
 
+            $categoryType = (string) ($request->input('category_type') ?? $prospect->category_type ?? 2);
+            if (!in_array($categoryType, ['1', '2'], true)) {
+                $categoryType = '2';
+            }
+
+            $slipType = ((int) $categoryType === 1) ? 'quotation' : 'facultative';
+            $showPremiums = $stage === Stage::NEGOTIATION ? 1 : 0;
+
+            // For negotiation slips, prefer reinsurers_data because it carries signed shares
+            // used in slip calculations. selected_reinsurers may be stale and keep 0.00 signed shares.
+            $coverSlipReinsurers = $reinsurers_data ?: $selected_reinsurers;
+            if (is_array($coverSlipReinsurers)) {
+                $coverSlipReinsurers = json_encode($coverSlipReinsurers);
+            }
+
             $requestData = [
                 'opportunity_id' => $opportunityId,
                 'current_stage' => $stage,
                 'printout_flag' => false,
+                'total_sum_insured' => $total_sum_insured,
+                'premium' => $premium,
+                'category_type' => $categoryType,
+                'slip_type' => $slipType,
+                'show_premiums' => $showPremiums,
+                'reinsurers_data' => $coverSlipReinsurers,
+                'cedant_id' => (int) ($request->input('cedant_id') ?? $prospect->customer_id ?? 0),
             ];
 
             GenerateBdCoverSlipJob::dispatchSync($requestData, auth()->id());
@@ -6618,6 +6641,31 @@ class PipelineController
         $rawText = strip_tags($htmlContent);
         $rawText = html_entity_decode($rawText, ENT_QUOTES | ENT_HTML5, 'UTF-8');
         $rawText = preg_replace('/\s+/', ' ', trim($rawText));
+    }
+
+    private function extractSlipTimestamp(string $s3Path): string
+    {
+        if (preg_match('/_(\d{8})_(\d{6})\.pdf$/i', $s3Path, $matches)) {
+            return $matches[1] . $matches[2];
+        }
+
+        return '';
+    }
+
+    private function deduplicatePlacementSlips(Collection $files): Collection
+    {
+        return $files
+            ->groupBy(fn($file) => ($file->description ?? '') . '|' . ($file->reinsurer_id ?? 'null'))
+            ->map(function (Collection $group) {
+                if ($group->count() === 1) {
+                    return $group->first();
+                }
+
+                return $group->sortByDesc(
+                    fn($file) => $this->extractSlipTimestamp($file->s3_path ?? '')
+                )->first();
+            })
+            ->values();
     }
 
     public function sendBDNotification(SendBDEmailRequest $request)
@@ -6727,6 +6775,16 @@ class PipelineController
             $shouldIncludeAttachments = !$emailData['is_reply'] || $emailData['include_reply_attachments'];
             if ($shouldIncludeAttachments) {
                 $normalizedCategory = Str::lower((string) ($emailData['category'] ?? ''));
+
+                if ($normalizedCategory === Stage::NEGOTIATION) {
+                    GenerateBdCoverSlipJob::dispatchSync([
+                        'opportunity_id' => $emailData['opportunity_id'],
+                        'current_stage' => Stage::NEGOTIATION,
+                        'printout_flag' => false,
+                        'show_premiums' => 1,
+                    ], auth()->id());
+                }
+
                 $attachmentsQuery = DB::table('prospect_docs')
                     ->where('prospect_id', $emailData['opportunity_id']);
 
@@ -6825,6 +6883,48 @@ class PipelineController
                             ->limit(1);
                         break;
 
+                    case Stage::NEGOTIATION:
+                        $proposalStageValues = $resolveStageValues(Stage::NEGOTIATION);
+                        $cedantId = (int) ($emailData['customer_id'] ?? 0);
+                        $proposalSlipTokens = [
+                            'facultative placement slip',
+                            'facultative_placement_slip',
+                            'facultative cover slip',
+                            'facultative_cover_slip',
+                            'quotation placement slip',
+                            'quotation_placement_slip',
+                            'quotation cover slip',
+                            'quotation_cover_slip',
+                            'offer slip',
+                            'cover slip',
+                        ];
+
+                        $attachmentsQuery
+                            ->whereIn('prospect_status', $proposalStageValues)
+                            ->whereNull('reinsurer_id')
+                            ->where(function ($query) use ($cedantId) {
+                                if ($cedantId > 0) {
+                                    $query->where('cedant_id', $cedantId)
+                                        ->orWhereNull('cedant_id');
+                                    return;
+                                }
+
+                                $query->whereNull('cedant_id');
+                            })
+                            ->where(function ($query) use ($proposalSlipTokens) {
+                                foreach ($proposalSlipTokens as $token) {
+                                    $likeToken = '%' . $token . '%';
+                                    $query->orWhereRaw('LOWER(COALESCE(description, \'\')) LIKE ?', [$likeToken])
+                                        ->orWhereRaw('LOWER(COALESCE(original_name, \'\')) LIKE ?', [$likeToken])
+                                        ->orWhereRaw('LOWER(COALESCE(file, \'\')) LIKE ?', [$likeToken]);
+                                }
+                            })
+                            ->orderByRaw('CASE WHEN cedant_id = ? THEN 0 WHEN cedant_id IS NULL THEN 1 ELSE 2 END', [$cedantId > 0 ? $cedantId : -1])
+                            ->orderByDesc('updated_at')
+                            ->orderByDesc('created_at')
+                            ->limit(1);
+                        break;
+
 
                     default:
                         break;
@@ -6841,9 +6941,9 @@ class PipelineController
                     'reinsurer_id',
                 ]);
 
-                $attached_files = $attached_files->map(function ($file) {
-                    return $this->normalizeBdAttachmentFileName($file);
-                });
+                $attached_files = $attached_files
+                    ->map(fn($file) => $this->normalizeBdAttachmentFileName($file))
+                    ->pipe(fn($files) => $this->deduplicatePlacementSlips($files));
             } else {
                 $attached_files = [];
             }

@@ -54,7 +54,6 @@ class CreditNoteService
 
             if (!empty($calculation)) {
                 foreach ($calculation as $reinsurer) {
-
                     $creditNoteNo = $this->generateCreditNoteNumber(
                         $cover->type_of_bus,
                         $data['postingYear'] ?? now()->year
@@ -240,6 +239,7 @@ class CreditNoteService
             'cover_no' => $cover->cover_no,
             'endorsement_no' => $cover->endorsement_no,
             'type_of_bus' => $cover->type_of_bus,
+            'type' => $data['entryTypeDescr'] ?? null,
             'installment_no' => $data['installment'] ?? $this->getNextInstallment($cover),
             'reinsurer_posting' => $data['reinsurerPosting'] ?? null,
             'premium_pay_terms' => $cover->premium_payment_code,

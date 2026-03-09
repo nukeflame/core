@@ -91,14 +91,14 @@
                             <div class="summary-item mt-2 pt-2">
                                 <span class="summary-label">Total Sum Insured</span>
                                 <span class="summary-value text-primary fw-bold">
-                                    {{ number_format($cover->effective_sum_insured ?? 0, 2) }}
+                                    {{ number_format($cover->effective_sum_insured ?? 0, 0) }}
                                 </span>
                             </div>
 
                             <div class="summary-item">
                                 <span class="summary-label">Premium</span>
                                 <span class="summary-value text-success fw-bold">
-                                    {{ number_format($cover->rein_premium ?? 0, 2) }}
+                                    {{ number_format($cover->rein_premium ?? 0, 0) }}
                                 </span>
                             </div>
 
@@ -118,10 +118,10 @@
                                 <span class="summary-label">Reinsurer's Commission</span>
                                 <div>
                                     <span class="summary-value d-block">
-                                        {{ number_format($cover->rein_comm_rate ?? 0, 2) }}%
+                                        {{ number_format($cover->rein_comm_rate ?? 0, 0) }}%
                                     </span>
                                     <small class="text-muted">
-                                        {{ number_format($cover->rein_comm_amount ?? 0, 2) }}
+                                        {{ number_format($cover->rein_comm_amount ?? 0, 0) }}
                                     </small>
                                 </div>
                             </div>

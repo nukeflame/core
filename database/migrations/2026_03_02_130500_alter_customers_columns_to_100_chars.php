@@ -44,8 +44,5 @@ return new class extends Migration {
     /**
      * Reverse the migrations.
      */
-    public function down(): void
-    {
-        // Irreversible safely: original column lengths/types differ by environment.
-    }
+    public function down(): void {}
 };

@@ -823,7 +823,7 @@
                         if (quarter) {
                             self.fetchQuarterlyData(quarter);
                         } else {
-                            self.setFieldsLocked(false, true);
+                            self.setFieldsLocked(false);
                         }
                     });
 
@@ -897,13 +897,13 @@
                             } else {
                                 self.clearTransactionItems();
                                 self.applyMeta(responseMeta);
-                                self.setFieldsLocked(false, true);
+                                self.setFieldsLocked(false);
                                 self.state.loadedQuarter = null;
                             }
                         })
                         .fail(function(xhr, status, error) {
                             console.error('Error fetching quarterly data:', error);
-                            self.setFieldsLocked(false, true);
+                            self.setFieldsLocked(false);
                             self.state.loadedQuarter = null;
                         })
                         .always(function() {
@@ -1954,6 +1954,10 @@
 
                     if (xhr.status === 422) {
                         this.handleValidationErrors(xhr.responseJSON);
+                        const firstValidationMessage = this.getFirstValidationErrorMessage(xhr.responseJSON);
+                        if (firstValidationMessage) {
+                            message = firstValidationMessage;
+                        }
                     }
 
                     if (xhr.status === 401) {
@@ -1976,26 +1980,69 @@
                     this.$el.form.find('.' + errorClass).removeClass(errorClass);
 
                     $.each(response.errors, function(field, messages) {
-                        let $field;
+                        const possibleNames = self.getPossibleFieldNames(field);
+                        let $field = $();
 
-                        if (field.includes('[')) {
-                            $field = self.$el.form.find('[name="' + field + '"]');
-                        } else {
-                            $field = self.$el.form.find('#' + field + ', [name="' + field + '"]')
-                                .first();
+                        possibleNames.forEach(function(name) {
+                            if ($field.length) return;
+                            $field = self.$el.form.find('[name="' + name + '"]');
+                        });
+
+                        if (!$field.length) {
+                            $field = self.$el.form.find('#' + field + ', [name="' + field + '"]').first();
                         }
 
                         if ($field.length) {
                             $field.addClass(errorClass);
+                            const errorText = Array.isArray(messages) ? (messages[0] || '') : String(messages || '');
+                            if (!errorText) return;
 
-                            if (!$field.closest(self.config.classes.itemRow).length) {
-                                $field.after(
-                                    '<span class="' + errorMsgClass + ' server-error">' +
-                                    messages[0] + '</span>'
-                                );
-                            }
+                            const $targetField = $field.last();
+                            $targetField.next('.server-error').remove();
+                            $targetField.after(
+                                '<span class="' + errorMsgClass + ' server-error">' +
+                                errorText + '</span>'
+                            );
                         }
                     });
+                },
+
+                getFirstValidationErrorMessage: function(response) {
+                    if (!response?.errors || typeof response.errors !== 'object') {
+                        return '';
+                    }
+
+                    const firstField = Object.keys(response.errors)[0];
+                    if (!firstField) return '';
+
+                    const firstMessage = response.errors[firstField];
+                    if (Array.isArray(firstMessage)) {
+                        return firstMessage[0] || '';
+                    }
+
+                    return String(firstMessage || '');
+                },
+
+                getPossibleFieldNames: function(field) {
+                    if (!field) return [];
+
+                    const names = [field];
+
+                    if (field.includes('.')) {
+                        const bracketName = field
+                            .split('.')
+                            .map(function(part, index) {
+                                return index === 0 ? part : '[' + part + ']';
+                            })
+                            .join('');
+                        names.push(bracketName);
+                    }
+
+                    if (field.includes('->')) {
+                        names.push(field.replace(/->/g, '.'));
+                    }
+
+                    return [...new Set(names)];
                 },
 
                 setLoadingState: function(loading) {
@@ -2054,7 +2101,7 @@
 
                     $('#quarterly-data-loaded-info').remove();
                     $('#quarterly-data-prefill-info').remove();
-                    this.setFieldsLocked(false, true);
+                    this.setFieldsLocked(false);
 
                     this.setLoadingState(false);
                 },

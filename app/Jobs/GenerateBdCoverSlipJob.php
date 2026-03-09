@@ -115,11 +115,23 @@ class GenerateBdCoverSlipJob implements ShouldQueue
         if ($reinsurersData === null || $reinsurersData === '') {
             $reinsurersData = DB::table('bd_fac_reinsurers')
                 ->where('opportunity_id', $opportunityId)
-                ->select('reinsurer_id as id', 'written_share')
+                ->select(
+                    'reinsurer_id as id',
+                    'reinsurer_name',
+                    'email',
+                    'written_share',
+                    'updated_written_share',
+                    'signed_share',
+                    'is_declined'
+                )
                 ->get()
                 ->map(fn($rein) => [
                     'id' => (int) $rein->id,
-                    'written_share' => (float) ($rein->written_share ?? 0),
+                    'reinsurer_name' => $rein->reinsurer_name,
+                    'email' => $rein->email,
+                    'written_share' => (float) ($rein->updated_written_share ?? $rein->written_share ?? 0),
+                    'signed_share' => (float) ($rein->signed_share ?? $rein->updated_written_share ?? $rein->written_share ?? 0),
+                    'is_declined' => $rein->is_declined,
                 ])
                 ->filter(fn($rein) => (int) ($rein['id'] ?? 0) > 0)
                 ->values()
@@ -134,10 +146,18 @@ class GenerateBdCoverSlipJob implements ShouldQueue
         $reinsurersData = collect($reinsurersData)
             ->map(function ($rein) {
                 $id = (int) ($rein['id'] ?? $rein['customer_id'] ?? 0);
+                $writtenShare = (float) ($rein['updated_written_share'] ?? $rein['written_share'] ?? 0);
+                $signedShare = (float) ($rein['signed_share'] ?? $rein['updated_signed_share'] ?? $writtenShare);
 
                 return [
                     'id' => $id,
-                    'written_share' => (float) ($rein['written_share'] ?? 0),
+                    'customer_id' => $id,
+                    'reinsurer_name' => $rein['reinsurer_name'] ?? $rein['name'] ?? $rein['customer_name'] ?? null,
+                    'customer_name' => $rein['customer_name'] ?? $rein['name'] ?? $rein['reinsurer_name'] ?? null,
+                    'email' => $rein['email'] ?? $rein['customer_email'] ?? null,
+                    'written_share' => $writtenShare,
+                    'signed_share' => $signedShare,
+                    'is_declined' => $rein['is_declined'] ?? false,
                 ];
             })
             ->filter(fn($rein) => (int) ($rein['id'] ?? 0) > 0)
@@ -161,9 +181,18 @@ class GenerateBdCoverSlipJob implements ShouldQueue
 
         return collect($decoded)
             ->map(function ($rein) {
+                $writtenShare = (float) ($rein['updated_written_share'] ?? $rein['written_share'] ?? 0);
+                $signedShare = (float) ($rein['signed_share'] ?? $rein['updated_signed_share'] ?? $writtenShare);
+
                 return [
                     'id' => (int) ($rein['id'] ?? $rein['customer_id'] ?? 0),
-                    'written_share' => (float) ($rein['written_share'] ?? 0),
+                    'customer_id' => (int) ($rein['id'] ?? $rein['customer_id'] ?? 0),
+                    'reinsurer_name' => $rein['reinsurer_name'] ?? $rein['name'] ?? $rein['customer_name'] ?? null,
+                    'customer_name' => $rein['customer_name'] ?? $rein['name'] ?? $rein['reinsurer_name'] ?? null,
+                    'email' => $rein['email'] ?? $rein['customer_email'] ?? null,
+                    'written_share' => $writtenShare,
+                    'signed_share' => $signedShare,
+                    'is_declined' => $rein['is_declined'] ?? false,
                 ];
             })
             ->filter(fn($rein) => (int) ($rein['id'] ?? 0) > 0)

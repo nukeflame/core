@@ -554,9 +554,10 @@
         </div>
 
         <div class="card-body mx-0 cover-info-wrapper" style="background-color:var(--cover-bg);border-radius:0.375rem;">
-            <button type="button" class="btn btn-outline-dark btn-sm text-start me-2">
-                <i class="ri-exchange-line me-2"></i>Transactions
-            </button>
+            <a href="{{ route('cover.transactions.index', ['coverNo' => $cover->cover_no ?? '']) }}"
+                class="btn btn-outline-dark btn-sm text-start me-2">
+                <i class="bi bi-arrow-left me-2"></i>Go To Transactions
+            </a>
         </div>
     </div>
 
@@ -639,7 +640,7 @@
                             data-bs-target="#debit-items-tab" type="button" role="tab" aria-controls="debit-items-tab"
                             aria-selected="true">
                             <i class="bx bx-table me-1 align-middle"></i>Debit Items
-                            <span class="badge bg-primary ms-1" id="debitItemsCount">{{ $totalDebitItems }}</span>
+                            {{-- <span class="badge bg-primary ms-1" id="debitItemsCount">{{ $totalDebitItems }}</span> --}}
                         </button>
 
                         {{-- <button class="nav-link" id="nav-credit-items-tab" data-bs-toggle="tab"
@@ -676,7 +677,6 @@
                 </nav>
 
                 <div class="tab-content reinsurers-tabpane-card" id="tab-style-4">
-                    {{-- Debit Items Tab --}}
                     <div class="tab-pane fade show active" id="debit-items-tab" role="tabpanel"
                         aria-labelledby="nav-debit-items-tab">
                         <div class="card border-0 shadow-none">
@@ -687,12 +687,10 @@
                                             <tr>
                                                 <th width="4%">#</th>
                                                 <th width="12%">Item Number</th>
-                                                <th width="12%">Transaction Type</th>
+                                                <th width="32%">Transaction Type</th>
                                                 <th width="10%">Date</th>
-                                                <th width="10%">Quarter</th>
                                                 <th width="10%">Treaty Type</th>
                                                 <th width="10%">Class</th>
-                                                <th width="10%">Commission %</th>
                                                 <th width="10%">Gross Amount</th>
                                                 <th width="7%">Status</th>
                                             </tr>
@@ -700,9 +698,9 @@
                                         <tbody></tbody>
                                         <tfoot class="table-light">
                                             <tr class="fw-bold">
-                                                <td colspan="8" class="text-end">Totals:</td>
+                                                <td colspan="6" class="text-end">Totals:</td>
                                                 <td class="amount-cell amount-cell--positive" id="totalAmount">-</td>
-                                                <td colspan="1"></td>
+                                                <td></td>
                                             </tr>
                                         </tfoot>
                                     </table>
@@ -953,6 +951,7 @@
                 coverNo: '{{ $cover->cover_no ?? '' }}',
                 refNo: '{{ request()->route('refNo') ?? '' }}',
                 endorsementNo: '{{ $cover->endorsement_no ?? '' }}',
+                debitNoteNo: '{{ $selectedDebitNoteNo ?? '' }}',
                 currency: '{{ $cover->currency ?? 'KES' }}',
                 csrfToken: '{{ csrf_token() }}',
                 routes: {
@@ -974,7 +973,7 @@
                     summaryStats: '{{ route('treaty.summary-stats') }}',
                     summaryStats: '{{ route('treaty.summary-stats') }}',
                     reinsurerCreditNoteView: '{{ route('treaty.reinsurers.credit-note.view') }}',
-                    cedantDebitNoteView: '{{ route('treaty.cedant.debit-note.view') }}'
+                    cedantPortfolioNoteView: '{{ route('treaty.cedant.portfolio-note.view') }}'
                 },
                 dataTables: {
                     pageLength: 25,
@@ -1292,6 +1291,9 @@
                                 d.cover_no = CONFIG.coverNo;
                                 d.ref_no = CONFIG.refNo;
                                 d.endorsement_no = CONFIG.endorsementNo;
+                                if (CONFIG.debitNoteNo) {
+                                    d.debit_note_no = CONFIG.debitNoteNo;
+                                }
                             },
                             error: function(xhr, error, thrown) {
                                 console.error('DebitItems DataTable Error:', {
@@ -1328,13 +1330,6 @@
                                 defaultContent: '-'
                             },
                             {
-                                data: 'quarter_figure',
-                                name: 'posting_quarter',
-                                orderable: false,
-                                searchable: false,
-                                defaultContent: '-'
-                            },
-                            {
                                 data: 'treaty_type',
                                 name: 'treaty_type',
                                 render: function(data) {
@@ -1351,14 +1346,6 @@
                                         '</span><br>' +
                                         '<small class="text-muted">' + Utils.escapeHtml(
                                             data || '') + '</small>';
-                                },
-                                defaultContent: '-'
-                            },
-                            {
-                                data: 'line_rate',
-                                name: 'commission_rate',
-                                render: function(data) {
-                                    return Utils.formatPercentage(data);
                                 },
                                 defaultContent: '-'
                             },
@@ -2329,6 +2316,7 @@
                         treaty_capacity: {{ $cedantTreatyCapacity ?? ($cover->effective_sum_insured ?? ($cover->total_sum_insured ?? ($cover->sum_insured ?? ($cover->treaty_capacity ?? 0)))) }},
                         partner_no: '{{ $customer->customer_id ?? '' }}',
                         is_cover_note: {{ !empty($cedantIsCoverNote) ? 'true' : 'false' }},
+                        portfolio_type: '{{ strtoupper((string) ($currentPortfolioType ?? 'IN')) }}',
                     }];
 
                     this.table = $('#cedantTable').DataTable({
@@ -2410,11 +2398,11 @@
                                 orderable: false,
                                 searchable: false,
                                 render: function(data, type, row) {
-                                    var isCoverNote = !!row.is_cover_note;
-                                    var noteLabel = isCoverNote ? 'Cover Note' :
-                                        'Debit Note';
-                                    var noteType = isCoverNote ? 'cover_note' :
-                                        'debit_note';
+                                    var portfolioType = String(row.portfolio_type || 'IN')
+                                        .toUpperCase();
+                                    var noteLabel = portfolioType === 'OUT' ?
+                                        'Credit Note' : 'Debit Note';
+                                    var noteType = 'portfolio';
 
                                     return '<div class="d-flex gap-2">' +
                                         '<a href="javascript:void(0)" class="text-primary btn-view-cedant text-center d-flex align-items-center" data-partner_no="' +
@@ -2465,12 +2453,14 @@
                         var postingQuarter = $('#posting_quarter').val() || '';
 
                         if (partnerNo) {
-                            var url = CONFIG.routes.cedantDebitNoteView +
+                            var url = CONFIG.routes.cedantPortfolioNoteView +
                                 '?cover_no=' + encodeURIComponent(CONFIG.coverNo) +
                                 '&endorsement_no=' + encodeURIComponent(CONFIG
                                     .endorsementNo) +
                                 '&cedant_id=' + encodeURIComponent(partnerNo) +
+                                '&ref_no=' + encodeURIComponent(CONFIG.refNo || '') +
                                 '&note_type=' + encodeURIComponent(noteType) +
+                                '&debit_note_no=' + encodeURIComponent(CONFIG.debitNoteNo || '') +
                                 '&posting_year=' + encodeURIComponent(postingYear) +
                                 '&posting_quarter=' + encodeURIComponent(postingQuarter);
                             window.open(url, '_blank');
@@ -2839,62 +2829,14 @@
                 var partnerNo = $(this).data('partner-no');
                 var noteType = $(this).data('note-type') || 'credit_note';
                 if (partnerNo) {
-                    Swal.fire({
-                        title: 'Include Broking Commission?',
-                        icon: 'question',
-                        showDenyButton: true,
-                        showCancelButton: false,
-                        confirmButtonText: 'Yes',
-                        denyButtonText: 'No',
-                        width: '450px',
-                        customClass: {
-                            actions: 'swal_actions_btn',
-                            confirmButton: 'order-2 btn-confirm',
-                            denyButton: 'order-3 btn-deny',
-                        },
-                        buttonsStyling: false
-                    }).then((result) => {
-                        var withBrokerage = null;
-                        var postingYear = $('#posting_year').val() || '';
-                        var postingQuarter = $('#posting_quarter').val() || '';
+                    var url = CONFIG.routes.reinsurerCreditNoteView +
+                        '?cover_no=' + encodeURIComponent(CONFIG.coverNo) +
+                        '&endorsement_no=' + encodeURIComponent(CONFIG.endorsementNo) +
+                        '&partner_no=' + encodeURIComponent(partnerNo) +
+                        '&entry_type=' + encodeURIComponent('portfolio') +
+                        '&note_type=' + encodeURIComponent(noteType);
 
-                        if (result.isConfirmed) {
-                            withBrokerage = 1;
-                            Swal.fire({
-                                icon: 'success',
-                                showConfirmButton: false,
-                                confirmButtonText: 'OK',
-                                title: 'Generating with Brokerage...',
-                                text: '',
-                                timer: 1500,
-                                timerProgressBar: true
-                            });
-                        } else if (result.isDenied) {
-                            withBrokerage = 0;
-                            Swal.fire({
-                                icon: 'success',
-                                showConfirmButton: false,
-                                confirmButtonText: 'OK',
-                                title: 'Generating without Brokerage...',
-                                text: '',
-                                timer: 1500,
-                                timerProgressBar: true
-                            });
-                        }
-
-                        if (withBrokerage !== null) {
-                            var url = CONFIG.routes.reinsurerCreditNoteView +
-                                '?cover_no=' + encodeURIComponent(CONFIG.coverNo) +
-                                '&endorsement_no=' + encodeURIComponent(CONFIG.endorsementNo) +
-                                '&partner_no=' + encodeURIComponent(partnerNo) +
-                                '&with_brokerage=' + withBrokerage +
-                                '&note_type=' + encodeURIComponent(noteType) +
-                                '&posting_year=' + encodeURIComponent(postingYear) +
-                                '&posting_quarter=' + encodeURIComponent(postingQuarter);
-
-                            window.open(url, '_blank');
-                        }
-                    });
+                    window.open(url, '_blank');
                 }
             });
 

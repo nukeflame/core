@@ -217,7 +217,7 @@
                         <tr>
                             <td style="width: 35%; font-weight: 600; padding: 5px;">Total Sum Insured (100%):</td>
                             <td style="width: 65%; padding: 5px;">
-                                {{ number_format($opportunity['sum_insured'] ?? 0, 2) }}
+                                {{ number_format($opportunity['sum_insured'] ?? 0, 0) }}
                             </td>
                         </tr>
                         @if ($stage !== 'lead')
@@ -225,7 +225,7 @@
                                 <tr>
                                     <td style="width: 35%; font-weight: 600; padding: 5px;">Premium (100%):</td>
                                     <td style="width: 65%; padding: 5px;">
-                                        {{ number_format($opportunity['premium'] ?? 0, 2) }}
+                                        {{ number_format($opportunity['premium'] ?? 0, 0) }}
                                     </td>
                                 </tr>
                             @endif
@@ -287,12 +287,12 @@
                                                 </th>
                                                 <th
                                                     style="text-align: right; font-weight: 600; padding: 5px; border: none;">
-                                                    Total Sum Insured ({{ $currency }})
+                                                    Total Sum Insured
                                                 </th>
                                                 @if ($showPremiums)
                                                     <th
                                                         style="text-align: right; font-weight: 600; padding: 5px; border: none;">
-                                                        Premium ({{ $currency }})
+                                                        Premium
                                                     </th>
                                                 @endif
                                             </tr>
@@ -489,13 +489,17 @@
                                 $reinsurerData = [];
                                 $totalWrittenShare = 0;
                                 $totalSignedShare = 0;
+                                $totalSumInsured = 0;
                                 $totalPremium = 0;
+                                $sumInsured = $opportunity['sum_insured'] ?? 0;
+                                $negotiationDetailColspan = $showPremiums ? 5 : 4;
 
                                 foreach ($reinsurers as $reinsurer) {
                                     $writtenShare = $reinsurer->written_share ?? 0;
                                     $signedShare = $reinsurer->signed_share ?? 0;
                                     $signedShareDecimal = $signedShare / 100;
                                     $cedantPremium = $opportunity['premium'] ?? 0;
+                                    $reinsurerSumInsured = $sumInsured * $signedShareDecimal;
 
                                     $reinsurerPremium = $cedantPremium * $signedShareDecimal;
 
@@ -503,11 +507,13 @@
                                         'name' => $reinsurer->customer_name ?? 'N/A',
                                         'written_share' => $writtenShare,
                                         'signed_share' => $signedShare,
+                                        'sum_insured' => $reinsurerSumInsured,
                                         'premium' => $reinsurerPremium,
                                     ];
 
                                     $totalWrittenShare += $writtenShare;
                                     $totalSignedShare += $signedShare;
+                                    $totalSumInsured += $reinsurerSumInsured;
                                     $totalPremium += $reinsurerPremium;
                                 }
                             @endphp
@@ -515,7 +521,7 @@
                             <table style="width: 100%; border-collapse: collapse; font-size: 9pt;">
                                 <thead style="background-color: transparent;">
                                     <tr>
-                                        <td colspan="{{ $detailColspan }}" style="padding: 0;">
+                                        <td colspan="{{ $negotiationDetailColspan }}" style="padding: 0;">
                                             <hr
                                                 style="border: none; height: 1px; background-color: #000; opacity: 0.5; margin: 1px 0;">
                                         </td>
@@ -530,15 +536,17 @@
                                         <th style="text-align: center; font-weight: 600; padding: 5px; border: none;">
                                             Signed Share (%)
                                         </th>
+                                        <th style="text-align: right; font-weight: 600; padding: 5px; border: none;">
+                                            Total Sum Insured
+                                        </th>
                                         @if ($showPremiums)
-                                            <th
-                                                style="text-align: right; font-weight: 600; padding: 5px; border: none;">
-                                                Premium ({{ $currency }})
+                                            <th style="text-align: right; font-weight: 600; padding: 5px; border: none;">
+                                                Premium
                                             </th>
                                         @endif
                                     </tr>
                                     <tr>
-                                        <td colspan="{{ $detailColspan }}" style="padding: 0;">
+                                        <td colspan="{{ $negotiationDetailColspan }}" style="padding: 0;">
                                             <hr
                                                 style="border: none; height: 1px; background-color: #000; opacity: 0.5; margin: 1px 0;">
                                         </td>
@@ -556,15 +564,18 @@
                                             <td style="text-align: center; padding: 5px; border: none;">
                                                 {{ number_format($data['signed_share'], 2) }}%
                                             </td>
+                                            <td style="text-align: right; padding: 5px; border: none;">
+                                                {{ number_format($data['sum_insured'], 0) }}
+                                            </td>
                                             @if ($showPremiums)
                                                 <td style="text-align: right; padding: 5px; border: none;">
-                                                    {{ number_format($data['premium'], 2) }}
+                                                    {{ number_format($data['premium'], 0) }}
                                                 </td>
                                             @endif
                                         </tr>
                                     @endforeach
                                     <tr>
-                                        <td colspan="{{ $detailColspan }}" style="padding: 0;">
+                                        <td colspan="{{ $negotiationDetailColspan }}" style="padding: 0;">
                                             <hr
                                                 style="border: none; height: 1px; background-color: #000; opacity: 0.5; margin: 10px 0 5px 0;">
                                         </td>
@@ -579,6 +590,9 @@
                                         <td style="text-align: center; padding: 5px; border: none;">
                                             {{ number_format($totalSignedShare, 2) }}%
                                         </td>
+                                        <td style="text-align: right; padding: 5px; border: none;">
+                                            {{ number_format($totalSumInsured, 2) }}
+                                        </td>
                                         @if ($showPremiums)
                                             <td style="text-align: right; padding: 5px; border: none;">
                                                 {{ number_format($totalPremium, 2) }}
@@ -586,7 +600,7 @@
                                         @endif
                                     </tr>
                                     <tr>
-                                        <td colspan="{{ $detailColspan }}" style="padding: 0;">
+                                        <td colspan="{{ $negotiationDetailColspan }}" style="padding: 0;">
                                             <hr
                                                 style="border: none; height: 1px; background-color: #000; opacity: 0.5; margin: 1px 0;">
                                         </td>

@@ -19,6 +19,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
+use Carbon\Carbon;
 
 class CoverTransactionController extends Controller
 {
@@ -61,24 +63,59 @@ class CoverTransactionController extends Controller
             $deletedSummary = DB::transaction(function () use ($transactions, $baseQuery) {
                 $coverNoTx = (string) ($transactions->first()->cover_no ?? '');
                 $endorsementNoTx = (string) ($transactions->first()->endorsement_no ?? '');
+                $endorsementRecord = null;
+                $isGeneratedTransactionEndorsement = false;
+
+                if ($endorsementNoTx !== '') {
+                    $endorsementRecord = DB::table('cover_register')
+                        ->where('endorsement_no', $endorsementNoTx)
+                        ->first(['id', 'transaction_type']);
+
+                    $isGeneratedTransactionEndorsement = $endorsementRecord
+                        && in_array(strtoupper((string) $endorsementRecord->transaction_type), ['QTR', 'POT'], true);
+                }
+
                 $targetReferences = $transactions->pluck('reference')->filter()->unique()->values();
 
-                $debitNotes = collect();
-                $creditNotes = collect();
+                $debitNotesByReference = collect();
+                $creditNotesByReference = collect();
 
                 if ($targetReferences->isNotEmpty()) {
-                    $debitNotes = DB::table('debit_notes')
+                    $debitNotesByReference = DB::table('debit_notes')
                         ->where('cover_no', $coverNoTx)
                         ->where('endorsement_no', $endorsementNoTx)
                         ->whereIn('debit_note_no', $targetReferences->all())
                         ->get(['id', 'debit_note_no']);
 
-                    $creditNotes = DB::table('credit_notes')
+                    $creditNotesByReference = DB::table('credit_notes')
                         ->where('cover_no', $coverNoTx)
                         ->where('endorsement_no', $endorsementNoTx)
                         ->whereIn('credit_note_no', $targetReferences->all())
                         ->get(['id', 'credit_note_no']);
                 }
+
+                $debitNotesByEndorsement = collect();
+                $creditNotesByEndorsement = collect();
+                if ($isGeneratedTransactionEndorsement) {
+                    $debitNotesByEndorsement = DB::table('debit_notes')
+                        ->where('cover_no', $coverNoTx)
+                        ->where('endorsement_no', $endorsementNoTx)
+                        ->get(['id', 'debit_note_no']);
+
+                    $creditNotesByEndorsement = DB::table('credit_notes')
+                        ->where('cover_no', $coverNoTx)
+                        ->where('endorsement_no', $endorsementNoTx)
+                        ->get(['id', 'credit_note_no']);
+                }
+
+                $debitNotes = $debitNotesByReference
+                    ->merge($debitNotesByEndorsement)
+                    ->unique('id')
+                    ->values();
+                $creditNotes = $creditNotesByReference
+                    ->merge($creditNotesByEndorsement)
+                    ->unique('id')
+                    ->values();
 
                 $debitNoteIds = $debitNotes->pluck('id')->unique()->filter()->values();
                 $creditNoteIds = $creditNotes->pluck('id')->unique()->filter()->values();
@@ -125,7 +162,12 @@ class CoverTransactionController extends Controller
                         ->delete();
                 }
 
-                // Hard delete customer transaction records themselves.
+                if ($isGeneratedTransactionEndorsement && $endorsementNoTx !== '') {
+                    $deletedDocuments += DB::table('treaty_documents')
+                        ->where('endorsement_no', $endorsementNoTx)
+                        ->delete();
+                }
+
                 $deletedTransactions = $baseQuery->delete();
                 $deletedEndorsement = 0;
 
@@ -135,13 +177,6 @@ class CoverTransactionController extends Controller
                         ->exists();
 
                     if (! $hasRemainingTransactions) {
-                        $endorsementRecord = DB::table('cover_register')
-                            ->where('endorsement_no', $endorsementNoTx)
-                            ->first(['id', 'transaction_type']);
-
-                        $isGeneratedTransactionEndorsement = $endorsementRecord
-                            && in_array(strtoupper((string) $endorsementRecord->transaction_type), ['QTR', 'POT'], true);
-
                         if ($isGeneratedTransactionEndorsement) {
                             $deletedEndorsement = DB::table('cover_register')
                                 ->where('id', $endorsementRecord->id)
@@ -177,7 +212,7 @@ class CoverTransactionController extends Controller
 
     public function index(Request $request, $coverNo)
     {
-        $cover = CoverRegister::where('cover_no', $coverNo)->whereIn('type_of_bus', ['TPR', 'TRP'])->firstOrFail();
+        $cover = CoverRegister::where('cover_no', $coverNo)->whereIn('type_of_bus', ['TPR', 'TNP'])->firstOrFail();
         $customer = Customer::where('customer_id', $cover->customer_id)->first();
 
         $query = CustomerAccDet::query();
@@ -204,11 +239,9 @@ class CoverTransactionController extends Controller
             $query->where('account_month', $request->account_month);
         }
 
-        $accounts = $query->orderBy('created_at', 'desc')
-            ->paginate(25)
-            ->withQueryString();
+        $accounts = $query->orderBy('created_at', 'desc')->get();
 
-        $accountEndorsements = collect($accounts->items())
+        $accountEndorsements = $accounts
             ->pluck('endorsement_no')
             ->filter()
             ->unique()
@@ -217,7 +250,82 @@ class CoverTransactionController extends Controller
         $coverTitlesByEndorsement = $accountEndorsements->isEmpty()
             ? collect()
             : CoverRegister::whereIn('endorsement_no', $accountEndorsements->all())
-                ->pluck('cover_title', 'endorsement_no');
+            ->pluck('cover_title', 'endorsement_no');
+
+        $quarterMap = [
+            'Q1' => 'First Quarter (Q1)',
+            'Q2' => 'Second Quarter (Q2)',
+            'Q3' => 'Third Quarter (Q3)',
+            'Q4' => 'Fourth Quarter (Q4)',
+        ];
+
+        $canDelete = $accounts->count() > 1;
+
+        $accountsDataTable = $accounts->values()->map(function ($account) use ($cover, $coverTitlesByEndorsement, $quarterMap, $canDelete) {
+            $entryType = (string) ($account->entry_type_descr ?? '');
+            $viewUrl = '';
+
+            if (in_array($entryType, ['quarterly-figures', 'adjust-commission'], true)) {
+                $viewUrl = route('cover.transactions.quarterly-figures', [
+                    'coverNo' => $cover->cover_no,
+                    'refNo' => $account->reference,
+                    'endorsementNo' => $account->endorsement_no,
+                ]);
+            } elseif ($entryType === 'portfolio') {
+                $viewUrl = route('cover.transactions.portfolio', [
+                    'coverNo' => $cover->cover_no,
+                    'refNo' => $account->reference,
+                    'endorsementNo' => $account->endorsement_no,
+                ]);
+            } elseif ($entryType === 'profit-commission') {
+                $viewUrl = route('cover.transactions.profit-commission', [
+                    'coverNo' => $cover->cover_no,
+                    'refNo' => $account->reference,
+                    'endorsementNo' => $account->endorsement_no,
+                ]);
+            }
+
+            $entryTypeBadgeClass = match ($entryType) {
+                'quarterly-figures' => 'bg-light text-dark',
+                'profit-commission' => 'bg-success',
+                'portfolio' => 'bg-dark',
+                'adjust-commission' => 'bg-warning text-dark',
+                default => 'bg-light text-dark',
+            };
+
+            $rowCoverTitle = (string) ($coverTitlesByEndorsement[$account->endorsement_no] ?? $cover->cover_title ?? '');
+            $portfolioType = Str::upper((string) ($account->portfolio_type ?? 'IN'));
+            if (! in_array($portfolioType, ['IN', 'OUT'], true)) {
+                $portfolioType = 'IN';
+            }
+            $entryTypeLabel = match ($entryType) {
+                'portfolio' => 'Portfolio ' . $portfolioType,
+                default => Str::title(str_replace('-', ' ', $entryType)),
+            };
+
+            return [
+                'reference' => $account->reference ?? '-',
+                'treaty_name' => $account->treaty_name ?? ($account->treaty_type ?? 'SURPLUS'),
+                'entry_type_label' => $entryTypeLabel,
+                'entry_type_badge_class' => $entryTypeBadgeClass,
+                'cover_title' => Str::title($rowCoverTitle),
+                'endorsement_no' => $account->endorsement_no ?? '-',
+                'quarter' => $quarterMap[$account->quarter] ?? ($account->quarter ?? '-'),
+                'currency_code' => $account->currency_code ?? 'KES',
+                'exchange_rate' => (float) ($account->exchange_rate ?? $account->today_currency ?? $account->currency_rate ?? 0),
+                'foreign_nett_amount' => (float) ($account->foreign_nett_amount ?? 0),
+                'period' => str_pad((string) ($account->account_month ?? 1), 2, '0', STR_PAD_LEFT) . '/' . ($account->account_year ?? date('Y')),
+                'created_at' => $account->created_at ? Carbon::parse($account->created_at)->format('jS M Y, H:i') : '-',
+                'created_at_sort' => $account->created_at ? Carbon::parse($account->created_at)->timestamp : 0,
+                'view_url' => $viewUrl,
+                'delete_url' => route('cover.transactions.destroy', [
+                    'coverNo' => $cover->cover_no,
+                    'refNo' => $account->reference,
+                ]),
+                'entry_type' => $entryType,
+                'can_delete' => $canDelete,
+            ];
+        })->values()->all();
 
         $statsQuery = CustomerAccDet::where('cover_no', $coverNo);
 
@@ -261,6 +369,7 @@ class CoverTransactionController extends Controller
             'nextInstallment' => $nextInstallment,
             'installmentAmount' => $installmentAmount,
             'accounts' => $accounts,
+            'accountsDataTable' => $accountsDataTable,
             'coverTitlesByEndorsement' => $coverTitlesByEndorsement,
             'stats' => $stats,
             'itemCodes' => $itemCodes,
@@ -442,19 +551,26 @@ class CoverTransactionController extends Controller
         $currentEntryTypeDisplay = $selectedTransaction?->entry_type_descr
             ? ucwords(str_replace('-', ' ', (string) $selectedTransaction->entry_type_descr))
             : 'Portfolio';
+        $currentPortfolioType = Str::upper((string) ($selectedTransaction?->portfolio_type ?? 'IN'));
+        if (! in_array($currentPortfolioType, ['IN', 'OUT'], true)) {
+            $currentPortfolioType = 'IN';
+        }
         $currentQuarterDisplay = ($currentQuarter && $currentYear)
             ? strtoupper((string) $currentQuarter) . ' - ' . $currentYear
             : ('Q' . now()->quarter . ' - ' . now()->year);
 
         $selectedDebitNoteNo = null;
-        if ($currentQuarter && $currentYear) {
-            $selectedDebitNoteNo = DebitNote::where('cover_no', $cover->cover_no)
+        if ($currentYear) {
+            $selectedDebitNoteQuery = DebitNote::where('cover_no', $cover->cover_no)
                 ->where('endorsement_no', $cover->endorsement_no)
-                ->where('posting_quarter', strtoupper((string) $currentQuarter))
+                ->where('type', 'portfolio')
                 ->where('posting_year', (int) $currentYear)
                 ->orderByDesc('posting_date')
-                ->orderByDesc('id')
-                ->value('debit_note_no');
+                ->orderByDesc('id');
+            if ($currentQuarter) {
+                $selectedDebitNoteQuery->where('posting_quarter', strtoupper((string) $currentQuarter));
+            }
+            $selectedDebitNoteNo = $selectedDebitNoteQuery->value('debit_note_no');
         }
 
         $transactions = CoverDebit::where('endorsement_no', $request->endorsementNo)
@@ -522,6 +638,7 @@ class CoverTransactionController extends Controller
             'cedantIsCoverNote' => $cedantIsCoverNote,
             'currentEntryTypeDisplay' => $currentEntryTypeDisplay,
             'currentQuarterDisplay' => $currentQuarterDisplay,
+            'currentPortfolioType' => $currentPortfolioType,
             'selectedDebitNoteNo' => $selectedDebitNoteNo,
         ]);
     }

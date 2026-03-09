@@ -218,6 +218,8 @@ Route::group(['prefix' => 'cover', 'middleware' => ['auth', 'check.first.login']
 
         Route::get('/cedant/debit-note/view', [QuarterlyDebitController::class, 'viewCedantDebitNote'])
             ->name('cedant.debit-note.view');
+        Route::get('/cedant/portfolio-note/view', [QuarterlyDebitController::class, 'viewCedantPortfolioNote'])
+            ->name('cedant.portfolio-note.view');
 
         Route::prefix('documents')->name('documents.')->group(function () {
             Route::get('/', [QuarterlyDebitController::class, 'getDocuments'])

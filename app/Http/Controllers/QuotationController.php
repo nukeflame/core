@@ -142,6 +142,19 @@ class QuotationController extends Controller
         $requestedCategoryType = $request->input('category_type');
         $requestedSlipType = strtolower((string) $request->input('slip_type', ''));
         $resolvedStageType = null;
+        $requestSumInsured = is_string($request->input('total_sum_insured'))
+            ? str_replace(',', '', $request->input('total_sum_insured'))
+            : $request->input('total_sum_insured');
+        $requestPremium = is_string($request->input('premium'))
+            ? str_replace(',', '', $request->input('premium'))
+            : $request->input('premium');
+
+        $resolvedSumInsured = is_numeric($requestSumInsured)
+            ? (float) $requestSumInsured
+            : (float) ($activity->total_sum_insured ?? 0);
+        $resolvedPremium = is_numeric($requestPremium)
+            ? (float) $requestPremium
+            : (float) ($activity->cede_premium ?? 0);
 
         if (in_array((string) $requestedCategoryType, ['1', '2'], true)) {
             $resolvedStageType = (int) $requestedCategoryType;
@@ -162,8 +175,8 @@ class QuotationController extends Controller
             'currency_code' => $activity->currency_code,
             'class_name' => $activity->class_name,
             'stageType' => $resolvedStageType ?? ($activity->category_type ?? null),
-            'sum_insured' => $activity->total_sum_insured ?? $request->total_sum_insured,
-            'premium' => $activity->cede_premium ?? $request->premium,
+            'sum_insured' => $resolvedSumInsured,
+            'premium' => $resolvedPremium,
             'commission_rate' => $activity->comm_rate ?? 0
         ];
     }

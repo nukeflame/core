@@ -1413,12 +1413,22 @@
                         continue;
                     }
 
+                    if (key === 'current_stage') {
+                        value = 'negotiation';
+                    }
+
                     postForm.append($('<input>', {
                         type: 'hidden',
                         name: key,
                         value: value
                     }));
                 }
+
+                postForm.append($('<input>', {
+                    type: 'hidden',
+                    name: 'show_premiums',
+                    value: 1
+                }));
 
                 postForm.append($('<input>', {
                     type: 'hidden',

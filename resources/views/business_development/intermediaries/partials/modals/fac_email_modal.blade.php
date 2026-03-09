@@ -503,7 +503,6 @@
 
                     toastr.success('Draft saved successfully!');
                 } catch (error) {
-                    console.error('Error saving draft:', error);
                     toastr.error(`Error saving draft: ${error.message}`);
                 }
             }
@@ -519,7 +518,6 @@
 
                     showConfirmationModal();
                 } catch (error) {
-                    console.error('Error in form submission:', error);
                     toastr.error(`Error sending email: ${error.message}`);
                 }
             }

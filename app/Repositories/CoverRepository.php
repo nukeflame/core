@@ -594,6 +594,7 @@ class CoverRepository extends BaseRepository
             $CoverRegister->save();
 
             $this->createBusinessTypeRecords($data, $type_of_bus, $cover_no, $endorsement_no, $CoverRegister);
+            $this->syncTreatyCapacityToCoverRegister($CoverRegister);
             if ($data->trans_type === self::TRANSACTION_NEW) {
                 $this->syncProspectTermsToCoverRisk($CoverRegister, $data->prospect_id ?? null);
             }
@@ -809,6 +810,7 @@ class CoverRepository extends BaseRepository
             $CoverRegister->save();
 
             $this->updateBusinessTypeRecords($request, $CoverRegister->type_of_bus, $treatytype);
+            $this->syncTreatyCapacityToCoverRegister($CoverRegister);
 
             $this->updateCoverInstallments($CoverRegister, $request);
 
@@ -978,6 +980,24 @@ class CoverRepository extends BaseRepository
             'created_by' => Auth::user()->user_name,
             'updated_by' => Auth::user()->user_name,
         ]);
+    }
+
+    private function syncTreatyCapacityToCoverRegister(CoverRegister $coverRegister): void
+    {
+        if (!Schema::hasColumn('cover_register', 'treaty_capacity')) {
+            return;
+        }
+
+        $treatyCapacity = 0.0;
+        if ($coverRegister->type_of_bus === self::TYPE_TREATY_PROPORTIONAL) {
+            $treatyCapacity = (float) CoverReinProp::where('endorsement_no', $coverRegister->endorsement_no)
+                ->sum('treaty_limit');
+        }
+
+        $coverRegister->treaty_capacity = $treatyCapacity;
+        $coverRegister->updated_by = Auth::user()->user_name;
+        $coverRegister->updated_at = now();
+        $coverRegister->save();
     }
 
     public function saveCoverEndorsement($request)

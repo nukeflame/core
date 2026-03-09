@@ -134,7 +134,7 @@
                             <label for="lead_status_select">Lead Status</label>
                             <select id="lead_status_select" name="lead_status" class="form-control">
                                 <option value="">All Statuses</option>
-                                
+
                             </select>
                         </div>
                     </div>
@@ -166,7 +166,7 @@
                         <div class="form-group">
                             <label for="industry_select">Industry</label>
                             <select id="industry_select" name="industry" class="form-control">
-                               
+
                             </select>
                         </div>
                     </div> --}}
@@ -209,10 +209,6 @@
                                         <th>Reinsurance Commission</th>
                                         <th>Total Brokerage</th>
                                         <th>Reverted To Pipeline</th>
-
-
-
-
                                     </tr>
                                 </thead>
                                 <tbody></tbody>
@@ -246,9 +242,9 @@
                     const params = {
                         from_year: $('#from_year').val(),
                         to_year: $('#to_year').val(),
-                        start_date:$('#start_date').val(),
-                        end_date:$('#end_date').val(),
-                        closure_date:$('#closure_date').val(),
+                        start_date: $('#start_date').val(),
+                        end_date: $('#end_date').val(),
+                        closure_date: $('#closure_date').val(),
                         client_category: $('#client_category_select').val(),
                         lead_status: $('#lead_status_select').val(),
                         country_code: $('#country_code_select').val(),

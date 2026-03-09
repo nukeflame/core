@@ -17,6 +17,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
@@ -62,7 +63,7 @@ class QuarterlyDebitController extends Controller
                     'recordsTotal' => 0,
                     'recordsFiltered' => 0,
                     'data' => [],
-                    'error' => 'cover_no and endorsement_no are required',
+                    'error' => 'cover_no, endorsement_no and ref_no are required',
                 ], 400);
             }
 
@@ -73,7 +74,35 @@ class QuarterlyDebitController extends Controller
             $orderColumn = $request->input('order.0.column', 2);
             $orderDir = $request->input('order.0.dir', 'desc');
 
-            $customerAccount = CustomerAccDet::where('reference', $refNo)->firstOrFail();
+            $customerAccount = CustomerAccDet::where('reference', $refNo)
+                ->where('cover_no', $coverNo)
+                ->where('endorsement_no', $endorsementNo)
+                ->orderByDesc('created_date')
+                ->firstOrFail();
+            $entryTypeDescr = strtolower((string) ($customerAccount?->entry_type_descr ?? ''));
+
+            $resolvedDebitNoteNo = trim((string) $debitNoteNo);
+            if ($resolvedDebitNoteNo === '') {
+                $resolvedDebitNoteNo = trim((string) ($customerAccount?->treaty_debit_no ?? ''));
+            }
+
+            if ($resolvedDebitNoteNo === '') {
+                $debitNoteByPeriod = DebitNote::query()
+                    ->where('cover_no', $coverNo)
+                    ->where('endorsement_no', $endorsementNo)
+                    ->where('type', $customerAccount?->entry_type_descr)
+                    ->when(! empty($customerAccount?->account_year), function ($q) use ($customerAccount) {
+                        $q->where('posting_year', (int) $customerAccount->account_year);
+                    })
+                    ->when(! empty($customerAccount?->quarter), function ($q) use ($customerAccount) {
+                        $q->where('posting_quarter', strtoupper((string) $customerAccount->quarter));
+                    })
+                    ->orderByDesc('posting_date')
+                    ->orderByDesc('id')
+                    ->value('debit_note_no');
+
+                $resolvedDebitNoteNo = trim((string) ($debitNoteByPeriod ?? ''));
+            }
 
             $columns = [
                 0 => 'tdi.id',
@@ -101,15 +130,20 @@ class QuarterlyDebitController extends Controller
             $query = DB::table('debit_note_items as tdi')
                 ->join('debit_notes as dn', 'tdi.debit_note_id', '=', 'dn.id')
                 ->leftJoin('treaty_item_codes as tc', 'tdi.item_code', '=', 'tc.item_code')
-                ->leftJoin('class_groups as cg', 'tdi.class_group_code', '=', 'cg.group_code')
+                ->leftJoin('reinsclasses as cg', 'tdi.class_group_code', '=', 'cg.class_code')
                 ->leftJoinSub($classTypesSub, 'c', function ($join) {
                     $join->on('tdi.class_code', '=', 'c.premtype_code')
                         ->on('tdi.class_group_code', '=', 'c.reinclass');
                 })
                 ->where('dn.cover_no', $coverNo)
-                ->where('dn.type', $customerAccount?->entry_type_descr)
-                ->where('dn.debit_note_no', $customerAccount?->treaty_debit_no)
                 ->where('dn.endorsement_no', $endorsementNo)
+                ->where(function ($q) use ($entryTypeDescr) {
+                    $q->whereRaw('LOWER(COALESCE(tdi.type, \'\')) = ?', [$entryTypeDescr])
+                        ->orWhere(function ($inner) use ($entryTypeDescr) {
+                            $inner->whereNull('tdi.type')
+                                ->whereRaw('LOWER(COALESCE(dn.type, \'\')) = ?', [$entryTypeDescr]);
+                        });
+                })
                 ->where(function ($q) {
                     $q->whereRaw('dn.compute_reinsurance_tax IS TRUE')
                         ->orWhere(function ($inner) {
@@ -123,14 +157,16 @@ class QuarterlyDebitController extends Controller
                     'tdi.item_code',
                     'tdi.item_no',
                     'tdi.line_no',
-                    'tdi.description',
+                    'tdi.description as item_description',
                     'tdi.class_group_code',
-                    'cg.group_name',
+                    'cg.class_name as group_name',
                     'tdi.class_code',
                     'c.premtype_name as class_name',
                     'tdi.line_rate',
                     'tdi.amount as gross_amount',
                     'tdi.ledger',
+                    'tdi.type as item_type',
+                    'dn.type as note_type',
                     'dn.debit_note_no',
                     'dn.posting_date',
                     'dn.posting_quarter',
@@ -138,11 +174,13 @@ class QuarterlyDebitController extends Controller
                     'dn.commission_amount',
                     'tdi.net_amount',
                     'tdi.status',
-                    'tc.description',
+                    'tc.description as treaty_item_description',
                 ]);
 
-            if (!empty($debitNoteNo)) {
-                $query->where('dn.debit_note_no', $debitNoteNo);
+            if (! empty($resolvedDebitNoteNo)) {
+                $query->where('dn.debit_note_no', $resolvedDebitNoteNo);
+            } else {
+                $query->whereRaw('1 = 0');
             }
 
             $totalRecords = (clone $query)->distinct('tdi.id')->count('tdi.id');
@@ -174,7 +212,7 @@ class QuarterlyDebitController extends Controller
                         'item_code' => $row->item_code,
                         'line_no' => $row->line_no,
                         'item_no' => $row->item_no,
-                        'description' => $row->description,
+                        'description' => $row->item_description,
                         'class_group_code' => $row->class_group_code,
                         'class_code' => $row->class_code,
                         'line_rate' => $lineRate,
@@ -191,7 +229,9 @@ class QuarterlyDebitController extends Controller
                         'status' => $row->status,
                         'class_name' => $row->class_name,
                         'group_name' => $row->group_name,
-                        'transaction_type' => $row->description,
+                        'transaction_type' => strtolower((string) ($row->item_type ?? $row->note_type ?? '')) === 'portfolio'
+                            ? (string) ($row->item_description ?? '-')
+                            : (string) ($row->treaty_item_description ?? $row->item_description ?? '-'),
                         'status_badge' => $this->getStatusBadge($row->status),
                     ];
                 });
@@ -203,6 +243,7 @@ class QuarterlyDebitController extends Controller
                 'data' => $data,
             ]);
         } catch (Exception $e) {
+            logger($e);
             return response()->json([
                 'draw' => intval($request->input('draw', 1)),
                 'recordsTotal' => 0,
@@ -666,12 +707,51 @@ class QuarterlyDebitController extends Controller
         }
     }
 
-    public function listReinsurers(): JsonResponse
+    public function listReinsurers(Request $request): JsonResponse
     {
         try {
+            $coverNo = trim((string) ($request->input('cover_no') ?? $request->route('coverNo') ?? ''));
+            $endorsementNo = trim((string) $request->input('endorsement_no', ''));
+
+            if ($coverNo === '') {
+                return response()->json([
+                    'success' => true,
+                    'data' => [],
+                ]);
+            }
+
+            if ($endorsementNo === '') {
+                $endorsementNo = trim((string) DB::table('cover_register')
+                    ->where('cover_no', $coverNo)
+                    ->orderByDesc('id')
+                    ->value('endorsement_no'));
+            }
+
+            if ($endorsementNo === '') {
+                return response()->json([
+                    'success' => true,
+                    'data' => [],
+                ]);
+            }
+
+            $reinsurers = CoverRipart::query()
+                ->where('cover_no', $coverNo)
+                ->where('endorsement_no', $endorsementNo)
+                ->with('partner')
+                ->get()
+                ->map(function ($rein) {
+                    return [
+                        'id' => $rein->partner_no,
+                        'partner_no' => $rein->partner_no,
+                        'name' => (string) ($rein->partner?->name ?? ''),
+                        'email' => (string) ($rein->partner?->email ?? ''),
+                    ];
+                })
+                ->values();
+
             return response()->json([
                 'success' => true,
-                'data' => [],
+                'data' => $reinsurers,
             ]);
         } catch (Exception $e) {
 
@@ -1107,7 +1187,7 @@ class QuarterlyDebitController extends Controller
         $debitItems = DB::table('debit_note_items as tdi')
             ->join('debit_notes as dn', 'tdi.debit_note_id', '=', 'dn.id')
             ->leftJoin('treaty_item_codes as tc', 'tdi.item_code', '=', 'tc.item_code')
-            ->leftJoin('class_groups as cg', 'tdi.class_group_code', '=', 'cg.group_code')
+            ->leftJoin('reinsclasses as cg', 'tdi.class_group_code', '=', 'cg.group_code')
             ->leftJoin('reinclass_premtypes as c', function ($join) {
                 $join->on('tdi.class_code', '=', 'c.premtype_code')
                     ->on('tdi.class_group_code', '=', 'c.reinclass');
@@ -1120,7 +1200,7 @@ class QuarterlyDebitController extends Controller
                 'tdi.line_no',
                 DB::raw('COALESCE(tc.description, tdi.description) as item_name'),
                 'tdi.class_group_code',
-                'cg.group_name',
+                'cg.class_name as group_name',
                 'tdi.class_code',
                 'c.premtype_name as class_name',
                 'tdi.line_rate',
@@ -1583,6 +1663,7 @@ class QuarterlyDebitController extends Controller
                 'partner_no' => 'required|string',
                 'with_brokerage' => 'nullable|in:0,1',
                 'note_type' => 'nullable|in:credit_note,cover_note,debit_note',
+                'entry_type' => 'nullable|string',
                 'posting_year' => 'nullable|integer',
                 'posting_quarter' => 'nullable|string',
             ]);
@@ -1592,6 +1673,7 @@ class QuarterlyDebitController extends Controller
             $partnerNo = $validated['partner_no'];
             $withBrokerage = ($request->input('with_brokerage', '1') === '1');
             $noteType = (string) $request->input('note_type', 'credit_note');
+            $entryType = strtolower((string) $request->input('entry_type', ''));
             $postingYear = $request->input('posting_year');
             $postingQuarter = $this->normalizeQuarterCode($request->input('posting_quarter'));
 
@@ -1622,6 +1704,9 @@ class QuarterlyDebitController extends Controller
                 $debitNoteQuery = DB::table('debit_notes')
                     ->where('cover_no', $coverNo)
                     ->where('endorsement_no', $endorsementNo);
+                if ($entryType === 'portfolio') {
+                    $debitNoteQuery->whereRaw("LOWER(COALESCE(type, '')) = 'portfolio'");
+                }
                 if (! empty($postingYear)) {
                     $debitNoteQuery->where('posting_year', $postingYear);
                 }
@@ -1657,13 +1742,24 @@ class QuarterlyDebitController extends Controller
                 $debitItems = DB::table('debit_note_items as tdi')
                     ->join('debit_notes as dn', 'tdi.debit_note_id', '=', 'dn.id')
                     ->leftJoin('treaty_item_codes as tc', 'tdi.item_code', '=', 'tc.item_code')
+                    ->leftJoin('reinsclasses as rc', 'tdi.class_group_code', '=', 'rc.class_code')
                     ->where('tdi.debit_note_id', $debitNote->id)
+                    ->when($entryType === 'portfolio', function ($q) {
+                        $q->whereRaw("LOWER(COALESCE(tdi.type, dn.type, '')) = 'portfolio'");
+                    })
                     ->select([
                         'tdi.item_code',
-                        DB::raw('COALESCE(tc.description, tdi.description) as item_name'),
+                        DB::raw("
+                            CASE
+                                WHEN LOWER(COALESCE(dn.type, '')) = 'portfolio'
+                                    THEN COALESCE(tdi.description, tc.description)
+                                ELSE COALESCE(tc.description, tdi.description)
+                            END as item_name
+                        "),
                         'tdi.ledger',
                         'tdi.amount as item_amount',
-                        'tdi.class_group_code'
+                        'tdi.class_group_code',
+                        'rc.class_name as class_name'
                     ])
                     ->orderBy('tdi.id', 'asc')
                     ->get();
@@ -1741,6 +1837,9 @@ class QuarterlyDebitController extends Controller
             $creditNoteBaseQuery = DB::table('credit_notes')
                 ->where('cover_no', $coverNo)
                 ->where('endorsement_no', $endorsementNo)
+                ->when($entryType === 'portfolio' && Schema::hasColumn('credit_notes', 'type'), function ($query) {
+                    $query->whereRaw("LOWER(COALESCE(type, '')) = 'portfolio'");
+                })
                 ->when(!empty($postingYear), function ($query) use ($postingYear) {
                     $query->where('posting_year', $postingYear);
                 })
@@ -1792,6 +1891,7 @@ class QuarterlyDebitController extends Controller
             $creditItems = DB::table('credit_note_items as tci')
                 ->join('credit_notes as cn', 'tci.credit_note_id', '=', 'cn.id')
                 ->leftJoin('treaty_item_codes as tic', 'tci.item_code', '=', 'tic.item_code')
+                ->leftJoin('reinsclasses as rc', 'tci.class_group_code', '=', 'rc.class_code')
                 ->leftJoin('class_groups as cg', 'tci.class_group_code', '=', 'cg.group_code')
                 ->leftJoinSub($classTypesSub, 'c', function ($join) {
                     $join->on('tci.class_code', '=', 'c.premtype_code')
@@ -1801,13 +1901,18 @@ class QuarterlyDebitController extends Controller
                 ->select([
                     'tci.id',
                     'tci.item_code',
-                    DB::raw('COALESCE(tic.description, tci.description) as item_name'),
+                    DB::raw(
+                        $entryType === 'portfolio'
+                            ? 'COALESCE(tci.description, tic.description) as item_name'
+                            : 'COALESCE(tic.description, tci.description) as item_name'
+                    ),
                     'tci.line_no',
                     'tci.description',
                     'tci.class_group_code',
                     'cg.group_name',
                     'tci.class_code',
-                    'c.premtype_name as class_name',
+                    'rc.class_name as class_name',
+                    'c.premtype_name as premtype_name',
                     'tci.line_rate',
                     'tci.amount as item_amount',
                     'tci.ledger',
@@ -1823,6 +1928,14 @@ class QuarterlyDebitController extends Controller
                 ->get()
                 ->unique('id')
                 ->values();
+            if ($entryType === 'portfolio') {
+                $creditItems = $creditItems
+                    ->filter(function ($item) {
+                        $text = strtoupper((string) ($item->item_name ?? $item->description ?? ''));
+                        return str_contains($text, 'PORTFOLIO');
+                    })
+                    ->values();
+            }
 
             $totalGross = $creditNote->gross_amount;
             $totalCommission = $creditNote->commission_amount;
@@ -1861,6 +1974,7 @@ class QuarterlyDebitController extends Controller
             $documentData = [
                 'reference_no' => $creditNote->credit_note_no,
                 'document_type' => $documentType,
+                'entry_type' => $entryType,
                 'generated_date' => Carbon::now(),
                 'cover' => $cover,
                 'customer' => $cedant,
@@ -1886,7 +2000,11 @@ class QuarterlyDebitController extends Controller
                 'with_brokerage' => $withBrokerage,
             ];
 
-            $pdf = Pdf::loadView('printouts.accounts.treaty-credit-note', $documentData)
+            $pdfView = $entryType === 'portfolio'
+                ? 'printouts.accounts.treaty-credit-note-portfolio'
+                : 'printouts.accounts.treaty-credit-note';
+
+            $pdf = Pdf::loadView($pdfView, $documentData)
                 ->setPaper('a4', 'portrait')
                 ->setWarnings(false);
             $pdf->set_option('isHtml5ParserEnabled', true);
@@ -1911,7 +2029,9 @@ class QuarterlyDebitController extends Controller
                 'cover_no' => 'required|string',
                 'endorsement_no' => 'required|string',
                 'cedant_id' => 'required|string',
-                'note_type' => 'nullable|in:debit_note,cover_note,credit_note',
+                'note_type' => 'nullable|in:debit_note,cover_note,credit_note,portfolio',
+                'ref_no' => 'nullable|string',
+                'debit_note_no' => 'nullable|string',
                 'posting_year' => 'nullable|integer',
                 'posting_quarter' => 'nullable|string',
             ]);
@@ -1919,9 +2039,11 @@ class QuarterlyDebitController extends Controller
             $coverNo = $validated['cover_no'];
             $endorsementNo = $validated['endorsement_no'];
             $noteType = (string) $request->input('note_type', 'debit_note');
+            $isPortfolioRequest = ($noteType === 'portfolio');
             $isCoverNote = ($noteType === 'cover_note');
             $isCreditNote = ($noteType === 'credit_note');
-            $documentType = $isCreditNote ? 'Credit Note' : ($isCoverNote ? 'Cover Note' : 'Debit Note');
+            $referenceNo = trim((string) $request->input('ref_no', ''));
+            $requestedDebitNoteNo = trim((string) $request->input('debit_note_no', ''));
             $postingYear = $request->input('posting_year');
             $postingQuarter = $this->normalizeQuarterCode($request->input('posting_quarter'));
 
@@ -1938,10 +2060,58 @@ class QuarterlyDebitController extends Controller
                 ->where('customer_id', $cover->customer_id)
                 ->first();
 
+            $portfolioDirection = null;
+            if ($isPortfolioRequest) {
+                $portfolioDirection = $this->resolvePortfolioDirection(
+                    $coverNo,
+                    $endorsementNo,
+                    $requestedDebitNoteNo,
+                    $postingYear,
+                    $postingQuarter,
+                    $referenceNo,
+                    $cover
+                );
+            }
+            $isPortfolioOut = $isPortfolioRequest && $portfolioDirection === 'OUT';
+            $documentType = $isCreditNote
+                ? 'Credit Note'
+                : ($isCoverNote
+                    ? 'Cover Note'
+                    : ($isPortfolioRequest
+                        ? ($isPortfolioOut ? 'Credit Note' : 'Debit Note')
+                        : 'Debit Note'));
+
             if ($isCreditNote) {
+                $creditNoteSelect = [
+                    'id',
+                    DB::raw('credit_note_no as debit_note_no'),
+                    'cover_no',
+                    'type_of_bus',
+                    'posting_year',
+                    'posting_quarter',
+                    'posting_date',
+                    'gross_amount',
+                    'net_amount',
+                    'commission_amount',
+                    Schema::hasColumn('credit_notes', 'compute_reinsurance_tax')
+                        ? 'compute_reinsurance_tax'
+                        : DB::raw('0 as compute_reinsurance_tax'),
+                    'status',
+                    Schema::hasColumn('credit_notes', 'type')
+                        ? DB::raw('type as note_type')
+                        : DB::raw("'credit_note' as note_type"),
+                    'created_at',
+                    Schema::hasColumn('credit_notes', 'other_deductions')
+                        ? 'other_deductions'
+                        : DB::raw('0 as other_deductions'),
+                ];
+
                 $debitNoteQuery = DB::table('credit_notes')
                     ->where('cover_no', $coverNo)
                     ->where('endorsement_no', $endorsementNo);
+                if ($requestedDebitNoteNo !== '') {
+                    $debitNoteQuery->where('credit_note_no', $requestedDebitNoteNo);
+                }
                 if (! empty($postingYear)) {
                     $debitNoteQuery->where('posting_year', $postingYear);
                 }
@@ -1951,26 +2121,27 @@ class QuarterlyDebitController extends Controller
                 $debitNote = $debitNoteQuery
                     ->orderByDesc('posting_date')
                     ->orderByDesc('id')
-                    ->select([
-                        'id',
-                        DB::raw('credit_note_no as debit_note_no'),
-                        'cover_no',
-                        'type_of_bus',
-                        'posting_year',
-                        'posting_quarter',
-                        'posting_date',
-                        'gross_amount',
-                        'net_amount',
-                        'commission_amount',
-                        'compute_reinsurance_tax',
-                        'created_at',
-                        'other_deductions'
-                    ])
+                    ->select($creditNoteSelect)
                     ->first();
             } else {
                 $debitNoteQuery = DB::table('debit_notes')
                     ->where('cover_no', $coverNo)
                     ->where('endorsement_no', $endorsementNo);
+                if ($isPortfolioRequest) {
+                    $debitNoteQuery->where('type', 'portfolio');
+                    if (in_array($portfolioDirection, ['IN', 'OUT'], true)) {
+                        $portfolioMarker = "%PORTFOLIO ENTRY - {$portfolioDirection}%";
+                        $debitNoteQuery->whereExists(function ($q) use ($portfolioMarker) {
+                            $q->selectRaw('1')
+                                ->from('debit_note_items as dni')
+                                ->whereColumn('dni.debit_note_id', 'debit_notes.id')
+                                ->whereRaw('UPPER(COALESCE(dni.description, \'\')) LIKE ?', [$portfolioMarker]);
+                        });
+                    }
+                }
+                if ($requestedDebitNoteNo !== '') {
+                    $debitNoteQuery->where('debit_note_no', $requestedDebitNoteNo);
+                }
                 if (! empty($postingYear)) {
                     $debitNoteQuery->where('posting_year', $postingYear);
                 }
@@ -1991,6 +2162,8 @@ class QuarterlyDebitController extends Controller
                         'gross_amount',
                         'net_amount',
                         'commission_amount',
+                        'status',
+                        'type as note_type',
                         'created_at',
                         'other_deductions'
                     ])
@@ -2053,7 +2226,13 @@ class QuarterlyDebitController extends Controller
                         'tdi.item_code',
                         'tdi.item_no',
                         'tdi.line_no',
-                        DB::raw('COALESCE(tc.description, tdi.description) as item_name'),
+                        DB::raw("
+                            CASE
+                                WHEN LOWER(COALESCE(tdi.type, dn.type, '')) = 'portfolio'
+                                    THEN COALESCE(tdi.description, tc.description)
+                                ELSE COALESCE(tc.description, tdi.description)
+                            END as item_name
+                        "),
                         'tdi.class_group_code',
                         'cg.group_name',
                         'tdi.class_code',
@@ -2090,6 +2269,15 @@ class QuarterlyDebitController extends Controller
             $hasPremiumTax = $debitItems->contains(fn($item) => strtoupper((string) ($item->item_code ?? '')) === 'IT05');
             $netTaxFactor = $this->resolveNetTaxFactor($cover, $hasNetOfTaxReinsurer, $hasPremiumTax);
             $sharePercent = (float) ($cover->share_offered ?? 0) * $netTaxFactor;
+            $isPortfolioNote = $isPortfolioRequest || strtolower((string) ($debitNote->note_type ?? '')) === 'portfolio';
+            $isNotPosted = strtoupper((string) ($debitNote->status ?? '')) !== 'POSTED';
+            $postingNo = DB::table('cover_debit')
+                ->where('cover_no', $coverNo)
+                ->where('endorsement_no', $endorsementNo)
+                ->orderByDesc('period_year')
+                ->orderByDesc('period_month')
+                ->value('dr_no');
+            $postingNo = $postingNo ?: ($debitNote->debit_note_no ?? '-');
             $ppw = PremiumPayTerm::where('pay_term_code', $cover->premium_payment_code ?? null)->first();
 
             $company = Company::first();
@@ -2158,6 +2346,12 @@ class QuarterlyDebitController extends Controller
                 'treat_type' => $treatyType,
                 'underwriting_quarter' => $underwritingQuarter,
                 'share_percent' => $sharePercent,
+                'is_portfolio_note' => $isPortfolioNote,
+                'portfolio_direction' => $portfolioDirection,
+                'reverse_portfolio_columns' => $isPortfolioOut,
+                'is_not_posted' => $isNotPosted,
+                'posting_no' => $postingNo,
+                'balance_label' => ($isCreditNote || $isPortfolioOut) ? 'BALANCE DUE TO YOU' : 'BALANCE DUE FROM YOU',
                 'ppw' => $ppw,
                 'company' => $company,
                 'totals' => (object) [
@@ -2174,14 +2368,18 @@ class QuarterlyDebitController extends Controller
                 ],
             ];
 
-            $pdf = Pdf::loadView('printouts.accounts.treaty-debit-note', $documentData)
+            $pdfView = $isPortfolioNote ? 'printouts.accounts.portfolio-statement' : 'printouts.accounts.treaty-debit-note';
+
+            $pdf = Pdf::loadView($pdfView, $documentData)
                 ->setPaper('a4', 'portrait')
                 ->setWarnings(false);
             $pdf->set_option('isHtml5ParserEnabled', true);
             $pdf->set_option('isPhpEnabled', true);
             $pdf->set_option('isRemoteEnabled', true);
 
-            $filenamePrefix = $isCreditNote ? 'credit-note' : ($isCoverNote ? 'cover-note' : 'debit-note');
+            $filenamePrefix = $isCreditNote
+                ? 'credit-note'
+                : ($isCoverNote ? 'cover-note' : ($isPortfolioNote ? ($isPortfolioOut ? 'portfolio-credit-note' : 'portfolio-debit-note') : 'debit-note'));
             $filename = $filenamePrefix . '-' . $debitNote->debit_note_no . '-cedant.pdf';
 
             return $pdf->stream($filename);
@@ -2190,6 +2388,79 @@ class QuarterlyDebitController extends Controller
         } catch (Exception $e) {
             abort(500, 'Failed to generate statement: ' . $e->getMessage());
         }
+    }
+
+    public function viewCedantPortfolioNote(Request $request)
+    {
+        $request->merge(['note_type' => 'portfolio']);
+
+        return $this->viewCedantDebitNote($request);
+    }
+
+    private function resolvePortfolioDirection(
+        string $coverNo,
+        string $endorsementNo,
+        string $debitNoteNo = '',
+        $postingYear = null,
+        ?string $postingQuarter = null,
+        string $referenceNo = '',
+        ?object $cover = null
+    ): string {
+        $direction = null;
+
+        if ($referenceNo !== '') {
+            $direction = DB::table('customeracc_det')
+                ->where('cover_no', $coverNo)
+                ->where('endorsement_no', $endorsementNo)
+                ->where('entry_type_descr', 'portfolio')
+                ->where('reference', $referenceNo)
+                ->orderByDesc('created_date')
+                ->orderByDesc('created_at')
+                ->value('portfolio_type');
+        }
+
+        if (! in_array(strtoupper((string) $direction), ['IN', 'OUT'], true) && $debitNoteNo !== '') {
+            $direction = DB::table('customeracc_det as cad')
+                ->join('debit_notes as dn', function ($join) {
+                    $join->on('dn.cover_no', '=', 'cad.cover_no')
+                        ->on('dn.endorsement_no', '=', 'cad.endorsement_no')
+                        ->on('dn.posting_year', '=', 'cad.account_year');
+                })
+                ->where('cad.cover_no', $coverNo)
+                ->where('cad.endorsement_no', $endorsementNo)
+                ->where('cad.entry_type_descr', 'portfolio')
+                ->where('dn.type', 'portfolio')
+                ->where('dn.debit_note_no', $debitNoteNo)
+                ->orderByDesc('cad.created_date')
+                ->orderByDesc('cad.created_at')
+                ->value('cad.portfolio_type');
+        }
+
+        if (! in_array(strtoupper((string) $direction), ['IN', 'OUT'], true) && ! empty($postingYear)) {
+            $directionQuery = DB::table('customeracc_det')
+                ->where('cover_no', $coverNo)
+                ->where('endorsement_no', $endorsementNo)
+                ->where('entry_type_descr', 'portfolio')
+                ->where('account_year', (int) $postingYear)
+                ->orderByDesc('created_date')
+                ->orderByDesc('created_at');
+            if (! empty($postingQuarter)) {
+                $directionQuery->where('quarter', $postingQuarter);
+            }
+            $direction = $directionQuery->value('portfolio_type');
+        }
+
+        $direction = strtoupper((string) $direction);
+        if (in_array($direction, ['IN', 'OUT'], true)) {
+            return $direction;
+        }
+
+        $coverTitle = strtoupper((string) ($cover->cover_title ?? ''));
+        if (str_contains($coverTitle, 'PORTFOLIO OUT')) {
+            return 'OUT';
+        }
+
+        return 'IN';
     }
 
     private function hasNetOfTaxReinsurer(string $coverNo, string $endorsementNo): bool

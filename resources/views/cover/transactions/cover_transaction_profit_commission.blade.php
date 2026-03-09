@@ -537,7 +537,7 @@
 
     <div class="d-md-flex d-block align-items-center justify-content-between my-4 page-header-breadcrumb">
         <div>
-            <h1 class="page-title fw-semibold fs-18 mb-1">Profit Commission Statement of Account</h1>
+            <h1 class="page-title fw-semibold fs-18 mb-1">Profit Commission</h1>
             <p class="text-muted mb-0 fw-medium">
                 {{ $cover->cover_no ?? 'N/A' }} - {{ $cover->cover_title ?? ($cover->treaty_name ?? 'Untitled') }}
             </p>
@@ -564,7 +564,7 @@
         <div class="card-body mx-0 cover-info-wrapper" style="background-color:var(--cover-bg);border-radius:0.375rem;">
             <a href="{{ route('cover.transactions.index', ['coverNo' => $cover->cover_no ?? '']) }}"
                 class="btn btn-outline-dark btn-sm text-start me-2">
-                <i class="ri-exchange-line me-2"></i>Transactions
+                <i class="bi bi-arrow-left me-1"></i>Go To Transactions
             </a>
         </div>
     </div>
@@ -658,16 +658,16 @@
                             <span class="badge bg-danger ms-1" id="creditItemsCount">0</span>
                         </button> --}}
 
+                        <button class="nav-link" id="nav-cedant-tab" data-bs-toggle="tab" data-bs-target="#cedant-tab"
+                            type="button" role="tab" aria-controls="cedant-tab" aria-selected="false">
+                            <i class="bx bx-briefcase me-1"></i> Cedant
+                        </button>
+
                         <button class="nav-link" id="nav-reinsurers-tab" data-bs-toggle="tab"
                             data-bs-target="#reinsurers-tab" type="button" role="tab" aria-controls="reinsurers-tab"
                             aria-selected="false">
                             <i class="ri-building-2-line me-1"></i> Reinsurers
                             {{-- <span class="badge bg-info ms-1" id="reinsurersCount">{{ $totalReinsurers }}</span> --}}
-                        </button>
-
-                        <button class="nav-link" id="nav-cedant-tab" data-bs-toggle="tab" data-bs-target="#cedant-tab"
-                            type="button" role="tab" aria-controls="cedant-tab" aria-selected="false">
-                            <i class="bx bx-briefcase me-1"></i> Cedant
                         </button>
 
                         <button class="nav-link" id="nav-approvals-tab" data-bs-toggle="tab" data-bs-target="#approvals-tab"
