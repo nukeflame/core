@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Enums\SystemActionEnums;
+use Nukeflame\Webmatics\Enums\SystemActionEnums;
 use App\Events\ApprovalTrackerEvent;
 use App\Http\Traits\ApprovalTrackerTrait;
 use Carbon\Carbon;

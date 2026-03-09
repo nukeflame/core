@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Enums\PermissionsLevel;
+use Nukeflame\Webmatics\Enums\PermissionsLevel;
 use App\Exceptions\BusinessRuleException;
 use App\Http\Requests\CoverRegistrationRequest;
 use App\Jobs\SendReinsurerEmailJob;

@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\BdController;
 
-use App\Enums\Stage;
+use Nukeflame\Webmatics\Enums\Stage;
 use App\Jobs\SendQuoteJob;
 use App\Jobs\TreatyJob;
 use App\Models\Bd\CustomerContact;

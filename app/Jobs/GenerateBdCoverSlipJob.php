@@ -2,7 +2,7 @@
 
 namespace App\Jobs;
 
-use App\Enums\Stage;
+use Nukeflame\Webmatics\Enums\Stage;
 use App\Http\Controllers\QuotationController;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;

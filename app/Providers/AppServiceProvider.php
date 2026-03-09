@@ -4,7 +4,7 @@ namespace App\Providers;
 
 use App\Console\Commands\AuthenticateOutlook;
 use App\Console\Commands\FetchOutlookEmails;
-use App\Enums\PermissionsLevel;
+use Nukeflame\Webmatics\Enums\PermissionsLevel;
 use App\Models\Bd\PipelineOpportunity;
 use App\Observers\Bd\PipelineOpportunityObserver;
 use Carbon\Carbon;

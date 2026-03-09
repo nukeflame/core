@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Enums\SystemActionEnums;
+use Nukeflame\Webmatics\Enums\SystemActionEnums;
 use App\Jobs\SendClaimNotificationJob;
 use Throwable;
 use Carbon\Carbon;

@@ -2,7 +2,7 @@
 
 namespace Database\Seeders;
 
-use App\Enums\PermissionsLevel;
+use Nukeflame\Webmatics\Enums\PermissionsLevel;
 use App\Models\Department;
 use App\Models\Role;
 use Illuminate\Database\Seeder;

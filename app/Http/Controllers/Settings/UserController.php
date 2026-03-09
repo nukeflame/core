@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Settings;
 
-use App\Enums\PermissionsLevel;
+use Nukeflame\Webmatics\Enums\PermissionsLevel;
 use App\Http\Controllers\Controller;
 use App\Models\AllowedEmailDomain;
 use App\Models\Department;
