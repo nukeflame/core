@@ -145,10 +145,13 @@ class CustomerService
         $startOfLastMonth = $now->copy()->subMonth()->startOfMonth();
         $endOfLastMonth = $now->copy()->subMonth()->endOfMonth();
 
-        $totalCustomers = Customer::count();
+        $cedantTypeId = DB::table('customer_types')->where('code', 'CED')->value('type_id');
+        $totalCustomers = Customer::whereRaw("customer_type::text LIKE ?", ['%' . $cedantTypeId . '%'])->count();
 
-        $customersThisMonth = Customer::where('created_at', '>=', $startOfMonth)->count();
-        $customersLastMonth = Customer::whereBetween('created_at', [$startOfLastMonth, $endOfLastMonth])->count();
+        $customersThisMonth = Customer::whereRaw("customer_type::text LIKE ?", ['%' . $cedantTypeId . '%'])
+            ->where('created_at', '>=', $startOfMonth)->count();
+        $customersLastMonth = Customer::whereRaw("customer_type::text LIKE ?", ['%' . $cedantTypeId . '%'])
+            ->whereBetween('created_at', [$startOfLastMonth, $endOfLastMonth])->count();
 
         $totalChange = $this->calculatePercentageChange($customersThisMonth, $customersLastMonth);
         $activeCovers = DB::table('cover_register')->where('status',  'A')->count();
@@ -161,27 +164,23 @@ class CustomerService
             ->count();
 
         $coversChange = $this->calculatePercentageChange($coversThisMonth, $coversLastMonth);
-        $uniqueTypes = DB::table('customers')
-            ->join('customer_types', function ($join) {
-                $join->whereRaw(
-                    "customers.customer_type::jsonb @> to_jsonb(customer_types.type_id::text)::jsonb"
-                );
-            })
-            ->distinct()
-            ->count('customer_types.type_id');
 
-        $typesBreakdown = DB::table('customers')
-            ->join('customer_types', function ($join) {
-                $join->whereRaw(
-                    "customers.customer_type::jsonb @> to_jsonb(customer_types.type_id::text)::jsonb"
-                );
-            })
-            ->select('customer_types.type_name as name', DB::raw('COUNT(*) as count'))
-            ->groupBy('customer_types.type_id', 'customer_types.type_name')
-            ->orderByDesc('count')
-            ->limit(5)
-            ->get();
+        $customerTypes = DB::table('customer_types')->get();
+        $uniqueTypes = 0;
+        $typesBreakdown = collect();
 
+        foreach ($customerTypes as $type) {
+            $count = Customer::whereRaw("customer_type::text LIKE ?", ['%' . $type->type_id . '%'])->count();
+            if ($count > 0) {
+                $uniqueTypes++;
+                $typesBreakdown->push([
+                    'name' => $type->type_name,
+                    'count' => $count
+                ]);
+            }
+        }
+
+        $typesBreakdown = $typesBreakdown->sortByDesc('count')->take(5)->values();
 
         $recentActivity = Customer::where(function ($query) use ($now) {
             $query->where('created_at', '>=', $now->copy()->subDays(7))
