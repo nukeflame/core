@@ -13,14 +13,6 @@ use Illuminate\Support\Facades\DB;
 
 class BudgetService
 {
-    /**
-     * Check if the new performance record exceeds budget constraints
-     *
-     * @param string $period
-     * @param array $data
-     * @param int $staffCount
-     * @return array
-     */
     public function checkBudgetConstraint(string $period, array $data, int $staffCount): array
     {
         $budget = BudgetAllocation::getActiveBudget($period);
@@ -34,7 +26,6 @@ class BudgetService
 
         $utilization = $this->getPeriodUtilization($period);
 
-        // Calculate totals from the new data (multiplied by staff count)
         $newBusinessGwp = ($data['new_fac_gwp'] + $data['new_special_gwp'] +
             $data['new_treaty_gwp'] + $data['new_market_gwp']) * $staffCount;
 

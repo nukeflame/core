@@ -2,15 +2,10 @@
 
 namespace Nukeflame\Core\Services;
 
-use App\Models\Bd\PipelineOpportunity;
 use App\Models\CoverRegister;
-use App\Models\CoverInstallment;
-use App\Models\CoverReinProp;
-use App\Models\CoverReinLayer;
 use App\Models\HandoverApproval;
 use App\Repositories\CoverRepository;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Auth;
 use Exception;
 
 class CoverService
@@ -22,9 +17,6 @@ class CoverService
         $this->coverRepository = $coverRepository;
     }
 
-    /**
-     * Get form data for cover registration
-     */
     public function getFormData(string $transType, $customerId = null, $endorsementNo = null): array
     {
         $data = [
@@ -72,11 +64,7 @@ class CoverService
         try {
             $repositoryData = $this->transformRequestData($data);
 
-            $cover = $this->coverRepository->registerCover((object) $repositoryData);
-
-            // $this->processInstallments($cover, $data);
-
-            // $this->processBusinessTypeSpecifics($cover, $data);
+            $cover = $this->registerCover((object) $repositoryData);
 
             $prospect = HandoverApproval::where(['prospect_id' => $cover->prospect_id])->first();
             if ($prospect) {
@@ -95,6 +83,23 @@ class CoverService
         }
     }
 
+    public function registerCover(object $data)
+    {
+        DB::beginTransaction();
+
+        try {
+            $result = $this->coverRepository->persistCoverRegistration($data);
+
+            DB::commit();
+
+            return $result;
+        } catch (Exception $e) {
+            DB::rollBack();
+
+            throw $e;
+        }
+    }
+
     protected function processInstallments(CoverRegister $cover, array $data): void
     {
         if (!isset($data['installment_date']) || !is_array($data['installment_date'])) {
@@ -105,13 +110,8 @@ class CoverService
         }
     }
 
-    /**
-     * Renew existing cover
-     */
     public function renewCover(array $data)
     {
-        DB::beginTransaction();
-
         try {
             $oldCover = CoverRegister::where('cover_no', $data['cover_no'])->firstOrFail();
 
@@ -120,17 +120,13 @@ class CoverService
                 'endorsement_no' => $oldCover->endorsement_no,
             ]));
 
-            $result = $this->coverRepository->registerCover((object) $repositoryData);
-
-            DB::commit();
+            $result = $this->registerCover((object) $repositoryData);
 
             return [
                 'success' => true,
                 'endorsement_no' => $result->endorsement_no ?? null,
             ];
         } catch (Exception $e) {
-            DB::rollBack();
-
             throw $e;
         }
     }
@@ -142,9 +138,6 @@ class CoverService
         return true;
     }
 
-    /**
-     * Process endorsement (EXT, CNC, RFN, NIL)
-     */
     public function processEndorsement(array $data, string $type)
     {
         DB::beginTransaction();
@@ -169,9 +162,6 @@ class CoverService
         }
     }
 
-    /**
-     * Update existing cover
-     */
     public function updateCover(string $endorsementNo, array $data)
     {
         DB::beginTransaction();
@@ -290,7 +280,9 @@ class CoverService
             'method' => $data['method'] ?? null,
             'layer_no' => $data['layer_no'] ?? null,
             'nonprop_reinclass' => $data['nonprop_reinclass'] ?? null,
+            'nonprop_reinclass_desc' => $data['nonprop_reinclass_desc'] ?? null,
             'limit_per_reinclass' => $data['limit_per_reinclass'] ?? null,
+            'layer_description' => $data['layer_description'] ?? null,
             'indemnity_treaty_limit' => $data['indemnity_treaty_limit'] ?? null,
             'underlying_limit' => $data['underlying_limit'] ?? null,
             'egnpi' => $data['egnpi'] ?? null,
@@ -301,6 +293,7 @@ class CoverService
             'lower_adj' => $data['lower_adj'] ?? null,
             'min_deposit' => $data['min_deposit'] ?? [],
             'reinstatement_type' => $data['reinstatement_type'] ?? null,
+            'reinstatement_rate' => $data['reinstatement_rate'] ?? null,
             'reinstatement_value' => $data['reinstatement_value'] ?? null,
             'treaty_brokerage_comm_rate' => $data['treaty_brokerage_comm_rate'] ?? null,
 
@@ -327,9 +320,6 @@ class CoverService
         ];
     }
 
-    /**
-     * Map endorsement type to slug
-     */
     protected function mapEndorsementType(string $type): string
     {
         return match ($type) {
@@ -342,17 +332,11 @@ class CoverService
         };
     }
 
-    /**
-     * Calculate renewal date
-     */
     protected function calculateRenewalDate($coverToDate): string
     {
         return date('Y-m-d', strtotime($coverToDate . ' +1 day'));
     }
 
-    /**
-     * Parse amount removing commas
-     */
     protected function parseAmount($amount): float
     {
         if (is_string($amount)) {
