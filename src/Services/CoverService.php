@@ -274,6 +274,9 @@ class CoverService
             'premium_payment_term' => $data['premium_payment_term'] ?? null,
             'premium_payment_code' => $data['premium_payment_code'] ?? null,
             'flat_prem_type_comm_rate' => $data['flat_prem_type_comm_rate'] ?? [],
+            'sliding_treaty_prem_type_comm_rate' => $data['sliding_treaty_prem_type_comm_rate'] ?? [],
+            'sliding_treaty_provincial_comm_rate' => $data['sliding_treaty_provincial_comm_rate'] ?? [],
+            'sliding_scale_data' => $data['sliding_scale_data'] ?? [],
 
             // Treaty non-proportional arrays
             'reinclass_code' => $data['reinclass_code'] ?? null,
